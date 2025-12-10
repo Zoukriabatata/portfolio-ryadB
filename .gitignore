@@ -1,0 +1,7 @@
+PORTFOLIO/node_modules/
+PORTFOLIO/dist/
+PORTFOLIO/.vite/
+PORTFOLIO/.DS_Store
+PORTFOLIO/.env.local
+PORTFOLIO/.env
+
