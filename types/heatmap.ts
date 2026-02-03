@@ -121,3 +121,137 @@ export const DEFAULT_HEATMAP_SETTINGS: HeatmapSettings = {
   whaleColor: '#facc15',
   absorptionColor: '#f97316',
 };
+
+// ============ LIQUIDITY HEATMAP PRO TYPES ============
+
+export type ColorScheme = 'atas' | 'bookmap' | 'custom';
+export type SmoothingMode = 'auto' | 'manual' | 'none';
+export type BubbleShape = 'circle' | 'pie';
+
+export interface TradeFlowSettings {
+  enabled: boolean;
+  buyColor: string;
+  sellColor: string;
+  bubbleShape: BubbleShape;
+  cumulativeMode: boolean;
+  filterThreshold: number;
+  showTextLabels: boolean;
+}
+
+export interface DOMColorSettings {
+  askBackground: string;
+  bidBackground: string;
+  bestBidTextColor: string;
+  bestAskTextColor: string;
+}
+
+export interface HeatmapProSettings {
+  // General
+  autoCenter: boolean;
+  colorScheme: ColorScheme;
+
+  // Display
+  upperCutoffPercent: number;
+  contrast: number;
+  smoothing: SmoothingMode;
+  smoothingValue: number;
+  useTransparency: boolean;
+
+  // Best Bid/Ask
+  bestBidAskPixelSize: number;
+  bestBidColor: string;
+  bestAskColor: string;
+
+  // DOM
+  domColors: DOMColorSettings;
+  maxVolumePixelSize: number;
+
+  // Trade Flow
+  tradeFlow: TradeFlowSettings;
+
+  // Zoom/Pan
+  zoomLevel: number;
+  priceOffset: number;
+}
+
+export const DEFAULT_HEATMAP_PRO_SETTINGS: HeatmapProSettings = {
+  // General
+  autoCenter: true,
+  colorScheme: 'atas',
+
+  // Display
+  upperCutoffPercent: 95,
+  contrast: 1.5,
+  smoothing: 'auto',
+  smoothingValue: 5,
+  useTransparency: true,
+
+  // Best Bid/Ask
+  bestBidAskPixelSize: 50,
+  bestBidColor: '#22c55e',
+  bestAskColor: '#ef4444',
+
+  // DOM
+  domColors: {
+    askBackground: 'rgba(239, 68, 68, 0.3)',
+    bidBackground: 'rgba(34, 197, 94, 0.3)',
+    bestBidTextColor: '#22c55e',
+    bestAskTextColor: '#ef4444',
+  },
+  maxVolumePixelSize: 50,
+
+  // Trade Flow
+  tradeFlow: {
+    enabled: true,
+    buyColor: 'rgba(34, 197, 94, 0.6)',
+    sellColor: 'rgba(239, 68, 68, 0.6)',
+    bubbleShape: 'circle',
+    cumulativeMode: false,
+    filterThreshold: 0.5,
+    showTextLabels: false,
+  },
+
+  // Zoom/Pan
+  zoomLevel: 1,
+  priceOffset: 0,
+};
+
+export interface TradeEvent {
+  timestamp: number;
+  price: number;
+  volume: number;
+  side: 'buy' | 'sell';
+  buyVolume?: number;
+  sellVolume?: number;
+}
+
+export interface PriceRange {
+  min: number;
+  max: number;
+}
+
+export interface HeatmapCell {
+  price: number;
+  timestamp: number;
+  intensity: number;
+  quantity: number;
+}
+
+export interface HeatmapRenderData {
+  cells: HeatmapCell[];
+  bids: Map<number, number>;
+  asks: Map<number, number>;
+  bestBid: number;
+  bestAsk: number;
+  midPrice: number;
+  trades: TradeEvent[];
+  priceRange: PriceRange;
+  tickSize: number;
+}
+
+export interface HeatmapStats {
+  askTotal: number;
+  bidTotal: number;
+  delta: number;
+  volume: number;
+}
