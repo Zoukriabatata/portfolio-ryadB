@@ -199,24 +199,43 @@ export function LiquidityHeatmapPro({
         'futures'
       );
     } else {
-      // Simulate trades for CME symbols
+      // Simulate trades for CME symbols - more realistic simulation
+      let lastPrice = currentPrice || midPrice || 22000;
+      let trend = 0; // Momentum
+
       simulationInterval = setInterval(() => {
-        const basePrice = currentPrice || midPrice || 22000;
-        const priceVariation = (Math.random() - 0.5) * tickSize * 10;
-        const price = basePrice + priceVariation;
-        const isBuy = Math.random() > 0.5;
-        const volume = Math.random() * 5 + 0.5; // 0.5 to 5.5 contracts
+        // Add some trend/momentum to price movement
+        trend = trend * 0.95 + (Math.random() - 0.5) * 0.1;
+        const priceMove = trend * tickSize * 2 + (Math.random() - 0.5) * tickSize * 3;
+        lastPrice = lastPrice + priceMove;
+
+        // Round to tick size
+        const price = Math.round(lastPrice / tickSize) * tickSize;
+
+        // More realistic buy/sell distribution based on price movement
+        const isBuy = priceMove > 0 ? Math.random() > 0.3 : Math.random() > 0.7;
+
+        // Volume distribution: mostly small, occasionally large
+        const volumeRand = Math.random();
+        let volume: number;
+        if (volumeRand < 0.7) {
+          volume = Math.random() * 2 + 0.5; // Small: 0.5-2.5
+        } else if (volumeRand < 0.95) {
+          volume = Math.random() * 5 + 2; // Medium: 2-7
+        } else {
+          volume = Math.random() * 15 + 5; // Large: 5-20
+        }
 
         const simulatedTrade = {
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random(),
           price,
           quantity: volume,
           time: Date.now(),
-          isBuyerMaker: !isBuy, // isBuyerMaker=false means taker is buyer
+          isBuyerMaker: !isBuy,
         };
 
         addTrade(simulatedTrade);
-      }, 200 + Math.random() * 300); // Every 200-500ms
+      }, 80 + Math.random() * 150); // Every 80-230ms (faster)
     }
 
     return () => {
@@ -513,7 +532,11 @@ export function LiquidityHeatmapPro({
         </svg>
       ),
       onClick: () => {
-        settings.openSettingsPanel(contextMenu.position);
+        // Open settings panel at a fixed position (top-right of container)
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        const panelX = containerRect ? containerRect.right - 380 : 100;
+        const panelY = containerRect ? containerRect.top + 50 : 100;
+        settings.openSettingsPanel({ x: panelX, y: panelY });
         closeContextMenu();
       },
     },

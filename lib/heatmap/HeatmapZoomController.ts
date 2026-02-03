@@ -29,13 +29,13 @@ export interface ZoomConfig {
 }
 
 const DEFAULT_CONFIG: ZoomConfig = {
-  minZoom: 0.3,
-  maxZoom: 5.0,
-  zoomSensitivity: 0.008,      // 0.8% par pixel
+  minZoom: 0.1,                  // Permet de dézoomer beaucoup plus (10% = vue 10x plus large)
+  maxZoom: 10.0,                 // Zoom max augmenté
+  zoomSensitivity: 0.008,        // 0.8% par pixel
   panSensitivity: 1.0,
-  wheelZoomFactor: 0.12,       // 12% par scroll
+  wheelZoomFactor: 0.15,         // 15% par scroll (plus réactif)
   smoothing: true,
-  smoothingFactor: 0.15,
+  smoothingFactor: 0.18,
 };
 
 export class HeatmapZoomController {

@@ -162,7 +162,7 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
       })),
 
       // Zoom/Pan
-      setZoomLevel: (level) => set({ zoomLevel: Math.max(0.5, Math.min(3, level)) }),
+      setZoomLevel: (level) => set({ zoomLevel: Math.max(0.1, Math.min(10, level)) }),
       setPriceOffset: (offset) => set({ priceOffset: offset }),
       resetZoom: () => set({ zoomLevel: 1, priceOffset: 0 }),
 

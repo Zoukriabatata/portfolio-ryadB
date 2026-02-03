@@ -59,6 +59,11 @@ export class HeatmapRenderer {
     statBid: '#22c55e',
     statVolume: '#ffffff',
     statLabel: '#6b7280',
+    // Best bid/ask lines
+    bestBidLine: '#22d3ee',
+    bestAskLine: '#f472b6',
+    bestBidBg: 'rgba(34, 211, 238, 0.15)',
+    bestAskBg: 'rgba(244, 114, 182, 0.15)',
   };
 
   constructor(canvas: HTMLCanvasElement, config: HeatmapRenderConfig) {
@@ -95,9 +100,9 @@ export class HeatmapRenderer {
    * Calcule le layout des zones
    */
   private calculateLayout(): HeatmapLayout {
-    const priceLadderWidth = 85;
-    const statsBarHeight = 45;
-    const domWidth = 120; // Largeur de la zone DOM
+    const priceLadderWidth = 75;    // Réduit de 85
+    const statsBarHeight = 40;       // Réduit de 45
+    const domWidth = 100;            // Réduit de 120
 
     return {
       domArea: {
@@ -170,19 +175,22 @@ export class HeatmapRenderer {
     // 3. DOM bars à gauche
     this.renderDOMArea(data.currentBids, data.currentAsks, data.priceRange, data.bestBid, data.bestAsk);
 
-    // 4. Walls (grandes liquidités)
+    // 4. Best Bid/Ask lines with volume bubbles
+    this.renderBestBidAskLines(data.currentBids, data.currentAsks, data.priceRange, data.bestBid, data.bestAsk);
+
+    // 5. Walls (grandes liquidités)
     this.renderWalls(data.currentBids, data.currentAsks, data.priceRange);
 
-    // 5. Ligne prix actuel
+    // 6. Ligne prix actuel
     this.renderCurrentPriceLine(data.midPrice, data.priceRange);
 
-    // 6. Price ladder
+    // 7. Price ladder
     this.renderPriceLadder(data.priceRange, data.tickSize, data.midPrice, data.bestBid, data.bestAsk);
 
-    // 7. Stats bar
+    // 8. Stats bar
     this.renderStatsBar(data.stats, data.midPrice);
 
-    // 8. Crosshair
+    // 9. Crosshair
     if (data.mousePosition) {
       this.renderCrosshair(data.mousePosition, data.priceRange);
     }
@@ -313,6 +321,112 @@ export class HeatmapRenderer {
       this.ctx.fillStyle = isBest ? this.colors.askBarBright : this.colors.askBar;
       this.ctx.fillRect(domArea.x + 5, y - barHeight / 2, barWidth, barHeight);
     }
+  }
+
+  /**
+   * Render les lignes Best Bid/Ask avec bulles de volume
+   */
+  private renderBestBidAskLines(
+    bids: Map<number, number>,
+    asks: Map<number, number>,
+    priceRange: PriceRange,
+    bestBid: number,
+    bestAsk: number
+  ): void {
+    const { heatmapArea, domArea, priceLadder } = this.layout;
+
+    if (bestBid === 0 && bestAsk === 0) return;
+
+    const bestBidQty = bids.get(bestBid) || 0;
+    const bestAskQty = asks.get(bestAsk) || 0;
+
+    // Best Bid line (cyan)
+    if (bestBid >= priceRange.min && bestBid <= priceRange.max) {
+      const y = this.priceToY(bestBid, priceRange, heatmapArea.height);
+
+      // Background band
+      this.ctx.fillStyle = this.colors.bestBidBg;
+      this.ctx.fillRect(domArea.width, y - 12, heatmapArea.width + priceLadder.width, 24);
+
+      // Horizontal line
+      this.ctx.strokeStyle = this.colors.bestBidLine;
+      this.ctx.lineWidth = 2;
+      this.ctx.setLineDash([]);
+      this.ctx.beginPath();
+      this.ctx.moveTo(domArea.width, y);
+      this.ctx.lineTo(this.width, y);
+      this.ctx.stroke();
+
+      // Volume bubble on the right
+      this.renderVolumeBubble(
+        heatmapArea.x + heatmapArea.width - 80,
+        y,
+        bestBidQty,
+        'bid',
+        'BID'
+      );
+    }
+
+    // Best Ask line (pink)
+    if (bestAsk >= priceRange.min && bestAsk <= priceRange.max) {
+      const y = this.priceToY(bestAsk, priceRange, heatmapArea.height);
+
+      // Background band
+      this.ctx.fillStyle = this.colors.bestAskBg;
+      this.ctx.fillRect(domArea.width, y - 12, heatmapArea.width + priceLadder.width, 24);
+
+      // Horizontal line
+      this.ctx.strokeStyle = this.colors.bestAskLine;
+      this.ctx.lineWidth = 2;
+      this.ctx.setLineDash([]);
+      this.ctx.beginPath();
+      this.ctx.moveTo(domArea.width, y);
+      this.ctx.lineTo(this.width, y);
+      this.ctx.stroke();
+
+      // Volume bubble on the right
+      this.renderVolumeBubble(
+        heatmapArea.x + heatmapArea.width - 80,
+        y,
+        bestAskQty,
+        'ask',
+        'ASK'
+      );
+    }
+  }
+
+  /**
+   * Render une bulle de volume
+   */
+  private renderVolumeBubble(
+    x: number,
+    y: number,
+    volume: number,
+    side: 'bid' | 'ask',
+    label: string
+  ): void {
+    const bubbleWidth = 70;
+    const bubbleHeight = 22;
+
+    // Background
+    this.ctx.fillStyle = side === 'bid' ? 'rgba(34, 211, 238, 0.9)' : 'rgba(244, 114, 182, 0.9)';
+    this.ctx.beginPath();
+    this.ctx.roundRect(x, y - bubbleHeight / 2, bubbleWidth, bubbleHeight, 4);
+    this.ctx.fill();
+
+    // Border
+    this.ctx.strokeStyle = side === 'bid' ? '#22d3ee' : '#f472b6';
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
+
+    // Text
+    this.ctx.fillStyle = '#000000';
+    this.ctx.font = 'bold 10px JetBrains Mono, Consolas, monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+
+    const volumeText = volume >= 1000 ? (volume / 1000).toFixed(1) + 'K' : volume.toFixed(1);
+    this.ctx.fillText(`${label} ${volumeText}`, x + bubbleWidth / 2, y);
   }
 
   /**
