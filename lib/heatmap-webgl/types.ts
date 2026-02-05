@@ -64,6 +64,8 @@ export interface DirtyFlags {
   lines: boolean;
   priceRange: boolean;
   settings: boolean;
+  deltaProfile?: boolean;
+  volumeProfile?: boolean;
 }
 
 export interface WebGLBuffers {

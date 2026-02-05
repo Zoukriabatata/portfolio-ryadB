@@ -45,11 +45,21 @@ uniform float opacity;
 void main() {
   vec3 color = vSide < 0.5 ? bidColor : askColor;
 
-  // Slight gradient for depth
-  float gradient = 0.8 + 0.2 * (1.0 - vUV.x);
-  color *= gradient;
+  // Gradient effect: brighter at the edge, darker towards base
+  float gradientX = 0.7 + 0.3 * vUV.x;
 
-  gl_FragColor = vec4(color, opacity);
+  // Subtle vertical gradient for depth
+  float gradientY = 0.95 + 0.05 * (1.0 - abs(vUV.y - 0.5) * 2.0);
+
+  color *= gradientX * gradientY;
+
+  // Soft edge at the tip of the bar
+  float edgeSoftness = smoothstep(0.0, 0.05, vUV.x) * smoothstep(1.0, 0.95, vUV.x);
+  float verticalSoftness = smoothstep(0.0, 0.08, vUV.y) * smoothstep(1.0, 0.92, vUV.y);
+
+  float alpha = opacity * edgeSoftness * verticalSoftness;
+
+  gl_FragColor = vec4(color, alpha);
 }
 `;
 

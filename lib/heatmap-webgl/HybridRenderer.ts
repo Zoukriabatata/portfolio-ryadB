@@ -114,11 +114,19 @@ export class HybridRenderer {
   private lastContrast: number = 0;
   private lastUpperCutoff: number = 0;
 
+  // Profile dirty tracking
+  private lastDeltaProfileHash: number = 0;
+  private lastVolumeProfileHash: number = 0;
+
   // Cached transformed data (avoid re-transforming every frame)
   private cachedTransformedOrders: PassiveOrderData[] = [];
   private cachedTransformedTrades: TradeData[] = [];
   private cachedBidScreenPoints: { x: number; y: number }[] = [];
   private cachedAskScreenPoints: { x: number; y: number }[] = [];
+
+  // Cached profile data
+  private cachedDeltaProfileBars: { price: number; bidValue: number; askValue: number }[] = [];
+  private cachedVolumeProfileBars: { price: number; bidValue: number; askValue: number }[] = [];
 
   constructor(config: HybridRendererConfig) {
     this.config = {
@@ -226,33 +234,48 @@ export class HybridRenderer {
       Math.round(first.x);
   }
 
+  private computeProfileHash(bars: { price: number; bidValue: number; askValue: number }[] | undefined): number {
+    if (!bars || bars.length === 0) return 0;
+    const first = bars[0];
+    const last = bars[bars.length - 1];
+    return bars.length * 1000000 +
+      Math.round((first.bidValue + first.askValue) * 10) +
+      Math.round((last.bidValue + last.askValue) * 10) * 100;
+  }
+
   /**
    * Check what data has changed and compute dirty flags
    */
   private computeDirtyFlags(data: RenderData): DirtyFlags {
     const ordersHash = this.computeOrdersHash(data.passiveOrders);
     const tradesHash = this.computeTradesHash(data.trades);
+    const deltaProfileHash = this.computeProfileHash(data.deltaProfile?.bars);
+    const volumeProfileHash = this.computeProfileHash(data.volumeProfile?.bars);
+
+    const priceRangeChanged = data.priceMin !== this.lastPriceRange?.min ||
+      data.priceMax !== this.lastPriceRange?.max;
 
     const dirty: DirtyFlags = {
       heatmap: ordersHash !== this.lastOrdersHash ||
-        data.priceMin !== this.lastPriceRange?.min ||
-        data.priceMax !== this.lastPriceRange?.max ||
+        priceRangeChanged ||
         data.contrast !== this.lastContrast ||
         data.upperCutoff !== this.lastUpperCutoff,
       trades: tradesHash !== this.lastTradesHash,
       lines: (data.bestBidPoints?.length || 0) !== this.lastBidPointsLength ||
         (data.bestAskPoints?.length || 0) !== this.lastAskPointsLength ||
-        data.priceMin !== this.lastPriceRange?.min ||
-        data.priceMax !== this.lastPriceRange?.max,
-      priceRange: data.priceMin !== this.lastPriceRange?.min ||
-        data.priceMax !== this.lastPriceRange?.max,
+        priceRangeChanged,
+      priceRange: priceRangeChanged,
       settings: data.contrast !== this.lastContrast ||
         data.upperCutoff !== this.lastUpperCutoff,
+      deltaProfile: deltaProfileHash !== this.lastDeltaProfileHash || priceRangeChanged,
+      volumeProfile: volumeProfileHash !== this.lastVolumeProfileHash || priceRangeChanged,
     };
 
     // Update cached values
     this.lastOrdersHash = ordersHash;
     this.lastTradesHash = tradesHash;
+    this.lastDeltaProfileHash = deltaProfileHash;
+    this.lastVolumeProfileHash = volumeProfileHash;
     this.lastPriceRange = { min: data.priceMin, max: data.priceMax };
     this.lastBidPointsLength = data.bestBidPoints?.length || 0;
     this.lastAskPointsLength = data.bestAskPoints?.length || 0;
@@ -416,47 +439,63 @@ export class HybridRenderer {
       }
     }
 
-    // 5. Render delta profile (left side)
+    // 5. Render delta profile (left side) - with dirty flag optimization
+    const shouldRenderDeltaProfile = dirty?.deltaProfile !== false;
     if (this.profileBarsCommand && data.deltaProfile && data.deltaProfile.bars.length > 0) {
-      this.profileBarsCommand.render(
-        {
-          bars: data.deltaProfile.bars,
-          priceMin: data.priceMin,
-          priceMax: data.priceMax,
-          maxValue: data.deltaProfile.maxValue,
-          baseX: 0,
-          maxWidth: heatmapLeft,
-          bidColor: colors.bidColor || '#22c55e',
-          askColor: colors.askColor || '#ef4444',
-          opacity: 0.8,
-          side: 'left',
-        },
-        this.projection,
-        pixelHeight
-      );
+      // Cache bars if data changed
+      if (shouldRenderDeltaProfile) {
+        this.cachedDeltaProfileBars = data.deltaProfile.bars;
+      }
+
+      if (this.cachedDeltaProfileBars.length > 0) {
+        this.profileBarsCommand.render(
+          {
+            bars: this.cachedDeltaProfileBars,
+            priceMin: data.priceMin,
+            priceMax: data.priceMax,
+            maxValue: data.deltaProfile.maxValue,
+            baseX: 4 * dpr!, // Small padding from edge
+            maxWidth: heatmapLeft - 8 * dpr!, // Leave padding on both sides
+            bidColor: colors.bidColor || '#10b981', // Emerald green (more vibrant)
+            askColor: colors.askColor || '#f43f5e', // Rose red (more vibrant)
+            opacity: 0.85,
+            side: 'left',
+          },
+          this.projection,
+          pixelHeight
+        );
+      }
     }
 
-    // 6. Render volume profile (right side)
+    // 6. Render volume profile (right side) - with dirty flag optimization
+    const shouldRenderVolumeProfile = dirty?.volumeProfile !== false;
     if (this.profileBarsCommand && data.volumeProfile && data.volumeProfile.bars.length > 0) {
-      const volumeProfileX = heatmapRight;
-      const volumeProfileWidth = (priceAxisWidth || 0) * dpr!;
+      // Cache bars if data changed
+      if (shouldRenderVolumeProfile) {
+        this.cachedVolumeProfileBars = data.volumeProfile.bars;
+      }
 
-      this.profileBarsCommand.render(
-        {
-          bars: data.volumeProfile.bars,
-          priceMin: data.priceMin,
-          priceMax: data.priceMax,
-          maxValue: data.volumeProfile.maxValue,
-          baseX: volumeProfileX,
-          maxWidth: volumeProfileWidth * 0.8, // Leave some space for price axis
-          bidColor: colors.bidColor || '#22c55e',
-          askColor: colors.askColor || '#ef4444',
-          opacity: 0.7,
-          side: 'right',
-        },
-        this.projection,
-        pixelHeight
-      );
+      if (this.cachedVolumeProfileBars.length > 0) {
+        const volumeProfileX = heatmapRight + 4 * dpr!; // Small padding
+        const volumeProfileWidth = (priceAxisWidth || 60) * dpr! - 8 * dpr!;
+
+        this.profileBarsCommand.render(
+          {
+            bars: this.cachedVolumeProfileBars,
+            priceMin: data.priceMin,
+            priceMax: data.priceMax,
+            maxValue: data.volumeProfile.maxValue,
+            baseX: volumeProfileX,
+            maxWidth: volumeProfileWidth * 0.75, // Leave space for price labels
+            bidColor: colors.bidColor || '#10b981',
+            askColor: colors.askColor || '#f43f5e',
+            opacity: 0.75,
+            side: 'right',
+          },
+          this.projection,
+          pixelHeight
+        );
+      }
     }
 
     // Track performance
