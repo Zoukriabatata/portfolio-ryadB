@@ -23,7 +23,16 @@ export {
 } from './commands';
 
 // Shaders (for advanced usage)
-export { heatmapVert, heatmapFrag, gridVert, gridFrag, staircaseVert, staircaseFrag } from './shaders/heatmap';
+export {
+  heatmapVert,
+  heatmapFrag,
+  gridVert,
+  gridFrag,
+  staircaseVert,
+  staircaseFrag,
+  fillAreaVert,
+  fillAreaFrag,
+} from './shaders/heatmap';
 
 // React hooks
 export {

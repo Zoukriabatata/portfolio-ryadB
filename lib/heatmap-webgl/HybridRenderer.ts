@@ -401,12 +401,15 @@ export class HybridRenderer {
           {
             bidPoints: this.cachedBidScreenPoints,
             askPoints: this.cachedAskScreenPoints,
-            bidColor: colors.bidColor || '#22c55e',
-            askColor: colors.askColor || '#ef4444',
-            lineWidth: 2,
-            opacity: 1,
+            bidColor: colors.bidColor || '#10b981', // Emerald green
+            askColor: colors.askColor || '#f43f5e', // Rose red
+            lineWidth: 3 * dpr!, // Thicker line with DPR scaling
+            opacity: 0.95,
+            glowIntensity: 0.7, // Glow effect strength
+            showFill: true, // Show spread fill
           },
-          this.projection
+          this.projection,
+          pixelWidth // Pass viewport width for fill area shader
         );
       }
     }

@@ -96,20 +96,32 @@ void main() {
 }
 `;
 
-// Staircase line shader (for best bid/ask)
+// Staircase line shader (for best bid/ask) - Enhanced with thick lines and glow
 export const staircaseVert = `
 precision highp float;
 
-attribute vec2 position;
-attribute float side;     // 0 = bid, 1 = ask
+attribute vec2 position;      // Center point of line
+attribute vec2 normal;        // Perpendicular direction for thickness
+attribute float side;         // 0 = bid, 1 = ask
+attribute float progress;     // 0 = oldest, 1 = newest (for fade effect)
+attribute float edge;         // -1 = bottom edge, 1 = top edge (for thickness)
 
 uniform mat4 projection;
+uniform float lineWidth;
 
 varying float vSide;
+varying float vProgress;
+varying float vEdge;
 
 void main() {
-  gl_Position = projection * vec4(position, 0.0, 1.0);
+  // Offset position by normal * lineWidth to create thick line
+  vec2 pos = position + normal * edge * lineWidth * 0.5;
+
+  gl_Position = projection * vec4(pos, 0.0, 1.0);
+
   vSide = side;
+  vProgress = progress;
+  vEdge = edge;
 }
 `;
 
@@ -117,14 +129,82 @@ export const staircaseFrag = `
 precision highp float;
 
 varying float vSide;
+varying float vProgress;
+varying float vEdge;
 
 uniform vec3 bidColor;
 uniform vec3 askColor;
-uniform float lineWidth;
 uniform float opacity;
+uniform float glowIntensity;
+
+void main() {
+  vec3 baseColor = vSide < 0.5 ? bidColor : askColor;
+
+  // Core line is brighter, edges have glow falloff
+  float distFromCenter = abs(vEdge);
+
+  // Sharp core with soft glow edge
+  float core = smoothstep(0.8, 0.3, distFromCenter);
+  float glow = smoothstep(1.0, 0.0, distFromCenter) * glowIntensity;
+
+  // Combine core and glow
+  float intensity = core + glow * 0.5;
+
+  // Time-based fade: newer = brighter, older = dimmer
+  float timeFade = 0.4 + 0.6 * vProgress;
+
+  // Brighten the core
+  vec3 color = baseColor * (0.8 + 0.4 * core);
+
+  // Add subtle white highlight at center
+  color = mix(color, vec3(1.0), core * 0.15);
+
+  float alpha = opacity * intensity * timeFade;
+
+  gl_FragColor = vec4(color, alpha);
+}
+`;
+
+// Fill area shader (between bid and ask lines)
+export const fillAreaVert = `
+precision highp float;
+
+attribute vec2 position;
+attribute float side;     // 0 = bid area, 1 = ask area
+
+uniform mat4 projection;
+
+varying float vSide;
+varying vec2 vPos;
+
+void main() {
+  gl_Position = projection * vec4(position, 0.0, 1.0);
+  vSide = side;
+  vPos = position;
+}
+`;
+
+export const fillAreaFrag = `
+precision highp float;
+
+varying float vSide;
+varying vec2 vPos;
+
+uniform vec3 bidColor;
+uniform vec3 askColor;
+uniform float opacity;
+uniform float viewportWidth;
 
 void main() {
   vec3 color = vSide < 0.5 ? bidColor : askColor;
-  gl_FragColor = vec4(color, opacity);
+
+  // Horizontal gradient: fade from right (current) to left (history)
+  float timeFade = vPos.x / viewportWidth;
+  timeFade = 0.2 + 0.8 * timeFade;
+
+  // Subtle gradient
+  float alpha = opacity * 0.15 * timeFade;
+
+  gl_FragColor = vec4(color, alpha);
 }
 `;
