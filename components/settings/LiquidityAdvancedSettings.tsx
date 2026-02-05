@@ -324,6 +324,89 @@ function DisplayTab({ store }: TabProps) {
           </div>
         </div>
       </SettingsSection>
+
+      {/* Best Bid/Ask Line Section */}
+      <SettingsSection title="Best Bid/Ask Line" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M2 12h4l3-9 6 18 3-9h4" />
+        </svg>
+      }>
+        <SliderOption
+          label="Line Width"
+          value={features.staircaseLine?.lineWidth ?? 3}
+          onChange={store.setStaircaseLineWidth}
+          min={1}
+          max={10}
+          step={1}
+          unit="px"
+        />
+
+        <ToggleOption
+          label="Glow Effect"
+          description="Add luminous glow around the line"
+          checked={features.staircaseLine?.showGlow ?? true}
+          onChange={store.setStaircaseShowGlow}
+        />
+
+        {(features.staircaseLine?.showGlow ?? true) && (
+          <SliderOption
+            label="Glow Intensity"
+            value={features.staircaseLine?.glowIntensity ?? 0.7}
+            onChange={store.setStaircaseGlowIntensity}
+            min={0.1}
+            max={1.5}
+            step={0.1}
+          />
+        )}
+
+        <ToggleOption
+          label="Spread Fill"
+          description="Fill area between bid and ask lines"
+          checked={features.staircaseLine?.showSpreadFill ?? true}
+          onChange={store.setStaircaseShowSpreadFill}
+        />
+
+        {(features.staircaseLine?.showSpreadFill ?? true) && (
+          <SliderOption
+            label="Fill Opacity"
+            value={features.staircaseLine?.spreadFillOpacity ?? 0.15}
+            onChange={store.setStaircaseSpreadFillOpacity}
+            min={0.05}
+            max={0.5}
+            step={0.05}
+          />
+        )}
+
+        <ToggleOption
+          label="Trail Animation"
+          description="Animated trail effect following price"
+          checked={features.staircaseLine?.showTrail ?? false}
+          onChange={store.setStaircaseShowTrail}
+        />
+
+        {(features.staircaseLine?.showTrail ?? false) && (
+          <>
+            <SliderOption
+              label="Trail Length"
+              value={features.staircaseLine?.trailLength ?? 2}
+              onChange={store.setStaircaseTrailLength}
+              min={1}
+              max={5}
+              step={0.5}
+              unit="s"
+            />
+            <SliderOption
+              label="Fade Speed"
+              value={features.staircaseLine?.trailFadeSpeed ?? 1}
+              onChange={store.setStaircaseTrailFadeSpeed}
+              min={0.5}
+              max={2}
+              step={0.1}
+              unit="x"
+            />
+          </>
+        )}
+      </SettingsSection>
     </div>
   );
 }

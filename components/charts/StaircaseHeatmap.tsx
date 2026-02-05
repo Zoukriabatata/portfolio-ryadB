@@ -115,6 +115,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     showSessionStats,
     showDrawings,
     passiveThickness,
+    staircaseLine,
   } = displayFeatures;
 
   // Create renderer-compatible trade flow settings
@@ -310,6 +311,11 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
             showDeltaProfile,
             showVolumeProfile,
           });
+
+          // Add staircase line settings
+          if (staircaseLine) {
+            renderData.staircaseSettings = staircaseLine;
+          }
 
           // Add crosshair data
           if (crosshair.visible) {

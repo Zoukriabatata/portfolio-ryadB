@@ -151,6 +151,33 @@ export interface DOMColorSettings {
   bestAskTextColor: string;
 }
 
+export interface StaircaseLineSettings {
+  // Line appearance
+  lineWidth: number;        // 1-10, default 3
+  showGlow: boolean;        // Enable glow effect
+  glowIntensity: number;    // 0.1-1.5, default 0.7
+
+  // Spread fill
+  showSpreadFill: boolean;  // Fill area between bid/ask
+  spreadFillOpacity: number; // 0.1-0.5, default 0.15
+
+  // Trail animation
+  showTrail: boolean;       // Enable animated trail effect
+  trailLength: number;      // 1-5 seconds
+  trailFadeSpeed: number;   // Animation speed 0.5-2.0
+}
+
+export const DEFAULT_STAIRCASE_LINE_SETTINGS: StaircaseLineSettings = {
+  lineWidth: 3,
+  showGlow: true,
+  glowIntensity: 0.7,
+  showSpreadFill: true,
+  spreadFillOpacity: 0.15,
+  showTrail: false,
+  trailLength: 2,
+  trailFadeSpeed: 1.0,
+};
+
 export interface LiquidityDisplayFeatures {
   // Profiles
   showDeltaProfile: boolean;
@@ -180,6 +207,9 @@ export interface LiquidityDisplayFeatures {
 
   // Style
   passiveThickness: PassiveThickness;
+
+  // Staircase Line (Best Bid/Ask)
+  staircaseLine: StaircaseLineSettings;
 }
 
 export const DEFAULT_LIQUIDITY_DISPLAY_FEATURES: LiquidityDisplayFeatures = {
@@ -211,6 +241,9 @@ export const DEFAULT_LIQUIDITY_DISPLAY_FEATURES: LiquidityDisplayFeatures = {
 
   // Style
   passiveThickness: 'normal',
+
+  // Staircase Line
+  staircaseLine: DEFAULT_STAIRCASE_LINE_SETTINGS,
 };
 
 export interface HeatmapProSettings {

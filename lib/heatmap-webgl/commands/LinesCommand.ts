@@ -24,6 +24,10 @@ export interface StaircaseRenderProps {
   opacity: number;
   glowIntensity?: number;
   showFill?: boolean;
+  // Trail animation
+  showTrail?: boolean;
+  trailFadeSpeed?: number;
+  animationTime?: number; // 0-1 cycling animation time
 }
 
 export class LinesCommand {
@@ -145,6 +149,9 @@ export class LinesCommand {
         lineWidth: regl.prop<{ lineWidth: number }, 'lineWidth'>('lineWidth'),
         opacity: regl.prop<{ opacity: number }, 'opacity'>('opacity'),
         glowIntensity: regl.prop<{ glowIntensity: number }, 'glowIntensity'>('glowIntensity'),
+        time: regl.prop<{ time: number }, 'time'>('time'),
+        trailEnabled: regl.prop<{ trailEnabled: number }, 'trailEnabled'>('trailEnabled'),
+        trailFadeSpeed: regl.prop<{ trailFadeSpeed: number }, 'trailFadeSpeed'>('trailFadeSpeed'),
       },
 
       primitive: 'triangles',
@@ -279,6 +286,9 @@ export class LinesCommand {
       opacity,
       glowIntensity = 0.6,
       showFill = false,
+      showTrail = false,
+      trailFadeSpeed = 1.0,
+      animationTime = 0,
     } = props;
 
     const bidColorRGB = TextureManager.parseColorRGB(bidColor);
@@ -289,14 +299,21 @@ export class LinesCommand {
       this.renderFillArea(bidPoints, askPoints, bidColorRGB, askColorRGB, opacity * 0.3, viewportWidth, projection);
     }
 
+    // Trail animation parameters
+    const trailParams = {
+      enabled: showTrail ? 1.0 : 0.0,
+      fadeSpeed: trailFadeSpeed,
+      time: animationTime,
+    };
+
     // Render bid line (below - green)
     if (bidPoints.length > 1) {
-      this.renderThickStaircaseLine(bidPoints, 0, bidColorRGB, askColorRGB, lineWidth, opacity, glowIntensity, projection);
+      this.renderThickStaircaseLine(bidPoints, 0, bidColorRGB, askColorRGB, lineWidth, opacity, glowIntensity, projection, trailParams);
     }
 
     // Render ask line (above - red)
     if (askPoints.length > 1) {
-      this.renderThickStaircaseLine(askPoints, 1, bidColorRGB, askColorRGB, lineWidth, opacity, glowIntensity, projection);
+      this.renderThickStaircaseLine(askPoints, 1, bidColorRGB, askColorRGB, lineWidth, opacity, glowIntensity, projection, trailParams);
     }
   }
 
@@ -311,7 +328,8 @@ export class LinesCommand {
     lineWidth: number,
     opacity: number,
     glowIntensity: number,
-    projection: number[]
+    projection: number[],
+    trailParams: { enabled: number; fadeSpeed: number; time: number } = { enabled: 0, fadeSpeed: 1, time: 0 }
   ): void {
     if (!this.staircaseCommand || points.length < 2) return;
 
@@ -403,6 +421,9 @@ export class LinesCommand {
       lineWidth,
       opacity,
       glowIntensity,
+      time: trailParams.time,
+      trailEnabled: trailParams.enabled,
+      trailFadeSpeed: trailParams.fadeSpeed,
       count: vertexCount,
     });
   }

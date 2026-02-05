@@ -12,8 +12,14 @@ import type {
   BubbleShape,
   FootprintStyle,
   PassiveThickness,
+  StaircaseLineSettings,
 } from '@/types/heatmap';
-import { DEFAULT_HEATMAP_SETTINGS, DEFAULT_HEATMAP_PRO_SETTINGS, DEFAULT_LIQUIDITY_DISPLAY_FEATURES } from '@/types/heatmap';
+import {
+  DEFAULT_HEATMAP_SETTINGS,
+  DEFAULT_HEATMAP_PRO_SETTINGS,
+  DEFAULT_LIQUIDITY_DISPLAY_FEATURES,
+  DEFAULT_STAIRCASE_LINE_SETTINGS,
+} from '@/types/heatmap';
 
 export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSettings {
   // Alert zones
@@ -98,6 +104,17 @@ export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSetting
   setShowSessionStats: (show: boolean) => void;
   setShowDrawings: (show: boolean) => void;
   setPassiveThickness: (thickness: PassiveThickness) => void;
+
+  // Staircase Line (Best Bid/Ask)
+  setStaircaseLineSettings: (settings: Partial<StaircaseLineSettings>) => void;
+  setStaircaseLineWidth: (width: number) => void;
+  setStaircaseShowGlow: (show: boolean) => void;
+  setStaircaseGlowIntensity: (intensity: number) => void;
+  setStaircaseShowSpreadFill: (show: boolean) => void;
+  setStaircaseSpreadFillOpacity: (opacity: number) => void;
+  setStaircaseShowTrail: (show: boolean) => void;
+  setStaircaseTrailLength: (length: number) => void;
+  setStaircaseTrailFadeSpeed: (speed: number) => void;
 
   // WebGL Rendering
   useWebGL: boolean;
@@ -258,6 +275,62 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
         displayFeatures: { ...state.displayFeatures, passiveThickness: thickness },
       })),
 
+      // Staircase Line Actions
+      setStaircaseLineSettings: (settings) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, ...settings },
+        },
+      })),
+      setStaircaseLineWidth: (width) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, lineWidth: Math.max(1, Math.min(10, width)) },
+        },
+      })),
+      setStaircaseShowGlow: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, showGlow: show },
+        },
+      })),
+      setStaircaseGlowIntensity: (intensity) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, glowIntensity: Math.max(0.1, Math.min(1.5, intensity)) },
+        },
+      })),
+      setStaircaseShowSpreadFill: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, showSpreadFill: show },
+        },
+      })),
+      setStaircaseSpreadFillOpacity: (opacity) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, spreadFillOpacity: Math.max(0.05, Math.min(0.5, opacity)) },
+        },
+      })),
+      setStaircaseShowTrail: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, showTrail: show },
+        },
+      })),
+      setStaircaseTrailLength: (length) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, trailLength: Math.max(1, Math.min(5, length)) },
+        },
+      })),
+      setStaircaseTrailFadeSpeed: (speed) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          staircaseLine: { ...state.displayFeatures.staircaseLine, trailFadeSpeed: Math.max(0.5, Math.min(2, speed)) },
+        },
+      })),
+
       // WebGL Rendering
       setUseWebGL: (enabled) => set({ useWebGL: enabled }),
 
@@ -305,6 +378,11 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
           displayFeatures: {
             ...DEFAULT_LIQUIDITY_DISPLAY_FEATURES,
             ...(persisted?.displayFeatures || {}),
+            // Deep merge staircaseLine settings
+            staircaseLine: {
+              ...DEFAULT_STAIRCASE_LINE_SETTINGS,
+              ...(persisted?.displayFeatures?.staircaseLine || {}),
+            },
           },
           // Deep merge domColors
           domColors: {

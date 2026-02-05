@@ -64,6 +64,18 @@ export interface RenderData {
     maxValue: number;
   };
 
+  // Staircase line settings (optional)
+  staircaseSettings?: {
+    lineWidth: number;
+    showGlow: boolean;
+    glowIntensity: number;
+    showSpreadFill: boolean;
+    spreadFillOpacity: number;
+    showTrail: boolean;
+    trailLength: number;
+    trailFadeSpeed: number;
+  };
+
   // Settings
   contrast: number;
   upperCutoff: number;
@@ -102,6 +114,10 @@ export class HybridRenderer {
   // Performance tracking
   private lastRenderTime: number = 0;
   private frameCount: number = 0;
+
+  // Animation tracking (for trail effect)
+  private animationStartTime: number = performance.now();
+  private animationTime: number = 0;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DIRTY FLAGS & DATA CACHING
@@ -397,16 +413,38 @@ export class HybridRenderer {
       }
 
       if (this.cachedBidScreenPoints.length > 0 || this.cachedAskScreenPoints.length > 0) {
+        // Use staircase settings from data or defaults
+        const staircaseSettings = data.staircaseSettings || {
+          lineWidth: 3,
+          showGlow: true,
+          glowIntensity: 0.7,
+          showSpreadFill: true,
+          spreadFillOpacity: 0.15,
+          showTrail: false,
+          trailLength: 2,
+          trailFadeSpeed: 1.0,
+        };
+
+        // Update animation time for trail effect (cycling 0-1 over trailLength seconds)
+        const now = performance.now();
+        const elapsed = (now - this.animationStartTime) / 1000; // seconds
+        const trailCycleDuration = staircaseSettings.trailLength || 2;
+        this.animationTime = (elapsed / trailCycleDuration) % 1.0;
+
         this.linesCommand.renderStaircase(
           {
             bidPoints: this.cachedBidScreenPoints,
             askPoints: this.cachedAskScreenPoints,
             bidColor: colors.bidColor || '#10b981', // Emerald green
             askColor: colors.askColor || '#f43f5e', // Rose red
-            lineWidth: 3 * dpr!, // Thicker line with DPR scaling
+            lineWidth: staircaseSettings.lineWidth * dpr!, // Line width with DPR scaling
             opacity: 0.95,
-            glowIntensity: 0.7, // Glow effect strength
-            showFill: true, // Show spread fill
+            glowIntensity: staircaseSettings.showGlow ? staircaseSettings.glowIntensity : 0,
+            showFill: staircaseSettings.showSpreadFill,
+            // Trail animation parameters
+            showTrail: staircaseSettings.showTrail,
+            trailFadeSpeed: staircaseSettings.trailFadeSpeed,
+            animationTime: this.animationTime,
           },
           this.projection,
           pixelWidth // Pass viewport width for fill area shader

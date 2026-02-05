@@ -136,6 +136,9 @@ uniform vec3 bidColor;
 uniform vec3 askColor;
 uniform float opacity;
 uniform float glowIntensity;
+uniform float time;           // Animation time (0-1 cycling)
+uniform float trailEnabled;   // 0 = off, 1 = on
+uniform float trailFadeSpeed; // Trail animation speed multiplier
 
 void main() {
   vec3 baseColor = vSide < 0.5 ? bidColor : askColor;
@@ -153,11 +156,32 @@ void main() {
   // Time-based fade: newer = brighter, older = dimmer
   float timeFade = 0.4 + 0.6 * vProgress;
 
+  // Trail animation effect (pulsating wave along the line)
+  float trailEffect = 1.0;
+  if (trailEnabled > 0.5) {
+    // Create a wave that travels from old to new along the line
+    float wave = sin((vProgress * 6.28318 - time * 6.28318 * trailFadeSpeed) * 2.0) * 0.5 + 0.5;
+
+    // Pulse effect at the leading edge (newest points)
+    float pulse = smoothstep(0.7, 1.0, vProgress) * (sin(time * 6.28318 * 3.0) * 0.3 + 0.7);
+
+    // Combine wave and pulse for trail effect
+    trailEffect = 1.0 + wave * 0.3 * (1.0 - vProgress) + pulse * 0.5;
+
+    // Add extra brightness at the tip
+    if (vProgress > 0.95) {
+      trailEffect += 0.4 * (1.0 + sin(time * 6.28318 * 4.0) * 0.3);
+    }
+  }
+
   // Brighten the core
   vec3 color = baseColor * (0.8 + 0.4 * core);
 
   // Add subtle white highlight at center
   color = mix(color, vec3(1.0), core * 0.15);
+
+  // Apply trail brightening
+  color *= trailEffect;
 
   float alpha = opacity * intensity * timeFade;
 
