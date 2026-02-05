@@ -27,6 +27,8 @@ interface AdapterConfig {
   };
   gridStep?: number;
   showGrid?: boolean;
+  showDeltaProfile?: boolean;
+  showVolumeProfile?: boolean;
 }
 
 /**
@@ -168,8 +170,49 @@ export function adaptMarketState(
     }
   }
 
-  // Debug logging reduced - only log when data changes significantly
-  // console.debug('[adaptMarketState]', passiveOrders.length, 'orders,', trades.length, 'trades');
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DELTA PROFILE & VOLUME PROFILE
+  // ═══════════════════════════════════════════════════════════════════════════
+  let deltaProfile: { bars: { price: number; bidValue: number; askValue: number }[]; maxValue: number } | undefined;
+  let volumeProfile: { bars: { price: number; bidValue: number; askValue: number }[]; maxValue: number } | undefined;
+
+  if ((config.showDeltaProfile || config.showVolumeProfile) && state.cumulativeLevels.size > 0) {
+    const profileBars: { price: number; bidValue: number; askValue: number }[] = [];
+    let maxDeltaValue = 1;
+    let maxVolumeValue = 1;
+
+    // Extract cumulative levels within price range
+    state.cumulativeLevels.forEach((level) => {
+      if (level.price >= priceRange.min && level.price <= priceRange.max) {
+        profileBars.push({
+          price: level.price,
+          bidValue: level.totalBuySize,
+          askValue: level.totalSellSize,
+        });
+
+        // Track max values for normalization
+        maxDeltaValue = Math.max(maxDeltaValue, level.totalBuySize, level.totalSellSize);
+        maxVolumeValue = Math.max(maxVolumeValue, level.totalBuySize + level.totalSellSize);
+      }
+    });
+
+    // Sort by price (ascending)
+    profileBars.sort((a, b) => a.price - b.price);
+
+    if (config.showDeltaProfile && profileBars.length > 0) {
+      deltaProfile = {
+        bars: profileBars,
+        maxValue: maxDeltaValue,
+      };
+    }
+
+    if (config.showVolumeProfile && profileBars.length > 0) {
+      volumeProfile = {
+        bars: profileBars,
+        maxValue: maxVolumeValue,
+      };
+    }
+  }
 
   return {
     priceMin: priceRange.min,
@@ -185,6 +228,8 @@ export function adaptMarketState(
     contrast,
     upperCutoff,
     colors: config.colors,
+    deltaProfile,
+    volumeProfile,
   };
 }
 

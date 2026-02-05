@@ -307,6 +307,8 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
             },
             showGrid: true,
             gridStep: (config?.tickSize || 0.5) * 10,
+            showDeltaProfile,
+            showVolumeProfile,
           });
 
           // Add crosshair data
@@ -340,7 +342,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [state, getPriceRange, crosshair, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize]);
+  }, [state, getPriceRange, crosshair, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
 
   // Resize
   useEffect(() => {
