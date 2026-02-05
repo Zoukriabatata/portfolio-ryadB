@@ -246,6 +246,29 @@ function DisplayTab({ store }: TabProps) {
 
   return (
     <div className="space-y-4">
+      {/* Performance Section */}
+      <SettingsSection title="Performance" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polygon points="12,2 2,7 12,12 22,7" />
+          <polyline points="2,17 12,22 22,17" />
+          <polyline points="2,12 12,17 22,12" />
+        </svg>
+      }>
+        <ToggleOption
+          label="WebGL Rendering"
+          description="GPU-accelerated rendering for better performance (recommended)"
+          checked={store.useWebGL}
+          onChange={store.setUseWebGL}
+        />
+        {store.useWebGL && (
+          <div className="mt-2 px-3 py-2 bg-purple-900/30 border border-purple-800/50 rounded-lg">
+            <p className="text-[10px] text-purple-300">
+              WebGL enabled - GPU rendering active for smooth 60 FPS with 500+ orders
+            </p>
+          </div>
+        )}
+      </SettingsSection>
+
       {/* Profiles Section */}
       <SettingsSection title="Profiles" icon={
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

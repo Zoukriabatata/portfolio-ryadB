@@ -17,6 +17,7 @@ import { SimulationEngine } from '@/lib/heatmap-v2/SimulationEngine';
 import { LiveDataEngine, resetLiveDataEngine } from '@/lib/heatmap-v2/LiveDataEngine';
 import { HeatmapRenderer } from '@/lib/heatmap-v2/HeatmapRenderer';
 import { MarketState, SimulationConfig, DrawingType, TradeFlowSettings as RendererTradeFlowSettings } from '@/lib/heatmap-v2/types';
+import { HybridRenderer, adaptMarketState } from '@/lib/heatmap-webgl';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
 import LiquidityAdvancedSettings from '@/components/settings/LiquidityAdvancedSettings';
 
@@ -59,11 +60,14 @@ interface NavigationState {
 }
 
 export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', initialMode = 'simulation' }: StaircaseHeatmapProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvas2DRef = useRef<HTMLCanvasElement>(null);
+  const canvasWebGLRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const webglContainerRef = useRef<HTMLDivElement>(null);
   const simulationRef = useRef<SimulationEngine | null>(null);
   const liveEngineRef = useRef<LiveDataEngine | null>(null);
   const rendererRef = useRef<HeatmapRenderer | null>(null);
+  const webglRendererRef = useRef<HybridRenderer | null>(null);
   const animationRef = useRef<number>(0);
 
   const [state, setState] = useState<MarketState | null>(null);
@@ -82,6 +86,12 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     displayFeatures,
     autoCenter,
     setAutoCenter,
+    useWebGL,
+    setUseWebGL,
+    contrast,
+    upperCutoffPercent,
+    bestBidColor,
+    bestAskColor,
   } = store;
 
   // Destructure display features for convenience
@@ -165,7 +175,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
 
   // Initialisation - based on dataMode
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!containerRef.current) return;
 
     // Cleanup previous engines
     simulationRef.current?.destroy();
@@ -174,11 +184,33 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     liveEngineRef.current = null;
 
     try {
-      // Créer le renderer
-      if (!rendererRef.current) {
-        rendererRef.current = new HeatmapRenderer(canvasRef.current);
+      // Créer le renderer approprié
+      if (useWebGL && canvasWebGLRef.current && webglContainerRef.current) {
+        // ═══════════════════════════════════════════════════════════════
+        // MODE WEBGL
+        // ═══════════════════════════════════════════════════════════════
+        if (!webglRendererRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          webglRendererRef.current = new HybridRenderer({
+            canvas: canvasWebGLRef.current,
+            container: webglContainerRef.current,
+            width: rect.width,
+            height: rect.height,
+            priceAxisWidth: priceAxisWidth,
+            deltaProfileWidth: deltaProfileWidth,
+            volumeProfileWidth: volumeProfileWidth,
+          });
+          console.log('[StaircaseHeatmap] WebGL renderer initialized');
+        }
+      } else if (!useWebGL && canvas2DRef.current) {
+        // ═══════════════════════════════════════════════════════════════
+        // MODE CANVAS 2D
+        // ═══════════════════════════════════════════════════════════════
+        if (!rendererRef.current) {
+          rendererRef.current = new HeatmapRenderer(canvas2DRef.current);
+        }
+        rendererRef.current.setTickSize(config?.tickSize || 0.5);
       }
-      rendererRef.current.setTickSize(config?.tickSize || 0.5);
 
       if (dataMode === 'simulation') {
         // ═══════════════════════════════════════════════════════════════
@@ -220,21 +252,51 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
       simulationRef.current?.destroy();
       liveEngineRef.current?.destroy();
       rendererRef.current?.destroy();
+      webglRendererRef.current?.destroy();
       rendererRef.current = null;
+      webglRendererRef.current = null;
     };
-  }, [dataMode, symbol]);
+  }, [dataMode, symbol, useWebGL, priceAxisWidth, deltaProfileWidth, volumeProfileWidth]);
 
   // Boucle de rendu
   useEffect(() => {
     const render = () => {
-      if (rendererRef.current && state) {
+      if (state) {
         const priceRange = getPriceRange();
-        rendererRef.current.render(
-          state,
-          priceRange,
-          crosshair.visible ? crosshair : null,
-          rendererTradeFlowSettings
-        );
+
+        if (useWebGL && webglRendererRef.current) {
+          // ═══════════════════════════════════════════════════════════════
+          // RENDU WEBGL
+          // ═══════════════════════════════════════════════════════════════
+          const rect = containerRef.current?.getBoundingClientRect();
+          const renderData = adaptMarketState(state, priceRange, {
+            width: rect?.width || 800,
+            height: rect?.height || 600,
+            tickSize: config?.tickSize || 0.5,
+            contrast: contrast,
+            upperCutoff: upperCutoffPercent / 100,
+            colors: {
+              bidColor: bestBidColor,
+              askColor: bestAskColor,
+              buyColor: tradeFlowSettings.buyColor,
+              sellColor: tradeFlowSettings.sellColor,
+              gridColor: 'rgba(255, 255, 255, 0.05)',
+            },
+            showGrid: true,
+            gridStep: (config?.tickSize || 0.5) * 10,
+          });
+          webglRendererRef.current.render(renderData);
+        } else if (rendererRef.current) {
+          // ═══════════════════════════════════════════════════════════════
+          // RENDU CANVAS 2D
+          // ═══════════════════════════════════════════════════════════════
+          rendererRef.current.render(
+            state,
+            priceRange,
+            crosshair.visible ? crosshair : null,
+            rendererTradeFlowSettings
+          );
+        }
       }
       animationRef.current = requestAnimationFrame(render);
     };
@@ -244,17 +306,22 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [state, getPriceRange, crosshair, rendererTradeFlowSettings]);
+  }, [state, getPriceRange, crosshair, rendererTradeFlowSettings, useWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize]);
 
   // Resize
   useEffect(() => {
     const handleResize = () => {
-      rendererRef.current?.resize();
+      if (useWebGL && webglRendererRef.current && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        webglRendererRef.current.resize(rect.width, rect.height);
+      } else {
+        rendererRef.current?.resize();
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [useWebGL]);
 
   // Update passive thickness in renderer
   useEffect(() => {
@@ -449,44 +516,47 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
 
   // Mouse down - start drag or drawing
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || !rendererRef.current || !state) return;
+    if (!containerRef.current || !state) return;
 
-    const rect = canvasRef.current.getBoundingClientRect();
+    const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const heatmapEndX = rect.width - priceAxisWidth - volumeProfileWidth;
 
-    // If active drawing tool, start drawing
-    if (activeDrawingTool && x <= heatmapEndX && x >= deltaProfileWidth) {
-      const priceRange = getPriceRange();
-      const newDrawing = rendererRef.current.startDrawing(x, y, priceRange, state);
+    // Drawing tools only available in Canvas 2D mode
+    if (!useWebGL && rendererRef.current) {
+      // If active drawing tool, start drawing
+      if (activeDrawingTool && x <= heatmapEndX && x >= deltaProfileWidth) {
+        const priceRange = getPriceRange();
+        const newDrawing = rendererRef.current.startDrawing(x, y, priceRange, state);
 
-      if (newDrawing) {
-        // Instant drawing (hline, text) - add immediately
-        if (state.drawings) {
-          state.drawings.drawings.push(newDrawing);
+        if (newDrawing) {
+          // Instant drawing (hline, text) - add immediately
+          if (state.drawings) {
+            state.drawings.drawings.push(newDrawing);
+          }
+          // Reset tool after creating hline
+          if (activeDrawingTool === 'hline' || activeDrawingTool === 'text') {
+            setActiveDrawingTool(null);
+            rendererRef.current.setActiveDrawingTool(null);
+          }
+        } else if (activeDrawingTool === 'rect' || activeDrawingTool === 'trendline') {
+          // Multi-point drawing - start
+          setIsDrawing(true);
         }
-        // Reset tool after creating hline
-        if (activeDrawingTool === 'hline' || activeDrawingTool === 'text') {
-          setActiveDrawingTool(null);
-          rendererRef.current.setActiveDrawingTool(null);
-        }
-      } else if (activeDrawingTool === 'rect' || activeDrawingTool === 'trendline') {
-        // Multi-point drawing - start
-        setIsDrawing(true);
-      }
-      return;
-    }
-
-    // Check for selection/drag on existing drawing
-    if (!activeDrawingTool && x <= heatmapEndX && x >= deltaProfileWidth) {
-      const priceRange = getPriceRange();
-      const hitDrawing = rendererRef.current.hitTestDrawings(x, y, priceRange, state);
-      if (hitDrawing) {
-        // Start selection/drag - handled by renderer
-        rendererRef.current.startDrawing(x, y, priceRange, state);
-        setIsDrawing(true);
         return;
+      }
+
+      // Check for selection/drag on existing drawing
+      if (!activeDrawingTool && x <= heatmapEndX && x >= deltaProfileWidth) {
+        const priceRange = getPriceRange();
+        const hitDrawing = rendererRef.current.hitTestDrawings(x, y, priceRange, state);
+        if (hitDrawing) {
+          // Start selection/drag - handled by renderer
+          rendererRef.current.startDrawing(x, y, priceRange, state);
+          setIsDrawing(true);
+          return;
+        }
       }
     }
 
@@ -532,9 +602,9 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
 
   // Mouse move - crosshair tracking + drag handling + drawing
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || !state) return;
+    if (!containerRef.current || !state) return;
 
-    const rect = canvasRef.current.getBoundingClientRect();
+    const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const heatmapStartX = deltaProfileWidth;
@@ -625,23 +695,27 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     setCrosshair(prev => ({ ...prev, visible: false }));
   }, []);
 
+  const canvasCursor = activeDrawingTool
+    ? 'crosshair'
+    : nav.isDragging
+    ? 'grabbing'
+    : nav.isAxisDragging
+    ? 'ns-resize'
+    : 'crosshair';
+
   return (
     <div
       ref={containerRef}
       className="relative w-full select-none"
       style={{ height, background: '#0a0c10' }}
     >
+      {/* Canvas 2D (visible when !useWebGL) */}
       <canvas
-        ref={canvasRef}
-        className="w-full h-full block"
+        ref={canvas2DRef}
+        className="absolute inset-0 w-full h-full block"
         style={{
-          cursor: activeDrawingTool
-            ? 'crosshair'
-            : nav.isDragging
-            ? 'grabbing'
-            : nav.isAxisDragging
-            ? 'ns-resize'
-            : 'crosshair'
+          cursor: canvasCursor,
+          display: useWebGL ? 'none' : 'block',
         }}
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
@@ -652,6 +726,32 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
           handleMouseLeave();
           handleMouseUp();
         }}
+      />
+
+      {/* Canvas WebGL (visible when useWebGL) */}
+      <canvas
+        ref={canvasWebGLRef}
+        className="absolute inset-0 w-full h-full block"
+        style={{
+          cursor: canvasCursor,
+          display: useWebGL ? 'block' : 'none',
+        }}
+        onWheel={handleWheel}
+        onDoubleClick={handleDoubleClick}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={(e) => {
+          handleMouseLeave();
+          handleMouseUp();
+        }}
+      />
+
+      {/* WebGL overlay container (for Canvas2DOverlay text) */}
+      <div
+        ref={webglContainerRef}
+        className="absolute inset-0 pointer-events-none"
+        style={{ zIndex: useWebGL ? 2 : -1 }}
       />
 
 
@@ -693,6 +793,24 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
           Settings
+        </button>
+
+        {/* WebGL Toggle */}
+        <button
+          onClick={() => setUseWebGL(!useWebGL)}
+          className={`px-2 py-1 rounded text-[10px] font-bold font-mono transition-all flex items-center gap-1 ${
+            useWebGL
+              ? 'bg-purple-600/90 text-white border border-purple-500 shadow-lg shadow-purple-500/20'
+              : 'bg-zinc-700/80 text-zinc-400 border border-zinc-600'
+          }`}
+          title={useWebGL ? 'WebGL actif - Cliquer pour Canvas 2D' : 'Canvas 2D actif - Cliquer pour WebGL'}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="12,2 2,7 12,12 22,7" />
+            <polyline points="2,17 12,22 22,17" />
+            <polyline points="2,12 12,17 22,12" />
+          </svg>
+          {useWebGL ? 'WebGL' : '2D'}
         </button>
 
         {/* Data Mode Toggle */}

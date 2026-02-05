@@ -99,6 +99,10 @@ export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSetting
   setShowDrawings: (show: boolean) => void;
   setPassiveThickness: (thickness: PassiveThickness) => void;
 
+  // WebGL Rendering
+  useWebGL: boolean;
+  setUseWebGL: (enabled: boolean) => void;
+
   // Reset
   resetToDefaults: () => void;
 }
@@ -111,6 +115,7 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
       alertZones: [],
       isSettingsPanelOpen: false,
       settingsPanelPosition: { x: 100, y: 100 },
+      useWebGL: true, // Enable WebGL by default for better performance
 
       // Legacy actions
       setShowLiquidityDelta: (show) => set({ showLiquidityDelta: show }),
@@ -253,6 +258,9 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
         displayFeatures: { ...state.displayFeatures, passiveThickness: thickness },
       })),
 
+      // WebGL Rendering
+      setUseWebGL: (enabled) => set({ useWebGL: enabled }),
+
       // Reset
       resetToDefaults: () => set({
         ...DEFAULT_HEATMAP_SETTINGS,
@@ -261,9 +269,15 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
     }),
     {
       name: 'heatmap-settings-storage',
-      version: 2,
+      version: 3,
+      migrate: (persistedState: unknown, version: number) => {
+        // Simply return the persisted state - the merge function handles defaults
+        // This avoids type conflicts while ensuring old data is preserved
+        return persistedState;
+      },
       partialize: (state) => ({
         // Persist only settings, not UI state
+        useWebGL: state.useWebGL,
         autoCenter: state.autoCenter,
         colorScheme: state.colorScheme,
         upperCutoffPercent: state.upperCutoffPercent,
@@ -285,6 +299,8 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
         return {
           ...currentState,
           ...persisted,
+          // Ensure useWebGL has a default
+          useWebGL: persisted?.useWebGL ?? true,
           // Deep merge displayFeatures to handle new defaults
           displayFeatures: {
             ...DEFAULT_LIQUIDITY_DISPLAY_FEATURES,
