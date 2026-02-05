@@ -10,6 +10,7 @@ import { Canvas2DOverlay } from './Canvas2DOverlay';
 import { HeatmapCommand } from './commands/HeatmapCommand';
 import { LinesCommand } from './commands/LinesCommand';
 import { TradeBubblesCommand } from './commands/TradeBubblesCommand';
+import { ProfileBarsCommand } from './commands/ProfileBarsCommand';
 import type { DirtyFlags, PassiveOrderData, TradeData } from './types';
 
 export interface HybridRendererConfig {
@@ -44,6 +45,25 @@ export interface RenderData {
   gridHorizontalPrices?: number[];
   gridVerticalPositions?: number[];
 
+  // Crosshair (optional)
+  crosshair?: {
+    x: number;
+    y: number;
+    price: number;
+    time?: string;
+    visible: boolean;
+  };
+
+  // Profile bars (optional)
+  deltaProfile?: {
+    bars: { price: number; bidValue: number; askValue: number }[];
+    maxValue: number;
+  };
+  volumeProfile?: {
+    bars: { price: number; bidValue: number; askValue: number }[];
+    maxValue: number;
+  };
+
   // Settings
   contrast: number;
   upperCutoff: number;
@@ -77,10 +97,28 @@ export class HybridRenderer {
   private heatmapCommand: HeatmapCommand | null = null;
   private linesCommand: LinesCommand | null = null;
   private tradesBubblesCommand: TradeBubblesCommand | null = null;
+  private profileBarsCommand: ProfileBarsCommand | null = null;
 
-  // Previous render state for dirty checking
+  // Performance tracking
   private lastRenderTime: number = 0;
   private frameCount: number = 0;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIRTY FLAGS & DATA CACHING
+  // ═══════════════════════════════════════════════════════════════════════════
+  private lastPriceRange: { min: number; max: number } | null = null;
+  private lastOrdersHash: number = 0;
+  private lastTradesHash: number = 0;
+  private lastBidPointsLength: number = 0;
+  private lastAskPointsLength: number = 0;
+  private lastContrast: number = 0;
+  private lastUpperCutoff: number = 0;
+
+  // Cached transformed data (avoid re-transforming every frame)
+  private cachedTransformedOrders: PassiveOrderData[] = [];
+  private cachedTransformedTrades: TradeData[] = [];
+  private cachedBidScreenPoints: { x: number; y: number }[] = [];
+  private cachedAskScreenPoints: { x: number; y: number }[] = [];
 
   constructor(config: HybridRendererConfig) {
     this.config = {
@@ -114,6 +152,7 @@ export class HybridRenderer {
       this.heatmapCommand = new HeatmapCommand(this.ctx, this.textureManager);
       this.linesCommand = new LinesCommand(this.ctx);
       this.tradesBubblesCommand = new TradeBubblesCommand(this.ctx);
+      this.profileBarsCommand = new ProfileBarsCommand(this.ctx);
 
       this.useWebGL = true;
       console.log('[HybridRenderer] WebGL initialized successfully');
@@ -166,47 +205,109 @@ export class HybridRenderer {
   }
 
   /**
+   * Compute simple hash for quick dirty checking
+   */
+  private computeOrdersHash(orders: PassiveOrderData[]): number {
+    if (orders.length === 0) return 0;
+    // Simple hash based on first, last, and length
+    const first = orders[0];
+    const last = orders[orders.length - 1];
+    return orders.length * 1000000 +
+      Math.round(first.price * 100) +
+      Math.round(last.price * 100) * 1000 +
+      Math.round(first.intensity * 100);
+  }
+
+  private computeTradesHash(trades: TradeData[]): number {
+    if (trades.length === 0) return 0;
+    const first = trades[0];
+    return trades.length * 1000000 +
+      Math.round(first.price * 100) +
+      Math.round(first.x);
+  }
+
+  /**
+   * Check what data has changed and compute dirty flags
+   */
+  private computeDirtyFlags(data: RenderData): DirtyFlags {
+    const ordersHash = this.computeOrdersHash(data.passiveOrders);
+    const tradesHash = this.computeTradesHash(data.trades);
+
+    const dirty: DirtyFlags = {
+      heatmap: ordersHash !== this.lastOrdersHash ||
+        data.priceMin !== this.lastPriceRange?.min ||
+        data.priceMax !== this.lastPriceRange?.max ||
+        data.contrast !== this.lastContrast ||
+        data.upperCutoff !== this.lastUpperCutoff,
+      trades: tradesHash !== this.lastTradesHash,
+      lines: (data.bestBidPoints?.length || 0) !== this.lastBidPointsLength ||
+        (data.bestAskPoints?.length || 0) !== this.lastAskPointsLength ||
+        data.priceMin !== this.lastPriceRange?.min ||
+        data.priceMax !== this.lastPriceRange?.max,
+      priceRange: data.priceMin !== this.lastPriceRange?.min ||
+        data.priceMax !== this.lastPriceRange?.max,
+      settings: data.contrast !== this.lastContrast ||
+        data.upperCutoff !== this.lastUpperCutoff,
+    };
+
+    // Update cached values
+    this.lastOrdersHash = ordersHash;
+    this.lastTradesHash = tradesHash;
+    this.lastPriceRange = { min: data.priceMin, max: data.priceMax };
+    this.lastBidPointsLength = data.bestBidPoints?.length || 0;
+    this.lastAskPointsLength = data.bestAskPoints?.length || 0;
+    this.lastContrast = data.contrast;
+    this.lastUpperCutoff = data.upperCutoff;
+
+    return dirty;
+  }
+
+  /**
    * Main render method
    */
   render(data: RenderData): void {
     if (!this._isInitialized) return;
 
+    // Compute dirty flags for optimization
+    const dirty = data.dirty || this.computeDirtyFlags(data);
+
     if (this.useWebGL && this.ctx) {
       try {
-        this.renderWebGL(data);
+        this.renderWebGL(data, dirty);
       } catch (e) {
         console.error('[HybridRenderer] WebGL render error:', e);
-        // Could fall back to Canvas 2D here
       }
-    } else {
-      // Canvas 2D fallback (TODO: implement in Phase 2 if needed)
-      console.warn('[HybridRenderer] Canvas 2D fallback not yet implemented');
     }
 
-    // Always render text overlay
+    // Always render text overlay (lightweight)
     this.renderOverlay(data);
   }
 
   /**
-   * WebGL rendering
+   * WebGL rendering with dirty flag optimization
    */
-  private renderWebGL(data: RenderData): void {
+  private renderWebGL(data: RenderData, dirty?: DirtyFlags): void {
     if (!this.ctx) return;
 
     const { width, height, dpr, deltaProfileWidth, priceAxisWidth } = this.config;
     const pixelWidth = width! * dpr!;
     const pixelHeight = height! * dpr!;
 
-    // Clear canvas with dark background
+    // Always clear (required for transparency)
     this.ctx.clear([0.039, 0.047, 0.063, 1]); // #0a0c10
 
     const colors = data.colors || {};
     const heatmapLeft = (deltaProfileWidth || 0) * dpr!;
     const heatmapRight = pixelWidth - (priceAxisWidth || 0) * dpr!;
-    const heatmapWidth = heatmapRight - heatmapLeft;
 
-    // 1. Render grid lines
-    if (this.linesCommand && (data.gridHorizontalPrices || data.gridVerticalPositions)) {
+    // Default: render everything if no dirty flags
+    const shouldRenderGrid = !dirty || dirty.priceRange;
+    const shouldRenderHeatmap = !dirty || dirty.heatmap;
+    const shouldRenderLines = !dirty || dirty.lines;
+    const shouldRenderTrades = !dirty || dirty.trades;
+
+    // 1. Render grid lines (only if price range changed)
+    if (shouldRenderGrid && this.linesCommand && (data.gridHorizontalPrices || data.gridVerticalPositions)) {
       const horizontalLines = (data.gridHorizontalPrices || []).map((price) => {
         const priceRange = data.priceMax - data.priceMin;
         return pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
@@ -229,56 +330,129 @@ export class HybridRenderer {
     if (this.heatmapCommand && data.passiveOrders.length > 0) {
       const cellHeight = pixelHeight / ((data.priceMax - data.priceMin) / data.tickSize);
 
-      this.heatmapCommand.render(
-        {
-          orders: data.passiveOrders,
-          priceMin: data.priceMin,
-          priceMax: data.priceMax,
-          cellHeight: Math.max(1, cellHeight),
-          contrast: data.contrast,
-          upperCutoff: data.upperCutoff,
-          opacity: data.opacity ?? 0.8,
-          baseX: heatmapLeft,
-        },
-        this.projection,
-        [pixelWidth, pixelHeight]
-      );
+      // Only re-transform if heatmap data changed
+      if (shouldRenderHeatmap) {
+        this.cachedTransformedOrders = data.passiveOrders.map((order) => ({
+          ...order,
+          x: order.x * dpr!,
+          size: order.size * dpr!,
+        }));
+      }
+
+      if (this.cachedTransformedOrders.length > 0) {
+        this.heatmapCommand.render(
+          {
+            orders: this.cachedTransformedOrders,
+            priceMin: data.priceMin,
+            priceMax: data.priceMax,
+            cellHeight: Math.max(1, cellHeight),
+            contrast: data.contrast,
+            upperCutoff: data.upperCutoff,
+            opacity: data.opacity ?? 0.8,
+            baseX: heatmapLeft,
+          },
+          this.projection,
+          [pixelWidth, pixelHeight]
+        );
+      }
     }
 
     // 3. Render best bid/ask staircase lines
     if (this.linesCommand && (data.bestBidPoints || data.bestAskPoints)) {
       const priceRange = data.priceMax - data.priceMin;
 
-      const toScreenPoints = (points: { x: number; price: number }[] | undefined) =>
-        (points || []).map((p) => ({
-          x: p.x * dpr!,
-          y: pixelHeight - ((p.price - data.priceMin) / priceRange) * pixelHeight,
-        }));
+      // Only re-transform if lines data changed
+      if (shouldRenderLines) {
+        const toScreenPoints = (points: { x: number; price: number }[] | undefined) =>
+          (points || []).map((p) => ({
+            x: p.x * dpr!,
+            y: pixelHeight - ((p.price - data.priceMin) / priceRange) * pixelHeight,
+          }));
 
-      this.linesCommand.renderStaircase(
-        {
-          bidPoints: toScreenPoints(data.bestBidPoints),
-          askPoints: toScreenPoints(data.bestAskPoints),
-          bidColor: colors.bidColor || '#22c55e',
-          askColor: colors.askColor || '#ef4444',
-          lineWidth: 2,
-          opacity: 1,
-        },
-        this.projection
-      );
+        this.cachedBidScreenPoints = toScreenPoints(data.bestBidPoints);
+        this.cachedAskScreenPoints = toScreenPoints(data.bestAskPoints);
+      }
+
+      if (this.cachedBidScreenPoints.length > 0 || this.cachedAskScreenPoints.length > 0) {
+        this.linesCommand.renderStaircase(
+          {
+            bidPoints: this.cachedBidScreenPoints,
+            askPoints: this.cachedAskScreenPoints,
+            bidColor: colors.bidColor || '#22c55e',
+            askColor: colors.askColor || '#ef4444',
+            lineWidth: 2,
+            opacity: 1,
+          },
+          this.projection
+        );
+      }
     }
 
     // 4. Render trade bubbles
     if (this.tradesBubblesCommand && data.trades.length > 0) {
-      this.tradesBubblesCommand.render(
+      // Only re-transform if trades data changed
+      if (shouldRenderTrades) {
+        this.cachedTransformedTrades = data.trades.map((trade) => ({
+          ...trade,
+          x: trade.x * dpr!,
+          size: trade.size * dpr!,
+        }));
+      }
+
+      if (this.cachedTransformedTrades.length > 0) {
+        this.tradesBubblesCommand.render(
+          {
+            trades: this.cachedTransformedTrades,
+            priceMin: data.priceMin,
+            priceMax: data.priceMax,
+            buyColor: colors.buyColor || '#22c55e',
+            sellColor: colors.sellColor || '#ef4444',
+            opacity: 0.9,
+            maxSize: 50 * dpr!,
+          },
+          this.projection,
+          pixelHeight
+        );
+      }
+    }
+
+    // 5. Render delta profile (left side)
+    if (this.profileBarsCommand && data.deltaProfile && data.deltaProfile.bars.length > 0) {
+      this.profileBarsCommand.render(
         {
-          trades: data.trades,
+          bars: data.deltaProfile.bars,
           priceMin: data.priceMin,
           priceMax: data.priceMax,
-          buyColor: colors.buyColor || '#22c55e',
-          sellColor: colors.sellColor || '#ef4444',
-          opacity: 0.9,
-          maxSize: 50,
+          maxValue: data.deltaProfile.maxValue,
+          baseX: 0,
+          maxWidth: heatmapLeft,
+          bidColor: colors.bidColor || '#22c55e',
+          askColor: colors.askColor || '#ef4444',
+          opacity: 0.8,
+          side: 'left',
+        },
+        this.projection,
+        pixelHeight
+      );
+    }
+
+    // 6. Render volume profile (right side)
+    if (this.profileBarsCommand && data.volumeProfile && data.volumeProfile.bars.length > 0) {
+      const volumeProfileX = heatmapRight;
+      const volumeProfileWidth = (priceAxisWidth || 0) * dpr!;
+
+      this.profileBarsCommand.render(
+        {
+          bars: data.volumeProfile.bars,
+          priceMin: data.priceMin,
+          priceMax: data.priceMax,
+          maxValue: data.volumeProfile.maxValue,
+          baseX: volumeProfileX,
+          maxWidth: volumeProfileWidth * 0.8, // Leave some space for price axis
+          bidColor: colors.bidColor || '#22c55e',
+          askColor: colors.askColor || '#ef4444',
+          opacity: 0.7,
+          side: 'right',
         },
         this.projection,
         pixelHeight
@@ -336,6 +510,18 @@ export class HybridRenderer {
       ],
       height! - 12
     );
+
+    // Crosshair (if visible)
+    if (data.crosshair?.visible) {
+      const priceAxisX = width! - priceAxisWidth!;
+      this.overlay.renderCrosshair(
+        data.crosshair.x,
+        data.crosshair.y,
+        data.crosshair.price,
+        data.crosshair.time || '',
+        priceAxisX
+      );
+    }
   }
 
   /**
@@ -395,6 +581,7 @@ export class HybridRenderer {
     this.heatmapCommand?.destroy();
     this.linesCommand?.destroy();
     this.tradesBubblesCommand?.destroy();
+    this.profileBarsCommand?.destroy();
 
     // Then textures and context
     this.textureManager?.destroy();
@@ -404,6 +591,7 @@ export class HybridRenderer {
     this.heatmapCommand = null;
     this.linesCommand = null;
     this.tradesBubblesCommand = null;
+    this.profileBarsCommand = null;
     this.ctx = null;
     this.textureManager = null;
     this.overlay = null;

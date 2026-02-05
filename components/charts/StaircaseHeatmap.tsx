@@ -75,6 +75,8 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
   const [dataMode, setDataMode] = useState<DataMode>(initialMode);
   const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingType | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  // Track actual rendering mode (may differ from preference if WebGL fails)
+  const [actuallyUsingWebGL, setActuallyUsingWebGL] = useState(false);
 
   // Use Zustand store for all settings
   const store = useHeatmapSettingsStore();
@@ -183,34 +185,55 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     simulationRef.current = null;
     liveEngineRef.current = null;
 
+    let usingWebGL = false;
+
     try {
       // Créer le renderer approprié
       if (useWebGL && canvasWebGLRef.current && webglContainerRef.current) {
         // ═══════════════════════════════════════════════════════════════
-        // MODE WEBGL
+        // MODE WEBGL (tentative)
         // ═══════════════════════════════════════════════════════════════
-        if (!webglRendererRef.current) {
-          const rect = containerRef.current.getBoundingClientRect();
-          webglRendererRef.current = new HybridRenderer({
-            canvas: canvasWebGLRef.current,
-            container: webglContainerRef.current,
-            width: rect.width,
-            height: rect.height,
-            priceAxisWidth: priceAxisWidth,
-            deltaProfileWidth: deltaProfileWidth,
-            volumeProfileWidth: volumeProfileWidth,
-          });
-          console.log('[StaircaseHeatmap] WebGL renderer initialized');
+        try {
+          if (!webglRendererRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            webglRendererRef.current = new HybridRenderer({
+              canvas: canvasWebGLRef.current,
+              container: webglContainerRef.current,
+              width: rect.width,
+              height: rect.height,
+              priceAxisWidth: priceAxisWidth,
+              deltaProfileWidth: deltaProfileWidth,
+              volumeProfileWidth: volumeProfileWidth,
+            });
+          }
+          // Verify WebGL actually initialized
+          if (webglRendererRef.current.isWebGL) {
+            usingWebGL = true;
+            console.log('[StaircaseHeatmap] WebGL renderer initialized successfully');
+          } else {
+            throw new Error('WebGL not available in HybridRenderer');
+          }
+        } catch (webglError) {
+          console.warn('[StaircaseHeatmap] WebGL initialization failed, falling back to Canvas 2D:', webglError);
+          // Destroy failed WebGL renderer
+          webglRendererRef.current?.destroy();
+          webglRendererRef.current = null;
+          usingWebGL = false;
         }
-      } else if (!useWebGL && canvas2DRef.current) {
-        // ═══════════════════════════════════════════════════════════════
-        // MODE CANVAS 2D
-        // ═══════════════════════════════════════════════════════════════
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // MODE CANVAS 2D (fallback or explicit)
+      // ═══════════════════════════════════════════════════════════════
+      if (!usingWebGL && canvas2DRef.current) {
         if (!rendererRef.current) {
           rendererRef.current = new HeatmapRenderer(canvas2DRef.current);
+          console.log('[StaircaseHeatmap] Canvas 2D renderer initialized');
         }
         rendererRef.current.setTickSize(config?.tickSize || 0.5);
       }
+
+      setActuallyUsingWebGL(usingWebGL);
 
       if (dataMode === 'simulation') {
         // ═══════════════════════════════════════════════════════════════
@@ -264,7 +287,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
       if (state) {
         const priceRange = getPriceRange();
 
-        if (useWebGL && webglRendererRef.current) {
+        if (actuallyUsingWebGL && webglRendererRef.current) {
           // ═══════════════════════════════════════════════════════════════
           // RENDU WEBGL
           // ═══════════════════════════════════════════════════════════════
@@ -285,6 +308,17 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
             showGrid: true,
             gridStep: (config?.tickSize || 0.5) * 10,
           });
+
+          // Add crosshair data
+          if (crosshair.visible) {
+            renderData.crosshair = {
+              x: crosshair.x,
+              y: crosshair.y,
+              price: crosshair.price,
+              visible: true,
+            };
+          }
+
           webglRendererRef.current.render(renderData);
         } else if (rendererRef.current) {
           // ═══════════════════════════════════════════════════════════════
@@ -306,12 +340,12 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [state, getPriceRange, crosshair, rendererTradeFlowSettings, useWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize]);
+  }, [state, getPriceRange, crosshair, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize]);
 
   // Resize
   useEffect(() => {
     const handleResize = () => {
-      if (useWebGL && webglRendererRef.current && containerRef.current) {
+      if (actuallyUsingWebGL && webglRendererRef.current && containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         webglRendererRef.current.resize(rect.width, rect.height);
       } else {
@@ -321,7 +355,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [useWebGL]);
+  }, [actuallyUsingWebGL]);
 
   // Update passive thickness in renderer
   useEffect(() => {
@@ -524,7 +558,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     const heatmapEndX = rect.width - priceAxisWidth - volumeProfileWidth;
 
     // Drawing tools only available in Canvas 2D mode
-    if (!useWebGL && rendererRef.current) {
+    if (!actuallyUsingWebGL && rendererRef.current) {
       // If active drawing tool, start drawing
       if (activeDrawingTool && x <= heatmapEndX && x >= deltaProfileWidth) {
         const priceRange = getPriceRange();
@@ -709,13 +743,13 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
       className="relative w-full select-none"
       style={{ height, background: '#0a0c10' }}
     >
-      {/* Canvas 2D (visible when !useWebGL) */}
+      {/* Canvas 2D (visible when not using WebGL) */}
       <canvas
         ref={canvas2DRef}
         className="absolute inset-0 w-full h-full block"
         style={{
           cursor: canvasCursor,
-          display: useWebGL ? 'none' : 'block',
+          display: actuallyUsingWebGL ? 'none' : 'block',
         }}
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
@@ -728,13 +762,13 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
         }}
       />
 
-      {/* Canvas WebGL (visible when useWebGL) */}
+      {/* Canvas WebGL (visible when using WebGL) */}
       <canvas
         ref={canvasWebGLRef}
         className="absolute inset-0 w-full h-full block"
         style={{
           cursor: canvasCursor,
-          display: useWebGL ? 'block' : 'none',
+          display: actuallyUsingWebGL ? 'block' : 'none',
         }}
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
@@ -751,7 +785,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
       <div
         ref={webglContainerRef}
         className="absolute inset-0 pointer-events-none"
-        style={{ zIndex: useWebGL ? 2 : -1 }}
+        style={{ zIndex: actuallyUsingWebGL ? 2 : -1 }}
       />
 
 
@@ -799,18 +833,24 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
         <button
           onClick={() => setUseWebGL(!useWebGL)}
           className={`px-2 py-1 rounded text-[10px] font-bold font-mono transition-all flex items-center gap-1 ${
-            useWebGL
+            actuallyUsingWebGL
               ? 'bg-purple-600/90 text-white border border-purple-500 shadow-lg shadow-purple-500/20'
               : 'bg-zinc-700/80 text-zinc-400 border border-zinc-600'
           }`}
-          title={useWebGL ? 'WebGL actif - Cliquer pour Canvas 2D' : 'Canvas 2D actif - Cliquer pour WebGL'}
+          title={actuallyUsingWebGL
+            ? 'WebGL actif - Cliquer pour Canvas 2D'
+            : useWebGL && !actuallyUsingWebGL
+              ? 'WebGL demandé mais non disponible (fallback Canvas 2D)'
+              : 'Canvas 2D actif - Cliquer pour WebGL'
+          }
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="12,2 2,7 12,12 22,7" />
             <polyline points="2,17 12,22 22,17" />
             <polyline points="2,12 12,17 22,12" />
           </svg>
-          {useWebGL ? 'WebGL' : '2D'}
+          {actuallyUsingWebGL ? 'WebGL' : '2D'}
+          {useWebGL && !actuallyUsingWebGL && <span className="text-amber-400">!</span>}
         </button>
 
         {/* Data Mode Toggle */}

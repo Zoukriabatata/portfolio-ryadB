@@ -131,12 +131,20 @@ export class HeatmapCommand {
    * Render passive orders
    */
   render(props: HeatmapRenderProps, projection: number[], viewport: [number, number]): void {
-    if (!this.drawCommand) return;
+    if (!this.drawCommand) {
+      console.warn('[HeatmapCommand] No draw command available');
+      return;
+    }
 
     const { orders, priceMin, priceMax, cellHeight, contrast, upperCutoff, opacity, baseX } = props;
     const priceRange = priceMax - priceMin;
 
-    if (orders.length === 0 || priceRange === 0) return;
+    if (orders.length === 0 || priceRange === 0) {
+      return;
+    }
+
+    // Debug logging reduced
+    // console.debug('[HeatmapCommand] Rendering', orders.length, 'orders');
 
     const count = Math.min(orders.length, this.maxOrders);
 

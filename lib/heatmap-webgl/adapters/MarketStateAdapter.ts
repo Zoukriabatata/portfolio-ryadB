@@ -168,6 +168,9 @@ export function adaptMarketState(
     }
   }
 
+  // Debug logging reduced - only log when data changes significantly
+  // console.debug('[adaptMarketState]', passiveOrders.length, 'orders,', trades.length, 'trades');
+
   return {
     priceMin: priceRange.min,
     priceMax: priceRange.max,
