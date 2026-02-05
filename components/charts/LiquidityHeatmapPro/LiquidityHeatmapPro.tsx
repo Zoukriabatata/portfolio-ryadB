@@ -30,6 +30,9 @@ export function LiquidityHeatmapPro({
   const zoomControllerRef = useRef<HeatmapZoomController | null>(null);
   const tradeFlowRendererRef = useRef<TradeFlowRenderer | null>(null);
   const animationFrameRef = useRef<number>(0);
+  const lastRenderTimeRef = useRef<number>(0);
+  const targetFPS = 60; // 60 FPS
+  const frameInterval = 1000 / targetFPS;
 
   // State
   const [mousePosition, setMousePosition] = useState<Point | null>(null);
@@ -40,6 +43,24 @@ export function LiquidityHeatmapPro({
     position: { x: 0, y: 0 },
     priceAtCursor: null,
   });
+
+  // Right-click pan state
+  const [isRightDragging, setIsRightDragging] = useState(false);
+  const [rightDragStart, setRightDragStart] = useState<{ x: number; y: number; priceOffset: number; timeOffset: number } | null>(null);
+
+  // Time zoom state
+  const [timeZoom, setTimeZoom] = useState(1);
+  const [timeOffset, setTimeOffset] = useState(0);
+
+  // Hover info state for bubbles
+  const [hoveredTrade, setHoveredTrade] = useState<{
+    x: number;
+    y: number;
+    buyVolume: number;
+    sellVolume: number;
+    price: number;
+    totalVolume: number;
+  } | null>(null);
 
   // Stores
   const settings = useHeatmapSettingsStore();
@@ -141,6 +162,7 @@ export function LiquidityHeatmapPro({
         tradeFlow: settings.tradeFlow,
         zoomLevel: settings.zoomLevel,
         priceOffset: settings.priceOffset,
+        displayFeatures: settings.displayFeatures,
       },
     };
 
@@ -268,6 +290,7 @@ export function LiquidityHeatmapPro({
         tradeFlow: settings.tradeFlow,
         zoomLevel: settings.zoomLevel,
         priceOffset: settings.priceOffset,
+        displayFeatures: settings.displayFeatures,
       });
     }
 
@@ -276,10 +299,21 @@ export function LiquidityHeatmapPro({
     }
   }, [settings]);
 
-  // Render loop
+  // Render loop - optimized for 60 FPS
   useEffect(() => {
-    const render = () => {
-      if (!rendererRef.current || !canvasRef.current) return;
+    const render = (timestamp: number) => {
+      // Throttle to target FPS
+      const elapsed = timestamp - lastRenderTimeRef.current;
+      if (elapsed < frameInterval) {
+        animationFrameRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastRenderTimeRef.current = timestamp - (elapsed % frameInterval);
+
+      if (!rendererRef.current || !canvasRef.current) {
+        animationFrameRef.current = requestAnimationFrame(render);
+        return;
+      }
 
       const priceRange = getPriceRange();
       const stats = getStats();
@@ -299,8 +333,11 @@ export function LiquidityHeatmapPro({
         stats,
       });
 
-      // Render trade flow on top
-      if (tradeFlowRendererRef.current && settings.tradeFlow.enabled) {
+      // DÉSACTIVÉ: Trade flow bubbles (rectangles cyan/rouge) - retirées car dérangent
+      // Si vous voulez les réactiver, décommentez le code ci-dessous
+      /*
+      // Render trade flow on top (only if enabled and has trades)
+      if (tradeFlowRendererRef.current && settings.tradeFlow.enabled && tradeEvents.length > 0) {
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
           const layout = rendererRef.current.getLayout();
@@ -311,23 +348,24 @@ export function LiquidityHeatmapPro({
             layout.heatmapArea.width,
             layout.heatmapArea.height,
             tickSize,
-            60000, // 60 seconds window
+            30000, // 30 seconds window (reduced for performance)
             layout.heatmapArea.x
           );
         }
       }
+      */
 
       animationFrameRef.current = requestAnimationFrame(render);
     };
 
-    render();
+    animationFrameRef.current = requestAnimationFrame(render);
 
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, settings.tradeFlow.enabled, tradeEvents]);
+  }, [bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, settings.tradeFlow.enabled, tradeEvents, frameInterval]);
 
   // Handle resize
   useEffect(() => {
@@ -370,6 +408,52 @@ export function LiquidityHeatmapPro({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [settings]);
 
+  // Check if mouse is over a trade bubble
+  const checkTradeHover = useCallback((mouseX: number, mouseY: number) => {
+    if (!tradeFlowRendererRef.current || !settings.tradeFlow.enabled) {
+      setHoveredTrade(null);
+      return;
+    }
+
+    const priceRange = getPriceRange();
+    const layout = rendererRef.current?.getLayout();
+    if (!layout) return;
+
+    // Check each trade for hover
+    for (const trade of tradeEvents) {
+      const now = Date.now();
+      const windowStart = now - 60000;
+      if (trade.timestamp < windowStart) continue;
+      if (trade.price < priceRange.min || trade.price > priceRange.max) continue;
+
+      // Calculate trade position
+      const ratio = (trade.timestamp - windowStart) / (now - windowStart);
+      const tradeX = layout.heatmapArea.x + ratio * layout.heatmapArea.width;
+      const priceRatio = (trade.price - priceRange.min) / (priceRange.max - priceRange.min);
+      const tradeY = layout.heatmapArea.height * (1 - priceRatio);
+
+      // Calculate radius (simplified)
+      const maxVolume = Math.max(...tradeEvents.map(t => t.volume), 1);
+      const radius = 5 + Math.sqrt(trade.volume / maxVolume) * 30;
+
+      // Check if mouse is within bubble
+      const distance = Math.sqrt(Math.pow(mouseX - tradeX, 2) + Math.pow(mouseY - tradeY, 2));
+      if (distance <= radius + 5) {
+        setHoveredTrade({
+          x: tradeX,
+          y: tradeY,
+          buyVolume: trade.side === 'buy' ? trade.volume : 0,
+          sellVolume: trade.side === 'sell' ? trade.volume : 0,
+          price: trade.price,
+          totalVolume: trade.volume,
+        });
+        return;
+      }
+    }
+
+    setHoveredTrade(null);
+  }, [getPriceRange, tradeEvents, settings.tradeFlow.enabled]);
+
   // Mouse handlers
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -379,9 +463,35 @@ export function LiquidityHeatmapPro({
     const y = e.clientY - rect.top;
     setMousePosition({ x, y });
 
+    // Check for trade bubble hover
+    checkTradeHover(x, y);
+
     // Update cursor based on position
     const onPriceAxis = rendererRef.current.isInPriceAxis(x);
     setIsOverPriceAxis(onPriceAxis);
+
+    // Handle right-click pan (free movement)
+    if (isRightDragging && rightDragStart) {
+      const deltaX = x - rightDragStart.x;
+      const deltaY = y - rightDragStart.y;
+
+      const priceRange = getPriceRange();
+      const pricePerPixel = (priceRange.max - priceRange.min) / height;
+
+      // Vertical: adjust price offset
+      const newPriceOffset = rightDragStart.priceOffset + deltaY * pricePerPixel;
+      settings.setPriceOffset(newPriceOffset);
+      settings.setAutoCenter(false);
+
+      // Horizontal: adjust time offset
+      const timePerPixel = 0.5 / timeZoom; // Adjust sensitivity
+      const newTimeOffset = rightDragStart.timeOffset - deltaX * timePerPixel;
+      setTimeOffset(newTimeOffset);
+      rendererRef.current?.setTimeOffset?.(newTimeOffset);
+
+      setCursorStyle('grabbing');
+      return;
+    }
 
     if (zoomControllerRef.current?.getIsDragging()) {
       const dragType = zoomControllerRef.current.getDragType();
@@ -397,16 +507,32 @@ export function LiquidityHeatmapPro({
     } else {
       setCursorStyle(onPriceAxis ? 'ns-resize' : 'crosshair');
     }
-  }, [getPriceRange, height]);
+  }, [getPriceRange, height, isRightDragging, rightDragStart, settings, timeZoom, checkTradeHover]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (e.button !== 0) return;
-
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect || !rendererRef.current || !zoomControllerRef.current) return;
+    if (!rect || !rendererRef.current) return;
 
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    // Right click - start free pan
+    if (e.button === 2) {
+      e.preventDefault();
+      setIsRightDragging(true);
+      setRightDragStart({
+        x,
+        y,
+        priceOffset: settings.priceOffset,
+        timeOffset: timeOffset,
+      });
+      setCursorStyle('grabbing');
+      return;
+    }
+
+    // Left click
+    if (e.button !== 0) return;
+    if (!zoomControllerRef.current) return;
 
     if (rendererRef.current.isInPriceAxis(x)) {
       zoomControllerRef.current.startPriceAxisDrag(y);
@@ -415,24 +541,45 @@ export function LiquidityHeatmapPro({
       zoomControllerRef.current.startPan(y);
       setCursorStyle('grabbing');
     }
-  }, []);
+  }, [settings.priceOffset, timeOffset]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    // End right-click drag
+    if (e.button === 2) {
+      setIsRightDragging(false);
+      setRightDragStart(null);
+    }
+
     zoomControllerRef.current?.endDrag();
     setCursorStyle(isOverPriceAxis ? 'ns-resize' : 'crosshair');
   }, [isOverPriceAxis]);
 
   const handleMouseLeave = useCallback(() => {
     setMousePosition(null);
+    setIsRightDragging(false);
+    setRightDragStart(null);
     zoomControllerRef.current?.endDrag();
     setCursorStyle('crosshair');
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    if (!zoomControllerRef.current || !mousePosition || !canvasRef.current) return;
+    if (!mousePosition || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
+
+    // Shift + wheel = horizontal time zoom (0.1x to 10x like price zoom)
+    if (e.shiftKey) {
+      const zoomFactor = e.deltaY > 0 ? 0.85 : 1.15;
+      const newTimeZoom = Math.max(0.1, Math.min(10, timeZoom * zoomFactor));
+      setTimeZoom(newTimeZoom);
+      rendererRef.current?.setTimeZoom?.(newTimeZoom);
+      return;
+    }
+
+    // Regular wheel = price zoom
+    if (!zoomControllerRef.current) return;
+
     const priceRange = getPriceRange();
     const price = rendererRef.current?.getPriceAtY(mousePosition.y) || midPrice;
 
@@ -443,7 +590,7 @@ export function LiquidityHeatmapPro({
       rect.height - 45, // Height minus stats bar
       priceRange
     );
-  }, [mousePosition, getPriceRange, midPrice]);
+  }, [mousePosition, getPriceRange, midPrice, timeZoom]);
 
   const handleDoubleClick = useCallback(() => {
     zoomControllerRef.current?.handleDoubleClick();
@@ -451,9 +598,16 @@ export function LiquidityHeatmapPro({
     settings.resetZoom();
   }, [settings]);
 
-  // Context menu
+  // Context menu - only open if not dragging
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+
+    // Don't open context menu if we were panning
+    if (isRightDragging) {
+      setIsRightDragging(false);
+      setRightDragStart(null);
+      return;
+    }
 
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect || !rendererRef.current) return;
@@ -467,7 +621,7 @@ export function LiquidityHeatmapPro({
       position: { x: e.clientX, y: e.clientY },
       priceAtCursor: price,
     });
-  }, []);
+  }, [isRightDragging]);
 
   const closeContextMenu = useCallback(() => {
     setContextMenu((prev) => ({ ...prev, isOpen: false }));
@@ -579,19 +733,29 @@ export function LiquidityHeatmapPro({
         initialPosition={settings.settingsPanelPosition}
       />
 
-      {/* Zoom indicator */}
-      {settings.zoomLevel !== 1 && (
-        <div className="absolute top-2 right-24 px-2 py-1 bg-zinc-800/90 rounded text-xs text-zinc-300 font-mono">
-          {settings.zoomLevel.toFixed(1)}x
-        </div>
-      )}
+      {/* Zoom indicators */}
+      <div className="absolute top-2 right-2 flex items-center gap-2">
+        {/* Time zoom indicator */}
+        {timeZoom !== 1 && (
+          <div className="px-2 py-1 bg-zinc-800/90 rounded text-xs text-zinc-300 font-mono">
+            T:{timeZoom.toFixed(1)}x
+          </div>
+        )}
 
-      {/* Auto-center indicator */}
-      {settings.autoCenter && (
-        <div className="absolute top-2 right-2 px-2 py-1 bg-blue-600/80 rounded text-xs text-white">
-          Auto
-        </div>
-      )}
+        {/* Price zoom indicator */}
+        {settings.zoomLevel !== 1 && (
+          <div className="px-2 py-1 bg-zinc-800/90 rounded text-xs text-zinc-300 font-mono">
+            P:{settings.zoomLevel.toFixed(1)}x
+          </div>
+        )}
+
+        {/* Auto-center indicator */}
+        {settings.autoCenter && (
+          <div className="px-2 py-1 bg-blue-600/80 rounded text-xs text-white">
+            Auto
+          </div>
+        )}
+      </div>
 
       {/* Trade Flow indicator */}
       {settings.tradeFlow.enabled && tradeEvents.length > 0 && (
@@ -603,8 +767,50 @@ export function LiquidityHeatmapPro({
 
       {/* Controls hint */}
       <div className="absolute bottom-12 left-2 text-[10px] text-zinc-600 pointer-events-none">
-        Drag price axis to zoom • Double-click to reset • R: Reset • C: Auto-center
+        Drag price axis to zoom • Right-click drag to pan • Shift+Wheel: Time zoom • R: Reset • C: Auto-center
       </div>
+
+      {/* Trade hover tooltip */}
+      {hoveredTrade && (
+        <div
+          className="absolute pointer-events-none z-50"
+          style={{
+            left: Math.min(hoveredTrade.x + 15, containerRef.current?.clientWidth || 0 - 150),
+            top: hoveredTrade.y - 50,
+          }}
+        >
+          <div className="bg-zinc-900/95 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm">
+            <div className="text-xs text-zinc-400 mb-1">
+              @ {hoveredTrade.price.toFixed(2)}
+            </div>
+            <div className="flex items-center gap-3">
+              {/* Buy bar */}
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="h-3 bg-green-500 rounded-sm"
+                  style={{ width: Math.max(4, hoveredTrade.buyVolume * 3) }}
+                />
+                <span className="text-xs text-green-400 font-mono">
+                  {hoveredTrade.buyVolume.toFixed(1)}
+                </span>
+              </div>
+              {/* Sell bar */}
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="h-3 bg-red-500 rounded-sm"
+                  style={{ width: Math.max(4, hoveredTrade.sellVolume * 3) }}
+                />
+                <span className="text-xs text-red-400 font-mono">
+                  {hoveredTrade.sellVolume.toFixed(1)}
+                </span>
+              </div>
+            </div>
+            <div className="text-[10px] text-zinc-500 mt-1">
+              Total: {hoveredTrade.totalVolume.toFixed(2)} contracts
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

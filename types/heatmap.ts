@@ -127,6 +127,8 @@ export const DEFAULT_HEATMAP_SETTINGS: HeatmapSettings = {
 export type ColorScheme = 'atas' | 'bookmap' | 'custom';
 export type SmoothingMode = 'auto' | 'manual' | 'none';
 export type BubbleShape = 'circle' | 'pie';
+export type FootprintStyle = 'bid_ask' | 'delta' | 'volume';
+export type PassiveThickness = 'thin' | 'normal' | 'thick';
 
 export interface TradeFlowSettings {
   enabled: boolean;
@@ -136,6 +138,10 @@ export interface TradeFlowSettings {
   cumulativeMode: boolean;
   filterThreshold: number;
   showTextLabels: boolean;
+  bubbleSize: number;  // 0.1 to 2.0 multiplier
+  bubbleOpacity: number; // 0.1 to 1.0
+  bubbleBorderWidth: number; // 0 to 3
+  bubbleBorderColor: string;
 }
 
 export interface DOMColorSettings {
@@ -144,6 +150,68 @@ export interface DOMColorSettings {
   bestBidTextColor: string;
   bestAskTextColor: string;
 }
+
+export interface LiquidityDisplayFeatures {
+  // Profiles
+  showDeltaProfile: boolean;
+  showVolumeProfile: boolean;
+  showVWAP: boolean;
+
+  // Orderflow indicators
+  showImbalances: boolean;
+  showAbsorption: boolean;
+  showIcebergs: boolean;
+
+  // Footprint
+  showFootprintNumbers: boolean;
+  footprintStyle: FootprintStyle;
+
+  // Panels
+  showTimeSales: boolean;
+  showCumulativeDelta: boolean;
+  showDOMLadder: boolean;
+  showTapeVelocity: boolean;
+  showLargeTradeAlerts: boolean;
+  showPressureMeter: boolean;
+  showSessionStats: boolean;
+
+  // Drawing
+  showDrawings: boolean;
+
+  // Style
+  passiveThickness: PassiveThickness;
+}
+
+export const DEFAULT_LIQUIDITY_DISPLAY_FEATURES: LiquidityDisplayFeatures = {
+  // Profiles
+  showDeltaProfile: true,
+  showVolumeProfile: true,
+  showVWAP: true,
+
+  // Orderflow indicators
+  showImbalances: true,
+  showAbsorption: true,
+  showIcebergs: true,
+
+  // Footprint
+  showFootprintNumbers: true,
+  footprintStyle: 'bid_ask',
+
+  // Panels
+  showTimeSales: true,
+  showCumulativeDelta: true,
+  showDOMLadder: true,
+  showTapeVelocity: true,
+  showLargeTradeAlerts: true,
+  showPressureMeter: true,
+  showSessionStats: true,
+
+  // Drawing
+  showDrawings: true,
+
+  // Style
+  passiveThickness: 'normal',
+};
 
 export interface HeatmapProSettings {
   // General
@@ -172,6 +240,9 @@ export interface HeatmapProSettings {
   // Zoom/Pan
   zoomLevel: number;
   priceOffset: number;
+
+  // Display Features
+  displayFeatures: LiquidityDisplayFeatures;
 }
 
 export const DEFAULT_HEATMAP_PRO_SETTINGS: HeatmapProSettings = {
@@ -203,17 +274,24 @@ export const DEFAULT_HEATMAP_PRO_SETTINGS: HeatmapProSettings = {
   // Trade Flow
   tradeFlow: {
     enabled: true,
-    buyColor: 'rgba(34, 197, 94, 0.6)',
-    sellColor: 'rgba(239, 68, 68, 0.6)',
+    buyColor: 'rgba(34, 197, 94, 0.7)',
+    sellColor: 'rgba(239, 68, 68, 0.7)',
     bubbleShape: 'circle',
-    cumulativeMode: false,
-    filterThreshold: 0.5,
+    cumulativeMode: true,
+    filterThreshold: 0.3,
     showTextLabels: false,
+    bubbleSize: 0.6,
+    bubbleOpacity: 0.7,
+    bubbleBorderWidth: 1.5,
+    bubbleBorderColor: 'auto',
   },
 
   // Zoom/Pan
   zoomLevel: 1,
   priceOffset: 0,
+
+  // Display Features
+  displayFeatures: DEFAULT_LIQUIDITY_DISPLAY_FEATURES,
 };
 
 export interface TradeEvent {

@@ -6,11 +6,14 @@ import type {
   HeatmapProSettings,
   TradeFlowSettings,
   DOMColorSettings,
+  LiquidityDisplayFeatures,
   ColorScheme,
   SmoothingMode,
   BubbleShape,
+  FootprintStyle,
+  PassiveThickness,
 } from '@/types/heatmap';
-import { DEFAULT_HEATMAP_SETTINGS, DEFAULT_HEATMAP_PRO_SETTINGS } from '@/types/heatmap';
+import { DEFAULT_HEATMAP_SETTINGS, DEFAULT_HEATMAP_PRO_SETTINGS, DEFAULT_LIQUIDITY_DISPLAY_FEATURES } from '@/types/heatmap';
 
 export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSettings {
   // Alert zones
@@ -75,6 +78,26 @@ export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSetting
   openSettingsPanel: (position?: { x: number; y: number }) => void;
   closeSettingsPanel: () => void;
   setSettingsPanelPosition: (position: { x: number; y: number }) => void;
+
+  // Display Features Actions
+  setDisplayFeatures: (features: Partial<LiquidityDisplayFeatures>) => void;
+  setShowDeltaProfile: (show: boolean) => void;
+  setShowVolumeProfile: (show: boolean) => void;
+  setShowVWAP: (show: boolean) => void;
+  setShowImbalances: (show: boolean) => void;
+  setShowAbsorptionFeature: (show: boolean) => void;
+  setShowIcebergs: (show: boolean) => void;
+  setShowFootprintNumbers: (show: boolean) => void;
+  setFootprintStyle: (style: FootprintStyle) => void;
+  setShowTimeSales: (show: boolean) => void;
+  setShowCumulativeDelta: (show: boolean) => void;
+  setShowDOMLadder: (show: boolean) => void;
+  setShowTapeVelocity: (show: boolean) => void;
+  setShowLargeTradeAlerts: (show: boolean) => void;
+  setShowPressureMeter: (show: boolean) => void;
+  setShowSessionStats: (show: boolean) => void;
+  setShowDrawings: (show: boolean) => void;
+  setPassiveThickness: (thickness: PassiveThickness) => void;
 
   // Reset
   resetToDefaults: () => void;
@@ -174,6 +197,62 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
       closeSettingsPanel: () => set({ isSettingsPanelOpen: false }),
       setSettingsPanelPosition: (position) => set({ settingsPanelPosition: position }),
 
+      // Display Features Actions
+      setDisplayFeatures: (features) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, ...features },
+      })),
+      setShowDeltaProfile: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showDeltaProfile: show },
+      })),
+      setShowVolumeProfile: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showVolumeProfile: show },
+      })),
+      setShowVWAP: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showVWAP: show },
+      })),
+      setShowImbalances: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showImbalances: show },
+      })),
+      setShowAbsorptionFeature: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showAbsorption: show },
+      })),
+      setShowIcebergs: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showIcebergs: show },
+      })),
+      setShowFootprintNumbers: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showFootprintNumbers: show },
+      })),
+      setFootprintStyle: (style) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, footprintStyle: style },
+      })),
+      setShowTimeSales: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showTimeSales: show },
+      })),
+      setShowCumulativeDelta: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showCumulativeDelta: show },
+      })),
+      setShowDOMLadder: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showDOMLadder: show },
+      })),
+      setShowTapeVelocity: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showTapeVelocity: show },
+      })),
+      setShowLargeTradeAlerts: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showLargeTradeAlerts: show },
+      })),
+      setShowPressureMeter: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showPressureMeter: show },
+      })),
+      setShowSessionStats: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showSessionStats: show },
+      })),
+      setShowDrawings: (show) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, showDrawings: show },
+      })),
+      setPassiveThickness: (thickness) => set((state) => ({
+        displayFeatures: { ...state.displayFeatures, passiveThickness: thickness },
+      })),
+
       // Reset
       resetToDefaults: () => set({
         ...DEFAULT_HEATMAP_SETTINGS,
@@ -182,10 +261,9 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
     }),
     {
       name: 'heatmap-settings-storage',
+      version: 2,
       partialize: (state) => ({
         // Persist only settings, not UI state
-        ...DEFAULT_HEATMAP_SETTINGS,
-        ...DEFAULT_HEATMAP_PRO_SETTINGS,
         autoCenter: state.autoCenter,
         colorScheme: state.colorScheme,
         upperCutoffPercent: state.upperCutoffPercent,
@@ -200,7 +278,30 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
         maxVolumePixelSize: state.maxVolumePixelSize,
         tradeFlow: state.tradeFlow,
         alertZones: state.alertZones,
+        displayFeatures: state.displayFeatures,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<HeatmapSettingsState>;
+        return {
+          ...currentState,
+          ...persisted,
+          // Deep merge displayFeatures to handle new defaults
+          displayFeatures: {
+            ...DEFAULT_LIQUIDITY_DISPLAY_FEATURES,
+            ...(persisted?.displayFeatures || {}),
+          },
+          // Deep merge domColors
+          domColors: {
+            ...DEFAULT_HEATMAP_PRO_SETTINGS.domColors,
+            ...(persisted?.domColors || {}),
+          },
+          // Deep merge tradeFlow
+          tradeFlow: {
+            ...DEFAULT_HEATMAP_PRO_SETTINGS.tradeFlow,
+            ...(persisted?.tradeFlow || {}),
+          },
+        };
+      },
     }
   )
 );
