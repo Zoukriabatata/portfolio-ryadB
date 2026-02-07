@@ -23,7 +23,9 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/chart';
 
-  const { data: session, status } = useSession();
+  const sessionData = useSession();
+  const session = sessionData?.data;
+  const status = sessionData?.status || 'loading';
 
   // ✅ GENERATE BROWSER FINGERPRINT ON MOUNT
   useEffect(() => {

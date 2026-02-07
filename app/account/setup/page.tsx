@@ -10,7 +10,7 @@ type Step = 1 | 2 | 3 | 4;
 const CME_SYMBOLS = Object.entries(CME_CONTRACTS);
 
 export default function IBSetupWizard() {
-  const { data: session } = useSession();
+  const session = useSession()?.data;
   const [step, setStep] = useState<Step>(1);
   const [gatewayUrl, setGatewayUrl] = useState(
     process.env.NEXT_PUBLIC_IB_GATEWAY_URL || 'ws://localhost:4000'

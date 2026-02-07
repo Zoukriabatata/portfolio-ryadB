@@ -50,7 +50,7 @@ const ULTRA_FEATURES = [
 // ---------------------------------------------------------------------------
 
 function PricingContent() {
-  const { data: session } = useSession();
+  const session = useSession()?.data;
   const searchParams = useSearchParams();
   const formRef = useRef<HTMLFormElement>(null);
 

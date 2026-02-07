@@ -32,7 +32,9 @@ type AdminTab = 'users' | 'payments';
 const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
 
 export default function AdminPage() {
-  const { data: session, status } = useSession();
+  const sessionData = useSession();
+  const session = sessionData?.data;
+  const status = sessionData?.status || 'loading';
   const router = useRouter();
 
   const [users, setUsers] = useState<User[]>([]);
