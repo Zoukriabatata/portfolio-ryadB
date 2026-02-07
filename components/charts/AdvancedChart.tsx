@@ -423,7 +423,6 @@ export default function AdvancedChart({
         chartContainerRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showVWAP, showTWAP]);
 
   // Fetch data and subscribe

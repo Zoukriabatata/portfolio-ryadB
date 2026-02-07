@@ -296,7 +296,6 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
       rendererRef.current = null;
       webglRendererRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataMode, symbol, useWebGL, priceAxisWidth, deltaProfileWidth, volumeProfileWidth, config?.tickSize, config?.basePrice]);
 
   // Boucle de rendu

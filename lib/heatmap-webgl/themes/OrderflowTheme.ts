@@ -559,7 +559,7 @@ export function generateGradientData(gradient: HeatmapGradient): Uint8Array {
   return data;
 }
 
-export default {
+const OrderflowTheme = {
   THEMES,
   getTheme,
   generateGradientData,
@@ -569,3 +569,5 @@ export default {
   THEME_SIERRA,
   THEME_HIGHCONTRAST,
 };
+
+export default OrderflowTheme;

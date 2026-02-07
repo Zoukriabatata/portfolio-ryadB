@@ -134,7 +134,6 @@ export default function VolatilityPageContent() {
     return () => {
       reset();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, isSimulation]);
 
   useEffect(() => {
@@ -145,7 +144,6 @@ export default function VolatilityPageContent() {
         fetchOptionsForExpiration(selectedExpiration);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedExpiration, isSimulation]);
 
   // Get skew data from store or simulation
