@@ -8,10 +8,9 @@
 import crypto from 'crypto';
 
 // Dynamic import for nodemailer - only available when installed
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let nodemailer: any = null;
 try {
-  // @ts-ignore - nodemailer is an optional dependency
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   nodemailer = require('nodemailer');
 } catch {
   // nodemailer not installed - will use console fallback
