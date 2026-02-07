@@ -34,7 +34,7 @@ export function DataSourceSelector({
   ibStatus,
   onConnectIB,
 }: DataSourceSelectorProps) {
-  const { data: session } = useSession();
+  const session = useSession()?.data;
   const statusInfo = STATUS_LABELS[ibStatus];
 
   return (

@@ -50,7 +50,7 @@ async function fetchGatewayToken(): Promise<string | null> {
 }
 
 export function useIBConnection(initialSymbol?: string): UseIBConnectionReturn {
-  const { data: session } = useSession();
+  const session = useSession()?.data;
   const [status, setStatus] = useState<GatewayConnectionStatus>('disconnected');
   const [currentPrice, setCurrentPrice] = useState(0);
   const [stats, setStats] = useState({ tradeCount: 0, heatmapSnapshots: 0, footprintCandles: 0 });
