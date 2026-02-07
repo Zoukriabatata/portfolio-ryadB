@@ -50,3 +50,5 @@ prisma/dev.db-journal
 
 # temp files
 nul
+
+.vercel
