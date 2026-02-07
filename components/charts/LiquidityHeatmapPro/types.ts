@@ -43,6 +43,13 @@ export interface HeatmapLayout {
     width: number;
     height: number;
   };
+  // Timeline (au-dessus de la stats bar)
+  timeline?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
   // Barre de stats (en bas)
   statsBar: {
     x: number;
@@ -80,7 +87,7 @@ export interface RenderConfig {
 export const DEFAULT_RENDER_CONFIG: RenderConfig = {
   dpr: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
   tickSize: 0.25,
-  columnWidth: 3,
+  columnWidth: 5,
   cellHeight: 4,
   backgroundColor: '#06080d',
   gridColor: 'rgba(255, 255, 255, 0.05)',

@@ -26,15 +26,28 @@ interface TradeBucket {
 
 const DEFAULT_CONFIG: TradeFlowConfig = {
   enabled: true,
-  buyColor: 'rgba(120, 255, 180, 0.6)',  // Vert clair
-  sellColor: 'rgba(255, 120, 120, 0.6)', // Rouge clair
+  buyColor: 'rgba(34, 197, 94, 0.7)',
+  sellColor: 'rgba(239, 68, 68, 0.7)',
   bubbleShape: 'circle',
-  cumulativeMode: false,
-  filterThreshold: 0.5,
+  cumulativeMode: true,
+  filterThreshold: 0.3,
   showTextLabels: false,
-  minBubbleRadius: 5,
-  maxBubbleRadius: 35,
-  timeBucketMs: 1000,
+  bubbleSize: 0.6,
+  bubbleOpacity: 0.7,
+  bubbleBorderWidth: 1.5,
+  bubbleBorderColor: 'auto',
+  // Enhanced effects
+  glowEnabled: true,
+  glowIntensity: 0.6,
+  showGradient: true,
+  rippleEnabled: true,
+  largeTradeThreshold: 2.0,
+  sizeScaling: 'sqrt',
+  popInAnimation: true,
+  // Config-specific
+  minBubbleRadius: 2,
+  maxBubbleRadius: 18,
+  timeBucketMs: 500,
   priceBucketTicks: 1,
 };
 
@@ -50,7 +63,7 @@ export class TradeFlowRenderer {
   }
 
   /**
-   * Rend les bulles de trades style ATAS
+   * Rend les bulles de trades style ATAS - FIXÉ: position fixe par rapport au temps absolu
    */
   render(
     ctx: CanvasRenderingContext2D,
@@ -82,21 +95,27 @@ export class TradeFlowRenderer {
         }));
 
     const maxGroupedVolume = Math.max(...tradesToRender.map(t => t.totalVolume));
-    const now = Date.now();
-    const windowStart = now - timeWindowMs;
 
-    // Render chaque bulle
+    // FIXÉ: Utiliser les timestamps des trades pour calculer la fenêtre temporelle
+    if (tradesToRender.length === 0) return;
+
+    const timestamps = tradesToRender.map(t => t.timestamp);
+    const oldestTimestamp = Math.min(...timestamps);
+    const newestTimestamp = Math.max(...timestamps);
+
+    // Render chaque bulle - TOUTES les bulles, pas de filtrage temporel
     for (const trade of tradesToRender) {
-      if (trade.timestamp < windowStart) continue;
+      // Seulement filtrer par prix (garder toutes les bulles dans le temps)
       if (trade.price < priceRange.min || trade.price > priceRange.max) continue;
 
-      const x = this.timeToX(trade.timestamp, windowStart, now, areaWidth) + areaX;
+      // FIXÉ: Position X fixe basée sur le timestamp absolu du trade
+      // La bulle reste DÉFINITIVEMENT à sa position temporelle d'origine
+      const x = this.timeToX(trade.timestamp, oldestTimestamp, newestTimestamp, areaWidth) + areaX;
       const y = this.priceToY(trade.price, priceRange, areaHeight);
       const radius = this.calculateRadius(trade.totalVolume, maxGroupedVolume);
 
-      // Fade basé sur l'âge du trade
-      const age = (now - trade.timestamp) / timeWindowMs;
-      const opacity = Math.max(0.3, 1 - age * 0.6);
+      // Opacité complète - les bulles ne disparaissent JAMAIS
+      const opacity = 1.0;
 
       const hasBothSides = trade.buyVolume > 0 && trade.sellVolume > 0;
 
@@ -162,16 +181,17 @@ export class TradeFlowRenderer {
   }
 
   /**
-   * Calcule le rayon de la bulle
+   * Calcule le rayon de la bulle avec le multiplicateur de taille
    */
   private calculateRadius(volume: number, maxVolume: number): number {
     const normalized = volume / maxVolume;
-    const { minBubbleRadius, maxBubbleRadius } = this.config;
-    return minBubbleRadius + Math.sqrt(normalized) * (maxBubbleRadius - minBubbleRadius);
+    const { minBubbleRadius, maxBubbleRadius, bubbleSize = 0.6 } = this.config;
+    const baseRadius = minBubbleRadius + Math.sqrt(normalized) * (maxBubbleRadius - minBubbleRadius);
+    return baseRadius * bubbleSize;
   }
 
   /**
-   * Rend une bulle style ATAS (gris avec glow)
+   * Rend une bulle simple et propre (optimisé FPS)
    */
   private renderBubble(
     ctx: CanvasRenderingContext2D,
@@ -181,57 +201,37 @@ export class TradeFlowRenderer {
     side: 'buy' | 'sell',
     opacity: number
   ): void {
+    if (radius < 1) return; // Skip tiny bubbles
+
+    const bubbleOpacity = this.config.bubbleOpacity || 0.7;
+    const borderWidth = this.config.bubbleBorderWidth ?? 1.5;
+    const finalOpacity = opacity * bubbleOpacity;
+
+    const color = side === 'buy'
+      ? { r: 34, g: 197, b: 94 }   // Green
+      : { r: 239, g: 68, b: 68 };  // Red
+
     ctx.save();
+    ctx.globalAlpha = finalOpacity;
 
-    // Glow effect
-    const glowColor = side === 'buy' ? 'rgba(100, 255, 150, 0.3)' : 'rgba(255, 100, 100, 0.3)';
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 1.5);
-    gradient.addColorStop(0, glowColor);
-    gradient.addColorStop(1, 'transparent');
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(x, y, radius * 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Bulle principale (gris semi-transparent style ATAS)
-    ctx.globalAlpha = opacity * 0.7;
-    ctx.fillStyle = 'rgba(180, 180, 180, 0.6)';
+    // Simple filled circle
+    ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.45)`;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Inner gradient pour effet 3D
-    const innerGradient = ctx.createRadialGradient(
-      x - radius * 0.3,
-      y - radius * 0.3,
-      0,
-      x,
-      y,
-      radius
-    );
-    innerGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-    innerGradient.addColorStop(0.5, 'rgba(200, 200, 200, 0.2)');
-    innerGradient.addColorStop(1, 'rgba(100, 100, 100, 0.1)');
-
-    ctx.fillStyle = innerGradient;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Bordure colorée selon le side
-    ctx.globalAlpha = opacity;
-    ctx.strokeStyle = side === 'buy' ? 'rgba(100, 255, 150, 0.8)' : 'rgba(255, 100, 100, 0.8)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.stroke();
+    // Border (configurable)
+    if (borderWidth > 0) {
+      ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.85)`;
+      ctx.lineWidth = borderWidth;
+      ctx.stroke();
+    }
 
     ctx.restore();
   }
 
   /**
-   * Rend un camembert style ATAS
+   * Rend un camembert simple (optimisé FPS)
    */
   private renderPieChart(
     ctx: CanvasRenderingContext2D,
@@ -242,57 +242,40 @@ export class TradeFlowRenderer {
     sellVolume: number,
     opacity: number
   ): void {
+    if (radius < 2) return;
+
     const total = buyVolume + sellVolume;
     if (total === 0) return;
 
+    const bubbleOpacity = this.config.bubbleOpacity || 0.7;
+    const finalOpacity = opacity * bubbleOpacity;
     const buyAngle = (buyVolume / total) * Math.PI * 2;
 
     ctx.save();
-    ctx.globalAlpha = opacity;
+    ctx.globalAlpha = finalOpacity;
 
-    // Glow
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 1.5);
-    gradient.addColorStop(0, 'rgba(200, 200, 200, 0.3)');
-    gradient.addColorStop(1, 'transparent');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(x, y, radius * 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Portion buy (vert)
-    ctx.globalAlpha = opacity * 0.85;
-    ctx.fillStyle = 'rgba(100, 255, 150, 0.7)';
+    // Buy portion (green)
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + buyAngle);
     ctx.closePath();
     ctx.fill();
 
-    // Portion sell (rouge)
-    ctx.fillStyle = 'rgba(255, 100, 100, 0.7)';
+    // Sell portion (red)
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.arc(x, y, radius, -Math.PI / 2 + buyAngle, -Math.PI / 2 + Math.PI * 2);
     ctx.closePath();
     ctx.fill();
 
-    // Bordure blanche
-    ctx.globalAlpha = opacity;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 2;
+    // Border
+    const dominant = buyVolume > sellVolume;
+    ctx.strokeStyle = dominant ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+    ctx.lineWidth = Math.max(1, radius * 0.1);
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Ligne de séparation
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(
-      x + Math.cos(-Math.PI / 2 + buyAngle) * radius,
-      y + Math.sin(-Math.PI / 2 + buyAngle) * radius
-    );
     ctx.stroke();
 
     ctx.restore();
@@ -338,7 +321,9 @@ export class TradeFlowRenderer {
     windowEnd: number,
     width: number
   ): number {
-    const ratio = (timestamp - windowStart) / (windowEnd - windowStart);
+    const range = windowEnd - windowStart;
+    if (range === 0) return width * 0.5; // Center if all trades at same timestamp
+    const ratio = (timestamp - windowStart) / range;
     return ratio * width;
   }
 

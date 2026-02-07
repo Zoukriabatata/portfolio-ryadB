@@ -10,11 +10,12 @@ interface HeatmapSettingsPanelProps {
   initialPosition?: { x: number; y: number };
 }
 
-type SettingsTab = 'general' | 'display' | 'bestBidAsk' | 'dom' | 'tradeFlow';
+type SettingsTab = 'general' | 'display' | 'zoom' | 'bestBidAsk' | 'dom' | 'tradeFlow';
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'display', label: 'Display' },
+  { id: 'zoom', label: 'Zoom' },
   { id: 'bestBidAsk', label: 'Bid/Ask' },
   { id: 'dom', label: 'DOM' },
   { id: 'tradeFlow', label: 'Trade Flow' },
@@ -113,6 +114,7 @@ export function HeatmapSettingsPanel({ isOpen, onClose, initialPosition }: Heatm
       <div className="settings-content p-4 max-h-[400px] overflow-y-auto">
         {activeTab === 'general' && <GeneralTab store={store} />}
         {activeTab === 'display' && <DisplayTab store={store} />}
+        {activeTab === 'zoom' && <ZoomTab store={store} />}
         {activeTab === 'bestBidAsk' && <BestBidAskTab store={store} />}
         {activeTab === 'dom' && <DOMTab store={store} />}
         {activeTab === 'tradeFlow' && <TradeFlowTab store={store} />}
@@ -160,9 +162,10 @@ function GeneralTab({ store }: TabProps) {
         value={store.colorScheme}
         onChange={store.setColorScheme}
         options={[
-          { value: 'atas', label: 'ATAS (Blue-Purple-Red)' },
-          { value: 'bookmap', label: 'Bookmap (Blue-Green-Yellow)' },
-          { value: 'custom', label: 'Custom' },
+          { value: 'atas', label: 'ATAS Professional' },
+          { value: 'bookmap', label: 'Bookmap' },
+          { value: 'sierra', label: 'Sierra Chart' },
+          { value: 'highcontrast', label: 'High Contrast' },
         ]}
       />
     </div>
@@ -225,6 +228,63 @@ function DisplayTab({ store }: TabProps) {
         checked={store.useTransparency}
         onChange={store.setUseTransparency}
       />
+    </div>
+  );
+}
+
+function ZoomTab({ store }: TabProps) {
+  return (
+    <div className="space-y-4">
+      {/* Auto Center Toggle */}
+      <ToggleOption
+        label="Lock to Market"
+        description="Auto-center on current price"
+        checked={store.autoCenter}
+        onChange={store.setAutoCenter}
+      />
+
+      {/* Price Zoom Level */}
+      <SliderOption
+        label="Price Zoom"
+        value={store.zoomLevel}
+        onChange={store.setZoomLevel}
+        min={0.1}
+        max={10}
+        step={0.1}
+        unit="x"
+      />
+
+      {/* Price Offset (when not auto-centered) */}
+      {!store.autoCenter && (
+        <SliderOption
+          label="Price Offset"
+          value={store.priceOffset}
+          onChange={store.setPriceOffset}
+          min={-500}
+          max={500}
+          step={1}
+          unit=""
+        />
+      )}
+
+      {/* Reset Zoom Button */}
+      <div className="pt-2">
+        <button
+          onClick={() => store.resetZoom()}
+          className="w-full px-3 py-2 text-sm bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors"
+        >
+          Reset Zoom & Position
+        </button>
+      </div>
+
+      {/* Help text */}
+      <div className="text-xs text-zinc-500 space-y-1 pt-2 border-t border-zinc-700">
+        <p><strong>Tips:</strong></p>
+        <p>• Right-click + drag: Free pan</p>
+        <p>• Shift + wheel: Time zoom</p>
+        <p>• Drag price axis: Price zoom</p>
+        <p>• Double-click: Reset view</p>
+      </div>
     </div>
   );
 }
@@ -320,18 +380,37 @@ function TradeFlowTab({ store }: TabProps) {
 
       {tradeFlow.enabled && (
         <>
-          {/* Buy Color */}
-          <ColorOption
-            label="Buy Color"
-            value={tradeFlow.buyColor}
-            onChange={(buyColor) => store.setTradeFlowSettings({ buyColor })}
+          {/* Bubble Size */}
+          <SliderOption
+            label="Bubble Size"
+            value={tradeFlow.bubbleSize || 0.6}
+            onChange={(bubbleSize) => store.setTradeFlowSettings({ bubbleSize })}
+            min={0.1}
+            max={2}
+            step={0.1}
+            unit="x"
           />
 
-          {/* Sell Color */}
-          <ColorOption
-            label="Sell Color"
-            value={tradeFlow.sellColor}
-            onChange={(sellColor) => store.setTradeFlowSettings({ sellColor })}
+          {/* Bubble Opacity */}
+          <SliderOption
+            label="Bubble Opacity"
+            value={tradeFlow.bubbleOpacity || 0.7}
+            onChange={(bubbleOpacity) => store.setTradeFlowSettings({ bubbleOpacity })}
+            min={0.1}
+            max={1}
+            step={0.1}
+            unit=""
+          />
+
+          {/* Bubble Border Width */}
+          <SliderOption
+            label="Border Width"
+            value={tradeFlow.bubbleBorderWidth ?? 1.5}
+            onChange={(bubbleBorderWidth) => store.setTradeFlowSettings({ bubbleBorderWidth })}
+            min={0}
+            max={4}
+            step={0.5}
+            unit="px"
           />
 
           {/* Bubble Shape */}
@@ -341,14 +420,14 @@ function TradeFlowTab({ store }: TabProps) {
             onChange={(bubbleShape) => store.setTradeFlowSettings({ bubbleShape })}
             options={[
               { value: 'circle', label: 'Circle' },
-              { value: 'pie', label: 'Pie Chart (when mixed)' },
+              { value: 'pie', label: 'Pie Chart (mixed)' },
             ]}
           />
 
           {/* Cumulative Mode */}
           <ToggleOption
             label="Cumulative Mode"
-            description="Group trades by price/time bucket"
+            description="Group trades by price/time"
             checked={tradeFlow.cumulativeMode}
             onChange={(cumulativeMode) => store.setTradeFlowSettings({ cumulativeMode })}
           />
@@ -361,12 +440,12 @@ function TradeFlowTab({ store }: TabProps) {
             min={0}
             max={2}
             step={0.1}
-            unit="x avg"
+            unit="x"
           />
 
           {/* Show Text Labels */}
           <ToggleOption
-            label="Show Text Labels"
+            label="Show Volume Labels"
             description="Display volume on large bubbles"
             checked={tradeFlow.showTextLabels}
             onChange={(showTextLabels) => store.setTradeFlowSettings({ showTextLabels })}

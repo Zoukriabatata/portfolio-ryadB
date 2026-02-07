@@ -115,6 +115,10 @@ export class PassiveLiquiditySimulator {
   private scheduledRegenerations: Map<string, { time: number; price: number; side: PassiveOrderSide }> = new Map();
   private lastRegenerationTick: number = 0;
 
+  // Volume calibration from actual footprint data
+  private volumeScale: number = 1.0; // Multiplier for passive volumes based on actual trade activity
+  private averageTradeVolume: number = 1.0;
+
   constructor(config: Partial<CoherentSimulatorConfig> = {}) {
     this.config = { ...DEFAULT_COHERENT_CONFIG, ...config };
     this.seed = Date.now();
@@ -139,11 +143,35 @@ export class PassiveLiquiditySimulator {
   }
 
   /**
+   * Calibrate passive liquidity volumes based on actual footprint trade volumes
+   * This ensures passive levels match the scale of real trading activity
+   *
+   * @param avgTradeVolume - Average volume per trade from footprint
+   * @param maxLevelVolume - Maximum volume at any single price level
+   */
+  calibrateFromFootprint(avgTradeVolume: number, maxLevelVolume: number): void {
+    this.averageTradeVolume = avgTradeVolume;
+    // Scale passive volume to be 1.5-3x average trade volume (realistic orderbook depth)
+    // For crypto futures (small contract quantities), this keeps volumes realistic
+    const ratio = avgTradeVolume / Math.max(0.01, this.config.baseLiquidity);
+    this.volumeScale = Math.max(0.5, Math.min(5, ratio * 2));
+
+    console.debug(`[PassiveLiquidity] Calibrated: avgTrade=${avgTradeVolume.toFixed(4)}, maxLevel=${maxLevelVolume.toFixed(4)}, baseLiq=${this.config.baseLiquidity.toFixed(4)}, scale=${this.volumeScale.toFixed(2)}`);
+
+    // Force regeneration with new scale
+    this.lastGeneratedMin = 0;
+    this.lastGeneratedMax = 0;
+  }
+
+  /**
    * Set visible price range - generates levels to cover the entire range
    */
   setVisibleRange(minPrice: number, maxPrice: number): void {
     this.visibleMin = minPrice;
     this.visibleMax = maxPrice;
+
+    // In realtime mode, don't generate fake levels - real orderbook is the source
+    if (this.config.dataSource === 'realtime') return;
 
     // Only regenerate if range changed significantly
     const rangeChanged = Math.abs(minPrice - this.lastGeneratedMin) > this.config.tickSize * 5 ||
@@ -174,43 +202,45 @@ export class PassiveLiquiditySimulator {
   // ═══════════════════════════════════════════════════════════════════════════════
 
   /**
-   * Calculate BID volume at a given price
-   * BIDs are more concentrated BELOW the mid price (passive buyers waiting)
+   * Calculate BID volume at a given price (ABOVE current price)
+   * Volume decreases as we move further from current price
+   * Scaled by volumeScale to match actual footprint trade volumes
    */
-  private calculateBidVolume(distanceFromMid: number, maxDistance: number): number {
+  private calculateBidVolume(distanceFromCurrent: number, maxDistance: number): number {
     const { baseLiquidity, wallProbability, wallMultiplier } = this.config;
 
-    // More volume below mid, less above
-    // distanceFromMid < 0 means below mid price
-    const positionFactor = distanceFromMid <= 0
-      ? 1.0  // Below mid: full volume
-      : Math.max(0.15, 1 - (distanceFromMid / maxDistance) * 0.85); // Above mid: decreasing
+    // Volume decreases as distance from current price increases
+    const distanceRatio = Math.abs(distanceFromCurrent) / maxDistance;
+    const positionFactor = Math.max(0.2, 1 - distanceRatio * 0.6);
 
-    let volume = baseLiquidity * positionFactor * (0.4 + this.random() * 0.6);
+    // Apply volume scale from footprint calibration
+    let volume = baseLiquidity * this.volumeScale * positionFactor * (0.5 + this.random() * 0.5);
 
-    // Wall detection
+    // Wall detection - more likely at round numbers
     const isWall = this.random() < wallProbability;
     if (isWall) {
       volume *= wallMultiplier * (1 + this.random() * 0.5);
     }
 
-    return Math.max(0.5, Math.round(volume * 10) / 10);
+    // Min volume scales with baseLiquidity (small for crypto, larger for CME)
+    const minVol = Math.max(0.001, baseLiquidity * 0.05);
+    return Math.max(minVol, Math.round(volume * 1000) / 1000);
   }
 
   /**
-   * Calculate ASK volume at a given price
-   * ASKs are more concentrated ABOVE the mid price (passive sellers waiting)
+   * Calculate ASK volume at a given price (BELOW current price)
+   * Volume decreases as we move further from current price
+   * Scaled by volumeScale to match actual footprint trade volumes
    */
-  private calculateAskVolume(distanceFromMid: number, maxDistance: number): number {
+  private calculateAskVolume(distanceFromCurrent: number, maxDistance: number): number {
     const { baseLiquidity, wallProbability, wallMultiplier } = this.config;
 
-    // More volume above mid, less below
-    // distanceFromMid > 0 means above mid price
-    const positionFactor = distanceFromMid >= 0
-      ? 1.0  // Above mid: full volume
-      : Math.max(0.15, 1 + (distanceFromMid / maxDistance) * 0.85); // Below mid: decreasing
+    // Volume decreases as distance from current price increases
+    const distanceRatio = Math.abs(distanceFromCurrent) / maxDistance;
+    const positionFactor = Math.max(0.2, 1 - distanceRatio * 0.6);
 
-    let volume = baseLiquidity * positionFactor * (0.4 + this.random() * 0.6);
+    // Apply volume scale from footprint calibration
+    let volume = baseLiquidity * this.volumeScale * positionFactor * (0.5 + this.random() * 0.5);
 
     // Wall detection
     const isWall = this.random() < wallProbability;
@@ -218,7 +248,9 @@ export class PassiveLiquiditySimulator {
       volume *= wallMultiplier * (1 + this.random() * 0.5);
     }
 
-    return Math.max(0.5, Math.round(volume * 10) / 10);
+    // Min volume scales with baseLiquidity (small for crypto, larger for CME)
+    const minVol = Math.max(0.001, baseLiquidity * 0.05);
+    return Math.max(minVol, Math.round(volume * 1000) / 1000);
   }
 
   /**
@@ -268,11 +300,10 @@ export class PassiveLiquiditySimulator {
   /**
    * Generate passive levels for the entire visible price range
    *
-   * ORDERFLOW LOGIC:
-   * - Generate BOTH bid AND ask at EVERY price level
-   * - BIDs (passive buyers) are denser below mid price
-   * - ASKs (passive sellers) are denser above mid price
-   * - This allows correct absorption when trades arrive
+   * ORDERFLOW LOGIC (style ATAS/Sierra):
+   * - BID passif = AU-DESSUS du prix actuel seulement
+   * - ASK passif = EN-DESSOUS du prix actuel seulement
+   * - Un seul cote par niveau de prix selon position relative au current price
    */
   private generateLevelsForRange(minPrice: number, maxPrice: number): void {
     const { tickSize, basePrice } = this.config;
@@ -281,25 +312,31 @@ export class PassiveLiquiditySimulator {
     // Round prices to ticks
     const startPrice = this.roundToTick(minPrice);
     const endPrice = this.roundToTick(maxPrice);
-    const midPrice = basePrice || (startPrice + endPrice) / 2;
+    const currentPrice = basePrice || (startPrice + endPrice) / 2;
     const maxDistance = Math.max(1, (endPrice - startPrice) / 2);
 
     // Generate levels for EVERY tick in the visible range
     for (let price = startPrice; price <= endPrice; price += tickSize) {
       const roundedPrice = this.roundToTick(price);
-      const distanceFromMid = roundedPrice - midPrice; // Negative = below, Positive = above
+      const distanceFromCurrent = roundedPrice - currentPrice; // Negative = below, Positive = above
 
       // ═══════════════════════════════════════════════════════════════
-      // GENERATE BID LEVEL (passive buyers)
+      // STRICTLY ABOVE current price → BID passif seulement
+      // (Acheteurs passifs qui attendent d'être frappés par vendeurs agressifs)
       // ═══════════════════════════════════════════════════════════════
-      const bidVolume = this.calculateBidVolume(distanceFromMid, maxDistance);
-      this.createOrUpdateLevel(roundedPrice, 'bid', bidVolume, now);
+      if (distanceFromCurrent > 0) {
+        const bidVolume = this.calculateBidVolume(distanceFromCurrent, maxDistance);
+        this.createOrUpdateLevel(roundedPrice, 'bid', bidVolume, now);
+      }
 
       // ═══════════════════════════════════════════════════════════════
-      // GENERATE ASK LEVEL (passive sellers)
+      // STRICTLY BELOW current price → ASK passif seulement
+      // (Vendeurs passifs qui attendent d'être frappés par acheteurs agressifs)
       // ═══════════════════════════════════════════════════════════════
-      const askVolume = this.calculateAskVolume(distanceFromMid, maxDistance);
-      this.createOrUpdateLevel(roundedPrice, 'ask', askVolume, now);
+      if (distanceFromCurrent < 0) {
+        const askVolume = this.calculateAskVolume(Math.abs(distanceFromCurrent), maxDistance);
+        this.createOrUpdateLevel(roundedPrice, 'ask', askVolume, now);
+      }
     }
 
     this.lastUpdateTime = now;
@@ -315,25 +352,51 @@ export class PassiveLiquiditySimulator {
    * Process an incoming trade and absorb matching passive liquidity
    *
    * ═══════════════════════════════════════════════════════════════════════════
-   * RÈGLE ABSOLUE : La footprint est la source de vérité
+   * RÈGLE : Style ATAS/Sierra Chart
    * ═══════════════════════════════════════════════════════════════════════════
    *
-   * SI PAS DE PASSIF AU PRIX DU TRADE → CRÉER FORCÉMENT
-   * Un trade DOIT TOUJOURS avoir une contrepartie passive visible
+   * - BID passif est AU-DESSUS du prix actuel
+   * - ASK passif est EN-DESSOUS du prix actuel
+   *
+   * Donc:
+   * - BUY agressif (isBuyerMaker=false) → prix monte → consomme BID passif
+   * - SELL agressif (isBuyerMaker=true) → prix descend → consomme ASK passif
    */
   processTrade(trade: AbsorptionTradeEvent): AbsorptionResult {
-    const targetSide: PassiveOrderSide = trade.isBuyerMaker ? 'bid' : 'ask';
+    // INVERSÉ par rapport au standard: BUY consomme BID, SELL consomme ASK
+    const targetSide: PassiveOrderSide = trade.isBuyerMaker ? 'ask' : 'bid';
     const price = this.roundToTick(trade.price);
     const levelKey = getLevelKey(price, targetSide);
     let level = this.levels.get(levelKey);
 
+    // DEBUG: Log trade processing
+    const debugInterval = 50; // Log every 50 trades
+    if (Math.random() < 1 / debugInterval) {
+      console.debug(`[PassiveLiquidity] Trade: ${trade.isBuyerMaker ? 'SELL' : 'BUY'} @ ${price} qty=${trade.quantity.toFixed(3)} → ${targetSide.toUpperCase()}`,
+        level ? `[EXISTS: remaining=${level.remainingVolume.toFixed(1)}, status=${level.status}]` : '[NO LEVEL - CREATING]');
+    }
+
     // ═══════════════════════════════════════════════════════════════
-    // RÈGLE CRITIQUE : Pas de passif → CRÉATION FORCÉE
+    // CRÉATION FORCÉE (simulation only)
+    // In realtime mode, the real orderbook is the source of truth
+    // - no fake levels are created for unmatched trades
     // ═══════════════════════════════════════════════════════════════
     const needsCreation = !level || level.status === 'executed' || level.status === 'spoofed';
 
     if (needsCreation) {
-      const newLevel = createPassiveOrderLevel(price, targetSide, trade.quantity, trade.timestamp);
+      // In realtime mode: skip forced creation - real orderbook will provide data
+      if (this.config.dataSource === 'realtime') {
+        return {
+          affectedLevel: null,
+          volumeAbsorbed: 0,
+          levelExecuted: false,
+          levelSpoofed: false,
+        } as AbsorptionResult;
+      }
+
+      // Simulation mode: Create with MORE volume than trade so absorption is visible
+      const baseVolume = Math.max(trade.quantity * 3, this.config.baseLiquidity);
+      const newLevel = createPassiveOrderLevel(price, targetSide, baseVolume, trade.timestamp);
       newLevel.isPersistent = true;
       newLevel.opacity = 1;
       newLevel.consecutiveSnapshots = 100;
@@ -341,9 +404,9 @@ export class PassiveLiquiditySimulator {
       level = newLevel;
 
       if (targetSide === 'bid') {
-        this.maxInitialBidVolume = Math.max(this.maxInitialBidVolume, trade.quantity);
+        this.maxInitialBidVolume = Math.max(this.maxInitialBidVolume, baseVolume);
       } else {
-        this.maxInitialAskVolume = Math.max(this.maxInitialAskVolume, trade.quantity);
+        this.maxInitialAskVolume = Math.max(this.maxInitialAskVolume, baseVolume);
       }
     }
 
@@ -564,8 +627,12 @@ export class PassiveLiquiditySimulator {
 
     // Process scheduled operations
     this.processScheduledRemovals();
-    this.processScheduledRegenerations();
-    this.processGradualRefill();
+
+    // Skip fake regeneration/refill in realtime mode - real orderbook is truth
+    if (this.config.dataSource !== 'realtime') {
+      this.processScheduledRegenerations();
+      this.processGradualRefill();
+    }
 
     // Update opacities and statuses
     for (const [, level] of this.levels) {
@@ -836,17 +903,23 @@ export class PassiveLiquiditySimulator {
       const existing = this.levels.get(levelKey);
 
       if (existing) {
-        // Update existing level - detect if volume decreased (absorption)
-        const volumeDiff = existing.remainingVolume - quantity;
-        if (volumeDiff > 0) {
+        // Smooth volume transition to avoid jitter (EMA-style)
+        const smoothing = 0.4; // 40% new value, 60% old → stable display
+        const smoothedVolume = existing.remainingVolume + (quantity - existing.remainingVolume) * smoothing;
+
+        // Detect significant absorption (>10% drop after smoothing)
+        const volumeDiff = existing.remainingVolume - smoothedVolume;
+        if (volumeDiff > existing.initialVolume * 0.1) {
           existing.absorbedVolume += volumeDiff;
           existing.status = 'absorbing';
           existing.lastInteraction = now;
-        } else if (volumeDiff < 0) {
-          // Volume increased - could be new order or refill
+        } else if (smoothedVolume > existing.remainingVolume * 1.05) {
+          // Volume increased >5% → back to active (refill)
           existing.status = 'active';
         }
-        existing.remainingVolume = quantity;
+        existing.remainingVolume = smoothedVolume;
+        // Update initialVolume to track the max seen (for bar width normalization)
+        existing.initialVolume = Math.max(existing.initialVolume, smoothedVolume);
         existing.lastUpdate = now;
         existing.displayWidth = existing.initialVolume > 0
           ? existing.remainingVolume / existing.initialVolume
@@ -877,16 +950,20 @@ export class PassiveLiquiditySimulator {
       const existing = this.levels.get(levelKey);
 
       if (existing) {
-        // Update existing level
-        const volumeDiff = existing.remainingVolume - quantity;
-        if (volumeDiff > 0) {
+        // Smooth volume transition to avoid jitter (EMA-style)
+        const smoothing = 0.4;
+        const smoothedVolume = existing.remainingVolume + (quantity - existing.remainingVolume) * smoothing;
+
+        const volumeDiff = existing.remainingVolume - smoothedVolume;
+        if (volumeDiff > existing.initialVolume * 0.1) {
           existing.absorbedVolume += volumeDiff;
           existing.status = 'absorbing';
           existing.lastInteraction = now;
-        } else if (volumeDiff < 0) {
+        } else if (smoothedVolume > existing.remainingVolume * 1.05) {
           existing.status = 'active';
         }
-        existing.remainingVolume = quantity;
+        existing.remainingVolume = smoothedVolume;
+        existing.initialVolume = Math.max(existing.initialVolume, smoothedVolume);
         existing.lastUpdate = now;
         existing.displayWidth = existing.initialVolume > 0
           ? existing.remainingVolume / existing.initialVolume
@@ -955,7 +1032,7 @@ export class PassiveLiquiditySimulator {
       this.maxAskVolume = 0;
       this.maxInitialBidVolume = 0;
       this.maxInitialAskVolume = 0;
-      console.log(`[PassiveLiquiditySimulator] Switched to ${source} mode`);
+      console.debug(`[PassiveLiquiditySimulator] Switched to ${source} mode`);
     }
   }
 }

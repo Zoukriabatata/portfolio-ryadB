@@ -13,12 +13,22 @@ import type {
   FootprintStyle,
   PassiveThickness,
   StaircaseLineSettings,
+  GridSettings,
+  GridStyle,
+  TickStyle,
+  PassiveOrderSettings,
+  TimeSalesSettings,
+  KeyLevelsSettings,
 } from '@/types/heatmap';
 import {
   DEFAULT_HEATMAP_SETTINGS,
   DEFAULT_HEATMAP_PRO_SETTINGS,
   DEFAULT_LIQUIDITY_DISPLAY_FEATURES,
   DEFAULT_STAIRCASE_LINE_SETTINGS,
+  DEFAULT_GRID_SETTINGS,
+  DEFAULT_PASSIVE_ORDER_SETTINGS,
+  DEFAULT_TIME_SALES_SETTINGS,
+  DEFAULT_KEY_LEVELS_SETTINGS,
 } from '@/types/heatmap';
 
 export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSettings {
@@ -115,6 +125,52 @@ export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSetting
   setStaircaseShowTrail: (show: boolean) => void;
   setStaircaseTrailLength: (length: number) => void;
   setStaircaseTrailFadeSpeed: (speed: number) => void;
+
+  // Grid & Ticks
+  setGridSettings: (settings: Partial<GridSettings>) => void;
+  setShowMajorGrid: (show: boolean) => void;
+  setShowMinorGrid: (show: boolean) => void;
+  setMajorGridInterval: (interval: number) => void;
+  setGridStyle: (style: GridStyle) => void;
+  setShowTickMarks: (show: boolean) => void;
+  setTickStyle: (style: TickStyle) => void;
+  setTickSize: (size: number) => void;
+  setHighlightRoundNumbers: (highlight: boolean) => void;
+  setRoundNumberInterval: (interval: number) => void;
+  setLabelPrecision: (precision: 'auto' | number) => void;
+  setShowTimeAxis: (show: boolean) => void;
+  setShowSessionMarkers: (show: boolean) => void;
+  setTimeFormat: (format: '12h' | '24h') => void;
+
+  // Passive Orders (Enhanced)
+  setPassiveOrderSettings: (settings: Partial<PassiveOrderSettings>) => void;
+  setPassiveGlowEnabled: (enabled: boolean) => void;
+  setPassiveGlowIntensity: (intensity: number) => void;
+  setPassivePulseEnabled: (enabled: boolean) => void;
+  setPassivePulseSpeed: (speed: number) => void;
+  setPassiveShowStates: (show: boolean) => void;
+  setPassiveIcebergDetection: (enabled: boolean) => void;
+  setPassiveIcebergThreshold: (threshold: number) => void;
+
+  // Time & Sales Panel
+  setTimeSalesSettings: (settings: Partial<TimeSalesSettings>) => void;
+  setTimeSalesMaxRows: (rows: number) => void;
+  setTimeSalesShowCumulative: (show: boolean) => void;
+  setTimeSalesAggregateByPrice: (aggregate: boolean) => void;
+  setTimeSalesMinSizeFilter: (size: number) => void;
+  setTimeSalesLargeThreshold: (threshold: number) => void;
+  setTimeSalesPosition: (position: 'left' | 'right') => void;
+  setTimeSalesWidth: (width: number) => void;
+
+  // Key Levels (POC, VAH/VAL, VWAP)
+  setKeyLevelsSettings: (settings: Partial<KeyLevelsSettings>) => void;
+  setShowPOC: (show: boolean) => void;
+  setShowVAH: (show: boolean) => void;
+  setShowVAL: (show: boolean) => void;
+  setShowKeyLevelVWAP: (show: boolean) => void;
+  setShowSessionHighLow: (show: boolean) => void;
+  setShowKeyRoundNumbers: (show: boolean) => void;
+  setKeyRoundNumberInterval: (interval: number) => void;
 
   // WebGL Rendering
   useWebGL: boolean;
@@ -331,6 +387,242 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
         },
       })),
 
+      // Grid & Ticks Actions
+      setGridSettings: (settings) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, ...settings },
+        },
+      })),
+      setShowMajorGrid: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, showMajorGrid: show },
+        },
+      })),
+      setShowMinorGrid: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, showMinorGrid: show },
+        },
+      })),
+      setMajorGridInterval: (interval) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, majorGridInterval: Math.max(2, Math.min(50, interval)) },
+        },
+      })),
+      setGridStyle: (style) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, gridStyle: style },
+        },
+      })),
+      setShowTickMarks: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, showTickMarks: show },
+        },
+      })),
+      setTickStyle: (style) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, tickStyle: style },
+        },
+      })),
+      setTickSize: (size) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, tickSize: Math.max(3, Math.min(10, size)) },
+        },
+      })),
+      setHighlightRoundNumbers: (highlight) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, highlightRoundNumbers: highlight },
+        },
+      })),
+      setRoundNumberInterval: (interval) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, roundNumberInterval: Math.max(10, interval) },
+        },
+      })),
+      setLabelPrecision: (precision) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, labelPrecision: precision },
+        },
+      })),
+      setShowTimeAxis: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, showTimeAxis: show },
+        },
+      })),
+      setShowSessionMarkers: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, showSessionMarkers: show },
+        },
+      })),
+      setTimeFormat: (format) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          grid: { ...state.displayFeatures.grid, timeFormat: format },
+        },
+      })),
+
+      // Passive Orders Actions
+      setPassiveOrderSettings: (settings) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, ...settings },
+        },
+      })),
+      setPassiveGlowEnabled: (enabled) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, glowEnabled: enabled },
+        },
+      })),
+      setPassiveGlowIntensity: (intensity) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, glowIntensity: Math.max(0.1, Math.min(1.5, intensity)) },
+        },
+      })),
+      setPassivePulseEnabled: (enabled) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, pulseEnabled: enabled },
+        },
+      })),
+      setPassivePulseSpeed: (speed) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, pulseSpeed: Math.max(0.5, Math.min(3.0, speed)) },
+        },
+      })),
+      setPassiveShowStates: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, showStates: show },
+        },
+      })),
+      setPassiveIcebergDetection: (enabled) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, icebergDetection: enabled },
+        },
+      })),
+      setPassiveIcebergThreshold: (threshold) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          passiveOrders: { ...state.displayFeatures.passiveOrders, icebergThreshold: Math.max(1, Math.min(10, threshold)) },
+        },
+      })),
+
+      // Time & Sales Panel Actions
+      setTimeSalesSettings: (settings) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, ...settings },
+        },
+      })),
+      setTimeSalesMaxRows: (rows) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, maxRows: Math.max(10, Math.min(500, rows)) },
+        },
+      })),
+      setTimeSalesShowCumulative: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, showCumulativeVolume: show },
+        },
+      })),
+      setTimeSalesAggregateByPrice: (aggregate) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, aggregateByPrice: aggregate },
+        },
+      })),
+      setTimeSalesMinSizeFilter: (size) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, minSizeFilter: Math.max(0, size) },
+        },
+      })),
+      setTimeSalesLargeThreshold: (threshold) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, largeTradeThreshold: Math.max(1, Math.min(50, threshold)) },
+        },
+      })),
+      setTimeSalesPosition: (position) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, position },
+        },
+      })),
+      setTimeSalesWidth: (width) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          timeSales: { ...state.displayFeatures.timeSales, width: Math.max(200, Math.min(400, width)) },
+        },
+      })),
+
+      // Key Levels Actions (POC, VAH/VAL, VWAP)
+      setKeyLevelsSettings: (settings) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, ...settings },
+        },
+      })),
+      setShowPOC: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, showPOC: show },
+        },
+      })),
+      setShowVAH: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, showVAH: show },
+        },
+      })),
+      setShowVAL: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, showVAL: show },
+        },
+      })),
+      setShowKeyLevelVWAP: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, showVWAP: show },
+        },
+      })),
+      setShowSessionHighLow: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, showSessionHighLow: show },
+        },
+      })),
+      setShowKeyRoundNumbers: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, showRoundNumbers: show },
+        },
+      })),
+      setKeyRoundNumberInterval: (interval) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          keyLevels: { ...state.displayFeatures.keyLevels, roundNumberInterval: Math.max(10, interval) },
+        },
+      })),
+
       // WebGL Rendering
       setUseWebGL: (enabled) => set({ useWebGL: enabled }),
 
@@ -382,6 +674,26 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
             staircaseLine: {
               ...DEFAULT_STAIRCASE_LINE_SETTINGS,
               ...(persisted?.displayFeatures?.staircaseLine || {}),
+            },
+            // Deep merge grid settings
+            grid: {
+              ...DEFAULT_GRID_SETTINGS,
+              ...(persisted?.displayFeatures?.grid || {}),
+            },
+            // Deep merge passiveOrders settings
+            passiveOrders: {
+              ...DEFAULT_PASSIVE_ORDER_SETTINGS,
+              ...(persisted?.displayFeatures?.passiveOrders || {}),
+            },
+            // Deep merge timeSales settings
+            timeSales: {
+              ...DEFAULT_TIME_SALES_SETTINGS,
+              ...(persisted?.displayFeatures?.timeSales || {}),
+            },
+            // Deep merge keyLevels settings
+            keyLevels: {
+              ...DEFAULT_KEY_LEVELS_SETTINGS,
+              ...(persisted?.displayFeatures?.keyLevels || {}),
             },
           },
           // Deep merge domColors

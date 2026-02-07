@@ -9,7 +9,7 @@
  * - Lignes étendues
  */
 
-import { Tool, PreviewTool, Handle, ToolsEngine, getToolsEngine } from './ToolsEngine';
+import { Tool, PreviewTool, Handle, ToolsEngine, getToolsEngine, RectangleZone } from './ToolsEngine';
 
 // ============ TYPES ============
 
@@ -29,6 +29,29 @@ export interface RenderContext {
     handle: string;
     handleBorder: string;
   };
+  currentPrice?: number;  // Current live price for position tracking arrows
+  hoveredToolId?: string | null;
+  hoveredHandle?: string | null;
+  dpr?: number; // Device pixel ratio for sharp rendering
+}
+
+// ============ PIXEL-PERFECT HELPERS ============
+
+/**
+ * Align coordinate to pixel boundary for crisp 1px lines
+ * For odd stroke widths (1px, 3px), add 0.5 to center on pixel
+ * For even stroke widths (2px, 4px), use integer coordinates
+ */
+function alignToPixel(coord: number, strokeWidth: number = 1): number {
+  const rounded = Math.round(coord);
+  return strokeWidth % 2 === 1 ? rounded + 0.5 : rounded;
+}
+
+/**
+ * Round coordinate to nearest integer for fills and even strokes
+ */
+function roundCoord(coord: number): number {
+  return Math.round(coord);
 }
 
 // ============ TOOLS RENDERER ============
@@ -76,10 +99,17 @@ export class ToolsRenderer {
    */
   private renderTool(tool: Tool, context: RenderContext): void {
     const { ctx } = context;
+    const isHovered = context.hoveredToolId === tool.id;
+
+    // Apply hover effect (subtle glow)
+    if (isHovered && !tool.selected) {
+      ctx.shadowColor = tool.style.color;
+      ctx.shadowBlur = 8;
+    }
 
     // Apply style
     ctx.strokeStyle = tool.style.color;
-    ctx.lineWidth = tool.style.lineWidth;
+    ctx.lineWidth = isHovered && !tool.selected ? tool.style.lineWidth + 1 : tool.style.lineWidth;
     this.setLineDash(ctx, tool.style.lineStyle);
 
     switch (tool.type) {
@@ -109,6 +139,10 @@ export class ToolsRenderer {
         this.renderText(tool, context);
         break;
     }
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
 
     // Render attached text
     if (tool.text?.content) {
@@ -144,45 +178,70 @@ export class ToolsRenderer {
 
   private renderHorizontalLine(tool: Tool & { type: 'horizontalLine' }, context: RenderContext): void {
     const { ctx, width, priceToY } = context;
-    const y = priceToY(tool.price);
 
-    // Line
+    // FIXED: Pixel-perfect Y coordinate
+    const rawY = priceToY(tool.price);
+    const lineWidth = tool.style.lineWidth;
+    const y = alignToPixel(rawY, lineWidth);
+
+    // Selection highlight (draw first)
+    if (tool.selected) {
+      ctx.strokeStyle = context.colors.selection;
+      ctx.lineWidth = lineWidth + 4;
+      ctx.globalAlpha = 0.3;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Main line - pixel-perfect
+    ctx.strokeStyle = tool.style.color;
+    ctx.lineWidth = lineWidth;
+    this.setLineDash(ctx, tool.style.lineStyle);
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
     ctx.stroke();
+    ctx.setLineDash([]);
 
     // Price label
     if (tool.showPrice) {
-      this.renderPriceLabel(ctx, tool.price, width - 5, y, tool.style.color, 'right');
+      this.renderPriceLabel(ctx, tool.price, width - 5, roundCoord(rawY), tool.style.color, 'right');
     }
 
-    // Selection highlight
-    if (tool.selected) {
-      ctx.strokeStyle = context.colors.selection;
-      ctx.lineWidth = tool.style.lineWidth + 2;
-      ctx.globalAlpha = 0.3;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
+    // Left anchor point (for visual feedback)
+    const anchorSize = tool.selected ? 6 : 4;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(10, roundCoord(rawY), anchorSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = tool.style.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   // ============ HORIZONTAL RAY ============
 
   private renderHorizontalRay(tool: Tool & { type: 'horizontalRay' }, context: RenderContext): void {
     const { ctx, width, priceToY, timeToX } = context;
-    const y = priceToY(tool.startPoint.price);
-    const x = timeToX(tool.startPoint.time);
+    const lineWidth = tool.style.lineWidth || 1;
+    // FIXED: Pixel-perfect coordinates for crisp horizontal line
+    const rawY = priceToY(tool.startPoint.price);
+    const y = alignToPixel(rawY, lineWidth);
+    const x = roundCoord(timeToX(tool.startPoint.time));
 
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(tool.direction === 'right' ? width : 0, y);
+    ctx.lineTo(roundCoord(tool.direction === 'right' ? width : 0), y);
     ctx.stroke();
 
     // Start point marker
     ctx.fillStyle = tool.style.color;
     ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.arc(x, roundCoord(rawY), 4, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -190,7 +249,11 @@ export class ToolsRenderer {
 
   private renderVerticalLine(tool: Tool & { type: 'verticalLine' }, context: RenderContext): void {
     const { ctx, height, timeToX } = context;
-    const x = timeToX(tool.time);
+
+    // FIXED: Pixel-perfect X coordinate
+    const rawX = timeToX(tool.time);
+    const lineWidth = tool.style.lineWidth;
+    const x = alignToPixel(rawX, lineWidth);
 
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -205,7 +268,7 @@ export class ToolsRenderer {
       ctx.fillStyle = tool.style.color;
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(label, x, height - 5);
+      ctx.fillText(label, roundCoord(rawX), height - 5);
     }
   }
 
@@ -214,10 +277,11 @@ export class ToolsRenderer {
   private renderTrendline(tool: Tool & { type: 'trendline' }, context: RenderContext): void {
     const { ctx, width, priceToY, timeToX } = context;
 
-    const x1 = timeToX(tool.startPoint.time);
-    const y1 = priceToY(tool.startPoint.price);
-    const x2 = timeToX(tool.endPoint.time);
-    const y2 = priceToY(tool.endPoint.price);
+    // FIXED: Use pixel-perfect coordinates
+    const x1 = roundCoord(timeToX(tool.startPoint.time));
+    const y1 = roundCoord(priceToY(tool.startPoint.price));
+    const x2 = roundCoord(timeToX(tool.endPoint.time));
+    const y2 = roundCoord(priceToY(tool.endPoint.price));
 
     // Calculate extension points
     let startX = x1, startY = y1, endX = x2, endY = y2;
@@ -231,75 +295,286 @@ export class ToolsRenderer {
 
         if (tool.extendLeft) {
           startX = 0;
-          startY = y1 - (x1 * slope);
+          startY = roundCoord(y1 - (x1 * slope));
         }
 
         if (tool.extendRight) {
           endX = width;
-          endY = y2 + ((width - x2) * slope);
+          endY = roundCoord(y2 + ((width - x2) * slope));
         }
       }
     }
 
-    // Line
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
+    // FIXED: Pixel-aligned line coordinates
+    const lineWidth = tool.style.lineWidth;
+    const alignedStartX = alignToPixel(startX, lineWidth);
+    const alignedStartY = alignToPixel(startY, lineWidth);
+    const alignedEndX = alignToPixel(endX, lineWidth);
+    const alignedEndY = alignToPixel(endY, lineWidth);
 
-    // Endpoint markers
-    ctx.fillStyle = tool.style.color;
-    ctx.beginPath();
-    ctx.arc(x1, y1, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x2, y2, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Selection highlight
+    // Selection highlight (draw first, behind the line)
     if (tool.selected) {
       ctx.strokeStyle = context.colors.selection;
-      ctx.lineWidth = tool.style.lineWidth + 3;
-      ctx.globalAlpha = 0.2;
+      ctx.lineWidth = lineWidth + 4;
+      ctx.globalAlpha = 0.3;
       ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
+      ctx.moveTo(alignedStartX, alignedStartY);
+      ctx.lineTo(alignedEndX, alignedEndY);
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+
+    // Line - pixel-perfect
+    ctx.strokeStyle = tool.style.color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(alignedStartX, alignedStartY);
+    ctx.lineTo(alignedEndX, alignedEndY);
+    ctx.stroke();
+
+    // Endpoint markers (always visible, not just when selected)
+    const markerSize = tool.selected ? 6 : 4;
+
+    // Start point - use integer coordinates for fills
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x1, y1, markerSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = tool.style.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // End point
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x2, y2, markerSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = tool.style.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
-  // ============ RECTANGLE ============
+  // ============ RECTANGLE (Enhanced with Zones) ============
 
   private renderRectangle(tool: Tool & { type: 'rectangle' }, context: RenderContext): void {
-    const { ctx, priceToY, timeToX } = context;
+    const { ctx, priceToY, timeToX, width } = context;
 
-    const x1 = timeToX(tool.topLeft.time);
-    const y1 = priceToY(tool.topLeft.price);
-    const x2 = timeToX(tool.bottomRight.time);
-    const y2 = priceToY(tool.bottomRight.price);
+    // FIXED: Pixel-perfect coordinates
+    const x1 = roundCoord(timeToX(tool.topLeft.time));
+    const y1 = roundCoord(priceToY(tool.topLeft.price));
+    const x2 = roundCoord(timeToX(tool.bottomRight.time));
+    const y2 = roundCoord(priceToY(tool.bottomRight.price));
 
-    const w = x2 - x1;
-    const h = y2 - y1;
+    // Normalize coordinates (handle inverted rectangles)
+    let minX = Math.min(x1, x2);
+    let maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+    const h = maxY - minY;
+
+    // Handle extensions
+    const extendedLeft = tool.extendLeft ? 0 : minX;
+    const extendedRight = tool.extendRight ? width : maxX;
+    const w = extendedRight - extendedLeft;
+
+    // Selection highlight (draw first)
+    if (tool.selected) {
+      ctx.strokeStyle = context.colors.selection;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.4;
+      ctx.setLineDash([]);
+      ctx.strokeRect(extendedLeft - 2, minY - 2, w + 4, h + 4);
+      ctx.globalAlpha = 1;
+    }
 
     // Fill
     if (tool.style.fillColor) {
       ctx.fillStyle = tool.style.fillColor;
-      ctx.globalAlpha = tool.style.fillOpacity || 0.1;
-      ctx.fillRect(x1, y1, w, h);
+      ctx.globalAlpha = tool.style.fillOpacity || 0.15;
+      ctx.fillRect(extendedLeft, minY, w, h);
       ctx.globalAlpha = 1;
     }
 
-    // Border
-    ctx.strokeRect(x1, y1, w, h);
+    // Zone fills (alternating subtle backgrounds)
+    if (tool.showZones && tool.zones && tool.zones.length > 0) {
+      const sortedZones = [...tool.zones].sort((a, b) => a.level - b.level);
+      let prevY = minY;
 
-    // Selection highlight
-    if (tool.selected) {
-      ctx.strokeStyle = context.colors.selection;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.strokeRect(x1 - 2, y1 - 2, w + 4, h + 4);
+      sortedZones.forEach((zone, index) => {
+        const zoneY = minY + h * zone.level;
+        const zoneHeight = zoneY - prevY;
+
+        // Alternate zone fill colors
+        if (index % 2 === 1) {
+          ctx.fillStyle = tool.style.fillColor || tool.style.color;
+          ctx.globalAlpha = tool.zoneFillOpacity || 0.05;
+          ctx.fillRect(extendedLeft, prevY, w, zoneHeight);
+          ctx.globalAlpha = 1;
+        }
+
+        prevY = zoneY;
+      });
+    }
+
+    // Border (main rectangle)
+    ctx.strokeStyle = tool.style.color;
+    ctx.lineWidth = tool.style.lineWidth;
+    this.setLineDash(ctx, tool.style.lineStyle);
+    ctx.strokeRect(extendedLeft, minY, w, h);
+    ctx.setLineDash([]);
+
+    // Render zones
+    if (tool.showZones && tool.zones && tool.zones.length > 0) {
+      tool.zones.forEach(zone => {
+        this.renderRectangleZone(tool, zone, extendedLeft, extendedRight, minY, maxY, h, context);
+      });
+    }
+
+    // Render median line (if enabled and zones not shown)
+    if (tool.showMedianLine && !tool.showZones) {
+      const medianY = minY + h * 0.5;
+      ctx.strokeStyle = tool.style.color;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.7;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(extendedLeft, medianY);
+      ctx.lineTo(extendedRight, medianY);
+      ctx.stroke();
       ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+
+      // Median label
+      ctx.fillStyle = tool.style.color;
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('50%', extendedLeft + 4, medianY - 3);
+
+      // Median price
+      if (tool.showPriceLabels) {
+        const medianPrice = tool.bottomRight.price + (tool.topLeft.price - tool.bottomRight.price) * 0.5;
+        ctx.textAlign = 'right';
+        ctx.fillText(medianPrice.toFixed(2), extendedRight - 4, medianY - 3);
+      }
+    }
+
+    // Price labels at top/bottom
+    if (tool.showPriceLabels) {
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'right';
+
+      // Top price
+      ctx.fillStyle = tool.style.color;
+      ctx.globalAlpha = 0.9;
+      ctx.fillText(tool.topLeft.price.toFixed(2), extendedRight - 4, minY + 10);
+
+      // Bottom price
+      ctx.fillText(tool.bottomRight.price.toFixed(2), extendedRight - 4, maxY - 4);
+      ctx.globalAlpha = 1;
+    }
+
+    // Extension indicators
+    if (tool.extendLeft || tool.extendRight) {
+      ctx.fillStyle = tool.style.color;
+      ctx.globalAlpha = 0.5;
+      const arrowSize = 6;
+
+      if (tool.extendLeft) {
+        // Left arrow indicator
+        ctx.beginPath();
+        ctx.moveTo(extendedLeft + arrowSize, minY + h/2 - arrowSize);
+        ctx.lineTo(extendedLeft, minY + h/2);
+        ctx.lineTo(extendedLeft + arrowSize, minY + h/2 + arrowSize);
+        ctx.fill();
+      }
+
+      if (tool.extendRight) {
+        // Right arrow indicator
+        ctx.beginPath();
+        ctx.moveTo(extendedRight - arrowSize, minY + h/2 - arrowSize);
+        ctx.lineTo(extendedRight, minY + h/2);
+        ctx.lineTo(extendedRight - arrowSize, minY + h/2 + arrowSize);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Corner indicators when not selected (subtle)
+    if (!tool.selected) {
+      const cornerSize = 4;
+      ctx.fillStyle = tool.style.color;
+      ctx.globalAlpha = 0.6;
+      // Top-left (original bounds)
+      ctx.fillRect(minX - cornerSize/2, minY - cornerSize/2, cornerSize, cornerSize);
+      // Top-right (original bounds)
+      ctx.fillRect(maxX - cornerSize/2, minY - cornerSize/2, cornerSize, cornerSize);
+      // Bottom-left (original bounds)
+      ctx.fillRect(minX - cornerSize/2, maxY - cornerSize/2, cornerSize, cornerSize);
+      // Bottom-right (original bounds)
+      ctx.fillRect(maxX - cornerSize/2, maxY - cornerSize/2, cornerSize, cornerSize);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /**
+   * Render a single zone line within a rectangle
+   */
+  private renderRectangleZone(
+    tool: Tool & { type: 'rectangle' },
+    zone: { level: number; label: string; color?: string; lineStyle?: string; showLabel?: boolean; showPrice?: boolean },
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number,
+    height: number,
+    context: RenderContext
+  ): void {
+    const { ctx } = context;
+    const y = minY + height * zone.level;
+
+    // Zone line
+    ctx.strokeStyle = zone.color || tool.style.color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.6;
+
+    // Set line style
+    switch (zone.lineStyle) {
+      case 'dotted':
+        ctx.setLineDash([2, 2]);
+        break;
+      case 'dashed':
+        ctx.setLineDash([6, 4]);
+        break;
+      default:
+        ctx.setLineDash([]);
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(minX, y);
+    ctx.lineTo(maxX, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    // Zone label
+    if (zone.showLabel !== false) {
+      ctx.fillStyle = zone.color || tool.style.color;
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 0.8;
+      ctx.fillText(zone.label, minX + 4, y - 3);
+      ctx.globalAlpha = 1;
+    }
+
+    // Zone price
+    if (zone.showPrice !== false && tool.showPriceLabels) {
+      const zonePrice = tool.bottomRight.price + (tool.topLeft.price - tool.bottomRight.price) * (1 - zone.level);
+      ctx.fillStyle = zone.color || tool.style.color;
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'right';
+      ctx.globalAlpha = 0.7;
+      ctx.fillText(zonePrice.toFixed(2), maxX - 4, y - 3);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -308,35 +583,45 @@ export class ToolsRenderer {
   private renderFibRetracement(tool: Tool & { type: 'fibRetracement' }, context: RenderContext): void {
     const { ctx, width, priceToY, timeToX } = context;
 
-    const x1 = timeToX(tool.startPoint.time);
-    const x2 = timeToX(tool.endPoint.time);
+    // FIXED: Pixel-perfect coordinates for crisp rendering
+    const x1 = roundCoord(timeToX(tool.startPoint.time));
+    const x2 = roundCoord(timeToX(tool.endPoint.time));
     const startPrice = tool.startPoint.price;
     const endPrice = tool.endPoint.price;
     const priceRange = endPrice - startPrice;
+    const lineWidth = tool.style.lineWidth || 1;
+
+    // Calculate boundaries based on extension settings
+    // FIXED: Respect extendLeft and extendRight settings - DEFAULT is NO extension
+    const leftBound = tool.extendLeft ? 0 : Math.min(x1, x2);
+    const rightBound = tool.extendRight ? roundCoord(width) : Math.max(x1, x2);
 
     // Draw levels
     tool.levels.forEach((level, index) => {
       const price = startPrice + priceRange * level;
-      const y = priceToY(price);
+      // FIXED: Use alignToPixel for horizontal lines to ensure crisp 1px rendering
+      const y = alignToPixel(priceToY(price), lineWidth);
 
       // Level line
       ctx.strokeStyle = tool.style.color;
+      ctx.lineWidth = lineWidth;
       ctx.globalAlpha = 0.5 + (level === 0.618 ? 0.3 : 0);
       ctx.beginPath();
-      ctx.moveTo(Math.min(x1, x2), y);
-      ctx.lineTo(width, y);
+      ctx.moveTo(leftBound, y);
+      ctx.lineTo(rightBound, y);  // USE CALCULATED BOUNDS
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Fill between levels
-      if (index > 0) {
+      // Fill between levels - only if showFills is enabled
+      if (tool.showFills && index > 0) {
         const prevLevel = tool.levels[index - 1];
         const prevPrice = startPrice + priceRange * prevLevel;
-        const prevY = priceToY(prevPrice);
+        const prevY = roundCoord(priceToY(prevPrice));
+        const currY = roundCoord(priceToY(price));
 
         ctx.fillStyle = tool.style.color;
         ctx.globalAlpha = 0.05;
-        ctx.fillRect(Math.min(x1, x2), Math.min(y, prevY), width - Math.min(x1, x2), Math.abs(y - prevY));
+        ctx.fillRect(leftBound, Math.min(currY, prevY), rightBound - leftBound, Math.abs(currY - prevY));
         ctx.globalAlpha = 1;
       }
 
@@ -345,169 +630,438 @@ export class ToolsRenderer {
         ctx.fillStyle = tool.style.color;
         ctx.font = '10px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`${(level * 100).toFixed(1)}%`, Math.min(x1, x2) + 5, y - 3);
+        ctx.fillText(`${(level * 100).toFixed(1)}%`, leftBound + 5, roundCoord(priceToY(price)) - 3);
       }
 
       if (tool.showPrices) {
         ctx.textAlign = 'right';
-        ctx.fillText(`$${price.toFixed(2)}`, width - 5, y - 3);
+        ctx.fillText(`$${price.toFixed(2)}`, rightBound - 5, roundCoord(priceToY(price)) - 3);
       }
     });
 
-    // Main trendline
+    // Main trendline - FIXED: use alignToPixel for crisp diagonal line
     ctx.strokeStyle = tool.style.color;
     ctx.lineWidth = 2;
     ctx.setLineDash([]);
     ctx.beginPath();
-    ctx.moveTo(x1, priceToY(startPrice));
-    ctx.lineTo(x2, priceToY(endPrice));
+    ctx.moveTo(alignToPixel(x1, 2), alignToPixel(priceToY(startPrice), 2));
+    ctx.lineTo(alignToPixel(x2, 2), alignToPixel(priceToY(endPrice), 2));
     ctx.stroke();
   }
 
-  // ============ POSITION (LONG/SHORT) ============
+  // ============ POSITION (LONG/SHORT) - Professional TradingView Style ============
 
   private renderPosition(tool: Tool & { type: 'longPosition' | 'shortPosition' }, context: RenderContext): void {
-    const { ctx, priceToY, timeToX, colors } = context;
+    const { ctx, priceToY, timeToX, width } = context;
 
-    const entryY = priceToY(tool.entry);
-    const slY = priceToY(tool.stopLoss);
-    const tpY = priceToY(tool.takeProfit);
-    const leftX = timeToX(tool.startTime);
-    const rightX = timeToX(tool.endTime);
-    const posWidth = rightX - leftX;
+    const entryY = Math.round(priceToY(tool.entry));
+    const slY = Math.round(priceToY(tool.stopLoss));
+    const tpY = Math.round(priceToY(tool.takeProfit));
+    const leftX = Math.round(timeToX(tool.startTime));
+    const rightX = tool.extendRight
+      ? Math.round(width)
+      : Math.round(timeToX(tool.endTime));
 
     const isLong = tool.type === 'longPosition';
-    const riskColor = colors.negative;
-    const profitColor = colors.positive;
 
-    // Risk zone (SL)
-    ctx.fillStyle = riskColor;
-    ctx.globalAlpha = tool.style.fillOpacity || 0.1;
-    ctx.fillRect(leftX, Math.min(entryY, slY), posWidth, Math.abs(slY - entryY));
+    // ═══ Colors ═══
+    const profitFill = isLong ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)';
+    const riskFill = isLong ? 'rgba(239, 68, 68, 0.08)' : 'rgba(34, 197, 94, 0.08)';
+    const profitLine = '#22c55e';
+    const riskLine = '#ef4444';
+    const entryColor = '#a3a3a3';
 
-    // Profit zone (TP)
-    ctx.fillStyle = profitColor;
-    ctx.fillRect(leftX, Math.min(entryY, tpY), posWidth, Math.abs(tpY - entryY));
-    ctx.globalAlpha = 1;
+    // ═══ Metrics ═══
+    const risk = Math.abs(tool.entry - tool.stopLoss);
+    const reward = Math.abs(tool.takeProfit - tool.entry);
+    const rr = risk > 0 ? (reward / risk).toFixed(2) : '0.00';
+    const pnlPct = ((reward / tool.entry) * 100).toFixed(2);
+    const riskPct = ((risk / tool.entry) * 100).toFixed(2);
 
-    // Entry line
-    ctx.strokeStyle = tool.style.color;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(leftX, entryY);
-    ctx.lineTo(rightX, entryY);
-    ctx.stroke();
+    // ═══ PROFIT ZONE FILL ═══
+    if (tool.showZoneFill !== false) {
+      ctx.fillStyle = profitFill;
+      ctx.fillRect(leftX, Math.min(entryY, tpY), rightX - leftX, Math.abs(tpY - entryY));
 
-    // SL line
-    ctx.strokeStyle = riskColor;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath();
-    ctx.moveTo(leftX, slY);
-    ctx.lineTo(rightX, slY);
-    ctx.stroke();
-
-    // TP line
-    ctx.strokeStyle = profitColor;
-    ctx.beginPath();
-    ctx.moveTo(leftX, tpY);
-    ctx.lineTo(rightX, tpY);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Left and right borders
-    ctx.strokeStyle = tool.style.color;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(leftX, Math.min(entryY, slY, tpY));
-    ctx.lineTo(leftX, Math.max(entryY, slY, tpY));
-    ctx.moveTo(rightX, Math.min(entryY, slY, tpY));
-    ctx.lineTo(rightX, Math.max(entryY, slY, tpY));
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    // Labels
-    const labelX = leftX + 5;
-    ctx.font = 'bold 11px monospace';
-
-    // Entry label
-    ctx.fillStyle = tool.style.color;
-    ctx.textAlign = 'left';
-    const posIcon = isLong ? '▲ LONG' : '▼ SHORT';
-    ctx.fillText(`${posIcon} Entry: $${tool.entry.toFixed(2)}`, labelX, entryY - 5);
-
-    // SL label
-    ctx.fillStyle = riskColor;
-    const slPips = Math.abs(tool.entry - tool.stopLoss);
-    ctx.fillText(`SL: $${tool.stopLoss.toFixed(2)} (${slPips.toFixed(2)})`, labelX, slY + 12);
-
-    // TP label
-    ctx.fillStyle = profitColor;
-    const tpPips = Math.abs(tool.takeProfit - tool.entry);
-    ctx.fillText(`TP: $${tool.takeProfit.toFixed(2)} (${tpPips.toFixed(2)})`, labelX, tpY - 5);
-
-    // R:R ratio
-    if (tool.showRR && slPips > 0) {
-      const rr = tpPips / slPips;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px monospace';
-      const rrX = leftX + Math.min(posWidth / 2, 200);
-      ctx.fillText(`R:R 1:${rr.toFixed(2)}`, rrX, entryY - 5);
+      ctx.fillStyle = riskFill;
+      ctx.fillRect(leftX, Math.min(entryY, slY), rightX - leftX, Math.abs(slY - entryY));
     }
 
-    // Selection indicator
+    // ═══ ENTRY LINE ═══
+    ctx.strokeStyle = entryColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(leftX, entryY + 0.5);
+    ctx.lineTo(rightX, entryY + 0.5);
+    ctx.stroke();
+
+    // ═══ TP LINE ═══
+    ctx.strokeStyle = profitLine;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(leftX, tpY + 0.5);
+    ctx.lineTo(rightX, tpY + 0.5);
+    ctx.stroke();
+
+    // ═══ SL LINE ═══
+    ctx.strokeStyle = riskLine;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(leftX, slY + 0.5);
+    ctx.lineTo(rightX, slY + 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ═══ Settings flags ═══
+    const showRR = tool.showRR !== false;
+    const showPnL = tool.showPnL !== false;
+    const compact = tool.compactMode === true;
+
+    // ═══ RIGHT-SIDE ENTRY LABEL ═══
+    if (!compact) {
+      const labelW = showRR ? 130 : 110;
+      const labelH = showRR ? 28 : 18;
+      const labelPad = 8;
+      const labelRightX = rightX - labelW - 12;
+
+      const entryLabelY = entryY - labelH / 2;
+      ctx.fillStyle = 'rgba(20, 20, 25, 0.92)';
+      ctx.beginPath();
+      ctx.roundRect(labelRightX, entryLabelY, labelW, labelH, 4);
+      ctx.fill();
+      ctx.strokeStyle = isLong ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Position type badge
+      ctx.fillStyle = isLong ? '#22c55e' : '#ef4444';
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(isLong ? '▲ LONG' : '▼ SHORT', labelRightX + labelPad, entryLabelY + 12);
+
+      // Price
+      ctx.fillStyle = '#e5e5e5';
+      ctx.font = 'bold 11px "SF Mono", Consolas, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(tool.entry.toFixed(2), labelRightX + labelW - labelPad, entryLabelY + 12);
+
+      // R:R ratio (conditional)
+      if (showRR) {
+        ctx.fillStyle = '#737373';
+        ctx.font = '9px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText(`R:R  1 : ${rr}`, labelRightX + labelPad, entryLabelY + 24);
+      }
+    }
+
+    // ═══ RIGHT-SIDE TP LABEL ═══
+    if (!compact) {
+      const tpLabelW = showPnL ? 100 : 75;
+      const tpLabelH = showPnL ? 24 : 16;
+      const tpLabelX = rightX - tpLabelW - 12;
+      const tpLabelY = tpY - tpLabelH / 2;
+
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.12)';
+      ctx.beginPath();
+      ctx.roundRect(tpLabelX, tpLabelY, tpLabelW, tpLabelH, 4);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#22c55e';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`TP  ${tool.takeProfit.toFixed(2)}`, tpLabelX + 6, tpLabelY + 10);
+
+      if (showPnL) {
+        ctx.fillStyle = '#4ade80';
+        ctx.font = 'bold 10px system-ui';
+        ctx.textAlign = 'right';
+        ctx.fillText(`+${pnlPct}%`, tpLabelX + tpLabelW - 6, tpLabelY + 10);
+
+        ctx.fillStyle = '#22c55e80';
+        ctx.font = '9px "SF Mono", Consolas, monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`+${reward.toFixed(2)}`, tpLabelX + 6, tpLabelY + 21);
+      }
+    }
+
+    // ═══ RIGHT-SIDE SL LABEL ═══
+    if (!compact) {
+      const slLabelW = showPnL ? 100 : 75;
+      const slLabelH = showPnL ? 24 : 16;
+      const slLabelX = rightX - slLabelW - 12;
+      const slLabelY = slY - slLabelH / 2;
+
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+      ctx.beginPath();
+      ctx.roundRect(slLabelX, slLabelY, slLabelW, slLabelH, 4);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`SL  ${tool.stopLoss.toFixed(2)}`, slLabelX + 6, slLabelY + 10);
+
+      if (showPnL) {
+        ctx.fillStyle = '#f87171';
+        ctx.font = 'bold 10px system-ui';
+        ctx.textAlign = 'right';
+        ctx.fillText(`-${riskPct}%`, slLabelX + slLabelW - 6, slLabelY + 10);
+
+        ctx.fillStyle = '#ef444480';
+        ctx.font = '9px "SF Mono", Consolas, monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`-${risk.toFixed(2)}`, slLabelX + 6, slLabelY + 21);
+      }
+    }
+
+    // ═══ DRAG HANDLES (always visible like TradingView) ═══
+    const handleRadius = 5;
+
+    // Line handles on left edge
+    const lineHandles = [
+      { x: leftX, y: entryY, color: entryColor },
+      { x: leftX, y: tpY, color: profitLine },
+      { x: leftX, y: slY, color: riskLine },
+    ];
+
+    lineHandles.forEach(h => {
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, handleRadius + 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 15, 20, 0.8)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, handleRadius, 0, Math.PI * 2);
+      ctx.fillStyle = h.color;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    });
+
+    // 4 corner resize handles (small squares)
+    const cornerSize = 4;
+    const topY = Math.min(entryY, tpY, slY);
+    const bottomY = Math.max(entryY, tpY, slY);
+    const corners = [
+      { x: leftX, y: topY },   // top-left
+      { x: rightX, y: topY },  // top-right
+      { x: leftX, y: bottomY },  // bottom-left
+      { x: rightX, y: bottomY }, // bottom-right
+    ];
+
+    corners.forEach(c => {
+      ctx.fillStyle = 'rgba(15, 15, 20, 0.8)';
+      ctx.fillRect(c.x - cornerSize - 1, c.y - cornerSize - 1, (cornerSize + 1) * 2, (cornerSize + 1) * 2);
+      ctx.fillStyle = '#a3a3a3';
+      ctx.fillRect(c.x - cornerSize, c.y - cornerSize, cornerSize * 2, cornerSize * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(c.x - 1, c.y - 1, 2, 2);
+    });
+
+    // ═══ ENTRY TO CURRENT PRICE TRACKING ARROW (clamped to position bounds) ═══
+    if (context.currentPrice && context.currentPrice > 0) {
+      // Clamp current price to position bounds (between SL and TP)
+      const priceLow = Math.min(tool.stopLoss, tool.takeProfit);
+      const priceHigh = Math.max(tool.stopLoss, tool.takeProfit);
+      const clampedPrice = Math.max(priceLow, Math.min(priceHigh, context.currentPrice));
+      const clampedY = Math.round(priceToY(clampedPrice));
+
+      // Clamp arrow X to position time bounds
+      const arrowStartX = leftX + 10;
+      const arrowEndX = rightX - 10;
+
+      // Only draw if there's enough space
+      if (arrowEndX - arrowStartX > 20) {
+        const isProfit = isLong ? context.currentPrice > tool.entry : context.currentPrice < tool.entry;
+        const arrowColor = isProfit ? '#22c55e' : '#ef4444';
+        const pnlFromEntry = isLong
+          ? ((context.currentPrice - tool.entry) / tool.entry * 100)
+          : ((tool.entry - context.currentPrice) / tool.entry * 100);
+        const pnlText = `${pnlFromEntry >= 0 ? '+' : ''}${pnlFromEntry.toFixed(2)}%`;
+
+        ctx.save();
+
+        // Tracking line from entry to clamped current price
+        ctx.strokeStyle = arrowColor;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(arrowStartX, entryY);
+        ctx.lineTo(arrowEndX, clampedY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Arrow head
+        const dx = arrowEndX - arrowStartX;
+        const dy = clampedY - entryY;
+        const angle = Math.atan2(dy, dx);
+        const headLen = 7;
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = arrowColor;
+        ctx.beginPath();
+        ctx.moveTo(arrowEndX, clampedY);
+        ctx.lineTo(arrowEndX - headLen * Math.cos(angle - 0.4), clampedY - headLen * Math.sin(angle - 0.4));
+        ctx.lineTo(arrowEndX - headLen * Math.cos(angle + 0.4), clampedY - headLen * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fill();
+
+        // PnL badge at midpoint
+        const midX = (arrowStartX + arrowEndX) / 2;
+        const midY = (entryY + clampedY) / 2;
+        ctx.globalAlpha = 1;
+        ctx.font = 'bold 10px system-ui';
+        const badgeW = ctx.measureText(pnlText).width + 10;
+        const badgeH = 16;
+        const badgeX = midX - badgeW / 2;
+        const badgeY = midY - badgeH / 2 - 10;
+
+        ctx.fillStyle = isProfit ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+        ctx.beginPath();
+        ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
+        ctx.fill();
+        ctx.strokeStyle = arrowColor;
+        ctx.lineWidth = 0.5;
+        ctx.globalAlpha = 0.8;
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = arrowColor;
+        ctx.textAlign = 'center';
+        ctx.fillText(pnlText, midX, badgeY + 12);
+
+        ctx.restore();
+      }
+    }
+
+    // ═══ SELECTION INDICATOR ═══
     if (tool.selected) {
-      ctx.strokeStyle = colors.selection;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
       const topY = Math.min(entryY, slY, tpY);
       const bottomY = Math.max(entryY, slY, tpY);
-      ctx.strokeRect(leftX - 2, topY - 2, posWidth + 4, bottomY - topY + 4);
+
+      ctx.strokeStyle = context.colors.selection;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(leftX - 4, topY - 4, (rightX - leftX) + 8, bottomY - topY + 8);
       ctx.setLineDash([]);
+
+      // Additional right-side handle when selected
+      const rightHandles = [
+        { x: rightX, y: entryY, color: entryColor },
+        { x: rightX, y: tpY, color: profitLine },
+        { x: rightX, y: slY, color: riskLine },
+      ];
+
+      rightHandles.forEach(h => {
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, handleRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = h.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
     }
   }
 
   // ============ TEXT ============
 
   private renderText(tool: Tool & { type: 'text' }, context: RenderContext): void {
-    const { ctx, priceToY, timeToX } = context;
+    const { ctx, priceToY, timeToX, width, height } = context;
 
-    const x = timeToX(tool.point.time);
-    const y = priceToY(tool.point.price);
+    // Determine position based on anchor mode
+    let x: number, y: number;
 
-    ctx.font = `${tool.style.fontSize || 14}px ${tool.style.fontFamily || 'system-ui'}`;
-    ctx.fillStyle = tool.style.fontColor || tool.style.color;
-    ctx.textAlign = 'left';
+    if (tool.anchorMode === 'screen-fixed' && tool.screenPosition) {
+      // Fixed position on screen - doesn't move with chart
+      x = tool.screenPosition.x;
+      y = tool.screenPosition.y;
+    } else {
+      // Default: price-time anchored - follows chart pan/zoom
+      x = timeToX(tool.point.time);
+      y = priceToY(tool.point.price);
+    }
 
-    // Background
+    // Use tool-specific typography settings
+    const fontSize = tool.fontSize || tool.style.fontSize || 14;
+    const fontFamily = tool.fontFamily || tool.style.fontFamily || 'system-ui, sans-serif';
+    const fontWeight = tool.fontWeight || 'normal';
+    const fontColor = tool.fontColor || tool.style.fontColor || tool.style.color;
+    const bgColor = tool.backgroundColor || 'rgba(0, 0, 0, 0.6)';
+    const padding = tool.padding || 6;
+    const borderRadius = tool.borderRadius || 4;
+    const textAlign = tool.textAlign || 'left';
+
+    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+    ctx.textAlign = textAlign;
+
+    // Measure text
     const metrics = ctx.measureText(tool.content);
-    const padding = 4;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(
-      x - padding,
-      y - (tool.style.fontSize || 14) - padding,
-      metrics.width + padding * 2,
-      (tool.style.fontSize || 14) + padding * 2
-    );
+    const textWidth = metrics.width;
+    const textHeight = fontSize;
+
+    // Calculate box position based on text align
+    let boxX = x - padding;
+    if (textAlign === 'center') {
+      boxX = x - textWidth / 2 - padding;
+    } else if (textAlign === 'right') {
+      boxX = x - textWidth - padding;
+    }
+    const boxY = y - textHeight - padding;
+    const boxW = textWidth + padding * 2;
+    const boxH = textHeight + padding * 2;
+
+    // Background with rounded corners
+    if (bgColor && bgColor !== 'transparent') {
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxW, boxH, borderRadius);
+      ctx.fill();
+    }
 
     // Text
-    ctx.fillStyle = tool.style.fontColor || tool.style.color;
-    ctx.fillText(tool.content, x, y);
+    ctx.fillStyle = fontColor;
+    let textX = x;
+    if (textAlign === 'center') {
+      textX = x;
+    } else if (textAlign === 'right') {
+      textX = x;
+    }
+    ctx.fillText(tool.content, textX, y - padding / 2);
+
+    // Editing indicator
+    if (tool.isEditing) {
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.strokeRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4);
+
+      // Cursor blink effect would be handled in the React component
+    }
 
     // Selection box
-    if (tool.selected) {
+    if (tool.selected && !tool.isEditing) {
       ctx.strokeStyle = context.colors.selection;
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
-      ctx.strokeRect(
-        x - padding - 2,
-        y - (tool.style.fontSize || 14) - padding - 2,
-        metrics.width + padding * 2 + 4,
-        (tool.style.fontSize || 14) + padding * 2 + 4
-      );
+      ctx.strokeRect(boxX - 2, boxY - 2, boxW + 4, boxH + 4);
       ctx.setLineDash([]);
+
+      // Anchor mode indicator
+      const anchorIcon = tool.anchorMode === 'screen-fixed' ? '📌' : '⚓';
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = '#888';
+      ctx.textAlign = 'right';
+      ctx.fillText(anchorIcon, boxX + boxW, boxY - 4);
     }
   }
 
@@ -518,22 +1072,34 @@ export class ToolsRenderer {
     const handles = this.engine.getToolHandles(tool, priceToY, timeToX);
 
     handles.forEach(handle => {
-      // Shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      const radius = handle.size / 2;
+
+      // Outer glow effect for visibility
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Handle fill - white with slight transparency
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(handle.x + 1, handle.y + 1, handle.size / 2 + 1, 0, Math.PI * 2);
+      ctx.arc(handle.x, handle.y, radius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Handle fill
-      ctx.fillStyle = colors.handle;
-      ctx.beginPath();
-      ctx.arc(handle.x, handle.y, handle.size / 2, 0, Math.PI * 2);
-      ctx.fill();
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
 
-      // Handle border
-      ctx.strokeStyle = colors.handleBorder;
+      // Handle border - tool color for visual connection
+      ctx.strokeStyle = tool.style.color;
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      // Inner dot for precision targeting
+      ctx.fillStyle = tool.style.color;
+      ctx.beginPath();
+      ctx.arc(handle.x, handle.y, 2, 0, Math.PI * 2);
+      ctx.fill();
     });
   }
 

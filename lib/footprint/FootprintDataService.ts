@@ -1,14 +1,14 @@
 /**
- * FOOTPRINT DATA SERVICE
+ * FOOTPRINT DATA SERVICE - REAL AGGTRADES
  *
- * Professional footprint data management for trading platforms
- * Handles:
- * - Historical trade fetching
- * - Trade-to-footprint aggregation
- * - Session data caching
- * - Incremental loading
+ * Uses REAL Binance aggTrades for accurate bid/ask per price level.
+ * Each trade has isBuyerMaker flag = exact bid/ask classification.
  *
- * Architecture based on ATAS / NinjaTrader
+ * Flow:
+ * 1. Fetch aggTrades from Binance for the entire history window
+ * 2. Group trades into candles by timeframe
+ * 3. At each price level: accumulate real bid/ask from individual trades
+ * 4. Calculate POC, imbalances, value area from real data
  */
 
 import type { FootprintCandle, PriceLevel } from '@/lib/orderflow/OrderflowEngine';
@@ -19,16 +19,16 @@ export interface Trade {
   id: string;
   price: number;
   quantity: number;
-  time: number;       // Unix ms
-  isBuyerMaker: boolean; // true = sell aggressor, false = buy aggressor
+  time: number;
+  isBuyerMaker: boolean;
 }
 
 export interface FootprintSession {
   symbol: string;
-  timeframe: number;  // Seconds per candle
+  timeframe: number;
   tickSize: number;
-  startTime: number;  // Session start (Unix seconds)
-  endTime: number;    // Session end (Unix seconds)
+  startTime: number;
+  endTime: number;
   candles: FootprintCandle[];
   lastTradeTime: number;
   isLive: boolean;
@@ -39,8 +39,6 @@ export interface LoadHistoryOptions {
   timeframe: number;
   tickSize: number;
   hoursBack?: number;
-  startTime?: number;
-  endTime?: number;
   imbalanceRatio?: number;
 }
 
@@ -48,8 +46,8 @@ export interface LoadHistoryOptions {
 
 const sessionCache = new Map<string, FootprintSession>();
 
-function getCacheKey(symbol: string, timeframe: number): string {
-  return `${symbol}_${timeframe}`;
+function getCacheKey(symbol: string, timeframe: number, tickSize: number): string {
+  return `${symbol}_${timeframe}_${tickSize}`;
 }
 
 // ============ FOOTPRINT DATA SERVICE ============
@@ -62,70 +60,61 @@ export class FootprintDataService {
   }
 
   /**
-   * Load historical footprint data
+   * Load historical footprint data using REAL aggTrades from Binance.
+   * Every bid/ask per price level comes from actual executed trades.
    */
   async loadHistory(options: LoadHistoryOptions): Promise<FootprintCandle[]> {
     const {
       symbol,
       timeframe,
       tickSize,
-      hoursBack = 24,
-      startTime,
-      endTime,
+      hoursBack = 4,
       imbalanceRatio = this.imbalanceRatio,
     } = options;
 
-    const cacheKey = getCacheKey(symbol, timeframe);
+    const cacheKey = getCacheKey(symbol, timeframe, tickSize);
 
-    // Check cache
+    // Check cache (valid for 30 seconds)
     const cached = sessionCache.get(cacheKey);
     if (cached && cached.tickSize === tickSize) {
-      // If we have cached data and it's recent, use it
       const cacheAge = Date.now() / 1000 - cached.lastTradeTime;
-      if (cacheAge < 60) { // Cache valid for 60 seconds
+      if (cacheAge < 30) {
         return cached.candles;
       }
     }
 
-    // Calculate time range
-    const now = Date.now();
-    const fetchEndTime = endTime ? endTime * 1000 : now;
-    const fetchStartTime = startTime ? startTime * 1000 : now - hoursBack * 60 * 60 * 1000;
-
-    console.log(`[FootprintDataService] Loading ${hoursBack}h of trades for ${symbol}...`);
+    console.log(`[FootprintDataService] Loading ${hoursBack}h of REAL aggTrades for ${symbol}...`);
 
     try {
-      // Fetch trades
-      const trades = await this.fetchHistoricalTrades(symbol, fetchStartTime, fetchEndTime);
+      const now = Date.now();
+      const startTime = now - hoursBack * 60 * 60 * 1000;
+
+      // Fetch ALL real aggTrades for the entire period
+      const trades = await this.fetchAllAggTrades(symbol, startTime, now);
 
       if (trades.length === 0) {
-        console.log('[FootprintDataService] No trades fetched');
-        return [];
+        console.log('[FootprintDataService] No trades fetched, falling back to cache');
+        return cached?.candles || [];
       }
 
-      console.log(`[FootprintDataService] Processing ${trades.length} trades...`);
+      console.log(`[FootprintDataService] Fetched ${trades.length} real trades`);
 
-      // Aggregate into footprint candles
-      const candles = this.aggregateTradesIntoCandles(
-        trades,
-        timeframe,
-        tickSize,
-        imbalanceRatio
-      );
+      // Build footprint candles from REAL trades
+      const candles = this.buildFootprintFromTrades(trades, timeframe, tickSize, imbalanceRatio);
 
       // Update cache
       sessionCache.set(cacheKey, {
         symbol,
         timeframe,
         tickSize,
-        startTime: candles.length > 0 ? candles[0].time : fetchStartTime / 1000,
-        endTime: candles.length > 0 ? candles[candles.length - 1].time : fetchEndTime / 1000,
+        startTime: candles.length > 0 ? candles[0].time : Date.now() / 1000,
+        endTime: candles.length > 0 ? candles[candles.length - 1].time : Date.now() / 1000,
         candles,
         lastTradeTime: Date.now() / 1000,
         isLive: true,
       });
 
-      console.log(`[FootprintDataService] Created ${candles.length} footprint candles`);
+      console.log(`[FootprintDataService] Created ${candles.length} footprint candles from real trades`);
 
       return candles;
     } catch (error) {
@@ -135,102 +124,82 @@ export class FootprintDataService {
   }
 
   /**
-   * Fetch historical trades from Bybit API
+   * Fetch ALL aggTrades for a time window using pagination.
+   * Binance returns max 1000 trades per request, so we paginate by time.
    */
-  private async fetchHistoricalTrades(
+  private async fetchAllAggTrades(
     symbol: string,
-    startTime: number,
-    endTime: number
+    startTimeMs: number,
+    endTimeMs: number
   ): Promise<Trade[]> {
     const allTrades: Trade[] = [];
-    let cursor: string | undefined;
-    let iterations = 0;
-    const maxIterations = 50; // Safety limit
-    let oldestTime = endTime;
+    let currentStart = startTimeMs;
+    let requestCount = 0;
+    const MAX_REQUESTS = 500; // Safety limit
 
-    while (oldestTime > startTime && iterations < maxIterations) {
-      iterations++;
-
+    while (currentStart < endTimeMs && requestCount < MAX_REQUESTS) {
       try {
         const params = new URLSearchParams({
-          category: 'linear',
           symbol: symbol.toUpperCase(),
+          startTime: currentStart.toString(),
+          endTime: endTimeMs.toString(),
           limit: '1000',
         });
 
-        if (cursor) {
-          params.set('cursor', cursor);
-        }
-
-        const response = await fetch(`/api/bybit/v5/market/recent-trade?${params}`);
+        const response = await fetch(`/api/binance/fapi/v1/aggTrades?${params}`);
         const data = await response.json();
 
-        if (data.retCode !== 0 || !data.result?.list?.length) {
-          break;
-        }
+        if (!Array.isArray(data) || data.length === 0) break;
 
-        const trades: Trade[] = data.result.list.map((t: {
-          execId: string;
-          price: string;
-          size: string;
-          side: 'Buy' | 'Sell';
-          time: string;
-        }) => ({
-          id: t.execId,
-          price: parseFloat(t.price),
-          quantity: parseFloat(t.size),
-          time: parseInt(t.time),
-          isBuyerMaker: t.side === 'Sell', // Sell = taker sold = buyer was maker
+        const trades: Trade[] = data.map((t: { a: number; p: string; q: string; T: number; m: boolean }) => ({
+          id: t.a.toString(),
+          price: parseFloat(t.p),
+          quantity: parseFloat(t.q),
+          time: t.T,
+          isBuyerMaker: t.m,
         }));
 
         allTrades.push(...trades);
+        requestCount++;
 
-        // Update oldest time
-        const batchOldest = Math.min(...trades.map(t => t.time));
-        oldestTime = batchOldest;
+        // Move start to after last trade timestamp
+        const lastTradeTime = trades[trades.length - 1].time;
+        if (lastTradeTime <= currentStart) break; // No progress
+        currentStart = lastTradeTime + 1;
 
-        // Get cursor for next batch
-        cursor = data.result.nextPageCursor;
-
-        if (!cursor) break;
-
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // If we got less than 1000, we've reached the end
+        if (trades.length < 1000) break;
 
       } catch (error) {
-        console.error('[FootprintDataService] Trade fetch error:', error);
+        console.error(`[FootprintDataService] AggTrades fetch error (request ${requestCount}):`, error);
         break;
       }
     }
 
-    // Sort by time ascending
-    allTrades.sort((a, b) => a.time - b.time);
-
+    console.log(`[FootprintDataService] Fetched ${allTrades.length} trades in ${requestCount} requests`);
     return allTrades;
   }
 
   /**
-   * Aggregate trades into footprint candles
+   * Build footprint candles from REAL individual trades.
+   * Each trade has exact price and isBuyerMaker classification.
    */
-  private aggregateTradesIntoCandles(
+  private buildFootprintFromTrades(
     trades: Trade[],
     timeframe: number,
     tickSize: number,
     imbalanceRatio: number
   ): FootprintCandle[] {
-    if (trades.length === 0) return [];
-
     const candleMap = new Map<number, FootprintCandle>();
 
-    // Process each trade
     for (const trade of trades) {
       const candleTime = Math.floor(trade.time / 1000 / timeframe) * timeframe;
       const priceLevel = Math.round(trade.price / tickSize) * tickSize;
+      const normalizedPrice = Math.round(priceLevel * 1000000) / 1000000;
 
       let candle = candleMap.get(candleTime);
 
       if (!candle) {
-        // Create new candle
         candle = {
           time: candleTime,
           open: trade.price,
@@ -243,10 +212,10 @@ export class FootprintDataService {
           totalSellVolume: 0,
           totalDelta: 0,
           totalTrades: 0,
-          poc: priceLevel,
+          poc: normalizedPrice,
           vah: trade.price,
           val: trade.price,
-          isClosed: false,
+          isClosed: true,
         };
         candleMap.set(candleTime, candle);
       }
@@ -256,11 +225,11 @@ export class FootprintDataService {
       candle.low = Math.min(candle.low, trade.price);
       candle.close = trade.price;
 
-      // Update level
-      let level = candle.levels.get(priceLevel);
+      // Get or create price level
+      let level = candle.levels.get(normalizedPrice);
       if (!level) {
         level = {
-          price: priceLevel,
+          price: normalizedPrice,
           bidVolume: 0,
           askVolume: 0,
           bidTrades: 0,
@@ -270,19 +239,17 @@ export class FootprintDataService {
           imbalanceBuy: false,
           imbalanceSell: false,
         };
-        candle.levels.set(priceLevel, level);
+        candle.levels.set(normalizedPrice, level);
       }
 
-      // Add volume based on aggressor side
-      // isBuyerMaker = true means seller was aggressor (hitting bid)
-      // isBuyerMaker = false means buyer was aggressor (hitting ask)
+      // REAL classification from Binance aggTrade
+      // isBuyerMaker = true means the buyer was the maker (passive) → this is a SELL (hitting bid)
+      // isBuyerMaker = false means the seller was the maker (passive) → this is a BUY (hitting ask)
       if (trade.isBuyerMaker) {
-        // Sell aggressor = bid volume
         level.bidVolume += trade.quantity;
         level.bidTrades += 1;
         candle.totalSellVolume += trade.quantity;
       } else {
-        // Buy aggressor = ask volume
         level.askVolume += trade.quantity;
         level.askTrades += 1;
         candle.totalBuyVolume += trade.quantity;
@@ -291,72 +258,84 @@ export class FootprintDataService {
       level.totalVolume = level.bidVolume + level.askVolume;
       level.delta = level.askVolume - level.bidVolume;
 
-      // Update candle totals
       candle.totalVolume += trade.quantity;
       candle.totalDelta = candle.totalBuyVolume - candle.totalSellVolume;
       candle.totalTrades += 1;
     }
 
-    // Post-process candles
     const candles = Array.from(candleMap.values()).sort((a, b) => a.time - b.time);
 
+    // Mark last candle as not closed
+    if (candles.length > 0) {
+      candles[candles.length - 1].isClosed = false;
+    }
+
+    // Calculate POC, value area, and imbalances
     for (const candle of candles) {
-      // Calculate POC
-      let maxVol = 0;
-      candle.levels.forEach((level, price) => {
-        if (level.totalVolume > maxVol) {
-          maxVol = level.totalVolume;
-          candle.poc = price;
-        }
-      });
-
-      // Calculate imbalances (diagonal comparison)
-      candle.levels.forEach((level, price) => {
-        const levelBelow = candle.levels.get(price - tickSize);
-        const levelAbove = candle.levels.get(price + tickSize);
-
-        // Buy imbalance: ask at this price vs bid below
-        if (levelBelow && level.askVolume > 0 && levelBelow.bidVolume > 0) {
-          level.imbalanceBuy = (level.askVolume / levelBelow.bidVolume) >= imbalanceRatio;
-        }
-
-        // Sell imbalance: bid at this price vs ask above
-        if (levelAbove && level.bidVolume > 0 && levelAbove.askVolume > 0) {
-          level.imbalanceSell = (level.bidVolume / levelAbove.askVolume) >= imbalanceRatio;
-        }
-      });
-
-      // Calculate VAH/VAL (70% value area)
-      const sortedPrices = Array.from(candle.levels.keys()).sort((a, b) => a - b);
-      const totalVol = candle.totalVolume;
-      let cumVol = 0;
-      let vahFound = false;
-      let valFound = false;
-
-      for (const price of sortedPrices) {
-        const level = candle.levels.get(price)!;
-        cumVol += level.totalVolume;
-
-        if (!valFound && cumVol >= totalVol * 0.15) {
-          candle.val = price;
-          valFound = true;
-        }
-
-        if (!vahFound && cumVol >= totalVol * 0.85) {
-          candle.vah = price;
-          vahFound = true;
-        }
-      }
-
-      // Mark as closed (historical data is always closed)
-      candle.isClosed = true;
+      this.calculateMetrics(candle, tickSize, imbalanceRatio);
     }
 
     return candles;
   }
 
   /**
-   * Process a single trade into existing candles (for live updates)
+   * Calculate POC, VAH/VAL and imbalances
+   */
+  private calculateMetrics(
+    candle: FootprintCandle,
+    tickSize: number,
+    imbalanceRatio: number
+  ): void {
+    // POC (Point of Control) = price with highest total volume
+    let maxVol = 0;
+    candle.levels.forEach((level, price) => {
+      if (level.totalVolume > maxVol) {
+        maxVol = level.totalVolume;
+        candle.poc = price;
+      }
+    });
+
+    // Diagonal imbalances (ATAS style)
+    candle.levels.forEach((level, price) => {
+      const priceBelowKey = Math.round((price - tickSize) * 1000000) / 1000000;
+      const priceAboveKey = Math.round((price + tickSize) * 1000000) / 1000000;
+
+      const levelBelow = candle.levels.get(priceBelowKey);
+      const levelAbove = candle.levels.get(priceAboveKey);
+
+      if (levelBelow && level.askVolume > 0 && levelBelow.bidVolume > 0) {
+        level.imbalanceBuy = (level.askVolume / levelBelow.bidVolume) >= imbalanceRatio;
+      }
+
+      if (levelAbove && level.bidVolume > 0 && levelAbove.askVolume > 0) {
+        level.imbalanceSell = (level.bidVolume / levelAbove.askVolume) >= imbalanceRatio;
+      }
+    });
+
+    // Value Area (70% of volume)
+    const sortedPrices = Array.from(candle.levels.keys()).sort((a, b) => a - b);
+    const totalVol = candle.totalVolume;
+    let cumVol = 0;
+
+    candle.val = candle.low;
+    candle.vah = candle.high;
+
+    for (const price of sortedPrices) {
+      const level = candle.levels.get(price)!;
+      cumVol += level.totalVolume;
+
+      if (cumVol >= totalVol * 0.15 && candle.val === candle.low) {
+        candle.val = price;
+      }
+      if (cumVol >= totalVol * 0.85) {
+        candle.vah = price;
+        break;
+      }
+    }
+  }
+
+  /**
+   * Process live trade (REAL bid/ask classification)
    */
   processLiveTrade(
     trade: Trade,
@@ -367,7 +346,6 @@ export class FootprintDataService {
     const candleTime = Math.floor(trade.time / 1000 / timeframe) * timeframe;
     const priceLevel = Math.round(trade.price / tickSize) * tickSize;
 
-    // Find or create candle
     let candle = existingCandles.find(c => c.time === candleTime);
     const isNewCandle = !candle;
 
@@ -391,12 +369,10 @@ export class FootprintDataService {
       };
     }
 
-    // Update OHLC
     candle.high = Math.max(candle.high, trade.price);
     candle.low = Math.min(candle.low, trade.price);
     candle.close = trade.price;
 
-    // Update level
     let level = candle.levels.get(priceLevel);
     if (!level) {
       level = {
@@ -413,6 +389,7 @@ export class FootprintDataService {
       candle.levels.set(priceLevel, level);
     }
 
+    // REAL classification from live trade
     if (trade.isBuyerMaker) {
       level.bidVolume += trade.quantity;
       level.bidTrades += 1;
@@ -439,19 +416,6 @@ export class FootprintDataService {
       }
     });
 
-    // Recalculate imbalances
-    candle.levels.forEach((lvl, price) => {
-      const levelBelow = candle!.levels.get(price - tickSize);
-      const levelAbove = candle!.levels.get(price + tickSize);
-
-      if (levelBelow && lvl.askVolume > 0 && levelBelow.bidVolume > 0) {
-        lvl.imbalanceBuy = (lvl.askVolume / levelBelow.bidVolume) >= this.imbalanceRatio;
-      }
-      if (levelAbove && lvl.bidVolume > 0 && levelAbove.askVolume > 0) {
-        lvl.imbalanceSell = (lvl.bidVolume / levelAbove.askVolume) >= this.imbalanceRatio;
-      }
-    });
-
     if (isNewCandle) {
       return [...existingCandles, candle].sort((a, b) => a.time - b.time);
     }
@@ -459,44 +423,22 @@ export class FootprintDataService {
     return existingCandles;
   }
 
-  /**
-   * Load more history (older candles)
-   */
-  async loadMoreHistory(
-    symbol: string,
-    timeframe: number,
-    tickSize: number,
-    currentOldestTime: number,
-    hoursBack: number = 4
-  ): Promise<FootprintCandle[]> {
-    const endTime = (currentOldestTime - 1) * 1000; // Before current oldest
-    const startTime = endTime - hoursBack * 60 * 60 * 1000;
-
-    const trades = await this.fetchHistoricalTrades(symbol, startTime, endTime);
-
-    if (trades.length === 0) return [];
-
-    return this.aggregateTradesIntoCandles(
-      trades,
-      timeframe,
-      tickSize,
-      this.imbalanceRatio
-    );
-  }
-
-  /**
-   * Get cached session
-   */
   getCachedSession(symbol: string, timeframe: number): FootprintSession | null {
-    return sessionCache.get(getCacheKey(symbol, timeframe)) || null;
+    for (const [, session] of sessionCache.entries()) {
+      if (session.symbol === symbol && session.timeframe === timeframe) {
+        return session;
+      }
+    }
+    return null;
   }
 
-  /**
-   * Clear cache
-   */
   clearCache(symbol?: string, timeframe?: number): void {
     if (symbol && timeframe) {
-      sessionCache.delete(getCacheKey(symbol, timeframe));
+      for (const key of sessionCache.keys()) {
+        if (key.startsWith(`${symbol}_${timeframe}_`)) {
+          sessionCache.delete(key);
+        }
+      }
     } else {
       sessionCache.clear();
     }

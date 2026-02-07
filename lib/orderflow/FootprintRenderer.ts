@@ -25,6 +25,7 @@
 
 import type { FootprintCandle, PriceLevel } from './OrderflowEngine';
 import type { PriceScaleEngine, TimeScaleEngine } from '../chart/ScaleEngine';
+import { getPassiveLiquiditySimulator, type PassiveLevel, type StablePassiveLevel } from './PassiveLiquiditySimulator';
 
 // ============ TYPES ============
 
@@ -105,6 +106,16 @@ export interface FootprintRenderConfig {
   showGrid: boolean;
   showCurrentPrice: boolean;
   showVolumeBars: boolean;
+  showPassiveLiquidity: boolean;
+
+  // Passive Liquidity (Simulation)
+  passiveLiquidityEnabled: boolean;
+  passiveLiquidityIntensity: number;  // 0-1
+  passiveLiquidityOpacity: number;    // 0-1
+  passiveLiquidityFocusTicks: number; // 0 = show all
+  passiveBidColor: string;
+  passiveAskColor: string;
+  passiveMaxBarWidth: number;
 
   // Performance
   maxVisibleFootprints: number;
@@ -113,11 +124,11 @@ export interface FootprintRenderConfig {
 
 export const DEFAULT_FOOTPRINT_RENDER_CONFIG: FootprintRenderConfig = {
   // Layout
-  footprintWidth: 90,
+  footprintWidth: 95,
   ohlcWidth: 14,
-  deltaProfileWidth: 16,
+  deltaProfileWidth: 20,
   sessionProfileWidth: 40,
-  rowHeight: 16,
+  rowHeight: 18,
   padding: 2,
 
   // Background
@@ -159,9 +170,9 @@ export const DEFAULT_FOOTPRINT_RENDER_CONFIG: FootprintRenderConfig = {
   profileBarColor: '#3b82f6',
   profilePocColor: '#facc15',
 
-  // Current Price
-  currentPriceColor: '#3b82f6',
-  currentPriceBg: 'rgba(59, 130, 246, 0.1)',
+  // Current Price - Subtle professional style
+  currentPriceColor: '#6b7280',
+  currentPriceBg: 'rgba(107, 114, 128, 0.08)',
 
   // Opacities
   cellBgOpacity: 0.12,
@@ -170,8 +181,8 @@ export const DEFAULT_FOOTPRINT_RENDER_CONFIG: FootprintRenderConfig = {
   profileOpacity: 0.6,
 
   // Fonts
-  clusterFont: '9px JetBrains Mono, Consolas, monospace',
-  clusterFontBold: 'bold 9px JetBrains Mono, Consolas, monospace',
+  clusterFont: '11px JetBrains Mono, Consolas, monospace',
+  clusterFontBold: 'bold 11px JetBrains Mono, Consolas, monospace',
   deltaFont: '8px JetBrains Mono, Consolas, monospace',
   priceFont: '9px JetBrains Mono, Consolas, monospace',
   timeFont: '8px system-ui, sans-serif',
@@ -188,6 +199,16 @@ export const DEFAULT_FOOTPRINT_RENDER_CONFIG: FootprintRenderConfig = {
   showGrid: true,
   showCurrentPrice: true,
   showVolumeBars: true,
+  showPassiveLiquidity: true,
+
+  // Passive Liquidity (Simulation)
+  passiveLiquidityEnabled: true,
+  passiveLiquidityIntensity: 0.6,
+  passiveLiquidityOpacity: 0.25,
+  passiveLiquidityFocusTicks: 0,
+  passiveBidColor: '#00bcd4',
+  passiveAskColor: '#ef5350',
+  passiveMaxBarWidth: 80,
 
   // Performance
   maxVisibleFootprints: 30,
@@ -233,6 +254,9 @@ export class FootprintRendererPro {
   private lastRenderTime: number = 0;
   private targetFps: number = 60;
 
+  // Price context for USD conversion
+  private currentPrice: number = 0;
+
   constructor(canvas: HTMLCanvasElement, config: Partial<FootprintRenderConfig> = {}) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -263,6 +287,8 @@ export class FootprintRendererPro {
     const rect = this.canvas.getBoundingClientRect();
     this.canvas.width = rect.width * this.dpr;
     this.canvas.height = rect.height * this.dpr;
+    // Reset transform before applying new scale (prevents DPR accumulation on resize)
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.scale(this.dpr, this.dpr);
 
     // Enable font smoothing
@@ -345,6 +371,9 @@ export class FootprintRendererPro {
     const width = this.canvas.width / this.dpr;
     const height = this.canvas.height / this.dpr;
 
+    // Store current price for USD volume conversion
+    if (currentPrice) this.currentPrice = currentPrice;
+
     this.updateMetrics();
 
     // Clear
@@ -380,6 +409,11 @@ export class FootprintRendererPro {
       this.renderGrid(tickSize, width);
     }
 
+    // Render passive liquidity FIRST (background layer)
+    if (config.showPassiveLiquidity && config.passiveLiquidityEnabled) {
+      this.renderPassiveLiquidity(tickSize, currentPrice);
+    }
+
     // Render each footprint
     visibleCandles.forEach((candle, idx) => {
       const x = this.metrics.footprintStartX + idx * config.footprintWidth;
@@ -391,9 +425,11 @@ export class FootprintRendererPro {
       this.renderSessionProfile(tickSize, width);
     }
 
-    // Render current price
+    // Render current price with candle direction color
     if (config.showCurrentPrice && currentPrice) {
-      this.renderCurrentPriceLine(currentPrice, width);
+      const lastCandle = candles[candles.length - 1];
+      const isBullish = lastCandle ? lastCandle.close >= lastCandle.open : true;
+      this.renderCurrentPriceLine(currentPrice, width, isBullish);
     }
 
     // Render price axis
@@ -404,6 +440,15 @@ export class FootprintRendererPro {
 
     // Render footer with times and deltas
     this.renderFooter(visibleCandles, height);
+
+    // Render current time line on last candle (AFTER footer so badge is visible)
+    if (config.showCurrentPrice && visibleCandles.length > 0) {
+      const lastIdx = visibleCandles.length - 1;
+      const lastCandleX = this.metrics.footprintStartX + lastIdx * config.footprintWidth;
+      const lastCandle = visibleCandles[lastIdx];
+      const isBullish = lastCandle.close >= lastCandle.open;
+      this.renderCurrentTimeLine(lastCandleX, height, isBullish);
+    }
   }
 
   // ============ FOOTPRINT RENDERING ============
@@ -535,17 +580,9 @@ export class FootprintRendererPro {
       ctx.fillRect(x, cellY, width, rowHeight);
     }
 
-    // Imbalance backgrounds
-    if (config.showImbalances) {
-      if (level.imbalanceBuy) {
-        ctx.fillStyle = config.imbalanceBuyBg;
-        ctx.fillRect(x + halfWidth, cellY + 1, halfWidth, rowHeight - 2);
-      }
-      if (level.imbalanceSell) {
-        ctx.fillStyle = config.imbalanceSellBg;
-        ctx.fillRect(x, cellY + 1, halfWidth, rowHeight - 2);
-      }
-    }
+    // ATAS-style: NO imbalance backgrounds
+    // Imbalance is indicated ONLY through text color (see text rendering below)
+    // This provides cleaner, more professional orderflow visualization
 
     // Volume bars (background indicator)
     if (config.showVolumeBars) {
@@ -570,56 +607,135 @@ export class FootprintRendererPro {
       }
     }
 
-    // Text: Bid x Ask
+    // Text: Bid x Ask - CENTERED style with larger font and spacing
     const centerX = x + halfWidth;
-    ctx.font = isPOC ? config.clusterFontBold : config.clusterFont;
+    const spacing = 12; // Space from center for bid/ask
 
-    // Bid (left side)
+    // Bid (left side) - BRIGHT RED if sell imbalance
     if (level.bidVolume > 0) {
-      ctx.fillStyle = level.imbalanceSell ? config.imbalanceSellText : config.bidTextColor;
+      const hasImbalance = level.imbalanceSell && config.showImbalances;
+      ctx.fillStyle = hasImbalance ? '#ff3333' : config.bidTextColor;
+      ctx.font = (isPOC || hasImbalance) ? 'bold 11px JetBrains Mono, Consolas, monospace' : '11px JetBrains Mono, Consolas, monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(this.formatVolume(level.bidVolume), centerX - padding - 1, y + 3);
+      ctx.fillText(this.formatVolume(level.bidVolume), centerX - spacing, y + 4);
     }
 
-    // Separator "x"
-    ctx.fillStyle = config.separatorColor;
-    ctx.font = '7px monospace';
+    // Separator "x" - WHITE and visible
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 9px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('x', centerX, y + 3);
+    ctx.fillText('x', centerX, y + 4);
 
-    // Ask (right side)
-    ctx.font = isPOC ? config.clusterFontBold : config.clusterFont;
+    // Ask (right side) - BRIGHT GREEN if buy imbalance
     if (level.askVolume > 0) {
-      ctx.fillStyle = level.imbalanceBuy ? config.imbalanceBuyText : config.askTextColor;
+      const hasImbalance = level.imbalanceBuy && config.showImbalances;
+      ctx.fillStyle = hasImbalance ? '#00ff66' : config.askTextColor;
+      ctx.font = (isPOC || hasImbalance) ? 'bold 11px JetBrains Mono, Consolas, monospace' : '11px JetBrains Mono, Consolas, monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(this.formatVolume(level.askVolume), centerX + padding + 1, y + 3);
+      ctx.fillText(this.formatVolume(level.askVolume), centerX + spacing, y + 4);
     }
   }
 
+  /**
+   * ATAS-STYLE DELTA PROFILE RENDERING
+   *
+   * CRITICAL ARCHITECTURE:
+   *
+   *   ┌─────────────────────────────────────────┐
+   *   │         DELTA PROFILE COLUMN            │
+   *   │                                         │
+   *   │  RED (BID)  │  ZERO AXIS  │  GREEN (ASK)│
+   *   │  ◄──────────│─────────────│──────────►  │
+   *   │             │      │      │             │
+   *   │   ████████  │      │      │  ██████     │  delta = -X (sellers)
+   *   │       ████  │      │      │  ████████   │  delta = +Y (buyers)
+   *   │      █████  │      │      │  ███        │  delta = -Z (sellers)
+   *   │             │      │      │             │
+   *   └─────────────┴──────┴──────┴─────────────┘
+   *                        ▲
+   *                  FIXED ZERO AXIS
+   *                (NEVER RECALCULATED)
+   *
+   * RULES:
+   * 1. Delta = askVolume - bidVolume (per price level)
+   * 2. Zero axis is IMMUTABLE vertical line at center
+   * 3. Positive delta (ask > bid) → GREEN bar extends RIGHT from axis
+   * 4. Negative delta (bid > ask) → RED bar extends LEFT from axis
+   * 5. Bar width = abs(delta) / maxAbsDelta * halfWidth
+   * 6. Direction is NEVER CSS-dependent, only Canvas coordinates
+   */
   private renderDeltaProfile(levels: [number, PriceLevel][], x: number, width: number): void {
-    const { ctx, config } = this;
+    const { ctx, config, metrics } = this;
     const { rowHeight } = config;
 
-    // Find max absolute delta for normalization
-    let maxAbsDelta = 1;
-    levels.forEach(([_, level]) => {
-      maxAbsDelta = Math.max(maxAbsDelta, Math.abs(level.delta));
-    });
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 1: CALCULATE FIXED ZERO AXIS (CENTER OF DELTA COLUMN)
+    // ═══════════════════════════════════════════════════════════════════════
+    const padding = 1;
+    const centerX = x + width / 2;  // IMMUTABLE ZERO AXIS
+    const halfWidth = (width - padding * 2) / 2;
 
-    levels.forEach(([price, level]) => {
-      const y = this.priceToY(price);
-      const delta = level.delta;
-      const normalized = delta / maxAbsDelta;
-      const barWidth = Math.abs(normalized) * (width - 2);
-
-      // Bar
-      ctx.fillStyle = delta >= 0 ? config.deltaBarPositive : config.deltaBarNegative;
-      if (delta >= 0) {
-        ctx.fillRect(x + 1, y - rowHeight / 2 + 2, barWidth, rowHeight - 4);
-      } else {
-        ctx.fillRect(x + width - barWidth - 1, y - rowHeight / 2 + 2, barWidth, rowHeight - 4);
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 2: FIND MAX ABSOLUTE DELTA FOR NORMALIZATION
+    // This ensures bars scale properly relative to each other
+    // ═══════════════════════════════════════════════════════════════════════
+    let maxAbsDelta = 0.001; // Avoid division by zero
+    for (const [, level] of levels) {
+      const absDelta = Math.abs(level.delta);
+      if (absDelta > maxAbsDelta) {
+        maxAbsDelta = absDelta;
       }
-    });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 3: RENDER EACH DELTA BAR FROM THE FIXED ZERO AXIS
+    // ═══════════════════════════════════════════════════════════════════════
+    for (const [price, level] of levels) {
+      const y = this.priceToY(price);
+
+      // Skip if outside visible area
+      if (y < metrics.chartAreaY - rowHeight || y > metrics.chartAreaY + metrics.chartAreaHeight + rowHeight) {
+        continue;
+      }
+
+      const delta = level.delta; // askVolume - bidVolume
+
+      // Skip zero delta (no bar to draw)
+      if (delta === 0) continue;
+
+      // Calculate bar width proportional to delta magnitude
+      const normalizedDelta = Math.abs(delta) / maxAbsDelta;
+      const barWidth = normalizedDelta * halfWidth;
+
+      // Bar dimensions
+      const barHeight = rowHeight - 2;
+      const barY = y - barHeight / 2;
+
+      // ─────────────────────────────────────────────────────────────────────
+      // CRITICAL: Direction is determined by delta sign, NOT CSS
+      // ─────────────────────────────────────────────────────────────────────
+      if (delta > 0) {
+        // POSITIVE DELTA (Ask > Bid) = BUYERS AGGRESSIVE
+        // Draw GREEN bar extending RIGHT from zero axis
+        ctx.fillStyle = config.deltaBarPositive;
+        ctx.fillRect(centerX, barY, barWidth, barHeight);
+      } else {
+        // NEGATIVE DELTA (Bid > Ask) = SELLERS AGGRESSIVE
+        // Draw RED bar extending LEFT from zero axis
+        ctx.fillStyle = config.deltaBarNegative;
+        ctx.fillRect(centerX - barWidth, barY, barWidth, barHeight);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 4: RENDER FIXED ZERO AXIS LINE (ALWAYS VISIBLE)
+    // ═══════════════════════════════════════════════════════════════════════
+    ctx.strokeStyle = 'rgba(80, 80, 80, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(centerX, metrics.chartAreaY);
+    ctx.lineTo(centerX, metrics.chartAreaY + metrics.chartAreaHeight);
+    ctx.stroke();
   }
 
   // ============ SESSION PROFILE ============
@@ -672,6 +788,120 @@ export class FootprintRendererPro {
     });
 
     ctx.globalAlpha = 1;
+  }
+
+  // ============ PASSIVE LIQUIDITY (SIMULATION) ============
+
+  /**
+   * Render passive liquidity from heatmap as horizontal volume bars
+   * - Background layer (z-index below footprint)
+   * - Bid passive = cyan bars (left side)
+   * - Ask passive = red bars (right side)
+   * - Reduced opacity (20-35%) for context without overwhelming footprint
+   */
+  private renderPassiveLiquidity(tickSize: number, currentPrice?: number): void {
+    const { ctx, config, metrics } = this;
+    const simulator = getPassiveLiquiditySimulator();
+
+    // Update simulator with current price
+    if (currentPrice) {
+      simulator.setConfig({
+        basePrice: currentPrice,
+        tickSize,
+        depth: Math.ceil(metrics.visiblePriceRange / tickSize),
+      });
+    }
+
+    // Get levels to render (use stable levels for legacy compatibility)
+    let levels: StablePassiveLevel[];
+    if (config.passiveLiquidityFocusTicks > 0 && currentPrice) {
+      // Focus mode: only show ±N ticks from current price
+      levels = simulator.getStableLevelsNearPrice(currentPrice, config.passiveLiquidityFocusTicks);
+    } else {
+      // Show all levels in visible range
+      levels = simulator.getStableLevelsInRange(metrics.visiblePriceMin, metrics.visiblePriceMax);
+    }
+
+    if (levels.length === 0) return;
+
+    const snapshot = simulator.getSnapshot();
+    const maxBid = snapshot.maxBidVolume || 1;
+    const maxAsk = snapshot.maxAskVolume || 1;
+    const maxBarWidth = config.passiveMaxBarWidth * config.passiveLiquidityIntensity;
+    const barHeight = config.rowHeight * 0.6;
+
+    // Chart center X for positioning bars
+    const chartCenterX = metrics.chartAreaWidth / 2;
+
+    ctx.save();
+    ctx.globalAlpha = config.passiveLiquidityOpacity;
+
+    for (const level of levels) {
+      const y = this.priceToY(level.price);
+
+      // Skip if outside visible area
+      if (y < metrics.chartAreaY - barHeight || y > metrics.chartAreaY + metrics.chartAreaHeight + barHeight) {
+        continue;
+      }
+
+      // Render BID bar (left side, extending left from center)
+      if (level.bidVolume > 0) {
+        const bidWidth = (level.bidVolume / maxBid) * maxBarWidth;
+        const bidX = chartCenterX - bidWidth;
+
+        // Gradient for depth effect
+        const gradient = ctx.createLinearGradient(bidX, 0, chartCenterX, 0);
+        gradient.addColorStop(0, this.hexToRgba(config.passiveBidColor, 0.3));
+        gradient.addColorStop(1, this.hexToRgba(config.passiveBidColor, 0.6));
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(bidX, y - barHeight / 2, bidWidth, barHeight);
+
+        // Interest zone highlight
+        if (level.isInterestZone) {
+          ctx.strokeStyle = config.passiveBidColor;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = config.passiveLiquidityOpacity * 1.5;
+          ctx.strokeRect(bidX, y - barHeight / 2, bidWidth, barHeight);
+          ctx.globalAlpha = config.passiveLiquidityOpacity;
+        }
+      }
+
+      // Render ASK bar (right side, extending right from center)
+      if (level.askVolume > 0) {
+        const askWidth = (level.askVolume / maxAsk) * maxBarWidth;
+        const askX = chartCenterX;
+
+        // Gradient for depth effect
+        const gradient = ctx.createLinearGradient(askX, 0, askX + askWidth, 0);
+        gradient.addColorStop(0, this.hexToRgba(config.passiveAskColor, 0.6));
+        gradient.addColorStop(1, this.hexToRgba(config.passiveAskColor, 0.3));
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(askX, y - barHeight / 2, askWidth, barHeight);
+
+        // Interest zone highlight
+        if (level.isInterestZone) {
+          ctx.strokeStyle = config.passiveAskColor;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = config.passiveLiquidityOpacity * 1.5;
+          ctx.strokeRect(askX, y - barHeight / 2, askWidth, barHeight);
+          ctx.globalAlpha = config.passiveLiquidityOpacity;
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // Helper: Convert hex color to rgba
+  private hexToRgba(hex: string, alpha: number): string {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(128, 128, 128, ${alpha})`;
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
   // ============ GRID & AXES ============
@@ -728,33 +958,97 @@ export class FootprintRendererPro {
     }
   }
 
-  private renderCurrentPriceLine(price: number, canvasWidth: number): void {
+  private renderCurrentPriceLine(price: number, canvasWidth: number, isBullish: boolean = true): void {
     const { ctx, config, metrics } = this;
     const y = this.priceToY(price);
 
     if (y < metrics.chartAreaY || y > metrics.chartAreaY + metrics.chartAreaHeight) return;
 
-    // Background strip
-    ctx.fillStyle = config.currentPriceBg;
-    ctx.fillRect(0, y - 8, canvasWidth - 60, 16);
+    const axisX = canvasWidth - 60;
+    const priceText = this.formatPrice(price);
 
-    // Dashed line
-    ctx.strokeStyle = config.currentPriceColor;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
+    // Color based on candle direction
+    const lineColor = isBullish ? config.candleUpBody : config.candleDownBody;
+
+    // Ultra-thin dotted line
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 0.3;
+    ctx.globalAlpha = 0.5;
+    ctx.setLineDash([1, 2]);
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(canvasWidth - 60, y);
+    ctx.lineTo(axisX, y);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
 
-    // Price label badge
-    ctx.fillStyle = config.currentPriceColor;
-    ctx.fillRect(canvasWidth - 60, y - 9, 60, 18);
+    // Minimal badge
+    ctx.font = '7px JetBrains Mono, monospace';
+    const textWidth = ctx.measureText(priceText).width;
+    const badgeWidth = textWidth + 6;
+    const badgeHeight = 10;
+    const badgeX = axisX + 3;
+    const badgeY = y - badgeHeight / 2;
+
+    // Badge background with candle color
+    ctx.fillStyle = lineColor;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 1);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Badge text
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.fillText(priceText, badgeX + 3, y + 2.5);
+  }
+
+  private renderCurrentTimeLine(candleX: number, canvasHeight: number, isBullish: boolean): void {
+    const { ctx, config, metrics } = this;
+    const x = candleX + config.footprintWidth / 2;
+    const footerY = canvasHeight - 35;
+
+    // Color based on candle direction
+    const lineColor = isBullish ? config.candleUpBody : config.candleDownBody;
+
+    // Vertical line through chart area
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.7;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x, metrics.chartAreaY);
+    ctx.lineTo(x, canvasHeight);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    // Current time badge
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    const badgeWidth = 60;
+    const badgeHeight = 16;
+    const badgeX = x - badgeWidth / 2;
+    const badgeY = canvasHeight - badgeHeight - 3;
+
+    // Badge background (simple rect)
+    ctx.fillStyle = lineColor;
+    ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
+
+    // Badge text
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 10px JetBrains Mono, monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(this.formatPrice(price), canvasWidth - 55, y + 4);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(timeStr, x, badgeY + badgeHeight / 2);
+    ctx.textBaseline = 'alphabetic';
   }
 
   // ============ HEADER & FOOTER ============
@@ -811,7 +1105,7 @@ export class FootprintRendererPro {
       const x = this.metrics.footprintStartX + idx * config.footprintWidth;
       const centerX = x + config.footprintWidth / 2;
 
-      // Time
+      // Time - BIGGER and BRIGHTER
       const date = new Date(candle.time * 1000);
       const timeStr = date.toLocaleTimeString(undefined, {
         hour: '2-digit',
@@ -819,16 +1113,16 @@ export class FootprintRendererPro {
         hour12: false
       });
 
-      ctx.font = config.timeFont;
-      ctx.fillStyle = '#666';
+      ctx.font = 'bold 10px JetBrains Mono, monospace';
+      ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.fillText(timeStr, centerX, footerY + 12);
+      ctx.fillText(timeStr, centerX, footerY + 14);
 
       // Delta
       const delta = candle.totalDelta;
       ctx.font = config.deltaFont;
       ctx.fillStyle = delta >= 0 ? config.deltaPositive : config.deltaNegative;
-      ctx.fillText(`${delta >= 0 ? '+' : ''}${this.formatVolume(delta)}`, centerX, footerY + 26);
+      ctx.fillText(`${delta >= 0 ? '+' : ''}${this.formatVolume(delta)}`, centerX, footerY + 28);
     });
   }
 
@@ -874,22 +1168,62 @@ export class FootprintRendererPro {
 
   private calculateGridStep(tickSize: number): number {
     const { metrics, config } = this;
-    const idealRows = metrics.chartAreaHeight / config.rowHeight;
-    const idealStep = metrics.visiblePriceRange / idealRows;
 
-    const magnitude = Math.pow(10, Math.floor(Math.log10(idealStep)));
-    const normalized = idealStep / magnitude;
+    // Calculate ideal step based on visible range and desired label spacing
+    // We want labels to be at least 20px apart to avoid overlap
+    const minLabelSpacing = 20;
+    const maxLabels = Math.floor(metrics.chartAreaHeight / minLabelSpacing);
+    const idealStep = metrics.visiblePriceRange / Math.max(1, maxLabels);
 
-    let nice: number;
-    if (normalized < 1.5) nice = 1;
-    else if (normalized < 3) nice = 2;
-    else if (normalized < 7) nice = 5;
-    else nice = 10;
+    // "Nice" numbers sequence that works well for financial data
+    // For CME futures (0.25 tick), this gives: 0.25, 0.5, 1, 2, 5, 10, 25, 50, 100...
+    const niceSequence = [0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
 
-    return Math.max(tickSize, Math.round(nice * magnitude / tickSize) * tickSize);
+    // Find the smallest "nice" number >= idealStep that's also a multiple of tickSize
+    let step = tickSize;
+    for (const nice of niceSequence) {
+      // Skip values smaller than tickSize
+      if (nice < tickSize) continue;
+
+      // Check if this nice number is a multiple of tickSize (within floating point tolerance)
+      const isMultiple = Math.abs(nice / tickSize - Math.round(nice / tickSize)) < 0.001;
+      if (!isMultiple) continue;
+
+      if (nice >= idealStep) {
+        step = nice;
+        break;
+      }
+    }
+
+    // If we didn't find a suitable value in sequence, calculate one
+    if (step < idealStep) {
+      const magnitude = Math.pow(10, Math.floor(Math.log10(idealStep)));
+      const normalized = idealStep / magnitude;
+
+      let nice: number;
+      if (normalized < 1.5) nice = 1;
+      else if (normalized < 3) nice = 2.5;
+      else if (normalized < 7) nice = 5;
+      else nice = 10;
+
+      step = Math.max(tickSize, Math.round(nice * magnitude / tickSize) * tickSize);
+    }
+
+    return step;
   }
 
   private formatVolume(vol: number): string {
+    // For crypto futures (high price per contract), convert to USD
+    if (this.currentPrice >= 100) {
+      const usd = Math.abs(vol) * this.currentPrice;
+      const sign = vol < 0 ? '-' : '';
+      if (usd >= 1_000_000) return `${sign}${(usd / 1_000_000).toFixed(1)}M`;
+      if (usd >= 1_000) return `${sign}${(usd / 1_000).toFixed(0)}K`;
+      if (usd >= 1) return `${sign}${Math.round(usd)}`;
+      return `${sign}${usd.toFixed(0)}`;
+    }
+
+    // For CME-style instruments (NQ, ES), show contracts
     const abs = Math.abs(vol);
     if (abs >= 1000) return `${(vol / 1000).toFixed(1)}K`;
     if (abs >= 100) return Math.round(vol).toString();
@@ -899,9 +1233,35 @@ export class FootprintRendererPro {
   }
 
   private formatPrice(price: number): string {
-    if (price >= 10000) return price.toLocaleString(undefined, { maximumFractionDigits: 0 });
-    if (price >= 1000) return price.toLocaleString(undefined, { maximumFractionDigits: 1 });
-    return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Smart decimal formatting based on price magnitude
+    // For large prices (like NQ ~20000), show fewer decimals
+    // For smaller prices, show more decimals
+
+    if (price >= 10000) {
+      // Futures like NQ (20000+): show .25 precision
+      return price.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    } else if (price >= 1000) {
+      // Futures like ES (5000+): show .25 precision
+      return price.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    } else if (price >= 100) {
+      // Smaller assets
+      return price.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    } else {
+      // Very small prices
+      return price.toLocaleString(undefined, {
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4,
+      });
+    }
   }
 
   // ============ CLEANUP ============

@@ -2,7 +2,62 @@
  * ORDERFLOW MODULE
  *
  * Agrégation et rendu de données orderflow style ATAS/NinjaTrader
+ *
+ * Architecture:
+ * 1. CMEContractSpecs - Spécifications exactes des contrats CME
+ * 2. FootprintAggregator - Agrégation tick-by-tick ATAS-like
+ * 3. ATASRenderer - Rendu Canvas style ATAS
+ * 4. OrderflowEngine - Engine legacy (compatibilité)
  */
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CME CONTRACT SPECIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  CME_CONTRACTS,
+  getContractSpec,
+  alignToTick,
+  normalizeVolume,
+  getPriceLevels,
+  NQ_SPEC,
+  MNQ_SPEC,
+  ES_SPEC,
+  MES_SPEC,
+  GC_SPEC,
+  MGC_SPEC,
+  type CMEContractSpec,
+} from './CMEContractSpecs';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FOOTPRINT AGGREGATOR (ATAS-LIKE)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  FootprintAggregator,
+  getFootprintAggregator,
+  resetFootprintAggregator,
+  resetAllAggregators,
+  classifyTrade,
+  type CMETrade,
+  type FootprintLevel,
+  type FootprintCandle as ATASFootprintCandle,
+  type ClassificationMethod,
+} from './FootprintAggregator';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ATAS RENDERER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  ATASRenderer,
+  DEFAULT_ATAS_CONFIG,
+  type ATASRenderConfig,
+} from './ATASRenderer';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGACY EXPORTS (BACKWARD COMPATIBILITY)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export {
   OrderflowEngine,
@@ -42,3 +97,51 @@ export {
   type FootprintConfig,
   type DeltaProfileLevel,
 } from './FootprintEngine';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PASSIVE LIQUIDITY SIMULATOR (Coherent Trade-Reactive System)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  PassiveLiquiditySimulator,
+  getPassiveLiquiditySimulator,
+  resetPassiveLiquiditySimulator,
+  type PassiveLevel,
+  type StablePassiveLevel,
+  type PassiveLiquiditySnapshot,
+  type PassiveLiquidityConfig,
+  type StabilityConfig,
+} from './PassiveLiquiditySimulator';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRADE ABSORPTION ENGINE (Bridge between trades and passive liquidity)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  TradeAbsorptionEngine,
+  getTradeAbsorptionEngine,
+  resetTradeAbsorptionEngine,
+  type AbsorptionCallback,
+  type TradeAbsorptionEngineConfig,
+} from './TradeAbsorptionEngine';
+
+// Re-export types from passive-liquidity
+export type {
+  PassiveOrderLevel,
+  PassiveOrderStatus,
+  PassiveOrderSide,
+  AbsorptionTradeEvent,
+  AbsorptionResult,
+  SpoofingEvent,
+  CoherentPassiveLiquiditySnapshot,
+  CoherentSimulatorConfig,
+  AbsorptionStatistics,
+} from '@/types/passive-liquidity';
+
+export {
+  getLevelKey,
+  parseLevelKey,
+  createPassiveOrderLevel,
+  formatPassiveVolume,
+  DEFAULT_COHERENT_CONFIG,
+} from '@/types/passive-liquidity';

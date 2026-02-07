@@ -11,8 +11,30 @@
  */
 
 import { HeatmapColorEngine } from './HeatmapColorEngine';
+import { AbsorptionBarRenderer, type AbsorptionBarSettings } from './rendering/AbsorptionBarRenderer';
+import { AbsorptionLevelMarker, type AbsorptionLevelEvent, type AbsorptionLevelMarkerSettings } from './rendering/AbsorptionLevelMarker';
 import type { HeatmapProSettings, PriceRange, HeatmapStats } from '@/types/heatmap';
 import type { HeatmapLayout, RenderConfig, OrderbookSnapshot, Point } from '@/components/charts/LiquidityHeatmapPro/types';
+import type { PassiveOrderLevel } from '@/types/passive-liquidity';
+
+// Tick data interface - simple price ticks
+export interface TickData {
+  timestamp: number;
+  price: number;
+  volume: number;
+  side: 'buy' | 'sell';
+}
+
+// Passive order that can be broken/absorbed
+export interface PassiveOrder {
+  id: string;
+  price: number;
+  quantity: number;
+  initialQuantity: number;
+  side: 'bid' | 'ask';
+  timestamp: number;
+  status: 'active' | 'absorbed' | 'broken' | 'cancelled';
+}
 
 export interface HeatmapRenderConfig extends RenderConfig {
   settings: HeatmapProSettings;
@@ -23,6 +45,8 @@ export class HeatmapRenderer {
   private ctx: CanvasRenderingContext2D;
   private dpr: number;
   private colorEngine: HeatmapColorEngine;
+  private absorptionBarRenderer: AbsorptionBarRenderer;
+  private absorptionLevelMarker: AbsorptionLevelMarker;
   private config: HeatmapRenderConfig;
   private layout: HeatmapLayout;
 
@@ -34,37 +58,70 @@ export class HeatmapRenderer {
   private currentPriceRange: PriceRange = { min: 0, max: 0 };
   private tickSize: number = 0.25;
 
+  // Tick data (price history)
+  private ticks: TickData[] = [];
+  private lastTickTime: number = 0;
+
+  // Tracked passive orders (for visualization)
+  private passiveOrders: Map<string, PassiveOrder> = new Map();
+  private lastOrderbookSnapshot: { bids: Map<number, number>; asks: Map<number, number> } | null = null;
+  private previousPassiveOrders: Map<string, PassiveOrder> = new Map();
+  private lastBestBid: number = 0;
+  private lastBestAsk: number = 0;
+
   // Colors - ATAS Style
   private colors = {
-    background: '#060a10',
-    gridLine: 'rgba(255, 255, 255, 0.03)',
-    gridLineMajor: 'rgba(255, 255, 255, 0.06)',
-    priceLadderBg: '#080c14',
-    priceLadderBorder: '#1a1f2e',
-    statsBarBg: '#080c14',
-    statsBarBorder: '#1a1f2e',
+    background: '#0a0e14',
+    gridLine: 'rgba(255, 255, 255, 0.04)',
+    gridLineMajor: 'rgba(255, 255, 255, 0.08)',
+    priceLadderBg: '#080c12',
+    priceLadderBorder: '#1e2430',
+    statsBarBg: '#080c12',
+    statsBarBorder: '#1e2430',
+    timelineBg: '#080c12',
+    timelineBorder: '#1e2430',
+    timeText: '#6b7280',
     priceText: '#6b7280',
     priceTextHighlight: '#ffffff',
     currentPriceBg: '#2563eb',
-    currentPriceLine: 'rgba(255, 255, 255, 0.4)',
-    crosshair: 'rgba(255, 255, 255, 0.5)',
+    currentPriceLine: 'rgba(255, 255, 255, 0.5)',
+    crosshair: 'rgba(255, 255, 255, 0.6)',
     crosshairLabel: '#3b82f6',
-    bidBar: 'rgba(34, 211, 238, 0.7)',  // Cyan
-    askBar: 'rgba(244, 114, 182, 0.7)',  // Pink
-    bidBarBright: 'rgba(34, 211, 238, 0.9)',
-    askBarBright: 'rgba(244, 114, 182, 0.9)',
+    // DOM bars
+    bidBar: 'rgba(34, 211, 238, 0.75)',  // Cyan
+    askBar: 'rgba(239, 68, 68, 0.75)',    // Red (changed from pink)
+    bidBarBright: 'rgba(34, 211, 238, 0.95)',
+    askBarBright: 'rgba(239, 68, 68, 0.95)',
+    // Walls
     wallBid: '#22d3ee',
     wallAsk: '#ef4444',
-    statAsk: '#f43f5e',
+    // Stats
+    statAsk: '#ef4444',
     statBid: '#22c55e',
     statVolume: '#ffffff',
     statLabel: '#6b7280',
-    // Best bid/ask lines
+    // Tick lines (behind bubbles) - ATAS style
+    tickLineBid: 'rgba(34, 197, 94, 0.6)',   // Green
+    tickLineAsk: 'rgba(239, 68, 68, 0.6)',    // Red
+    tickLineBidBright: '#22c55e',
+    tickLineAskBright: '#ef4444',
+    // Best bid/ask
     bestBidLine: '#22d3ee',
-    bestAskLine: '#f472b6',
-    bestBidBg: 'rgba(34, 211, 238, 0.15)',
-    bestAskBg: 'rgba(244, 114, 182, 0.15)',
+    bestAskLine: '#ef4444',
+    bestBidBg: 'rgba(34, 211, 238, 0.12)',
+    bestAskBg: 'rgba(239, 68, 68, 0.12)',
+    // Candles
+    candleBullBody: '#22c55e',
+    candleBearBody: '#ef4444',
+    candleBullWick: '#22c55e',
+    candleBearWick: '#ef4444',
+    candleBullBodyFill: 'rgba(34, 197, 94, 0.8)',
+    candleBearBodyFill: 'rgba(239, 68, 68, 0.8)',
   };
+
+  // Time zoom state
+  private timeZoom: number = 1;
+  private timeOffset: number = 0;
 
   constructor(canvas: HTMLCanvasElement, config: HeatmapRenderConfig) {
     this.canvas = canvas;
@@ -75,6 +132,8 @@ export class HeatmapRenderer {
     this.dpr = config.dpr;
     this.config = config;
     this.colorEngine = new HeatmapColorEngine(config.settings.colorScheme);
+    this.absorptionBarRenderer = new AbsorptionBarRenderer();
+    this.absorptionLevelMarker = new AbsorptionLevelMarker();
     this.layout = this.calculateLayout();
 
     this.resize();
@@ -92,6 +151,8 @@ export class HeatmapRenderer {
     this.canvas.width = this.width * this.dpr;
     this.canvas.height = this.height * this.dpr;
 
+    // Reset transform before applying new scale (prevents accumulation)
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.scale(this.dpr, this.dpr);
     this.layout = this.calculateLayout();
   }
@@ -100,28 +161,36 @@ export class HeatmapRenderer {
    * Calcule le layout des zones
    */
   private calculateLayout(): HeatmapLayout {
-    const priceLadderWidth = 75;    // Réduit de 85
-    const statsBarHeight = 40;       // Réduit de 45
-    const domWidth = 100;            // Réduit de 120
+    const priceLadderWidth = 70;
+    const statsBarHeight = 38;
+    const timelineHeight = 24;
+    const domWidth = 90;
+    const totalBottomHeight = statsBarHeight + timelineHeight;
 
     return {
       domArea: {
         x: 0,
         y: 0,
         width: domWidth,
-        height: this.height - statsBarHeight,
+        height: this.height - totalBottomHeight,
       },
       heatmapArea: {
         x: domWidth,
         y: 0,
         width: this.width - domWidth - priceLadderWidth,
-        height: this.height - statsBarHeight,
+        height: this.height - totalBottomHeight,
       },
       priceLadder: {
         x: this.width - priceLadderWidth,
         y: 0,
         width: priceLadderWidth,
-        height: this.height - statsBarHeight,
+        height: this.height - totalBottomHeight,
+      },
+      timeline: {
+        x: 0,
+        y: this.height - totalBottomHeight,
+        width: this.width,
+        height: timelineHeight,
       },
       statsBar: {
         x: 0,
@@ -130,6 +199,113 @@ export class HeatmapRenderer {
         height: statsBarHeight,
       },
     };
+  }
+
+  /**
+   * Setters pour le zoom/offset temporel
+   */
+  setTimeZoom(zoom: number): void {
+    this.timeZoom = Math.max(0.1, Math.min(10, zoom));
+  }
+
+  setTimeOffset(offset: number): void {
+    this.timeOffset = offset;
+  }
+
+  /**
+   * Add a tick (price update)
+   */
+  addTick(price: number, volume: number, side: 'buy' | 'sell'): void {
+    const now = Date.now();
+
+    // Throttle ticks (50ms for better tracking)
+    if (now - this.lastTickTime < 50) return;
+    this.lastTickTime = now;
+
+    // Only add if price actually changed
+    const lastTick = this.ticks[this.ticks.length - 1];
+    if (lastTick && Math.abs(lastTick.price - price) < this.tickSize * 0.1) {
+      return; // Skip if price hasn't changed significantly
+    }
+
+    this.ticks.push({
+      timestamp: now,
+      price,
+      volume,
+      side,
+    });
+
+    // Keep only last 300 ticks for performance
+    if (this.ticks.length > 300) {
+      this.ticks.shift();
+    }
+  }
+
+  /**
+   * Update passive orders - simple tracking, remove when gone
+   */
+  updatePassiveOrders(
+    bids: Map<number, number>,
+    asks: Map<number, number>,
+    currentPrice: number,
+    bestBid: number,
+    bestAsk: number
+  ): void {
+    const now = Date.now();
+    const minWallSize = 40; // Minimum size to show
+
+    // Clear and rebuild each frame - orders disappear immediately when gone
+    this.passiveOrders.clear();
+
+    // Track significant bid levels (walls)
+    const sortedBids = Array.from(bids.entries())
+      .filter(([, qty]) => qty > minWallSize)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30);
+
+    // Track significant ask levels (walls)
+    const sortedAsks = Array.from(asks.entries())
+      .filter(([, qty]) => qty > minWallSize)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30);
+
+    // Add bid walls
+    for (const [price, qty] of sortedBids) {
+      const id = `bid-${price}`;
+      this.passiveOrders.set(id, {
+        id,
+        price,
+        quantity: qty,
+        initialQuantity: qty,
+        side: 'bid',
+        timestamp: now,
+        status: 'active',
+      });
+    }
+
+    // Add ask walls
+    for (const [price, qty] of sortedAsks) {
+      const id = `ask-${price}`;
+      this.passiveOrders.set(id, {
+        id,
+        price,
+        quantity: qty,
+        initialQuantity: qty,
+        side: 'ask',
+        timestamp: now,
+        status: 'active',
+      });
+    }
+
+    this.lastBestBid = bestBid;
+    this.lastBestAsk = bestAsk;
+  }
+
+  /**
+   * Get ticks
+   */
+  getTicks(): TickData[] {
+    return this.ticks;
   }
 
   /**
@@ -158,42 +334,199 @@ export class HeatmapRenderer {
     tickSize: number;
     mousePosition: Point | null;
     stats: HeatmapStats;
+    // Absorption visualization data
+    passiveLevels?: Map<string, PassiveOrderLevel>;
+    maxBidVolume?: number;
+    maxAskVolume?: number;
   }): void {
     this.currentPriceRange = data.priceRange;
     this.tickSize = data.tickSize;
+
+    // Update ticks and passive orders
+    if (data.midPrice > 0) {
+      const side = data.trades.length > 0 ? data.trades[data.trades.length - 1]?.side || 'buy' : 'buy';
+      this.addTick(data.midPrice, 1, side);
+      this.updatePassiveOrders(data.currentBids, data.currentAsks, data.midPrice, data.bestBid, data.bestAsk);
+    }
 
     // Clear
     this.ctx.fillStyle = this.colors.background;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // 1. Grille
+    // 1. Grille subtile
     this.renderGrid(data.priceRange, data.tickSize);
 
-    // 2. Heatmap cells (historique liquidité)
-    this.renderHeatmapCells(data.history, data.priceRange);
+    // 2. DÉSACTIVÉ: Heatmap cells (historique liquidité) - retirés car dérangent
+    // this.renderHeatmapCells(data.history, data.priceRange);
 
-    // 3. DOM bars à gauche
-    this.renderDOMArea(data.currentBids, data.currentAsks, data.priceRange, data.bestBid, data.bestAsk);
+    // 3. DÉSACTIVÉ: Current liquidity bars near price ladder - retirés car dérangent
+    // this.renderLiquidityBars(data.currentBids, data.currentAsks, data.priceRange, data.bestBid, data.bestAsk);
 
-    // 4. Best Bid/Ask lines with volume bubbles
-    this.renderBestBidAskLines(data.currentBids, data.currentAsks, data.priceRange, data.bestBid, data.bestAsk);
+    // 4. DÉSACTIVÉ: DOM bars à gauche - retirés car dérangent
+    // this.renderDOMArea(data.currentBids, data.currentAsks, data.priceRange, data.bestBid, data.bestAsk);
 
-    // 5. Walls (grandes liquidités)
-    this.renderWalls(data.currentBids, data.currentAsks, data.priceRange);
+    // 5. DÉSACTIVÉ: Best Bid/Ask highlight lines - retirées au cas où ce seraient les rectangles
+    // this.renderBestBidAskLines(data.currentBids, data.currentAsks, data.priceRange, data.bestBid, data.bestAsk);
 
-    // 6. Ligne prix actuel
+    // 6. Ligne prix actuel (thin line)
     this.renderCurrentPriceLine(data.midPrice, data.priceRange);
+
+    // 6.5 ABSORPTION BARS - Visualize passive order absorption
+    if (data.passiveLevels && data.passiveLevels.size > 0) {
+      const { heatmapArea } = this.layout;
+      this.absorptionBarRenderer.render(
+        this.ctx,
+        data.passiveLevels,
+        data.priceRange,
+        heatmapArea.x,
+        heatmapArea.y,
+        heatmapArea.width,
+        heatmapArea.height,
+        data.tickSize,
+        data.maxBidVolume || 100,
+        data.maxAskVolume || 100
+      );
+
+      // 6.6 ABSORPTION LEVEL MARKERS - Bounce/Break/Retest indicators
+      this.absorptionLevelMarker.render(
+        this.ctx,
+        data.priceRange,
+        heatmapArea.x,
+        heatmapArea.y,
+        heatmapArea.width,
+        heatmapArea.height
+      );
+    }
 
     // 7. Price ladder
     this.renderPriceLadder(data.priceRange, data.tickSize, data.midPrice, data.bestBid, data.bestAsk);
 
-    // 8. Stats bar
+    // 8. Timeline
+    this.renderTimeline(data.history, Date.now());
+
+    // 9. Stats bar
     this.renderStatsBar(data.stats, data.midPrice);
 
-    // 9. Crosshair
+    // 10. Crosshair
     if (data.mousePosition) {
       this.renderCrosshair(data.mousePosition, data.priceRange);
     }
+  }
+
+  /**
+   * Render price ticks - step style (X then Y, no diagonal)
+   * Thick lines that overlay on bubbles
+   */
+  private renderPriceTicks(priceRange: PriceRange): void {
+    const { heatmapArea } = this.layout;
+    if (this.ticks.length < 2) return;
+
+    const tickSpacing = Math.max(3, 5 * this.timeZoom);
+    const visibleTicks = Math.floor(heatmapArea.width / tickSpacing);
+    const startIdx = Math.max(0, this.ticks.length - visibleTicks);
+
+    // Step-style line (X then Y movement, not diagonal)
+    this.ctx.beginPath();
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    this.ctx.lineWidth = 2.5;
+    this.ctx.lineCap = 'square';
+
+    let prevX = 0;
+    let prevY = 0;
+    let isFirst = true;
+
+    for (let i = startIdx; i < this.ticks.length; i++) {
+      const tick = this.ticks[i];
+      const x = heatmapArea.x + heatmapArea.width - (this.ticks.length - i) * tickSpacing;
+      if (x < heatmapArea.x) continue;
+
+      const y = this.priceToY(tick.price, priceRange, heatmapArea.height);
+
+      if (isFirst) {
+        this.ctx.moveTo(x, y);
+        isFirst = false;
+      } else {
+        // Step: first move horizontally (X), then vertically (Y)
+        this.ctx.lineTo(x, prevY); // Horizontal to new X at old Y
+        this.ctx.lineTo(x, y);      // Vertical to new Y
+      }
+
+      prevX = x;
+      prevY = y;
+    }
+    this.ctx.stroke();
+
+    // Draw current price marker at the end
+    if (this.ticks.length > 0) {
+      const lastTick = this.ticks[this.ticks.length - 1];
+      const lastX = heatmapArea.x + heatmapArea.width - tickSpacing;
+      const lastY = this.priceToY(lastTick.price, priceRange, heatmapArea.height);
+
+      // Bright marker for current price
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.beginPath();
+      this.ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+  }
+
+  /**
+   * Render current liquidity bars - Bookmap style depth visualization
+   */
+  private renderLiquidityBars(
+    bids: Map<number, number>,
+    asks: Map<number, number>,
+    priceRange: PriceRange,
+    bestBid: number,
+    bestAsk: number
+  ): void {
+    const { heatmapArea } = this.layout;
+
+    // Calculate max quantity for normalization
+    let maxQty = 0;
+    for (const [, qty] of bids) maxQty = Math.max(maxQty, qty);
+    for (const [, qty] of asks) maxQty = Math.max(maxQty, qty);
+    if (maxQty === 0) return;
+
+    // DÉSACTIVÉ: Barres de liquidité cyan et rouge sur le bord droit (dérangent)
+    // Si vous voulez les réactiver, décommentez le code ci-dessous
+
+    /*
+    const priceSpan = priceRange.max - priceRange.min;
+    const pixelsPerTick = (heatmapArea.height / priceSpan) * this.tickSize;
+    const barHeight = Math.max(2, Math.min(pixelsPerTick * 0.85, 8));
+    const maxBarWidth = 80;
+
+    // Draw from right edge of heatmap
+    const rightEdge = heatmapArea.x + heatmapArea.width;
+
+    // Bid liquidity bars (cyan, below mid price)
+    for (const [price, qty] of bids) {
+      if (price < priceRange.min || price > priceRange.max) continue;
+
+      const y = this.priceToY(price, priceRange, heatmapArea.height);
+      const intensity = qty / maxQty;
+      const barWidth = maxBarWidth * Math.sqrt(intensity);
+
+      // Gradient effect - brighter = more liquidity
+      const alpha = 0.2 + intensity * 0.6;
+      this.ctx.fillStyle = `rgba(34, 211, 238, ${alpha})`;
+      this.ctx.fillRect(rightEdge - barWidth, y - barHeight / 2, barWidth, barHeight);
+    }
+
+    // Ask liquidity bars (red, above mid price)
+    for (const [price, qty] of asks) {
+      if (price < priceRange.min || price > priceRange.max) continue;
+
+      const y = this.priceToY(price, priceRange, heatmapArea.height);
+      const intensity = qty / maxQty;
+      const barWidth = maxBarWidth * Math.sqrt(intensity);
+
+      const alpha = 0.2 + intensity * 0.6;
+      this.ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
+      this.ctx.fillRect(rightEdge - barWidth, y - barHeight / 2, barWidth, barHeight);
+    }
+    */
   }
 
   /**
@@ -246,6 +579,10 @@ export class HeatmapRenderer {
 
       if (x < heatmapArea.x - columnWidth) continue;
 
+      // DÉSACTIVÉ: Petits carrés de heatmap historique retirés car ils dérangent
+      // Si vous voulez les réactiver, décommentez le code ci-dessous
+
+      /*
       // Render bids
       for (const [price, qty] of snapshot.bids) {
         if (price < priceRange.min || price > priceRange.max) continue;
@@ -263,11 +600,12 @@ export class HeatmapRenderer {
         this.ctx.fillStyle = this.colorEngine.getColor(intensity);
         this.ctx.fillRect(x, y - cellHeight / 2, columnWidth - 0.5, cellHeight);
       }
+      */
     }
   }
 
   /**
-   * Zone DOM avec barres horizontales style ATAS
+   * Zone DOM avec barres horizontales - Design simple et sans chevauchement
    */
   private renderDOMArea(
     bids: Map<number, number>,
@@ -280,7 +618,7 @@ export class HeatmapRenderer {
     const { maxVolumePixelSize } = this.config.settings;
 
     // Fond de la zone DOM
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     this.ctx.fillRect(domArea.x, domArea.y, domArea.width, domArea.height);
 
     // Bordure droite
@@ -297,34 +635,67 @@ export class HeatmapRenderer {
     for (const [, qty] of asks) maxQty = Math.max(maxQty, qty);
     if (maxQty === 0) return;
 
-    const barHeight = Math.max(3, this.config.cellHeight * this.config.settings.zoomLevel * 1.5);
-    const maxBarWidth = Math.min(maxVolumePixelSize, domArea.width - 10);
+    // DÉSACTIVÉ: Petites barres DOM bleu cyan et rouge retirées (dérangent)
+    // Si vous voulez les réactiver, décommentez le code ci-dessous
 
-    // Bids (barres cyan vers la droite)
+    /*
+    // Calculate bar dimensions - half width for each side
+    const halfWidth = (domArea.width - 6) / 2;
+    const priceSpan = priceRange.max - priceRange.min;
+    const pixelsPerTick = (domArea.height / priceSpan) * this.tickSize;
+    const barHeight = Math.max(1.5, Math.min(pixelsPerTick * 0.75, 10));
+
+    // Render BIDS on LEFT half (cyan)
     for (const [price, qty] of bids) {
       if (price < priceRange.min || price > priceRange.max) continue;
-      const y = this.priceToY(price, priceRange, domArea.height);
-      const barWidth = (qty / maxQty) * maxBarWidth;
-      const isBest = Math.abs(price - bestBid) < this.tickSize / 2;
 
-      this.ctx.fillStyle = isBest ? this.colors.bidBarBright : this.colors.bidBar;
-      this.ctx.fillRect(domArea.x + 5, y - barHeight / 2, barWidth, barHeight);
+      const y = this.priceToY(price, priceRange, domArea.height);
+      const barWidth = (qty / maxQty) * halfWidth;
+      const isBest = Math.abs(price - bestBid) < this.tickSize / 2;
+      const intensity = qty / maxQty;
+
+      // Bar from center towards left
+      const barX = domArea.x + halfWidth + 2 - barWidth;
+      this.ctx.fillStyle = isBest
+        ? 'rgba(34, 211, 238, 0.9)'
+        : `rgba(34, 211, 238, ${0.3 + intensity * 0.5})`;
+
+      this.ctx.fillRect(barX, y - barHeight / 2, barWidth, barHeight);
     }
 
-    // Asks (barres rose vers la droite)
+    // Render ASKS on RIGHT half (red)
     for (const [price, qty] of asks) {
       if (price < priceRange.min || price > priceRange.max) continue;
-      const y = this.priceToY(price, priceRange, domArea.height);
-      const barWidth = (qty / maxQty) * maxBarWidth;
-      const isBest = Math.abs(price - bestAsk) < this.tickSize / 2;
 
-      this.ctx.fillStyle = isBest ? this.colors.askBarBright : this.colors.askBar;
-      this.ctx.fillRect(domArea.x + 5, y - barHeight / 2, barWidth, barHeight);
+      const y = this.priceToY(price, priceRange, domArea.height);
+      const barWidth = (qty / maxQty) * halfWidth;
+      const isBest = Math.abs(price - bestAsk) < this.tickSize / 2;
+      const intensity = qty / maxQty;
+
+      // Bar from center towards right
+      const barX = domArea.x + halfWidth + 4;
+      this.ctx.fillStyle = isBest
+        ? 'rgba(239, 68, 68, 0.9)'
+        : `rgba(239, 68, 68, ${0.3 + intensity * 0.5})`;
+
+      this.ctx.fillRect(barX, y - barHeight / 2, barWidth, barHeight);
     }
+    */
+
+    // DÉSACTIVÉ: Center divider line (aussi désactivée avec les barres DOM)
+    /*
+    // Center divider line
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.moveTo(domArea.x + halfWidth + 3, 0);
+    this.ctx.lineTo(domArea.x + halfWidth + 3, domArea.height);
+    this.ctx.stroke();
+    */
   }
 
   /**
-   * Render les lignes Best Bid/Ask avec bulles de volume
+   * Render les lignes Best Bid/Ask - Design propre et minimaliste
    */
   private renderBestBidAskLines(
     bids: Map<number, number>,
@@ -333,156 +704,93 @@ export class HeatmapRenderer {
     bestBid: number,
     bestAsk: number
   ): void {
-    const { heatmapArea, domArea, priceLadder } = this.layout;
+    const { heatmapArea, domArea } = this.layout;
 
     if (bestBid === 0 && bestAsk === 0) return;
 
     const bestBidQty = bids.get(bestBid) || 0;
     const bestAskQty = asks.get(bestAsk) || 0;
 
-    // Best Bid line (cyan)
+    // Best Bid line (cyan/green)
     if (bestBid >= priceRange.min && bestBid <= priceRange.max) {
       const y = this.priceToY(bestBid, priceRange, heatmapArea.height);
 
-      // Background band
-      this.ctx.fillStyle = this.colors.bestBidBg;
-      this.ctx.fillRect(domArea.width, y - 12, heatmapArea.width + priceLadder.width, 24);
+      // Subtle gradient background
+      const gradient = this.ctx.createLinearGradient(domArea.width, y - 8, this.width, y - 8);
+      gradient.addColorStop(0, 'rgba(34, 197, 94, 0.15)');
+      gradient.addColorStop(0.5, 'rgba(34, 197, 94, 0.08)');
+      gradient.addColorStop(1, 'rgba(34, 197, 94, 0.02)');
+      this.ctx.fillStyle = gradient;
+      this.ctx.fillRect(domArea.width, y - 8, heatmapArea.width, 16);
 
-      // Horizontal line
-      this.ctx.strokeStyle = this.colors.bestBidLine;
-      this.ctx.lineWidth = 2;
+      // Clean line
+      this.ctx.strokeStyle = '#22c55e';
+      this.ctx.lineWidth = 1.5;
       this.ctx.setLineDash([]);
       this.ctx.beginPath();
       this.ctx.moveTo(domArea.width, y);
-      this.ctx.lineTo(this.width, y);
+      this.ctx.lineTo(heatmapArea.x + heatmapArea.width, y);
       this.ctx.stroke();
 
-      // Volume bubble on the right
-      this.renderVolumeBubble(
-        heatmapArea.x + heatmapArea.width - 80,
-        y,
-        bestBidQty,
-        'bid',
-        'BID'
-      );
+      // Volume tag - compact and clean
+      this.renderBestPriceTag(heatmapArea.x + heatmapArea.width - 60, y, bestBidQty, 'bid');
     }
 
-    // Best Ask line (pink)
+    // Best Ask line (red)
     if (bestAsk >= priceRange.min && bestAsk <= priceRange.max) {
       const y = this.priceToY(bestAsk, priceRange, heatmapArea.height);
 
-      // Background band
-      this.ctx.fillStyle = this.colors.bestAskBg;
-      this.ctx.fillRect(domArea.width, y - 12, heatmapArea.width + priceLadder.width, 24);
+      // Subtle gradient background
+      const gradient = this.ctx.createLinearGradient(domArea.width, y - 8, this.width, y - 8);
+      gradient.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
+      gradient.addColorStop(0.5, 'rgba(239, 68, 68, 0.08)');
+      gradient.addColorStop(1, 'rgba(239, 68, 68, 0.02)');
+      this.ctx.fillStyle = gradient;
+      this.ctx.fillRect(domArea.width, y - 8, heatmapArea.width, 16);
 
-      // Horizontal line
-      this.ctx.strokeStyle = this.colors.bestAskLine;
-      this.ctx.lineWidth = 2;
+      // Clean line
+      this.ctx.strokeStyle = '#ef4444';
+      this.ctx.lineWidth = 1.5;
       this.ctx.setLineDash([]);
       this.ctx.beginPath();
       this.ctx.moveTo(domArea.width, y);
-      this.ctx.lineTo(this.width, y);
+      this.ctx.lineTo(heatmapArea.x + heatmapArea.width, y);
       this.ctx.stroke();
 
-      // Volume bubble on the right
-      this.renderVolumeBubble(
-        heatmapArea.x + heatmapArea.width - 80,
-        y,
-        bestAskQty,
-        'ask',
-        'ASK'
-      );
+      // Volume tag - compact and clean
+      this.renderBestPriceTag(heatmapArea.x + heatmapArea.width - 60, y, bestAskQty, 'ask');
     }
   }
 
   /**
-   * Render une bulle de volume
+   * Render un tag de prix compact
    */
-  private renderVolumeBubble(
+  private renderBestPriceTag(
     x: number,
     y: number,
     volume: number,
-    side: 'bid' | 'ask',
-    label: string
+    side: 'bid' | 'ask'
   ): void {
-    const bubbleWidth = 70;
-    const bubbleHeight = 22;
+    const volumeText = volume >= 1000 ? (volume / 1000).toFixed(1) + 'K' : Math.floor(volume).toString();
 
-    // Background
-    this.ctx.fillStyle = side === 'bid' ? 'rgba(34, 211, 238, 0.9)' : 'rgba(244, 114, 182, 0.9)';
+    this.ctx.font = 'bold 9px JetBrains Mono, monospace';
+    const textWidth = this.ctx.measureText(volumeText).width;
+    const padding = 4;
+    const tagWidth = textWidth + padding * 2;
+    const tagHeight = 14;
+
+    // Background pill
+    const bgColor = side === 'bid' ? 'rgba(34, 197, 94, 0.85)' : 'rgba(239, 68, 68, 0.85)';
+    this.ctx.fillStyle = bgColor;
     this.ctx.beginPath();
-    this.ctx.roundRect(x, y - bubbleHeight / 2, bubbleWidth, bubbleHeight, 4);
+    this.ctx.roundRect(x, y - tagHeight / 2, tagWidth, tagHeight, 3);
     this.ctx.fill();
 
-    // Border
-    this.ctx.strokeStyle = side === 'bid' ? '#22d3ee' : '#f472b6';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-
     // Text
-    this.ctx.fillStyle = '#000000';
-    this.ctx.font = 'bold 10px JetBrains Mono, Consolas, monospace';
+    this.ctx.fillStyle = '#fff';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-
-    const volumeText = volume >= 1000 ? (volume / 1000).toFixed(1) + 'K' : volume.toFixed(1);
-    this.ctx.fillText(`${label} ${volumeText}`, x + bubbleWidth / 2, y);
-  }
-
-  /**
-   * Render les walls (grandes liquidités) comme des barres rouges épaisses
-   */
-  private renderWalls(
-    bids: Map<number, number>,
-    asks: Map<number, number>,
-    priceRange: PriceRange
-  ): void {
-    const { heatmapArea } = this.layout;
-
-    // Calcule moyenne et écart-type
-    const quantities: number[] = [];
-    for (const [, qty] of bids) quantities.push(qty);
-    for (const [, qty] of asks) quantities.push(qty);
-
-    if (quantities.length < 5) return;
-
-    const mean = quantities.reduce((a, b) => a + b, 0) / quantities.length;
-    const variance = quantities.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / quantities.length;
-    const stdDev = Math.sqrt(variance);
-    const wallThreshold = mean + stdDev * 2.5; // 2.5 écarts-types
-
-    const barHeight = Math.max(4, this.config.cellHeight * this.config.settings.zoomLevel * 2);
-    const rightEdge = heatmapArea.x + heatmapArea.width;
-
-    // Walls bid (cyan vif)
-    for (const [price, qty] of bids) {
-      if (qty < wallThreshold) continue;
-      if (price < priceRange.min || price > priceRange.max) continue;
-
-      const y = this.priceToY(price, priceRange, heatmapArea.height);
-      const intensity = Math.min(1, (qty - wallThreshold) / (stdDev * 3));
-      const barWidth = 40 + intensity * 60;
-
-      this.ctx.fillStyle = this.colors.wallBid;
-      this.ctx.globalAlpha = 0.6 + intensity * 0.4;
-      this.ctx.fillRect(rightEdge - barWidth, y - barHeight / 2, barWidth, barHeight);
-      this.ctx.globalAlpha = 1;
-    }
-
-    // Walls ask (rouge vif)
-    for (const [price, qty] of asks) {
-      if (qty < wallThreshold) continue;
-      if (price < priceRange.min || price > priceRange.max) continue;
-
-      const y = this.priceToY(price, priceRange, heatmapArea.height);
-      const intensity = Math.min(1, (qty - wallThreshold) / (stdDev * 3));
-      const barWidth = 40 + intensity * 60;
-
-      this.ctx.fillStyle = this.colors.wallAsk;
-      this.ctx.globalAlpha = 0.6 + intensity * 0.4;
-      this.ctx.fillRect(rightEdge - barWidth, y - barHeight / 2, barWidth, barHeight);
-      this.ctx.globalAlpha = 1;
-    }
+    this.ctx.fillText(volumeText, x + tagWidth / 2, y);
   }
 
   /**
@@ -758,6 +1066,107 @@ export class HeatmapRenderer {
    */
   isInPriceAxis(x: number): boolean {
     return x >= this.layout.priceLadder.x;
+  }
+
+  /**
+   * Render timeline with intelligent timestamps
+   */
+  renderTimeline(history: { timestamp: number }[], currentTime: number): void {
+    const { heatmapArea, domArea } = this.layout;
+    const timelineY = heatmapArea.height;
+    const timelineHeight = 24;
+    const columnWidth = this.config.columnWidth;
+
+    // Fond de la timeline
+    this.ctx.fillStyle = this.colors.timelineBg;
+    this.ctx.fillRect(0, timelineY, this.width, timelineHeight);
+
+    // Bordure supérieure
+    this.ctx.strokeStyle = this.colors.timelineBorder;
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, timelineY);
+    this.ctx.lineTo(this.width, timelineY);
+    this.ctx.stroke();
+
+    if (history.length === 0) return;
+
+    // Calcule l'intervalle intelligent pour les labels
+    const visibleColumns = Math.floor(heatmapArea.width / columnWidth);
+    const minLabelSpacing = 80; // pixels minimum entre les labels
+    const labelInterval = Math.max(1, Math.floor(minLabelSpacing / columnWidth));
+
+    this.ctx.font = '10px JetBrains Mono, Consolas, monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillStyle = this.colors.timeText;
+
+    const startIdx = Math.max(0, history.length - visibleColumns);
+
+    for (let i = startIdx; i < history.length; i += labelInterval) {
+      const snapshot = history[i];
+      if (!snapshot || !snapshot.timestamp) continue;
+
+      const x = heatmapArea.x + heatmapArea.width - (history.length - i) * columnWidth;
+
+      if (x < domArea.width + 30 || x > heatmapArea.x + heatmapArea.width - 30) continue;
+
+      // Format intelligent: HH:MM:SS ou HH:MM selon le zoom
+      const date = new Date(snapshot.timestamp);
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const seconds = date.getSeconds().toString().padStart(2, '0');
+
+      // Affiche les secondes si le zoom permet
+      const timeText = this.timeZoom > 0.5 ? `${hours}:${minutes}:${seconds}` : `${hours}:${minutes}`;
+
+      // Tick mark
+      this.ctx.strokeStyle = this.colors.gridLine;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, timelineY);
+      this.ctx.lineTo(x, timelineY + 4);
+      this.ctx.stroke();
+
+      // Time label
+      this.ctx.fillText(timeText, x, timelineY + 14);
+    }
+
+    // Current time on the right
+    const now = new Date(currentTime || Date.now());
+    const currentTimeText = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+    this.ctx.fillStyle = this.colors.priceTextHighlight;
+    this.ctx.font = 'bold 10px JetBrains Mono, Consolas, monospace';
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(currentTimeText, this.width - 10, timelineY + 14);
+  }
+
+  /**
+   * Update absorption bar settings
+   */
+  updateAbsorptionSettings(settings: Partial<AbsorptionBarSettings>): void {
+    this.absorptionBarRenderer.updateSettings(settings);
+  }
+
+  /**
+   * Mark an iceberg order as just refilled (for flash effect)
+   */
+  markIcebergRefill(levelKey: string): void {
+    this.absorptionBarRenderer.markIcebergRefill(levelKey);
+  }
+
+  /**
+   * Record an absorption level event (bounce/break/retest)
+   */
+  recordAbsorptionEvent(event: AbsorptionLevelEvent): void {
+    this.absorptionLevelMarker.recordEvent(event);
+  }
+
+  /**
+   * Update level marker settings
+   */
+  updateLevelMarkerSettings(settings: Partial<AbsorptionLevelMarkerSettings>): void {
+    this.absorptionLevelMarker.updateSettings(settings);
   }
 
   /**

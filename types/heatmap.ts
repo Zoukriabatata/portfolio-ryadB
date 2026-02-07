@@ -124,11 +124,39 @@ export const DEFAULT_HEATMAP_SETTINGS: HeatmapSettings = {
 
 // ============ LIQUIDITY HEATMAP PRO TYPES ============
 
-export type ColorScheme = 'atas' | 'bookmap' | 'custom';
+export type ColorScheme = 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast';
 export type SmoothingMode = 'auto' | 'manual' | 'none';
 export type BubbleShape = 'circle' | 'pie';
 export type FootprintStyle = 'bid_ask' | 'delta' | 'volume';
 export type PassiveThickness = 'thin' | 'normal' | 'thick';
+
+// Key Levels Settings
+export interface KeyLevelsSettings {
+  showPOC: boolean;         // Point of Control
+  showVAH: boolean;         // Value Area High
+  showVAL: boolean;         // Value Area Low
+  showVWAP: boolean;        // VWAP line
+  showSessionHighLow: boolean;
+  showRoundNumbers: boolean;
+  roundNumberInterval: number;  // e.g., 100, 1000
+  // Colors (optional - uses theme defaults if not set)
+  pocColor?: string;
+  vahColor?: string;
+  valColor?: string;
+  vwapColor?: string;
+}
+
+export const DEFAULT_KEY_LEVELS_SETTINGS: KeyLevelsSettings = {
+  showPOC: true,
+  showVAH: true,
+  showVAL: true,
+  showVWAP: true,
+  showSessionHighLow: false,
+  showRoundNumbers: true,
+  roundNumberInterval: 100,
+};
+
+export type SizeScaling = 'sqrt' | 'linear' | 'log';
 
 export interface TradeFlowSettings {
   enabled: boolean;
@@ -142,7 +170,49 @@ export interface TradeFlowSettings {
   bubbleOpacity: number; // 0.1 to 1.0
   bubbleBorderWidth: number; // 0 to 3
   bubbleBorderColor: string;
+
+  // Enhanced effects
+  glowEnabled: boolean;        // Glow on large trades
+  glowIntensity: number;       // 0.1 to 1.5
+  showGradient: boolean;       // Glass-like inner highlight
+  rippleEnabled: boolean;      // Ripple effect on large trades
+  largeTradeThreshold: number; // Multiplier for "large" trade detection
+  sizeScaling: SizeScaling;    // How to scale bubble size with volume
+  popInAnimation: boolean;     // Pop-in animation for new bubbles
 }
+
+export interface PassiveOrderSettings {
+  // Glow effect
+  glowEnabled: boolean;
+  glowIntensity: number;  // 0.1 to 1.5
+
+  // Pulse animation for new orders
+  pulseEnabled: boolean;
+  pulseSpeed: number;     // 0.5 to 3.0
+
+  // State visualization
+  showStates: boolean;
+  newOrderColor: string;
+  absorbedColor: string;
+  icebergColor: string;
+
+  // Iceberg detection
+  icebergDetection: boolean;
+  icebergThreshold: number;  // Minimum refill count to flag as iceberg
+}
+
+export const DEFAULT_PASSIVE_ORDER_SETTINGS: PassiveOrderSettings = {
+  glowEnabled: true,
+  glowIntensity: 0.8,
+  pulseEnabled: true,
+  pulseSpeed: 2.0,
+  showStates: true,
+  newOrderColor: '#fef08a',     // Yellow
+  absorbedColor: '#fb923c',     // Orange
+  icebergColor: '#22d3d1',      // Cyan
+  icebergDetection: true,
+  icebergThreshold: 3,
+};
 
 export interface DOMColorSettings {
   askBackground: string;
@@ -167,6 +237,75 @@ export interface StaircaseLineSettings {
   trailFadeSpeed: number;   // Animation speed 0.5-2.0
 }
 
+export type GridStyle = 'solid' | 'dashed' | 'dotted';
+export type TickStyle = 'line' | 'triangle' | 'dot';
+
+export interface GridSettings {
+  // Major/minor grid
+  showMajorGrid: boolean;
+  showMinorGrid: boolean;
+  majorGridInterval: number;  // Ticks between major lines (e.g., 10)
+  majorGridColor: string;
+  majorGridOpacity: number;   // 0.1-1.0
+  minorGridColor: string;
+  minorGridOpacity: number;   // 0.05-0.5
+  gridStyle: GridStyle;
+
+  // Tick marks
+  showTickMarks: boolean;
+  tickStyle: TickStyle;
+  tickSize: number;           // 3-10px
+  tickColor: string;
+
+  // Labels
+  showPriceLabels: boolean;
+  highlightRoundNumbers: boolean;
+  roundNumberInterval: number; // e.g., 100 for highlight every 100
+  labelPrecision: 'auto' | number; // Auto or fixed decimals
+  labelColor: string;
+  highlightColor: string;
+
+  // Time axis
+  showTimeAxis: boolean;
+  showSessionMarkers: boolean;
+  timeFormat: '12h' | '24h';
+  showTimezone: boolean;
+  timezone: string;
+}
+
+export const DEFAULT_GRID_SETTINGS: GridSettings = {
+  // Major/minor grid
+  showMajorGrid: true,
+  showMinorGrid: true,
+  majorGridInterval: 10,
+  majorGridColor: '#ffffff',
+  majorGridOpacity: 0.15,
+  minorGridColor: '#ffffff',
+  minorGridOpacity: 0.05,
+  gridStyle: 'solid',
+
+  // Tick marks
+  showTickMarks: true,
+  tickStyle: 'line',
+  tickSize: 5,
+  tickColor: '#6b7280',
+
+  // Labels
+  showPriceLabels: true,
+  highlightRoundNumbers: true,
+  roundNumberInterval: 100,
+  labelPrecision: 'auto',
+  labelColor: '#9ca3af',
+  highlightColor: '#ffffff',
+
+  // Time axis
+  showTimeAxis: true,
+  showSessionMarkers: false,
+  timeFormat: '24h',
+  showTimezone: false,
+  timezone: 'local',
+};
+
 export const DEFAULT_STAIRCASE_LINE_SETTINGS: StaircaseLineSettings = {
   lineWidth: 3,
   showGlow: true,
@@ -176,6 +315,31 @@ export const DEFAULT_STAIRCASE_LINE_SETTINGS: StaircaseLineSettings = {
   showTrail: false,
   trailLength: 2,
   trailFadeSpeed: 1.0,
+};
+
+export interface TimeSalesSettings {
+  // Display
+  maxRows: number;              // Max trades to show (default: 100)
+  showCumulativeVolume: boolean;
+  aggregateByPrice: boolean;    // Group trades by price level
+
+  // Filtering
+  minSizeFilter: number;        // Minimum trade size to show (0 = all)
+  largeTradeThreshold: number;  // Multiplier for highlighting (default: 10x avg)
+
+  // Panel position
+  position: 'left' | 'right';
+  width: number;                // Panel width in pixels
+}
+
+export const DEFAULT_TIME_SALES_SETTINGS: TimeSalesSettings = {
+  maxRows: 100,
+  showCumulativeVolume: true,
+  aggregateByPrice: false,
+  minSizeFilter: 0,
+  largeTradeThreshold: 10,
+  position: 'right',
+  width: 280,
 };
 
 export interface LiquidityDisplayFeatures {
@@ -210,6 +374,18 @@ export interface LiquidityDisplayFeatures {
 
   // Staircase Line (Best Bid/Ask)
   staircaseLine: StaircaseLineSettings;
+
+  // Grid & Ticks
+  grid: GridSettings;
+
+  // Passive Orders (Enhanced)
+  passiveOrders: PassiveOrderSettings;
+
+  // Time & Sales Panel
+  timeSales: TimeSalesSettings;
+
+  // Key Levels (POC, VAH/VAL, VWAP, etc.)
+  keyLevels: KeyLevelsSettings;
 }
 
 export const DEFAULT_LIQUIDITY_DISPLAY_FEATURES: LiquidityDisplayFeatures = {
@@ -244,6 +420,18 @@ export const DEFAULT_LIQUIDITY_DISPLAY_FEATURES: LiquidityDisplayFeatures = {
 
   // Staircase Line
   staircaseLine: DEFAULT_STAIRCASE_LINE_SETTINGS,
+
+  // Grid & Ticks
+  grid: DEFAULT_GRID_SETTINGS,
+
+  // Passive Orders
+  passiveOrders: DEFAULT_PASSIVE_ORDER_SETTINGS,
+
+  // Time & Sales
+  timeSales: DEFAULT_TIME_SALES_SETTINGS,
+
+  // Key Levels
+  keyLevels: DEFAULT_KEY_LEVELS_SETTINGS,
 };
 
 export interface HeatmapProSettings {
@@ -281,7 +469,7 @@ export interface HeatmapProSettings {
 export const DEFAULT_HEATMAP_PRO_SETTINGS: HeatmapProSettings = {
   // General
   autoCenter: true,
-  colorScheme: 'atas',
+  colorScheme: 'senzoukria',
 
   // Display
   upperCutoffPercent: 95,
@@ -317,6 +505,14 @@ export const DEFAULT_HEATMAP_PRO_SETTINGS: HeatmapProSettings = {
     bubbleOpacity: 0.7,
     bubbleBorderWidth: 1.5,
     bubbleBorderColor: 'auto',
+    // Enhanced effects
+    glowEnabled: true,
+    glowIntensity: 0.6,
+    showGradient: true,
+    rippleEnabled: true,
+    largeTradeThreshold: 2.0,
+    sizeScaling: 'sqrt',
+    popInAnimation: true,
   },
 
   // Zoom/Pan

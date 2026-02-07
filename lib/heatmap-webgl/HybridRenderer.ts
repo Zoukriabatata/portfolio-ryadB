@@ -11,6 +11,7 @@ import { HeatmapCommand } from './commands/HeatmapCommand';
 import { LinesCommand } from './commands/LinesCommand';
 import { TradeBubblesCommand } from './commands/TradeBubblesCommand';
 import { ProfileBarsCommand } from './commands/ProfileBarsCommand';
+import { KeyLevelsCommand, type KeyLevel } from './commands/KeyLevelsCommand';
 import type { DirtyFlags, PassiveOrderData, TradeData } from './types';
 
 export interface HybridRendererConfig {
@@ -45,6 +46,45 @@ export interface RenderData {
   gridHorizontalPrices?: number[];
   gridVerticalPositions?: number[];
 
+  // Grid settings (advanced)
+  gridSettings?: {
+    showMajorGrid: boolean;
+    showMinorGrid: boolean;
+    majorGridInterval: number;
+    majorGridColor: string;
+    majorGridOpacity: number;
+    minorGridColor: string;
+    minorGridOpacity: number;
+    gridStyle: 'solid' | 'dashed' | 'dotted';
+    showTickMarks: boolean;
+    tickSize: number;
+    tickColor: string;
+    highlightRoundNumbers: boolean;
+    roundNumberInterval: number;
+    highlightColor: string;
+    // Labels
+    labelPrecision?: 'auto' | number;
+    // Time axis
+    showTimeAxis?: boolean;
+    timeFormat?: '12h' | '24h';
+    showTimezone?: boolean;
+    timezone?: string;
+    showSessionMarkers?: boolean;
+  };
+
+  // Time data for time axis
+  timeLabels?: { time: Date; x: number }[];
+
+  // Passive order settings
+  passiveOrderSettings?: {
+    glowEnabled: boolean;
+    glowIntensity: number;
+    pulseEnabled: boolean;
+    pulseSpeed: number;
+    showStates: boolean;
+    icebergDetection: boolean;
+  };
+
   // Crosshair (optional)
   crosshair?: {
     x: number;
@@ -74,6 +114,38 @@ export interface RenderData {
     showTrail: boolean;
     trailLength: number;
     trailFadeSpeed: number;
+  };
+
+  // Trade bubble settings (optional)
+  tradeBubbleSettings?: {
+    showBorder: boolean;
+    borderWidth: number;
+    borderColor: string;
+    glowEnabled: boolean;
+    glowIntensity: number;
+    showGradient: boolean;
+    rippleEnabled: boolean;
+    largeTradeThreshold: number;
+    sizeScaling: 'sqrt' | 'linear' | 'log';
+    popInAnimation: boolean;
+    bubbleOpacity: number;
+    maxSize: number;
+    minSize: number;
+  };
+
+  // Key levels (POC, VAH/VAL, VWAP, etc.)
+  keyLevels?: {
+    levels: KeyLevel[];
+    settings: {
+      pocColor?: string;
+      vahColor?: string;
+      valColor?: string;
+      vwapColor?: string;
+      sessionHighColor?: string;
+      sessionLowColor?: string;
+      roundNumberColor?: string;
+      opacity?: number;
+    };
   };
 
   // Settings
@@ -110,6 +182,7 @@ export class HybridRenderer {
   private linesCommand: LinesCommand | null = null;
   private tradesBubblesCommand: TradeBubblesCommand | null = null;
   private profileBarsCommand: ProfileBarsCommand | null = null;
+  private keyLevelsCommand: KeyLevelsCommand | null = null;
 
   // Performance tracking
   private lastRenderTime: number = 0;
@@ -177,9 +250,10 @@ export class HybridRenderer {
       this.linesCommand = new LinesCommand(this.ctx);
       this.tradesBubblesCommand = new TradeBubblesCommand(this.ctx);
       this.profileBarsCommand = new ProfileBarsCommand(this.ctx);
+      this.keyLevelsCommand = new KeyLevelsCommand(this.ctx);
 
       this.useWebGL = true;
-      console.log('[HybridRenderer] WebGL initialized successfully');
+      console.debug('[HybridRenderer] WebGL initialized successfully');
     } catch (e) {
       console.warn('[HybridRenderer] WebGL not available, will use Canvas 2D fallback:', e);
       this.useWebGL = false;
@@ -211,6 +285,22 @@ export class HybridRenderer {
   }
 
   /**
+   * Set the color theme
+   */
+  setTheme(themeName: 'atas' | 'bookmap' | 'sierra' | 'highcontrast'): void {
+    if (this.textureManager) {
+      this.textureManager.setTheme(themeName);
+    }
+  }
+
+  /**
+   * Get current theme
+   */
+  getTheme(): string {
+    return this.textureManager?.getTheme() || 'senzoukria';
+  }
+
+  /**
    * Resize the renderer
    */
   resize(width: number, height: number): void {
@@ -229,25 +319,32 @@ export class HybridRenderer {
   }
 
   /**
-   * Compute simple hash for quick dirty checking
+   * Compute hash for dirty checking - samples multiple points for better detection
    */
   private computeOrdersHash(orders: PassiveOrderData[]): number {
     if (orders.length === 0) return 0;
-    // Simple hash based on first, last, and length
     const first = orders[0];
     const last = orders[orders.length - 1];
-    return orders.length * 1000000 +
+    // Sample middle element too to detect mid-array changes
+    const midIdx = Math.floor(orders.length / 2);
+    const mid = orders[midIdx];
+    return orders.length * 10000000 +
       Math.round(first.price * 100) +
       Math.round(last.price * 100) * 1000 +
-      Math.round(first.intensity * 100);
+      Math.round(first.intensity * 100) * 10 +
+      Math.round(mid.price * 100) * 100 +
+      Math.round(mid.intensity * 100);
   }
 
   private computeTradesHash(trades: TradeData[]): number {
     if (trades.length === 0) return 0;
     const first = trades[0];
-    return trades.length * 1000000 +
+    const last = trades[trades.length - 1];
+    return trades.length * 10000000 +
       Math.round(first.price * 100) +
-      Math.round(first.x);
+      Math.round(first.x) * 100 +
+      Math.round(last.price * 100) * 1000 +
+      Math.round(last.x);
   }
 
   private computeProfileHash(bars: { price: number; bidValue: number; askValue: number }[] | undefined): number {
@@ -325,7 +422,7 @@ export class HybridRenderer {
   /**
    * WebGL rendering with dirty flag optimization
    */
-  private renderWebGL(data: RenderData, dirty?: DirtyFlags): void {
+  private renderWebGL(data: RenderData, dirty?: Partial<DirtyFlags>): void {
     if (!this.ctx) return;
 
     const { width, height, dpr, deltaProfileWidth, priceAxisWidth } = this.config;
@@ -347,22 +444,89 @@ export class HybridRenderer {
 
     // 1. Render grid lines (only if price range changed)
     if (shouldRenderGrid && this.linesCommand && (data.gridHorizontalPrices || data.gridVerticalPositions)) {
-      const horizontalLines = (data.gridHorizontalPrices || []).map((price) => {
-        const priceRange = data.priceMax - data.priceMin;
-        return pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
+      const priceRange = data.priceMax - data.priceMin;
+
+      // Get grid settings (with defaults)
+      const gridSettings = data.gridSettings || {
+        showMajorGrid: true,
+        showMinorGrid: true,
+        majorGridInterval: 10,
+        majorGridColor: '#ffffff',
+        majorGridOpacity: 0.15,
+        minorGridColor: '#ffffff',
+        minorGridOpacity: 0.05,
+        gridStyle: 'solid' as const,
+        showTickMarks: true,
+        tickSize: 5,
+        tickColor: '#6b7280',
+        highlightRoundNumbers: true,
+        roundNumberInterval: 100,
+        highlightColor: '#ffffff',
+      };
+
+      // Convert prices to GridLine objects with major/minor flags
+      const horizontalLines = (data.gridHorizontalPrices || []).map((price, index) => {
+        const y = pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
+        // Determine if this is a major grid line
+        const isMajor = index % gridSettings.majorGridInterval === 0 ||
+          (gridSettings.highlightRoundNumbers && price % gridSettings.roundNumberInterval === 0);
+        return { position: y, isMajor };
       });
 
-      this.linesCommand.renderGrid(
-        {
-          horizontalLines,
-          verticalLines: data.gridVerticalPositions || [],
-          color: colors.gridColor || 'rgba(255, 255, 255, 0.05)',
-          opacity: 1,
-        },
-        this.projection,
-        pixelWidth,
-        pixelHeight
+      // Convert vertical positions to GridLine objects
+      const verticalLines = (data.gridVerticalPositions || []).map((x, index) => ({
+        position: x * dpr!,
+        isMajor: index % gridSettings.majorGridInterval === 0,
+      }));
+
+      // Filter based on settings
+      const filteredHorizontal = horizontalLines.filter((line) =>
+        line.isMajor ? gridSettings.showMajorGrid : gridSettings.showMinorGrid
       );
+      const filteredVertical = verticalLines.filter((line) =>
+        line.isMajor ? gridSettings.showMajorGrid : gridSettings.showMinorGrid
+      );
+
+      if (filteredHorizontal.length > 0 || filteredVertical.length > 0) {
+        this.linesCommand.renderGrid(
+          {
+            horizontalLines: filteredHorizontal,
+            verticalLines: filteredVertical,
+            majorColor: gridSettings.majorGridColor,
+            minorColor: gridSettings.minorGridColor,
+            majorOpacity: gridSettings.majorGridOpacity,
+            minorOpacity: gridSettings.minorGridOpacity,
+            gridStyle: gridSettings.gridStyle,
+          },
+          this.projection,
+          pixelWidth,
+          pixelHeight
+        );
+      }
+
+      // Render tick marks on price axis
+      if (gridSettings.showTickMarks) {
+        const ticks = (data.gridHorizontalPrices || []).map((price) => {
+          const y = pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
+          const isHighlight = gridSettings.highlightRoundNumbers &&
+            price % gridSettings.roundNumberInterval === 0;
+          return { y, isHighlight };
+        });
+
+        if (ticks.length > 0) {
+          this.linesCommand.renderTickMarks(
+            {
+              ticks,
+              x: heatmapRight, // Right edge of heatmap area
+              tickSize: gridSettings.tickSize * dpr!,
+              normalColor: gridSettings.tickColor,
+              highlightColor: gridSettings.highlightColor,
+              opacity: 0.8,
+            },
+            this.projection
+          );
+        }
+      }
     }
 
     // 2. Render heatmap cells
@@ -378,6 +542,16 @@ export class HybridRenderer {
         }));
       }
 
+      // Get passive order settings (with defaults)
+      const passiveSettings = data.passiveOrderSettings || {
+        glowEnabled: true,
+        glowIntensity: 0.8,
+        pulseEnabled: true,
+        pulseSpeed: 2.0,
+        showStates: true,
+        icebergDetection: true,
+      };
+
       if (this.cachedTransformedOrders.length > 0) {
         this.heatmapCommand.render(
           {
@@ -389,6 +563,10 @@ export class HybridRenderer {
             upperCutoff: data.upperCutoff,
             opacity: data.opacity ?? 0.8,
             baseX: heatmapLeft,
+            // Enhanced passive order settings
+            glowEnabled: passiveSettings.glowEnabled,
+            glowIntensity: passiveSettings.glowIntensity,
+            animationTime: this.animationTime * passiveSettings.pulseSpeed,
           },
           this.projection,
           [pixelWidth, pixelHeight]
@@ -464,6 +642,23 @@ export class HybridRenderer {
       }
 
       if (this.cachedTransformedTrades.length > 0) {
+        // Get trade bubble settings (with defaults)
+        const bubbleSettings = data.tradeBubbleSettings || {
+          showBorder: true,
+          borderWidth: 0.08,
+          borderColor: 'rgba(255, 255, 255, 0.5)',
+          glowEnabled: true,
+          glowIntensity: 0.6,
+          showGradient: true,
+          rippleEnabled: true,
+          largeTradeThreshold: 2.0,
+          sizeScaling: 'sqrt' as const,
+          popInAnimation: true,
+          bubbleOpacity: 0.7,
+          maxSize: 50,
+          minSize: 8,
+        };
+
         this.tradesBubblesCommand.render(
           {
             trades: this.cachedTransformedTrades,
@@ -471,8 +666,19 @@ export class HybridRenderer {
             priceMax: data.priceMax,
             buyColor: colors.buyColor || '#22c55e',
             sellColor: colors.sellColor || '#ef4444',
-            opacity: 0.9,
-            maxSize: 50 * dpr!,
+            opacity: bubbleSettings.bubbleOpacity,
+            maxSize: bubbleSettings.maxSize * dpr!,
+            minSize: bubbleSettings.minSize * dpr!,
+            showBorder: bubbleSettings.showBorder,
+            borderWidth: bubbleSettings.borderWidth,
+            borderColor: bubbleSettings.borderColor,
+            glowEnabled: bubbleSettings.glowEnabled,
+            glowIntensity: bubbleSettings.glowIntensity,
+            showGradient: bubbleSettings.showGradient,
+            rippleEnabled: bubbleSettings.rippleEnabled,
+            largeTradeThreshold: bubbleSettings.largeTradeThreshold,
+            sizeScaling: bubbleSettings.sizeScaling,
+            animationTime: this.animationTime,
           },
           this.projection,
           pixelHeight
@@ -539,6 +745,33 @@ export class HybridRenderer {
       }
     }
 
+    // 7. Render key levels (POC, VAH/VAL, VWAP, etc.)
+    if (this.keyLevelsCommand && data.keyLevels && data.keyLevels.levels.length > 0) {
+      const levelSettings = data.keyLevels.settings || {};
+
+      this.keyLevelsCommand.render(
+        {
+          levels: data.keyLevels.levels,
+          priceMin: data.priceMin,
+          priceMax: data.priceMax,
+          viewportWidth: pixelWidth,
+          viewportHeight: pixelHeight,
+          leftMargin: heatmapLeft,
+          rightMargin: (priceAxisWidth || 60) * dpr!,
+          opacity: levelSettings.opacity ?? 0.8,
+          pocColor: levelSettings.pocColor || '#f59e0b',
+          vahColor: levelSettings.vahColor || '#8b5cf6',
+          valColor: levelSettings.valColor || '#8b5cf6',
+          vwapColor: levelSettings.vwapColor || '#06b6d4',
+          sessionHighColor: levelSettings.sessionHighColor || '#22d3ee',
+          sessionLowColor: levelSettings.sessionLowColor || '#fb7185',
+          roundNumberColor: levelSettings.roundNumberColor || '#fbbf24',
+          dashPhase: this.animationTime * 20, // Animated dash for certain lines
+        },
+        this.projection
+      );
+    }
+
     // Track performance
     this.frameCount++;
     const now = performance.now();
@@ -561,6 +794,31 @@ export class HybridRenderer {
 
     this.overlay.clear();
 
+    // Update label options from grid settings
+    const gridSettings = data.gridSettings;
+    if (gridSettings) {
+      this.overlay.setLabelOptions({
+        precision: gridSettings.labelPrecision ?? 'auto',
+        tickSize: data.tickSize,
+        highlightRoundNumbers: gridSettings.highlightRoundNumbers ?? true,
+        roundNumberInterval: gridSettings.roundNumberInterval ?? 100,
+        timeFormat: gridSettings.timeFormat ?? '24h',
+        showTimezone: gridSettings.showTimezone ?? false,
+        timezone: gridSettings.timezone ?? 'local',
+      });
+    } else {
+      // Default options
+      this.overlay.setLabelOptions({
+        precision: 'auto',
+        tickSize: data.tickSize,
+        highlightRoundNumbers: true,
+        roundNumberInterval: 100,
+        timeFormat: '24h',
+        showTimezone: false,
+        timezone: 'local',
+      });
+    }
+
     // Price axis labels
     const priceLabels = this.generatePriceLabels(
       data.priceMin,
@@ -569,6 +827,16 @@ export class HybridRenderer {
       height!
     );
     this.overlay.renderPriceAxis(priceLabels, width! - priceAxisWidth! / 2);
+
+    // Time axis (if enabled and time labels provided)
+    const showTimeAxis = gridSettings?.showTimeAxis ?? true;
+    if (showTimeAxis && data.timeLabels && data.timeLabels.length > 0) {
+      const timeLabels = data.timeLabels.map(t => ({
+        time: this.overlay!.formatTime(t.time),
+        x: t.x,
+      }));
+      this.overlay.renderTimeAxis(timeLabels, height! - 20);
+    }
 
     // Current price label
     const currentPriceY = this.priceToY(data.currentPrice, data.priceMin, data.priceMax, height!);
@@ -580,16 +848,45 @@ export class HybridRenderer {
       );
     }
 
-    // Stats bar
-    this.overlay.renderStatsBar(
-      [
-        { label: 'Bid', value: data.priceMin.toFixed(2), color: '#22c55e' },
-        { label: 'Ask', value: data.priceMax.toFixed(2), color: '#ef4444' },
-        { label: 'Orders', value: data.passiveOrders.length.toString() },
-        { label: 'Trades', value: data.trades.length.toString() },
-      ],
-      height! - 12
-    );
+    // Key level text labels (complement WebGL lines with readable labels)
+    if (data.keyLevels && data.keyLevels.levels.length > 0) {
+      const levelSettings = data.keyLevels.settings || {};
+      const priceAxisX = width! - priceAxisWidth!;
+      const levelColorMap: Record<string, string> = {
+        poc: levelSettings.pocColor || '#f59e0b',
+        vah: levelSettings.vahColor || '#8b5cf6',
+        val: levelSettings.valColor || '#8b5cf6',
+        vwap: levelSettings.vwapColor || '#06b6d4',
+        sessionHigh: levelSettings.sessionHighColor || '#22d3ee',
+        sessionLow: levelSettings.sessionLowColor || '#fb7185',
+        roundNumber: levelSettings.roundNumberColor || '#fbbf24',
+      };
+      const overlayLevels = data.keyLevels.levels
+        .filter(l => l.price >= data.priceMin && l.price <= data.priceMax)
+        .map(l => ({
+          price: l.price,
+          y: this.priceToY(l.price, data.priceMin, data.priceMax, height!),
+          type: l.type,
+          label: l.label || l.type.toUpperCase(),
+          color: levelColorMap[l.type] || '#ffffff',
+        }));
+      if (overlayLevels.length > 0) {
+        this.overlay.renderKeyLevelLabels(overlayLevels, priceAxisX);
+      }
+    }
+
+    // Stats bar - show current price, spread, and counts
+    const lastBidPrice = data.bestBidPoints?.length ? data.bestBidPoints[data.bestBidPoints.length - 1].price : 0;
+    const lastAskPrice = data.bestAskPoints?.length ? data.bestAskPoints[data.bestAskPoints.length - 1].price : 0;
+    const spread = lastAskPrice > 0 && lastBidPrice > 0 ? lastAskPrice - lastBidPrice : 0;
+    const statsItems = [
+      ...(lastBidPrice > 0 ? [{ label: 'Bid', value: this.overlay.formatPrice(lastBidPrice), color: '#22c55e' }] : []),
+      ...(lastAskPrice > 0 ? [{ label: 'Ask', value: this.overlay.formatPrice(lastAskPrice), color: '#ef4444' }] : []),
+      ...(spread > 0 ? [{ label: 'Spread', value: this.overlay.formatPrice(spread) }] : []),
+      { label: 'Orders', value: data.passiveOrders.length.toString() },
+      { label: 'Trades', value: data.trades.length.toString() },
+    ];
+    this.overlay.renderStatsBar(statsItems, height! - 12);
 
     // Crosshair (if visible)
     if (data.crosshair?.visible) {
@@ -662,6 +959,7 @@ export class HybridRenderer {
     this.linesCommand?.destroy();
     this.tradesBubblesCommand?.destroy();
     this.profileBarsCommand?.destroy();
+    this.keyLevelsCommand?.destroy();
 
     // Then textures and context
     this.textureManager?.destroy();
@@ -672,6 +970,7 @@ export class HybridRenderer {
     this.linesCommand = null;
     this.tradesBubblesCommand = null;
     this.profileBarsCommand = null;
+    this.keyLevelsCommand = null;
     this.ctx = null;
     this.textureManager = null;
     this.overlay = null;

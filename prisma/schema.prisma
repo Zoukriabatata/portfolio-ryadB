@@ -1,0 +1,265 @@
+// SENZOUKRIA Database Schema
+// SQLite for development, switch to PostgreSQL for production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ USER MODEL ============
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String    // Hashed with bcrypt
+  name              String?
+  avatar            String?
+
+  // Email verification
+  emailVerified     DateTime?
+  verificationToken String?
+
+  // Password reset
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+
+  // Subscription
+  subscriptionTier  String    @default("FREE") // FREE | ULTRA
+  subscriptionId    String?   // Stripe subscription ID
+  customerId        String?   // Stripe customer ID
+  subscriptionStart DateTime?
+  subscriptionEnd   DateTime?
+
+  // Security - Device & Session Management
+  maxDevices        Int       @default(1) // 1 for Free, 2 for Ultra
+  currentDeviceId   String?   // Active device fingerprint
+  lastLoginIp       String?
+  lastLoginAt       DateTime?
+  failedLoginAttempts Int     @default(0)
+  lockedUntil       DateTime?
+
+  // Activity tracking
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  sessions          Session[]
+  devices           Device[]
+  payments          Payment[]
+  supportTickets    SupportTicket[]
+  journalEntries    JournalEntry[]
+  dataFeedConfigs   DataFeedConfig[]
+  promoCodeUsages   PromoCodeUsage[]
+
+  @@index([email])
+  @@index([customerId])
+}
+
+// ============ SESSION MODEL ============
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token        String   @unique
+  deviceId     String
+  ipAddress    String
+  userAgent    String?
+
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  lastActivity DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([deviceId])
+}
+
+// ============ DEVICE MODEL ============
+model Device {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fingerprint String   // Unique device fingerprint
+  name        String?  // "Chrome on Windows", etc.
+  browser     String?
+  os          String?
+
+  isActive    Boolean  @default(true)
+  isTrusted   Boolean  @default(false)
+  lastUsed    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+}
+
+// ============ RATE LIMIT MODEL ============
+model RateLimit {
+  id          String   @id @default(cuid())
+  key         String   @unique // Format: "user:{userId}" or "ip:{ipAddress}"
+  count       Int      @default(1)
+  windowStart DateTime
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+  @@index([key])
+}
+
+// ============ PAYMENT MODEL ============
+model Payment {
+  id              String  @id @default(cuid())
+  userId          String
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripePaymentId String? @unique
+  amount          Int     // In cents
+  currency        String  @default("eur")
+  status          String  @default("PENDING") // PENDING | COMPLETED | FAILED | REFUNDED | CANCELLED
+
+  tier            String  // FREE | ULTRA
+  billingPeriod   String  // MONTHLY | YEARLY
+
+  // Payment method
+  paymentMethod   String  @default("STRIPE") // STRIPE | PAYPAL | REVOLUT | BINANCE | OTHER
+
+  // Manual payment proof
+  proofUrl        String? // Screenshot/receipt URL
+  proofText       String? // Transaction reference or description
+  adminNote       String?
+  reviewedBy      String? // Admin user ID
+  reviewedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([userId])
+  @@index([stripePaymentId])
+}
+
+// ============ PROMO CODE MODELS ============
+model PromoCode {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  discountType  String   // "PERCENTAGE" | "FIXED_AMOUNT"
+  discountValue Int
+  maxUses       Int
+  usedCount     Int      @default(0)
+  active        Boolean  @default(true)
+  stripeCouponId String?
+  trialDays     Int?     // Optional trial period in days (e.g., 150 for 5 months)
+  validFrom     DateTime @default(now())
+  validUntil    DateTime?
+  createdAt     DateTime @default(now())
+  usages        PromoCodeUsage[]
+
+  @@index([code])
+  @@index([active])
+}
+
+model PromoCodeUsage {
+  id                String   @id @default(cuid())
+  promoCodeId       String
+  promoCode         PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceFingerprint String
+  ipAddress         String
+  userAgent         String
+  emailHash         String
+  paymentCompleted  Boolean @default(false)
+  paymentId         String?
+  usedAt            DateTime @default(now())
+
+  @@unique([promoCodeId, userId])
+  @@index([promoCodeId])
+  @@index([userId])
+  @@index([deviceFingerprint])
+  @@index([ipAddress])
+}
+
+// ============ DATA FEED CONFIG MODEL ============
+model DataFeedConfig {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider    String   // IB | DXFEED | RITHMIC | AMP
+  status      String   @default("NOT_CONFIGURED") // NOT_CONFIGURED | CONFIGURED | CONNECTED | ERROR
+
+  host        String?
+  port        Int?
+  username    String?
+  apiKey      String?  // Should be encrypted in production
+
+  lastConnected DateTime?
+  errorMessage  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// ============ SUPPORT TICKET MODEL ============
+model SupportTicket {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subject     String
+  message     String
+  category    String   // BILLING | TECHNICAL | ACCOUNT | FEATURE_REQUEST | OTHER
+  status      String   @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  priority    String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+
+  response    String?
+  respondedAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============ JOURNAL MODEL ============
+model JournalEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Trade details
+  symbol      String   // ES, NQ, GC, etc.
+  side        String   // LONG | SHORT
+  entryPrice  Float
+  exitPrice   Float?
+  quantity    Int      @default(1)
+  pnl         Float?   // Realized P&L in $
+
+  // Metadata
+  entryTime   DateTime
+  exitTime    DateTime?
+  timeframe   String?  // "1m", "5m", etc.
+  setup       String?  // "breakout", "pullback", etc.
+  tags        String?  // JSON array: ["trend", "news", "scalp"]
+  notes       String?
+  rating      Int?     // 1-5 self-rating
+  emotions    String?  // "calm", "fomo", "revenge", etc.
+
+  // Screenshot reference
+  screenshotUrl String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([entryTime])
+}

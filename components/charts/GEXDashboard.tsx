@@ -31,7 +31,7 @@ interface GEXDashboardProps {
   spotPrice: number;
   gexData: GEXLevel[];
   summary: GEXSummary | null;
-  height?: number;
+  height?: number | 'auto';
 }
 
 const COLORS = {
@@ -64,16 +64,19 @@ export default function GEXDashboard({
 }: GEXDashboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height });
+  const [dimensions, setDimensions] = useState({ width: 800, height: typeof height === 'number' ? height : 500 });
   const [hoveredStrike, setHoveredStrike] = useState<number | null>(null);
 
   // Handle resize
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
+        const containerHeight = height === 'auto'
+          ? containerRef.current.clientHeight
+          : height;
         setDimensions({
           width: containerRef.current.clientWidth,
-          height,
+          height: Math.max(400, containerHeight),
         });
       }
     };
@@ -284,7 +287,7 @@ export default function GEXDashboard({
   }, [gexData, dimensions]);
 
   return (
-    <div ref={containerRef} className="relative w-full" style={{ height }}>
+    <div ref={containerRef} className="relative w-full h-full" style={{ height: height === 'auto' ? '100%' : height }}>
       <canvas
         ref={canvasRef}
         className="w-full h-full"

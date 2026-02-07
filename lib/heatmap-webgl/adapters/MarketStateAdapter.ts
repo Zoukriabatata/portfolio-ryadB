@@ -58,36 +58,51 @@ export function adaptMarketState(
   // Convert passive orders
   const passiveOrders: PassiveOrderData[] = [];
 
-  // Process heatmap history cells
+  // Compute dynamic time range from heatmap history
+  let minTimeIndex = Infinity;
+  let maxTimeIndex = -Infinity;
+
   state.heatmapHistory.forEach((cell) => {
-    // Time index to X position (assuming width covers all time indices)
-    const timeIndex = cell.timeIndex;
-    const totalTimeIndices = 300; // Adjust based on your history length
-    const x = (timeIndex / totalTimeIndices) * width;
+    if (cell.timeIndex < minTimeIndex) minTimeIndex = cell.timeIndex;
+    if (cell.timeIndex > maxTimeIndex) maxTimeIndex = cell.timeIndex;
+  });
+
+  const totalTimeIndices = Math.max(1, maxTimeIndex - minTimeIndex);
+  const rightEdgeX = width - 10;
+  const columnWidth = Math.max(2, Math.min(20, (width - 10) / totalTimeIndices));
+
+  // Process heatmap history cells → time-series passive orders
+  state.heatmapHistory.forEach((cell) => {
+    // Map timeIndex to X position: oldest at left, newest near right edge
+    const normalizedTime = (cell.timeIndex - minTimeIndex) / totalTimeIndices;
+    const x = normalizedTime * (width - 10);
 
     if (cell.bidIntensity > 0) {
       passiveOrders.push({
         price: cell.price,
-        size: cell.bidIntensity * maxSize, // Estimate size from intensity
+        size: cell.bidIntensity * maxSize,
         side: 'bid',
         intensity: cell.bidIntensity,
         x,
+        cellWidth: columnWidth,
+        state: cell.wasAbsorbed ? 'absorbed' : undefined,
       });
     }
 
     if (cell.askIntensity > 0) {
       passiveOrders.push({
         price: cell.price,
-        size: cell.askIntensity * maxSize, // Estimate size from intensity
+        size: cell.askIntensity * maxSize,
         side: 'ask',
         intensity: cell.askIntensity,
         x,
+        cellWidth: columnWidth,
+        state: cell.wasAbsorbed ? 'absorbed' : undefined,
       });
     }
   });
 
-  // Also add current live orders at the right edge
-  const rightEdgeX = width - 10;
+  // Also add current live orders at the right edge (no cellWidth override)
 
   state.bids.forEach((order, price) => {
     if (price >= priceRange.min && price <= priceRange.max) {

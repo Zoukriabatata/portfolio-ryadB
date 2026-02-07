@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
+import SessionProvider from "@/components/providers/SessionProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -8,8 +10,9 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "OrderFlow Trading Platform",
-  description: "Professional order flow and footprint analysis",
+  title: "SENZOUKRIA | Trading Intelligence Platform",
+  description: "Professional orderflow, footprint charts, gamma exposure analysis and volatility tools for serious traders",
+  keywords: ["trading", "orderflow", "footprint chart", "gamma exposure", "volatility", "options", "futures"],
 };
 
 // Script to patch DOM methods and suppress removeChild errors
@@ -45,7 +48,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: domPatchScript }} />
       </head>
       <body className={`${montserrat.variable} antialiased`} suppressHydrationWarning>
-        {children}
+        <SessionProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </SessionProvider>
       </body>
     </html>
   );

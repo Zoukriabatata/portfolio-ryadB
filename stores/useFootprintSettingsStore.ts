@@ -221,18 +221,18 @@ const DEFAULT_FEATURES: FootprintFeatures = {
 
 const DEFAULT_PASSIVE_LIQUIDITY: PassiveLiquiditySettings = {
   enabled: true,
-  intensity: 0.6,           // 60% intensity
-  opacity: 0.25,            // 25% opacity (subtle background)
+  intensity: 0.85,          // 85% intensity (more visible)
+  opacity: 0.5,             // 50% opacity (clearly visible)
   focusTicks: 0,            // Show all (0 = no focus filter)
-  bidColor: '#00bcd4',      // Cyan for bid passive
-  askColor: '#ef5350',      // Red for ask passive
-  maxBarWidth: 80,          // Max bar width in pixels
+  bidColor: '#00e5ff',      // Bright cyan for bid passive
+  askColor: '#ff5252',      // Bright red for ask passive
+  maxBarWidth: 120,         // Max bar width in pixels (wider)
   // Stability settings
   stabilityLevel: 'medium', // Preset stability levels
   showOnlyPersistent: true, // Show only persistent liquidity (filtered)
   showStats: true,          // Show absorption stats panel
   // Data source
-  useRealOrderbook: false,  // Default to simulation (set true for real Binance orderbook)
+  useRealOrderbook: true,   // Use real Binance orderbook data (not simulation)
 };
 
 const DEFAULT_IMBALANCE: ImbalanceSettings = {
@@ -357,37 +357,37 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
 // ============ PRESETS ============
 
 export const COLOR_PRESETS = {
-  // SENZOUKRIA - Green/Black Scientific Theme (Default)
+  // SENZOUKRIA - Senku Green / Kingdom of Science (Default)
   senzoukria: {
     ...DEFAULT_COLORS,
-    background: '#050505',
-    surface: '#0a0f0a',
-    gridColor: '#0d1a0d',
+    background: '#060a08',
+    surface: '#0c1410',
+    gridColor: '#0f1e12',
     gridOpacity: 0.25,
-    candleUpBody: '#22c55e',
-    candleDownBody: '#dc2626',
-    candleUpBorder: '#22c55e',
-    candleDownBorder: '#dc2626',
-    candleUpWick: '#10b981',
+    candleUpBody: '#7ed321',
+    candleDownBody: '#e04040',
+    candleUpBorder: '#7ed321',
+    candleDownBorder: '#e04040',
+    candleUpWick: '#5fa31a',
     candleDownWick: '#b91c1c',
-    bidColor: '#dc2626',
-    askColor: '#22c55e',
+    bidColor: '#e04040',
+    askColor: '#7ed321',
     bidTextColor: '#f87171',
-    askTextColor: '#4ade80',
+    askTextColor: '#a3e635',
     footprintContainerOpacity: 0.02,
-    deltaPositive: '#22c55e',
-    deltaNegative: '#dc2626',
-    imbalanceBuyBg: '#22c55e',
-    imbalanceSellBg: '#dc2626',
-    pocColor: '#eab308',
-    currentPriceColor: '#22c55e',
+    deltaPositive: '#7ed321',
+    deltaNegative: '#e04040',
+    imbalanceBuyBg: '#7ed321',
+    imbalanceSellBg: '#e04040',
+    pocColor: '#e2b93b',
+    currentPriceColor: '#7ed321',
     currentPriceLineWidth: 1,
     currentPriceLineStyle: 'dashed' as const,
     currentPriceShowLabel: true,
-    currentPriceLabelBg: '#22c55e',
-    textPrimary: '#e0ffe0',
+    currentPriceLabelBg: '#7ed321',
+    textPrimary: '#e8f5e8',
     textSecondary: '#8aab8a',
-    textMuted: '#4a5f4a',
+    textMuted: '#5a7a5a',
   },
 
   dark: DEFAULT_COLORS,

@@ -34,12 +34,21 @@ export interface HeatmapCell {
   side: 'bid' | 'ask';
 }
 
+export type OrderState = 'new' | 'stable' | 'absorbed' | 'fading' | 'iceberg';
+
 export interface PassiveOrderData {
   price: number;
   size: number;
   side: 'bid' | 'ask';
   intensity: number;
   x: number; // Screen X position
+  // Enhanced properties
+  age?: number;           // 0-1, 0=newest, 1=oldest (for fade)
+  state?: OrderState;     // Visual state
+  isIceberg?: boolean;    // Detected iceberg order
+  stackCount?: number;    // Number of stacked orders at this level
+  pulsePhase?: number;    // 0-1 for pulse animation sync
+  cellWidth?: number;     // Override cell width (for time-series columns)
 }
 
 export interface TradeData {

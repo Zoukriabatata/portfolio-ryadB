@@ -1,0 +1,26 @@
+{
+  "name": "orderflow-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "IB Gateway Bridge - Server-side IB TWS API to WebSocket bridge",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@stoqey/ib": "^1.5.3",
+    "jsonwebtoken": "^9.0.3",
+    "ws": "^8.18.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5"
+  }
+}

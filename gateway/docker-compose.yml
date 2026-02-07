@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# IB Gateway Bridge - Docker Compose
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Usage:
+#   cd gateway
+#   docker compose up -d            # Start both services
+#   docker compose up bridge -d     # Start only the bridge (if IB Gateway runs natively)
+#   docker compose logs -f bridge   # Tail bridge logs
+#
+# Environment:
+#   Copy .env.example to .env and fill in your values before starting.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ───────────────────────────────────────────────────────────────────────────
+  # IB Gateway (headless) - Optional
+  # Uses the popular gnzsnz/ib-gateway Docker image which runs IB Gateway
+  # in a virtual framebuffer (Xvfb) so no GUI is needed on the VPS.
+  #
+  # Docs: https://github.com/gnzsnz/ib-gateway-docker
+  # ───────────────────────────────────────────────────────────────────────────
+  ib-gateway:
+    image: ghcr.io/gnzsnz/ib-gateway:latest
+    restart: unless-stopped
+    environment:
+      TWS_USERID: ${TWS_USERID:-}
+      TWS_PASSWORD: ${TWS_PASSWORD:-}
+      TWS_ACCEPT_INCOMING: "yes"
+      TRADING_MODE: ${TRADING_MODE:-paper}       # "paper" or "live"
+      READ_ONLY_API: ${READ_ONLY_API:-yes}       # "yes" for safety
+      VNC_SERVER_PASSWORD: ${VNC_PASSWORD:-}
+      TWOFA_TIMEOUT_ACTION: restart
+    ports:
+      - "4001:4001"   # IB Gateway API (paper trading)
+      - "4002:4002"   # IB Gateway API (live trading)
+      - "5900:5900"   # VNC (optional, for debugging)
+    networks:
+      - ib-network
+    volumes:
+      - ib-gateway-data:/home/ibgateway
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 4001 || nc -z localhost 4002"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 5
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # IB Gateway Bridge
+  # Node.js server that proxies IB API over authenticated WebSockets
+  # so the Next.js frontend can connect from the browser.
+  # ───────────────────────────────────────────────────────────────────────────
+  bridge:
+    build:
+      context: ..
+      dockerfile: gateway/Dockerfile
+    container_name: ib-gateway-bridge
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      GATEWAY_PORT: 4000
+      GATEWAY_HOST: "0.0.0.0"
+      # Point to the ib-gateway container on the Docker network.
+      # Override IB_HOST in .env if IB Gateway runs outside Docker.
+      IB_HOST: ${IB_HOST:-ib-gateway}
+      IB_PORT: ${IB_PORT:-4002}
+      JWT_SECRET: ${JWT_SECRET}
+      MAX_USERS: ${MAX_USERS:-12}
+    ports:
+      - "4000:4000"
+    networks:
+      - ib-network
+    depends_on:
+      ib-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+networks:
+  ib-network:
+    driver: bridge
+
+volumes:
+  ib-gateway-data:

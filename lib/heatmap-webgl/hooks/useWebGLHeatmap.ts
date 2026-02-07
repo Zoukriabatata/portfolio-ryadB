@@ -58,7 +58,7 @@ export function useWebGLHeatmap(options: UseWebGLHeatmapOptions): UseWebGLHeatma
       setIsWebGL(renderer.isWebGL);
       setIsReady(renderer.isInitialized);
 
-      console.log('[useWebGLHeatmap] Renderer initialized, WebGL:', renderer.isWebGL);
+      console.debug('[useWebGLHeatmap] Renderer initialized, WebGL:', renderer.isWebGL);
     } catch (error) {
       console.error('[useWebGLHeatmap] Failed to initialize renderer:', error);
       setIsReady(false);

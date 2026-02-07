@@ -5,12 +5,20 @@
 
 import type { RenderContext } from './RenderContext';
 import type REGL from 'regl';
+import {
+  type HeatmapGradient,
+  type ThemeName,
+  getTheme,
+  generateGradientData,
+  THEME_ATAS,
+} from '../themes';
 
 export class TextureManager {
   private ctx: RenderContext;
   private textures: Map<string, REGL.Texture2D> = new Map();
   private gradientCanvas: HTMLCanvasElement;
   private gradientCtx: CanvasRenderingContext2D;
+  private currentTheme: ThemeName = 'senzoukria';
 
   constructor(ctx: RenderContext) {
     this.ctx = ctx;
@@ -20,6 +28,55 @@ export class TextureManager {
     this.gradientCanvas.width = 256;
     this.gradientCanvas.height = 1;
     this.gradientCtx = this.gradientCanvas.getContext('2d')!;
+  }
+
+  /**
+   * Set the current theme and regenerate gradients
+   */
+  setTheme(themeName: ThemeName): void {
+    if (this.currentTheme === themeName) return;
+    this.currentTheme = themeName;
+
+    const theme = getTheme(themeName);
+
+    // Regenerate gradients with new theme
+    this.createGradientFromTheme('bidGradient', theme.colors.bidGradient);
+    this.createGradientFromTheme('askGradient', theme.colors.askGradient);
+
+    console.debug(`[TextureManager] Theme changed to: ${theme.name}`);
+  }
+
+  /**
+   * Create gradient texture from theme gradient definition
+   */
+  createGradientFromTheme(name: string, gradient: HeatmapGradient): REGL.Texture2D {
+    // Destroy existing
+    const existing = this.textures.get(name);
+    if (existing) {
+      existing.destroy();
+      this.textures.delete(name);
+    }
+
+    // Generate gradient data
+    const data = generateGradientData(gradient);
+
+    // Create WebGL texture
+    const texture = this.ctx.regl.texture({
+      data,
+      width: 256,
+      height: 1,
+      format: 'rgba',
+      type: 'uint8',
+      min: 'linear',
+      mag: 'linear',
+      wrapS: 'clamp',
+      wrapT: 'clamp',
+    });
+
+    this.textures.set(name, texture);
+    console.debug(`[TextureManager] Created themed gradient: ${name} (${gradient.name})`);
+
+    return texture;
   }
 
   /**
@@ -61,37 +118,32 @@ export class TextureManager {
     });
 
     this.textures.set(name, texture);
-    console.log(`[TextureManager] Created gradient texture: ${name}`);
+    console.debug(`[TextureManager] Created gradient texture: ${name}`);
 
     return texture;
   }
 
   /**
-   * Create ATAS-style bid gradient (cyan -> blue -> violet)
+   * Create bid gradient using current theme
    */
   createBidGradient(): REGL.Texture2D {
-    return this.createGradientTexture('bidGradient', [
-      'rgba(0, 0, 0, 0)',      // Transparent at 0
-      'rgba(0, 100, 150, 0.3)', // Dark cyan
-      'rgba(0, 150, 200, 0.5)', // Cyan
-      'rgba(50, 100, 200, 0.7)', // Blue
-      'rgba(100, 50, 200, 0.85)', // Violet
-      'rgba(150, 0, 255, 1)',   // Purple at max
-    ]);
+    const theme = getTheme(this.currentTheme);
+    return this.createGradientFromTheme('bidGradient', theme.colors.bidGradient);
   }
 
   /**
-   * Create ATAS-style ask gradient (orange -> red -> magenta)
+   * Create ask gradient using current theme
    */
   createAskGradient(): REGL.Texture2D {
-    return this.createGradientTexture('askGradient', [
-      'rgba(0, 0, 0, 0)',       // Transparent at 0
-      'rgba(150, 80, 0, 0.3)',  // Dark orange
-      'rgba(200, 100, 0, 0.5)', // Orange
-      'rgba(220, 50, 50, 0.7)', // Red-orange
-      'rgba(200, 0, 100, 0.85)', // Magenta
-      'rgba(255, 0, 150, 1)',    // Pink at max
-    ]);
+    const theme = getTheme(this.currentTheme);
+    return this.createGradientFromTheme('askGradient', theme.colors.askGradient);
+  }
+
+  /**
+   * Get current theme
+   */
+  getTheme(): ThemeName {
+    return this.currentTheme;
   }
 
   /**
@@ -115,22 +167,45 @@ export class TextureManager {
     return this.textures.get(name);
   }
 
+  // Color parsing cache - avoids creating canvas elements on every call
+  private static colorCache: Map<string, [number, number, number, number]> = new Map();
+  private static colorParseCanvas: HTMLCanvasElement | null = null;
+  private static colorParseCtx: CanvasRenderingContext2D | null = null;
+
   /**
-   * Parse CSS color to normalized RGBA
+   * Parse CSS color to normalized RGBA (cached)
    */
   static parseColor(color: string): [number, number, number, number] {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    const ctx = canvas.getContext('2d')!;
+    const cached = TextureManager.colorCache.get(color);
+    if (cached) return cached;
+
+    // Lazy-init shared canvas for color parsing
+    if (!TextureManager.colorParseCanvas) {
+      TextureManager.colorParseCanvas = document.createElement('canvas');
+      TextureManager.colorParseCanvas.width = 1;
+      TextureManager.colorParseCanvas.height = 1;
+      TextureManager.colorParseCtx = TextureManager.colorParseCanvas.getContext('2d')!;
+    }
+
+    const ctx = TextureManager.colorParseCtx!;
+    ctx.clearRect(0, 0, 1, 1);
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, 1, 1);
     const data = ctx.getImageData(0, 0, 1, 1).data;
-    return [data[0] / 255, data[1] / 255, data[2] / 255, data[3] / 255];
+    const result: [number, number, number, number] = [data[0] / 255, data[1] / 255, data[2] / 255, data[3] / 255];
+
+    // Cache the result (limit cache size to prevent unbounded growth)
+    if (TextureManager.colorCache.size > 500) {
+      const firstKey = TextureManager.colorCache.keys().next().value;
+      if (firstKey !== undefined) TextureManager.colorCache.delete(firstKey);
+    }
+    TextureManager.colorCache.set(color, result);
+
+    return result;
   }
 
   /**
-   * Parse CSS color to RGB only (no alpha)
+   * Parse CSS color to RGB only (no alpha, cached)
    */
   static parseColorRGB(color: string): [number, number, number] {
     const [r, g, b] = TextureManager.parseColor(color);

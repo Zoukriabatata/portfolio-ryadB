@@ -24,6 +24,10 @@
  */
 
 import { getAggregator, type Tick, type LiveCandle, type TimeframeSeconds } from './HierarchicalAggregator';
+import type { MarkPriceUpdate, LiquidationEvent } from '@/types/futures';
+
+type MarkPriceCallback = (update: MarkPriceUpdate) => void;
+type LiquidationCallback = (event: LiquidationEvent) => void;
 
 // Types pour les messages Binance
 interface BinanceAggTrade {
@@ -58,9 +62,26 @@ interface BinanceKline {
   };
 }
 
+interface BinanceDepth {
+  e: 'depthUpdate';
+  E: number;  // Event time
+  s: string;  // Symbol
+  U: number;  // First update ID
+  u: number;  // Final update ID
+  b: [string, string][]; // Bids [price, qty]
+  a: [string, string][]; // Asks [price, qty]
+}
+
+interface DepthSnapshot {
+  bids: [string, string][];
+  asks: [string, string][];
+  lastUpdateId: number;
+}
+
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 type StatusCallback = (status: ConnectionStatus) => void;
 type TickCallback = (tick: Tick) => void;
+type DepthCallback = (depth: DepthSnapshot) => void;
 
 /**
  * Gestionnaire WebSocket Binance Live
@@ -77,10 +98,24 @@ class BinanceLiveWS {
   // Callbacks
   private statusListeners: Set<StatusCallback> = new Set();
   private tickListeners: Set<TickCallback> = new Set();
+  private depthListeners: Set<DepthCallback> = new Set();
 
   // Stats
   private tickCount = 0;
   private lastTickTime = 0;
+  private currentPrice = 0;
+
+  // Depth WebSocket
+  private depthWs: WebSocket | null = null;
+  private depthSnapshot: DepthSnapshot | null = null;
+
+  // Mark Price WebSocket (futures stream)
+  private markPriceWs: WebSocket | null = null;
+  private markPriceListeners: Set<MarkPriceCallback> = new Set();
+
+  // Liquidation WebSocket (futures stream)
+  private liquidationWs: WebSocket | null = null;
+  private liquidationListeners: Set<LiquidationCallback> = new Set();
 
   /**
    * Connecte au stream Binance
@@ -88,6 +123,9 @@ class BinanceLiveWS {
   connect(symbol: string = 'btcusdt'): void {
     this.symbol = symbol.toLowerCase();
     this.doConnect();
+    this.connectDepth();
+    this.connectMarkPrice();
+    this.connectLiquidation();
   }
 
   /**
@@ -107,7 +145,7 @@ class BinanceLiveWS {
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
-        console.log(`[Binance WS] Connected to ${this.symbol}`);
+        console.debug(`[Binance WS] Connected to ${this.symbol}`);
         this.setStatus('connected');
         this.reconnectAttempts = 0;
         this.tickCount = 0;
@@ -117,13 +155,25 @@ class BinanceLiveWS {
         this.handleMessage(event.data);
       };
 
-      this.ws.onerror = (error) => {
-        console.error('[Binance WS] Error:', error);
-        this.setStatus('error');
+      this.ws.onerror = () => {
+        // WebSocket errors don't contain useful info in browsers
+        // The actual error details come in the onclose event
+        console.warn('[Binance WS] Connection error occurred - waiting for close event');
       };
 
       this.ws.onclose = (event) => {
-        console.log(`[Binance WS] Closed: ${event.code} ${event.reason}`);
+        // Common close codes:
+        // 1000 - Normal closure
+        // 1001 - Going away (page unload)
+        // 1006 - Abnormal closure (no close frame received) - usually network issue
+        // 1015 - TLS handshake failure
+        const reason = event.reason || this.getCloseReason(event.code);
+        console.debug(`[Binance WS] Closed: ${event.code} - ${reason}`);
+
+        if (event.code === 1006) {
+          console.warn('[Binance WS] Network issue detected - check your internet connection');
+        }
+
         this.setStatus('disconnected');
         this.attemptReconnect();
       };
@@ -156,11 +206,183 @@ class BinanceLiveWS {
         const aggregator = getAggregator();
         aggregator.processTick(tick);
 
+        // Store current price
+        this.currentPrice = tick.price;
+
         // Notifie les listeners
         this.tickListeners.forEach(cb => cb(tick));
       }
     } catch (error) {
       console.error('[Binance WS] Parse error:', error);
+    }
+  }
+
+  /**
+   * Connect to depth stream (order book)
+   */
+  private connectDepth(): void {
+    if (this.depthWs?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    // Depth stream URL (20 levels, 100ms updates)
+    const depthUrl = `wss://stream.binance.com:9443/ws/${this.symbol}@depth20@100ms`;
+
+    try {
+      this.depthWs = new WebSocket(depthUrl);
+
+      this.depthWs.onopen = () => {
+        console.debug(`[Binance Depth] Connected to ${this.symbol}`);
+      };
+
+      this.depthWs.onmessage = (event) => {
+        this.handleDepthMessage(event.data);
+      };
+
+      this.depthWs.onerror = () => {
+        console.warn('[Binance Depth] Connection error');
+      };
+
+      this.depthWs.onclose = () => {
+        console.debug('[Binance Depth] Closed');
+      };
+    } catch (error) {
+      console.error('[Binance Depth] Connection error:', error);
+    }
+  }
+
+  /**
+   * Handle depth message
+   */
+  private handleDepthMessage(data: string): void {
+    try {
+      const message = JSON.parse(data);
+
+      // Depth snapshot
+      if (message.lastUpdateId) {
+        this.depthSnapshot = {
+          bids: message.bids || [],
+          asks: message.asks || [],
+          lastUpdateId: message.lastUpdateId,
+        };
+
+        // Notify listeners
+        if (this.depthSnapshot) {
+          this.depthListeners.forEach(cb => cb(this.depthSnapshot!));
+        }
+      }
+    } catch (error) {
+      console.error('[Binance Depth] Parse error:', error);
+    }
+  }
+
+  /**
+   * Connect to mark price stream (futures)
+   */
+  private connectMarkPrice(): void {
+    if (this.markPriceWs?.readyState === WebSocket.OPEN) return;
+
+    const url = `wss://fstream.binance.com/ws/${this.symbol}@markPrice@1s`;
+
+    try {
+      this.markPriceWs = new WebSocket(url);
+
+      this.markPriceWs.onopen = () => {
+        console.debug(`[Binance MarkPrice] Connected to ${this.symbol}`);
+      };
+
+      this.markPriceWs.onmessage = (event) => {
+        this.handleMarkPriceMessage(event.data);
+      };
+
+      this.markPriceWs.onerror = () => {
+        console.warn('[Binance MarkPrice] Connection error');
+      };
+
+      this.markPriceWs.onclose = () => {
+        console.debug('[Binance MarkPrice] Closed');
+      };
+    } catch (error) {
+      console.error('[Binance MarkPrice] Connection error:', error);
+    }
+  }
+
+  /**
+   * Handle mark price message
+   */
+  private handleMarkPriceMessage(data: string): void {
+    try {
+      const msg = JSON.parse(data);
+      if (msg.e === 'markPriceUpdate') {
+        const update: MarkPriceUpdate = {
+          symbol: msg.s,
+          markPrice: parseFloat(msg.p),
+          indexPrice: parseFloat(msg.i),
+          fundingRate: parseFloat(msg.r),
+          nextFundingTime: msg.T,
+          estimatedSettlePrice: parseFloat(msg.P || '0'),
+        };
+        this.markPriceListeners.forEach(cb => cb(update));
+      }
+    } catch (error) {
+      console.error('[Binance MarkPrice] Parse error:', error);
+    }
+  }
+
+  /**
+   * Connect to liquidation stream (futures)
+   */
+  private connectLiquidation(): void {
+    if (this.liquidationWs?.readyState === WebSocket.OPEN) return;
+
+    const url = `wss://fstream.binance.com/ws/${this.symbol}@forceOrder`;
+
+    try {
+      this.liquidationWs = new WebSocket(url);
+
+      this.liquidationWs.onopen = () => {
+        console.debug(`[Binance Liquidation] Connected to ${this.symbol}`);
+      };
+
+      this.liquidationWs.onmessage = (event) => {
+        this.handleLiquidationMessage(event.data);
+      };
+
+      this.liquidationWs.onerror = () => {
+        console.warn('[Binance Liquidation] Connection error');
+      };
+
+      this.liquidationWs.onclose = () => {
+        console.debug('[Binance Liquidation] Closed');
+      };
+    } catch (error) {
+      console.error('[Binance Liquidation] Connection error:', error);
+    }
+  }
+
+  /**
+   * Handle liquidation message
+   */
+  private handleLiquidationMessage(data: string): void {
+    try {
+      const msg = JSON.parse(data);
+      if (msg.e === 'forceOrder') {
+        const o = msg.o;
+        const event: LiquidationEvent = {
+          symbol: o.s,
+          side: o.S,
+          quantity: parseFloat(o.q),
+          price: parseFloat(o.p),
+          averagePrice: parseFloat(o.ap),
+          status: o.X,
+          lastFilledQty: parseFloat(o.l),
+          cumulativeFilledQty: parseFloat(o.z),
+          time: o.T,
+        };
+        this.liquidationListeners.forEach(cb => cb(event));
+      }
+    } catch (error) {
+      console.error('[Binance Liquidation] Parse error:', error);
     }
   }
 
@@ -179,12 +401,36 @@ class BinanceLiveWS {
     }
 
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
-    console.log(`[Binance WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+    console.debug(`[Binance WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
       this.doConnect();
     }, delay);
+  }
+
+  /**
+   * Get human-readable close reason from code
+   */
+  private getCloseReason(code: number): string {
+    const reasons: Record<number, string> = {
+      1000: 'Normal closure',
+      1001: 'Going away (page unload)',
+      1002: 'Protocol error',
+      1003: 'Unsupported data',
+      1005: 'No status received',
+      1006: 'Abnormal closure (network issue)',
+      1007: 'Invalid data',
+      1008: 'Policy violation',
+      1009: 'Message too big',
+      1010: 'Missing extension',
+      1011: 'Internal error',
+      1012: 'Service restart',
+      1013: 'Try again later',
+      1014: 'Bad gateway',
+      1015: 'TLS handshake failure',
+    };
+    return reasons[code] || `Unknown (${code})`;
   }
 
   /**
@@ -199,6 +445,21 @@ class BinanceLiveWS {
     if (this.ws) {
       this.ws.close();
       this.ws = null;
+    }
+
+    if (this.depthWs) {
+      this.depthWs.close();
+      this.depthWs = null;
+    }
+
+    if (this.markPriceWs) {
+      this.markPriceWs.close();
+      this.markPriceWs = null;
+    }
+
+    if (this.liquidationWs) {
+      this.liquidationWs.close();
+      this.liquidationWs = null;
     }
 
     this.setStatus('disconnected');
@@ -246,6 +507,34 @@ class BinanceLiveWS {
   }
 
   /**
+   * S'abonne aux mises à jour du carnet d'ordres
+   */
+  onDepthUpdate(callback: DepthCallback): () => void {
+    this.depthListeners.add(callback);
+    // Send current snapshot if available
+    if (this.depthSnapshot) {
+      callback(this.depthSnapshot);
+    }
+    return () => this.depthListeners.delete(callback);
+  }
+
+  /**
+   * S'abonne aux mises à jour du mark price
+   */
+  onMarkPrice(callback: MarkPriceCallback): () => void {
+    this.markPriceListeners.add(callback);
+    return () => this.markPriceListeners.delete(callback);
+  }
+
+  /**
+   * S'abonne aux liquidations
+   */
+  onLiquidation(callback: LiquidationCallback): () => void {
+    this.liquidationListeners.add(callback);
+    return () => this.liquidationListeners.delete(callback);
+  }
+
+  /**
    * Getters
    */
   getStatus(): ConnectionStatus {
@@ -263,6 +552,10 @@ class BinanceLiveWS {
   getLastTickTime(): number {
     return this.lastTickTime;
   }
+
+  getCurrentPrice(): number {
+    return this.currentPrice;
+  }
 }
 
 /**
@@ -277,4 +570,4 @@ export function getBinanceLiveWS(): BinanceLiveWS {
   return wsInstance;
 }
 
-export type { ConnectionStatus, Tick };
+export type { ConnectionStatus, Tick, DepthSnapshot, MarkPriceCallback, LiquidationCallback };

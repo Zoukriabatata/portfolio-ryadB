@@ -10,6 +10,7 @@ import {
 } from '@/lib/orderflow/OrderflowEngine';
 import { getTradeAbsorptionEngine } from '@/lib/orderflow/TradeAbsorptionEngine';
 import type { PassiveOrderLevel } from '@/types/passive-liquidity';
+import { getPassiveLiquiditySimulator } from '@/lib/orderflow/PassiveLiquiditySimulator';
 import {
   FootprintLayoutEngine,
   type LayoutMetrics,
@@ -29,6 +30,7 @@ import {
   type InteractionMode,
 } from '@/lib/tools/InteractionController';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
+import { getIBConnectionManager } from '@/lib/ib/ConnectionManager';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
 import {
   getFootprintDataService,
@@ -60,21 +62,14 @@ import {
   type FootprintLODState,
 } from '@/lib/rendering';
 import {
-  getDxFeedFootprintEngine,
   resetDxFeedFootprintEngine,
 } from '@/lib/dxfeed';
 import {
-  getTradeSimulator,
-  resetTradeSimulator,
-} from '@/lib/simulation';
+  getYahooFootprintService,
+  resetYahooFootprintService,
+} from '@/lib/yahoo';
 import {
-  CursorIcon,
-  CrosshairIcon,
-  TrendlineIcon,
-  HLineIcon,
-  RectangleIcon,
-  LongPositionIcon,
-  ShortPositionIcon,
+  MagnetIcon,
   SettingsIcon,
   LayoutIcon,
 } from '@/components/ui/Icons';
@@ -82,12 +77,10 @@ import { ContextMenu, createChartContextMenuItems, type ContextMenuItem } from '
 import { useChartTemplatesStore, type ChartTemplate } from '@/stores/useChartTemplatesStore';
 import InlineTextEditor from '@/components/tools/InlineTextEditor';
 import { SaveTemplateModal } from '@/components/modals/SaveTemplateModal';
-import { useCoinStore } from '@/stores/useCoinStore';
 import FootprintAdvancedSettings from '@/components/settings/FootprintAdvancedSettings';
 import ToolSettingsBar from '@/components/tools/ToolSettingsBar';
 import { PriceCountdownCompact } from '@/components/trading/PriceCountdown';
 import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
-import { useFavoritesToolbarStore } from '@/stores/useFavoritesToolbarStore';
 
 /**
  * FOOTPRINT CHART PRO - Style ATAS / NinjaTrader / TradingView
@@ -112,6 +105,10 @@ const SYMBOLS = [
   { value: 'MNQ', label: 'MNQ (Micro Nasdaq)', tickSize: 0.25, exchange: 'cme' },
   { value: 'ES', label: 'ES (E-mini S&P)', tickSize: 0.25, exchange: 'cme' },
   { value: 'MES', label: 'MES (Micro S&P)', tickSize: 0.25, exchange: 'cme' },
+  // CME Other Futures
+  { value: 'YM', label: 'YM (E-mini Dow)', tickSize: 1, exchange: 'cme' },
+  { value: 'GC', label: 'GC (Gold)', tickSize: 0.1, exchange: 'cme' },
+  { value: 'CL', label: 'CL (Crude Oil)', tickSize: 0.01, exchange: 'cme' },
 ];
 
 // Timeframes (footprint compatible only - 15m+ removed, candles only)
@@ -128,6 +125,12 @@ const TICK_SIZE_OPTIONS: Record<string, number[]> = {
   // ES/MES - tick = 0.25 points
   ES: [0.25, 0.5, 1, 2, 4],
   MES: [0.25, 0.5, 1, 2, 4],
+  // YM - tick = 1 point
+  YM: [1, 2, 5, 10, 20],
+  // GC - tick = 0.10
+  GC: [0.1, 0.2, 0.5, 1, 2],
+  // CL - tick = 0.01
+  CL: [0.01, 0.02, 0.05, 0.1, 0.2],
 };
 
 // Map symbol to exchange for data source routing
@@ -137,6 +140,9 @@ const SYMBOL_EXCHANGE: Record<string, 'binance' | 'cme'> = {
   MNQ: 'cme',
   ES: 'cme',
   MES: 'cme',
+  YM: 'cme',
+  GC: 'cme',
+  CL: 'cme',
 };
 
 // Map TF to Binance interval
@@ -145,48 +151,6 @@ const TF_TO_BINANCE: Record<number, string> = {
   900: '15m', 1800: '30m', 3600: '1h',
 };
 
-// Tool icons - map to React components
-const TOOL_ICON_COMPONENTS: Partial<Record<ToolType, React.FC<{ size?: number; color?: string }>>> = {
-  cursor: CursorIcon,
-  crosshair: CrosshairIcon,
-  trendline: TrendlineIcon,
-  horizontalLine: HLineIcon,
-  rectangle: RectangleIcon,
-  longPosition: LongPositionIcon,
-  shortPosition: ShortPositionIcon,
-};
-
-// Fallback string icons for tools without custom icons
-const TOOL_ICONS_FALLBACK: Record<ToolType, string> = {
-  cursor: '↖',
-  crosshair: '+',
-  trendline: '╱',
-  ray: '→',
-  horizontalLine: '─',
-  horizontalRay: '⟶',
-  verticalLine: '│',
-  rectangle: '▢',
-  parallelChannel: '⫽',
-  fibRetracement: '📐',
-  fibExtension: '📏',
-  arrow: '➤',
-  brush: '✎',
-  highlighter: '🖍',
-  measure: '📐',
-  longPosition: '▲',
-  shortPosition: '▼',
-  text: 'T',
-};
-
-const DRAWING_TOOLS: ToolType[] = [
-  'cursor',
-  'crosshair',
-  'horizontalLine',
-  'trendline',
-  'rectangle',
-  'longPosition',
-  'shortPosition',
-];
 
 export default function FootprintChartPro({ className }: FootprintChartProProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -198,7 +162,6 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
   const settings = useFootprintSettingsStore();
   const crosshairSettings = useCrosshairStore();
   const { timezone, setTimezone, formatTime, getTimezoneLabel } = useTimezoneStore();
-  const { presets: favoritesPresets, addToolToPreset, removeToolFromPreset, activePreset: favoritesPreset } = useFavoritesToolbarStore();
 
   // State
   const [symbol, setSymbol] = useState('btcusdt');
@@ -237,18 +200,6 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
   const { templates, saveTemplate, getTemplatesByType } = useChartTemplatesStore();
   const [showGrid, setShowGrid] = useState(settings.features.showGrid);
 
-  // Coin store for task tracking
-  const { updateTaskProgress } = useCoinStore();
-
-  // Track footprint chart open (once per session)
-  const hasTrackedOpenRef = useRef(false);
-  useEffect(() => {
-    if (!hasTrackedOpenRef.current) {
-      hasTrackedOpenRef.current = true;
-      updateTaskProgress('footprint_master');
-      updateTaskProgress('daily_login');
-    }
-  }, [updateTaskProgress]);
 
   // Refs
   const priceRef = useRef<HTMLSpanElement>(null);
@@ -445,8 +396,7 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
         timeframe: tf,
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
-        recentHours: 0,   // No aggTrades fetch (avoid rate limits)
-        totalHours: 4,    // 4h of klines
+        totalHours: 6,    // 6h of real aggTrades
       });
 
       service.setProgressCallback((progress, message) => {
@@ -689,19 +639,40 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
     // - Création forcée si trade sans passif
     // ═══════════════════════════════════════════════════════════════
     if (features.showPassiveLiquidity && settings.passiveLiquidity.enabled && isFootprintMode) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { getPassiveLiquiditySimulator } = require('@/lib/orderflow/PassiveLiquiditySimulator');
       const simulator = getPassiveLiquiditySimulator();
 
+      // Calculate average trade volume from visible footprint data
+      let totalVolume = 0;
+      let totalLevels = 0;
+      let maxLevelVolume = 0;
+      for (const candle of metrics.visibleCandles) {
+        for (const level of candle.levels.values()) {
+          const levelVol = level.bidVolume + level.askVolume;
+          totalVolume += levelVol;
+          totalLevels++;
+          maxLevelVolume = Math.max(maxLevelVolume, level.bidVolume, level.askVolume);
+        }
+      }
+      const avgTradeVolume = totalLevels > 0 ? totalVolume / totalLevels : 1;
+
       // Configure with current price and tick size
+      // baseLiquidity adapts to instrument price:
+      // - BTC ($100K): ~0.3 BTC per level = ~$30K (realistic for crypto futures)
+      // - NQ/ES ($5K-$20K): ~15 contracts per level (CME-style)
+      const basePrice = currentPriceRef.current || metrics.visiblePriceMin + (metrics.visiblePriceMax - metrics.visiblePriceMin) / 2;
+      const adaptiveBaseLiquidity = basePrice >= 1000 ? Math.max(0.1, 3000 / basePrice) : 15;
       simulator.setConfig({
-        basePrice: currentPriceRef.current || metrics.visiblePriceMin + (metrics.visiblePriceMax - metrics.visiblePriceMin) / 2,
+        basePrice,
         tickSize,
-        baseLiquidity: 15, // Volume par niveau
+        baseLiquidity: adaptiveBaseLiquidity,
       });
 
-      // CRITICAL: Generate levels for the ENTIRE visible price range
-      simulator.setVisibleRange(metrics.visiblePriceMin, metrics.visiblePriceMax);
+      // In simulation mode: calibrate and generate fake levels
+      // In realtime mode: skip - real orderbook data is the source of truth
+      if (!simulator.isRealtimeMode()) {
+        simulator.calibrateFromFootprint(avgTradeVolume, maxLevelVolume);
+        simulator.setVisibleRange(metrics.visiblePriceMin, metrics.visiblePriceMax);
+      }
 
       // Tick for status updates (animations, fades)
       simulator.tick();
@@ -720,10 +691,10 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       const plSnapshot = simulator.getSnapshot();
       const maxVolume = Math.max(plSnapshot.maxBidVolume || 1, plSnapshot.maxAskVolume || 1);
       const maxBarWidth = plSettings.maxBarWidth * plSettings.intensity;
-      const barHeight = rowH * 0.45; // Thinner bars for cleaner look
+      const barHeight = rowH * 0.7; // Taller bars for better visibility
 
       // Position: Fixed to right edge, all bars extend LEFT (inward)
-      const rightEdge = footprintAreaX + footprintAreaWidth - 5;
+      const rightEdge = footprintAreaX + footprintAreaWidth - 8;
 
       ctx.save();
 
@@ -773,13 +744,12 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
           opacityMod = 0.5;
         }
 
-        // Calculate final opacity
+        // Calculate final opacity (simpler, more visible)
         const intensity = level.remainingVolume / level.initialVolume;
-        const alpha = plSettings.opacity * level.opacity * opacityMod * (0.5 + intensity * 0.4);
+        const alpha = Math.min(0.9, plSettings.opacity * level.opacity * opacityMod * (0.6 + intensity * 0.4));
 
-        // Y offset: bid slightly above price line, ask slightly below
-        const yOffset = level.side === 'bid' ? -barHeight * 0.6 : barHeight * 0.6;
-        const barY = y + yOffset - barHeight / 2;
+        // Center bar on price line (since we only have one side per price now)
+        const barY = y - barHeight / 2;
 
         // Store bounds for hover detection
         passiveLevelBoundsRef.current.push({
@@ -790,16 +760,22 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
           height: barHeight,
         });
 
-        // Draw bar
+        // Draw bar with subtle border for better visibility
         ctx.fillStyle = color;
         ctx.globalAlpha = alpha;
         ctx.fillRect(barX, barY, barWidth, barHeight);
 
+        // Add subtle border for contrast
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 0.5;
+        ctx.globalAlpha = Math.min(0.8, alpha * 1.2);
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+
         // Absorption pulse effect (pulsing border)
         if (level.status === 'absorbing') {
           const pulsePhase = (Date.now() % 250) / 250;
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 1 + pulsePhase * 1.5;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5 + pulsePhase * 2;
           ctx.globalAlpha = (1 - pulsePhase) * 0.9;
           ctx.strokeRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
         }
@@ -807,10 +783,10 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
         // Volume label (to the left of bar)
         if (level.remainingVolume > 0.5) {
           ctx.fillStyle = color;
-          ctx.globalAlpha = Math.min(0.85, alpha * 1.3);
-          ctx.font = '8px "Consolas", monospace';
+          ctx.globalAlpha = Math.min(0.9, alpha * 1.5);
+          ctx.font = 'bold 9px "Consolas", monospace';
           ctx.textAlign = 'right';
-          ctx.fillText(formatPassiveVol(level.remainingVolume), barX - 2, y + yOffset + 3);
+          ctx.fillText(formatPassiveVol(level.remainingVolume), barX - 3, y + 3);
         }
 
         // Spoofing indicator (red X)
@@ -821,10 +797,10 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
           const xSize = barHeight * 0.5;
           const xCenter = barX + barWidth / 2;
           ctx.beginPath();
-          ctx.moveTo(xCenter - xSize, y + yOffset - xSize);
-          ctx.lineTo(xCenter + xSize, y + yOffset + xSize);
-          ctx.moveTo(xCenter + xSize, y + yOffset - xSize);
-          ctx.lineTo(xCenter - xSize, y + yOffset + xSize);
+          ctx.moveTo(xCenter - xSize, y - xSize);
+          ctx.lineTo(xCenter + xSize, y + xSize);
+          ctx.moveTo(xCenter + xSize, y - xSize);
+          ctx.lineTo(xCenter - xSize, y + xSize);
           ctx.stroke();
         }
 
@@ -835,7 +811,7 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
           // Draw small diamond icon at the right edge of bar
           const iconSize = 4;
           const iconX = barX + barWidth + 3;
-          const iconY = y + yOffset;
+          const iconY = y; // Centered on price line
 
           // Diamond shape (iceberg symbol)
           ctx.fillStyle = '#60a5fa'; // Light blue for "ice"
@@ -1263,11 +1239,14 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // VWAP/TWAP LINE - Combined indicator
+    // VWAP/TWAP LINE - Professional Orderflow Style
     // ═══════════════════════════════════════════════════════════════
     if (features.showVWAPTWAP && metrics.visibleCandles.length > 0) {
+      const vwapColor = '#e2b93b';   // Warm gold (ATAS-style VWAP)
+      const twapColor = '#5eaeff';   // Ice blue TWAP
+
       // Calculate VWAP: Sum(Price * Volume) / Sum(Volume)
-      let cumulativeTPV = 0; // Total Price * Volume
+      let cumulativeTPV = 0;
       let cumulativeVolume = 0;
       const vwapPoints: { x: number; y: number }[] = [];
 
@@ -1287,24 +1266,43 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
         }
       });
 
-      // Draw VWAP line
+      // Draw VWAP with glow effect
       if (vwapPoints.length > 1) {
-        ctx.strokeStyle = '#ff9800'; // Orange for VWAP
-        ctx.lineWidth = 2;
+        // Glow layer
+        ctx.save();
+        ctx.strokeStyle = vwapColor;
+        ctx.lineWidth = 6;
+        ctx.globalAlpha = 0.12;
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(vwapPoints[0].x, vwapPoints[0].y);
-        for (let i = 1; i < vwapPoints.length; i++) {
-          ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
-        }
+        for (let i = 1; i < vwapPoints.length; i++) ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Main line
+        ctx.strokeStyle = vwapColor;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(vwapPoints[0].x, vwapPoints[0].y);
+        for (let i = 1; i < vwapPoints.length; i++) ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
         ctx.stroke();
 
-        // VWAP label
-        const lastPoint = vwapPoints[vwapPoints.length - 1];
-        ctx.fillStyle = '#ff9800';
+        // Label with pill background
+        const lastVP = vwapPoints[vwapPoints.length - 1];
+        const vwapText = 'VWAP';
         ctx.font = 'bold 9px "Consolas", monospace';
+        const tw = ctx.measureText(vwapText).width;
+        ctx.fillStyle = vwapColor;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.roundRect(lastVP.x + 4, lastVP.y - 8, tw + 8, 14, 3);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#0a0a0f';
         ctx.textAlign = 'left';
-        ctx.fillText('VWAP', lastPoint.x + 5, lastPoint.y - 3);
+        ctx.fillText(vwapText, lastVP.x + 8, lastVP.y + 2);
       }
 
       // Calculate TWAP: Simple average of typical prices
@@ -1326,25 +1324,44 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
         }
       });
 
-      // Draw TWAP line (dashed)
+      // Draw TWAP with glow + dashed style
       if (twapPoints.length > 1) {
-        ctx.strokeStyle = '#2196f3'; // Blue for TWAP
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
+        // Glow layer
+        ctx.save();
+        ctx.strokeStyle = twapColor;
+        ctx.lineWidth = 5;
+        ctx.globalAlpha = 0.1;
+        ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(twapPoints[0].x, twapPoints[0].y);
-        for (let i = 1; i < twapPoints.length; i++) {
-          ctx.lineTo(twapPoints[i].x, twapPoints[i].y);
-        }
+        for (let i = 1; i < twapPoints.length; i++) ctx.lineTo(twapPoints[i].x, twapPoints[i].y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Main dashed line
+        ctx.strokeStyle = twapColor;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath();
+        ctx.moveTo(twapPoints[0].x, twapPoints[0].y);
+        for (let i = 1; i < twapPoints.length; i++) ctx.lineTo(twapPoints[i].x, twapPoints[i].y);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // TWAP label
-        const lastPoint = twapPoints[twapPoints.length - 1];
-        ctx.fillStyle = '#2196f3';
+        // Label with pill background
+        const lastTP = twapPoints[twapPoints.length - 1];
+        const twapText = 'TWAP';
         ctx.font = 'bold 9px "Consolas", monospace';
+        const tw2 = ctx.measureText(twapText).width;
+        ctx.fillStyle = twapColor;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.roundRect(lastTP.x + 4, lastTP.y + 2, tw2 + 8, 14, 3);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#0a0a0f';
         ctx.textAlign = 'left';
-        ctx.fillText('TWAP', lastPoint.x + 5, lastPoint.y + 10);
+        ctx.fillText(twapText, lastTP.x + 8, lastTP.y + 12);
       }
     }
 
@@ -1383,11 +1400,12 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       // Pas de lissage destructeur - affichage exact du delta agrégé
       const smoothedDelta = deltaByPrice;
 
-      // Center line (zero reference)
+      // Center line (zero reference) with subtle styling
       const centerLineX = dpX + dpWidth / 2;
       ctx.strokeStyle = colors.textMuted;
-      ctx.globalAlpha = 0.2;
-      ctx.setLineDash([2, 2]);
+      ctx.globalAlpha = 0.15;
+      ctx.setLineDash([1, 3]);
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(centerLineX, footprintAreaY);
       ctx.lineTo(centerLineX, footprintAreaY + footprintAreaHeight);
@@ -1395,28 +1413,41 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
-      // Render smoothed delta bars
-      const barMaxWidth = (dpWidth - 10) / 2;
+      // Render delta bars with professional gradient intensity
+      const dpBarMaxWidth = (dpWidth - 10) / 2;
+      const dpPositiveColor = '#22c55e'; // Green
+      const dpNegativeColor = '#ef4444'; // Red
 
       smoothedDelta.forEach((delta, price) => {
         const y = layout.priceToY(price, metrics);
         if (y < footprintAreaY || y > footprintAreaY + footprintAreaHeight) return;
 
-        const barWidth = (Math.abs(delta) / maxDelta) * barMaxWidth;
+        const barWidth = (Math.abs(delta) / maxDelta) * dpBarMaxWidth;
         const isPositive = delta >= 0;
         const barH = Math.max(2, rowH * 0.5);
-
-        // Gradient-like opacity based on intensity
         const intensity = Math.abs(delta) / maxDelta;
-        ctx.globalAlpha = 0.4 + intensity * 0.5;
 
-        ctx.fillStyle = isPositive ? colors.deltaPositive : colors.deltaNegative;
+        const baseColor = isPositive ? dpPositiveColor : dpNegativeColor;
+
+        // Glow for high-intensity bars
+        if (intensity > 0.6) {
+          ctx.save();
+          ctx.fillStyle = baseColor;
+          ctx.globalAlpha = 0.08;
+          if (isPositive) {
+            ctx.fillRect(centerLineX - 1, y - barH / 2 - 1, barWidth + 2, barH + 2);
+          } else {
+            ctx.fillRect(centerLineX - barWidth - 1, y - barH / 2 - 1, barWidth + 2, barH + 2);
+          }
+          ctx.restore();
+        }
+
+        ctx.fillStyle = baseColor;
+        ctx.globalAlpha = 0.35 + intensity * 0.55;
 
         if (isPositive) {
-          // Positive delta: green bar from center to right
           ctx.fillRect(centerLineX, y - barH / 2, barWidth, barH);
         } else {
-          // Negative delta: red bar from center to left
           ctx.fillRect(centerLineX - barWidth, y - barH / 2, barWidth, barH);
         }
       });
@@ -1484,7 +1515,11 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       const vah = Math.max(...valueAreaArray);
       const val = Math.min(...valueAreaArray);
 
-      // Render volume bars
+      // --- Professional Orderflow Volume Profile Bars ---
+      const pocColor = '#e2b93b';   // Warm gold (matches VWAP)
+      const vaColor = '#5e7ce2';    // Rich blue for Value Area
+      const outsideColor = '#3a3f4b'; // Dim for outside VA
+      const vahValLineColor = '#7c85f6'; // Indigo for VAH/VAL lines
       const barMaxWidth = vpWidth - 6;
 
       volumeByPrice.forEach((data, price) => {
@@ -1495,73 +1530,110 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
         const barH = Math.max(2, rowH * 0.6);
         const isPOC = price === pocPrice;
         const isValueArea = valueAreaPrices.has(price);
+        const intensity = data.total / maxVolume;
 
-        // Determine bar color
         if (isPOC) {
-          ctx.fillStyle = '#fbbf24'; // Gold for POC
-          ctx.globalAlpha = 0.9;
+          // POC bar: gold with glow
+          ctx.save();
+          ctx.fillStyle = pocColor;
+          ctx.globalAlpha = 0.15;
+          ctx.fillRect(vpX + 2, y - barH / 2 - 1, barWidth + 2, barH + 2);
+          ctx.restore();
+          ctx.fillStyle = pocColor;
+          ctx.globalAlpha = 0.92;
         } else if (isValueArea) {
-          ctx.fillStyle = '#3b82f6'; // Blue for Value Area
-          ctx.globalAlpha = 0.7;
+          ctx.fillStyle = vaColor;
+          ctx.globalAlpha = 0.45 + intensity * 0.4;
         } else {
-          ctx.fillStyle = '#6b7280'; // Gray for outside VA
-          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = outsideColor;
+          ctx.globalAlpha = 0.25 + intensity * 0.2;
         }
 
         ctx.fillRect(vpX + 3, y - barH / 2, barWidth, barH);
         ctx.globalAlpha = 1;
       });
 
-      // Draw VAH/VAL/POC lines - EXTENDED ACROSS ENTIRE CHART
+      // --- Extended VAH/VAL/POC Lines across chart ---
       if (vah !== val) {
         const vahY = layout.priceToY(vah, metrics);
         const valY = layout.priceToY(val, metrics);
         const sessPocY = layout.priceToY(pocPrice, metrics);
 
-        // Draw extended lines across the entire chart (not just VP area)
-        ctx.setLineDash([3, 3]);
-        ctx.globalAlpha = 0.5;
-
-        // VAH Line - extends across chart
+        // VAH Line with glow
         if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
-          ctx.strokeStyle = '#6366f1';
+          ctx.save();
+          ctx.strokeStyle = vahValLineColor;
+          ctx.lineWidth = 4;
+          ctx.globalAlpha = 0.08;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(0, vahY);
+          ctx.lineTo(vpX + vpWidth, vahY);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.strokeStyle = vahValLineColor;
           ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.6;
+          ctx.setLineDash([4, 3]);
           ctx.beginPath();
           ctx.moveTo(0, vahY);
           ctx.lineTo(vpX - 5, vahY);
           ctx.stroke();
-
-          // Also draw in VP area (solid)
           ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(vpX, vahY);
           ctx.lineTo(vpX + vpWidth, vahY);
           ctx.stroke();
-          ctx.setLineDash([3, 3]);
+          ctx.globalAlpha = 1;
         }
 
-        // VAL Line - extends across chart
+        // VAL Line with glow
         if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
-          ctx.strokeStyle = '#6366f1';
+          ctx.save();
+          ctx.strokeStyle = vahValLineColor;
+          ctx.lineWidth = 4;
+          ctx.globalAlpha = 0.08;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(0, valY);
+          ctx.lineTo(vpX + vpWidth, valY);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.strokeStyle = vahValLineColor;
           ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.6;
+          ctx.setLineDash([4, 3]);
           ctx.beginPath();
           ctx.moveTo(0, valY);
           ctx.lineTo(vpX - 5, valY);
           ctx.stroke();
-
-          // Also draw in VP area (solid)
           ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(vpX, valY);
           ctx.lineTo(vpX + vpWidth, valY);
           ctx.stroke();
-          ctx.setLineDash([3, 3]);
+          ctx.globalAlpha = 1;
         }
 
-        // POC Line - extends across chart (golden)
+        // POC Line with glow (golden)
         if (sessPocY >= footprintAreaY && sessPocY <= footprintAreaY + footprintAreaHeight) {
-          ctx.strokeStyle = '#fbbf24';
+          ctx.save();
+          ctx.strokeStyle = pocColor;
+          ctx.lineWidth = 5;
+          ctx.globalAlpha = 0.1;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(0, sessPocY);
+          ctx.lineTo(vpX - 5, sessPocY);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.strokeStyle = pocColor;
           ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.8;
+          ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(0, sessPocY);
           ctx.lineTo(vpX - 5, sessPocY);
@@ -1571,40 +1643,72 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
 
-        // Labels on left side of chart
-        ctx.font = 'bold 9px "Consolas", monospace';
-        ctx.textAlign = 'left';
+        // --- Pill-style labels ---
+        ctx.font = 'bold 8px "Consolas", monospace';
 
+        // Left side labels with pill backgrounds
         if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
-          ctx.fillStyle = '#6366f1';
-          ctx.fillText('VAH', 4, vahY - 3);
+          const lbl = 'VAH';
+          const lw = ctx.measureText(lbl).width;
+          ctx.fillStyle = vahValLineColor;
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.roundRect(3, vahY - 9, lw + 6, 12, 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#0a0a0f';
+          ctx.textAlign = 'left';
+          ctx.fillText(lbl, 6, vahY);
         }
         if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
-          ctx.fillStyle = '#6366f1';
-          ctx.fillText('VAL', 4, valY + 10);
+          const lbl = 'VAL';
+          const lw = ctx.measureText(lbl).width;
+          ctx.fillStyle = vahValLineColor;
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.roundRect(3, valY + 1, lw + 6, 12, 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#0a0a0f';
+          ctx.textAlign = 'left';
+          ctx.fillText(lbl, 6, valY + 10);
         }
         if (sessPocY >= footprintAreaY && sessPocY <= footprintAreaY + footprintAreaHeight) {
-          ctx.fillStyle = '#fbbf24';
-          ctx.fillText('POC', 4, sessPocY + 3);
+          const lbl = 'POC';
+          const lw = ctx.measureText(lbl).width;
+          ctx.fillStyle = pocColor;
+          ctx.globalAlpha = 0.85;
+          ctx.beginPath();
+          ctx.roundRect(3, sessPocY - 5, lw + 6, 12, 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#0a0a0f';
+          ctx.textAlign = 'left';
+          ctx.fillText(lbl, 6, sessPocY + 4);
         }
 
-        // Also add labels on the VP side
+        // VP side labels
         ctx.textAlign = 'right';
+        ctx.font = 'bold 7px "Consolas", monospace';
         if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
-          ctx.fillStyle = '#6366f1';
+          ctx.fillStyle = vahValLineColor;
+          ctx.globalAlpha = 0.7;
           ctx.fillText('VAH', vpX + vpWidth - 2, vahY - 2);
+          ctx.globalAlpha = 1;
         }
         if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
-          ctx.fillStyle = '#6366f1';
+          ctx.fillStyle = vahValLineColor;
+          ctx.globalAlpha = 0.7;
           ctx.fillText('VAL', vpX + vpWidth - 2, valY + 8);
+          ctx.globalAlpha = 1;
         }
       }
 
       // POC Label in VP area
       const pocY = layout.priceToY(pocPrice, metrics);
       if (pocY >= footprintAreaY && pocY <= footprintAreaY + footprintAreaHeight) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = 'bold 8px "Consolas", monospace';
+        ctx.fillStyle = pocColor;
+        ctx.font = 'bold 7px "Consolas", monospace';
         ctx.textAlign = 'right';
         ctx.fillText('POC', vpX + vpWidth - 2, pocY + 3);
       }
@@ -2038,6 +2142,7 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       timeToX: (time: number) => layout.timeToX(time, metrics),
       xToTime: (x: number) => layout.xToTime(x, metrics),
       tickSize,
+      currentPrice: currentPriceRef.current || 0,
       colors: {
         positive: colors.deltaPositive,
         negative: colors.deltaNegative,
@@ -2088,179 +2193,194 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       configureOrderflow({ tickSize, imbalanceRatio: settings.imbalance.ratio });
 
       // ═══════════════════════════════════════════════════════════════════════
-      // CME FUTURES (SIMULATION MODE - No external connection needed)
+      // CME FUTURES (IB Gateway → Simulation fallback)
       // ═══════════════════════════════════════════════════════════════════════
       if (exchange === 'cme') {
-        console.log(`[FootprintChartPro] Initializing CME symbol: ${symbol} (SIMULATION MODE)`);
+        const ibMgr = getIBConnectionManager();
+        const ibConnected = ibMgr.isConnected();
 
-        // Reset previous simulator if any
-        resetTradeSimulator();
+        if (ibConnected) {
+          // ═══════════════════════════════════════════════════════════════
+          // IB GATEWAY MODE - Real CME data
+          // ═══════════════════════════════════════════════════════════════
+          console.log(`[FootprintChartPro] Initializing CME symbol: ${symbol} via IB Gateway`);
 
-        // Initialize footprint engine for CME data
-        const dxFeedEngine = getDxFeedFootprintEngine({
-          symbol: symbol,
-          timeframe: timeframe,
-          imbalanceRatio: settings.imbalance.ratio,
-        });
+          // Configure IB footprint adapter timeframe
+          ibMgr.setFootprintTimeframe(timeframe);
 
-        // Status callback
-        dxFeedEngine.onStatus((s, message) => {
-          if (!isMounted) return;
-          console.log(`[Simulator] Status: ${s}`, message || '');
-
-          if (s === 'connected') {
-            setStatus('connected');
-            setIsLoading(false);
-            if (statusDotRef.current) {
-              statusDotRef.current.style.backgroundColor = settings.colors.deltaPositive;
-            }
-          } else if (s === 'connecting') {
-            setStatus('connecting');
-            if (statusDotRef.current) {
-              statusDotRef.current.style.backgroundColor = '#eab308';
-            }
-          } else {
-            setStatus('disconnected');
-            if (statusDotRef.current) {
-              statusDotRef.current.style.backgroundColor = settings.colors.textMuted;
-            }
-          }
-        });
-
-        // Candles callback - receives FootprintCandle[] from engine
-        dxFeedEngine.onCandles((candles) => {
-          if (!isMounted) return;
-
-          // Skip empty arrays
-          if (candles.length === 0) {
-            return;
+          // Set status
+          setStatus('connected');
+          setIsLoading(false);
+          if (statusDotRef.current) {
+            statusDotRef.current.style.backgroundColor = settings.colors.deltaPositive;
           }
 
-          // Convert to our format
-          const convertedCandles = candles.map(c => ({
-            time: c.openTime,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-            levels: c.levels,
-            totalVolume: c.totalVolume,
-            totalBuyVolume: c.totalBuyVolume,
-            totalSellVolume: c.totalSellVolume,
-            totalDelta: c.totalDelta,
-            totalTrades: c.totalTrades,
-            poc: c.poc,
-            vah: c.vah,
-            val: c.val,
-            isClosed: c.isClosed,
-          }));
+          // Poll IB footprint candles at 200ms interval
+          const ibPollInterval = setInterval(() => {
+            if (!isMounted) return;
 
-          candlesRef.current = convertedCandles;
+            const ibCandles = ibMgr.getFootprintCandles();
+            if (ibCandles.length === 0) return;
 
-          // Update price display
-          const lastCandle = candles[candles.length - 1];
-          if (lastCandle) {
-            currentPriceRef.current = lastCandle.close;
-            if (priceRef.current) {
-              priceRef.current.textContent = lastCandle.close.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
+            // Convert IB FootprintCandle to chart format
+            const convertedCandles = ibCandles.map(c => ({
+              time: c.time,
+              open: c.open,
+              high: c.high,
+              low: c.low,
+              close: c.close,
+              levels: c.levels,
+              totalVolume: c.totalVolume,
+              totalBuyVolume: c.totalBuyVolume,
+              totalSellVolume: c.totalSellVolume,
+              totalDelta: c.totalDelta,
+              totalTrades: c.totalTrades,
+              poc: c.poc,
+              vah: c.vah,
+              val: c.val,
+              isClosed: c.isClosed,
+            }));
+
+            candlesRef.current = convertedCandles;
+
+            // Update price display
+            const lastCandle = ibCandles[ibCandles.length - 1];
+            if (lastCandle) {
+              currentPriceRef.current = lastCandle.close;
+              if (priceRef.current) {
+                priceRef.current.textContent = lastCandle.close.toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+              }
+
+              // Update delta display
+              if (deltaRef.current) {
+                const delta = lastCandle.totalDelta;
+                deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
+                deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
+              }
             }
+          }, 200);
 
-            // Update delta display
-            if (deltaRef.current) {
-              const delta = lastCandle.totalDelta;
-              deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
-              deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
+          // Monitor IB status changes
+          const unsubIBStatus = ibMgr.onStatus((s) => {
+            if (!isMounted) return;
+            if (s === 'connected') {
+              setStatus('connected');
+              if (statusDotRef.current) {
+                statusDotRef.current.style.backgroundColor = settings.colors.deltaPositive;
+              }
+            } else if (s === 'connecting_ib' || s === 'authenticating') {
+              setStatus('connecting');
+              if (statusDotRef.current) {
+                statusDotRef.current.style.backgroundColor = '#eab308';
+              }
+            } else {
+              setStatus('disconnected');
+              if (statusDotRef.current) {
+                statusDotRef.current.style.backgroundColor = settings.colors.textMuted;
+              }
             }
-          }
-        });
-
-        // Start simulation mode (no external connection)
-        setIsLoading(true);
-        setLoadingMessage('Generating historical data...');
-
-        // Start engine in simulation mode
-        dxFeedEngine.startSimulationMode();
-
-        // Create the trade simulator
-        const simulator = getTradeSimulator({
-          symbol: symbol,
-          tradesPerSecond: 8,  // 8 trades/sec for realistic activity
-          volatility: 1.2,     // Slight volatility increase
-        });
-
-        // ═══════════════════════════════════════════════════════════════════
-        // GENERATE HISTORICAL DATA (300 candles for good navigation)
-        // ═══════════════════════════════════════════════════════════════════
-        console.log(`[FootprintChartPro] Generating historical data for ${symbol}...`);
-        const historicalTrades = simulator.generateHistoricalTrades(
-          300,          // 300 candles for navigation history
-          timeframe,    // Use selected timeframe
-          150           // ~150 trades per candle
-        );
-
-        // Inject historical trades into footprint engine
-        console.log(`[FootprintChartPro] Injecting ${historicalTrades.length} historical trades...`);
-        for (const trade of historicalTrades) {
-          dxFeedEngine.injectTrade({
-            price: trade.price,
-            size: trade.size,
-            side: trade.side,
-            timestamp: trade.timestamp,
           });
+          unsubscribersRef.current.push(unsubIBStatus);
+
+          // Cleanup
+          unsubscribersRef.current.push(() => {
+            clearInterval(ibPollInterval);
+          });
+
+        } else {
+          // ═══════════════════════════════════════════════════════════════
+          // YAHOO FOOTPRINT - Real CME historical data (free)
+          // ═══════════════════════════════════════════════════════════════
+          console.log(`[FootprintChartPro] Initializing CME symbol: ${symbol} via Yahoo Finance`);
+
+          resetYahooFootprintService();
+
+          const yahooService = getYahooFootprintService({
+            symbol: symbol,
+            timeframe: timeframe,
+            tickSize: tickSize,
+            imbalanceRatio: settings.imbalance.ratio,
+          });
+
+          // Status callback
+          yahooService.onStatus((s) => {
+            if (!isMounted) return;
+
+            if (s === 'connected') {
+              setStatus('connected');
+              setIsLoading(false);
+              if (statusDotRef.current) {
+                statusDotRef.current.style.backgroundColor = settings.colors.deltaPositive;
+              }
+            } else if (s === 'connecting') {
+              setStatus('connecting');
+              if (statusDotRef.current) {
+                statusDotRef.current.style.backgroundColor = '#eab308';
+              }
+            } else {
+              setStatus('disconnected');
+              if (statusDotRef.current) {
+                statusDotRef.current.style.backgroundColor = settings.colors.textMuted;
+              }
+            }
+          });
+
+          // Candles callback
+          yahooService.onCandles((candles) => {
+            if (!isMounted) return;
+            if (candles.length === 0) return;
+
+            const convertedCandles = candles.map(c => ({
+              time: c.time,
+              open: c.open,
+              high: c.high,
+              low: c.low,
+              close: c.close,
+              levels: c.levels,
+              totalVolume: c.totalVolume,
+              totalBuyVolume: c.totalBuyVolume,
+              totalSellVolume: c.totalSellVolume,
+              totalDelta: c.totalDelta,
+              totalTrades: c.totalTrades,
+              poc: c.poc,
+              vah: c.vah,
+              val: c.val,
+              isClosed: c.isClosed,
+            }));
+
+            candlesRef.current = convertedCandles;
+
+            const lastCandle = candles[candles.length - 1];
+            if (lastCandle) {
+              currentPriceRef.current = lastCandle.close;
+              if (priceRef.current) {
+                priceRef.current.textContent = lastCandle.close.toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+              }
+              if (deltaRef.current) {
+                const delta = lastCandle.totalDelta;
+                deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
+                deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
+              }
+            }
+          });
+
+          setIsLoading(true);
+          setLoadingMessage('Loading CME historical data...');
+          await yahooService.connect();
+
+          unsubscribersRef.current.push(() => {
+            yahooService.disconnect();
+            resetYahooFootprintService();
+          });
+
+          setIsLoading(false);
         }
-        console.log(`[FootprintChartPro] ✓ Historical data loaded`);
-
-        // ═══════════════════════════════════════════════════════════════════
-        // START LIVE SIMULATION
-        // ═══════════════════════════════════════════════════════════════════
-        setLoadingMessage('Starting live simulation...');
-
-        // Connect simulator trades to footprint engine for live data
-        const unsubSimulator = simulator.onTrade((trade) => {
-          if (!isMounted) return;
-
-          // Inject trade into footprint engine
-          dxFeedEngine.injectTrade({
-            price: trade.price,
-            size: trade.size,
-            side: trade.side,
-            timestamp: trade.timestamp,
-          });
-
-          // Debug tracking
-          debugTradeCountRef.current++;
-          debugTradesRef.current = [...debugTradesRef.current.slice(-99), {
-            price: trade.price,
-            size: trade.size,
-            side: trade.side,
-            time: trade.timestamp,
-          }];
-
-          // Update current price
-          currentPriceRef.current = trade.price;
-          if (priceRef.current) {
-            priceRef.current.textContent = trade.price.toLocaleString('en-US', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            });
-          }
-        });
-        unsubscribersRef.current.push(unsubSimulator);
-
-        // Start generating live trades
-        simulator.start();
-        console.log(`[FootprintChartPro] ✓ Live simulator started for ${symbol}`);
-
-        // Add cleanup for simulator
-        unsubscribersRef.current.push(() => {
-          simulator.stop();
-          resetTradeSimulator();
-        });
-
-        setIsLoading(false);
 
         return; // Exit early for CME - don't run Binance logic
       }
@@ -2435,9 +2555,10 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
     if (e.shiftKey) {
       layout.scroll(e.deltaY);
     } else {
-      const currentZoom = layout.getZoom();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      layout.setZoom(currentZoom + delta);
+      // Multiplicative zoom for smooth, proportional scaling
+      const factor = e.deltaY > 0 ? 1 / 1.08 : 1.08;
+      layout.setZoom(layout.getZoom() * factor);
+      layout.setZoomY(layout.getZoomY() * factor);
     }
   }, []);
 
@@ -2674,8 +2795,9 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
     // Handle price scale drag (vertical zoom)
     if (isPriceScaleDragRef.current && priceScaleDragStartRef.current) {
       const deltaY = priceScaleDragStartRef.current.y - e.clientY; // Up = positive
-      const zoomDelta = deltaY * 0.01; // Increased sensitivity for more zoom range
-      const newZoomY = Math.max(0.1, Math.min(20, priceScaleDragStartRef.current.zoomY + zoomDelta));
+      // Multiplicative zoom: each 100px of drag = ~2x zoom change
+      const factor = Math.pow(1.01, deltaY);
+      const newZoomY = Math.max(0.1, Math.min(20, priceScaleDragStartRef.current.zoomY * factor));
       layout.setZoomY(newZoomY);
       invalidateLODCache();
       return;
@@ -3009,11 +3131,17 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       // Binance: Connect to live WebSocket
       getBinanceLiveWS().changeSymbol(newSymbol);
     } else {
-      // CME: Disconnect Binance WS, dxFeed connection handled by useEffect
+      // CME: Disconnect Binance WS
       getBinanceLiveWS().disconnect();
       resetDxFeedFootprintEngine();
+
+      // If IB is connected, change symbol on IB adapter
+      const ibMgr = getIBConnectionManager();
+      if (ibMgr.isConnected()) {
+        ibMgr.changeSymbol(newSymbol);
+      }
+
       console.log(`[FootprintChartPro] CME symbol selected: ${newSymbol}`);
-      // The useEffect will handle dxFeed connection when symbol state updates
     }
   }, [symbol]);
 
@@ -3178,7 +3306,7 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
                 color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : '#3b82f6',
               }}
             >
-              {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : 'CME'}
+              {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME Yahoo')}
             </span>
           </div>
 
@@ -3218,75 +3346,6 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
 
         {/* Right: Tools & Settings */}
         <div className="flex items-center gap-2">
-          {/* Drawing Tools with Favorites */}
-          <div className="flex items-center gap-0.5 rounded p-0.5" style={{ backgroundColor: settings.colors.background }}>
-            {DRAWING_TOOLS.map((tool, index) => {
-              const IconComponent = TOOL_ICON_COMPONENTS[tool];
-              const isFavorite = favoritesPresets[favoritesPreset]?.tools.includes(tool);
-
-              return (
-                <div key={tool} className="relative group">
-                  <button
-                    onClick={() => handleToolSelect(tool)}
-                    className={`px-2 py-1.5 rounded text-xs flex items-center justify-center
-                      transition-all duration-200 ease-out transform
-                      ${activeTool === tool
-                        ? 'scale-110 shadow-lg'
-                        : 'hover:scale-110 active:scale-95 hover:bg-white/10'
-                      }
-                    `}
-                    style={{
-                      backgroundColor: activeTool === tool ? settings.colors.currentPriceColor : 'transparent',
-                      color: activeTool === tool ? '#fff' : settings.colors.textSecondary,
-                      boxShadow: activeTool === tool ? `0 0 12px ${settings.colors.currentPriceColor}60` : 'none',
-                    }}
-                    title={tool}
-                  >
-                    <span className={`transition-transform duration-200 ${activeTool === tool ? 'scale-110' : ''}`}>
-                      {IconComponent ? (
-                        <IconComponent size={16} color={activeTool === tool ? '#fff' : settings.colors.textSecondary} />
-                      ) : (
-                        TOOL_ICONS_FALLBACK[tool]
-                      )}
-                    </span>
-                  </button>
-
-                  {/* Star icon for favorites - appears on hover */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isFavorite) {
-                        removeToolFromPreset(favoritesPreset, tool);
-                      } else {
-                        addToolToPreset(favoritesPreset, tool);
-                      }
-                    }}
-                    className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center
-                      transition-all duration-200 opacity-0 group-hover:opacity-100
-                      ${isFavorite ? 'opacity-100' : ''}
-                    `}
-                    style={{
-                      backgroundColor: isFavorite ? '#f59e0b' : settings.colors.background,
-                      border: `1px solid ${isFavorite ? '#f59e0b' : settings.colors.gridColor}`,
-                    }}
-                    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                  >
-                    <svg
-                      width="8"
-                      height="8"
-                      viewBox="0 0 24 24"
-                      fill={isFavorite ? '#fff' : 'none'}
-                      stroke={isFavorite ? '#fff' : settings.colors.textMuted}
-                      strokeWidth="2"
-                    >
-                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
           {/* Tick Size */}
           <select
             value={tickSize}
@@ -3780,7 +3839,7 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
               : settings.colors.textMuted
         }}>
           {status === 'connected'
-            ? `● Live${SYMBOL_EXCHANGE[symbol] === 'cme' ? ' (dxFeed)' : ''}`
+            ? `● Live${SYMBOL_EXCHANGE[symbol] === 'cme' ? ' (CME)' : ''}`
             : status === 'connecting'
               ? '◐ Connecting...'
               : '○ Offline'

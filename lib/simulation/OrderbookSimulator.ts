@@ -128,9 +128,65 @@ export class OrderbookSimulator {
     // 4. Gère les walls (formation et dissolution)
     this.manageWalls();
 
-    // 5. Simule occasionnellement du spoofing
-    if (Math.random() < 0.01) {
+    // 5. Simule du spoofing (3% de chance)
+    if (Math.random() < 0.03) {
       this.simulateSpoofing();
+    }
+
+    // 6. Simule absorption quand prix touche un wall (5% de chance)
+    if (Math.random() < 0.05) {
+      this.simulateAbsorption();
+    }
+  }
+
+  /**
+   * Simule l'absorption d'un wall par le prix
+   * Le prix tape dans un ordre passif et l'absorbe partiellement ou totalement
+   */
+  private simulateAbsorption(): void {
+    const { tickSize } = this.config;
+
+    // Check if price is near a bid wall
+    if (this.wallPrices.bid && this.priceDirection < 0) {
+      const wallQty = this.bids.get(this.wallPrices.bid) || 0;
+      if (wallQty > 0) {
+        // Absorb 20-80% of the wall
+        const absorbPercent = 0.2 + Math.random() * 0.6;
+        const newQty = wallQty * (1 - absorbPercent);
+
+        if (newQty < 50) {
+          // Wall broken - price breaks through
+          this.bids.delete(this.wallPrices.bid);
+          this.wallPrices.bid = null;
+          // Accelerate downward movement
+          this.trendStrength = Math.min(-0.8, this.trendStrength - 0.3);
+        } else {
+          // Wall holds - price rejects
+          this.bids.set(this.wallPrices.bid, newQty);
+          // Reverse direction
+          this.trendStrength = Math.abs(this.trendStrength) * 0.5;
+        }
+      }
+    }
+
+    // Check if price is near an ask wall
+    if (this.wallPrices.ask && this.priceDirection > 0) {
+      const wallQty = this.asks.get(this.wallPrices.ask) || 0;
+      if (wallQty > 0) {
+        const absorbPercent = 0.2 + Math.random() * 0.6;
+        const newQty = wallQty * (1 - absorbPercent);
+
+        if (newQty < 50) {
+          // Wall broken
+          this.asks.delete(this.wallPrices.ask);
+          this.wallPrices.ask = null;
+          this.trendStrength = Math.max(0.8, this.trendStrength + 0.3);
+        } else {
+          // Wall holds
+          this.asks.set(this.wallPrices.ask, newQty);
+          this.trendStrength = -Math.abs(this.trendStrength) * 0.5;
+        }
+      }
     }
   }
 
@@ -263,29 +319,101 @@ export class OrderbookSimulator {
   }
 
   /**
-   * Simule du spoofing (apparition puis disparition rapide)
+   * Simule du spoofing réaliste (apparition puis disparition rapide)
+   * Inclut des patterns de layering et absorption
    */
   private simulateSpoofing(): void {
     const { tickSize } = this.config;
-    const side = Math.random() < 0.5 ? 'bid' : 'ask';
+    const spoofType = Math.random();
 
-    if (side === 'bid') {
-      const bestBid = Math.max(...this.bids.keys());
-      const spoofPrice = parseFloat((bestBid - tickSize * 2).toFixed(2));
-      this.bids.set(spoofPrice, 500 + Math.random() * 300);
+    if (spoofType < 0.4) {
+      // Single large spoof order
+      const side = Math.random() < 0.5 ? 'bid' : 'ask';
+      const spoofSize = 400 + Math.random() * 500;
 
-      // Retire après 3-5 updates
+      if (side === 'bid') {
+        const bestBid = Math.max(...this.bids.keys());
+        const spoofPrice = parseFloat((bestBid - tickSize * (2 + Math.floor(Math.random() * 3))).toFixed(2));
+        this.bids.set(spoofPrice, spoofSize);
+
+        // Retire après 2-4 updates (très rapide)
+        setTimeout(() => {
+          this.bids.delete(spoofPrice);
+        }, this.config.updateIntervalMs * (2 + Math.floor(Math.random() * 3)));
+      } else {
+        const bestAsk = Math.min(...this.asks.keys());
+        const spoofPrice = parseFloat((bestAsk + tickSize * (2 + Math.floor(Math.random() * 3))).toFixed(2));
+        this.asks.set(spoofPrice, spoofSize);
+
+        setTimeout(() => {
+          this.asks.delete(spoofPrice);
+        }, this.config.updateIntervalMs * (2 + Math.floor(Math.random() * 3)));
+      }
+    } else if (spoofType < 0.7) {
+      // Layering - multiple orders at different levels
+      const side = Math.random() < 0.5 ? 'bid' : 'ask';
+      const layers = 3 + Math.floor(Math.random() * 3);
+      const spoofPrices: number[] = [];
+
+      if (side === 'bid') {
+        const bestBid = Math.max(...this.bids.keys());
+        for (let i = 0; i < layers; i++) {
+          const price = parseFloat((bestBid - tickSize * (3 + i)).toFixed(2));
+          const size = 200 + Math.random() * 200 + i * 50;
+          this.bids.set(price, size);
+          spoofPrices.push(price);
+        }
+      } else {
+        const bestAsk = Math.min(...this.asks.keys());
+        for (let i = 0; i < layers; i++) {
+          const price = parseFloat((bestAsk + tickSize * (3 + i)).toFixed(2));
+          const size = 200 + Math.random() * 200 + i * 50;
+          this.asks.set(price, size);
+          spoofPrices.push(price);
+        }
+      }
+
+      // Remove all layers at once
       setTimeout(() => {
-        this.bids.delete(spoofPrice);
-      }, this.config.updateIntervalMs * (3 + Math.floor(Math.random() * 3)));
+        for (const price of spoofPrices) {
+          if (side === 'bid') {
+            this.bids.delete(price);
+          } else {
+            this.asks.delete(price);
+          }
+        }
+      }, this.config.updateIntervalMs * (4 + Math.floor(Math.random() * 4)));
     } else {
-      const bestAsk = Math.min(...this.asks.keys());
-      const spoofPrice = parseFloat((bestAsk + tickSize * 2).toFixed(2));
-      this.asks.set(spoofPrice, 500 + Math.random() * 300);
+      // Iceberg simulation - large hidden order that keeps refilling
+      const side = Math.random() < 0.5 ? 'bid' : 'ask';
+      const icebergPrice = side === 'bid'
+        ? parseFloat((Math.max(...this.bids.keys()) - tickSize).toFixed(2))
+        : parseFloat((Math.min(...this.asks.keys()) + tickSize).toFixed(2));
 
+      let remainingSize = 800 + Math.random() * 400;
+      const showSize = 80 + Math.random() * 40;
+
+      const refillInterval = setInterval(() => {
+        if (remainingSize <= 0) {
+          clearInterval(refillInterval);
+          return;
+        }
+
+        const currentShow = Math.min(showSize, remainingSize);
+        if (side === 'bid') {
+          this.bids.set(icebergPrice, currentShow);
+        } else {
+          this.asks.set(icebergPrice, currentShow);
+        }
+
+        // Simulate partial fill
+        remainingSize -= Math.random() * showSize * 0.5;
+      }, this.config.updateIntervalMs * 2);
+
+      // Stop after some time
       setTimeout(() => {
-        this.asks.delete(spoofPrice);
-      }, this.config.updateIntervalMs * (3 + Math.floor(Math.random() * 3)));
+        clearInterval(refillInterval);
+      }, this.config.updateIntervalMs * 20);
     }
   }
 

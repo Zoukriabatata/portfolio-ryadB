@@ -168,7 +168,7 @@ export const THEME_LIGHT: ChartTheme = {
 
 export const THEME_TRADINGVIEW: ChartTheme = {
   id: 'tradingview',
-  name: 'TradingView',
+  name: 'Orderflow Pro',
   colors: {
     background: '#131722',
     surface: '#1e222d',
@@ -200,7 +200,7 @@ export const THEME_TRADINGVIEW: ChartTheme = {
 
 export const THEME_MIDNIGHT: ChartTheme = {
   id: 'midnight',
-  name: 'Midnight',
+  name: 'Shadow',
   colors: {
     background: '#0d0d1a',
     surface: '#12121f',
@@ -232,7 +232,7 @@ export const THEME_MIDNIGHT: ChartTheme = {
 
 export const THEME_FOREST: ChartTheme = {
   id: 'forest',
-  name: 'Forest',
+  name: 'Matrix',
   colors: {
     background: '#0d1117',
     surface: '#161b22',
@@ -262,8 +262,42 @@ export const THEME_FOREST: ChartTheme = {
   grid: { visible: true, style: 'solid', opacity: 0.3 },
 };
 
+// SENZOUKRIA Theme - Senku Green / Kingdom of Science
+export const THEME_SENZOUKRIA: ChartTheme = {
+  id: 'senzoukria',
+  name: 'Senzoukria',
+  colors: {
+    background: '#060a08',
+    surface: '#0c1410',
+    text: '#e8f5e8',
+    textSecondary: '#8aab8a',
+    textMuted: '#5a7a5a',
+    border: '#1a2a1e',
+    gridLines: '#0f1e12',
+    candleUp: '#7ed321',
+    candleDown: '#e04040',
+    wickUp: '#5fa31a',
+    wickDown: '#b91c1c',
+    volumeUp: 'rgba(126, 211, 33, 0.5)',
+    volumeDown: 'rgba(224, 64, 64, 0.4)',
+    crosshair: '#7ed321',
+    crosshairLabel: '#0c1410',
+    toolDefault: '#5a7a5a',
+    toolActive: '#7ed321',
+    toolHover: '#a3e635',
+    success: '#7ed321',
+    warning: '#e2b93b',
+    error: '#e04040',
+  },
+  typography: DEFAULT_TYPOGRAPHY,
+  spacing: DEFAULT_SPACING,
+  candle: { bodyWidth: 0.85, wickWidth: 1, borderRadius: 0 },
+  grid: { visible: true, style: 'solid', opacity: 0.2 },
+};
+
 // Liste des thèmes
 export const THEMES: ChartTheme[] = [
+  THEME_SENZOUKRIA,
   THEME_DARK,
   THEME_LIGHT,
   THEME_TRADINGVIEW,
@@ -281,8 +315,8 @@ const THEME_STORAGE_KEY = 'chart-theme';
 const CUSTOM_COLORS_KEY = 'chart-custom-colors';
 
 export function loadThemeId(): string {
-  if (typeof window === 'undefined') return 'dark';
-  return localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
+  if (typeof window === 'undefined') return 'senzoukria';
+  return localStorage.getItem(THEME_STORAGE_KEY) || 'senzoukria';
 }
 
 export function saveThemeId(themeId: string): void {

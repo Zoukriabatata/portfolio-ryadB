@@ -36,10 +36,6 @@ interface LiveChartProps {
 // Symboles disponibles
 const SYMBOLS = [
   { value: 'btcusdt', label: 'BTC/USDT' },
-  { value: 'ethusdt', label: 'ETH/USDT' },
-  { value: 'solusdt', label: 'SOL/USDT' },
-  { value: 'bnbusdt', label: 'BNB/USDT' },
-  { value: 'xrpusdt', label: 'XRP/USDT' },
 ];
 
 // Timeframes disponibles

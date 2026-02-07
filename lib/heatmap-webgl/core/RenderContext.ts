@@ -27,17 +27,26 @@ export class RenderContext {
 
     // Check capabilities
     this._maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-    this._supportsInstancing = this._isWebGL2 || !!gl.getExtension('ANGLE_instanced_arrays');
 
     // Create regl context
+    // ANGLE_instanced_arrays must be listed for regl to allow divisor in attributes,
+    // even on WebGL2 where instancing is native (regl checks its extension registry).
+    // Listed as optional so we gracefully fall back to non-instanced rendering if unavailable.
     this.regl = createREGL({
       canvas,
       gl,
-      extensions: this._isWebGL2 ? [] : ['ANGLE_instanced_arrays', 'OES_vertex_array_object'],
-      optionalExtensions: ['OES_texture_float', 'OES_texture_half_float'],
+      optionalExtensions: [
+        'ANGLE_instanced_arrays',
+        'OES_vertex_array_object',
+        'OES_texture_float',
+        'OES_texture_half_float',
+      ],
     });
 
-    console.log(`[WebGL] Context created: WebGL${this._isWebGL2 ? '2' : '1'}, Max texture: ${this._maxTextureSize}, Instancing: ${this._supportsInstancing}`);
+    // Check instancing support from regl (authoritative source)
+    this._supportsInstancing = this.regl.hasExtension('ANGLE_instanced_arrays');
+
+    console.debug(`[WebGL] Context created: WebGL${this._isWebGL2 ? '2' : '1'}, Max texture: ${this._maxTextureSize}, Instancing: ${this._supportsInstancing}`);
   }
 
   get isWebGL2(): boolean {

@@ -1,0 +1,15 @@
+# Rithmic Bridge Dependencies
+# ════════════════════════════
+
+# WebSocket server for Next.js connection
+websockets>=12.0
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# Optional: Full Rithmic API (requires Rithmic license)
+# Uncomment when you have Rithmic API access:
+# pyrithmic>=0.1.0
+
+# For production with direct Protocol Buffers:
+# protobuf>=4.25.0

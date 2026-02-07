@@ -18,11 +18,18 @@ export type ToolType =
   | 'cursor'
   | 'crosshair'
   | 'trendline'
+  | 'ray'
   | 'horizontalLine'
   | 'horizontalRay'
   | 'verticalLine'
   | 'rectangle'
+  | 'parallelChannel'
   | 'fibRetracement'
+  | 'fibExtension'
+  | 'arrow'
+  | 'brush'
+  | 'highlighter'
+  | 'measure'
   | 'longPosition'
   | 'shortPosition'
   | 'text';
@@ -39,6 +46,7 @@ export interface ToolStyle {
   color: string;
   lineWidth: number;
   lineStyle: LineStyle;
+  opacity?: number;       // General tool opacity (0-1), default 1
   fillColor?: string;
   fillOpacity?: number;
   fontSize?: number;
@@ -103,10 +111,28 @@ export interface VerticalLineTool extends BaseTool {
   showTime: boolean;
 }
 
+export interface RectangleZone {
+  level: number;        // 0-1 where 0=top, 1=bottom (e.g., 0.5 for median)
+  label: string;        // Label to display (e.g., "50%", "VWAP", "POC")
+  color?: string;       // Override color for this zone line
+  lineStyle?: LineStyle;
+  showLabel?: boolean;
+  showPrice?: boolean;
+}
+
 export interface RectangleTool extends BaseTool {
   type: 'rectangle';
   topLeft: Point;
   bottomRight: Point;
+  // Enhanced features
+  showMedianLine?: boolean;      // Show 50% horizontal line
+  showZones?: boolean;           // Enable zone display
+  zones?: RectangleZone[];       // Custom zones (25%, 50%, 75%, etc.)
+  extendLeft?: boolean;          // Extend rectangle left
+  extendRight?: boolean;         // Extend rectangle right
+  showPriceLabels?: boolean;     // Show price labels at edges
+  showPercentLabels?: boolean;   // Show percentage labels in zones
+  zoneFillOpacity?: number;      // Opacity for zone fills (0-1)
 }
 
 export interface FibRetracementTool extends BaseTool {
@@ -116,6 +142,9 @@ export interface FibRetracementTool extends BaseTool {
   levels: number[];  // [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
   showLabels: boolean;
   showPrices: boolean;
+  extendLeft: boolean;   // Extend lines to left edge
+  extendRight: boolean;  // Extend lines to right edge
+  showFills: boolean;    // Show zone fills between levels
 }
 
 export interface PositionTool extends BaseTool {
@@ -129,12 +158,29 @@ export interface PositionTool extends BaseTool {
   riskReward?: number;
   showRR?: boolean;
   showPnL?: boolean;
+  extendRight: boolean;  // Extend to right edge of chart
+  compactMode: boolean;  // Cleaner, minimal design
+  showZoneFill: boolean; // Show profit/risk zone backgrounds
 }
 
 export interface TextTool extends BaseTool {
   type: 'text';
   point: Point;
   content: string;
+  // Editing state
+  isEditing: boolean;
+  // Anchor mode: 'price-time' follows chart, 'screen-fixed' stays in place
+  anchorMode: 'price-time' | 'screen-fixed';
+  screenPosition?: { x: number; y: number }; // For screen-fixed mode
+  // Typography
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: 'normal' | 'bold';
+  fontColor: string;
+  backgroundColor?: string;
+  padding: number;
+  borderRadius: number;
+  textAlign: 'left' | 'center' | 'right';
 }
 
 export type Tool =
@@ -194,6 +240,7 @@ export const DEFAULT_STYLES: Record<ToolType, ToolStyle> = {
   cursor: { color: '#ffffff', lineWidth: 1, lineStyle: 'solid' },
   crosshair: { color: '#ffffff', lineWidth: 1, lineStyle: 'dashed' },
   trendline: { color: '#3b82f6', lineWidth: 2, lineStyle: 'solid' },
+  ray: { color: '#8b5cf6', lineWidth: 2, lineStyle: 'solid' },
   horizontalLine: { color: '#f59e0b', lineWidth: 1, lineStyle: 'dashed' },
   horizontalRay: { color: '#8b5cf6', lineWidth: 1, lineStyle: 'solid' },
   verticalLine: { color: '#06b6d4', lineWidth: 1, lineStyle: 'dashed' },
@@ -204,7 +251,24 @@ export const DEFAULT_STYLES: Record<ToolType, ToolStyle> = {
     fillColor: '#06b6d4',
     fillOpacity: 0.1
   },
+  parallelChannel: {
+    color: '#22c55e',
+    lineWidth: 1,
+    lineStyle: 'solid',
+    fillColor: '#22c55e',
+    fillOpacity: 0.05
+  },
   fibRetracement: { color: '#f59e0b', lineWidth: 1, lineStyle: 'solid' },
+  fibExtension: { color: '#ec4899', lineWidth: 1, lineStyle: 'solid' },
+  arrow: { color: '#ef4444', lineWidth: 2, lineStyle: 'solid' },
+  brush: { color: '#3b82f6', lineWidth: 3, lineStyle: 'solid' },
+  highlighter: {
+    color: '#eab308',
+    lineWidth: 8,
+    lineStyle: 'solid',
+    fillOpacity: 0.3
+  },
+  measure: { color: '#8b5cf6', lineWidth: 1, lineStyle: 'dashed' },
   longPosition: {
     color: '#22c55e',
     lineWidth: 2,
@@ -242,7 +306,10 @@ export type ToolEvent =
   | 'drawing:end'
   | 'drag:start'
   | 'drag:update'
-  | 'drag:end';
+  | 'drag:end'
+  | 'text:edit-start'
+  | 'text:edit-end'
+  | 'text:edit-cancel';
 
 type ToolCallback = (tool: Tool | PreviewTool | null, event?: ToolEvent) => void;
 
@@ -375,6 +442,44 @@ export class ToolsEngine {
     }
 
     return deleted.length;
+  }
+
+  // ============ TEXT EDITING ============
+
+  /**
+   * Start editing a text tool
+   */
+  startTextEdit(toolId: string): void {
+    const tool = this.tools.get(toolId);
+    if (!tool || tool.type !== 'text') return;
+
+    this.updateTool(toolId, { isEditing: true } as Partial<Tool>);
+    this.emit('text:edit-start', tool);
+  }
+
+  /**
+   * Finish editing a text tool
+   */
+  finishTextEdit(toolId: string, newContent: string): void {
+    const tool = this.tools.get(toolId);
+    if (!tool || tool.type !== 'text') return;
+
+    this.updateTool(toolId, {
+      isEditing: false,
+      content: newContent,
+    } as Partial<Tool>);
+    this.emit('text:edit-end', tool);
+  }
+
+  /**
+   * Cancel text editing
+   */
+  cancelTextEdit(toolId: string): void {
+    const tool = this.tools.get(toolId);
+    if (!tool || tool.type !== 'text') return;
+
+    this.updateTool(toolId, { isEditing: false } as Partial<Tool>);
+    this.emit('text:edit-cancel', tool);
   }
 
   /**
@@ -652,6 +757,19 @@ export class ToolsEngine {
             time: Math.max(points[0].time, points[1].time),
             price: Math.min(points[0].price, points[1].price),
           },
+          // Enhanced features - defaults
+          showMedianLine: true,
+          showZones: false,
+          zones: [
+            { level: 0.25, label: '25%', showLabel: true, lineStyle: 'dotted' },
+            { level: 0.5, label: '50%', showLabel: true, lineStyle: 'dashed' },
+            { level: 0.75, label: '75%', showLabel: true, lineStyle: 'dotted' },
+          ],
+          extendLeft: false,
+          extendRight: false,
+          showPriceLabels: true,
+          showPercentLabels: false,
+          zoneFillOpacity: 0.05,
         };
 
       case 'fibRetracement':
@@ -664,6 +782,9 @@ export class ToolsEngine {
           levels: [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1],
           showLabels: true,
           showPrices: true,
+          extendLeft: false,   // DEFAULT: NO extension
+          extendRight: false,  // DEFAULT: NO extension
+          showFills: true,     // Show zone fills by default
         };
 
       case 'longPosition':
@@ -682,6 +803,9 @@ export class ToolsEngine {
           endTime: Math.max(points[0].time, points[1].time),
           showRR: true,
           showPnL: false,
+          extendRight: false,  // DEFAULT: NO extension
+          compactMode: false,  // Full design by default
+          showZoneFill: true,  // Show zone backgrounds
         };
 
       case 'text':
@@ -691,6 +815,16 @@ export class ToolsEngine {
           type: 'text',
           point: points[0],
           content: 'Text',
+          isEditing: true,  // Start in edit mode for new text
+          anchorMode: 'price-time',  // Follow chart by default
+          fontSize: 14,
+          fontFamily: 'system-ui, sans-serif',
+          fontWeight: 'normal',
+          fontColor: '#ffffff',
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          padding: 6,
+          borderRadius: 4,
+          textAlign: 'left',
         };
 
       default:
@@ -814,9 +948,42 @@ export class ToolsEngine {
         break;
       }
 
+      case 'fibRetracement': {
+        const orig = original as FibRetracementTool;
+        if (handle === 'start') {
+          updates = {
+            startPoint: {
+              time: orig.startPoint.time + deltaTime,
+              price: orig.startPoint.price + deltaPrice,
+            },
+          };
+        } else if (handle === 'end') {
+          updates = {
+            endPoint: {
+              time: orig.endPoint.time + deltaTime,
+              price: orig.endPoint.price + deltaPrice,
+            },
+          };
+        } else {
+          // Move entire fib
+          updates = {
+            startPoint: {
+              time: orig.startPoint.time + deltaTime,
+              price: orig.startPoint.price + deltaPrice,
+            },
+            endPoint: {
+              time: orig.endPoint.time + deltaTime,
+              price: orig.endPoint.price + deltaPrice,
+            },
+          };
+        }
+        break;
+      }
+
       case 'longPosition':
       case 'shortPosition': {
         const orig = original as PositionTool;
+        const isLong = orig.type === 'longPosition';
         if (handle === 'start') {
           // Drag entry line (price only)
           updates = { entry: orig.entry + deltaPrice };
@@ -827,11 +994,33 @@ export class ToolsEngine {
           // Drag SL line (price only)
           updates = { stopLoss: orig.stopLoss + deltaPrice };
         } else if (handle === 'top-left') {
-          // Resize left boundary
-          updates = { startTime: orig.startTime + deltaTime };
+          // Top-left corner: resize TP price + startTime
+          updates = {
+            takeProfit: isLong ? orig.takeProfit + deltaPrice : orig.takeProfit,
+            stopLoss: isLong ? orig.stopLoss : orig.stopLoss + deltaPrice,
+            startTime: orig.startTime + deltaTime,
+          };
         } else if (handle === 'top-right') {
-          // Resize right boundary
-          updates = { endTime: orig.endTime + deltaTime };
+          // Top-right corner: resize TP price + endTime
+          updates = {
+            takeProfit: isLong ? orig.takeProfit + deltaPrice : orig.takeProfit,
+            stopLoss: isLong ? orig.stopLoss : orig.stopLoss + deltaPrice,
+            endTime: orig.endTime + deltaTime,
+          };
+        } else if (handle === 'bottom-left') {
+          // Bottom-left corner: resize SL price + startTime
+          updates = {
+            stopLoss: isLong ? orig.stopLoss + deltaPrice : orig.stopLoss,
+            takeProfit: isLong ? orig.takeProfit : orig.takeProfit + deltaPrice,
+            startTime: orig.startTime + deltaTime,
+          };
+        } else if (handle === 'bottom-right') {
+          // Bottom-right corner: resize SL price + endTime
+          updates = {
+            stopLoss: isLong ? orig.stopLoss + deltaPrice : orig.stopLoss,
+            takeProfit: isLong ? orig.takeProfit : orig.takeProfit + deltaPrice,
+            endTime: orig.endTime + deltaTime,
+          };
         } else {
           // Move entire position (both time and price)
           updates = {
@@ -922,6 +1111,13 @@ export class ToolsEngine {
       case 'horizontalLine': {
         const lineY = priceToY(tool.price);
         const distance = Math.abs(py - lineY);
+
+        // Check left anchor point (for dragging)
+        const anchorX = 10;
+        if (Math.hypot(px - anchorX, py - lineY) <= 12) {
+          return { tool, handle: 'start', distance: 0 };
+        }
+
         if (distance <= tolerance) {
           return { tool, handle: null, distance };
         }
@@ -934,15 +1130,13 @@ export class ToolsEngine {
         const x2 = timeToX(tool.endPoint.time);
         const y2 = priceToY(tool.endPoint.price);
 
-        // Check handles first
-        if (tool.selected) {
-          const handleSize = 8;
-          if (Math.hypot(px - x1, py - y1) <= handleSize) {
-            return { tool, handle: 'start', distance: 0 };
-          }
-          if (Math.hypot(px - x2, py - y2) <= handleSize) {
-            return { tool, handle: 'end', distance: 0 };
-          }
+        // Check handles first (larger hit area for easier grabbing)
+        const handleHitSize = 12;
+        if (Math.hypot(px - x1, py - y1) <= handleHitSize) {
+          return { tool, handle: 'start', distance: 0 };
+        }
+        if (Math.hypot(px - x2, py - y2) <= handleHitSize) {
+          return { tool, handle: 'end', distance: 0 };
         }
 
         // Check line
@@ -959,25 +1153,27 @@ export class ToolsEngine {
         const x2 = timeToX(tool.bottomRight.time);
         const y2 = priceToY(tool.bottomRight.price);
 
-        // Check handles first (if selected)
-        if (tool.selected) {
-          const handleSize = 8;
-          if (Math.hypot(px - x1, py - y1) <= handleSize) {
-            return { tool, handle: 'top-left', distance: 0 };
-          }
-          if (Math.hypot(px - x2, py - y2) <= handleSize) {
-            return { tool, handle: 'bottom-right', distance: 0 };
-          }
-          if (Math.hypot(px - x2, py - y1) <= handleSize) {
-            return { tool, handle: 'top-right', distance: 0 };
-          }
-          if (Math.hypot(px - x1, py - y2) <= handleSize) {
-            return { tool, handle: 'bottom-left', distance: 0 };
-          }
+        // Check handles first (larger hit area)
+        const handleHitSize = 12;
+        if (Math.hypot(px - x1, py - y1) <= handleHitSize) {
+          return { tool, handle: 'top-left', distance: 0 };
+        }
+        if (Math.hypot(px - x2, py - y2) <= handleHitSize) {
+          return { tool, handle: 'bottom-right', distance: 0 };
+        }
+        if (Math.hypot(px - x2, py - y1) <= handleHitSize) {
+          return { tool, handle: 'top-right', distance: 0 };
+        }
+        if (Math.hypot(px - x1, py - y2) <= handleHitSize) {
+          return { tool, handle: 'bottom-left', distance: 0 };
         }
 
         // Check if inside rectangle
-        if (px >= x1 && px <= x2 && py >= y1 && py <= y2) {
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
           return { tool, handle: 'center', distance: 0 };
         }
 
@@ -1005,28 +1201,32 @@ export class ToolsEngine {
         const topY = Math.min(entryY, slY, tpY);
         const bottomY = Math.max(entryY, slY, tpY);
 
-        // Check handles if selected
-        if (tool.selected) {
-          const handleSize = 8;
+        // Check handles (larger hit area for easier grabbing)
+        const handleHitSize = 12;
 
-          // Corner handles for resizing width
-          if (Math.hypot(px - leftX, py - topY) <= handleSize) {
-            return { tool, handle: 'top-left', distance: 0 };
-          }
-          if (Math.hypot(px - rightX, py - topY) <= handleSize) {
-            return { tool, handle: 'top-right', distance: 0 };
-          }
+        // Corner handles for resizing width
+        if (Math.hypot(px - leftX, py - topY) <= handleHitSize) {
+          return { tool, handle: 'top-left', distance: 0 };
+        }
+        if (Math.hypot(px - rightX, py - topY) <= handleHitSize) {
+          return { tool, handle: 'top-right', distance: 0 };
+        }
+        if (Math.hypot(px - leftX, py - bottomY) <= handleHitSize) {
+          return { tool, handle: 'bottom-left', distance: 0 };
+        }
+        if (Math.hypot(px - rightX, py - bottomY) <= handleHitSize) {
+          return { tool, handle: 'bottom-right', distance: 0 };
+        }
 
-          // Price line handles (on left edge)
-          if (Math.abs(py - entryY) <= handleSize && Math.abs(px - leftX) <= handleSize * 2) {
-            return { tool, handle: 'start', distance: 0 };
-          }
-          if (Math.abs(py - tpY) <= handleSize && Math.abs(px - leftX) <= handleSize * 2) {
-            return { tool, handle: 'end', distance: 0 };
-          }
-          if (Math.abs(py - slY) <= handleSize && Math.abs(px - leftX) <= handleSize * 2) {
-            return { tool, handle: 'center', distance: 0 };
-          }
+        // Price line handles (on left edge) - always check, not just when selected
+        if (Math.abs(py - entryY) <= handleHitSize && Math.abs(px - leftX) <= handleHitSize * 2) {
+          return { tool, handle: 'start', distance: 0 };
+        }
+        if (Math.abs(py - tpY) <= handleHitSize && Math.abs(px - leftX) <= handleHitSize * 2) {
+          return { tool, handle: 'end', distance: 0 };
+        }
+        if (Math.abs(py - slY) <= handleHitSize && Math.abs(px - leftX) <= handleHitSize * 2) {
+          return { tool, handle: 'center', distance: 0 };
         }
 
         // Check if inside position bounds
@@ -1045,6 +1245,48 @@ export class ToolsEngine {
           if (minDist <= tolerance) {
             return { tool, handle: null, distance: minDist };
           }
+        }
+        break;
+      }
+
+      case 'fibRetracement': {
+        const x1 = timeToX(tool.startPoint.time);
+        const y1 = priceToY(tool.startPoint.price);
+        const x2 = timeToX(tool.endPoint.time);
+        const y2 = priceToY(tool.endPoint.price);
+
+        // Check handles first (larger hit area for easier grabbing)
+        const handleHitSize = 12;
+        if (Math.hypot(px - x1, py - y1) <= handleHitSize) {
+          return { tool, handle: 'start', distance: 0 };
+        }
+        if (Math.hypot(px - x2, py - y2) <= handleHitSize) {
+          return { tool, handle: 'end', distance: 0 };
+        }
+
+        // Check Fibonacci level lines
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const priceRange = tool.startPoint.price - tool.endPoint.price;
+        const levels = tool.levels || [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+
+        // Only check if within horizontal bounds (with some tolerance)
+        if (px >= minX - tolerance && px <= maxX + tolerance) {
+          for (const level of levels) {
+            const levelPrice = tool.endPoint.price + priceRange * level;
+            const levelY = priceToY(levelPrice);
+            const distance = Math.abs(py - levelY);
+            if (distance <= tolerance) {
+              return { tool, handle: null, distance };
+            }
+          }
+        }
+
+        // Check if clicking between start and end points vertically (to select the entire tool)
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+          return { tool, handle: 'center', distance: 0 };
         }
         break;
       }
@@ -1078,6 +1320,7 @@ export class ToolsEngine {
 
   /**
    * Get handles for a tool (for rendering)
+   * Returns handles for selected tools with larger size for better visibility
    */
   getToolHandles(
     tool: Tool,
@@ -1087,9 +1330,21 @@ export class ToolsEngine {
     if (!tool.selected) return [];
 
     const handles: Handle[] = [];
-    const size = 8;
+    const size = 10; // Larger handles for better visibility
 
     switch (tool.type) {
+      case 'horizontalLine': {
+        const y = priceToY(tool.price);
+        handles.push({
+          position: 'start',
+          x: 10,
+          y,
+          size,
+          cursor: 'ns-resize',
+        });
+        break;
+      }
+
       case 'trendline': {
         handles.push({
           position: 'start',
@@ -1121,26 +1376,60 @@ export class ToolsEngine {
         break;
       }
 
+      case 'fibRetracement': {
+        // Start and end point handles for resizing
+        handles.push({
+          position: 'start',
+          x: timeToX(tool.startPoint.time),
+          y: priceToY(tool.startPoint.price),
+          size,
+          cursor: 'move',
+        });
+        handles.push({
+          position: 'end',
+          x: timeToX(tool.endPoint.time),
+          y: priceToY(tool.endPoint.price),
+          size,
+          cursor: 'move',
+        });
+        break;
+      }
+
       case 'longPosition':
       case 'shortPosition': {
         const leftX = timeToX(tool.startTime);
         const rightX = timeToX(tool.endTime);
         const topY = Math.min(priceToY(tool.entry), priceToY(tool.stopLoss), priceToY(tool.takeProfit));
+        const bottomY = Math.max(priceToY(tool.entry), priceToY(tool.stopLoss), priceToY(tool.takeProfit));
 
-        // Corner handles for width resizing
+        // 4 Corner handles
         handles.push({
           position: 'top-left',
           x: leftX,
           y: topY,
           size,
-          cursor: 'ew-resize',
+          cursor: 'nwse-resize',
         });
         handles.push({
           position: 'top-right',
           x: rightX,
           y: topY,
           size,
-          cursor: 'ew-resize',
+          cursor: 'nesw-resize',
+        });
+        handles.push({
+          position: 'bottom-left',
+          x: leftX,
+          y: bottomY,
+          size,
+          cursor: 'nesw-resize',
+        });
+        handles.push({
+          position: 'bottom-right',
+          x: rightX,
+          y: bottomY,
+          size,
+          cursor: 'nwse-resize',
         });
 
         // Price line handles (on left edge)

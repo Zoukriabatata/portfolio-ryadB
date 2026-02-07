@@ -11,6 +11,12 @@ import { HeatmapZoomController } from '@/lib/heatmap/HeatmapZoomController';
 import { TradeFlowRenderer } from './TradeFlowRenderer';
 import { HeatmapSettingsPanel } from './HeatmapSettingsPanel';
 import { ContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
+import { PassiveLiquiditySimulator } from '@/lib/orderflow/PassiveLiquiditySimulator';
+import { TapeVelocityEngine } from '@/lib/heatmap/analytics/TapeVelocityEngine';
+import { TapeSpeedMeter, StopRunAlert } from '@/components/widgets/TapeSpeedMeter';
+import type { TapeVelocityStats } from '@/lib/heatmap/analytics/TapeVelocityEngine';
+import type { PassiveOrderLevel, AbsorptionResult, PassiveOrderSide } from '@/types/passive-liquidity';
+import type { AbsorptionLevelEvent } from '@/lib/heatmap/rendering/AbsorptionLevelMarker';
 import type { HeatmapStats, PriceRange } from '@/types/heatmap';
 import type { Point, ContextMenuState, OrderbookSnapshot } from './types';
 import { DEFAULT_RENDER_CONFIG } from './types';
@@ -29,6 +35,8 @@ export function LiquidityHeatmapPro({
   const rendererRef = useRef<HeatmapRenderer | null>(null);
   const zoomControllerRef = useRef<HeatmapZoomController | null>(null);
   const tradeFlowRendererRef = useRef<TradeFlowRenderer | null>(null);
+  const passiveSimulatorRef = useRef<PassiveLiquiditySimulator | null>(null);
+  const tapeVelocityRef = useRef<TapeVelocityEngine | null>(null);
   const animationFrameRef = useRef<number>(0);
   const lastRenderTimeRef = useRef<number>(0);
   const targetFPS = 60; // 60 FPS
@@ -62,15 +70,48 @@ export function LiquidityHeatmapPro({
     totalVolume: number;
   } | null>(null);
 
+  // Tape velocity stats for UI
+  const [tapeStats, setTapeStats] = useState<TapeVelocityStats>({
+    tradesPerSecond: 0,
+    buyPressure: 0.5,
+    sellPressure: 0.5,
+    velocity: 'slow',
+    momentum: 'neutral',
+    stopRunDetected: false,
+    recentTrades: 0,
+    recentBuyVolume: 0,
+    recentSellVolume: 0,
+  });
+
+  // Absorption levels for rendering
+  const [absorptionLevels, setAbsorptionLevels] = useState<Map<string, PassiveOrderLevel>>(new Map());
+  const [maxBidVolume, setMaxBidVolume] = useState(100);
+  const [maxAskVolume, setMaxAskVolume] = useState(100);
+
   // Stores
   const settings = useHeatmapSettingsStore();
   const { bids, asks, midPrice, heatmapHistory } = useOrderbookStore();
   const { currentPrice, symbol } = useMarketStore();
   const { tradeEvents, addTrade } = useTradeStore();
 
-  // Calculate best bid/ask
-  const bestBid = bids.size > 0 ? Math.max(...bids.keys()) : 0;
-  const bestAsk = asks.size > 0 ? Math.min(...asks.keys()) : 0;
+  // Calculate best bid/ask (optimized - avoid spread on large Maps)
+  const bestBid = React.useMemo(() => {
+    if (bids.size === 0) return 0;
+    let max = -Infinity;
+    for (const key of bids.keys()) {
+      if (key > max) max = key;
+    }
+    return max;
+  }, [bids]);
+
+  const bestAsk = React.useMemo(() => {
+    if (asks.size === 0) return 0;
+    let min = Infinity;
+    for (const key of asks.keys()) {
+      if (key < min) min = key;
+    }
+    return min;
+  }, [asks]);
 
   // Get tick size from symbol
   const tickSize = getTickSize(symbol);
@@ -184,6 +225,19 @@ export function LiquidityHeatmapPro({
 
     tradeFlowRendererRef.current = new TradeFlowRenderer(settings.tradeFlow);
 
+    // Initialize passive liquidity simulator
+    passiveSimulatorRef.current = new PassiveLiquiditySimulator({
+      tickSize: tickSize,
+      baseLiquidity: 20,
+      wallProbability: 0.1,
+      wallMultiplier: 5,
+      icebergEnabled: true,
+      icebergProbability: 0.08,
+    });
+
+    // Initialize tape velocity engine
+    tapeVelocityRef.current = new TapeVelocityEngine();
+
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -204,6 +258,79 @@ export function LiquidityHeatmapPro({
     // Start trade cleanup interval
     startTradeCleanup(5000);
 
+    // Process trade through absorption and tape velocity
+    const processTrade = (trade: { price: number; quantity: number; isBuyerMaker: boolean; time?: number }) => {
+      // Add to trade store
+      addTrade(trade as any);
+
+      // Process through passive liquidity simulator
+      if (passiveSimulatorRef.current) {
+        const result = passiveSimulatorRef.current.processTrade({
+          price: trade.price,
+          quantity: trade.quantity,
+          timestamp: trade.time || Date.now(),
+          isBuyerMaker: trade.isBuyerMaker,
+        });
+
+        // Handle iceberg refill
+        if (result.icebergRefilled && result.affectedLevel && rendererRef.current) {
+          const levelKey = `${result.affectedLevel.price}_${result.affectedLevel.side}`;
+          rendererRef.current.markIcebergRefill(levelKey);
+        }
+
+        // Record level events for visualization
+        if (result.affectedLevel && rendererRef.current) {
+          const level = result.affectedLevel;
+
+          if (result.levelExecuted) {
+            // Level was broken through - record BROKE event
+            rendererRef.current.recordAbsorptionEvent({
+              price: level.price,
+              side: level.side,
+              type: 'broke',
+              timestamp: trade.time || Date.now(),
+              volumeAbsorbed: level.absorbedVolume,
+            });
+          } else if (level.status === 'absorbing' && level.displayWidth < 0.5 && level.displayWidth > 0.1) {
+            // Level is absorbing significant volume - record ABSORBING event
+            rendererRef.current.recordAbsorptionEvent({
+              price: level.price,
+              side: level.side,
+              type: 'absorbing',
+              timestamp: trade.time || Date.now(),
+              volumeAbsorbed: level.absorbedVolume,
+            });
+          } else if (level.status === 'active' && level.absorbedVolume > 0 && level.displayWidth > 0.7) {
+            // Level absorbed and bounced - record HELD event
+            rendererRef.current.recordAbsorptionEvent({
+              price: level.price,
+              side: level.side,
+              type: 'held',
+              timestamp: trade.time || Date.now(),
+              volumeAbsorbed: level.absorbedVolume,
+            });
+          }
+        }
+
+        // Record level break for stop run detection
+        if (result.levelExecuted && result.affectedLevel && tapeVelocityRef.current) {
+          tapeVelocityRef.current.recordLevelBreak(
+            result.affectedLevel.price,
+            trade.isBuyerMaker ? 'sell' : 'buy'
+          );
+        }
+      }
+
+      // Record in tape velocity engine
+      if (tapeVelocityRef.current) {
+        tapeVelocityRef.current.recordTrade(
+          trade.price,
+          trade.quantity,
+          !trade.isBuyerMaker // isBuy = !isBuyerMaker
+        );
+      }
+    };
+
     // Only subscribe if it's a Binance symbol (crypto)
     const isBinanceSymbol = symbol.toUpperCase().includes('USDT') ||
                             symbol.toUpperCase() === 'BTCUSDT' ||
@@ -216,7 +343,7 @@ export function LiquidityHeatmapPro({
       unsubscribe = binanceWS.subscribeTrades(
         symbol.toUpperCase(),
         (trade) => {
-          addTrade(trade);
+          processTrade(trade);
         },
         'futures'
       );
@@ -256,9 +383,25 @@ export function LiquidityHeatmapPro({
           isBuyerMaker: !isBuy,
         };
 
-        addTrade(simulatedTrade);
+        processTrade(simulatedTrade);
       }, 80 + Math.random() * 150); // Every 80-230ms (faster)
     }
+
+    // Update tape stats and absorption levels periodically
+    const statsInterval = setInterval(() => {
+      // Update tape velocity stats
+      if (tapeVelocityRef.current) {
+        setTapeStats(tapeVelocityRef.current.getStats());
+      }
+
+      // Update absorption levels from simulator
+      if (passiveSimulatorRef.current) {
+        const snapshot = passiveSimulatorRef.current.getCoherentSnapshot();
+        setAbsorptionLevels(new Map(snapshot.levels));
+        setMaxBidVolume(snapshot.maxBidVolume || 100);
+        setMaxAskVolume(snapshot.maxAskVolume || 100);
+      }
+    }, 100); // Update 10x per second
 
     return () => {
       if (unsubscribe) {
@@ -266,6 +409,9 @@ export function LiquidityHeatmapPro({
       }
       if (simulationInterval) {
         clearInterval(simulationInterval);
+      }
+      if (statsInterval) {
+        clearInterval(statsInterval);
       }
       stopTradeCleanup();
     };
@@ -319,6 +465,15 @@ export function LiquidityHeatmapPro({
       const stats = getStats();
       const history = getSnapshots();
 
+      // Update visible range on passive simulator
+      if (passiveSimulatorRef.current) {
+        passiveSimulatorRef.current.setVisibleRange(priceRange.min, priceRange.max);
+        passiveSimulatorRef.current.setConfig({
+          basePrice: currentPrice || midPrice,
+          tickSize,
+        });
+      }
+
       rendererRef.current.render({
         history,
         currentBids: bids,
@@ -331,6 +486,10 @@ export function LiquidityHeatmapPro({
         tickSize,
         mousePosition,
         stats,
+        // Pass absorption data for visualization
+        passiveLevels: absorptionLevels,
+        maxBidVolume,
+        maxAskVolume,
       });
 
       // DÉSACTIVÉ: Trade flow bubbles (rectangles cyan/rouge) - retirées car dérangent
@@ -365,7 +524,7 @@ export function LiquidityHeatmapPro({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, settings.tradeFlow.enabled, tradeEvents, frameInterval]);
+  }, [bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, settings.tradeFlow.enabled, tradeEvents, frameInterval, absorptionLevels, maxBidVolume, maxAskVolume]);
 
   // Handle resize
   useEffect(() => {
@@ -757,13 +916,16 @@ export function LiquidityHeatmapPro({
         )}
       </div>
 
-      {/* Trade Flow indicator */}
-      {settings.tradeFlow.enabled && tradeEvents.length > 0 && (
-        <div className="absolute top-2 left-2 px-2 py-1 bg-zinc-800/90 rounded text-xs text-zinc-300 font-mono flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span>{tradeEvents.length} trades</span>
-        </div>
-      )}
+      {/* Tape Speed Meter - Orderflow Panel */}
+      <div className="absolute top-2 left-2">
+        <TapeSpeedMeter stats={tapeStats} />
+      </div>
+
+      {/* Stop Run Alert */}
+      <StopRunAlert
+        detected={tapeStats.stopRunDetected}
+        side={tapeStats.stopRunSide}
+      />
 
       {/* Controls hint */}
       <div className="absolute bottom-12 left-2 text-[10px] text-zinc-600 pointer-events-none">

@@ -20,6 +20,7 @@ import { MarketState, SimulationConfig, DrawingType, TradeFlowSettings as Render
 import { HybridRenderer, adaptMarketState } from '@/lib/heatmap-webgl';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
 import LiquidityAdvancedSettings from '@/components/settings/LiquidityAdvancedSettings';
+import type { TimeSalesTrade } from '@/components/trading';
 
 export type DataMode = 'simulation' | 'live';
 
@@ -116,6 +117,9 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     showDrawings,
     passiveThickness,
     staircaseLine,
+    grid: gridSettings,
+    passiveOrders: passiveOrderSettings,
+    timeSales: timeSalesSettings,
   } = displayFeatures;
 
   // Create renderer-compatible trade flow settings
@@ -129,6 +133,18 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
     sellColor: tradeFlowSettings.sellColor,
     passiveThickness,
   }), [tradeFlowSettings, passiveThickness]);
+
+  // Convert MarketState trades to TimeSalesPanel format
+  const timeSalesTrades = useMemo<TimeSalesTrade[]>(() => {
+    if (!state) return [];
+    return state.trades.map((trade, index) => ({
+      id: `${trade.timestamp}-${index}`,
+      timestamp: trade.timestamp,
+      price: trade.price,
+      size: trade.size,
+      side: trade.side,
+    }));
+  }, [state?.trades]);
 
   const [crosshair, setCrosshair] = useState<CrosshairInfo>({
     x: 0,
@@ -280,7 +296,8 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
       rendererRef.current = null;
       webglRendererRef.current = null;
     };
-  }, [dataMode, symbol, useWebGL, priceAxisWidth, deltaProfileWidth, volumeProfileWidth]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataMode, symbol, useWebGL, priceAxisWidth, deltaProfileWidth, volumeProfileWidth, config?.tickSize, config?.basePrice]);
 
   // Boucle de rendu
   useEffect(() => {
@@ -316,6 +333,35 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
           if (staircaseLine) {
             renderData.staircaseSettings = staircaseLine;
           }
+
+          // Add grid settings
+          if (gridSettings) {
+            renderData.gridSettings = gridSettings;
+          }
+
+          // Add passive order settings
+          if (passiveOrderSettings) {
+            renderData.passiveOrderSettings = passiveOrderSettings;
+          }
+
+          // Add trade bubble settings
+          renderData.tradeBubbleSettings = {
+            showBorder: (tradeFlowSettings.bubbleBorderWidth ?? 1.5) > 0,
+            borderWidth: (tradeFlowSettings.bubbleBorderWidth ?? 1.5) / 100, // Normalize for shader
+            borderColor: tradeFlowSettings.bubbleBorderColor === 'auto'
+              ? 'rgba(255, 255, 255, 0.5)'
+              : tradeFlowSettings.bubbleBorderColor,
+            glowEnabled: tradeFlowSettings.glowEnabled ?? true,
+            glowIntensity: tradeFlowSettings.glowIntensity ?? 0.6,
+            showGradient: tradeFlowSettings.showGradient ?? true,
+            rippleEnabled: tradeFlowSettings.rippleEnabled ?? true,
+            largeTradeThreshold: tradeFlowSettings.largeTradeThreshold ?? 2.0,
+            sizeScaling: tradeFlowSettings.sizeScaling ?? 'sqrt',
+            popInAnimation: tradeFlowSettings.popInAnimation ?? true,
+            bubbleOpacity: tradeFlowSettings.bubbleOpacity ?? 0.7,
+            maxSize: (tradeFlowSettings.bubbleSize ?? 0.6) * 80, // Base max size scaled
+            minSize: 8,
+          };
 
           // Add crosshair data
           if (crosshair.visible) {
@@ -998,6 +1044,8 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
           </div>
         </div>
       </div>
+
+      {/* Time & Sales rendered by Canvas2D renderer (HeatmapRenderer.renderTimeSales) */}
     </div>
   );
 }

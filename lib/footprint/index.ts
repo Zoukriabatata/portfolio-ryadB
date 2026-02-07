@@ -12,3 +12,19 @@ export {
   type FootprintSession,
   type LoadHistoryOptions,
 } from './FootprintDataService';
+
+export {
+  SessionFootprintService,
+  getSessionFootprintService,
+  resetSessionFootprintService,
+  type AggTrade,
+  type SessionConfig,
+  type SessionState,
+} from './SessionFootprintService';
+
+export {
+  OptimizedFootprintService,
+  getOptimizedFootprintService,
+  resetOptimizedFootprintService,
+  type OptimizedConfig,
+} from './OptimizedFootprintService';

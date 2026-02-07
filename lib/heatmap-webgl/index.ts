@@ -5,7 +5,14 @@
 
 // Main exports
 export { HybridRenderer, type HybridRendererConfig, type RenderData } from './HybridRenderer';
-export { Canvas2DOverlay, type OverlayConfig } from './Canvas2DOverlay';
+export {
+  Canvas2DOverlay,
+  type OverlayConfig,
+  type PriceLabel,
+  type TimeLabel,
+  type StatItem,
+  type LabelFormatOptions,
+} from './Canvas2DOverlay';
 
 // Core
 export { RenderContext } from './core/RenderContext';
@@ -17,7 +24,9 @@ export {
   LinesCommand,
   TradeBubblesCommand,
   type HeatmapRenderProps,
+  type GridLine,
   type GridRenderProps,
+  type TickMarkRenderProps,
   type StaircaseRenderProps,
   type TradeBubbleRenderProps,
 } from './commands';
@@ -26,8 +35,12 @@ export {
 export {
   heatmapVert,
   heatmapFrag,
+  heatmapInstancedVert,
+  heatmapInstancedFrag,
   gridVert,
   gridFrag,
+  tickMarkVert,
+  tickMarkFrag,
   staircaseVert,
   staircaseFrag,
   fillAreaVert,
@@ -46,11 +59,38 @@ export {
 // Adapters
 export { adaptMarketState, createEmptyRenderData } from './adapters';
 
+// Themes
+export {
+  type OrderflowTheme,
+  type OrderflowColors,
+  type HeatmapGradient,
+  type ThemeName,
+  THEME_SENZOUKRIA,
+  THEME_ATAS,
+  THEME_BOOKMAP,
+  THEME_SIERRA,
+  THEME_HIGHCONTRAST,
+  THEMES,
+  getTheme,
+  generateGradientData,
+  hexToRgb,
+  rgbToHex,
+} from './themes';
+
+// Key Levels
+export {
+  KeyLevelsCommand,
+  type KeyLevel,
+  type KeyLevelType,
+  type KeyLevelsRenderProps,
+} from './commands/KeyLevelsCommand';
+
 // Types
 export type {
   WebGLRenderConfig,
   HeatmapCell,
   PassiveOrderData,
+  OrderState,
   TradeData,
   LineData,
   DirtyFlags,

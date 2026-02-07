@@ -46,16 +46,26 @@ const BOOKMAP_GRADIENT: GradientStop[] = [
   { stop: 1.00, r: 255, g: 50, b: 50, a: 1.0 },
 ];
 
-// Heatmap Fire: Noir → Rouge → Orange → Jaune → Blanc
-const FIRE_GRADIENT: GradientStop[] = [
+// Sierra Chart Style: Dark teal → Green → Orange (warm earthy tones)
+const SIERRA_GRADIENT: GradientStop[] = [
+  { stop: 0.00, r: 26, g: 26, b: 46, a: 0.0 },
+  { stop: 0.15, r: 31, g: 64, b: 55, a: 0.4 },
+  { stop: 0.30, r: 45, g: 106, b: 79, a: 0.55 },
+  { stop: 0.45, r: 64, g: 145, b: 108, a: 0.7 },
+  { stop: 0.60, r: 82, g: 183, b: 136, a: 0.8 },
+  { stop: 0.75, r: 187, g: 62, b: 3, a: 0.85 },
+  { stop: 0.90, r: 232, g: 93, b: 4, a: 0.95 },
+  { stop: 1.00, r: 244, g: 162, b: 97, a: 1.0 },
+];
+
+// High Contrast: Black → Green → Yellow (accessibility-focused)
+const HIGHCONTRAST_GRADIENT: GradientStop[] = [
   { stop: 0.00, r: 0, g: 0, b: 0, a: 0.0 },
-  { stop: 0.15, r: 30, g: 0, b: 0, a: 0.4 },
-  { stop: 0.30, r: 80, g: 10, b: 0, a: 0.55 },
-  { stop: 0.45, r: 150, g: 30, b: 0, a: 0.7 },
-  { stop: 0.60, r: 220, g: 80, b: 0, a: 0.8 },
-  { stop: 0.75, r: 255, g: 150, b: 30, a: 0.9 },
-  { stop: 0.90, r: 255, g: 220, b: 100, a: 0.95 },
-  { stop: 1.00, r: 255, g: 255, b: 200, a: 1.0 },
+  { stop: 0.20, r: 0, g: 100, b: 0, a: 0.6 },
+  { stop: 0.40, r: 0, g: 255, b: 0, a: 0.8 },
+  { stop: 0.60, r: 127, g: 255, b: 0, a: 0.9 },
+  { stop: 0.80, r: 255, g: 255, b: 0, a: 0.95 },
+  { stop: 1.00, r: 255, g: 255, b: 255, a: 1.0 },
 ];
 
 export class HeatmapColorEngine {
@@ -75,8 +85,10 @@ export class HeatmapColorEngine {
         return ATAS_GRADIENT;
       case 'bookmap':
         return BOOKMAP_GRADIENT;
-      case 'custom':
-        return FIRE_GRADIENT;
+      case 'sierra':
+        return SIERRA_GRADIENT;
+      case 'highcontrast':
+        return HIGHCONTRAST_GRADIENT;
       default:
         return ATAS_GRADIENT;
     }

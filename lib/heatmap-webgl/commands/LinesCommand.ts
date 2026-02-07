@@ -5,13 +5,30 @@
 
 import type { RenderContext } from '../core/RenderContext';
 import type { LineData } from '../types';
-import { gridVert, gridFrag, staircaseVert, staircaseFrag, fillAreaVert, fillAreaFrag } from '../shaders/heatmap';
+import { gridVert, gridFrag, tickMarkVert, tickMarkFrag, staircaseVert, staircaseFrag, fillAreaVert, fillAreaFrag } from '../shaders/heatmap';
 import { TextureManager } from '../core/TextureManager';
 
+export interface GridLine {
+  position: number;  // Y for horizontal, X for vertical
+  isMajor: boolean;
+}
+
 export interface GridRenderProps {
-  horizontalLines: number[]; // Y positions
-  verticalLines: number[]; // X positions
-  color: string;
+  horizontalLines: GridLine[]; // Y positions with major/minor
+  verticalLines: GridLine[]; // X positions with major/minor
+  majorColor: string;
+  minorColor: string;
+  majorOpacity: number;
+  minorOpacity: number;
+  gridStyle: 'solid' | 'dashed' | 'dotted';
+}
+
+export interface TickMarkRenderProps {
+  ticks: { y: number; isHighlight: boolean }[];
+  x: number;          // X position of tick marks
+  tickSize: number;   // Length of tick mark
+  normalColor: string;
+  highlightColor: string;
   opacity: number;
 }
 
@@ -33,11 +50,16 @@ export interface StaircaseRenderProps {
 export class LinesCommand {
   private ctx: RenderContext;
   private gridCommand: ReturnType<RenderContext['regl']> | null = null;
+  private tickMarkCommand: ReturnType<RenderContext['regl']> | null = null;
   private staircaseCommand: ReturnType<RenderContext['regl']> | null = null;
   private fillCommand: ReturnType<RenderContext['regl']> | null = null;
 
   // Reusable buffers
   private gridBuffer: Float32Array;
+  private gridLineTypeBuffer: Float32Array; // 0 = minor, 1 = major
+  // Tick mark buffers
+  private tickBuffer: Float32Array;
+  private tickHighlightBuffer: Float32Array;
   // Thick line buffers (2 triangles per segment = 6 vertices)
   private staircasePositionBuffer: Float32Array;
   private staircaseNormalBuffer: Float32Array;
@@ -57,8 +79,13 @@ export class LinesCommand {
     this.maxStaircaseVertices = maxStaircaseVertices;
 
     // Pre-allocate buffers
-    // Grid: each line needs 2 points * 2 components = 4 floats
+    // Grid: each line needs 2 points * 2 components = 4 floats + 1 lineType per vertex
     this.gridBuffer = new Float32Array(maxGridLines * 4);
+    this.gridLineTypeBuffer = new Float32Array(maxGridLines * 2); // 2 vertices per line
+
+    // Tick marks: each tick needs 2 points * 2 components = 4 floats
+    this.tickBuffer = new Float32Array(maxGridLines * 4);
+    this.tickHighlightBuffer = new Float32Array(maxGridLines * 2);
 
     // Thick staircase line: 6 vertices per segment (2 triangles)
     // Each vertex: position (2), normal (2), side (1), progress (1), edge (1)
@@ -73,6 +100,7 @@ export class LinesCommand {
     this.fillSideBuffer = new Float32Array(maxStaircaseVertices);
 
     this.createGridCommand();
+    this.createTickMarkCommand();
     this.createStaircaseCommand();
     this.createFillCommand();
   }
@@ -85,6 +113,11 @@ export class LinesCommand {
       usage: 'dynamic',
     });
 
+    const lineTypeBuf = regl.buffer({
+      data: this.gridLineTypeBuffer,
+      usage: 'dynamic',
+    });
+
     this.gridCommand = regl({
       vert: gridVert,
       frag: gridFrag,
@@ -94,11 +127,20 @@ export class LinesCommand {
           buffer: positionBuf,
           size: 2,
         },
+        lineType: {
+          buffer: lineTypeBuf,
+          size: 1,
+        },
       },
 
       uniforms: {
         projection: regl.prop<{ projection: number[] }, 'projection'>('projection'),
-        color: regl.prop<{ color: [number, number, number, number] }, 'color'>('color'),
+        majorColor: regl.prop<{ majorColor: [number, number, number, number] }, 'majorColor'>('majorColor'),
+        minorColor: regl.prop<{ minorColor: [number, number, number, number] }, 'minorColor'>('minorColor'),
+        dashSize: regl.prop<{ dashSize: number }, 'dashSize'>('dashSize'),
+        gapSize: regl.prop<{ gapSize: number }, 'gapSize'>('gapSize'),
+        lineStart: regl.prop<{ lineStart: [number, number] }, 'lineStart'>('lineStart'),
+        lineEnd: regl.prop<{ lineEnd: [number, number] }, 'lineEnd'>('lineEnd'),
       },
 
       primitive: 'lines',
@@ -119,6 +161,50 @@ export class LinesCommand {
     });
 
     (this.gridCommand as any)._positionBuf = positionBuf;
+    (this.gridCommand as any)._lineTypeBuf = lineTypeBuf;
+  }
+
+  private createTickMarkCommand(): void {
+    const { regl } = this.ctx;
+
+    const positionBuf = regl.buffer({ data: this.tickBuffer, usage: 'dynamic' });
+    const highlightBuf = regl.buffer({ data: this.tickHighlightBuffer, usage: 'dynamic' });
+
+    this.tickMarkCommand = regl({
+      vert: tickMarkVert,
+      frag: tickMarkFrag,
+
+      attributes: {
+        position: { buffer: positionBuf, size: 2 },
+        highlight: { buffer: highlightBuf, size: 1 },
+      },
+
+      uniforms: {
+        projection: regl.prop<{ projection: number[] }, 'projection'>('projection'),
+        normalColor: regl.prop<{ normalColor: [number, number, number] }, 'normalColor'>('normalColor'),
+        highlightColor: regl.prop<{ highlightColor: [number, number, number] }, 'highlightColor'>('highlightColor'),
+        opacity: regl.prop<{ opacity: number }, 'opacity'>('opacity'),
+      },
+
+      primitive: 'lines',
+      count: regl.prop<{ count: number }, 'count'>('count'),
+
+      blend: {
+        enable: true,
+        func: {
+          srcRGB: 'src alpha',
+          srcAlpha: 1,
+          dstRGB: 'one minus src alpha',
+          dstAlpha: 1,
+        },
+      },
+
+      depth: { enable: false },
+      lineWidth: 1,
+    });
+
+    (this.tickMarkCommand as any)._positionBuf = positionBuf;
+    (this.tickMarkCommand as any)._highlightBuf = highlightBuf;
   }
 
   private createStaircaseCommand(): void {
@@ -221,12 +307,12 @@ export class LinesCommand {
   }
 
   /**
-   * Render grid lines
+   * Render grid lines with major/minor distinction
    */
   renderGrid(props: GridRenderProps, projection: number[], width: number, height: number): void {
     if (!this.gridCommand) return;
 
-    const { horizontalLines, verticalLines, color, opacity } = props;
+    const { horizontalLines, verticalLines, majorColor, minorColor, majorOpacity, minorOpacity, gridStyle } = props;
     const totalLines = horizontalLines.length + verticalLines.length;
 
     if (totalLines === 0) return;
@@ -239,35 +325,99 @@ export class LinesCommand {
 
     // Horizontal lines
     for (let i = 0; i < horizontalLines.length && idx < count; i++) {
-      const y = horizontalLines[i];
+      const line = horizontalLines[i];
       this.gridBuffer[idx * 4] = 0; // x1
-      this.gridBuffer[idx * 4 + 1] = y; // y1
+      this.gridBuffer[idx * 4 + 1] = line.position; // y1
       this.gridBuffer[idx * 4 + 2] = width; // x2
-      this.gridBuffer[idx * 4 + 3] = y; // y2
+      this.gridBuffer[idx * 4 + 3] = line.position; // y2
+      // Both vertices get same line type
+      this.gridLineTypeBuffer[idx * 2] = line.isMajor ? 1 : 0;
+      this.gridLineTypeBuffer[idx * 2 + 1] = line.isMajor ? 1 : 0;
       idx++;
     }
 
     // Vertical lines
     for (let i = 0; i < verticalLines.length && idx < count; i++) {
-      const x = verticalLines[i];
-      this.gridBuffer[idx * 4] = x;
+      const line = verticalLines[i];
+      this.gridBuffer[idx * 4] = line.position;
       this.gridBuffer[idx * 4 + 1] = 0;
-      this.gridBuffer[idx * 4 + 2] = x;
+      this.gridBuffer[idx * 4 + 2] = line.position;
       this.gridBuffer[idx * 4 + 3] = height;
+      this.gridLineTypeBuffer[idx * 2] = line.isMajor ? 1 : 0;
+      this.gridLineTypeBuffer[idx * 2 + 1] = line.isMajor ? 1 : 0;
       idx++;
     }
 
-    // Upload and draw
+    // Upload buffers
     const cmd = this.gridCommand as any;
     cmd._positionBuf.subdata(this.gridBuffer.subarray(0, idx * 4));
+    cmd._lineTypeBuf.subdata(this.gridLineTypeBuffer.subarray(0, idx * 2));
 
-    const rgba = TextureManager.parseColor(color);
-    rgba[3] *= opacity;
+    // Parse colors
+    const majorRgba = TextureManager.parseColor(majorColor);
+    majorRgba[3] *= majorOpacity;
+    const minorRgba = TextureManager.parseColor(minorColor);
+    minorRgba[3] *= minorOpacity;
+
+    // Dash settings based on style
+    let dashSize = 0;
+    let gapSize = 0;
+    if (gridStyle === 'dashed') {
+      dashSize = 8;
+      gapSize = 4;
+    } else if (gridStyle === 'dotted') {
+      dashSize = 2;
+      gapSize = 4;
+    }
 
     this.gridCommand({
       projection,
-      color: rgba,
+      majorColor: majorRgba,
+      minorColor: minorRgba,
+      dashSize,
+      gapSize,
+      lineStart: [0, 0],
+      lineEnd: [width, height],
       count: idx * 2, // 2 vertices per line
+    });
+  }
+
+  /**
+   * Render tick marks on price axis
+   */
+  renderTickMarks(props: TickMarkRenderProps, projection: number[]): void {
+    if (!this.tickMarkCommand) return;
+
+    const { ticks, x, tickSize, normalColor, highlightColor, opacity } = props;
+
+    if (ticks.length === 0) return;
+
+    const count = Math.min(ticks.length, this.maxGridLines);
+    let idx = 0;
+
+    for (let i = 0; i < count; i++) {
+      const tick = ticks[i];
+      // Tick line from x to x + tickSize
+      this.tickBuffer[idx * 4] = x;
+      this.tickBuffer[idx * 4 + 1] = tick.y;
+      this.tickBuffer[idx * 4 + 2] = x + tickSize;
+      this.tickBuffer[idx * 4 + 3] = tick.y;
+      this.tickHighlightBuffer[idx * 2] = tick.isHighlight ? 1 : 0;
+      this.tickHighlightBuffer[idx * 2 + 1] = tick.isHighlight ? 1 : 0;
+      idx++;
+    }
+
+    // Upload buffers
+    const cmd = this.tickMarkCommand as any;
+    cmd._positionBuf.subdata(this.tickBuffer.subarray(0, idx * 4));
+    cmd._highlightBuf.subdata(this.tickHighlightBuffer.subarray(0, idx * 2));
+
+    this.tickMarkCommand({
+      projection,
+      normalColor: TextureManager.parseColorRGB(normalColor),
+      highlightColor: TextureManager.parseColorRGB(highlightColor),
+      opacity,
+      count: idx * 2, // 2 vertices per tick
     });
   }
 
@@ -500,6 +650,11 @@ export class LinesCommand {
   destroy(): void {
     if (this.gridCommand) {
       (this.gridCommand as any)._positionBuf?.destroy();
+      (this.gridCommand as any)._lineTypeBuf?.destroy();
+    }
+    if (this.tickMarkCommand) {
+      (this.tickMarkCommand as any)._positionBuf?.destroy();
+      (this.tickMarkCommand as any)._highlightBuf?.destroy();
     }
     if (this.staircaseCommand) {
       (this.staircaseCommand as any)._positionBuf?.destroy();
@@ -513,6 +668,7 @@ export class LinesCommand {
       (this.fillCommand as any)._sideBuf?.destroy();
     }
     this.gridCommand = null;
+    this.tickMarkCommand = null;
     this.staircaseCommand = null;
     this.fillCommand = null;
   }

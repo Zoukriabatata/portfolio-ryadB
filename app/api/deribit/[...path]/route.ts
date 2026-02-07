@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 const DERIBIT_API = 'https://www.deribit.com/api/v2';
 const DERIBIT_TEST_API = 'https://test.deribit.com/api/v2';
@@ -7,10 +8,31 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  // ✅ AUTHENTICATION REQUIRED
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json(
+      { error: authResult.error },
+      {
+        status: authResult.status,
+        headers: authResult.headers,
+      }
+    );
+  }
+
   const { path } = await params;
   const pathStr = path.join('/');
   const searchParams = request.nextUrl.searchParams.toString();
   const isTestnet = request.headers.get('x-testnet') === 'true';
+
+  // ✅ TIER VALIDATION - Options data requires ULTRA
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json(
+      { error: tierCheck.error },
+      { status: tierCheck.status }
+    );
+  }
 
   const baseUrl = isTestnet ? DERIBIT_TEST_API : DERIBIT_API;
   const url = `${baseUrl}/${pathStr}${searchParams ? `?${searchParams}` : ''}`;
@@ -23,7 +45,11 @@ export async function GET(
     });
 
     const data = await response.json();
-    return NextResponse.json(data);
+
+    // ✅ ADD RATE LIMIT HEADERS
+    return NextResponse.json(data, {
+      headers: authResult.headers,
+    });
   } catch (error) {
     console.error('[Deribit API Proxy] Error:', error);
     return NextResponse.json(

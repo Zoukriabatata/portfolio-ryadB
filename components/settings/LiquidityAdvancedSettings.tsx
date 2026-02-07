@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useHeatmapSettingsStore, type HeatmapSettingsState } from '@/stores/useHeatmapSettingsStore';
-import type { FootprintStyle, PassiveThickness, BubbleShape } from '@/types/heatmap';
+import type { FootprintStyle, PassiveThickness, BubbleShape, ColorScheme } from '@/types/heatmap';
 
 /**
  * LIQUIDITY ADVANCED SETTINGS MODAL
@@ -21,17 +21,21 @@ interface LiquidityAdvancedSettingsProps {
   initialPosition?: { x: number; y: number };
 }
 
-type SettingsTab = 'display' | 'orderflow' | 'panels' | 'alerts' | 'tradeflow' | 'drawing';
+type SettingsTab = 'display' | 'orderflow' | 'levels' | 'panels' | 'alerts' | 'tradeflow' | 'drawing';
 
 const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
   {
     id: 'display',
     label: 'Display',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <line x1="3" y1="9" x2="21" y2="9" />
-        <line x1="9" y1="21" x2="9" y2="9" />
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
+        <line x1="6" y1="7" x2="6" y2="13" strokeOpacity="0.5" />
+        <line x1="10" y1="9" x2="10" y2="13" strokeOpacity="0.5" />
+        <line x1="14" y1="6" x2="14" y2="13" strokeOpacity="0.5" />
+        <line x1="18" y1="8" x2="18" y2="13" strokeOpacity="0.5" />
       </svg>
     ),
   },
@@ -39,9 +43,30 @@ const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     id: 'orderflow',
     label: 'Orderflow',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 2L2 22h20L12 2z" />
-        <line x1="12" y1="8" x2="12" y2="16" />
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M4 12h6" />
+        <path d="M4 8h4" />
+        <path d="M4 16h5" />
+        <path d="M14 12h6" />
+        <path d="M16 8h4" />
+        <path d="M15 16h5" />
+        <line x1="12" y1="4" x2="12" y2="20" strokeDasharray="2 2" />
+        <polygon points="10,12 7,10 7,14" fill="currentColor" fillOpacity="0.3" />
+        <polygon points="14,12 17,10 17,14" fill="currentColor" fillOpacity="0.3" />
+      </svg>
+    ),
+  },
+  {
+    id: 'levels',
+    label: 'Key Levels',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <line x1="3" y1="6" x2="21" y2="6" strokeDasharray="4 2" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" strokeDasharray="4 2" />
+        <circle cx="5" cy="6" r="2" fill="currentColor" fillOpacity="0.3" />
+        <circle cx="12" cy="12" r="2.5" fill="currentColor" fillOpacity="0.3" />
+        <circle cx="19" cy="18" r="2" fill="currentColor" fillOpacity="0.3" />
       </svg>
     ),
   },
@@ -49,11 +74,11 @@ const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     id: 'panels',
     label: 'Panels',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" fillOpacity="0.1" />
+        <rect x="13" y="3" width="8" height="5" rx="2" />
+        <rect x="13" y="10" width="8" height="11" rx="2" fill="currentColor" fillOpacity="0.1" />
+        <rect x="3" y="13" width="8" height="8" rx="2" />
       </svg>
     ),
   },
@@ -61,9 +86,10 @@ const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     id: 'alerts',
     label: 'Alerts',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        <circle cx="18" cy="5" r="3" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     ),
   },
@@ -71,9 +97,13 @@ const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     id: 'tradeflow',
     label: 'Trade Flow',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="4" />
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <circle cx="8" cy="8" r="4" fill="currentColor" fillOpacity="0.15" />
+        <circle cx="16" cy="10" r="5" fill="currentColor" fillOpacity="0.1" />
+        <circle cx="10" cy="16" r="3" />
+        <circle cx="17" cy="18" r="2" fill="currentColor" fillOpacity="0.2" />
+        <path d="M8 8l8 2" strokeOpacity="0.3" />
+        <path d="M16 10l-6 6" strokeOpacity="0.3" />
       </svg>
     ),
   },
@@ -81,11 +111,10 @@ const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     id: 'drawing',
     label: 'Drawing',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 19l7-7 3 3-7 7-3-3z" />
-        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-        <path d="M2 2l7.586 7.586" />
-        <circle cx="11" cy="11" r="2" />
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+        <line x1="15" y1="5" x2="19" y2="9" />
+        <line x1="2" y1="22" x2="7.5" y2="20.5" strokeOpacity="0.4" />
       </svg>
     ),
   },
@@ -161,10 +190,10 @@ export default function LiquidityAdvancedSettings({
       }}
     >
       {/* Modal Container */}
-      <div className="bg-zinc-900/95 backdrop-blur-xl rounded-xl border border-zinc-700/50 shadow-2xl overflow-hidden">
+      <div className="bg-[var(--surface)] backdrop-blur-xl rounded-xl border border-[var(--border)] shadow-2xl overflow-hidden">
         {/* Header - Draggable */}
         <div
-          className="flex items-center justify-between px-4 py-3 bg-zinc-800/80 border-b border-zinc-700/50 cursor-move"
+          className="flex items-center justify-between px-4 py-3 bg-[var(--surface)] border-b border-[var(--border)] cursor-move"
           onMouseDown={handleMouseDown}
         >
           <div className="flex items-center gap-2">
@@ -172,11 +201,11 @@ export default function LiquidityAdvancedSettings({
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
-            <span className="text-sm font-semibold text-white">Liquidity Settings</span>
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Liquidity Settings</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-zinc-700/50 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-[var(--surface-elevated)] transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -186,18 +215,18 @@ export default function LiquidityAdvancedSettings({
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-zinc-700/50 bg-zinc-800/30 overflow-x-auto">
+        <div className="flex border-b border-[var(--border)] bg-[var(--surface)] overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-all ${
                 activeTab === tab.id
-                  ? 'text-green-400 border-b-2 border-green-400 bg-zinc-800/50'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/30'
+                  ? 'text-[var(--primary)] border-b-2 border-[var(--primary)] bg-[var(--surface)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)]'
               }`}
             >
-              <span className={activeTab === tab.id ? 'text-green-400' : 'text-zinc-500'}>
+              <span className={activeTab === tab.id ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'}>
                 {tab.icon}
               </span>
               {tab.label}
@@ -209,6 +238,7 @@ export default function LiquidityAdvancedSettings({
         <div className="settings-content p-4 max-h-[400px] overflow-y-auto">
           {activeTab === 'display' && <DisplayTab store={store} />}
           {activeTab === 'orderflow' && <OrderflowTab store={store} />}
+          {activeTab === 'levels' && <KeyLevelsTab store={store} />}
           {activeTab === 'panels' && <PanelsTab store={store} />}
           {activeTab === 'alerts' && <AlertsTab store={store} />}
           {activeTab === 'tradeflow' && <TradeFlowTab store={store} />}
@@ -216,16 +246,16 @@ export default function LiquidityAdvancedSettings({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-700/50 bg-zinc-800/30">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]">
           <button
             onClick={() => store.resetToDefaults()}
-            className="px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+            className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
           >
             Reset All
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors font-medium"
+            className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-light)] text-[var(--text-primary)] rounded-lg transition-colors font-medium"
           >
             Done
           </button>
@@ -241,11 +271,73 @@ interface TabProps {
   store: HeatmapSettingsState;
 }
 
+const THEME_OPTIONS: { value: ColorScheme; label: string; description: string }[] = [
+  { value: 'atas', label: 'ATAS Pro', description: 'Professional green/red gradients' },
+  { value: 'bookmap', label: 'Bookmap', description: 'Blue/pink oceanic style' },
+  { value: 'sierra', label: 'Sierra', description: 'Warm earthy tones' },
+  { value: 'highcontrast', label: 'High Contrast', description: 'Accessibility-focused' },
+];
+
 function DisplayTab({ store }: TabProps) {
   const features = store.displayFeatures;
 
   return (
     <div className="space-y-4">
+      {/* Theme Section */}
+      <SettingsSection title="Color Theme" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="13.5" cy="6.5" r="0.5" fill="currentColor" />
+          <circle cx="17.5" cy="10.5" r="0.5" fill="currentColor" />
+          <circle cx="8.5" cy="7.5" r="0.5" fill="currentColor" />
+          <circle cx="6.5" cy="12.5" r="0.5" fill="currentColor" />
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z" />
+        </svg>
+      }>
+        <div className="grid grid-cols-2 gap-2">
+          {THEME_OPTIONS.map((theme) => (
+            <button
+              key={theme.value}
+              onClick={() => store.setColorScheme(theme.value)}
+              className={`p-3 rounded-lg text-left transition-all ${
+                store.colorScheme === theme.value
+                  ? 'bg-[var(--primary)]/20 border-2 border-[var(--primary)]'
+                  : 'bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border)]'
+              }`}
+            >
+              <div className="text-xs font-medium text-[var(--text-primary)]">{theme.label}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{theme.description}</div>
+              {/* Color preview */}
+              <div className="flex gap-1 mt-2">
+                {theme.value === 'atas' && (
+                  <>
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#0d3320] via-[#16a34a] to-[#86efac]" />
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#450a0a] via-[#dc2626] to-[#fca5a5]" />
+                  </>
+                )}
+                {theme.value === 'bookmap' && (
+                  <>
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#003566] via-[#00b4d8] to-[#90e0ef]" />
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#6b2737] via-[#c9184a] to-[#ff758f]" />
+                  </>
+                )}
+                {theme.value === 'sierra' && (
+                  <>
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#1f4037] via-[#2d6a4f] to-[#52b788]" />
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#5c1a1b] via-[#9b2226] to-[#e85d04]" />
+                  </>
+                )}
+                {theme.value === 'highcontrast' && (
+                  <>
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#006400] via-[#00ff00] to-[#7fff00]" />
+                    <div className="w-4 h-2 rounded-sm bg-gradient-to-r from-[#8b0000] via-[#ff0000] to-[#ff6347]" />
+                  </>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      </SettingsSection>
+
       {/* Performance Section */}
       <SettingsSection title="Performance" icon={
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -306,7 +398,7 @@ function DisplayTab({ store }: TabProps) {
         </svg>
       }>
         <div className="space-y-2">
-          <label className="text-xs font-medium text-zinc-400">Passive Order Thickness</label>
+          <label className="text-xs font-medium text-[var(--text-muted)]">Passive Order Thickness</label>
           <div className="flex gap-2">
             {(['thin', 'normal', 'thick'] as PassiveThickness[]).map((thickness) => (
               <button
@@ -314,8 +406,8 @@ function DisplayTab({ store }: TabProps) {
                 onClick={() => store.setPassiveThickness(thickness)}
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   features.passiveThickness === thickness
-                    ? 'bg-green-600 text-white border border-green-500'
-                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600'
+                    ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                    : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
                 }`}
               >
                 {thickness.charAt(0).toUpperCase() + thickness.slice(1)}
@@ -407,6 +499,269 @@ function DisplayTab({ store }: TabProps) {
           </>
         )}
       </SettingsSection>
+
+      {/* Grid & Ticks Section */}
+      <SettingsSection title="Grid & Ticks" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 3v18h18" />
+          <line x1="8" y1="3" x2="8" y2="21" />
+          <line x1="13" y1="3" x2="13" y2="21" />
+          <line x1="18" y1="3" x2="18" y2="21" />
+          <line x1="3" y1="8" x2="21" y2="8" />
+          <line x1="3" y1="13" x2="21" y2="13" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      }>
+        <ToggleOption
+          label="Major Grid"
+          description="Show prominent grid lines"
+          checked={features.grid?.showMajorGrid ?? true}
+          onChange={store.setShowMajorGrid}
+        />
+
+        <ToggleOption
+          label="Minor Grid"
+          description="Show subtle background grid"
+          checked={features.grid?.showMinorGrid ?? true}
+          onChange={store.setShowMinorGrid}
+        />
+
+        {(features.grid?.showMajorGrid || features.grid?.showMinorGrid) && (
+          <>
+            <SliderOption
+              label="Major Interval"
+              value={features.grid?.majorGridInterval ?? 10}
+              onChange={store.setMajorGridInterval}
+              min={2}
+              max={20}
+              step={1}
+              unit=" ticks"
+            />
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-[var(--text-muted)]">Grid Style</label>
+              <div className="flex gap-2">
+                {(['solid', 'dashed', 'dotted'] as const).map((style) => (
+                  <button
+                    key={style}
+                    onClick={() => store.setGridStyle(style)}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      (features.grid?.gridStyle ?? 'solid') === style
+                        ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                        : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
+                    }`}
+                  >
+                    {style.charAt(0).toUpperCase() + style.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <ToggleOption
+          label="Tick Marks"
+          description="Show marks on price axis"
+          checked={features.grid?.showTickMarks ?? true}
+          onChange={store.setShowTickMarks}
+        />
+
+        {(features.grid?.showTickMarks ?? true) && (
+          <SliderOption
+            label="Tick Size"
+            value={features.grid?.tickSize ?? 5}
+            onChange={store.setTickSize}
+            min={3}
+            max={15}
+            step={1}
+            unit="px"
+          />
+        )}
+
+        <ToggleOption
+          label="Highlight Round Numbers"
+          description="Emphasize key price levels"
+          checked={features.grid?.highlightRoundNumbers ?? true}
+          onChange={store.setHighlightRoundNumbers}
+        />
+
+        {(features.grid?.highlightRoundNumbers ?? true) && (
+          <SliderOption
+            label="Round Number Interval"
+            value={features.grid?.roundNumberInterval ?? 100}
+            onChange={store.setRoundNumberInterval}
+            min={10}
+            max={1000}
+            step={10}
+          />
+        )}
+
+        {/* Label Precision */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-[var(--text-muted)]">Label Precision</label>
+          <div className="flex gap-2">
+            {(['auto', 0, 1, 2, 3, 4] as const).map((prec) => (
+              <button
+                key={String(prec)}
+                onClick={() => store.setLabelPrecision(prec)}
+                className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${
+                  (features.grid?.labelPrecision ?? 'auto') === prec
+                    ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                    : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
+                }`}
+              >
+                {prec === 'auto' ? 'Auto' : `${prec}d`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Time Axis Section */}
+      <SettingsSection title="Time Axis" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12,6 12,12 16,14" />
+        </svg>
+      }>
+        <ToggleOption
+          label="Show Time Axis"
+          description="Display time labels at the bottom"
+          checked={features.grid?.showTimeAxis ?? true}
+          onChange={store.setShowTimeAxis}
+        />
+
+        {(features.grid?.showTimeAxis ?? true) && (
+          <>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-[var(--text-muted)]">Time Format</label>
+              <div className="flex gap-2">
+                {(['24h', '12h'] as const).map((format) => (
+                  <button
+                    key={format}
+                    onClick={() => store.setTimeFormat(format)}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      (features.grid?.timeFormat ?? '24h') === format
+                        ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                        : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
+                    }`}
+                  >
+                    {format === '24h' ? '24H (14:30)' : '12H (2:30 PM)'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <ToggleOption
+              label="Session Markers"
+              description="Show market session boundaries"
+              checked={features.grid?.showSessionMarkers ?? false}
+              onChange={store.setShowSessionMarkers}
+            />
+          </>
+        )}
+      </SettingsSection>
+
+      {/* Passive Orders Section */}
+      <SettingsSection title="Passive Orders" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <rect x="7" y="7" width="3" height="9" fill="currentColor" opacity="0.5" />
+          <rect x="14" y="10" width="3" height="6" fill="currentColor" opacity="0.5" />
+        </svg>
+      }>
+        <ToggleOption
+          label="Glow Effect"
+          description="Luminous glow on high-intensity orders"
+          checked={features.passiveOrders?.glowEnabled ?? true}
+          onChange={store.setPassiveGlowEnabled}
+        />
+
+        {(features.passiveOrders?.glowEnabled ?? true) && (
+          <SliderOption
+            label="Glow Intensity"
+            value={features.passiveOrders?.glowIntensity ?? 0.8}
+            onChange={store.setPassiveGlowIntensity}
+            min={0.1}
+            max={1.5}
+            step={0.1}
+          />
+        )}
+
+        <ToggleOption
+          label="Pulse Animation"
+          description="Pulsing effect on new orders"
+          checked={features.passiveOrders?.pulseEnabled ?? true}
+          onChange={store.setPassivePulseEnabled}
+        />
+
+        {(features.passiveOrders?.pulseEnabled ?? true) && (
+          <SliderOption
+            label="Pulse Speed"
+            value={features.passiveOrders?.pulseSpeed ?? 2.0}
+            onChange={store.setPassivePulseSpeed}
+            min={0.5}
+            max={3.0}
+            step={0.1}
+            unit="x"
+          />
+        )}
+
+        <ToggleOption
+          label="Visual States"
+          description="Color-coded order states (new, absorbed, fading)"
+          checked={features.passiveOrders?.showStates ?? true}
+          onChange={store.setPassiveShowStates}
+        />
+
+        <ToggleOption
+          label="Iceberg Detection"
+          description="Highlight detected iceberg orders"
+          checked={features.passiveOrders?.icebergDetection ?? true}
+          onChange={store.setPassiveIcebergDetection}
+        />
+
+        {(features.passiveOrders?.icebergDetection ?? true) && (
+          <SliderOption
+            label="Iceberg Threshold"
+            value={features.passiveOrders?.icebergThreshold ?? 3}
+            onChange={store.setPassiveIcebergThreshold}
+            min={1}
+            max={10}
+            step={1}
+            unit=" refills"
+          />
+        )}
+
+        {/* State color legend */}
+        {(features.passiveOrders?.showStates ?? true) && (
+          <div className="mt-2 p-2 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
+            <div className="text-[10px] text-[var(--text-muted)] mb-2">State Colors:</div>
+            <div className="flex flex-wrap gap-2 text-[9px]">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-yellow-300" />
+                <span className="text-yellow-300">New</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-[var(--text-muted)]" />
+                <span className="text-[var(--text-muted)]">Stable</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-orange-400" />
+                <span className="text-orange-400">Absorbed</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-[var(--surface-elevated)]" />
+                <span className="text-[var(--text-muted)]">Fading</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded border-2 border-cyan-400 bg-transparent" />
+                <span className="text-cyan-400">Iceberg</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </SettingsSection>
     </div>
   );
 }
@@ -460,7 +815,7 @@ function OrderflowTab({ store }: TabProps) {
 
         {features.showFootprintNumbers && (
           <div className="mt-3 space-y-2">
-            <label className="text-xs font-medium text-zinc-400">Footprint Style</label>
+            <label className="text-xs font-medium text-[var(--text-muted)]">Footprint Style</label>
             <div className="flex gap-2">
               {([
                 { value: 'bid_ask', label: 'Bid x Ask' },
@@ -472,8 +827,8 @@ function OrderflowTab({ store }: TabProps) {
                   onClick={() => store.setFootprintStyle(style.value)}
                   className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all ${
                     features.footprintStyle === style.value
-                      ? 'bg-green-600 text-white border border-green-500'
-                      : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600'
+                      ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                      : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
                   }`}
                 >
                   {style.label}
@@ -487,8 +842,162 @@ function OrderflowTab({ store }: TabProps) {
   );
 }
 
+function KeyLevelsTab({ store }: TabProps) {
+  const features = store.displayFeatures;
+  const keyLevels = features.keyLevels;
+
+  return (
+    <div className="space-y-4">
+      {/* Value Area */}
+      <SettingsSection title="Value Area" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 12h18M3 6h18M3 18h18" />
+          <rect x="6" y="8" width="12" height="8" strokeDasharray="3 3" />
+        </svg>
+      }>
+        <ToggleOption
+          label="Point of Control (POC)"
+          description="Highest volume price level"
+          checked={keyLevels?.showPOC ?? true}
+          onChange={store.setShowPOC}
+        />
+        <ToggleOption
+          label="Value Area High (VAH)"
+          description="Upper boundary of 70% volume"
+          checked={keyLevels?.showVAH ?? true}
+          onChange={store.setShowVAH}
+        />
+        <ToggleOption
+          label="Value Area Low (VAL)"
+          description="Lower boundary of 70% volume"
+          checked={keyLevels?.showVAL ?? true}
+          onChange={store.setShowVAL}
+        />
+
+        {/* Color legend */}
+        <div className="mt-2 p-2 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
+          <div className="text-[10px] text-[var(--text-muted)] mb-2">Value Area Colors:</div>
+          <div className="flex flex-wrap gap-3 text-[9px]">
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-0.5 bg-amber-500" />
+              <span className="text-amber-400">POC</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-0.5 bg-purple-500" />
+              <span className="text-purple-400">VAH/VAL</span>
+            </div>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* VWAP */}
+      <SettingsSection title="VWAP" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M2 12h4l3-9 6 18 3-9h4" />
+        </svg>
+      }>
+        <ToggleOption
+          label="Show VWAP Line"
+          description="Volume Weighted Average Price"
+          checked={keyLevels?.showVWAP ?? true}
+          onChange={store.setShowKeyLevelVWAP}
+        />
+
+        <div className="mt-2 p-2 bg-cyan-900/20 rounded-lg border border-cyan-800/30">
+          <div className="flex items-center gap-2 text-[10px] text-cyan-400">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>VWAP resets at session start</span>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Session Levels */}
+      <SettingsSection title="Session Levels" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <line x1="9" y1="4" x2="9" y2="20" />
+        </svg>
+      }>
+        <ToggleOption
+          label="Session High/Low"
+          description="Display current session extremes"
+          checked={keyLevels?.showSessionHighLow ?? false}
+          onChange={store.setShowSessionHighLow}
+        />
+
+        {(keyLevels?.showSessionHighLow ?? false) && (
+          <div className="mt-2 p-2 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
+            <div className="text-[10px] text-[var(--text-muted)] mb-2">Session Colors:</div>
+            <div className="flex flex-wrap gap-3 text-[9px]">
+              <div className="flex items-center gap-1">
+                <div className="w-6 h-0.5 bg-cyan-400" />
+                <span className="text-cyan-400">High</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-6 h-0.5 bg-pink-400" />
+                <span className="text-pink-400">Low</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </SettingsSection>
+
+      {/* Round Numbers */}
+      <SettingsSection title="Round Numbers" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M8 12h8M12 8v8" />
+        </svg>
+      }>
+        <ToggleOption
+          label="Show Round Numbers"
+          description="Highlight psychological price levels"
+          checked={keyLevels?.showRoundNumbers ?? true}
+          onChange={store.setShowKeyRoundNumbers}
+        />
+
+        {(keyLevels?.showRoundNumbers ?? true) && (
+          <SliderOption
+            label="Interval"
+            value={keyLevels?.roundNumberInterval ?? 100}
+            onChange={store.setKeyRoundNumberInterval}
+            min={10}
+            max={1000}
+            step={10}
+          />
+        )}
+
+        <div className="mt-2 p-2 bg-amber-900/20 rounded-lg border border-amber-800/30">
+          <div className="text-[10px] text-amber-400/80">
+            Round numbers act as psychological support/resistance levels. Common intervals:
+            <ul className="mt-1 ml-3 text-amber-400/60 list-disc">
+              <li>BTC: 1000, 5000, 10000</li>
+              <li>ETH: 100, 500</li>
+              <li>Stocks: 10, 50, 100</li>
+            </ul>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Tips */}
+      <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+        <p className="text-xs text-[var(--text-muted)]">
+          <span className="text-[var(--primary)]">Tip:</span> Key levels are calculated in real-time based on the current session&apos;s volume profile.
+          POC shows where most trading occurred.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function PanelsTab({ store }: TabProps) {
   const features = store.displayFeatures;
+  const timeSalesSettings = features.timeSales;
 
   return (
     <div className="space-y-4">
@@ -524,6 +1033,95 @@ function PanelsTab({ store }: TabProps) {
           onChange={store.setShowTapeVelocity}
         />
       </SettingsSection>
+
+      {/* Time & Sales Settings */}
+      {features.showTimeSales && (
+        <SettingsSection title="Time & Sales Settings" icon={
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2v20M2 12h20" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        }>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-[var(--text-muted)]">Panel Position</label>
+            <div className="flex gap-2">
+              {(['left', 'right'] as const).map((pos) => (
+                <button
+                  key={pos}
+                  onClick={() => store.setTimeSalesPosition(pos)}
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    (timeSalesSettings?.position ?? 'right') === pos
+                      ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                      : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
+                  }`}
+                >
+                  {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <SliderOption
+            label="Panel Width"
+            value={timeSalesSettings?.width ?? 280}
+            onChange={store.setTimeSalesWidth}
+            min={200}
+            max={400}
+            step={20}
+            unit="px"
+          />
+
+          <SliderOption
+            label="Max Rows"
+            value={timeSalesSettings?.maxRows ?? 100}
+            onChange={store.setTimeSalesMaxRows}
+            min={20}
+            max={500}
+            step={10}
+          />
+
+          <ToggleOption
+            label="Cumulative Volume"
+            description="Show running total column"
+            checked={timeSalesSettings?.showCumulativeVolume ?? true}
+            onChange={store.setTimeSalesShowCumulative}
+          />
+
+          <ToggleOption
+            label="Aggregate by Price"
+            description="Group trades at same price level"
+            checked={timeSalesSettings?.aggregateByPrice ?? false}
+            onChange={store.setTimeSalesAggregateByPrice}
+          />
+
+          <SliderOption
+            label="Min Size Filter"
+            value={timeSalesSettings?.minSizeFilter ?? 0}
+            onChange={store.setTimeSalesMinSizeFilter}
+            min={0}
+            max={100}
+            step={1}
+          />
+
+          <SliderOption
+            label="Large Trade Highlight"
+            value={timeSalesSettings?.largeTradeThreshold ?? 10}
+            onChange={store.setTimeSalesLargeThreshold}
+            min={2}
+            max={50}
+            step={1}
+            unit="x avg"
+          />
+
+          {/* Info box */}
+          <div className="mt-2 p-2 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
+            <div className="text-[10px] text-[var(--text-muted)]">
+              <span className="text-[var(--primary)]">Tip:</span> Hover over the panel to pause auto-scroll.
+              Large trades are highlighted with a colored border.
+            </div>
+          </div>
+        </SettingsSection>
+      )}
     </div>
   );
 }
@@ -561,8 +1159,8 @@ function AlertsTab({ store }: TabProps) {
       </SettingsSection>
 
       {/* Tips */}
-      <div className="p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-        <p className="text-xs text-zinc-500">
+      <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+        <p className="text-xs text-[var(--text-muted)]">
           <span className="text-amber-400">Tip:</span> Large trade alerts trigger when a trade exceeds 2x the average size.
         </p>
       </div>
@@ -602,8 +1200,8 @@ function TradeFlowTab({ store }: TabProps) {
                     onClick={() => store.setTradeFlowSettings({ bubbleShape: shape.value })}
                     className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                       tradeFlow.bubbleShape === shape.value
-                        ? 'bg-green-600 text-white border border-green-500'
-                        : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600'
+                        ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                        : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
                     }`}
                   >
                     {shape.label}
@@ -629,6 +1227,123 @@ function TradeFlowTab({ store }: TabProps) {
                 max={1}
                 step={0.1}
               />
+
+              {/* Size Scaling */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-[var(--text-muted)]">Size Scaling</label>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'sqrt', label: 'Square Root', desc: 'Balanced' },
+                    { value: 'linear', label: 'Linear', desc: 'Proportional' },
+                    { value: 'log', label: 'Logarithmic', desc: 'Compressed' },
+                  ] as const).map((scale) => (
+                    <button
+                      key={scale.value}
+                      onClick={() => store.setTradeFlowSettings({ sizeScaling: scale.value })}
+                      className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                        (tradeFlow.sizeScaling || 'sqrt') === scale.value
+                          ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                          : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--border)]'
+                      }`}
+                      title={scale.desc}
+                    >
+                      {scale.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </SettingsSection>
+
+          {/* Visual Effects */}
+          <SettingsSection title="Visual Effects" icon={
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+            </svg>
+          }>
+            <ToggleOption
+              label="Pop-in Animation"
+              description="Elastic animation when bubbles appear"
+              checked={tradeFlow.popInAnimation ?? true}
+              onChange={(popInAnimation) => store.setTradeFlowSettings({ popInAnimation })}
+            />
+
+            <ToggleOption
+              label="Glow Effect"
+              description="Luminous glow on large trades"
+              checked={tradeFlow.glowEnabled ?? true}
+              onChange={(glowEnabled) => store.setTradeFlowSettings({ glowEnabled })}
+            />
+
+            {(tradeFlow.glowEnabled ?? true) && (
+              <SliderOption
+                label="Glow Intensity"
+                value={tradeFlow.glowIntensity ?? 0.6}
+                onChange={(glowIntensity) => store.setTradeFlowSettings({ glowIntensity })}
+                min={0.1}
+                max={1.5}
+                step={0.1}
+              />
+            )}
+
+            <ToggleOption
+              label="Glass Gradient"
+              description="Inner highlight for 3D effect"
+              checked={tradeFlow.showGradient ?? true}
+              onChange={(showGradient) => store.setTradeFlowSettings({ showGradient })}
+            />
+
+            <ToggleOption
+              label="Ripple Effect"
+              description="Animated ripple on large trades"
+              checked={tradeFlow.rippleEnabled ?? true}
+              onChange={(rippleEnabled) => store.setTradeFlowSettings({ rippleEnabled })}
+            />
+
+            <SliderOption
+              label="Large Trade Threshold"
+              value={tradeFlow.largeTradeThreshold ?? 2.0}
+              onChange={(largeTradeThreshold) => store.setTradeFlowSettings({ largeTradeThreshold })}
+              min={1}
+              max={5}
+              step={0.5}
+              unit="x avg"
+            />
+          </SettingsSection>
+
+          {/* Border */}
+          <SettingsSection title="Border" icon={
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+            </svg>
+          }>
+            <SliderOption
+              label="Border Width"
+              value={tradeFlow.bubbleBorderWidth ?? 1.5}
+              onChange={(bubbleBorderWidth) => store.setTradeFlowSettings({ bubbleBorderWidth })}
+              min={0}
+              max={3}
+              step={0.5}
+              unit="px"
+            />
+            <ColorOption
+              label="Border Color"
+              value={tradeFlow.bubbleBorderColor === 'auto' ? '#ffffff' : tradeFlow.bubbleBorderColor}
+              onChange={(bubbleBorderColor) => store.setTradeFlowSettings({ bubbleBorderColor })}
+            />
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="checkbox"
+                id="autoBorder"
+                checked={tradeFlow.bubbleBorderColor === 'auto'}
+                onChange={(e) => store.setTradeFlowSettings({
+                  bubbleBorderColor: e.target.checked ? 'auto' : '#ffffff'
+                })}
+                className="w-4 h-4 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--primary)] focus:ring-[var(--primary)] focus:ring-offset-[var(--background)]"
+              />
+              <label htmlFor="autoBorder" className="text-xs text-[var(--text-muted)]">
+                Auto (match buy/sell color)
+              </label>
             </div>
           </SettingsSection>
 
@@ -684,6 +1399,28 @@ function TradeFlowTab({ store }: TabProps) {
               />
             </div>
           </SettingsSection>
+
+          {/* Effects preview */}
+          <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+            <div className="text-[10px] text-[var(--text-muted)] mb-2">Active Effects:</div>
+            <div className="flex flex-wrap gap-1.5">
+              {(tradeFlow.popInAnimation ?? true) && (
+                <span className="px-2 py-0.5 bg-purple-900/40 text-purple-300 rounded text-[9px]">Pop-in</span>
+              )}
+              {(tradeFlow.glowEnabled ?? true) && (
+                <span className="px-2 py-0.5 bg-yellow-900/40 text-yellow-300 rounded text-[9px]">Glow</span>
+              )}
+              {(tradeFlow.showGradient ?? true) && (
+                <span className="px-2 py-0.5 bg-blue-900/40 text-blue-300 rounded text-[9px]">Glass</span>
+              )}
+              {(tradeFlow.rippleEnabled ?? true) && (
+                <span className="px-2 py-0.5 bg-cyan-900/40 text-cyan-300 rounded text-[9px]">Ripple</span>
+              )}
+              {tradeFlow.bubbleShape === 'pie' && (
+                <span className="px-2 py-0.5 bg-green-900/40 text-green-300 rounded text-[9px]">Pie Chart</span>
+              )}
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -724,9 +1461,9 @@ function DrawingTab({ store }: TabProps) {
           </SettingsSection>
 
           {/* Tips */}
-          <div className="p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-            <p className="text-xs text-zinc-500">
-              <span className="text-green-400">Tip:</span> Click and drag to draw. Double-click to reset view.
+          <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+            <p className="text-xs text-[var(--text-muted)]">
+              <span className="text-[var(--primary)]">Tip:</span> Click and drag to draw. Double-click to reset view.
             </p>
           </div>
         </>
@@ -739,10 +1476,10 @@ function DrawingTab({ store }: TabProps) {
 
 function SettingsSection({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/30">
+    <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
       <div className="flex items-center gap-2 mb-3">
-        {icon && <span className="text-green-400">{icon}</span>}
-        <h4 className="text-xs font-semibold text-white uppercase tracking-wide">{title}</h4>
+        {icon && <span className="text-[var(--primary)]">{icon}</span>}
+        <h4 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wide">{title}</h4>
       </div>
       <div className="space-y-3">
         {children}
@@ -762,13 +1499,13 @@ function ToggleOption({ label, description, checked, onChange }: ToggleOptionPro
   return (
     <div className="flex items-center justify-between">
       <div>
-        <div className="text-sm text-white">{label}</div>
-        {description && <div className="text-xs text-zinc-500">{description}</div>}
+        <div className="text-sm text-[var(--text-primary)]">{label}</div>
+        {description && <div className="text-xs text-[var(--text-muted)]">{description}</div>}
       </div>
       <button
         onClick={() => onChange(!checked)}
         className={`relative w-10 h-5 rounded-full transition-colors ${
-          checked ? 'bg-green-600' : 'bg-zinc-600'
+          checked ? 'bg-[var(--primary)]' : 'bg-[var(--surface-elevated)]'
         }`}
       >
         <span
@@ -795,8 +1532,8 @@ function SliderOption({ label, value, onChange, min, max, step, unit }: SliderOp
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-white">{label}</span>
-        <span className="text-xs text-zinc-400 font-mono">
+        <span className="text-sm text-[var(--text-primary)]">{label}</span>
+        <span className="text-xs text-[var(--text-muted)] font-mono">
           {value.toFixed(step < 1 ? 1 : 0)}{unit}
         </span>
       </div>
@@ -807,7 +1544,7 @@ function SliderOption({ label, value, onChange, min, max, step, unit }: SliderOp
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+        className="w-full h-1.5 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-green-500"
       />
     </div>
   );
@@ -829,19 +1566,19 @@ function ColorOption({ label, value, onChange }: ColorOptionProps) {
 
   return (
     <div className="flex-1">
-      <label className="text-xs text-zinc-400 block mb-1.5">{label}</label>
+      <label className="text-xs text-[var(--text-muted)] block mb-1.5">{label}</label>
       <div className="flex items-center gap-2">
         <input
           type="color"
           value={hexValue}
           onChange={(e) => onChange(e.target.value)}
-          className="w-8 h-8 rounded cursor-pointer border border-zinc-600 bg-transparent"
+          className="w-8 h-8 rounded cursor-pointer border border-[var(--border)] bg-transparent"
         />
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 px-2 py-1.5 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-400 font-mono focus:outline-none focus:border-green-500"
+          className="flex-1 px-2 py-1.5 text-xs bg-[var(--surface)] border border-[var(--border)] rounded text-[var(--text-muted)] font-mono focus:outline-none focus:border-[var(--primary)]"
         />
       </div>
     </div>
@@ -851,8 +1588,8 @@ function ColorOption({ label, value, onChange }: ColorOptionProps) {
 function ShortcutRow({ shortcut, action }: { shortcut: string; action: string }) {
   return (
     <div className="flex items-center justify-between text-xs">
-      <span className="text-zinc-400">{action}</span>
-      <kbd className="px-2 py-0.5 bg-zinc-700 rounded text-zinc-300 font-mono text-[10px]">
+      <span className="text-[var(--text-muted)]">{action}</span>
+      <kbd className="px-2 py-0.5 bg-[var(--surface-elevated)] rounded text-[var(--text-secondary)] font-mono text-[10px]">
         {shortcut}
       </kbd>
     </div>

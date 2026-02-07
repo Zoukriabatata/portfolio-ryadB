@@ -15,6 +15,17 @@ import {
   type Point,
 } from './ToolsEngine';
 
+// OHLC data for magnet snapping
+export interface OHLCData {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export type MagnetMode = 'none' | 'ohlc' | 'close';
+
 // ============ INTERACTION STATES ============
 
 export type InteractionMode =
@@ -33,6 +44,8 @@ export interface InteractionState {
   currentPoint: Point | null;
   selectedToolId: string | null;
   dragHandle: HandlePosition | null;
+  hoveredToolId: string | null;
+  hoveredHandle: HandlePosition | null;
   modifiers: {
     shift: boolean;
     ctrl: boolean;
@@ -54,6 +67,7 @@ export interface InteractionCallbacks {
   onModeChanged?: (mode: InteractionMode) => void;
   onCursorChanged?: (cursor: string) => void;
   requestRedraw?: () => void;
+  getOHLCAtTime?: (time: number) => OHLCData | null;
 }
 
 // ============ INTERACTION CONTROLLER ============
@@ -63,6 +77,8 @@ export class InteractionController {
   private converter: CoordinateConverter | null = null;
   private callbacks: InteractionCallbacks = {};
   private chartBounds: DOMRect | null = null;
+  private magnetMode: MagnetMode = 'none';
+  private magnetThreshold: number = 30; // Pixels threshold for snapping (increased for better UX)
 
   constructor() {
     this.state = {
@@ -73,6 +89,8 @@ export class InteractionController {
       currentPoint: null,
       selectedToolId: null,
       dragHandle: null,
+      hoveredToolId: null,
+      hoveredHandle: null,
       modifiers: { shift: false, ctrl: false, alt: false },
     };
   }
@@ -91,6 +109,14 @@ export class InteractionController {
     this.chartBounds = bounds;
   }
 
+  setMagnetMode(mode: MagnetMode): void {
+    this.magnetMode = mode;
+  }
+
+  getMagnetMode(): MagnetMode {
+    return this.magnetMode;
+  }
+
   // ============ TOOL SELECTION ============
 
   setActiveTool(type: ToolType): void {
@@ -103,7 +129,7 @@ export class InteractionController {
 
     // Reset state
     this.state.activeTool = type;
-    this.state.mode = type === 'cursor' || type === 'crosshair' ? 'idle' : 'idle';
+    this.state.mode = 'idle'; // Always start in idle mode when selecting a new tool
     this.state.isMouseDown = false;
     this.state.startPoint = null;
 
@@ -118,7 +144,7 @@ export class InteractionController {
     }
 
     this.updateCursor();
-    this.callbacks.onModeChanged?.(this.state.mode);
+    // Don't emit mode change here - it will be emitted when drawing actually starts/ends
   }
 
   getActiveTool(): ToolType {
@@ -133,17 +159,81 @@ export class InteractionController {
     return { ...this.state };
   }
 
+  /**
+   * Get the currently hovered tool ID
+   */
+  getHoveredToolId(): string | null {
+    return this.state.hoveredToolId;
+  }
+
+  /**
+   * Get the currently hovered handle
+   */
+  getHoveredHandle(): HandlePosition | null {
+    return this.state.hoveredHandle;
+  }
+
   // ============ COORDINATE CONVERSION ============
 
-  private screenToChart(screenX: number, screenY: number): Point | null {
+  private screenToChart(screenX: number, screenY: number, applyMagnet: boolean = true): Point | null {
     if (!this.converter || !this.chartBounds) return null;
 
     const x = screenX - this.chartBounds.left;
     const y = screenY - this.chartBounds.top;
 
-    return {
+    let point: Point = {
       time: this.converter.xToTime(x),
       price: this.converter.yToPrice(y),
+    };
+
+    // Apply magnet snapping if enabled
+    if (applyMagnet && this.magnetMode !== 'none') {
+      point = this.applyMagnetSnapping(point, y);
+    }
+
+    return point;
+  }
+
+  /**
+   * Apply magnet snapping to snap price to OHLC values
+   */
+  private applyMagnetSnapping(point: Point, screenY: number): Point {
+    if (!this.callbacks.getOHLCAtTime || !this.converter) {
+      return point;
+    }
+
+    const ohlc = this.callbacks.getOHLCAtTime(point.time);
+    if (!ohlc) {
+      return point;
+    }
+
+    // Get the prices to snap to based on mode
+    let pricesToSnap: number[];
+    if (this.magnetMode === 'ohlc') {
+      pricesToSnap = [ohlc.open, ohlc.high, ohlc.low, ohlc.close];
+    } else if (this.magnetMode === 'close') {
+      pricesToSnap = [ohlc.close];
+    } else {
+      return point;
+    }
+
+    // Find the closest price within threshold
+    let closestPrice = point.price;
+    let closestDistance = Infinity;
+
+    for (const price of pricesToSnap) {
+      const priceY = this.converter.priceToY(price);
+      const distance = Math.abs(priceY - screenY);
+
+      if (distance < this.magnetThreshold && distance < closestDistance) {
+        closestDistance = distance;
+        closestPrice = price;
+      }
+    }
+
+    return {
+      time: point.time,
+      price: closestPrice,
     };
   }
 
@@ -190,7 +280,7 @@ export class InteractionController {
       point,
       this.converter!.priceToY,
       this.converter!.timeToX,
-      10
+      15 // Larger tolerance for easier selection
     );
 
     if (hitResult) {
@@ -270,12 +360,15 @@ export class InteractionController {
       const newTool = engine.finishDrawing();
 
       if (newTool) {
+        // Keep the tool selected so the settings bar stays visible
         this.state.selectedToolId = newTool.id;
+        engine.selectTool(newTool.id);
         this.callbacks.onToolCreated?.(newTool);
         this.callbacks.onToolSelected?.(newTool);
       }
 
-      // Reset to cursor mode after drawing
+      // Reset to idle mode but keep tool selected for modification
+      // User can click elsewhere, press ESC, or click another tool to deselect
       this.state.mode = 'idle';
       this.state.activeTool = 'cursor';
       engine.setActiveTool('cursor');
@@ -477,10 +570,27 @@ export class InteractionController {
       point,
       this.converter.priceToY,
       this.converter.timeToX,
-      10
+      15 // Larger tolerance for easier selection
     );
 
     let cursor = 'default';
+
+    // Update hover state
+    const prevHoveredId = this.state.hoveredToolId;
+    const prevHoveredHandle = this.state.hoveredHandle;
+
+    if (hitResult) {
+      this.state.hoveredToolId = hitResult.tool.id;
+      this.state.hoveredHandle = hitResult.handle;
+    } else {
+      this.state.hoveredToolId = null;
+      this.state.hoveredHandle = null;
+    }
+
+    // Request redraw if hover state changed
+    if (prevHoveredId !== this.state.hoveredToolId || prevHoveredHandle !== this.state.hoveredHandle) {
+      this.callbacks.requestRedraw?.();
+    }
 
     if (this.state.activeTool !== 'cursor' && this.state.activeTool !== 'crosshair') {
       cursor = 'crosshair';
@@ -520,6 +630,8 @@ export class InteractionController {
       currentPoint: null,
       selectedToolId: null,
       dragHandle: null,
+      hoveredToolId: null,
+      hoveredHandle: null,
       modifiers: { shift: false, ctrl: false, alt: false },
     };
 

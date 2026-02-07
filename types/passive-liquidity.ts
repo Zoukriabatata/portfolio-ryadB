@@ -216,8 +216,8 @@ export const DEFAULT_COHERENT_CONFIG: CoherentSimulatorConfig = {
   spreadTicks: 1,
 
   // Absorption Animation
-  absorptionAnimationDuration: 300,
-  executionFadeOutDuration: 500,
+  absorptionAnimationDuration: 1500,  // Increased from 300 for more visible effect
+  executionFadeOutDuration: 800,
 
   // Spoofing Detection
   spoofingDetectionEnabled: true,
@@ -232,8 +232,8 @@ export const DEFAULT_COHERENT_CONFIG: CoherentSimulatorConfig = {
 
   // Regeneration
   regenerationEnabled: true,
-  regenerationIntervalMs: 2000,
-  regenerationVolumeRatio: 0.3,
+  regenerationIntervalMs: 5000,   // Increased from 2000 to keep absorbed state visible longer
+  regenerationVolumeRatio: 0.2,   // Slower refill
 
   // Iceberg Orders
   icebergEnabled: true,
@@ -242,7 +242,7 @@ export const DEFAULT_COHERENT_CONFIG: CoherentSimulatorConfig = {
   icebergMinVisiblePortion: 5,     // Minimum 5 contracts visible
 
   // Data Source
-  dataSource: 'simulation',        // Default to simulation (change to 'realtime' for real orderbook)
+  dataSource: 'realtime',           // Use real Binance orderbook data by default
   realtimeDepthLevels: 20,         // Use 20 levels from Binance depth stream
 };
 

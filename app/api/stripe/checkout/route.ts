@@ -1,0 +1,146 @@
+/**
+ * STRIPE CHECKOUT API
+ *
+ * Creates checkout sessions for subscription purchases
+ * Supports promo codes with anti-abuse detection
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
+import { prisma } from '@/lib/db';
+import { createOrGetCustomer, createCheckoutSession, stripe } from '@/lib/stripe';
+import { validatePromoCodeUsage, recordPromoCodeAttempt } from '@/lib/stripe/promo-code-service';
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { tier, billingPeriod, promoCode } = body;
+
+    if (!tier || tier !== 'ULTRA') {
+      return NextResponse.json({ error: 'Tier invalide' }, { status: 400 });
+    }
+
+    if (!billingPeriod || !['monthly', 'yearly'].includes(billingPeriod)) {
+      return NextResponse.json({ error: 'Période de facturation invalide' }, { status: 400 });
+    }
+
+    // Get device fingerprint and IP for anti-abuse detection
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+               req.headers.get('x-real-ip') ||
+               req.headers.get('cf-connecting-ip') ||
+               '127.0.0.1';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+    const fingerprintCookie = req.cookies.get('_fp');
+    const deviceFingerprint = fingerprintCookie?.value || 'unknown';
+
+    // Get or create Stripe customer
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+    }
+
+    let customerId = user.customerId;
+
+    if (!customerId) {
+      customerId = await createOrGetCustomer(
+        user.email,
+        user.name,
+        user.id
+      );
+
+      // Save customer ID
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { customerId },
+      });
+    }
+
+    // ✅ PROMO CODE VALIDATION
+    let couponId: string | undefined;
+    let promoCodeUsageId: string | undefined;
+    let promoCodeRecord: any = null;
+
+    if (promoCode) {
+      const validation = await validatePromoCodeUsage(
+        promoCode,
+        session.user.id,
+        deviceFingerprint,
+        ip,
+        userAgent,
+        session.user.email
+      );
+
+      if (!validation.valid) {
+        return NextResponse.json({
+          error: validation.reason,
+          similarityScore: validation.similarityScore,
+        }, { status: 400 });
+      }
+
+      promoCodeRecord = validation.promoCode;
+
+      // Record the attempt (paymentCompleted=false)
+      promoCodeUsageId = await recordPromoCodeAttempt(
+        promoCodeRecord.id,
+        session.user.id,
+        deviceFingerprint,
+        ip,
+        userAgent,
+        session.user.email
+      );
+
+      // Create or get Stripe coupon
+      if (!promoCodeRecord.stripeCouponId) {
+        // Create new coupon in Stripe
+        const coupon = await stripe.coupons.create({
+          name: promoCodeRecord.code,
+          percent_off: promoCodeRecord.discountValue, // 70 for SENBETA5
+          duration: 'forever', // Applied forever (after trial)
+          max_redemptions: promoCodeRecord.maxUses,
+        });
+
+        // Save Stripe coupon ID
+        await prisma.promoCode.update({
+          where: { id: promoCodeRecord.id },
+          data: { stripeCouponId: coupon.id },
+        });
+
+        couponId = coupon.id;
+      } else {
+        couponId = promoCodeRecord.stripeCouponId;
+      }
+    }
+
+    // Create checkout session
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const checkoutUrl = await createCheckoutSession({
+      customerId,
+      userId: user.id,
+      tier,
+      billingPeriod,
+      successUrl: `${baseUrl}/account?success=true`,
+      cancelUrl: `${baseUrl}/pricing?cancelled=true`,
+      couponId,
+      promoCodeUsageId,
+      trialDays: promoCodeRecord?.trialDays || undefined, // Add trial period if promo code has one
+    });
+
+    return NextResponse.json({ url: checkoutUrl });
+  } catch (error) {
+    console.error('Checkout error:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors de la création du paiement' },
+      { status: 500 }
+    );
+  }
+}
