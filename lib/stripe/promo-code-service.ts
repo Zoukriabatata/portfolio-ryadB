@@ -74,7 +74,8 @@ export async function validatePromoCodeUsage(
     promoCode.id,
     deviceFingerprint,
     ipAddress,
-    email
+    email,
+    userAgent
   );
 
   if (abuseCheck.suspicious) {
@@ -96,7 +97,8 @@ async function detectPromoCodeAbuse(
   promoCodeId: string,
   deviceFingerprint: string,
   ipAddress: string,
-  email: string
+  email: string,
+  userAgent: string
 ): Promise<{ suspicious: boolean; score: number; reasons: string[] }> {
 
   const emailHash = hashEmail(email);
