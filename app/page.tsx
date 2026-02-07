@@ -2,34 +2,72 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import {
   LiveIcon,
   FootprintIcon,
   HeatmapIcon,
   GexIcon,
   VolatilityIcon,
-  NewsIcon,
-  ReplayIcon,
-  BacktestIcon,
-  JournalIcon,
-  DataFeedIcon,
+  ChartIcon,
 } from '@/components/ui/Icons';
 
-const QUICK_LAUNCH = [
-  { href: '/live', label: 'Live', Icon: LiveIcon, color: '#10b981', desc: 'Real-time charts' },
-  { href: '/footprint', label: 'Footprint', Icon: FootprintIcon, color: '#14b8a6', desc: 'Order flow' },
-  { href: '/liquidity', label: 'Liquidity', Icon: HeatmapIcon, color: '#06b6d4', desc: 'Heatmap' },
-  { href: '/gex', label: 'GEX', Icon: GexIcon, color: '#22d3ee', desc: 'Gamma exposure' },
-  { href: '/volatility', label: 'Volatility', Icon: VolatilityIcon, color: '#0ea5e9', desc: 'IV surface' },
-  { href: '/news', label: 'News', Icon: NewsIcon, color: '#84cc16', desc: 'Market news' },
-  { href: '/replay', label: 'Replay', Icon: ReplayIcon, color: '#8b5cf6', desc: 'Session replay' },
-  { href: '/backtest', label: 'Backtest', Icon: BacktestIcon, color: '#a78bfa', desc: 'Strategy testing' },
-  { href: '/journal', label: 'Journal', Icon: JournalIcon, color: '#f59e0b', desc: 'Trade journal' },
-  { href: '/boutique', label: 'Data Feeds', Icon: DataFeedIcon, color: '#fbbf24', desc: 'Configure feeds' },
+const FEATURES = [
+  {
+    Icon: LiveIcon,
+    title: 'Live Trading',
+    description: 'Real-time market data with WebSocket feeds from multiple exchanges',
+    color: '#10b981',
+    href: '/live',
+  },
+  {
+    Icon: FootprintIcon,
+    title: 'Footprint Charts',
+    description: 'Advanced orderflow visualization with bid/ask volume analysis',
+    color: '#14b8a6',
+    href: '/footprint',
+  },
+  {
+    Icon: HeatmapIcon,
+    title: 'Liquidity Heatmap',
+    description: 'Visualize market depth and liquidity zones in real-time',
+    color: '#06b6d4',
+    href: '/liquidity',
+  },
+  {
+    Icon: GexIcon,
+    title: 'GEX Analysis',
+    description: 'Gamma exposure tracking for options-driven market movements',
+    color: '#22d3ee',
+    href: '/gex',
+  },
+  {
+    Icon: VolatilityIcon,
+    title: 'IV Surface',
+    description: 'Implied volatility surface and skew analysis for options',
+    color: '#0ea5e9',
+    href: '/volatility',
+  },
+  {
+    Icon: ChartIcon,
+    title: 'Market Replay',
+    description: 'Review and analyze historical market sessions frame-by-frame',
+    color: '#8b5cf6',
+    href: '/replay',
+  },
 ];
 
-export default function DashboardPage() {
+const STATS = [
+  { value: '5ms', label: 'Average Latency' },
+  { value: '99.9%', label: 'Uptime' },
+  { value: '10+', label: 'Data Sources' },
+  { value: '24/7', label: 'Live Support' },
+];
+
+export default function HomePage() {
   const [mounted, setMounted] = useState(false);
+  const sessionData = useSession();
+  const session = sessionData?.data;
 
   useEffect(() => {
     setMounted(true);
@@ -37,151 +75,211 @@ export default function DashboardPage() {
 
   if (!mounted) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="h-full w-full flex items-center justify-center bg-[var(--background)]">
         <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full overflow-auto p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-0.5">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
+    <div className="h-full w-full overflow-auto bg-[var(--background)]">
+      {/* Hero Section */}
+      <section className="relative min-h-[600px] flex items-center justify-center px-6 py-20">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/5 via-transparent to-[var(--accent)]/5" />
+
+        {/* Grid Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)`,
+            backgroundSize: '50px 50px',
+          }}
+        />
+
+        <div className="relative max-w-6xl mx-auto text-center space-y-8">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--surface)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] animate-fade-in">
+            <span className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse" />
+            Production Ready • Real-time Data
+          </div>
+
+          {/* Main Heading */}
+          <div className="space-y-4 animate-fade-in-up">
+            <h1 className="text-5xl md:text-7xl font-bold text-[var(--text-primary)] tracking-tight">
+              Professional
+              <span className="block mt-2 bg-gradient-to-r from-[var(--primary)] via-[var(--accent)] to-[var(--primary)] bg-clip-text text-transparent animate-gradient">
+                Order Flow Analytics
+              </span>
+            </h1>
+            <p className="text-lg md:text-xl text-[var(--text-secondary)] max-w-3xl mx-auto leading-relaxed">
+              Institutional-grade market microstructure analysis.
+              Real-time liquidity heatmaps, footprint charts, and gamma exposure tracking.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--success-bg)] border border-[var(--success)]/20">
-              <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full animate-pulse" />
-              <span className="text-xs font-medium text-[var(--success)]">All Systems Operational</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Subscription Status */}
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center">
-              <span className="text-sm font-bold text-[var(--primary)]">F</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-[var(--text-primary)]">Free Plan</span>
-                <span className="px-2 py-0.5 text-[10px] font-medium bg-[var(--surface-elevated)] text-[var(--text-muted)] rounded-full border border-[var(--border)]">
-                  Active
-                </span>
+          {/* CTA Buttons */}
+          <div className="flex items-center justify-center gap-4 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            {session ? (
+              <Link
+                href="/live"
+                className="px-8 py-4 bg-[var(--primary)] text-white rounded-xl font-semibold hover:bg-[var(--primary-light)] transition-all hover:scale-105 shadow-lg hover:shadow-xl"
+              >
+                Open Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/auth/register"
+                  className="px-8 py-4 bg-[var(--primary)] text-white rounded-xl font-semibold hover:bg-[var(--primary-light)] transition-all hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  Start Free Trial
+                </Link>
+                <Link
+                  href="/auth/login"
+                  className="px-8 py-4 bg-[var(--surface)] text-[var(--text-primary)] rounded-xl font-semibold border border-[var(--border)] hover:border-[var(--border-light)] hover:bg-[var(--surface-elevated)] transition-all"
+                >
+                  Sign In
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pt-12 max-w-4xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+            {STATS.map((stat, idx) => (
+              <div key={idx} className="space-y-1">
+                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] bg-clip-text text-transparent">
+                  {stat.value}
+                </div>
+                <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider">
+                  {stat.label}
+                </div>
               </div>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">Crypto data only. Upgrade for futures access.</p>
-            </div>
+            ))}
           </div>
-          <Link
-            href="/pricing"
-            className="px-4 py-2 bg-[var(--primary)] text-white text-xs font-medium rounded-lg hover:bg-[var(--primary-light)] transition-colors"
-          >
-            Upgrade to SENULTRA
-          </Link>
         </div>
+      </section>
 
-        {/* Quick Launch Grid */}
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Quick Launch</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {QUICK_LAUNCH.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <div className="group bg-[var(--surface)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--border-light)] hover:-translate-y-0.5 transition-all cursor-pointer">
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center mb-2.5 transition-transform group-hover:scale-110"
-                    style={{ backgroundColor: `${item.color}12` }}
-                  >
-                    <item.Icon size={18} color={item.color} />
-                  </div>
-                  <h3 className="text-sm font-medium text-[var(--text-primary)]">{item.label}</h3>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{item.desc}</p>
+      {/* Features Section */}
+      <section className="px-6 py-20 bg-[var(--surface)]/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16 space-y-4">
+            <h2 className="text-3xl md:text-5xl font-bold text-[var(--text-primary)]">
+              Everything You Need
+            </h2>
+            <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
+              Professional trading tools built for serious traders and institutions
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {FEATURES.map((feature, idx) => (
+              <Link
+                key={idx}
+                href={feature.href}
+                className="group relative bg-[var(--background)] rounded-2xl border border-[var(--border)] p-8 hover:border-[var(--border-light)] transition-all hover:-translate-y-1 hover:shadow-xl"
+                style={{ animationDelay: `${idx * 0.1}s` }}
+              >
+                {/* Icon */}
+                <div
+                  className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110"
+                  style={{ backgroundColor: `${feature.color}15` }}
+                >
+                  <feature.Icon size={28} color={feature.color} />
+                </div>
+
+                {/* Content */}
+                <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                  {feature.description}
+                </p>
+
+                {/* Arrow */}
+                <div className="absolute bottom-8 right-8 w-6 h-6 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1">
+                  <svg className="w-3 h-3 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </Link>
             ))}
           </div>
         </div>
+      </section>
 
-        {/* Bottom Grid */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Market Overview */}
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5">
-            <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-4">Market Overview</h2>
-            <div className="space-y-3">
-              <MarketRow symbol="BTC/USDT" price="97,432.50" change="+2.14%" positive />
-              <MarketRow symbol="ETH/USDT" price="3,245.80" change="-0.87%" positive={false} />
-              <MarketRow symbol="ES (S&P 500)" price="5,987.25" change="+0.43%" positive />
-              <MarketRow symbol="NQ (Nasdaq)" price="21,345.00" change="+0.61%" positive />
-            </div>
-            <Link
-              href="/live"
-              className="block mt-4 text-center py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--text-secondary)] transition-colors"
-            >
-              Open Live Charts
-            </Link>
-          </div>
+      {/* CTA Section */}
+      <section className="px-6 py-20">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] rounded-3xl p-12 md:p-16 overflow-hidden">
+            {/* Background Pattern */}
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
+                backgroundSize: '40px 40px',
+              }}
+            />
 
-          {/* Data Feed Status */}
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5">
-            <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-4">Data Feed Status</h2>
-            <div className="space-y-3">
-              <FeedRow name="Binance WebSocket" status="connected" latency="12ms" />
-              <FeedRow name="Deribit Options" status="connected" latency="45ms" />
-              <FeedRow name="Interactive Brokers" status="not_configured" />
-              <FeedRow name="Rithmic" status="not_configured" />
+            <div className="relative text-center space-y-6">
+              <h2 className="text-3xl md:text-5xl font-bold text-white">
+                Ready to Start Trading?
+              </h2>
+              <p className="text-lg text-white/90 max-w-2xl mx-auto">
+                Join thousands of traders using professional-grade analytics to make better decisions.
+              </p>
+              <div className="flex items-center justify-center gap-4 pt-4">
+                {session ? (
+                  <Link
+                    href="/live"
+                    className="px-8 py-4 bg-white text-[var(--primary)] rounded-xl font-semibold hover:shadow-xl transition-all hover:scale-105"
+                  >
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/auth/register"
+                      className="px-8 py-4 bg-white text-[var(--primary)] rounded-xl font-semibold hover:shadow-xl transition-all hover:scale-105"
+                    >
+                      Get Started Free
+                    </Link>
+                    <Link
+                      href="/pricing"
+                      className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-xl font-semibold border-2 border-white/30 hover:bg-white/20 transition-all"
+                    >
+                      View Pricing
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
-            <Link
-              href="/boutique"
-              className="block mt-4 text-center py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--text-secondary)] transition-colors"
-            >
-              Configure Data Feeds
-            </Link>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      </section>
 
-function MarketRow({ symbol, price, change, positive }: { symbol: string; price: string; change: string; positive: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-sm text-[var(--text-primary)] font-medium">{symbol}</span>
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-[var(--text-secondary)] font-mono">{price}</span>
-        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${positive ? 'text-[var(--bull)] bg-[var(--bull-bg)]' : 'text-[var(--bear)] bg-[var(--bear-bg)]'}`}>
-          {change}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function FeedRow({ name, status, latency }: { name: string; status: 'connected' | 'error' | 'not_configured'; latency?: string }) {
-  const statusConfig = {
-    connected: { color: 'var(--success)', label: 'Connected', bg: 'var(--success-bg)' },
-    error: { color: 'var(--error)', label: 'Error', bg: 'var(--error-bg)' },
-    not_configured: { color: 'var(--text-dimmed)', label: 'Not configured', bg: 'var(--surface-elevated)' },
-  }[status];
-
-  return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-sm text-[var(--text-primary)]">{name}</span>
-      <div className="flex items-center gap-2">
-        {latency && <span className="text-[11px] text-[var(--text-muted)] font-mono">{latency}</span>}
-        <span
-          className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full"
-          style={{ color: statusConfig.color, backgroundColor: statusConfig.bg }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusConfig.color }} />
-          {statusConfig.label}
-        </span>
-      </div>
+      {/* Footer */}
+      <footer className="px-6 py-12 border-t border-[var(--border)] bg-[var(--surface)]/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-[var(--text-muted)]">
+              © 2026 OrderFlow v2. Professional Trading Analytics.
+            </div>
+            <div className="flex items-center gap-6">
+              <Link href="/legal/terms" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+                Terms
+              </Link>
+              <Link href="/legal/privacy" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+                Privacy
+              </Link>
+              <Link href="/pricing" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+                Pricing
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
