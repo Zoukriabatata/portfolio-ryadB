@@ -1,12 +1,12 @@
 // SENZOUKRIA Database Schema
-// SQLite for development, switch to PostgreSQL for production
+// PostgreSQL for production (Vercel Postgres)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
