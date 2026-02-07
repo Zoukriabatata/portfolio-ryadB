@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { SessionProvider } from 'next-auth/react';
 import Logo from '@/components/ui/Logo';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
 import {
@@ -92,7 +93,8 @@ export default function DashboardLayout({
   const isChartRoute = !!activeChart;
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[var(--background)] text-[var(--text-primary)]">
+    <SessionProvider>
+      <div className="h-screen w-screen overflow-hidden flex flex-col bg-[var(--background)] text-[var(--text-primary)]">
       {/* ============================================================
           TOPBAR NAVIGATION
           ============================================================ */}
@@ -245,5 +247,6 @@ export default function DashboardLayout({
         })}
       </main>
     </div>
+    </SessionProvider>
   );
 }
