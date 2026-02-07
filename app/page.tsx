@@ -9,7 +9,7 @@ import {
   HeatmapIcon,
   GexIcon,
   VolatilityIcon,
-  ChartIcon,
+  ReplayIcon,
 } from '@/components/ui/Icons';
 
 const FEATURES = [
@@ -49,7 +49,7 @@ const FEATURES = [
     href: '/volatility',
   },
   {
-    Icon: ChartIcon,
+    Icon: ReplayIcon,
     title: 'Market Replay',
     description: 'Review and analyze historical market sessions frame-by-frame',
     color: '#8b5cf6',
