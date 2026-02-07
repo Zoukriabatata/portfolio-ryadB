@@ -9,9 +9,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-// Fail fast if critical env vars are missing in production
+// Warn if critical env vars are missing in production
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  throw new Error('FATAL: JWT_SECRET environment variable is required in production');
+  console.warn('WARNING: JWT_SECRET not configured - authentication features will not work properly');
 }
 
 // ============ PASSWORD HASHING ============
