@@ -76,22 +76,18 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
       hue: 20 + Math.random() * 30,
     }));
 
-    // ── Secondary gravitational distortions (gradient-based, no particles) ──
+    // ── Secondary gravitational distortions (hero area only) ──
     const TILT = 0.28;
 
-    // Each secondary BH is pure distortion: void + lensing glow + single photon ring
-    // No particle disks. Depth = size/intensity variation.
+    // Pure gradient distortions confined to hero viewport. NO vertical continuation.
+    // Depth through size/intensity variation only. Asymmetric placement.
     const secondaryBHs = [
-      // Large, close — left margin near features (dominant anchor)
-      { normX: 0.07, yMul: 1.45, radiusFrac: 0.20, intensity: 0.7, phase: 0, pulse: 0.0008 },
-      // Small, distant — right of features (barely visible, pure depth cue)
-      { normX: 0.91, yMul: 1.70, radiusFrac: 0.05, intensity: 0.25, phase: 2.1, pulse: 0.0015 },
-      // Medium — left, between features and CTA (asymmetric balance)
-      { normX: 0.10, yMul: 2.35, radiusFrac: 0.10, intensity: 0.45, phase: 4.0, pulse: 0.0012 },
-      // Tiny, very distant — right near CTA (atmospheric)
-      { normX: 0.88, yMul: 2.60, radiusFrac: 0.04, intensity: 0.18, phase: 1.3, pulse: 0.0018 },
-      // Medium-large — right of CTA section (counterweight to #1)
-      { normX: 0.93, yMul: 2.90, radiusFrac: 0.14, intensity: 0.55, phase: 3.5, pulse: 0.0010 },
+      // Large, dominant — left margin (anchor point)
+      { normX: 0.08, yMul: 0.70, radiusFrac: 0.18, intensity: 0.65, phase: 0, pulse: 0.0007 },
+      // Tiny, distant — upper right (atmospheric depth)
+      { normX: 0.89, yMul: 0.35, radiusFrac: 0.05, intensity: 0.20, phase: 3.1, pulse: 0.0016 },
+      // Medium — lower right (asymmetric balance)
+      { normX: 0.91, yMul: 0.85, radiusFrac: 0.10, intensity: 0.40, phase: 1.8, pulse: 0.0011 },
     ].map(bh => ({ ...bh, absX: 0, absY: 0, absR: 0 }));
 
     const updateSecondaryBHPositions = () => {
@@ -103,8 +99,8 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
     };
     updateSecondaryBHPositions();
 
-    // ── Horizontal accretion disk (refined — sparser, smaller particles) ──
-    const diskCount = 1200;
+    // ── Horizontal accretion disk (minimal sparse particles) ──
+    const diskCount = 400;
     const disk = Array.from({ length: diskCount }, () => {
       const orbitR = 1.2 + Math.random() * 3.5;
       const isInner = orbitR < 2.2;
@@ -122,8 +118,8 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
       };
     });
 
-    // ── Vertical lensing ring (reduced, smaller) ──
-    const lensRingCount = 350;
+    // ── Vertical lensing ring (minimal) ──
+    const lensRingCount = 200;
     const lensRing = Array.from({ length: lensRingCount }, () => {
       const orbitR = 1.15 + Math.random() * 1.0;
       return {
@@ -764,54 +760,37 @@ export default function HomePage() {
 
       {/* ═══════ FEATURES ═══════ */}
       <section className="relative px-6 py-24">
-        {/* Dark overlay — centered content zone only, margins stay transparent for secondary BHs */}
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-5xl bg-black/65 backdrop-blur-[2px] rounded-2xl" style={{ zIndex: 1 }} />
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px]" style={{ zIndex: 1 }} />
 
-        {/* Gradient mesh transition — richer layered */}
-        <div className="absolute -top-32 inset-x-0 h-64 pointer-events-none" style={{
+        {/* Gradient mesh transition (replaces thin divider) */}
+        <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
           background: `
-            radial-gradient(ellipse 70% 55% at 50% 100%, rgba(245,158,11,0.045) 0%, transparent 70%),
-            radial-gradient(ellipse 45% 45% at 25% 85%, rgba(255,140,50,0.03) 0%, transparent 60%),
-            radial-gradient(ellipse 45% 45% at 75% 90%, rgba(200,120,40,0.03) 0%, transparent 60%),
-            radial-gradient(ellipse 30% 30% at 50% 95%, rgba(255,180,80,0.02) 0%, transparent 50%)
+            radial-gradient(ellipse 60% 50% at 50% 100%, rgba(245,158,11,0.03) 0%, transparent 70%),
+            radial-gradient(ellipse 40% 40% at 30% 80%, rgba(255,140,50,0.02) 0%, transparent 60%),
+            radial-gradient(ellipse 40% 40% at 70% 90%, rgba(200,120,40,0.02) 0%, transparent 60%)
           `,
           zIndex: 2,
         }} />
 
-        {/* Ambient glow spots — larger and more visible */}
+        {/* Ambient glow spots */}
         <div className="ambient-glow" style={{
-          width: '700px', height: '700px',
-          top: '5%', left: '-15%',
-          background: 'radial-gradient(circle, rgba(245,158,11,0.025), rgba(255,130,40,0.01) 50%, transparent 70%)',
+          width: '500px', height: '500px',
+          top: '20%', left: '-10%',
+          background: 'radial-gradient(circle, rgba(245,158,11,0.015), transparent 70%)',
           animationDelay: '0s',
           zIndex: 2,
         }} />
         <div className="ambient-glow" style={{
-          width: '600px', height: '600px',
-          bottom: '5%', right: '-10%',
-          background: 'radial-gradient(circle, rgba(200,100,20,0.02), rgba(180,80,15,0.008) 50%, transparent 70%)',
+          width: '400px', height: '400px',
+          bottom: '10%', right: '-5%',
+          background: 'radial-gradient(circle, rgba(200,100,20,0.01), transparent 70%)',
           animationDelay: '-4s',
           zIndex: 2,
         }} />
-        <div className="ambient-glow" style={{
-          width: '500px', height: '500px',
-          top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, rgba(255,170,60,0.018), transparent 65%)',
-          animationDelay: '-6s',
-          zIndex: 2,
-        }} />
 
-        {/* Bottom section edge glow */}
-        <div className="absolute -bottom-16 inset-x-0 h-32 pointer-events-none" style={{
-          background: `
-            radial-gradient(ellipse 60% 80% at 50% 0%, rgba(245,158,11,0.025) 0%, transparent 70%)
-          `,
-          zIndex: 2,
-        }} />
-
-        {/* CSS ambient particles — more of them */}
-        <AmbientParticles count={14} />
+        {/* CSS ambient particles */}
+        <AmbientParticles count={10} />
 
         <div className="max-w-4xl mx-auto relative" style={{ zIndex: 10 }}>
           <div className="text-center mb-14">
@@ -839,63 +818,32 @@ export default function HomePage() {
       </section>
 
       {/* ═══════ CTA ═══════ */}
-      <section className="relative px-6 py-28">
-        {/* Dark overlay — centered content zone */}
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-3xl bg-black/65 backdrop-blur-[2px] rounded-2xl" style={{ zIndex: 1 }} />
+      <section className="relative px-6 py-24">
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]" style={{ zIndex: 1 }} />
 
-        {/* Gradient mesh transition — richer */}
-        <div className="absolute -top-32 inset-x-0 h-64 pointer-events-none" style={{
+        {/* Gradient mesh transition */}
+        <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
           background: `
-            radial-gradient(ellipse 60% 55% at 50% 100%, rgba(245,158,11,0.04) 0%, transparent 70%),
-            radial-gradient(ellipse 40% 45% at 35% 85%, rgba(255,170,60,0.025) 0%, transparent 60%),
-            radial-gradient(ellipse 40% 45% at 65% 80%, rgba(200,120,40,0.02) 0%, transparent 60%)
+            radial-gradient(ellipse 50% 50% at 50% 100%, rgba(255,255,255,0.015) 0%, transparent 70%),
+            radial-gradient(ellipse 35% 40% at 40% 80%, rgba(245,158,11,0.015) 0%, transparent 60%)
           `,
           zIndex: 2,
         }} />
 
-        {/* Central premium glow halo */}
+        {/* Ambient glow */}
         <div className="ambient-glow" style={{
-          width: '800px', height: '800px',
-          top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, rgba(245,158,11,0.03), rgba(255,140,50,0.015) 40%, transparent 65%)',
+          width: '400px', height: '400px',
+          top: '30%', left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'radial-gradient(circle, rgba(245,158,11,0.012), transparent 70%)',
           animationDelay: '-2s',
           zIndex: 2,
         }} />
 
-        {/* Side glow accents */}
-        <div className="ambient-glow" style={{
-          width: '500px', height: '500px',
-          top: '20%', left: '-8%',
-          background: 'radial-gradient(circle, rgba(255,170,60,0.02), transparent 65%)',
-          animationDelay: '0s',
-          zIndex: 2,
-        }} />
-        <div className="ambient-glow" style={{
-          width: '500px', height: '500px',
-          bottom: '10%', right: '-8%',
-          background: 'radial-gradient(circle, rgba(200,120,40,0.018), transparent 65%)',
-          animationDelay: '-5s',
-          zIndex: 2,
-        }} />
-
-        {/* Bottom edge glow */}
-        <div className="absolute -bottom-12 inset-x-0 h-24 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse 50% 80% at 50% 0%, rgba(245,158,11,0.02) 0%, transparent 70%)',
-          zIndex: 2,
-        }} />
-
-        <AmbientParticles count={10} />
+        <AmbientParticles count={6} />
 
         <div className="max-w-lg mx-auto text-center relative" style={{ zIndex: 10 }}>
-          {/* Premium accent line above title */}
-          <div
-            data-animate="scale"
-            className="mx-auto mb-6 w-16 h-[1px]"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.5), transparent)',
-            }}
-          />
           <h2
             data-animate="up"
             className="text-2xl md:text-3xl font-bold text-white/90 tracking-tight"
@@ -930,15 +878,6 @@ export default function HomePage() {
               </>
             )}
           </div>
-          {/* Premium accent line below CTA */}
-          <div
-            data-animate="scale"
-            data-animate-delay="3"
-            className="mx-auto mt-10 w-24 h-[1px]"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.3), transparent)',
-            }}
-          />
         </div>
       </section>
 
