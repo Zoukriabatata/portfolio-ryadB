@@ -91,24 +91,24 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
       // Absolute values computed in resize
       absX: 0, absY: 0, absR: 0,
       diskParticles: Array.from({ length: particleCount }, () => {
-        const orbitR = 1.3 + Math.random() * 2.5;
+        const orbitR = 1.2 + Math.random() * 3.0;
         return {
           angle: Math.random() * Math.PI * 2,
           orbitR,
-          yOff: (Math.random() - 0.5) * 0.06 * orbitR,
-          speed: (0.002 + Math.random() * 0.004) / Math.pow(orbitR, 0.6),
-          size: 0.3 + Math.random() * 0.8,
-          baseHue: 18 + Math.random() * 25,
-          br: 0.2 + Math.random() * 0.5,
+          yOff: (Math.random() - 0.5) * 0.07 * orbitR,
+          speed: (0.003 + Math.random() * 0.005) / Math.pow(orbitR, 0.6),
+          size: 0.5 + Math.random() * 1.2,
+          baseHue: 18 + Math.random() * 28,
+          br: 0.35 + Math.random() * 0.6,
         };
       }),
     });
 
     const secondaryBHs = [
-      createSecondaryBH(0.12, 1.4, 0.10, 0.28, 60),  // Left of features
-      createSecondaryBH(0.88, 1.8, 0.08, 0.22, 50),  // Right of features
-      createSecondaryBH(0.92, 2.3, 0.07, 0.18, 40),  // Right, between sections
-      createSecondaryBH(0.08, 2.7, 0.09, 0.25, 55),  // Left of CTA
+      createSecondaryBH(0.10, 1.4, 0.14, 0.65, 90),  // Left of features
+      createSecondaryBH(0.90, 1.9, 0.11, 0.50, 70),  // Right of features
+      createSecondaryBH(0.92, 2.4, 0.09, 0.40, 55),  // Right, between sections
+      createSecondaryBH(0.07, 2.8, 0.12, 0.55, 80),  // Left of CTA
     ];
 
     const updateSecondaryBHPositions = () => {
@@ -242,17 +242,18 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
         const pulse = 1 + Math.sin(t * bh.pulseSpeed + bh.rotationOffset) * 0.15;
         const intens = bh.intensity * pulse;
 
-        // Layer 1: Faint nebula glow
-        const sg = ctx.createRadialGradient(bhX, bhY, bhR * 0.2, bhX, bhY, bhR * 5);
-        sg.addColorStop(0, `rgba(255,140,50,${0.03 * intens})`);
-        sg.addColorStop(0.4, `rgba(255,110,30,${0.015 * intens})`);
+        // Layer 1: Nebula glow (visible through margins)
+        const sg = ctx.createRadialGradient(bhX, bhY, bhR * 0.2, bhX, bhY, bhR * 6);
+        sg.addColorStop(0, `rgba(255,150,50,${0.10 * intens})`);
+        sg.addColorStop(0.2, `rgba(255,130,40,${0.06 * intens})`);
+        sg.addColorStop(0.5, `rgba(255,100,25,${0.03 * intens})`);
         sg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = sg;
         ctx.beginPath();
-        ctx.arc(bhX, bhY, bhR * 5, 0, Math.PI * 2);
+        ctx.arc(bhX, bhY, bhR * 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // Layer 2: Mini accretion disk (all particles, no front/back sort)
+        // Layer 2: Mini accretion disk
         bh.diskParticles.forEach(p => {
           p.angle += p.speed;
           const x3 = Math.cos(p.angle) * p.orbitR;
@@ -261,37 +262,50 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
           const py = bhY + z3 * TILT * bhR + p.yOff * bhR;
 
           const distC = Math.sqrt((px - bhX) ** 2 + (py - bhY) ** 2);
-          if (distC < bhR * 0.8) return;
+          if (distC < bhR * 0.75) return;
 
-          const hue = p.baseHue + Math.cos(p.angle) * -12;
-          const lit = 45 + Math.cos(p.angle) * 15;
-          const a = p.br * intens * 0.5;
+          const cosA = Math.cos(p.angle);
+          const hue = p.baseHue + cosA * -15;
+          const lit = 50 + cosA * 18;
+          const a = p.br * intens * 0.85;
 
-          ctx.fillStyle = `hsla(${hue},85%,${lit}%,${Math.min(a, 0.55)})`;
+          ctx.fillStyle = `hsla(${hue},90%,${lit}%,${Math.min(a, 0.75)})`;
           ctx.beginPath();
-          ctx.arc(px, py, p.size, 0, Math.PI * 2);
+          ctx.arc(px, py, p.size * 1.2, 0, Math.PI * 2);
           ctx.fill();
         });
 
-        // Layer 3: Void + single photon ring
-        const vg = ctx.createRadialGradient(bhX, bhY, 0, bhX, bhY, bhR * 1.1);
+        // Layer 3: Void + photon rings
+        const vg = ctx.createRadialGradient(bhX, bhY, 0, bhX, bhY, bhR * 1.15);
         vg.addColorStop(0, 'rgba(0,0,0,1)');
-        vg.addColorStop(0.6, 'rgba(0,0,0,0.95)');
-        vg.addColorStop(0.85, 'rgba(0,0,0,0.7)');
+        vg.addColorStop(0.55, 'rgba(0,0,0,0.98)');
+        vg.addColorStop(0.8, 'rgba(0,0,0,0.8)');
+        vg.addColorStop(0.95, 'rgba(0,0,0,0.3)');
         vg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = vg;
         ctx.beginPath();
-        ctx.arc(bhX, bhY, bhR * 1.1, 0, Math.PI * 2);
+        ctx.arc(bhX, bhY, bhR * 1.15, 0, Math.PI * 2);
         ctx.fill();
 
-        // Single photon ring
+        // Photon ring (bright enough to be visible)
         ctx.save();
-        ctx.shadowColor = `rgba(255,170,60,${0.2 * intens})`;
-        ctx.shadowBlur = 4;
-        ctx.strokeStyle = `rgba(255,190,80,${0.15 * intens})`;
-        ctx.lineWidth = 0.8;
+        ctx.shadowColor = `rgba(255,170,60,${0.4 * intens})`;
+        ctx.shadowBlur = 6;
+        ctx.strokeStyle = `rgba(255,190,80,${0.35 * intens})`;
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.ellipse(bhX, bhY, bhR * 1.02, bhR * TILT * 1.02, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Second faint outer ring
+        ctx.save();
+        ctx.shadowColor = `rgba(255,150,50,${0.15 * intens})`;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = `rgba(255,170,60,${0.12 * intens})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(bhX, bhY, bhR * 1.08, bhR * TILT * 1.08, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       });
@@ -778,8 +792,8 @@ export default function HomePage() {
 
       {/* ═══════ FEATURES ═══════ */}
       <section className="relative px-6 py-24">
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px]" style={{ zIndex: 1 }} />
+        {/* Dark overlay — centered content zone only, margins stay transparent for secondary BHs */}
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-5xl bg-black/70 backdrop-blur-[1px] rounded-2xl" style={{ zIndex: 1 }} />
 
         {/* Gradient mesh transition (replaces thin divider) */}
         <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
@@ -837,8 +851,8 @@ export default function HomePage() {
 
       {/* ═══════ CTA ═══════ */}
       <section className="relative px-6 py-24">
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]" style={{ zIndex: 1 }} />
+        {/* Dark overlay — centered content zone only */}
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-3xl bg-black/75 backdrop-blur-[1px] rounded-2xl" style={{ zIndex: 1 }} />
 
         {/* Gradient mesh transition */}
         <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
@@ -901,8 +915,8 @@ export default function HomePage() {
 
       {/* ═══════ FOOTER ═══════ */}
       <footer className="relative px-6 py-8 border-t border-white/[0.04]">
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-black/85" style={{ zIndex: 1 }} />
+        {/* Dark overlay — full width for footer is OK */}
+        <div className="absolute inset-0 bg-black/70" style={{ zIndex: 1 }} />
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 relative" style={{ zIndex: 10 }}>
           <span className="text-[11px] text-white/15">&copy; 2026 OrderFlow v2</span>
           <div className="flex items-center gap-5">
