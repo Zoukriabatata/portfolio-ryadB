@@ -56,17 +56,17 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
     resize();
 
     // ── Stars (spread across full page height) ──
-    const bgStars = Array.from({ length: 600 }, () => ({
+    const bgStars = Array.from({ length: 500 }, () => ({
       x: Math.random(),
-      y: Math.random(), // normalized 0-1, multiplied by fullH
-      r: Math.random() * 1.3 + 0.2,
-      a: Math.random() * 0.55 + 0.1,
+      y: Math.random(),
+      r: Math.random() * 1.2 + 0.2,
+      a: Math.random() * 0.5 + 0.1,
       ts: 0.004 + Math.random() * 0.012,
       to: Math.random() * Math.PI * 2,
     }));
 
     // ── Ambient dust motes (slow drift across full page) ──
-    const dustMotes = Array.from({ length: 80 }, () => ({
+    const dustMotes = Array.from({ length: 60 }, () => ({
       x: Math.random() * 2000, // will be wrapped to w
       y: Math.random(), // normalized, multiplied by fullH
       vx: (Math.random() - 0.5) * 0.15,
@@ -76,40 +76,23 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
       hue: 20 + Math.random() * 30,
     }));
 
-    // ── Secondary ambient black holes (distant gravity wells) ──
+    // ── Secondary gravitational distortions (gradient-based, no particles) ──
     const TILT = 0.28;
 
-    const createSecondaryBH = (
-      normX: number, yMultiplier: number, radiusFrac: number, intensity: number, particleCount: number
-    ) => ({
-      normX,
-      yMul: yMultiplier,
-      radiusFrac,
-      intensity,
-      rotationOffset: Math.random() * Math.PI * 2,
-      pulseSpeed: 0.001 + Math.random() * 0.002,
-      // Absolute values computed in resize
-      absX: 0, absY: 0, absR: 0,
-      diskParticles: Array.from({ length: particleCount }, () => {
-        const orbitR = 1.2 + Math.random() * 3.0;
-        return {
-          angle: Math.random() * Math.PI * 2,
-          orbitR,
-          yOff: (Math.random() - 0.5) * 0.07 * orbitR,
-          speed: (0.003 + Math.random() * 0.005) / Math.pow(orbitR, 0.6),
-          size: 0.5 + Math.random() * 1.2,
-          baseHue: 18 + Math.random() * 28,
-          br: 0.35 + Math.random() * 0.6,
-        };
-      }),
-    });
-
+    // Each secondary BH is pure distortion: void + lensing glow + single photon ring
+    // No particle disks. Depth = size/intensity variation.
     const secondaryBHs = [
-      createSecondaryBH(0.10, 1.4, 0.14, 0.65, 90),  // Left of features
-      createSecondaryBH(0.90, 1.9, 0.11, 0.50, 70),  // Right of features
-      createSecondaryBH(0.92, 2.4, 0.09, 0.40, 55),  // Right, between sections
-      createSecondaryBH(0.07, 2.8, 0.12, 0.55, 80),  // Left of CTA
-    ];
+      // Large, close — left margin near features (dominant anchor)
+      { normX: 0.07, yMul: 1.45, radiusFrac: 0.20, intensity: 0.7, phase: 0, pulse: 0.0008 },
+      // Small, distant — right of features (barely visible, pure depth cue)
+      { normX: 0.91, yMul: 1.70, radiusFrac: 0.05, intensity: 0.25, phase: 2.1, pulse: 0.0015 },
+      // Medium — left, between features and CTA (asymmetric balance)
+      { normX: 0.10, yMul: 2.35, radiusFrac: 0.10, intensity: 0.45, phase: 4.0, pulse: 0.0012 },
+      // Tiny, very distant — right near CTA (atmospheric)
+      { normX: 0.88, yMul: 2.60, radiusFrac: 0.04, intensity: 0.18, phase: 1.3, pulse: 0.0018 },
+      // Medium-large — right of CTA section (counterweight to #1)
+      { normX: 0.93, yMul: 2.90, radiusFrac: 0.14, intensity: 0.55, phase: 3.5, pulse: 0.0010 },
+    ].map(bh => ({ ...bh, absX: 0, absY: 0, absR: 0 }));
 
     const updateSecondaryBHPositions = () => {
       secondaryBHs.forEach(bh => {
@@ -120,45 +103,46 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
     };
     updateSecondaryBHPositions();
 
-    // ── Horizontal accretion disk (enhanced with more detail) ──
-    const diskCount = 2000; // Increased density for more detail
+    // ── Horizontal accretion disk (refined — sparser, smaller particles) ──
+    const diskCount = 1200;
     const disk = Array.from({ length: diskCount }, () => {
       const orbitR = 1.2 + Math.random() * 3.5;
-      // Inner disk (hot, bright) vs outer disk (cooler, dimmer)
       const isInner = orbitR < 2.2;
       return {
         angle: Math.random() * Math.PI * 2,
         orbitR,
-        yOff: (Math.random() - 0.5) * (isInner ? 0.05 : 0.09) * orbitR,
-        speed: (0.005 + Math.random() * 0.009) / Math.pow(orbitR, 0.65),
-        size: isInner ? (0.6 + Math.random() * 2.5) : (0.4 + Math.random() * 1.3),
+        baseOrbitR: orbitR, // for spiral reset
+        yOff: (Math.random() - 0.5) * (isInner ? 0.04 : 0.07) * orbitR,
+        speed: (0.004 + Math.random() * 0.007) / Math.pow(orbitR, 0.65),
+        drift: 0.00003 + Math.random() * 0.00005, // slow inward spiral
+        size: isInner ? (0.4 + Math.random() * 1.8) : (0.3 + Math.random() * 1.0),
         baseHue: isInner ? (25 + Math.random() * 20) : (15 + Math.random() * 25),
         br: isInner ? (0.5 + Math.random() * 0.5) : (0.25 + Math.random() * 0.55),
         isInner,
       };
     });
 
-    // ── Vertical lensing ring ──
-    const lensRingCount = 600;
+    // ── Vertical lensing ring (reduced, smaller) ──
+    const lensRingCount = 350;
     const lensRing = Array.from({ length: lensRingCount }, () => {
       const orbitR = 1.15 + Math.random() * 1.0;
       return {
         angle: Math.random() * Math.PI * 2,
         orbitR,
-        speed: (0.005 + Math.random() * 0.007) / Math.pow(orbitR, 0.5),
-        size: 0.4 + Math.random() * 1.6,
+        speed: (0.004 + Math.random() * 0.006) / Math.pow(orbitR, 0.5),
+        size: 0.3 + Math.random() * 1.2,
         baseHue: 25 + Math.random() * 30,
         br: 0.3 + Math.random() * 0.7,
       };
     });
 
-    // ── Infalling matter streaks ──
-    const streaks = Array.from({ length: 25 }, () => ({
+    // ── Infalling matter streaks (fewer, subtler) ──
+    const streaks = Array.from({ length: 15 }, () => ({
       angle: Math.random() * Math.PI * 2,
       dist: 3 + Math.random() * 7,
-      speed: 0.002 + Math.random() * 0.004,
-      len: 0.4 + Math.random() * 1.2,
-      alpha: 0.08 + Math.random() * 0.18,
+      speed: 0.0015 + Math.random() * 0.003,
+      len: 0.3 + Math.random() * 0.9,
+      alpha: 0.06 + Math.random() * 0.14,
     }));
 
     let raf: number;
@@ -226,88 +210,69 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
         ctx.fill();
       });
 
-      // ── Secondary ambient black holes (distant gravity wells) ──
+      // ── Secondary gravitational distortions (pure gradient, no particles) ──
       secondaryBHs.forEach(bh => {
         const bhR = bh.absR;
         const bhX = bh.absX;
         const bhY = bh.absY;
 
-        // Viewport culling
-        if (bhY < visTop - bhR * 8 || bhY > visBot + bhR * 8) {
-          bh.diskParticles.forEach(p => { p.angle += p.speed; });
-          return;
-        }
+        // Viewport culling (generous margin for glow spread)
+        if (bhY < visTop - bhR * 6 || bhY > visBot + bhR * 6) return;
+        // Skip rendering if too small to see (< 3px radius)
+        if (bhR < 3) return;
 
-        // Slow pulse (20-30s cycle)
-        const pulse = 1 + Math.sin(t * bh.pulseSpeed + bh.rotationOffset) * 0.15;
+        // Very slow pulse — barely perceptible breathing
+        const pulse = 1 + Math.sin(t * bh.pulse + bh.phase) * 0.1;
         const intens = bh.intensity * pulse;
 
-        // Layer 1: Nebula glow (visible through margins)
-        const sg = ctx.createRadialGradient(bhX, bhY, bhR * 0.2, bhX, bhY, bhR * 6);
-        sg.addColorStop(0, `rgba(255,150,50,${0.10 * intens})`);
-        sg.addColorStop(0.2, `rgba(255,130,40,${0.06 * intens})`);
-        sg.addColorStop(0.5, `rgba(255,100,25,${0.03 * intens})`);
-        sg.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = sg;
+        // Layer 1: Gravitational lensing glow — light bent around the mass
+        // Faint warm brightening at ~2-4x radius simulates star distortion
+        const lg = ctx.createRadialGradient(bhX, bhY, bhR * 1.3, bhX, bhY, bhR * 5);
+        lg.addColorStop(0, `rgba(255,190,110,${0.02 * intens})`);
+        lg.addColorStop(0.25, `rgba(255,160,80,${0.012 * intens})`);
+        lg.addColorStop(0.6, `rgba(255,120,50,${0.005 * intens})`);
+        lg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = lg;
         ctx.beginPath();
-        ctx.arc(bhX, bhY, bhR * 6, 0, Math.PI * 2);
+        ctx.arc(bhX, bhY, bhR * 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Layer 2: Mini accretion disk
-        bh.diskParticles.forEach(p => {
-          p.angle += p.speed;
-          const x3 = Math.cos(p.angle) * p.orbitR;
-          const z3 = Math.sin(p.angle) * p.orbitR;
-          const px = bhX + x3 * bhR;
-          const py = bhY + z3 * TILT * bhR + p.yOff * bhR;
+        // Layer 2: Space darkening — gravitational well pulls light away
+        // Wider, softer dark zone that makes surrounding space feel warped
+        const dg = ctx.createRadialGradient(bhX, bhY, 0, bhX, bhY, bhR * 2.5);
+        dg.addColorStop(0, `rgba(0,0,0,${0.9 * intens})`);
+        dg.addColorStop(0.35, `rgba(0,0,0,${0.6 * intens})`);
+        dg.addColorStop(0.65, `rgba(0,0,0,${0.2 * intens})`);
+        dg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = dg;
+        ctx.beginPath();
+        ctx.arc(bhX, bhY, bhR * 2.5, 0, Math.PI * 2);
+        ctx.fill();
 
-          const distC = Math.sqrt((px - bhX) ** 2 + (py - bhY) ** 2);
-          if (distC < bhR * 0.75) return;
-
-          const cosA = Math.cos(p.angle);
-          const hue = p.baseHue + cosA * -15;
-          const lit = 50 + cosA * 18;
-          const a = p.br * intens * 0.85;
-
-          ctx.fillStyle = `hsla(${hue},90%,${lit}%,${Math.min(a, 0.75)})`;
-          ctx.beginPath();
-          ctx.arc(px, py, p.size * 1.2, 0, Math.PI * 2);
-          ctx.fill();
-        });
-
-        // Layer 3: Void + photon rings
-        const vg = ctx.createRadialGradient(bhX, bhY, 0, bhX, bhY, bhR * 1.15);
+        // Layer 3: Event horizon void — sharp, absolute black core
+        const vg = ctx.createRadialGradient(bhX, bhY, 0, bhX, bhY, bhR * 1.1);
         vg.addColorStop(0, 'rgba(0,0,0,1)');
-        vg.addColorStop(0.55, 'rgba(0,0,0,0.98)');
-        vg.addColorStop(0.8, 'rgba(0,0,0,0.8)');
-        vg.addColorStop(0.95, 'rgba(0,0,0,0.3)');
+        vg.addColorStop(0.6, `rgba(0,0,0,${0.95 * intens})`);
+        vg.addColorStop(0.85, `rgba(0,0,0,${0.4 * intens})`);
         vg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = vg;
         ctx.beginPath();
-        ctx.arc(bhX, bhY, bhR * 1.15, 0, Math.PI * 2);
+        ctx.arc(bhX, bhY, bhR * 1.1, 0, Math.PI * 2);
         ctx.fill();
 
-        // Photon ring (bright enough to be visible)
-        ctx.save();
-        ctx.shadowColor = `rgba(255,170,60,${0.4 * intens})`;
-        ctx.shadowBlur = 6;
-        ctx.strokeStyle = `rgba(255,190,80,${0.35 * intens})`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.ellipse(bhX, bhY, bhR * 1.02, bhR * TILT * 1.02, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-
-        // Second faint outer ring
-        ctx.save();
-        ctx.shadowColor = `rgba(255,150,50,${0.15 * intens})`;
-        ctx.shadowBlur = 10;
-        ctx.strokeStyle = `rgba(255,170,60,${0.12 * intens})`;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.ellipse(bhX, bhY, bhR * 1.08, bhR * TILT * 1.08, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
+        // Layer 4: Single photon ring — thin, luminous, tilted
+        // Only render if BH is large enough to be visible (> 8px)
+        if (bhR > 8) {
+          ctx.save();
+          ctx.shadowColor = `rgba(255,180,80,${0.3 * intens})`;
+          ctx.shadowBlur = Math.min(bhR * 0.4, 12);
+          ctx.strokeStyle = `rgba(255,195,100,${0.22 * intens})`;
+          ctx.lineWidth = Math.max(0.5, bhR * 0.03);
+          ctx.beginPath();
+          ctx.ellipse(bhX, bhY, bhR * 1.02, bhR * TILT * 1.02, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
       });
 
       // ── Main black hole elements (only render if hero is near visible) ──
@@ -325,9 +290,12 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
         ctx.fillStyle = ng;
         ctx.fillRect(0, 0, w, viewH);
 
-        // ── Back half of horizontal disk (enhanced with depth and detail) ──
+        // ── Back half of horizontal disk ──
         disk.forEach((p) => {
           p.angle += p.speed;
+          // Slow inward spiral — particles drift toward event horizon
+          p.orbitR -= p.drift;
+          if (p.orbitR < 1.15) p.orbitR = p.baseOrbitR; // reset to outer edge
           const { px, py, depth, cosA } = projDisk(p.angle, p.orbitR, p.yOff);
           if (depth < 0) return;
           const distC = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
@@ -506,7 +474,11 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
         ctx.restore();
       } else {
         // Even when BH is not visible, still animate disk/lensing so they don't "freeze"
-        disk.forEach((p) => { p.angle += p.speed; });
+        disk.forEach((p) => {
+          p.angle += p.speed;
+          p.orbitR -= p.drift;
+          if (p.orbitR < 1.15) p.orbitR = p.baseOrbitR;
+        });
         lensRing.forEach((p) => { p.angle += p.speed; });
         streaks.forEach((s) => {
           s.dist -= s.speed;
@@ -793,36 +765,53 @@ export default function HomePage() {
       {/* ═══════ FEATURES ═══════ */}
       <section className="relative px-6 py-24">
         {/* Dark overlay — centered content zone only, margins stay transparent for secondary BHs */}
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-5xl bg-black/70 backdrop-blur-[1px] rounded-2xl" style={{ zIndex: 1 }} />
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-5xl bg-black/65 backdrop-blur-[2px] rounded-2xl" style={{ zIndex: 1 }} />
 
-        {/* Gradient mesh transition (replaces thin divider) */}
-        <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
+        {/* Gradient mesh transition — richer layered */}
+        <div className="absolute -top-32 inset-x-0 h-64 pointer-events-none" style={{
           background: `
-            radial-gradient(ellipse 60% 50% at 50% 100%, rgba(245,158,11,0.03) 0%, transparent 70%),
-            radial-gradient(ellipse 40% 40% at 30% 80%, rgba(255,140,50,0.02) 0%, transparent 60%),
-            radial-gradient(ellipse 40% 40% at 70% 90%, rgba(200,120,40,0.02) 0%, transparent 60%)
+            radial-gradient(ellipse 70% 55% at 50% 100%, rgba(245,158,11,0.045) 0%, transparent 70%),
+            radial-gradient(ellipse 45% 45% at 25% 85%, rgba(255,140,50,0.03) 0%, transparent 60%),
+            radial-gradient(ellipse 45% 45% at 75% 90%, rgba(200,120,40,0.03) 0%, transparent 60%),
+            radial-gradient(ellipse 30% 30% at 50% 95%, rgba(255,180,80,0.02) 0%, transparent 50%)
           `,
           zIndex: 2,
         }} />
 
-        {/* Ambient glow spots */}
+        {/* Ambient glow spots — larger and more visible */}
         <div className="ambient-glow" style={{
-          width: '500px', height: '500px',
-          top: '20%', left: '-10%',
-          background: 'radial-gradient(circle, rgba(245,158,11,0.015), transparent 70%)',
+          width: '700px', height: '700px',
+          top: '5%', left: '-15%',
+          background: 'radial-gradient(circle, rgba(245,158,11,0.025), rgba(255,130,40,0.01) 50%, transparent 70%)',
           animationDelay: '0s',
           zIndex: 2,
         }} />
         <div className="ambient-glow" style={{
-          width: '400px', height: '400px',
-          bottom: '10%', right: '-5%',
-          background: 'radial-gradient(circle, rgba(200,100,20,0.01), transparent 70%)',
+          width: '600px', height: '600px',
+          bottom: '5%', right: '-10%',
+          background: 'radial-gradient(circle, rgba(200,100,20,0.02), rgba(180,80,15,0.008) 50%, transparent 70%)',
           animationDelay: '-4s',
           zIndex: 2,
         }} />
+        <div className="ambient-glow" style={{
+          width: '500px', height: '500px',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, rgba(255,170,60,0.018), transparent 65%)',
+          animationDelay: '-6s',
+          zIndex: 2,
+        }} />
 
-        {/* CSS ambient particles */}
-        <AmbientParticles count={10} />
+        {/* Bottom section edge glow */}
+        <div className="absolute -bottom-16 inset-x-0 h-32 pointer-events-none" style={{
+          background: `
+            radial-gradient(ellipse 60% 80% at 50% 0%, rgba(245,158,11,0.025) 0%, transparent 70%)
+          `,
+          zIndex: 2,
+        }} />
+
+        {/* CSS ambient particles — more of them */}
+        <AmbientParticles count={14} />
 
         <div className="max-w-4xl mx-auto relative" style={{ zIndex: 10 }}>
           <div className="text-center mb-14">
@@ -850,32 +839,63 @@ export default function HomePage() {
       </section>
 
       {/* ═══════ CTA ═══════ */}
-      <section className="relative px-6 py-24">
-        {/* Dark overlay — centered content zone only */}
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-3xl bg-black/75 backdrop-blur-[1px] rounded-2xl" style={{ zIndex: 1 }} />
+      <section className="relative px-6 py-28">
+        {/* Dark overlay — centered content zone */}
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-3xl bg-black/65 backdrop-blur-[2px] rounded-2xl" style={{ zIndex: 1 }} />
 
-        {/* Gradient mesh transition */}
-        <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
+        {/* Gradient mesh transition — richer */}
+        <div className="absolute -top-32 inset-x-0 h-64 pointer-events-none" style={{
           background: `
-            radial-gradient(ellipse 50% 50% at 50% 100%, rgba(255,255,255,0.015) 0%, transparent 70%),
-            radial-gradient(ellipse 35% 40% at 40% 80%, rgba(245,158,11,0.015) 0%, transparent 60%)
+            radial-gradient(ellipse 60% 55% at 50% 100%, rgba(245,158,11,0.04) 0%, transparent 70%),
+            radial-gradient(ellipse 40% 45% at 35% 85%, rgba(255,170,60,0.025) 0%, transparent 60%),
+            radial-gradient(ellipse 40% 45% at 65% 80%, rgba(200,120,40,0.02) 0%, transparent 60%)
           `,
           zIndex: 2,
         }} />
 
-        {/* Ambient glow */}
+        {/* Central premium glow halo */}
         <div className="ambient-glow" style={{
-          width: '400px', height: '400px',
-          top: '30%', left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'radial-gradient(circle, rgba(245,158,11,0.012), transparent 70%)',
+          width: '800px', height: '800px',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, rgba(245,158,11,0.03), rgba(255,140,50,0.015) 40%, transparent 65%)',
           animationDelay: '-2s',
           zIndex: 2,
         }} />
 
-        <AmbientParticles count={6} />
+        {/* Side glow accents */}
+        <div className="ambient-glow" style={{
+          width: '500px', height: '500px',
+          top: '20%', left: '-8%',
+          background: 'radial-gradient(circle, rgba(255,170,60,0.02), transparent 65%)',
+          animationDelay: '0s',
+          zIndex: 2,
+        }} />
+        <div className="ambient-glow" style={{
+          width: '500px', height: '500px',
+          bottom: '10%', right: '-8%',
+          background: 'radial-gradient(circle, rgba(200,120,40,0.018), transparent 65%)',
+          animationDelay: '-5s',
+          zIndex: 2,
+        }} />
+
+        {/* Bottom edge glow */}
+        <div className="absolute -bottom-12 inset-x-0 h-24 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse 50% 80% at 50% 0%, rgba(245,158,11,0.02) 0%, transparent 70%)',
+          zIndex: 2,
+        }} />
+
+        <AmbientParticles count={10} />
 
         <div className="max-w-lg mx-auto text-center relative" style={{ zIndex: 10 }}>
+          {/* Premium accent line above title */}
+          <div
+            data-animate="scale"
+            className="mx-auto mb-6 w-16 h-[1px]"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.5), transparent)',
+            }}
+          />
           <h2
             data-animate="up"
             className="text-2xl md:text-3xl font-bold text-white/90 tracking-tight"
@@ -910,6 +930,15 @@ export default function HomePage() {
               </>
             )}
           </div>
+          {/* Premium accent line below CTA */}
+          <div
+            data-animate="scale"
+            data-animate-delay="3"
+            className="mx-auto mt-10 w-24 h-[1px]"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.3), transparent)',
+            }}
+          />
         </div>
       </section>
 
