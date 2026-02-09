@@ -1,9 +1,92 @@
 /* ============================================================
-   LANDING PAGE ANIMATIONS
-   Smooth scroll animations and entrance effects
+   LANDING PAGE — Black Hole Theme
    ============================================================ */
 
-/* Allow scrolling on landing page */
+/* ─── Keyframes ─── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ─── Buttons ─── */
+
+.landing-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  padding: 11px 26px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #000;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.landing-btn-primary:hover {
+  background: linear-gradient(135deg, #fcd34d, #fbbf24);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.3);
+  transform: translateY(-1px);
+}
+
+.landing-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  padding: 11px 26px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255,255,255,0.5);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.landing-btn-ghost:hover {
+  color: rgba(255,255,255,0.8);
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.03);
+  transform: translateY(-1px);
+}
+
+/* ─── Utilities ─── */
+
+.animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+.animate-fade-in-up { animation: fadeInUp 1s ease-out forwards; }
+
+.fade-in {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+.fade-in-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fade-in:nth-child(1) { transition-delay: 0.1s; }
+.fade-in:nth-child(2) { transition-delay: 0.2s; }
+.fade-in:nth-child(3) { transition-delay: 0.3s; }
+.fade-in:nth-child(4) { transition-delay: 0.4s; }
+.fade-in:nth-child(5) { transition-delay: 0.5s; }
+.fade-in:nth-child(6) { transition-delay: 0.6s; }
+
 .landing-page {
   overflow-y: auto !important;
   overflow-x: hidden !important;
@@ -11,270 +94,113 @@
   scroll-behavior: smooth;
 }
 
-/* Fade-in animations */
-.fade-in {
-  opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
+/* ─── Feature Cards ─── */
 
-.fade-in-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Stagger delay for grid items */
-.fade-in:nth-child(1) { transition-delay: 0.1s; }
-.fade-in:nth-child(2) { transition-delay: 0.2s; }
-.fade-in:nth-child(3) { transition-delay: 0.3s; }
-.fade-in:nth-child(4) { transition-delay: 0.4s; }
-.fade-in:nth-child(5) { transition-delay: 0.5s; }
-.fade-in:nth-child(6) { transition-delay: 0.6s; }
-.fade-in:nth-child(7) { transition-delay: 0.7s; }
-.fade-in:nth-child(8) { transition-delay: 0.8s; }
-
-/* Slide-in from left */
-.slide-in-left {
-  opacity: 0;
-  transform: translateX(-50px);
-  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
-
-.slide-in-left.fade-in-visible {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* Slide-in from right */
-.slide-in-right {
-  opacity: 0;
-  transform: translateX(50px);
-  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
-
-.slide-in-right.fade-in-visible {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* Scale-in animation */
-.scale-in {
-  opacity: 0;
-  transform: scale(0.95);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-}
-
-.scale-in.fade-in-visible {
-  opacity: 1;
-  transform: scale(1);
-}
-
-/* Floating animation */
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-}
-
-.float-animation {
-  animation: float 6s ease-in-out infinite;
-}
-
-/* Pulse glow effect */
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(16, 185, 129, 0.6);
-  }
-}
-
-.pulse-glow {
-  animation: pulseGlow 3s ease-in-out infinite;
-}
-
-/* Gradient animation */
-@keyframes gradientShift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-.gradient-animated {
-  background-size: 200% 200%;
-  animation: gradientShift 8s ease infinite;
-}
-
-/* Shine effect on hover */
-.shine {
+.feature-card {
   position: relative;
   overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.35s ease,
+              box-shadow 0.35s ease,
+              background 0.35s ease;
 }
 
-.shine::before {
+.feature-card:hover {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  box-shadow:
+    0 0 20px rgba(245, 158, 11, 0.08),
+    0 0 60px rgba(245, 158, 11, 0.04),
+    0 8px 32px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+}
+
+/* Shimmer sweep on hover */
+.feature-card::before {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
-  width: 100%;
+  left: 0;
+  width: 60%;
   height: 100%;
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.1),
+    rgba(255, 190, 100, 0.03),
+    rgba(255, 190, 100, 0.07),
+    rgba(255, 190, 100, 0.03),
     transparent
   );
-  transition: left 0.5s;
+  transform: translateX(-150%) skewX(-15deg);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.shine:hover::before {
-  left: 100%;
+.feature-card:hover::before {
+  transform: translateX(350%) skewX(-15deg);
 }
 
-/* Parallax layers */
-.parallax-slow {
-  transition: transform 0.1s ease-out;
+/* Icon glow on card hover */
+.feature-card:hover .feature-icon {
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.12) !important;
 }
 
-/* Feature card hover effects */
-.feature-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* ─── Ambient Particles ─── */
 
-.feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-/* Button hover effects */
-.btn-primary {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-.btn-primary:hover::before {
-  width: 300px;
-  height: 300px;
-}
-
-/* Typing effect for hero text */
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-.typing-cursor {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  background: var(--primary);
-  margin-left: 4px;
-  animation: blink 1s infinite;
-}
-
-/* Card tilt effect */
-.card-tilt {
-  transition: transform 0.3s ease;
-  will-change: transform;
-}
-
-/* Reveal animation */
-@keyframes reveal {
-  from {
-    clip-path: inset(0 100% 0 0);
+@keyframes float-particle {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: var(--particle-a, 0.04);
   }
-  to {
-    clip-path: inset(0 0 0 0);
-  }
-}
-
-.reveal-animation {
-  animation: reveal 1s ease-out forwards;
-}
-
-/* Smooth hover transitions */
-.hover-lift {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-}
-
-/* Glow on hover */
-.hover-glow {
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
-}
-
-.hover-glow:hover {
-  box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
-  border-color: var(--primary);
-}
-
-/* New animations for homepage */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
+  25% {
+    transform: translate(10px, -20px) scale(1.1);
+    opacity: calc(var(--particle-a, 0.04) * 1.5);
   }
   50% {
-    background-position: 100% 50%;
+    transform: translate(-5px, -35px) scale(0.9);
+    opacity: var(--particle-a, 0.04);
   }
-  100% {
-    background-position: 0% 50%;
+  75% {
+    transform: translate(-15px, -15px) scale(1.05);
+    opacity: calc(var(--particle-a, 0.04) * 0.8);
   }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.8s ease-out forwards;
+.ambient-particle {
+  position: absolute;
+  width: var(--particle-size, 3px);
+  height: var(--particle-size, 3px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 180, 80, var(--particle-a, 0.06)), transparent);
+  animation: float-particle var(--particle-duration, 12s) ease-in-out infinite;
+  animation-delay: var(--particle-delay, 0s);
+  pointer-events: none;
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 1s ease-out forwards;
+/* ─── Ambient Glow Spots ─── */
+
+@keyframes glow-pulse-slow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
 }
 
-.animate-gradient {
-  background-size: 200% auto;
-  animation: gradient 3s linear infinite;
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: glow-pulse-slow 8s ease-in-out infinite;
+}
+
+/* ─── Reduced Motion ─── */
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-card::before {
+    display: none;
+  }
+  .ambient-particle,
+  .ambient-glow {
+    animation: none;
+  }
 }

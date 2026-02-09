@@ -36,14 +36,14 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           {/* Background glow */}
           <defs>
             <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#22c55e" />
-              <stop offset="50%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#059669" />
+              <stop offset="0%" stopColor="#fbbf24" />
+              <stop offset="50%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#d97706" />
             </linearGradient>
             <linearGradient id="energyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0" />
-              <stop offset="50%" stopColor="#22c55e" stopOpacity="1" />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+              <stop offset="0%" stopColor="#fbbf24" stopOpacity="0" />
+              <stop offset="50%" stopColor="#fbbf24" stopOpacity="1" />
+              <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
             </linearGradient>
             <filter id="glow">
               <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -81,33 +81,33 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           <path
             d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32"
             fill="none"
-            stroke="#22c55e"
+            stroke="#f59e0b"
             strokeWidth="3"
             strokeLinecap="round"
             filter="url(#glow)"
           />
 
           {/* Energy sparks */}
-          <circle cx="8" cy="24" r="2" fill="#22c55e" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s' }} />
-          <circle cx="40" cy="24" r="2" fill="#22c55e" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
-          <circle cx="24" cy="8" r="2" fill="#22c55e" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '1s' }} />
+          <circle cx="8" cy="24" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s' }} />
+          <circle cx="40" cy="24" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+          <circle cx="24" cy="8" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '1s' }} />
 
           {/* Scientific formula accent (E=mc²) small */}
-          <text x="32" y="40" fontSize="6" fill="#22c55e" fontFamily="monospace" opacity="0.7">
+          <text x="32" y="40" fontSize="6" fill="#f59e0b" fontFamily="monospace" opacity="0.7">
             E²
           </text>
         </svg>
 
         {/* Glow effect behind */}
         {animated && (
-          <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         )}
       </div>
 
       {/* Text */}
       {showText && (
         <div className="flex flex-col">
-          <span className={`font-bold ${textSize} tracking-tight bg-gradient-to-r from-green-400 via-emerald-300 to-green-500 bg-clip-text text-transparent`}>
+          <span className={`font-bold ${textSize} tracking-tight bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent`}>
             SENZOU<span className="text-white">KRIA</span>
           </span>
           {size !== 'sm' && (
@@ -135,8 +135,8 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="logoGradientIcon" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#22c55e" />
-          <stop offset="100%" stopColor="#059669" />
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#d97706" />
         </linearGradient>
       </defs>
       <path
@@ -149,7 +149,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
       <path
         d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32"
         fill="none"
-        stroke="#22c55e"
+        stroke="#f59e0b"
         strokeWidth="3"
         strokeLinecap="round"
       />
