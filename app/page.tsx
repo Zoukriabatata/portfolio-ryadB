@@ -76,8 +76,51 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
       hue: 20 + Math.random() * 30,
     }));
 
-    // ── Horizontal accretion disk (enhanced with more detail) ──
+    // ── Secondary ambient black holes (distant gravity wells) ──
     const TILT = 0.28;
+
+    const createSecondaryBH = (
+      normX: number, yMultiplier: number, radiusFrac: number, intensity: number, particleCount: number
+    ) => ({
+      normX,
+      yMul: yMultiplier,
+      radiusFrac,
+      intensity,
+      rotationOffset: Math.random() * Math.PI * 2,
+      pulseSpeed: 0.001 + Math.random() * 0.002,
+      // Absolute values computed in resize
+      absX: 0, absY: 0, absR: 0,
+      diskParticles: Array.from({ length: particleCount }, () => {
+        const orbitR = 1.3 + Math.random() * 2.5;
+        return {
+          angle: Math.random() * Math.PI * 2,
+          orbitR,
+          yOff: (Math.random() - 0.5) * 0.06 * orbitR,
+          speed: (0.002 + Math.random() * 0.004) / Math.pow(orbitR, 0.6),
+          size: 0.3 + Math.random() * 0.8,
+          baseHue: 18 + Math.random() * 25,
+          br: 0.2 + Math.random() * 0.5,
+        };
+      }),
+    });
+
+    const secondaryBHs = [
+      createSecondaryBH(0.12, 1.4, 0.10, 0.28, 60),  // Left of features
+      createSecondaryBH(0.88, 1.8, 0.08, 0.22, 50),  // Right of features
+      createSecondaryBH(0.92, 2.3, 0.07, 0.18, 40),  // Right, between sections
+      createSecondaryBH(0.08, 2.7, 0.09, 0.25, 55),  // Left of CTA
+    ];
+
+    const updateSecondaryBHPositions = () => {
+      secondaryBHs.forEach(bh => {
+        bh.absX = bh.normX * w;
+        bh.absY = viewH * bh.yMul;
+        bh.absR = R * bh.radiusFrac;
+      });
+    };
+    updateSecondaryBHPositions();
+
+    // ── Horizontal accretion disk (enhanced with more detail) ──
     const diskCount = 2000; // Increased density for more detail
     const disk = Array.from({ length: diskCount }, () => {
       const orbitR = 1.2 + Math.random() * 3.5;
@@ -183,7 +226,77 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
         ctx.fill();
       });
 
-      // ── Black hole elements (only render if hero is near visible) ──
+      // ── Secondary ambient black holes (distant gravity wells) ──
+      secondaryBHs.forEach(bh => {
+        const bhR = bh.absR;
+        const bhX = bh.absX;
+        const bhY = bh.absY;
+
+        // Viewport culling
+        if (bhY < visTop - bhR * 8 || bhY > visBot + bhR * 8) {
+          bh.diskParticles.forEach(p => { p.angle += p.speed; });
+          return;
+        }
+
+        // Slow pulse (20-30s cycle)
+        const pulse = 1 + Math.sin(t * bh.pulseSpeed + bh.rotationOffset) * 0.15;
+        const intens = bh.intensity * pulse;
+
+        // Layer 1: Faint nebula glow
+        const sg = ctx.createRadialGradient(bhX, bhY, bhR * 0.2, bhX, bhY, bhR * 5);
+        sg.addColorStop(0, `rgba(255,140,50,${0.03 * intens})`);
+        sg.addColorStop(0.4, `rgba(255,110,30,${0.015 * intens})`);
+        sg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.arc(bhX, bhY, bhR * 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Layer 2: Mini accretion disk (all particles, no front/back sort)
+        bh.diskParticles.forEach(p => {
+          p.angle += p.speed;
+          const x3 = Math.cos(p.angle) * p.orbitR;
+          const z3 = Math.sin(p.angle) * p.orbitR;
+          const px = bhX + x3 * bhR;
+          const py = bhY + z3 * TILT * bhR + p.yOff * bhR;
+
+          const distC = Math.sqrt((px - bhX) ** 2 + (py - bhY) ** 2);
+          if (distC < bhR * 0.8) return;
+
+          const hue = p.baseHue + Math.cos(p.angle) * -12;
+          const lit = 45 + Math.cos(p.angle) * 15;
+          const a = p.br * intens * 0.5;
+
+          ctx.fillStyle = `hsla(${hue},85%,${lit}%,${Math.min(a, 0.55)})`;
+          ctx.beginPath();
+          ctx.arc(px, py, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Layer 3: Void + single photon ring
+        const vg = ctx.createRadialGradient(bhX, bhY, 0, bhX, bhY, bhR * 1.1);
+        vg.addColorStop(0, 'rgba(0,0,0,1)');
+        vg.addColorStop(0.6, 'rgba(0,0,0,0.95)');
+        vg.addColorStop(0.85, 'rgba(0,0,0,0.7)');
+        vg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = vg;
+        ctx.beginPath();
+        ctx.arc(bhX, bhY, bhR * 1.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Single photon ring
+        ctx.save();
+        ctx.shadowColor = `rgba(255,170,60,${0.2 * intens})`;
+        ctx.shadowBlur = 4;
+        ctx.strokeStyle = `rgba(255,190,80,${0.15 * intens})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.ellipse(bhX, bhY, bhR * 1.02, bhR * TILT * 1.02, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // ── Main black hole elements (only render if hero is near visible) ──
       const bhVisible = cy > visTop - R * 5 && cy < visBot + R * 5;
 
       if (bhVisible) {
@@ -398,13 +511,17 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
 
     draw();
 
-    const resizeObs = new ResizeObserver(() => resize());
+    const fullResize = () => {
+      resize();
+      updateSecondaryBHPositions();
+    };
+    const resizeObs = new ResizeObserver(() => fullResize());
     resizeObs.observe(scrollEl);
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', fullResize);
 
     return () => {
       resizeObs.disconnect();
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', fullResize);
       cancelAnimationFrame(raf);
     };
   }, [scrollContainerRef]);
