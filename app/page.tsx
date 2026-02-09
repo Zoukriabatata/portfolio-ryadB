@@ -83,11 +83,11 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
     // Depth through size/intensity variation only. Asymmetric placement.
     const secondaryBHs = [
       // Large, dominant — left margin (anchor point)
-      { normX: 0.08, yMul: 0.70, radiusFrac: 0.18, intensity: 0.65, phase: 0, pulse: 0.0007 },
+      { normX: 0.08, yMul: 0.70, radiusFrac: 0.18, intensity: 0.85, phase: 0, pulse: 0.0007 },
       // Tiny, distant — upper right (atmospheric depth)
-      { normX: 0.89, yMul: 0.35, radiusFrac: 0.05, intensity: 0.20, phase: 3.1, pulse: 0.0016 },
+      { normX: 0.89, yMul: 0.35, radiusFrac: 0.05, intensity: 0.35, phase: 3.1, pulse: 0.0016 },
       // Medium — lower right (asymmetric balance)
-      { normX: 0.91, yMul: 0.85, radiusFrac: 0.10, intensity: 0.40, phase: 1.8, pulse: 0.0011 },
+      { normX: 0.91, yMul: 0.85, radiusFrac: 0.10, intensity: 0.60, phase: 1.8, pulse: 0.0011 },
     ].map(bh => ({ ...bh, absX: 0, absY: 0, absR: 0 }));
 
     const updateSecondaryBHPositions = () => {
@@ -223,14 +223,15 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
 
         // Layer 1: Gravitational lensing glow — light bent around the mass
         // Faint warm brightening at ~2-4x radius simulates star distortion
-        const lg = ctx.createRadialGradient(bhX, bhY, bhR * 1.3, bhX, bhY, bhR * 5);
-        lg.addColorStop(0, `rgba(255,190,110,${0.02 * intens})`);
-        lg.addColorStop(0.25, `rgba(255,160,80,${0.012 * intens})`);
-        lg.addColorStop(0.6, `rgba(255,120,50,${0.005 * intens})`);
+        const lg = ctx.createRadialGradient(bhX, bhY, bhR * 1.3, bhX, bhY, bhR * 6);
+        lg.addColorStop(0, `rgba(255,190,110,${0.05 * intens})`);
+        lg.addColorStop(0.25, `rgba(255,160,80,${0.03 * intens})`);
+        lg.addColorStop(0.5, `rgba(255,140,60,${0.015 * intens})`);
+        lg.addColorStop(0.75, `rgba(255,120,50,${0.008 * intens})`);
         lg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = lg;
         ctx.beginPath();
-        ctx.arc(bhX, bhY, bhR * 5, 0, Math.PI * 2);
+        ctx.arc(bhX, bhY, bhR * 6, 0, Math.PI * 2);
         ctx.fill();
 
         // Layer 2: Space darkening — gravitational well pulls light away
@@ -277,11 +278,11 @@ function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLD
       if (bhVisible) {
         // ── Nebula glow (enhanced with more depth) ──
         const ng = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 7);
-        ng.addColorStop(0, 'rgba(255,150,50,0.08)');
-        ng.addColorStop(0.15, 'rgba(255,120,35,0.05)');
-        ng.addColorStop(0.3, 'rgba(255,100,20,0.03)');
-        ng.addColorStop(0.5, 'rgba(200,70,15,0.018)');
-        ng.addColorStop(0.7, 'rgba(150,50,10,0.008)');
+        ng.addColorStop(0, 'rgba(255,150,50,0.12)');
+        ng.addColorStop(0.15, 'rgba(255,120,35,0.08)');
+        ng.addColorStop(0.3, 'rgba(255,100,20,0.05)');
+        ng.addColorStop(0.5, 'rgba(200,70,15,0.028)');
+        ng.addColorStop(0.7, 'rgba(150,50,10,0.012)');
         ng.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = ng;
         ctx.fillRect(0, 0, w, viewH);
@@ -761,7 +762,7 @@ export default function HomePage() {
       {/* ═══════ FEATURES ═══════ */}
       <section className="relative px-6 py-24">
         {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px]" style={{ zIndex: 1 }} />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" style={{ zIndex: 1 }} />
 
         {/* Gradient mesh transition (replaces thin divider) */}
         <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
@@ -820,7 +821,7 @@ export default function HomePage() {
       {/* ═══════ CTA ═══════ */}
       <section className="relative px-6 py-24">
         {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]" style={{ zIndex: 1 }} />
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" style={{ zIndex: 1 }} />
 
         {/* Gradient mesh transition */}
         <div className="absolute -top-24 inset-x-0 h-48 pointer-events-none" style={{
