@@ -316,6 +316,33 @@ export function StopOrderIcon({ size = 14, color = 'currentColor' }) {
   );
 }
 
+export function CameraIcon({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+export function AlertIcon({ size = 14, color = '#eab308' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+export function ClockIcon({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
 // Helper to create standard chart context menu items
 export function createChartContextMenuItems(options: {
   onCopyPrice?: () => void;
@@ -326,6 +353,10 @@ export function createChartContextMenuItems(options: {
   onSaveTemplate?: () => void;
   onLoadTemplate?: () => void;
   onClearDrawings?: () => void;
+  onScreenshot?: () => void;
+  onSetAlert?: (price: number) => void;
+  onTimeframeChange?: (tf: number) => void;
+  currentTimeframe?: number;
   templates?: { id: string; name: string; onLoad: () => void }[];
   showGrid?: boolean;
   // Trading options
@@ -391,6 +422,17 @@ export function createChartContextMenuItems(options: {
     }
   }
 
+  // Alert at price
+  if (options.onSetAlert && options.clickPrice !== undefined) {
+    items.push({
+      id: 'set-alert',
+      label: `Alert @ ${options.clickPrice.toFixed(2)}`,
+      icon: <AlertIcon />,
+      onClick: () => options.onSetAlert!(options.clickPrice!),
+    });
+    items.push({ id: 'divider-alert', label: '', divider: true });
+  }
+
   if (options.onCopyPrice) {
     items.push({
       id: 'copy-price',
@@ -401,7 +443,40 @@ export function createChartContextMenuItems(options: {
     });
   }
 
+  if (options.onScreenshot) {
+    items.push({
+      id: 'screenshot',
+      label: 'Screenshot',
+      icon: <CameraIcon />,
+      shortcut: 'Ctrl+Shift+S',
+      onClick: options.onScreenshot,
+    });
+  }
+
   items.push({ id: 'divider-1', label: '', divider: true });
+
+  // Quick Timeframe submenu
+  if (options.onTimeframeChange) {
+    const TF_OPTIONS = [
+      { label: '1m', value: 60 },
+      { label: '5m', value: 300 },
+      { label: '15m', value: 900 },
+      { label: '1h', value: 3600 },
+      { label: '4h', value: 14400 },
+      { label: '1D', value: 86400 },
+    ];
+    items.push({
+      id: 'timeframes',
+      label: 'Timeframe',
+      icon: <ClockIcon />,
+      children: TF_OPTIONS.map(tf => ({
+        id: `tf-${tf.value}`,
+        label: tf.label,
+        onClick: () => options.onTimeframeChange!(tf.value),
+        disabled: options.currentTimeframe === tf.value,
+      })),
+    });
+  }
 
   if (options.onToggleGrid !== undefined) {
     items.push({

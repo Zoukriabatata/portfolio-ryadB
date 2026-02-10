@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { OrderbookSnapshot, LiquidityWall } from '@/types/orderbook';
+import type { OrderbookSnapshot } from '@/types/orderbook';
 import type { LiquidityDelta, WhaleOrder } from '@/types/heatmap';
 import { calculateLiquidityDelta, detectWhaleOrders } from '@/lib/calculations/heatmapAnalysis';
 
@@ -20,8 +20,6 @@ interface OrderbookState {
   previousAsks: Map<number, number>;
 
   // Derived data
-  bidWalls: LiquidityWall[];
-  askWalls: LiquidityWall[];
   bidAskImbalance: number; // -1 to 1
   spread: number;
   midPrice: number;
@@ -37,13 +35,10 @@ interface OrderbookState {
     asks: [string, string][],
     lastUpdateId: number
   ) => void;
-  calculateWalls: (threshold: number) => void;
-  detectWhales: (thresholdStdDev: number) => void;
   reset: () => void;
 }
 
 const MAX_HEATMAP_HISTORY = 300; // ~30 seconds at 100ms updates
-const WALL_THRESHOLD_MULTIPLIER = 3; // 3x average size
 
 const MAX_LIQUIDITY_DELTAS = 100;
 const MAX_WHALE_ORDERS = 50;
@@ -58,8 +53,6 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
   whaleOrders: [],
   previousBids: new Map(),
   previousAsks: new Map(),
-  bidWalls: [],
-  askWalls: [],
   bidAskImbalance: 0,
   spread: 0,
   midPrice: 0,
@@ -80,9 +73,15 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
       if (q > 0) askMap.set(p, q);
     });
 
-    // Calculate mid price and spread
-    const bestBid = Math.max(...bidMap.keys());
-    const bestAsk = Math.min(...askMap.keys());
+    // Calculate mid price and spread (guard empty maps)
+    if (bidMap.size === 0 || askMap.size === 0) {
+      set({ bids: bidMap, asks: askMap, lastUpdateId });
+      return;
+    }
+    let bestBid = -Infinity;
+    for (const k of bidMap.keys()) { if (k > bestBid) bestBid = k; }
+    let bestAsk = Infinity;
+    for (const k of askMap.keys()) { if (k < bestAsk) bestAsk = k; }
     const midPrice = (bestBid + bestAsk) / 2;
     const spread = bestAsk - bestBid;
 
@@ -139,11 +138,14 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
       // Detect whale orders
       const whales = detectWhaleOrders(newBids, newAsks, 3.0);
 
-      // Calculate metrics
-      const bestBid = newBids.size > 0 ? Math.max(...newBids.keys()) : 0;
-      const bestAsk = newAsks.size > 0 ? Math.min(...newAsks.keys()) : 0;
-      const midPrice = bestBid && bestAsk ? (bestBid + bestAsk) / 2 : state.midPrice;
-      const spread = bestBid && bestAsk ? bestAsk - bestBid : state.spread;
+      // Calculate metrics (for-loop avoids stack overflow on large maps)
+      let bestBid = -Infinity;
+      if (newBids.size > 0) { for (const k of newBids.keys()) { if (k > bestBid) bestBid = k; } }
+      let bestAsk = Infinity;
+      if (newAsks.size > 0) { for (const k of newAsks.keys()) { if (k < bestAsk) bestAsk = k; } }
+      const hasBoth = newBids.size > 0 && newAsks.size > 0;
+      const midPrice = hasBoth ? (bestBid + bestAsk) / 2 : state.midPrice;
+      const spread = hasBoth ? bestAsk - bestBid : state.spread;
 
       // Calculate bid/ask imbalance (top 10 levels)
       const bidPrices = Array.from(newBids.keys()).sort((a, b) => b - a).slice(0, 10);
@@ -171,8 +173,8 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
       return {
         bids: newBids,
         asks: newAsks,
-        previousBids: new Map(state.bids),
-        previousAsks: new Map(state.asks),
+        previousBids: state.bids,
+        previousAsks: state.asks,
         lastUpdateId: updateId,
         midPrice,
         spread,
@@ -181,46 +183,6 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
         liquidityDeltas: newDeltas,
         whaleOrders: whales.slice(0, MAX_WHALE_ORDERS),
       };
-    }),
-
-  calculateWalls: (threshold) =>
-    set((state) => {
-      const { bids, asks } = state;
-
-      // Calculate average quantity
-      const allQtys = [...bids.values(), ...asks.values()];
-      const avgQty = allQtys.length > 0
-        ? allQtys.reduce((a, b) => a + b, 0) / allQtys.length
-        : 0;
-
-      const wallThreshold = avgQty * (threshold || WALL_THRESHOLD_MULTIPLIER);
-
-      const bidWalls: LiquidityWall[] = [];
-      const askWalls: LiquidityWall[] = [];
-
-      bids.forEach((qty, price) => {
-        if (qty >= wallThreshold) {
-          bidWalls.push({ price, quantity: qty, side: 'bid' });
-        }
-      });
-
-      asks.forEach((qty, price) => {
-        if (qty >= wallThreshold) {
-          askWalls.push({ price, quantity: qty, side: 'ask' });
-        }
-      });
-
-      // Sort by quantity descending
-      bidWalls.sort((a, b) => b.quantity - a.quantity);
-      askWalls.sort((a, b) => b.quantity - a.quantity);
-
-      return { bidWalls, askWalls };
-    }),
-
-  detectWhales: (thresholdStdDev) =>
-    set((state) => {
-      const whales = detectWhaleOrders(state.bids, state.asks, thresholdStdDev);
-      return { whaleOrders: whales.slice(0, MAX_WHALE_ORDERS) };
     }),
 
   reset: () =>
@@ -233,8 +195,6 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
       whaleOrders: [],
       previousBids: new Map(),
       previousAsks: new Map(),
-      bidWalls: [],
-      askWalls: [],
       bidAskImbalance: 0,
       spread: 0,
       midPrice: 0,

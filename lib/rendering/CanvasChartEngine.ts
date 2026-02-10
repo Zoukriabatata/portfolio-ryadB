@@ -44,8 +44,6 @@ export interface ChartViewport {
   endIndex: number;
   priceMin: number;
   priceMax: number;
-  candleWidth: number;
-  candleSpacing: number;
 }
 
 export interface ChartDimensions {
@@ -60,6 +58,18 @@ export interface CrosshairPosition {
   x: number;
   y: number;
   visible: boolean;
+}
+
+export interface CrosshairCandleData {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  change: number;
+  changePercent: number;
+  index: number;
 }
 
 const DEFAULT_THEME: ChartTheme = {
@@ -107,6 +117,7 @@ export class CanvasChartEngine {
   // Callbacks
   private onPriceChange?: (price: number) => void;
   private onCrosshairMove?: (time: number, price: number) => void;
+  private onCrosshairCandleData?: (data: CrosshairCandleData | null) => void;
 
   constructor(canvas: HTMLCanvasElement, theme?: Partial<ChartTheme>) {
     this.canvas = canvas;
@@ -130,8 +141,6 @@ export class CanvasChartEngine {
       endIndex: 100,
       priceMin: 0,
       priceMax: 100,
-      candleWidth: 8,
-      candleSpacing: 2,
     };
 
     this.setupEventListeners();
@@ -140,8 +149,9 @@ export class CanvasChartEngine {
   // ============ PUBLIC API ============
 
   getViewport(): ChartViewport & { chartWidth: number; chartHeight: number } {
-    const chartWidth = this.dimensions.width / this.dpr - this.dimensions.priceAxisWidth;
-    const chartHeight = this.dimensions.height / this.dpr - this.dimensions.timeAxisHeight - this.dimensions.volumeHeight;
+    // dimensions.width/height are already in CSS pixels (set in resize())
+    const chartWidth = this.dimensions.width - this.dimensions.priceAxisWidth;
+    const chartHeight = this.dimensions.height - this.dimensions.timeAxisHeight - (this.showVolume ? this.dimensions.volumeHeight : 0);
     return { ...this.viewport, chartWidth, chartHeight };
   }
 
@@ -248,7 +258,7 @@ export class CanvasChartEngine {
       } else if (candle.time > lastCandle.time) {
         this.candles.push(candle);
         // Auto-scroll to show new candle (only if user hasn't panned away)
-        if (!this.userHasPanned && this.viewport.endIndex >= this.candles.length - 2) {
+        if (!this.userHasPanned && this.viewport.endIndex >= this.candles.length - 1) {
           this.viewport.endIndex = this.candles.length;
           this.viewport.startIndex = Math.max(0, this.viewport.endIndex - this.getVisibleCandleCount());
         }
@@ -293,7 +303,8 @@ export class CanvasChartEngine {
     this.canvas.height = height * this.dpr;
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
-    this.ctx.scale(this.dpr, this.dpr);
+    // Reset transform to avoid compounding — render() applies setTransform per frame
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
     this.dimensions.width = width;
     this.dimensions.height = height;
@@ -321,6 +332,10 @@ export class CanvasChartEngine {
 
   setOnCrosshairMove(callback: (time: number, price: number) => void): void {
     this.onCrosshairMove = callback;
+  }
+
+  setOnCrosshairCandleData(callback: (data: CrosshairCandleData | null) => void): void {
+    this.onCrosshairCandleData = callback;
   }
 
   setCrosshairStyle(style: Partial<CrosshairStyle>): void {
@@ -444,6 +459,7 @@ export class CanvasChartEngine {
   destroy(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
     this.canvas.removeEventListener('mousedown', this.handleMouseDown);
     this.canvas.removeEventListener('mousemove', this.handleMouseMove);
@@ -461,6 +477,7 @@ export class CanvasChartEngine {
   render(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
 
     this.animationFrameId = requestAnimationFrame(() => {
@@ -490,14 +507,37 @@ export class CanvasChartEngine {
     const chartWidth = width - priceAxisWidth;
     const chartHeight = height - timeAxisHeight - (this.showVolume ? volumeHeight : 0);
     const priceRange = priceMax - priceMin;
-
-    this.ctx.strokeStyle = this.theme.gridLines;
-    this.ctx.lineWidth = 1;
+    if (priceRange <= 0) return;
 
     // Calculate nice price step based on zoom level
     const niceStep = this.calculateNicePriceStep(priceRange);
+    const subStep = niceStep / 4; // 4 sub-divisions
 
-    // Draw horizontal grid lines at nice price levels
+    // Sub-grid lines (lighter, dashed)
+    this.ctx.strokeStyle = this.theme.gridLines;
+    this.ctx.globalAlpha = 0.3;
+    this.ctx.lineWidth = 0.5;
+    this.ctx.setLineDash([2, 4]);
+
+    const firstSubPrice = Math.ceil(priceMin / subStep) * subStep;
+    for (let price = firstSubPrice; price <= priceMax; price += subStep) {
+      // Skip major grid positions
+      if (Math.abs(price % niceStep) < subStep * 0.1) continue;
+      const y = ((priceMax - price) / priceRange) * chartHeight;
+      if (y >= 0 && y <= chartHeight) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, y);
+        this.ctx.lineTo(chartWidth, y);
+        this.ctx.stroke();
+      }
+    }
+    this.ctx.setLineDash([]);
+    this.ctx.globalAlpha = 1;
+
+    // Major grid lines
+    this.ctx.strokeStyle = this.theme.gridLines;
+    this.ctx.lineWidth = 1;
+
     const firstNicePrice = Math.ceil(priceMin / niceStep) * niceStep;
     for (let price = firstNicePrice; price <= priceMax; price += niceStep) {
       const y = ((priceMax - price) / priceRange) * chartHeight;
@@ -507,6 +547,19 @@ export class CanvasChartEngine {
         this.ctx.lineTo(chartWidth, y);
         this.ctx.stroke();
       }
+    }
+
+    // Volume separator line
+    if (this.showVolume) {
+      const sepY = chartHeight;
+      this.ctx.strokeStyle = this.theme.gridLines;
+      this.ctx.lineWidth = 1;
+      this.ctx.globalAlpha = 0.6;
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, sepY);
+      this.ctx.lineTo(chartWidth, sepY);
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1;
     }
 
     // Vertical lines
@@ -628,6 +681,7 @@ export class CanvasChartEngine {
       const barHeight = (candle.volume / maxVolume) * (volumeHeight - 5);
       const y = chartTop + volumeHeight - barHeight;
 
+      // Volume bars — use solid color (gradients are too expensive per-bar)
       this.ctx.fillStyle = isUp ? this.theme.volumeUp : this.theme.volumeDown;
       this.ctx.fillRect(x, y, barWidth, barHeight);
     }
@@ -640,6 +694,7 @@ export class CanvasChartEngine {
     const chartHeight = height - timeAxisHeight - (this.showVolume ? volumeHeight : 0);
     const axisX = width - priceAxisWidth;
     const priceRange = priceMax - priceMin;
+    if (priceRange <= 0) return;
 
     // Background
     this.ctx.fillStyle = this.theme.background;
@@ -779,6 +834,7 @@ export class CanvasChartEngine {
 
     // Price label
     const priceRange = priceMax - priceMin;
+    if (priceRange <= 0) return;
     const price = priceMax - (y / chartHeight) * priceRange;
 
     this.ctx.fillStyle = this.theme.crosshairLabelBg;
@@ -788,12 +844,12 @@ export class CanvasChartEngine {
     this.ctx.textAlign = 'left';
     this.ctx.fillText(this.formatPrice(price), chartWidth + 8, y + 4);
 
-    // Time label
+    // Time label + candle highlight
     const visibleCandles = endIndex - startIndex;
     const candleIndex = Math.floor((x / chartWidth) * visibleCandles) + startIndex;
     if (candleIndex >= 0 && candleIndex < this.candles.length) {
-      const time = this.candles[candleIndex].time;
-      const timeStr = this.formatTime(time);
+      const candle = this.candles[candleIndex];
+      const timeStr = this.formatTime(candle.time);
       const labelWidth = timeStr.length * 7 + 10;
 
       const axisY = height - timeAxisHeight;
@@ -804,10 +860,115 @@ export class CanvasChartEngine {
       this.ctx.textAlign = 'center';
       this.ctx.fillText(timeStr, x, axisY + 14);
 
+      // Highlight the hovered candle with a subtle glow
+      const candleTotalWidth = chartWidth / visibleCandles;
+      const candleX = (candleIndex - startIndex) * candleTotalWidth;
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      this.ctx.fillRect(candleX, 0, candleTotalWidth, chartHeight);
+
+      // Draw OHLCV info tooltip near crosshair
+      this.drawCrosshairTooltip(candle, x, y, chartWidth, chartHeight);
+
+      // Emit callbacks
       if (this.onCrosshairMove) {
-        this.onCrosshairMove(time, price);
+        this.onCrosshairMove(candle.time, price);
+      }
+      if (this.onCrosshairCandleData) {
+        const prevCandle = candleIndex > 0 ? this.candles[candleIndex - 1] : candle;
+        const change = candle.close - prevCandle.close;
+        const changePercent = prevCandle.close > 0 ? (change / prevCandle.close) * 100 : 0;
+        this.onCrosshairCandleData({
+          time: candle.time,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+          volume: candle.volume,
+          change,
+          changePercent,
+          index: candleIndex,
+        });
       }
     }
+  }
+
+  /**
+   * Draw OHLCV tooltip near the crosshair position
+   */
+  private drawCrosshairTooltip(candle: ChartCandle, x: number, y: number, chartWidth: number, chartHeight: number): void {
+    const isUp = candle.close >= candle.open;
+    const tooltipW = 145;
+    const tooltipH = 72;
+    const pad = 8;
+
+    // Position tooltip: prefer top-right of cursor, avoid overflow
+    let tx = x + 14;
+    let ty = y - tooltipH - 8;
+    if (tx + tooltipW > chartWidth) tx = x - tooltipW - 14;
+    if (ty < 0) ty = y + 14;
+    if (ty + tooltipH > chartHeight) ty = chartHeight - tooltipH - 4;
+
+    // Background with rounded corners
+    this.ctx.fillStyle = 'rgba(15, 15, 20, 0.92)';
+    this.ctx.beginPath();
+    this.roundRect(tx, ty, tooltipW, tooltipH, 6);
+    this.ctx.fill();
+    this.ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.roundRect(tx, ty, tooltipW, tooltipH, 6);
+    this.ctx.stroke();
+
+    // OHLCV data
+    const lines = [
+      { label: 'O', value: this.formatPrice(candle.open) },
+      { label: 'H', value: this.formatPrice(candle.high) },
+      { label: 'L', value: this.formatPrice(candle.low) },
+      { label: 'C', value: this.formatPrice(candle.close) },
+      { label: 'V', value: this.formatVolume(candle.volume) },
+    ];
+
+    const lineH = 12;
+    const startY = ty + pad + 4;
+    this.ctx.textAlign = 'left';
+
+    for (let i = 0; i < lines.length; i++) {
+      const ly = startY + i * lineH;
+      // Label
+      this.ctx.font = '9px monospace';
+      this.ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      this.ctx.fillText(lines[i].label, tx + pad, ly);
+      // Value
+      this.ctx.font = '10px monospace';
+      this.ctx.fillStyle = i === 4 ? 'rgba(255,255,255,0.6)' : (isUp ? this.theme.candleUp : this.theme.candleDown);
+      this.ctx.fillText(lines[i].value, tx + pad + 16, ly);
+    }
+  }
+
+  /**
+   * Draw rounded rectangle path (helper)
+   */
+  private roundRect(x: number, y: number, w: number, h: number, r: number): void {
+    this.ctx.moveTo(x + r, y);
+    this.ctx.lineTo(x + w - r, y);
+    this.ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    this.ctx.lineTo(x + w, y + h - r);
+    this.ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    this.ctx.lineTo(x + r, y + h);
+    this.ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    this.ctx.lineTo(x, y + r);
+    this.ctx.quadraticCurveTo(x, y, x + r, y);
+    this.ctx.closePath();
+  }
+
+  /**
+   * Format volume for display
+   */
+  private formatVolume(vol: number): string {
+    if (vol >= 1e9) return (vol / 1e9).toFixed(2) + 'B';
+    if (vol >= 1e6) return (vol / 1e6).toFixed(2) + 'M';
+    if (vol >= 1e3) return (vol / 1e3).toFixed(1) + 'K';
+    return vol.toFixed(2);
   }
 
   // ============ HELPERS ============
@@ -853,10 +1014,6 @@ export class CanvasChartEngine {
   private formatPrice(price: number): string {
     const { priceMin, priceMax } = this.viewport;
     const priceRange = priceMax - priceMin;
-
-    // Calculate the "tick size" based on zoom level
-    // Smaller visible range = more precision needed
-    const pixelsPerPrice = this.getPriceChartHeight() / priceRange;
 
     // Determine decimals based on zoom level and price magnitude
     let decimals: number;
@@ -1028,6 +1185,7 @@ export class CanvasChartEngine {
     this.isDraggingPriceAxis = false;
     this.crosshair.visible = false;
     this.canvas.style.cursor = 'crosshair';
+    if (this.onCrosshairCandleData) this.onCrosshairCandleData(null);
     this.render();
   };
 

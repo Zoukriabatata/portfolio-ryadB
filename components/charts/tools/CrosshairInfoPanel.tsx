@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import type { IChartApi, MouseEventParams, Time } from 'lightweight-charts';
+import { formatVolume } from '@/lib/utils/formatters';
 
 interface CrosshairData {
   time: string;
@@ -162,9 +163,4 @@ export default function CrosshairInfoPanel({
   );
 }
 
-function formatVolume(value: number): string {
-  if (value >= 1e9) return (value / 1e9).toFixed(2) + 'B';
-  if (value >= 1e6) return (value / 1e6).toFixed(2) + 'M';
-  if (value >= 1e3) return (value / 1e3).toFixed(2) + 'K';
-  return value.toFixed(2);
-}
+// formatVolume imported from @/lib/utils/formatters

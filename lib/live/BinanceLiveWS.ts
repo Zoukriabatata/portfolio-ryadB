@@ -122,6 +122,8 @@ class BinanceLiveWS {
    */
   connect(symbol: string = 'btcusdt'): void {
     this.symbol = symbol.toLowerCase();
+    this.intentionalDisconnect = false;
+    this.depthSnapshot = null;
     this.doConnect();
     this.connectDepth();
     this.connectMarkPrice();
@@ -131,8 +133,10 @@ class BinanceLiveWS {
   /**
    * Effectue la connexion WebSocket
    */
+  private intentionalDisconnect = false;
+
   private doConnect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
       return;
     }
 
@@ -175,7 +179,9 @@ class BinanceLiveWS {
         }
 
         this.setStatus('disconnected');
-        this.attemptReconnect();
+        if (!this.intentionalDisconnect) {
+          this.attemptReconnect();
+        }
       };
     } catch (error) {
       console.error('[Binance WS] Connection error:', error);
@@ -221,7 +227,7 @@ class BinanceLiveWS {
    * Connect to depth stream (order book)
    */
   private connectDepth(): void {
-    if (this.depthWs?.readyState === WebSocket.OPEN) {
+    if (this.depthWs?.readyState === WebSocket.OPEN || this.depthWs?.readyState === WebSocket.CONNECTING) {
       return;
     }
 
@@ -245,6 +251,9 @@ class BinanceLiveWS {
 
       this.depthWs.onclose = () => {
         console.debug('[Binance Depth] Closed');
+        if (!this.intentionalDisconnect) {
+          setTimeout(() => this.connectDepth(), 2000);
+        }
       };
     } catch (error) {
       console.error('[Binance Depth] Connection error:', error);
@@ -280,7 +289,7 @@ class BinanceLiveWS {
    * Connect to mark price stream (futures)
    */
   private connectMarkPrice(): void {
-    if (this.markPriceWs?.readyState === WebSocket.OPEN) return;
+    if (this.markPriceWs?.readyState === WebSocket.OPEN || this.markPriceWs?.readyState === WebSocket.CONNECTING) return;
 
     const url = `wss://fstream.binance.com/ws/${this.symbol}@markPrice@1s`;
 
@@ -301,6 +310,9 @@ class BinanceLiveWS {
 
       this.markPriceWs.onclose = () => {
         console.debug('[Binance MarkPrice] Closed');
+        if (!this.intentionalDisconnect) {
+          setTimeout(() => this.connectMarkPrice(), 2000);
+        }
       };
     } catch (error) {
       console.error('[Binance MarkPrice] Connection error:', error);
@@ -333,7 +345,7 @@ class BinanceLiveWS {
    * Connect to liquidation stream (futures)
    */
   private connectLiquidation(): void {
-    if (this.liquidationWs?.readyState === WebSocket.OPEN) return;
+    if (this.liquidationWs?.readyState === WebSocket.OPEN || this.liquidationWs?.readyState === WebSocket.CONNECTING) return;
 
     const url = `wss://fstream.binance.com/ws/${this.symbol}@forceOrder`;
 
@@ -354,6 +366,9 @@ class BinanceLiveWS {
 
       this.liquidationWs.onclose = () => {
         console.debug('[Binance Liquidation] Closed');
+        if (!this.intentionalDisconnect) {
+          setTimeout(() => this.connectLiquidation(), 2000);
+        }
       };
     } catch (error) {
       console.error('[Binance Liquidation] Connection error:', error);
@@ -437,6 +452,8 @@ class BinanceLiveWS {
    * Déconnecte du stream
    */
   disconnect(): void {
+    this.intentionalDisconnect = true;
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

@@ -92,6 +92,47 @@ const toolAnimationStyles = `
   .tool-remove-x {
     animation: removeX 0.15s ease-out;
   }
+
+  /* Custom tooltips */
+  [data-tooltip] {
+    position: relative;
+  }
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%) scale(0.92);
+    padding: 4px 8px;
+    background: rgba(20, 20, 25, 0.95);
+    color: rgba(255,255,255,0.85);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 9999;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    backdrop-filter: blur(8px);
+  }
+  [data-tooltip]:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    transition-delay: 0.35s;
+  }
+  [data-tooltip][data-tooltip-pos="top"]::after {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+
+  /* Shortcut key highlight */
+  [data-tooltip] kbd {
+    display: none; /* kbd not used in pseudo - using text */
+  }
 `;
 
 /**
@@ -378,7 +419,7 @@ export default function FavoritesToolbar({
           onClick={() => toggleCollapsed(preset)}
           className="p-2 hover:bg-white/10 rounded transition-colors"
           style={{ color: colors.textMuted }}
-          title="Expand toolbar"
+          data-tooltip="Expand toolbar"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 8h16M4 16h16" />
@@ -451,7 +492,7 @@ export default function FavoritesToolbar({
                     backgroundColor: isActive ? 'rgba(126, 211, 33, 0.15)' : undefined,
                     boxShadow: isActive ? '0 0 0 1px rgba(126, 211, 33, 0.4), inset 0 0 8px rgba(126, 211, 33, 0.1)' : undefined,
                   }}
-                  title={`${TOOL_LABELS[tool]}${TOOL_SHORTCUTS[tool] ? ` (${TOOL_SHORTCUTS[tool]})` : ''}${canRemove ? ' | Right-click to remove' : ''}`}
+                  data-tooltip={`${TOOL_LABELS[tool]}${TOOL_SHORTCUTS[tool] ? `  [${TOOL_SHORTCUTS[tool]}]` : ''}`}
                 >
                   {IconComponent && <IconComponent size={16} color="currentColor" />}
 
@@ -479,7 +520,7 @@ export default function FavoritesToolbar({
                       backgroundColor: 'rgba(100, 100, 100, 0.8)',
                       zIndex: 10,
                     }}
-                    title={`Remove ${TOOL_LABELS[tool]}`}
+                    data-tooltip={`Remove ${TOOL_LABELS[tool]}`}
                   >
                     <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                       <line x1="3" y1="3" x2="9" y2="9" />
@@ -541,7 +582,7 @@ export default function FavoritesToolbar({
             height: 30,
             color: hasSelectedTool ? (colors.deltaNegative || '#ef4444') : colors.textMuted,
           }}
-          title={hasSelectedTool ? 'Delete selected tool (Del)' : 'No tool selected'}
+          data-tooltip={hasSelectedTool ? 'Delete  [Del]' : 'No tool selected'}
           disabled={!hasSelectedTool}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -583,7 +624,7 @@ export default function FavoritesToolbar({
             height: 22,
             color: colors.textMuted,
           }}
-          title="Collapse toolbar"
+          data-tooltip="Collapse"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 15l-6-6-6 6" />
@@ -662,7 +703,7 @@ function AddToolButton({
           height: 30,
           color: colors.textMuted,
         }}
-        title="Add tool to favorites"
+        data-tooltip="Add tool"
       >
         <svg
           width="12"

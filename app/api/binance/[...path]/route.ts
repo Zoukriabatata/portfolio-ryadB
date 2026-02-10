@@ -8,35 +8,43 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
-  // ✅ STEP 1: AUTHENTICATION REQUIRED
-  const authResult = await requireAuth(request);
-  if ('error' in authResult) {
-    return NextResponse.json(
-      { error: authResult.error },
-      {
-        status: authResult.status,
-        headers: authResult.headers,
-      }
-    );
-  }
-
   const { path } = await params;
   const pathStr = path.join('/');
   const searchParams = request.nextUrl.searchParams.toString();
   const market = request.headers.get('x-market') || 'futures';
 
-  // ✅ STEP 2: TIER VALIDATION FOR PREMIUM ENDPOINTS
-  // Real-time data streams require ULTRA subscription
-  const premiumEndpoints = ['aggTrade', 'depth', 'ticker', 'bookTicker', 'trade'];
-  const isPremiumEndpoint = premiumEndpoints.some(endpoint => pathStr.includes(endpoint));
+  // Public endpoints (no auth required) - historical data
+  const publicEndpoints = ['klines', 'exchangeInfo', 'ping', 'time'];
+  const isPublicEndpoint = publicEndpoints.some(endpoint => pathStr.includes(endpoint));
 
-  if (isPremiumEndpoint) {
-    const tierCheck = await requireTier('ULTRA', authResult.user.tier);
-    if (tierCheck) {
+  let authResult: Awaited<ReturnType<typeof requireAuth>> | null = null;
+
+  // ✅ STEP 1: AUTHENTICATION (skip for public endpoints)
+  if (!isPublicEndpoint) {
+    authResult = await requireAuth(request);
+    if ('error' in authResult) {
       return NextResponse.json(
-        { error: tierCheck.error },
-        { status: tierCheck.status }
+        { error: authResult.error },
+        {
+          status: authResult.status,
+          headers: authResult.headers,
+        }
       );
+    }
+
+    // ✅ STEP 2: TIER VALIDATION FOR PREMIUM ENDPOINTS
+    // Real-time data streams require ULTRA subscription
+    const premiumEndpoints = ['aggTrade', 'depth', 'ticker', 'bookTicker', 'trade'];
+    const isPremiumEndpoint = premiumEndpoints.some(endpoint => pathStr.includes(endpoint));
+
+    if (isPremiumEndpoint) {
+      const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+      if (tierCheck) {
+        return NextResponse.json(
+          { error: tierCheck.error },
+          { status: tierCheck.status }
+        );
+      }
     }
   }
 
@@ -45,7 +53,7 @@ export async function GET(
 
   // Debug logging (only in development)
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[Binance Proxy] GET ${url} [User: ${authResult.user.email}]`);
+    console.log(`[Binance Proxy] GET ${url}${authResult ? ` [User: ${authResult.user.email}]` : ' [Public]'}`);
   }
 
   try {
@@ -72,9 +80,9 @@ export async function GET(
       console.log(`[Binance Proxy] aggTrades response: ${Array.isArray(data) ? `${data.length} trades` : typeof data}`);
     }
 
-    // ✅ STEP 3: ADD RATE LIMIT HEADERS TO RESPONSE
+    // ✅ STEP 3: ADD RATE LIMIT HEADERS TO RESPONSE (if authenticated)
     return NextResponse.json(data, {
-      headers: authResult.headers,
+      headers: authResult?.headers || {},
     });
   } catch (error) {
     console.error('[Binance API Proxy] Error:', error);

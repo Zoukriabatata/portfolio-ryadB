@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import type { TapeVelocityStats } from '@/lib/heatmap/analytics/TapeVelocityEngine';
+import { formatVolume } from '@/lib/utils/formatters';
 
 interface TapeSpeedMeterProps {
   stats: TapeVelocityStats;
@@ -141,12 +142,6 @@ export function TapeSpeedMeter({ stats, compact = false }: TapeSpeedMeterProps) 
       </div>
     </div>
   );
-}
-
-function formatVolume(volume: number): string {
-  if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
-  if (volume >= 1000) return `${(volume / 1000).toFixed(1)}K`;
-  return volume.toFixed(0);
 }
 
 /**

@@ -35,7 +35,7 @@ export function useFuturesData(symbol: string) {
       unsubMarkPrice();
       unsubLiquidation();
     };
-  }, [symbol, store]);
+  }, [symbol]);
 
   // REST polling
   const fetchFuturesMetrics = useCallback(async () => {
@@ -111,7 +111,7 @@ export function useFuturesData(symbol: string) {
     } finally {
       store.getState().setPolling(false);
     }
-  }, [symbol, store]);
+  }, [symbol]);
 
   // Start/stop polling + reset on symbol change
   useEffect(() => {
@@ -126,5 +126,5 @@ export function useFuturesData(symbol: string) {
         pollTimerRef.current = null;
       }
     };
-  }, [symbol, fetchFuturesMetrics, store]);
+  }, [symbol, fetchFuturesMetrics]);
 }

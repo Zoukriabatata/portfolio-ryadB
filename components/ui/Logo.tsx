@@ -73,8 +73,7 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
             stroke="url(#logoGradient)"
             strokeWidth="2"
             strokeDasharray="4 2"
-            className={animated ? 'origin-center animate-spin' : ''}
-            style={{ animationDuration: '8s' }}
+            className=""
           />
 
           {/* Central S letter - stylized */}
@@ -92,10 +91,8 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           <circle cx="40" cy="24" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
           <circle cx="24" cy="8" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '1s' }} />
 
-          {/* Scientific formula accent (E=mc²) small */}
-          <text x="32" y="40" fontSize="6" fill="#f59e0b" fontFamily="monospace" opacity="0.7">
-            E²
-          </text>
+          {/* Bottom accent dot */}
+          <circle cx="24" cy="40" r="1.5" fill="#f59e0b" opacity="0.5" />
         </svg>
 
         {/* Glow effect behind */}

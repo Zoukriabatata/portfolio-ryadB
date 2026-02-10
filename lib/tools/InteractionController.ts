@@ -64,7 +64,9 @@ export interface InteractionCallbacks {
   onToolSelected?: (tool: Tool | null) => void;
   onToolCreated?: (tool: Tool) => void;
   onToolUpdated?: (tool: Tool) => void;
+  onToolDeleted?: () => void;
   onModeChanged?: (mode: InteractionMode) => void;
+  onActiveToolChanged?: (tool: ToolType) => void;
   onCursorChanged?: (cursor: string) => void;
   requestRedraw?: () => void;
   getOHLCAtTime?: (time: number) => OHLCData | null;
@@ -157,6 +159,10 @@ export class InteractionController {
 
   getState(): InteractionState {
     return { ...this.state };
+  }
+
+  getCoordinateConverter(): CoordinateConverter | null {
+    return this.converter;
   }
 
   /**
@@ -252,6 +258,10 @@ export class InteractionController {
     const point = this.screenToChart(e.clientX, e.clientY);
     if (!point) return;
 
+    // Prevent chart pan/zoom when handling drawing/tool interaction
+    e.preventDefault();
+    e.stopPropagation();
+
     this.state.isMouseDown = true;
     this.state.startPoint = point;
     this.state.currentPoint = point;
@@ -313,6 +323,12 @@ export class InteractionController {
     const point = this.screenToChart(e.clientX, e.clientY);
     if (!point) return;
 
+    // Prevent chart interaction during drawing/dragging
+    if (this.state.mode === 'drawing' || this.state.mode === 'dragging') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     this.state.currentPoint = point;
     this.state.modifiers = {
       shift: e.shiftKey,
@@ -352,6 +368,12 @@ export class InteractionController {
   }
 
   handleMouseUp(e: MouseEvent | React.MouseEvent): void {
+    // Prevent chart from receiving up event during drawing/dragging
+    if (this.state.mode === 'drawing' || this.state.mode === 'dragging') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     const point = this.screenToChart(e.clientX, e.clientY);
     const engine = getToolsEngine();
 
@@ -372,6 +394,7 @@ export class InteractionController {
       this.state.mode = 'idle';
       this.state.activeTool = 'cursor';
       engine.setActiveTool('cursor');
+      this.callbacks.onActiveToolChanged?.('cursor');
       this.callbacks.onModeChanged?.('idle');
     }
 
@@ -405,6 +428,9 @@ export class InteractionController {
       const engine = getToolsEngine();
       engine.cancelDrawing();
       this.state.mode = 'idle';
+      this.state.activeTool = 'cursor';
+      engine.setActiveTool('cursor');
+      this.callbacks.onActiveToolChanged?.('cursor');
       this.callbacks.onModeChanged?.('idle');
     }
 
@@ -432,6 +458,7 @@ export class InteractionController {
         this.state.mode = 'idle';
         this.state.activeTool = 'cursor';
         engine.setActiveTool('cursor');
+        this.callbacks.onActiveToolChanged?.('cursor');
         this.callbacks.onModeChanged?.('idle');
         this.callbacks.requestRedraw?.();
         return true;
@@ -452,6 +479,7 @@ export class InteractionController {
         engine.deleteSelected();
         this.state.selectedToolId = null;
         this.callbacks.onToolSelected?.(null);
+        this.callbacks.onToolDeleted?.();
         this.callbacks.requestRedraw?.();
         return true;
       }

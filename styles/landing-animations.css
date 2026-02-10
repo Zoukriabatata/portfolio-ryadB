@@ -193,6 +193,167 @@
   animation: glow-pulse-slow 8s ease-in-out infinite;
 }
 
+/* ─── Scroll Indicator ─── */
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(8px); opacity: 0.7; }
+}
+
+/* ─── Section Dividers ─── */
+
+.section-divider {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.12), transparent);
+}
+
+@keyframes dividerShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.section-divider-shimmer {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  overflow: hidden;
+  z-index: 3;
+}
+
+.section-divider-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+}
+
+.section-divider-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(245,158,11,0.25), rgba(245,158,11,0.4), rgba(245,158,11,0.25), transparent);
+  animation: dividerShimmer 4s ease-in-out infinite;
+}
+
+/* ─── Mockup Gradient Border ─── */
+
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes borderRotate {
+  0%   { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+
+.mockup-border {
+  position: relative;
+}
+
+.mockup-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 13px;
+  padding: 1px;
+  background: conic-gradient(from var(--border-angle), transparent 40%, rgba(245,158,11,0.3) 50%, rgba(124,58,237,0.2) 60%, transparent 70%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: borderRotate 6s linear infinite;
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* ─── Heatmap Mockup Pulse ─── */
+
+@keyframes heatmapPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ─── How It Works Connector Draw ─── */
+
+@keyframes drawLine {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* ─── CTA Particle Orbit ─── */
+
+@keyframes particleOrbit {
+  0% { transform: rotate(0deg) translateX(var(--orbit-radius, 60px)) rotate(0deg); opacity: 0; }
+  10% { opacity: var(--particle-opacity, 0.6); }
+  90% { opacity: var(--particle-opacity, 0.6); }
+  100% { transform: rotate(360deg) translateX(var(--orbit-radius, 60px)) rotate(-360deg); opacity: 0; }
+}
+
+@keyframes particleFloat {
+  0%, 100% { transform: translate(0, 0); opacity: var(--particle-opacity, 0.5); }
+  25% { transform: translate(var(--float-x, 10px), var(--float-y, -15px)); }
+  50% { transform: translate(calc(var(--float-x, 10px) * -0.5), calc(var(--float-y, -15px) * 1.5)); opacity: calc(var(--particle-opacity, 0.5) * 0.6); }
+  75% { transform: translate(calc(var(--float-x, 10px) * -1), calc(var(--float-y, -15px) * 0.5)); }
+}
+
+/* ─── Broker Card Rotating Border ─── */
+
+.broker-card {
+  position: relative;
+}
+
+.broker-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 13px;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    transparent 30%,
+    var(--broker-color, rgba(245,158,11,0.4)) 48%,
+    var(--broker-color, rgba(245,158,11,0.6)) 50%,
+    var(--broker-color, rgba(245,158,11,0.4)) 52%,
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: borderRotate 4s linear infinite;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.broker-card:hover::before {
+  opacity: 1;
+}
+
+/* ─── Noise Texture Overlay ─── */
+
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
 /* ─── Reduced Motion ─── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -200,7 +361,11 @@
     display: none;
   }
   .ambient-particle,
-  .ambient-glow {
+  .ambient-glow,
+  .cta-particle {
+    animation: none;
+  }
+  .heatmap-cell-animated {
     animation: none;
   }
 }

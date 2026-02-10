@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { formatPrice as fmtPrice, formatVolume as fmtVolume } from '@/lib/utils/formatters';
 
 interface PriceInfoBarProps {
   symbol: string;
@@ -57,17 +58,8 @@ export function PriceInfoBar({
     return '#ef4444'; // Red (lower third)
   }, [pricePosition, pricePositionColor]);
 
-  const formatPrice = (price: number) => {
-    if (price >= 1000) return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (price >= 1) return price.toFixed(2);
-    return price.toFixed(4);
-  };
-
-  const formatVolume = (vol: number) => {
-    if (vol >= 1000000) return `${(vol / 1000000).toFixed(2)}M`;
-    if (vol >= 1000) return `${(vol / 1000).toFixed(1)}K`;
-    return vol.toFixed(0);
-  };
+  const formatPrice = fmtPrice;
+  const formatVolume = fmtVolume;
 
   return (
     <div className={`flex items-center gap-4 px-3 py-1.5 bg-[#0a0f0a]/80 backdrop-blur-sm rounded-lg border border-green-900/20 text-xs font-mono ${className}`}>

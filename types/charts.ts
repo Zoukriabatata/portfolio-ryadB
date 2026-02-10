@@ -84,7 +84,7 @@ export interface CrosshairData {
   changePercent: number;
 }
 
-export type IndicatorType = 'VWAP' | 'TWAP' | 'VolumeProfile';
+export type IndicatorType = 'VWAP' | 'TWAP' | 'VolumeProfile' | 'SMA' | 'EMA' | 'BollingerBands';
 
 export interface IndicatorConfig {
   id: string;
@@ -99,8 +99,12 @@ export interface IndicatorConfig {
 }
 
 export const DEFAULT_INDICATORS: IndicatorConfig[] = [
-  { id: 'vwap', type: 'VWAP', enabled: true, params: {}, style: { color: '#f59e0b', lineWidth: 2 }, paneId: 'main' },
-  { id: 'twap', type: 'TWAP', enabled: false, params: {}, style: { color: '#3b82f6', lineWidth: 2 }, paneId: 'main' },
+  { id: 'vwap', type: 'VWAP', enabled: false, params: {}, style: { color: '#f59e0b', lineWidth: 2 }, paneId: 'main' },
+  { id: 'ema9', type: 'EMA', enabled: false, params: { period: 9 }, style: { color: '#22d3ee', lineWidth: 1.5 }, paneId: 'main' },
+  { id: 'ema21', type: 'EMA', enabled: false, params: { period: 21 }, style: { color: '#a78bfa', lineWidth: 1.5 }, paneId: 'main' },
+  { id: 'sma50', type: 'SMA', enabled: false, params: { period: 50 }, style: { color: '#f97316', lineWidth: 1.5 }, paneId: 'main' },
+  { id: 'sma200', type: 'SMA', enabled: false, params: { period: 200 }, style: { color: '#ef4444', lineWidth: 1.5 }, paneId: 'main' },
+  { id: 'bb', type: 'BollingerBands', enabled: false, params: { period: 20, stdDev: 2 }, style: { color: '#8b5cf6', lineWidth: 1 }, paneId: 'main' },
 ];
 
 export const DEFAULT_DRAWING_STYLE: DrawingStyle = {

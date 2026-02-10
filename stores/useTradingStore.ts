@@ -38,6 +38,7 @@ export interface Order {
   quantity: number;
   price?: number;
   stopPrice?: number;
+  marketPrice?: number; // Current market price for market orders
   status: OrderStatus;
   filledQuantity: number;
   avgFillPrice?: number;
@@ -90,6 +91,7 @@ interface TradingState {
 
   // Position actions
   closePosition: (symbol: string) => Promise<boolean>;
+  updatePositionPrices: (symbol: string, currentPrice: number) => void;
 }
 
 // Broker display info (Futures, Crypto, Options only)
@@ -289,20 +291,119 @@ export const useTradingStore = create<TradingState>()(
 
         // Simulate order fill for demo
         if (state.activeBroker === 'demo') {
+          // For market orders, use the provided marketPrice fallback
+          const fillPrice = orderData.price || orderData.marketPrice || 0;
+
           setTimeout(() => {
-            set((state) => ({
-              orders: state.orders.map((o) =>
+            set((state) => {
+              // Update order to filled
+              const updatedOrders = state.orders.map((o) =>
                 o.id === order.id
                   ? {
                       ...o,
                       status: 'filled' as OrderStatus,
                       filledQuantity: o.quantity,
-                      avgFillPrice: o.price || orderData.price,
+                      avgFillPrice: fillPrice,
                       updatedAt: Date.now(),
                     }
                   : o
-              ),
-            }));
+              );
+
+              // Create or update position
+              const existing = state.positions.find(
+                (p) => p.symbol === orderData.symbol && p.side === orderData.side
+              );
+              let positions: Position[];
+              if (existing) {
+                // Average into existing position
+                const totalQty = existing.quantity + orderData.quantity;
+                const avgEntry = (existing.entryPrice * existing.quantity + fillPrice * orderData.quantity) / totalQty;
+                positions = state.positions.map((p) =>
+                  p === existing ? { ...p, quantity: totalQty, entryPrice: avgEntry } : p
+                );
+              } else {
+                // Check if opposite side position exists (close/reduce)
+                const opposite = state.positions.find(
+                  (p) => p.symbol === orderData.symbol && p.side !== orderData.side
+                );
+                if (opposite) {
+                  if (orderData.quantity >= opposite.quantity) {
+                    // Close position, open remainder on new side
+                    const pnl = opposite.side === 'buy'
+                      ? (fillPrice - opposite.entryPrice) * opposite.quantity
+                      : (opposite.entryPrice - fillPrice) * opposite.quantity;
+                    const newBalance = (state.connections.demo?.balance || 100000) + pnl;
+                    const remainder = orderData.quantity - opposite.quantity;
+                    positions = state.positions.filter((p) => p !== opposite);
+                    if (remainder > 0) {
+                      positions.push({
+                        symbol: orderData.symbol,
+                        side: orderData.side,
+                        quantity: remainder,
+                        entryPrice: fillPrice,
+                        currentPrice: fillPrice,
+                        pnl: 0,
+                        pnlPercent: 0,
+                      });
+                    }
+                    // Update balance
+                    return {
+                      orders: updatedOrders,
+                      positions,
+                      connections: {
+                        ...state.connections,
+                        demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
+                      },
+                    };
+                  } else {
+                    // Reduce opposite position
+                    const pnl = opposite.side === 'buy'
+                      ? (fillPrice - opposite.entryPrice) * orderData.quantity
+                      : (opposite.entryPrice - fillPrice) * orderData.quantity;
+                    const newBalance = (state.connections.demo?.balance || 100000) + pnl;
+                    positions = state.positions.map((p) =>
+                      p === opposite ? { ...p, quantity: p.quantity - orderData.quantity } : p
+                    );
+                    return {
+                      orders: updatedOrders,
+                      positions,
+                      connections: {
+                        ...state.connections,
+                        demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
+                      },
+                    };
+                  }
+                } else {
+                  // New position
+                  positions = [
+                    ...state.positions,
+                    {
+                      symbol: orderData.symbol,
+                      side: orderData.side,
+                      quantity: orderData.quantity,
+                      entryPrice: fillPrice,
+                      currentPrice: fillPrice,
+                      pnl: 0,
+                      pnlPercent: 0,
+                    },
+                  ];
+                }
+              }
+
+              // Deduct notional from demo balance for new/averaged positions
+              const currentBalance = state.connections.demo?.balance || 100000;
+              const notional = fillPrice * orderData.quantity;
+              const newBalance = currentBalance - notional;
+
+              return {
+                orders: updatedOrders,
+                positions,
+                connections: {
+                  ...state.connections,
+                  demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
+                },
+              };
+            });
           }, 200);
         }
 
@@ -319,10 +420,50 @@ export const useTradingStore = create<TradingState>()(
       },
 
       closePosition: async (symbol) => {
-        set((state) => ({
-          positions: state.positions.filter((p) => p.symbol !== symbol),
-        }));
+        set((state) => {
+          const closingPositions = state.positions.filter((p) => p.symbol === symbol);
+          const remainingPositions = state.positions.filter((p) => p.symbol !== symbol);
+
+          // Calculate realized PnL and return notional to balance
+          let balanceAdjustment = 0;
+          for (const pos of closingPositions) {
+            // Return notional value + realized PnL
+            const notional = pos.entryPrice * pos.quantity;
+            balanceAdjustment += notional + pos.pnl;
+          }
+
+          const activeBroker = state.activeBroker;
+          if (activeBroker === 'demo' && closingPositions.length > 0) {
+            const currentBalance = state.connections.demo?.balance || 100000;
+            return {
+              positions: remainingPositions,
+              connections: {
+                ...state.connections,
+                demo: { ...state.connections.demo, balance: currentBalance + balanceAdjustment, lastUpdate: Date.now() },
+              },
+            };
+          }
+
+          return { positions: remainingPositions };
+        });
         return true;
+      },
+
+      updatePositionPrices: (symbol, currentPrice) => {
+        set((state) => {
+          const hasMatch = state.positions.some((p) => p.symbol === symbol);
+          if (!hasMatch) return state;
+          return {
+            positions: state.positions.map((p) => {
+              if (p.symbol !== symbol) return p;
+              const pnl = p.side === 'buy'
+                ? (currentPrice - p.entryPrice) * p.quantity
+                : (p.entryPrice - currentPrice) * p.quantity;
+              const pnlPercent = p.entryPrice > 0 ? (pnl / (p.entryPrice * p.quantity)) * 100 : 0;
+              return { ...p, currentPrice, pnl, pnlPercent };
+            }),
+          };
+        });
       },
     }),
     {

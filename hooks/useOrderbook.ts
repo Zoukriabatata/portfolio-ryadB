@@ -21,9 +21,6 @@ export function useOrderbook() {
     spread,
     bidAskImbalance,
     heatmapHistory,
-    bidWalls,
-    askWalls,
-    calculateWalls,
     reset,
   } = useOrderbookStore();
 
@@ -56,7 +53,7 @@ export function useOrderbook() {
           Date.now()
         );
         isInitialized.current = true;
-        calculateWalls(3);
+
 
         // Démarre la simulation
         simulator.start();
@@ -92,7 +89,7 @@ export function useOrderbook() {
         setInitialOrderbook(bids || [], asks || [], updateId || 0);
         lastUpdateId.current = updateId || 0;
         isInitialized.current = true;
-        calculateWalls(3);
+
       } catch (error) {
         console.error('Failed to fetch orderbook snapshot:', error);
       }
@@ -107,24 +104,16 @@ export function useOrderbook() {
         simulatorRef.current = null;
       }
     };
-  }, [symbol, isBybitSymbol, setInitialOrderbook, calculateWalls, reset]);
+  }, [symbol, isBybitSymbol, setInitialOrderbook, reset]);
 
   // Subscribe to orderbook updates (Bybit WebSocket OR Simulation)
   useEffect(() => {
     // Simulation mode
     if (!isBybitSymbol && simulatorRef.current) {
-      let updateCounter = 0;
-
       const unsubscribe = simulatorRef.current.onUpdate((snapshot) => {
         if (!isInitialized.current) return;
 
         updateOrderbook(snapshot.bids, snapshot.asks, snapshot.timestamp);
-        updateCounter++;
-
-        // Recalculate walls periodically
-        if (updateCounter % 10 === 0) {
-          calculateWalls(3);
-        }
       });
 
       return () => {
@@ -143,7 +132,7 @@ export function useOrderbook() {
             setInitialOrderbook(update.bids, update.asks, update.finalUpdateId);
             lastUpdateId.current = update.finalUpdateId;
             isInitialized.current = true;
-            calculateWalls(3);
+    
             return;
           }
 
@@ -152,9 +141,6 @@ export function useOrderbook() {
           updateOrderbook(update.bids, update.asks, update.finalUpdateId);
           lastUpdateId.current = update.finalUpdateId;
 
-          if (update.finalUpdateId % 10 === 0) {
-            calculateWalls(3);
-          }
         },
         'linear',
         50
@@ -164,7 +150,7 @@ export function useOrderbook() {
         unsubscribe();
       };
     }
-  }, [symbol, isBybitSymbol, updateOrderbook, calculateWalls, setInitialOrderbook]);
+  }, [symbol, isBybitSymbol, updateOrderbook, setInitialOrderbook]);
 
   return {
     bids,
@@ -173,7 +159,5 @@ export function useOrderbook() {
     spread,
     bidAskImbalance,
     heatmapHistory,
-    bidWalls,
-    askWalls,
   };
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { SessionProvider } from 'next-auth/react';
 import Logo from '@/components/ui/Logo';
@@ -70,8 +70,10 @@ export function DashboardClientLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isLandingPage = pathname === '/';
   const { activeTheme, setTheme } = useUIThemeStore();
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Apply UI theme on mount and changes
   useEffect(() => {
@@ -96,17 +98,32 @@ export function DashboardClientLayout({
     <SessionProvider>
       <div className="h-screen w-screen overflow-hidden flex flex-col bg-[var(--background)] text-[var(--text-primary)]">
       {/* ============================================================
-          TOPBAR NAVIGATION
+          TOPBAR NAVIGATION (hidden on landing page)
           ============================================================ */}
+      {!isLandingPage && (
       <nav className="h-14 flex-shrink-0 glass border-b border-[var(--border)] relative z-50">
-        <div className="h-full px-4 flex items-center gap-6">
+        <div className="h-full px-3 md:px-4 flex items-center gap-3 md:gap-6">
+          {/* Hamburger - mobile only */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--surface)] transition-colors sm:hidden"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              {showMobileMenu ? (
+                <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
+              ) : (
+                <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>
+              )}
+            </svg>
+          </button>
+
           {/* Logo */}
           <Link href="/" className="flex-shrink-0">
             <Logo size="md" showText={true} animated={true} />
           </Link>
 
-          {/* Navigation Pills */}
-          <div className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-none">
+          {/* Navigation Pills — hidden on mobile (drawer instead), icon-only on tablet, full on desktop */}
+          <div className="hidden sm:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-none">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               const IconComponent = item.Icon;
@@ -116,13 +133,14 @@ export function DashboardClientLayout({
                   key={item.href}
                   href={item.href}
                   className={`
-                    group relative px-3 py-2 rounded-lg flex items-center gap-2
+                    group relative px-2 lg:px-3 py-2 rounded-lg flex items-center gap-2
                     transition-all duration-200 ease-out flex-shrink-0
                     ${isActive
                       ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-sm'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]'
                     }
                   `}
+                  title={item.label}
                 >
                   <span
                     className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}
@@ -131,7 +149,7 @@ export function DashboardClientLayout({
                     <IconComponent size={16} />
                   </span>
 
-                  <span className="text-xs font-medium">
+                  <span className="text-xs font-medium hidden lg:inline">
                     {item.label}
                   </span>
 
@@ -147,10 +165,10 @@ export function DashboardClientLayout({
           </div>
 
           {/* Right Side - Status & Account */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 ml-auto sm:ml-0">
             <Link
               href="/"
-              className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors hidden md:block"
             >
               Home
             </Link>
@@ -218,6 +236,84 @@ export function DashboardClientLayout({
           </div>
         </div>
       </nav>
+      )}
+
+      {/* Mobile Navigation Drawer */}
+      {!isLandingPage && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 sm:hidden"
+            style={{
+              opacity: showMobileMenu ? 1 : 0,
+              pointerEvents: showMobileMenu ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease',
+            }}
+            onClick={() => setShowMobileMenu(false)}
+          />
+          {/* Drawer */}
+          <div
+            className="fixed top-14 left-0 bottom-0 w-64 z-40 border-r border-[var(--border)] overflow-y-auto sm:hidden"
+            style={{
+              backgroundColor: 'var(--surface)',
+              transform: showMobileMenu ? 'translateX(0)' : 'translateX(-100%)',
+              transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <div className="p-3 space-y-1">
+              {NAV_ITEMS.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                const IconComponent = item.Icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setShowMobileMenu(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150
+                      ${isActive
+                        ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
+                      }
+                    `}
+                  >
+                    <span style={{ color: isActive ? item.color : 'currentColor' }}>
+                      <IconComponent size={18} />
+                    </span>
+                    <span className="text-sm font-medium">{item.label}</span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="border-t border-[var(--border)] p-3 mt-2">
+              <Link
+                href="/"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                <span className="text-sm font-medium">Home</span>
+              </Link>
+              <Link
+                href="/account"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] transition-colors"
+              >
+                <div className="w-[18px] h-[18px] rounded-full bg-[var(--primary-dark)] flex items-center justify-center">
+                  <span className="text-[8px] font-bold text-white">S</span>
+                </div>
+                <span className="text-sm font-medium">Account</span>
+              </Link>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ============================================================
           MAIN CONTENT AREA

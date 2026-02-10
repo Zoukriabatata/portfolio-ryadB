@@ -1,0 +1,177 @@
+'use client';
+
+import { useState } from 'react';
+import { TikTokIcon, YouTubeIcon } from '@/components/ui/Icons';
+
+const FAQS = [
+  {
+    question: 'What is Senzoukria?',
+    answer:
+      'Senzoukria is an institutional-grade orderflow analytics platform. We provide real-time heatmaps, footprint charts, delta profiles, and gamma exposure analysis to help traders see the market microstructure.',
+  },
+  {
+    question: 'Which brokers are supported?',
+    answer:
+      'We currently support Rithmic, Interactive Brokers, CQG, and AMP Futures. More integrations are coming soon.',
+  },
+  {
+    question: 'Do I need coding knowledge?',
+    answer:
+      'No. Senzoukria is a visual platform with a point-and-click interface. No coding or API setup required.',
+  },
+  {
+    question: 'Is there a free trial?',
+    answer:
+      'Yes, you can start with a free trial. No credit card required to explore the platform.',
+  },
+  {
+    question: 'What markets are covered?',
+    answer:
+      'We cover futures (ES, NQ, CL, GC, etc.), crypto derivatives (BTC, ETH via Binance, Bybit, Deribit), and more.',
+  },
+];
+
+export default function FAQSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggle = (index: number) => {
+    setOpenIndex((prev) => (prev === index ? null : index));
+  };
+
+  return (
+    <section id="faq" className="relative px-6 py-24" style={{ zIndex: 2 }}>
+      {/* Semi-transparent backdrop */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.5) 100%)',
+          zIndex: 1,
+        }}
+      />
+
+      {/* Section divider */}
+      <div className="section-divider-shimmer" />
+
+      <div className="max-w-3xl mx-auto relative" style={{ zIndex: 10 }}>
+        <div className="text-center mb-14">
+          <h2
+            data-animate="up"
+            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+          >
+            Frequently Asked Questions
+          </h2>
+          <p
+            data-animate="up"
+            data-animate-delay="1"
+            className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
+          >
+            Everything you need to know about Senzoukria
+          </p>
+        </div>
+
+        <div data-animate="up" data-animate-delay="2">
+          {FAQS.map((faq, i) => {
+            const isOpen = openIndex === i;
+
+            return (
+              <div
+                key={i}
+                className={`
+                  rounded-lg px-4 -mx-4 transition-all duration-300
+                  ${isOpen
+                    ? 'bg-white/[0.02] border border-amber-500/15 shadow-[0_0_15px_rgba(245,158,11,0.05)]'
+                    : 'border border-transparent border-b-white/[0.06]'
+                  }
+                `}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggle(i)}
+                  className="w-full flex items-center justify-between py-5 text-left group cursor-pointer"
+                >
+                  <span
+                    className={`text-[14px] font-medium transition-colors duration-200 ${
+                      isOpen
+                        ? 'text-amber-200'
+                        : 'text-white group-hover:text-amber-200'
+                    }`}
+                  >
+                    {faq.question}
+                  </span>
+
+                  {/* Chevron icon */}
+                  <span
+                    className={`flex-shrink-0 ml-4 text-amber-500 transition-transform duration-300 ${
+                      isOpen ? 'rotate-180' : 'rotate-0'
+                    }`}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </span>
+                </button>
+
+                {/* Collapsible answer */}
+                <div
+                  className="overflow-hidden transition-all duration-300 ease-in-out"
+                  style={{
+                    maxHeight: isOpen ? '200px' : '0px',
+                    opacity: isOpen ? 1 : 0,
+                  }}
+                >
+                  <p className="text-[13px] text-white/45 leading-relaxed pb-5 mt-0">
+                    {faq.answer}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Community CTA */}
+        <div
+          data-animate="up"
+          data-animate-delay="3"
+          className="mt-12 text-center p-6 rounded-xl border border-white/[0.06] bg-white/[0.02]"
+        >
+          <p className="text-[14px] text-white/60 font-medium">
+            Still have questions?
+          </p>
+          <p className="mt-1 text-[12px] text-white/35">
+            Join our community for live support and trading discussions
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <a
+              href="https://tiktok.com/@zkb.trade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium text-white/50 border border-white/[0.08] bg-white/[0.03] hover:border-[#FF0050]/30 hover:text-white/70 transition-all duration-200"
+            >
+              <TikTokIcon size={14} color="rgba(255,255,255,0.5)" />
+              TikTok
+            </a>
+            <a
+              href="https://youtube.com/@Zoukriabatata"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium text-white/50 border border-white/[0.08] bg-white/[0.03] hover:border-[#FF0000]/30 hover:text-white/70 transition-all duration-200"
+            >
+              <YouTubeIcon size={14} color="rgba(255,255,255,0.5)" />
+              YouTube
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

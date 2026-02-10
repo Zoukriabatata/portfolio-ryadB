@@ -320,19 +320,15 @@ export default function TradingDOM({
       const sortedAsks = Array.from(asks.entries()).sort((a, b) => a[0] - b[0]);
       const isAsk = sortedAsks.some(([p]) => p === hoveredPrice);
       // Click on ask = buy limit, click on bid = sell limit
-      // For now, just log
-      console.log(`Clicked ${isAsk ? 'ASK' : 'BID'} at ${hoveredPrice}`);
     }
   }, [hoveredPrice, asks, onTrade]);
 
   const handleBuy = () => {
     if (onTrade) onTrade('buy', currentPrice, quantity);
-    console.log(`BUY ${quantity} @ Market`);
   };
 
   const handleSell = () => {
     if (onTrade) onTrade('sell', currentPrice, quantity);
-    console.log(`SELL ${quantity} @ Market`);
   };
 
   return (

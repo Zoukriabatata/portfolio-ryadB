@@ -1,10 +1,25 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import '@/app/globals.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 
 export const metadata: Metadata = {
-  title: 'OrderFlow v2 - Professional Trading Analytics',
-  description: 'Real-time orderflow, liquidity heatmaps, and market microstructure analysis',
+  title: 'Senzoukria — Professional Order Flow Analytics',
+  description:
+    'Institutional-grade orderflow analytics platform. Real-time heatmaps, footprint charts, delta profiles and gamma exposure. Connect Rithmic, Interactive Brokers, CQG or AMP.',
+  openGraph: {
+    title: 'Senzoukria — Professional Order Flow Analytics',
+    description:
+      'Institutional-grade orderflow analytics platform. Real-time heatmaps, footprint charts, delta profiles and gamma exposure. Connect Rithmic, Interactive Brokers, CQG or AMP.',
+    type: 'website',
+    siteName: 'Senzoukria',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#000000',
 };
 
 export default function RootLayout({

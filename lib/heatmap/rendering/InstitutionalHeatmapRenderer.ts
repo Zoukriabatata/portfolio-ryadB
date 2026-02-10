@@ -257,7 +257,7 @@ export class InstitutionalHeatmapRenderer {
 
     this.canvas.width = rect.width * this.dpr;
     this.canvas.height = rect.height * this.dpr;
-    this.ctx.scale(this.dpr, this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
     this.layout = this.calcLayout();
   }

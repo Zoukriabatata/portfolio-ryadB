@@ -14,6 +14,7 @@
 
 import { useMemo } from 'react';
 import { useFuturesStore } from '@/stores/useFuturesStore';
+import { formatPrice as fmtPrice, formatVolumeDollar } from '@/lib/utils/formatters';
 
 export default function FuturesMetricsWidget() {
   const {
@@ -27,25 +28,14 @@ export default function FuturesMetricsWidget() {
     globalLongAccount,
     globalShortAccount,
     topTraderLongShortRatio,
+    longShortHistory,
     liquidations,
     recentLiqBuyVolume,
     recentLiqSellVolume,
   } = useFuturesStore();
 
-  const formatPrice = (p: number) => {
-    if (p === 0) return '--';
-    return p >= 1000
-      ? p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : p.toFixed(4);
-  };
-
-  const formatLargeNumber = (n: number) => {
-    if (n === 0) return '--';
-    if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(2)}B`;
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-    if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-    return `$${n.toFixed(0)}`;
-  };
+  const formatPrice = (p: number) => p === 0 ? '--' : fmtPrice(p);
+  const formatLargeNumber = (n: number) => n === 0 ? '--' : formatVolumeDollar(n);
 
   const formatFundingRate = (rate: number) => {
     if (rate === 0) return '--';
@@ -86,6 +76,30 @@ export default function FuturesMetricsWidget() {
     }).join(' ');
   }, [openInterestHistory]);
 
+  // Long/Short history sparkline
+  const lsChartHeight = 32;
+  const lsPoints = useMemo(() => {
+    if (longShortHistory.length < 2) return '';
+    const values = longShortHistory.map(p => p.ratio);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 0.01;
+    return longShortHistory.map((p, i) => {
+      const x = (i / (longShortHistory.length - 1)) * 100;
+      const y = ((max - p.ratio) / range) * lsChartHeight;
+      return `${x},${y}`;
+    }).join(' ');
+  }, [longShortHistory]);
+
+  // OI change percentage
+  const oiChange = useMemo(() => {
+    if (openInterestHistory.length < 2) return null;
+    const first = openInterestHistory[0].value;
+    const last = openInterestHistory[openInterestHistory.length - 1].value;
+    if (first === 0) return null;
+    return ((last - first) / first) * 100;
+  }, [openInterestHistory]);
+
   const recentLiqCount = useMemo(() => {
     return liquidations.filter(l => Date.now() - l.time < 60_000).length;
   }, [liquidations]);
@@ -122,6 +136,21 @@ export default function FuturesMetricsWidget() {
             {formatFundingRate(fundingRate)}
           </span>
         </div>
+        {/* Funding rate visual bar */}
+        {fundingRate !== 0 && (
+          <div className="mt-1.5 h-1 bg-zinc-900 rounded-full overflow-hidden relative">
+            <div className="absolute inset-y-0 left-1/2 w-px bg-zinc-700" />
+            <div
+              className="absolute inset-y-0 rounded-full transition-all duration-500"
+              style={{
+                left: fundingRate >= 0 ? '50%' : undefined,
+                right: fundingRate < 0 ? '50%' : undefined,
+                width: `${Math.min(Math.abs(fundingRate) * 10000, 50)}%`,
+                backgroundColor: fundingRate >= 0 ? '#34d399' : '#f87171',
+              }}
+            />
+          </div>
+        )}
         <div className="flex items-center justify-between mt-1">
           <span className="text-zinc-600 text-[10px]">Next Funding</span>
           <span className="font-mono text-zinc-400 text-[10px]">{fundingCountdown}</span>
@@ -132,9 +161,16 @@ export default function FuturesMetricsWidget() {
       <div className="bg-zinc-800/50 rounded-lg p-2.5">
         <div className="flex items-center justify-between mb-1">
           <span className="text-zinc-500">Open Interest</span>
-          <span className="font-mono text-white font-medium">
-            {formatLargeNumber(openInterestValue)}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {oiChange !== null && (
+              <span className={`font-mono text-[10px] ${oiChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {oiChange >= 0 ? '+' : ''}{oiChange.toFixed(1)}%
+              </span>
+            )}
+            <span className="font-mono text-white font-medium">
+              {formatLargeNumber(openInterestValue)}
+            </span>
+          </div>
         </div>
         {openInterestHistory.length > 1 && (
           <div className="h-[40px] bg-zinc-900/50 rounded overflow-hidden">
@@ -176,6 +212,25 @@ export default function FuturesMetricsWidget() {
           <span className="text-emerald-400 text-[10px]">{longPct.toFixed(1)}% L</span>
           <span className="text-red-400 text-[10px]">{shortPct.toFixed(1)}% S</span>
         </div>
+        {/* L/S Ratio history sparkline */}
+        {longShortHistory.length > 1 && (
+          <div className="h-[32px] mt-1.5 bg-zinc-900/50 rounded overflow-hidden">
+            <svg
+              viewBox={`0 0 100 ${lsChartHeight}`}
+              preserveAspectRatio="none"
+              className="w-full h-full"
+            >
+              {/* 1.0 reference line (neutral) */}
+              <line x1="0" y1={lsChartHeight / 2} x2="100" y2={lsChartHeight / 2} stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="2,2" />
+              <polyline
+                fill="none"
+                stroke={globalLongShortRatio >= 1 ? '#34d399' : '#f87171'}
+                strokeWidth="1.5"
+                points={lsPoints}
+              />
+            </svg>
+          </div>
+        )}
       </div>
 
       {/* Top Traders */}
