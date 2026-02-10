@@ -111,7 +111,7 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
       {!collapsed && (
         <div
           onMouseDown={handleResizeStart}
-          className="absolute top-0 left-0 right-0 h-1.5 cursor-row-resize z-10 group transition-colors"
+          className="absolute top-0 left-0 right-0 h-1.5 cursor-row-resize z-10 group resize-handle"
         >
           <div className="absolute inset-x-0 top-0 h-full bg-[var(--primary)] opacity-0 group-hover:opacity-40 transition-opacity" />
           <div className="absolute inset-x-1/3 top-[2px] h-[2px] rounded-full bg-[var(--text-dimmed)] opacity-0 group-hover:opacity-60 transition-opacity" />
@@ -140,10 +140,11 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="px-2.5 py-1 rounded text-[10px] font-medium transition-colors"
+                  className="px-2.5 py-1 rounded text-[10px] font-medium transition-all button-press"
                   style={{
                     backgroundColor: activeTab === tab.id ? 'var(--background)' : 'transparent',
                     color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
+                    transform: activeTab === tab.id ? 'scale(1)' : 'scale(0.96)',
                   }}
                 >
                   {tab.label}

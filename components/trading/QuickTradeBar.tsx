@@ -91,7 +91,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         </div>
         <button
           onClick={() => activeBroker ? connect(activeBroker) : connect('demo')}
-          className="px-3 py-1 rounded text-xs font-medium transition-all hover:scale-105 active:scale-95"
+          className="px-3 py-1 rounded text-xs font-medium button-press hover-glow"
           style={{
             backgroundColor: '#7c3aed',
             color: '#fff',
@@ -135,10 +135,11 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           <button
             key={t}
             onClick={() => setOrderType(t)}
-            className="px-2 py-0.5 text-[10px] font-medium capitalize transition-colors"
+            className="px-2 py-0.5 text-[10px] font-medium capitalize transition-all button-press"
             style={{
               backgroundColor: orderType === t ? colors.background : 'transparent',
               color: orderType === t ? colors.text : colors.textMuted,
+              transform: orderType === t ? 'scale(1)' : 'scale(0.96)',
             }}
           >
             {t}
@@ -168,7 +169,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         <div className="flex items-center rounded overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
           <button
             onClick={() => setContractQuantity(Math.max(1, contractQuantity - 1))}
-            className="w-5 h-5 flex items-center justify-center hover:bg-white/5 transition-colors"
+            className="w-5 h-5 flex items-center justify-center hover:bg-white/5 transition-all button-press"
             style={{ color: colors.textSecondary }}
           >
             -
@@ -177,7 +178,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             type="number"
             value={contractQuantity}
             onChange={e => setContractQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-10 text-center text-xs font-mono focus:outline-none"
+            className="w-10 text-center text-xs font-mono focus:outline-none transition-colors"
             style={{
               backgroundColor: colors.background,
               color: colors.text,
@@ -185,7 +186,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           />
           <button
             onClick={() => setContractQuantity(contractQuantity + 1)}
-            className="w-5 h-5 flex items-center justify-center hover:bg-white/5 transition-colors"
+            className="w-5 h-5 flex items-center justify-center hover:bg-white/5 transition-all button-press"
             style={{ color: colors.textSecondary }}
           >
             +
@@ -199,10 +200,11 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           <button
             key={q}
             onClick={() => setContractQuantity(q)}
-            className="px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors"
+            className="px-1.5 py-0.5 rounded text-[10px] font-mono transition-all button-press"
             style={{
               backgroundColor: contractQuantity === q ? colors.background : 'transparent',
               color: contractQuantity === q ? colors.text : colors.textMuted,
+              transform: contractQuantity === q ? 'scale(1)' : 'scale(0.96)',
             }}
           >
             {q}
@@ -217,26 +219,32 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         <button
           onClick={() => handleTrade('buy')}
           disabled={isSubmitting}
-          className="px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${lastAction?.side === 'buy' ? 'trade-success' : ''}`}
           style={{
             backgroundColor: lastAction?.side === 'buy' ? '#059669' : '#10b981',
             color: '#fff',
-            boxShadow: lastAction?.side === 'buy' ? '0 0 12px rgba(16,185,129,0.4)' : 'none',
           }}
         >
-          {isSubmitting ? '...' : 'BUY'}
+          {isSubmitting ? (
+            <span className="spinner inline-block w-3 h-3 border border-white border-t-transparent rounded-full" />
+          ) : (
+            'BUY'
+          )}
         </button>
         <button
           onClick={() => handleTrade('sell')}
           disabled={isSubmitting}
-          className="px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${lastAction?.side === 'sell' ? 'trade-success' : ''}`}
           style={{
             backgroundColor: lastAction?.side === 'sell' ? '#dc2626' : '#ef4444',
             color: '#fff',
-            boxShadow: lastAction?.side === 'sell' ? '0 0 12px rgba(239,68,68,0.4)' : 'none',
           }}
         >
-          {isSubmitting ? '...' : 'SELL'}
+          {isSubmitting ? (
+            <span className="spinner inline-block w-3 h-3 border border-white border-t-transparent rounded-full" />
+          ) : (
+            'SELL'
+          )}
         </button>
       </div>
     </div>

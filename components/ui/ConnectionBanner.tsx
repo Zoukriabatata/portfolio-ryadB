@@ -42,7 +42,7 @@ export default function ConnectionBanner() {
 
   return (
     <div
-      className="absolute top-0 left-0 right-0 z-30 flex items-center justify-center gap-2 py-1.5 px-4 text-xs font-medium transition-all duration-300"
+      className="absolute top-0 left-0 right-0 z-30 flex items-center justify-center gap-2 py-1.5 px-4 text-xs font-medium transition-all duration-300 animate-slideDown"
       style={{
         background: isConnected
           ? 'rgba(16,185,129,0.12)'
@@ -61,6 +61,7 @@ export default function ConnectionBanner() {
           : isError
           ? '#ef4444'
           : '#f59e0b',
+        backdropFilter: 'blur(8px)',
       }}
     >
       {isConnecting && (

@@ -58,6 +58,7 @@ export default function LivePageContent() {
   const [futuresWidth, setFuturesWidth] = useState(240);
   const [layout, setLayout] = useState<LayoutMode>('1x1');
   const [showWatchlist, setShowWatchlist] = useState(true);
+  const [layoutKey, setLayoutKey] = useState(0); // Key to trigger re-animations
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(240);
@@ -67,6 +68,11 @@ export default function LivePageContent() {
   useEffect(() => {
     return () => { cleanupRef.current?.(); };
   }, []);
+
+  // Trigger animations when layout changes
+  useEffect(() => {
+    setLayoutKey(prev => prev + 1);
+  }, [layout]);
 
   const handleFuturesResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -101,20 +107,19 @@ export default function LivePageContent() {
     <div className="h-[calc(100vh-56px)] flex">
       {/* Watchlist Panel */}
       <div
-        className="flex-shrink-0 border-r overflow-hidden relative"
+        className={`flex-shrink-0 border-r overflow-hidden relative panel-slide ${!showWatchlist ? 'panel-collapsed' : ''}`}
         style={{
           width: showWatchlist ? 180 : 24,
-          transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           borderColor: 'var(--border)',
           backgroundColor: showWatchlist ? 'var(--surface)' : 'var(--background)',
         }}
       >
         {showWatchlist ? (
-          <div className="h-full flex flex-col" style={{ width: 180 }}>
+          <div className="h-full flex flex-col panel-content-fade" style={{ width: 180 }}>
             <WatchlistPanel activeSymbol={symbol} onSymbolSelect={setSymbol} />
             <button
               onClick={() => setShowWatchlist(false)}
-              className="px-2 py-1 border-t text-[10px] hover:bg-white/5 transition-colors"
+              className="px-2 py-1 border-t text-[10px] hover:bg-white/5 transition-colors button-press"
               style={{ borderColor: 'var(--border)', color: 'var(--text-dimmed)' }}
             >
               Hide
@@ -123,7 +128,7 @@ export default function LivePageContent() {
         ) : (
           <button
             onClick={() => setShowWatchlist(true)}
-            className="w-full h-full flex items-center justify-center hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer group"
+            className="w-full h-full flex items-center justify-center hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer group button-press"
           >
             <span
               className="text-[10px] font-semibold tracking-wider uppercase group-hover:text-[var(--text-secondary)] transition-colors"
@@ -140,14 +145,14 @@ export default function LivePageContent() {
         <ConnectionBanner />
 
         {/* Layout Selector */}
-        <div className="flex items-center gap-0.5 absolute top-1 left-1/2 -translate-x-1/2 z-30 px-1.5 py-0.5 rounded-lg"
+        <div className="flex items-center gap-0.5 absolute top-1 left-1/2 -translate-x-1/2 z-30 px-1.5 py-0.5 rounded-lg fade-in"
           style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
         >
           {(['1x1', '2x1', '2x2'] as LayoutMode[]).map(mode => (
             <button
               key={mode}
               onClick={() => setLayout(mode)}
-              className="w-6 h-6 flex items-center justify-center rounded transition-all"
+              className={`layout-button button-press w-6 h-6 flex items-center justify-center rounded ${layout === mode ? 'active' : ''}`}
               style={{
                 backgroundColor: layout === mode ? 'var(--primary)' : 'transparent',
                 color: layout === mode ? '#fff' : 'var(--text-muted)',
@@ -162,16 +167,18 @@ export default function LivePageContent() {
         {/* Chart Grid */}
         {layout === '1x1' ? (
           <ChartErrorBoundary fallbackTitle="Chart Error">
-            <LiveChartPro className="flex-1" onSymbolChange={setSymbol} />
+            <div key={`chart-1x1-${layoutKey}`} className="flex-1 chart-panel-enter">
+              <LiveChartPro className="h-full" onSymbolChange={setSymbol} />
+            </div>
           </ChartErrorBoundary>
         ) : layout === '2x1' ? (
           <div className="flex-1 flex min-h-0">
-            <div className="flex-1 min-w-0 border-r border-[var(--border)]">
+            <div key={`chart-2x1-1-${layoutKey}`} className="flex-1 min-w-0 border-r border-[var(--border)] chart-panel-enter">
               <ChartErrorBoundary fallbackTitle="Chart Error">
                 <LiveChartPro className="h-full" onSymbolChange={setSymbol} />
               </ChartErrorBoundary>
             </div>
-            <div className="flex-1 min-w-0">
+            <div key={`chart-2x1-2-${layoutKey}`} className="flex-1 min-w-0 chart-panel-enter-stagger-1">
               <ChartErrorBoundary fallbackTitle="Chart Error">
                 <LiveChartPro className="h-full" />
               </ChartErrorBoundary>
@@ -179,22 +186,22 @@ export default function LivePageContent() {
           </div>
         ) : (
           <div className="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
-            <div className="border-r border-b border-[var(--border)] min-w-0 min-h-0">
+            <div key={`chart-2x2-1-${layoutKey}`} className="border-r border-b border-[var(--border)] min-w-0 min-h-0 chart-panel-enter">
               <ChartErrorBoundary fallbackTitle="Chart Error">
                 <LiveChartPro className="h-full" onSymbolChange={setSymbol} />
               </ChartErrorBoundary>
             </div>
-            <div className="border-b border-[var(--border)] min-w-0 min-h-0">
+            <div key={`chart-2x2-2-${layoutKey}`} className="border-b border-[var(--border)] min-w-0 min-h-0 chart-panel-enter-stagger-1">
               <ChartErrorBoundary fallbackTitle="Chart Error">
                 <LiveChartPro className="h-full" />
               </ChartErrorBoundary>
             </div>
-            <div className="border-r border-[var(--border)] min-w-0 min-h-0">
+            <div key={`chart-2x2-3-${layoutKey}`} className="border-r border-[var(--border)] min-w-0 min-h-0 chart-panel-enter-stagger-2">
               <ChartErrorBoundary fallbackTitle="Chart Error">
                 <LiveChartPro className="h-full" />
               </ChartErrorBoundary>
             </div>
-            <div className="min-w-0 min-h-0">
+            <div key={`chart-2x2-4-${layoutKey}`} className="min-w-0 min-h-0 chart-panel-enter-stagger-3">
               <ChartErrorBoundary fallbackTitle="Chart Error">
                 <LiveChartPro className="h-full" />
               </ChartErrorBoundary>
@@ -207,10 +214,10 @@ export default function LivePageContent() {
 
       {/* Futures Panel — animated width + drag resize */}
       <div
-        className="flex-shrink-0 border-l border-[var(--border)] overflow-hidden relative"
+        className={`flex-shrink-0 border-l border-[var(--border)] overflow-hidden relative panel-slide ${!showFutures ? 'panel-collapsed' : ''}`}
         style={{
           width: showFutures ? futuresWidth : 24,
-          transition: isDraggingRef.current ? 'none' : 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: isDraggingRef.current ? 'none' : undefined,
           backgroundColor: showFutures ? 'var(--background)' : 'var(--surface)',
         }}
       >
@@ -218,21 +225,21 @@ export default function LivePageContent() {
         {showFutures && (
           <div
             onMouseDown={handleFuturesResizeStart}
-            className="absolute top-0 left-0 bottom-0 w-1.5 cursor-col-resize z-10 group transition-colors"
+            className="absolute top-0 left-0 bottom-0 w-1.5 cursor-col-resize z-10 group resize-handle"
           >
             <div className="absolute inset-y-0 left-0 w-full bg-[var(--primary)] opacity-0 group-hover:opacity-40 transition-opacity" />
             <div className="absolute inset-y-1/3 left-[2px] w-[2px] rounded-full bg-[var(--text-dimmed)] opacity-0 group-hover:opacity-60 transition-opacity" />
           </div>
         )}
         {showFutures ? (
-          <div className="h-full overflow-y-auto p-2.5" style={{ width: futuresWidth }}>
+          <div className="h-full overflow-y-auto p-2.5 panel-content-fade" style={{ width: futuresWidth }}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                 Futures Data
               </h3>
               <button
                 onClick={() => setShowFutures(false)}
-                className="text-[var(--text-dimmed)] hover:text-[var(--text-secondary)] text-[10px] transition-colors"
+                className="text-[var(--text-dimmed)] hover:text-[var(--text-secondary)] text-[10px] transition-colors button-press"
               >
                 Hide
               </button>
@@ -242,7 +249,7 @@ export default function LivePageContent() {
         ) : (
           <button
             onClick={() => setShowFutures(true)}
-            className="w-full h-full flex items-center justify-center hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer group"
+            className="w-full h-full flex items-center justify-center hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer group button-press"
           >
             <span
               className="text-[10px] font-semibold tracking-wider uppercase text-[var(--text-dimmed)] group-hover:text-[var(--text-secondary)] transition-colors"

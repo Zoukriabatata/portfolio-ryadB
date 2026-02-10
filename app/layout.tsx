@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '@/app/globals.css';
+import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 
 export const metadata: Metadata = {

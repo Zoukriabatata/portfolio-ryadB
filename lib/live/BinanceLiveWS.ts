@@ -91,9 +91,15 @@ class BinanceLiveWS {
   private symbol: string = 'btcusdt';
   private status: ConnectionStatus = 'disconnected';
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 10; // Increased from 5 to 10 for better resilience
   private reconnectDelay = 1000;
   private reconnectTimer: NodeJS.Timeout | null = null;
+
+  // Reconnection tracking for auxiliary streams
+  private depthReconnectAttempts = 0;
+  private markPriceReconnectAttempts = 0;
+  private liquidationReconnectAttempts = 0;
+  private maxAuxReconnectAttempts = 8;
 
   // Callbacks
   private statusListeners: Set<StatusCallback> = new Set();
@@ -239,6 +245,7 @@ class BinanceLiveWS {
 
       this.depthWs.onopen = () => {
         console.debug(`[Binance Depth] Connected to ${this.symbol}`);
+        this.depthReconnectAttempts = 0; // Reset on successful connection
       };
 
       this.depthWs.onmessage = (event) => {
@@ -249,10 +256,10 @@ class BinanceLiveWS {
         console.warn('[Binance Depth] Connection error');
       };
 
-      this.depthWs.onclose = () => {
-        console.debug('[Binance Depth] Closed');
+      this.depthWs.onclose = (event) => {
+        console.debug(`[Binance Depth] Closed: ${this.getCloseReason(event.code)}`);
         if (!this.intentionalDisconnect) {
-          setTimeout(() => this.connectDepth(), 2000);
+          this.attemptDepthReconnect();
         }
       };
     } catch (error) {
@@ -298,6 +305,7 @@ class BinanceLiveWS {
 
       this.markPriceWs.onopen = () => {
         console.debug(`[Binance MarkPrice] Connected to ${this.symbol}`);
+        this.markPriceReconnectAttempts = 0; // Reset on successful connection
       };
 
       this.markPriceWs.onmessage = (event) => {
@@ -308,10 +316,10 @@ class BinanceLiveWS {
         console.warn('[Binance MarkPrice] Connection error');
       };
 
-      this.markPriceWs.onclose = () => {
-        console.debug('[Binance MarkPrice] Closed');
+      this.markPriceWs.onclose = (event) => {
+        console.debug(`[Binance MarkPrice] Closed: ${this.getCloseReason(event.code)}`);
         if (!this.intentionalDisconnect) {
-          setTimeout(() => this.connectMarkPrice(), 2000);
+          this.attemptMarkPriceReconnect();
         }
       };
     } catch (error) {
@@ -354,6 +362,7 @@ class BinanceLiveWS {
 
       this.liquidationWs.onopen = () => {
         console.debug(`[Binance Liquidation] Connected to ${this.symbol}`);
+        this.liquidationReconnectAttempts = 0; // Reset on successful connection
       };
 
       this.liquidationWs.onmessage = (event) => {
@@ -364,10 +373,10 @@ class BinanceLiveWS {
         console.warn('[Binance Liquidation] Connection error');
       };
 
-      this.liquidationWs.onclose = () => {
-        console.debug('[Binance Liquidation] Closed');
+      this.liquidationWs.onclose = (event) => {
+        console.debug(`[Binance Liquidation] Closed: ${this.getCloseReason(event.code)}`);
         if (!this.intentionalDisconnect) {
-          setTimeout(() => this.connectLiquidation(), 2000);
+          this.attemptLiquidationReconnect();
         }
       };
     } catch (error) {
@@ -421,6 +430,60 @@ class BinanceLiveWS {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
       this.doConnect();
+    }, delay);
+  }
+
+  /**
+   * Attempt to reconnect depth stream with exponential backoff
+   */
+  private attemptDepthReconnect(): void {
+    if (this.depthReconnectAttempts >= this.maxAuxReconnectAttempts) {
+      console.error('[Binance Depth] Max reconnect attempts reached');
+      return;
+    }
+
+    const delay = this.reconnectDelay * Math.pow(2, this.depthReconnectAttempts);
+    console.debug(`[Binance Depth] Reconnecting in ${delay}ms (attempt ${this.depthReconnectAttempts + 1})`);
+
+    setTimeout(() => {
+      this.depthReconnectAttempts++;
+      this.connectDepth();
+    }, delay);
+  }
+
+  /**
+   * Attempt to reconnect mark price stream with exponential backoff
+   */
+  private attemptMarkPriceReconnect(): void {
+    if (this.markPriceReconnectAttempts >= this.maxAuxReconnectAttempts) {
+      console.error('[Binance MarkPrice] Max reconnect attempts reached');
+      return;
+    }
+
+    const delay = this.reconnectDelay * Math.pow(2, this.markPriceReconnectAttempts);
+    console.debug(`[Binance MarkPrice] Reconnecting in ${delay}ms (attempt ${this.markPriceReconnectAttempts + 1})`);
+
+    setTimeout(() => {
+      this.markPriceReconnectAttempts++;
+      this.connectMarkPrice();
+    }, delay);
+  }
+
+  /**
+   * Attempt to reconnect liquidation stream with exponential backoff
+   */
+  private attemptLiquidationReconnect(): void {
+    if (this.liquidationReconnectAttempts >= this.maxAuxReconnectAttempts) {
+      console.error('[Binance Liquidation] Max reconnect attempts reached');
+      return;
+    }
+
+    const delay = this.reconnectDelay * Math.pow(2, this.liquidationReconnectAttempts);
+    console.debug(`[Binance Liquidation] Reconnecting in ${delay}ms (attempt ${this.liquidationReconnectAttempts + 1})`);
+
+    setTimeout(() => {
+      this.liquidationReconnectAttempts++;
+      this.connectLiquidation();
     }, delay);
   }
 
