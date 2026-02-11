@@ -14,6 +14,49 @@ import { ProfileBarsCommand } from './commands/ProfileBarsCommand';
 import { KeyLevelsCommand, type KeyLevel } from './commands/KeyLevelsCommand';
 import type { DirtyFlags, PassiveOrderData, TradeData } from './types';
 
+// === PERF: Module-level default objects (avoid per-frame allocation) ===
+const DEFAULT_GRID_SETTINGS = {
+  showMajorGrid: true,
+  showMinorGrid: true,
+  majorGridInterval: 10,
+  majorGridColor: '#ffffff',
+  majorGridOpacity: 0.15,
+  minorGridColor: '#ffffff',
+  minorGridOpacity: 0.05,
+  gridStyle: 'solid' as const,
+  showTickMarks: true,
+  tickSize: 5,
+  tickColor: '#6b7280',
+  highlightRoundNumbers: true,
+  roundNumberInterval: 100,
+  highlightColor: '#ffffff',
+};
+
+const DEFAULT_PASSIVE_SETTINGS = {
+  glowEnabled: true,
+  glowIntensity: 0.8,
+  pulseEnabled: true,
+  pulseSpeed: 2.0,
+  showStates: true,
+  icebergDetection: true,
+};
+
+const DEFAULT_BUBBLE_SETTINGS = {
+  showBorder: true,
+  borderWidth: 0.08,
+  borderColor: 'rgba(255, 255, 255, 0.5)',
+  glowEnabled: true,
+  glowIntensity: 0.6,
+  showGradient: true,
+  rippleEnabled: true,
+  largeTradeThreshold: 2.0,
+  sizeScaling: 'sqrt' as const,
+  popInAnimation: true,
+  bubbleOpacity: 0.7,
+  maxSize: 50,
+  minSize: 8,
+};
+
 export interface HybridRendererConfig {
   canvas: HTMLCanvasElement;
   container: HTMLElement;
@@ -240,6 +283,20 @@ export class HybridRenderer {
   // Cached profile data
   private cachedDeltaProfileBars: { price: number; bidValue: number; askValue: number }[] = [];
   private cachedVolumeProfileBars: { price: number; bidValue: number; askValue: number }[] = [];
+
+  // PERF: Cached grid line arrays (only recompute on grid data change)
+  private cachedGridHPrices: number[] | undefined = undefined;
+  private cachedGridVPositions: number[] | undefined = undefined;
+  private cachedFilteredHorizontal: { position: number; isMajor: boolean }[] = [];
+  private cachedFilteredVertical: { position: number; isMajor: boolean }[] = [];
+  private cachedTicks: { y: number; isHighlight: boolean }[] = [];
+
+  // PERF: Cached overlay transform data
+  private lastOverlayKeyLevelsRef: KeyLevel[] | null = null;
+  private lastOverlayPriceMin: number = 0;
+  private lastOverlayPriceMax: number = 0;
+  private cachedOverlayLevels: { price: number; y: number; type: string; label: string; color: string }[] = [];
+  private cachedStatsItems: { label: string; value: string; color?: string }[] = [];
 
   constructor(config: HybridRendererConfig) {
     this.config = {
@@ -471,51 +528,50 @@ export class HybridRenderer {
       const priceRange = data.priceMax - data.priceMin;
 
       // Get grid settings (with defaults)
-      const gridSettings = data.gridSettings || {
-        showMajorGrid: true,
-        showMinorGrid: true,
-        majorGridInterval: 10,
-        majorGridColor: '#ffffff',
-        majorGridOpacity: 0.15,
-        minorGridColor: '#ffffff',
-        minorGridOpacity: 0.05,
-        gridStyle: 'solid' as const,
-        showTickMarks: true,
-        tickSize: 5,
-        tickColor: '#6b7280',
-        highlightRoundNumbers: true,
-        roundNumberInterval: 100,
-        highlightColor: '#ffffff',
-      };
+      const gridSettings = data.gridSettings || DEFAULT_GRID_SETTINGS;
 
-      // Convert prices to GridLine objects with major/minor flags
-      const horizontalLines = (data.gridHorizontalPrices || []).map((price, index) => {
-        const y = pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
-        // Determine if this is a major grid line
-        const isMajor = index % gridSettings.majorGridInterval === 0 ||
-          (gridSettings.highlightRoundNumbers && price % gridSettings.roundNumberInterval === 0);
-        return { position: y, isMajor };
-      });
+      // PERF: Only recompute grid lines when source data changes
+      const gridDataChanged = data.gridHorizontalPrices !== this.cachedGridHPrices ||
+        data.gridVerticalPositions !== this.cachedGridVPositions;
 
-      // Convert vertical positions to GridLine objects
-      const verticalLines = (data.gridVerticalPositions || []).map((x, index) => ({
-        position: x * dpr!,
-        isMajor: index % gridSettings.majorGridInterval === 0,
-      }));
+      if (gridDataChanged) {
+        this.cachedGridHPrices = data.gridHorizontalPrices;
+        this.cachedGridVPositions = data.gridVerticalPositions;
 
-      // Filter based on settings
-      const filteredHorizontal = horizontalLines.filter((line) =>
-        line.isMajor ? gridSettings.showMajorGrid : gridSettings.showMinorGrid
-      );
-      const filteredVertical = verticalLines.filter((line) =>
-        line.isMajor ? gridSettings.showMajorGrid : gridSettings.showMinorGrid
-      );
+        const horizontalLines = (data.gridHorizontalPrices || []).map((price, index) => {
+          const y = pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
+          const isMajor = index % gridSettings.majorGridInterval === 0 ||
+            (gridSettings.highlightRoundNumbers && price % gridSettings.roundNumberInterval === 0);
+          return { position: y, isMajor };
+        });
 
-      if (filteredHorizontal.length > 0 || filteredVertical.length > 0) {
+        const verticalLines = (data.gridVerticalPositions || []).map((x, index) => ({
+          position: x * dpr!,
+          isMajor: index % gridSettings.majorGridInterval === 0,
+        }));
+
+        this.cachedFilteredHorizontal = horizontalLines.filter((line) =>
+          line.isMajor ? gridSettings.showMajorGrid : gridSettings.showMinorGrid
+        );
+        this.cachedFilteredVertical = verticalLines.filter((line) =>
+          line.isMajor ? gridSettings.showMajorGrid : gridSettings.showMinorGrid
+        );
+
+        if (gridSettings.showTickMarks) {
+          this.cachedTicks = (data.gridHorizontalPrices || []).map((price) => {
+            const y = pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
+            const isHighlight = gridSettings.highlightRoundNumbers &&
+              price % gridSettings.roundNumberInterval === 0;
+            return { y, isHighlight };
+          });
+        }
+      }
+
+      if (this.cachedFilteredHorizontal.length > 0 || this.cachedFilteredVertical.length > 0) {
         this.linesCommand.renderGrid(
           {
-            horizontalLines: filteredHorizontal,
-            verticalLines: filteredVertical,
+            horizontalLines: this.cachedFilteredHorizontal,
+            verticalLines: this.cachedFilteredVertical,
             majorColor: gridSettings.majorGridColor,
             minorColor: gridSettings.minorGridColor,
             majorOpacity: gridSettings.majorGridOpacity,
@@ -529,27 +585,18 @@ export class HybridRenderer {
       }
 
       // Render tick marks on price axis
-      if (gridSettings.showTickMarks) {
-        const ticks = (data.gridHorizontalPrices || []).map((price) => {
-          const y = pixelHeight - ((price - data.priceMin) / priceRange) * pixelHeight;
-          const isHighlight = gridSettings.highlightRoundNumbers &&
-            price % gridSettings.roundNumberInterval === 0;
-          return { y, isHighlight };
-        });
-
-        if (ticks.length > 0) {
-          this.linesCommand.renderTickMarks(
-            {
-              ticks,
-              x: heatmapRight, // Right edge of heatmap area
-              tickSize: gridSettings.tickSize * dpr!,
-              normalColor: gridSettings.tickColor,
-              highlightColor: gridSettings.highlightColor,
-              opacity: 0.8,
-            },
-            this.projection
-          );
-        }
+      if (gridSettings.showTickMarks && this.cachedTicks.length > 0) {
+        this.linesCommand.renderTickMarks(
+          {
+            ticks: this.cachedTicks,
+            x: heatmapRight,
+            tickSize: gridSettings.tickSize * dpr!,
+            normalColor: gridSettings.tickColor,
+            highlightColor: gridSettings.highlightColor,
+            opacity: 0.8,
+          },
+          this.projection
+        );
       }
     }
 
@@ -567,14 +614,7 @@ export class HybridRenderer {
       }
 
       // Get passive order settings (with defaults)
-      const passiveSettings = data.passiveOrderSettings || {
-        glowEnabled: true,
-        glowIntensity: 0.8,
-        pulseEnabled: true,
-        pulseSpeed: 2.0,
-        showStates: true,
-        icebergDetection: true,
-      };
+      const passiveSettings = data.passiveOrderSettings || DEFAULT_PASSIVE_SETTINGS;
 
       if (this.cachedTransformedOrders.length > 0) {
         this.heatmapCommand.render(
@@ -667,21 +707,7 @@ export class HybridRenderer {
 
       if (this.cachedTransformedTrades.length > 0) {
         // Get trade bubble settings (with defaults)
-        const bubbleSettings = data.tradeBubbleSettings || {
-          showBorder: true,
-          borderWidth: 0.08,
-          borderColor: 'rgba(255, 255, 255, 0.5)',
-          glowEnabled: true,
-          glowIntensity: 0.6,
-          showGradient: true,
-          rippleEnabled: true,
-          largeTradeThreshold: 2.0,
-          sizeScaling: 'sqrt' as const,
-          popInAnimation: true,
-          bubbleOpacity: 0.7,
-          maxSize: 50,
-          minSize: 8,
-        };
+        const bubbleSettings = data.tradeBubbleSettings || DEFAULT_BUBBLE_SETTINGS;
 
         this.tradesBubblesCommand.render(
           {
@@ -876,30 +902,40 @@ export class HybridRenderer {
 
     // Key level text labels (complement WebGL lines with readable labels)
     if (data.keyLevels && data.keyLevels.levels.length > 0) {
-      const levelSettings = data.keyLevels.settings || {};
       const priceAxisX = width! - priceAxisWidth!;
-      const levelColorMap: Record<string, string> = {
-        poc: levelSettings.pocColor || '#f59e0b',
-        vah: levelSettings.vahColor || '#8b5cf6',
-        val: levelSettings.valColor || '#8b5cf6',
-        vwap: levelSettings.vwapColor || '#06b6d4',
-        sessionHigh: levelSettings.sessionHighColor || '#22d3ee',
-        sessionLow: levelSettings.sessionLowColor || '#fb7185',
-        roundNumber: levelSettings.roundNumberColor || '#fbbf24',
-        vwapBand1: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#06b6d4',
-        vwapBand2: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#06b6d4',
-      };
-      const overlayLevels = data.keyLevels.levels
-        .filter(l => l.price >= data.priceMin && l.price <= data.priceMax)
-        .map(l => ({
-          price: l.price,
-          y: this.priceToY(l.price, data.priceMin, data.priceMax, height!),
-          type: l.type,
-          label: l.label || l.type.toUpperCase(),
-          color: levelColorMap[l.type] || '#ffffff',
-        }));
-      if (overlayLevels.length > 0) {
-        this.overlay.renderKeyLevelLabels(overlayLevels, priceAxisX);
+      // PERF: Only recompute when key levels source or price range changes
+      const levelsChanged = data.keyLevels.levels !== this.lastOverlayKeyLevelsRef ||
+        data.priceMin !== this.lastOverlayPriceMin ||
+        data.priceMax !== this.lastOverlayPriceMax;
+
+      if (levelsChanged) {
+        this.lastOverlayKeyLevelsRef = data.keyLevels.levels;
+        this.lastOverlayPriceMin = data.priceMin;
+        this.lastOverlayPriceMax = data.priceMax;
+        const levelSettings = data.keyLevels.settings || {};
+        const levelColorMap: Record<string, string> = {
+          poc: levelSettings.pocColor || '#f59e0b',
+          vah: levelSettings.vahColor || '#8b5cf6',
+          val: levelSettings.valColor || '#8b5cf6',
+          vwap: levelSettings.vwapColor || '#06b6d4',
+          sessionHigh: levelSettings.sessionHighColor || '#22d3ee',
+          sessionLow: levelSettings.sessionLowColor || '#fb7185',
+          roundNumber: levelSettings.roundNumberColor || '#fbbf24',
+          vwapBand1: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#06b6d4',
+          vwapBand2: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#06b6d4',
+        };
+        this.cachedOverlayLevels = data.keyLevels.levels
+          .filter(l => l.price >= data.priceMin && l.price <= data.priceMax)
+          .map(l => ({
+            price: l.price,
+            y: this.priceToY(l.price, data.priceMin, data.priceMax, height!),
+            type: l.type,
+            label: l.label || l.type.toUpperCase(),
+            color: levelColorMap[l.type] || '#ffffff',
+          }));
+      }
+      if (this.cachedOverlayLevels.length > 0) {
+        this.overlay.renderKeyLevelLabels(this.cachedOverlayLevels, priceAxisX);
       }
     }
 
@@ -907,13 +943,12 @@ export class HybridRenderer {
     const lastBidPrice = data.bestBidPoints?.length ? data.bestBidPoints[data.bestBidPoints.length - 1].price : 0;
     const lastAskPrice = data.bestAskPoints?.length ? data.bestAskPoints[data.bestAskPoints.length - 1].price : 0;
     const spread = lastAskPrice > 0 && lastBidPrice > 0 ? lastAskPrice - lastBidPrice : 0;
-    const statsItems = [
-      ...(lastBidPrice > 0 ? [{ label: 'Bid', value: this.overlay.formatPrice(lastBidPrice), color: '#22c55e' }] : []),
-      ...(lastAskPrice > 0 ? [{ label: 'Ask', value: this.overlay.formatPrice(lastAskPrice), color: '#ef4444' }] : []),
-      ...(spread > 0 ? [{ label: 'Spread', value: this.overlay.formatPrice(spread) }] : []),
-      { label: 'Orders', value: data.passiveOrders.length.toString() },
-      { label: 'Trades', value: data.trades.length.toString() },
-    ];
+    const statsItems: { label: string; value: string; color?: string }[] = [];
+    if (lastBidPrice > 0) statsItems.push({ label: 'Bid', value: this.overlay.formatPrice(lastBidPrice), color: '#22c55e' });
+    if (lastAskPrice > 0) statsItems.push({ label: 'Ask', value: this.overlay.formatPrice(lastAskPrice), color: '#ef4444' });
+    if (spread > 0) statsItems.push({ label: 'Spread', value: this.overlay.formatPrice(spread) });
+    statsItems.push({ label: 'Orders', value: data.passiveOrders.length.toString() });
+    statsItems.push({ label: 'Trades', value: data.trades.length.toString() });
     this.overlay.renderStatsBar(statsItems, height! - 12);
 
     // Imbalance markers (triangles at price levels)

@@ -81,6 +81,21 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   const absorptionAlertsRef = useRef<{ price: number; volume: number; side: 'bid' | 'ask'; timestamp: number }[]>([]);
   const lastProcessedTradeCountRef = useRef<number>(0);
 
+  // === PERF: Cached refs to avoid per-frame allocations ===
+  // Fix 1: Imbalance throttle
+  const imbalanceCacheRef = useRef<{ price: number; direction: 'bullish' | 'bearish'; ratio: number; isStrong: boolean }[]>([]);
+  const lastImbalanceComputeRef = useRef<number>(0);
+  // Fix 2: Incremental CVD
+  const cvdPointsRef = useRef<{ time: number; delta: number }[]>([]);
+  const cvdRunningDeltaRef = useRef<number>(0);
+  const cvdLastTradeCountRef = useRef<number>(0);
+  // Fix 3: VWAP cache
+  const vwapKeyLevelsCacheRef = useRef<{ levels: KeyLevel[]; settings: { vwapColor: string; vwapBand1Color: string; vwapBand2Color: string; opacity: number } } | null>(null);
+  const lastVwapPriceRef = useRef<number>(0);
+  // Fix 4: Absorption mapped cache
+  const absorptionMappedRef = useRef<{ price: number; volume: number; side: 'bid' | 'ask'; timestamp: number; age: number }[]>([]);
+  const lastAbsorptionFilterRef = useRef<number>(0);
+
   const [state, setState] = useState<MarketState | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [dataMode, setDataMode] = useState<DataMode>(initialMode);
@@ -412,89 +427,142 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
 
             const vwapPrice = vwapEngineRef.current.getVWAP();
             if (vwapPrice > 0) {
-              const bands = vwapEngineRef.current.getBands([1, 2]);
-              const keyLevels: KeyLevel[] = [
-                { price: vwapPrice, type: 'vwap', label: 'VWAP' },
-              ];
-              if (bands.length >= 1 && bands[0].upperBand > 0) {
-                keyLevels.push(
-                  { price: bands[0].upperBand, type: 'vwapBand1', label: '+1σ' },
-                  { price: bands[0].lowerBand, type: 'vwapBand1', label: '-1σ' },
-                );
+              // Only rebuild if VWAP price changed (avoid per-frame allocations)
+              if (vwapPrice !== lastVwapPriceRef.current) {
+                lastVwapPriceRef.current = vwapPrice;
+                const bands = vwapEngineRef.current.getBands([1, 2]);
+                const levels: KeyLevel[] = [
+                  { price: vwapPrice, type: 'vwap', label: 'VWAP' },
+                ];
+                if (bands.length >= 1 && bands[0].upperBand > 0) {
+                  levels.push(
+                    { price: bands[0].upperBand, type: 'vwapBand1', label: '+1σ' },
+                    { price: bands[0].lowerBand, type: 'vwapBand1', label: '-1σ' },
+                  );
+                }
+                if (bands.length >= 2 && bands[1].upperBand > 0) {
+                  levels.push(
+                    { price: bands[1].upperBand, type: 'vwapBand2', label: '+2σ' },
+                    { price: bands[1].lowerBand, type: 'vwapBand2', label: '-2σ' },
+                  );
+                }
+                vwapKeyLevelsCacheRef.current = {
+                  levels,
+                  settings: {
+                    vwapColor: '#06b6d4',
+                    vwapBand1Color: '#0891b2',
+                    vwapBand2Color: '#0e7490',
+                    opacity: 0.8,
+                  },
+                };
               }
-              if (bands.length >= 2 && bands[1].upperBand > 0) {
-                keyLevels.push(
-                  { price: bands[1].upperBand, type: 'vwapBand2', label: '+2σ' },
-                  { price: bands[1].lowerBand, type: 'vwapBand2', label: '-2σ' },
-                );
+              if (vwapKeyLevelsCacheRef.current) {
+                renderData.keyLevels = vwapKeyLevelsCacheRef.current;
               }
-              renderData.keyLevels = {
-                levels: keyLevels,
-                settings: {
-                  vwapColor: '#06b6d4',
-                  vwapBand1Color: '#0891b2',
-                  vwapBand2Color: '#0e7490',
-                  opacity: 0.8,
-                },
-              };
             }
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // IMBALANCE MARKERS - Detect bid/ask imbalances
+          // IMBALANCE MARKERS - Detect bid/ask imbalances (throttled 500ms)
           // ═══════════════════════════════════════════════════════════════
           if (showImbalances) {
-            const markers: { price: number; direction: 'bullish' | 'bearish'; ratio: number; isStrong: boolean }[] = [];
-            const tickSize = config?.tickSize || 0.5;
-            const priceRange = getPriceRange();
+            const now = performance.now();
+            if (now - lastImbalanceComputeRef.current > 500) {
+              lastImbalanceComputeRef.current = now;
+              const tickSize = config?.tickSize || 0.5;
+              const priceRange = getPriceRange();
 
-            // Check each price level for imbalance
-            for (let price = Math.floor(priceRange.min / tickSize) * tickSize; price <= priceRange.max; price += tickSize) {
-              let bidVol = 0;
-              let askVol = 0;
+              // Pre-build price->volume Maps: O(m) instead of O(n*m)
+              const bidByPrice = new Map<number, number>();
               for (const [orderPrice, order] of state.bids) {
-                if (Math.abs(orderPrice - price) < tickSize * 0.5) bidVol += order.displaySize;
+                const snapped = Math.round(orderPrice / tickSize) * tickSize;
+                bidByPrice.set(snapped, (bidByPrice.get(snapped) || 0) + order.displaySize);
               }
+              const askByPrice = new Map<number, number>();
               for (const [orderPrice, order] of state.asks) {
-                if (Math.abs(orderPrice - price) < tickSize * 0.5) askVol += order.displaySize;
+                const snapped = Math.round(orderPrice / tickSize) * tickSize;
+                askByPrice.set(snapped, (askByPrice.get(snapped) || 0) + order.displaySize);
               }
-              if (bidVol > 0 || askVol > 0) {
-                const result = detectImbalance(bidVol, askVol, 3.0);
-                if (result.isStrong) {
-                  markers.push({ price, direction: result.direction as 'bullish' | 'bearish', ratio: result.ratio, isStrong: true });
+
+              const markers: typeof imbalanceCacheRef.current = [];
+              for (let price = Math.floor(priceRange.min / tickSize) * tickSize; price <= priceRange.max; price += tickSize) {
+                const bidVol = bidByPrice.get(price) || 0;
+                const askVol = askByPrice.get(price) || 0;
+                if (bidVol > 0 || askVol > 0) {
+                  const result = detectImbalance(bidVol, askVol, 3.0);
+                  if (result.isStrong) {
+                    markers.push({ price, direction: result.direction as 'bullish' | 'bearish', ratio: result.ratio, isStrong: true });
+                  }
                 }
               }
+              imbalanceCacheRef.current = markers;
             }
-            if (markers.length > 0) {
-              renderData.imbalanceMarkers = markers;
+            if (imbalanceCacheRef.current.length > 0) {
+              renderData.imbalanceMarkers = imbalanceCacheRef.current;
             }
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // CVD - Cumulative Volume Delta
+          // CVD - Cumulative Volume Delta (incremental)
           // ═══════════════════════════════════════════════════════════════
           if (showCumulativeDelta && state.trades.length > 0) {
-            let cumDelta = 0;
-            const cvdPoints: { time: number; delta: number }[] = [];
-            for (const trade of state.trades) {
-              cumDelta += trade.side === 'buy' ? trade.size : -trade.size;
-              cvdPoints.push({ time: trade.timestamp, delta: cumDelta });
+            const currentCount = state.trades.length;
+
+            // Detect if trades array was trimmed/reset (LiveDataEngine filters old trades)
+            if (currentCount < cvdLastTradeCountRef.current) {
+              cvdRunningDeltaRef.current = 0;
+              cvdPointsRef.current = [];
+              cvdLastTradeCountRef.current = 0;
             }
-            renderData.cvdData = { points: cvdPoints };
+
+            // Only process new trades (same pattern as VWAP)
+            if (currentCount > cvdLastTradeCountRef.current) {
+              for (let i = cvdLastTradeCountRef.current; i < currentCount; i++) {
+                const trade = state.trades[i];
+                cvdRunningDeltaRef.current += trade.side === 'buy' ? trade.size : -trade.size;
+                cvdPointsRef.current.push({ time: trade.timestamp, delta: cvdRunningDeltaRef.current });
+              }
+              cvdLastTradeCountRef.current = currentCount;
+
+              // Trim old points (keep last 30s)
+              const cutoff = Date.now() - 30000;
+              while (cvdPointsRef.current.length > 0 && cvdPointsRef.current[0].time < cutoff) {
+                cvdPointsRef.current.shift();
+              }
+            }
+
+            if (cvdPointsRef.current.length > 0) {
+              renderData.cvdData = { points: cvdPointsRef.current };
+            }
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // ABSORPTION ALERTS - Show recent absorption events
+          // ABSORPTION ALERTS - Show recent absorption events (throttled)
           // ═══════════════════════════════════════════════════════════════
           if (showAbsorption) {
             const now = Date.now();
-            // Filter out expired alerts (older than 5 seconds)
-            absorptionAlertsRef.current = absorptionAlertsRef.current.filter(a => now - a.timestamp < 5000);
+            // Only filter expired every 500ms (avoid per-frame array allocation)
+            if (now - lastAbsorptionFilterRef.current > 500) {
+              lastAbsorptionFilterRef.current = now;
+              absorptionAlertsRef.current = absorptionAlertsRef.current.filter(a => now - a.timestamp < 5000);
+            }
             if (absorptionAlertsRef.current.length > 0) {
-              renderData.absorptionAlerts = absorptionAlertsRef.current.map(a => ({
-                ...a,
-                age: (now - a.timestamp) / 5000, // 0-1 normalized age for fade-out
-              }));
+              // Update age in-place, reuse array
+              const mapped = absorptionMappedRef.current;
+              mapped.length = absorptionAlertsRef.current.length;
+              for (let i = 0; i < absorptionAlertsRef.current.length; i++) {
+                const a = absorptionAlertsRef.current[i];
+                if (mapped[i]) {
+                  mapped[i].price = a.price;
+                  mapped[i].volume = a.volume;
+                  mapped[i].side = a.side;
+                  mapped[i].timestamp = a.timestamp;
+                  mapped[i].age = (now - a.timestamp) / 5000;
+                } else {
+                  mapped[i] = { price: a.price, volume: a.volume, side: a.side, timestamp: a.timestamp, age: (now - a.timestamp) / 5000 };
+                }
+              }
+              renderData.absorptionAlerts = mapped;
             }
           }
 

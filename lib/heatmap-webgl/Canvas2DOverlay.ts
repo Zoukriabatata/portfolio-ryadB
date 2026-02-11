@@ -57,6 +57,23 @@ export class Canvas2DOverlay {
     timezone: 'local',
   };
 
+  // PERF: Text width measurement cache (avoid expensive measureText calls)
+  private textWidthCache = new Map<string, number>();
+
+  private getCachedTextWidth(text: string, font: string): number {
+    const key = `${font}|${text}`;
+    let width = this.textWidthCache.get(key);
+    if (width === undefined) {
+      this.ctx.font = font;
+      width = this.ctx.measureText(text).width;
+      this.textWidthCache.set(key, width);
+      if (this.textWidthCache.size > 200) {
+        this.textWidthCache.clear();
+      }
+    }
+    return width;
+  }
+
   constructor(config: OverlayConfig) {
     this.config = config;
 
@@ -193,11 +210,12 @@ export class Canvas2DOverlay {
 
       // Draw a small tick mark for round numbers
       if (isRound) {
+        const textWidth = this.getCachedTextWidth(priceText, ctx.font);
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(x - ctx.measureText(priceText).width - 8, label.y);
-        ctx.lineTo(x - ctx.measureText(priceText).width - 4, label.y);
+        ctx.moveTo(x - textWidth - 8, label.y);
+        ctx.lineTo(x - textWidth - 4, label.y);
         ctx.stroke();
       }
     }
@@ -441,9 +459,10 @@ export class Canvas2DOverlay {
       const priceText = this.formatPrice(level.price);
 
       // Background pill
-      ctx.font = `bold ${config.fontSize - 1}px ${config.font}`;
-      const labelWidth = ctx.measureText(text).width + 8;
-      const priceWidth = ctx.measureText(priceText).width + 6;
+      const boldFont = `bold ${config.fontSize - 1}px ${config.font}`;
+      ctx.font = boldFont;
+      const labelWidth = this.getCachedTextWidth(text, boldFont) + 8;
+      const priceWidth = this.getCachedTextWidth(priceText, `${config.fontSize - 1}px ${config.font}`) + 6;
       const totalWidth = labelWidth + priceWidth + 4;
       const height = config.fontSize + 4;
 

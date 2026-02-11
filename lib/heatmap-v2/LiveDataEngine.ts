@@ -619,7 +619,7 @@ export class LiveDataEngine {
 
       // Limit history (with throttled updates, we can keep fewer points)
       if (this.state.priceHistory.length > 120) {  // ~30 seconds at 250ms interval
-        this.state.priceHistory = this.state.priceHistory.slice(-120);
+        this.state.priceHistory.splice(0, this.state.priceHistory.length - 120);
       }
     }
 
@@ -630,32 +630,38 @@ export class LiveDataEngine {
       this.captureFullSnapshot(now);
     }
 
-    // Update trades (fade out old ones)
-    this.state.trades = this.state.trades.filter(trade => {
-      const age = now - trade.timestamp;
-      if (age > tradeLifetimeMs) return false;
-
-      // Fade animation
-      trade.opacity = Math.max(0, 1 - age / tradeLifetimeMs);
-      trade.scale = 1 + (1 - trade.opacity) * 0.3;
-
-      // Update history index for positioning
-      trade.historyIndex = Math.max(0, this.state.priceHistory.length - 1 - Math.floor(age / 100));
-
-      return true;
-    });
+    // Update trades (fade out old ones) - in-place compaction (zero allocation)
+    {
+      let w = 0;
+      for (let i = 0; i < this.state.trades.length; i++) {
+        const trade = this.state.trades[i];
+        const age = now - trade.timestamp;
+        if (age > tradeLifetimeMs) continue;
+        trade.opacity = Math.max(0, 1 - age / tradeLifetimeMs);
+        trade.scale = 1 + (1 - trade.opacity) * 0.3;
+        trade.historyIndex = Math.max(0, this.state.priceHistory.length - 1 - Math.floor(age / 100));
+        this.state.trades[w++] = trade;
+      }
+      this.state.trades.length = w;
+    }
 
     // Update passive orders
     this.updatePassiveOrders(this.state.bids, now);
     this.updatePassiveOrders(this.state.asks, now);
 
-    // Update traces
-    this.state.traces = this.state.traces.filter(trace => {
-      const age = now - trace.timestamp;
-      if (age > 3000) return false;
-      trace.opacity = Math.max(0, 0.6 - age / 5000);
-      return trace.opacity > 0.01;
-    });
+    // Update traces - in-place compaction (zero allocation)
+    {
+      let w = 0;
+      for (let i = 0; i < this.state.traces.length; i++) {
+        const trace = this.state.traces[i];
+        const age = now - trace.timestamp;
+        if (age > 3000) continue;
+        trace.opacity = Math.max(0, 0.6 - age / 5000);
+        if (trace.opacity <= 0.01) continue;
+        this.state.traces[w++] = trace;
+      }
+      this.state.traces.length = w;
+    }
 
     // Cleanup heatmap history - keep last 500 time indices (~3 minutes)
     const minKeepTimeIndex = this.heatmapTimeIndex - 500;
