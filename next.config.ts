@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 // @ts-ignore
 import WebpackObfuscator from 'webpack-obfuscator';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -80,4 +81,22 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Wrapping avec Sentry
+export default withSentryConfig(nextConfig, {
+  // Sentry Webpack Plugin options
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Authentication token pour upload des source maps
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Désactiver en dev (pas besoin d'upload)
+  silent: process.env.NODE_ENV !== 'production',
+
+  // Upload des source maps uniquement en production
+  widenClientFileUpload: true,
+  sourcemaps: {
+    disable: false, // Enable source maps upload
+  },
+  disableLogger: true, // Pas de logs Sentry pendant le build
+});
