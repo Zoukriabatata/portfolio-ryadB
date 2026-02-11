@@ -17,9 +17,9 @@ import type { ToolsRenderer } from '@/lib/tools/ToolsRenderer';
 export interface ChartRefs {
   // Core chart elements
   chartEngine: React.RefObject<any>;
-  chartContainer: React.RefObject<HTMLDivElement>;
-  chartCanvas: React.RefObject<HTMLCanvasElement>;
-  drawingCanvas: React.RefObject<HTMLCanvasElement>;
+  chartContainer: React.RefObject<HTMLDivElement | null>;
+  chartCanvas: React.RefObject<HTMLCanvasElement | null>;
+  drawingCanvas: React.RefObject<HTMLCanvasElement | null>;
 
   // Data refs
   candles: React.MutableRefObject<ChartCandle[]>;
@@ -27,11 +27,11 @@ export interface ChartRefs {
   currentPrice: React.MutableRefObject<number>;
 
   // UI element refs
-  price: React.RefObject<HTMLSpanElement>;
-  tickCount: React.RefObject<HTMLSpanElement>;
-  statusDot: React.RefObject<HTMLDivElement>;
-  pricePosition: React.RefObject<HTMLDivElement>;
-  pricePositionBar: React.RefObject<HTMLDivElement>;
+  price: React.RefObject<HTMLSpanElement | null>;
+  tickCount: React.RefObject<HTMLSpanElement | null>;
+  statusDot: React.RefObject<HTMLDivElement | null>;
+  pricePosition: React.RefObject<HTMLDivElement | null>;
+  pricePositionBar: React.RefObject<HTMLDivElement | null>;
 
   // Tool system refs
   interactionController: React.MutableRefObject<InteractionController>;

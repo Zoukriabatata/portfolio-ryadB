@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-// @ts-expect-error - webpack-obfuscator has no type declarations
 import WebpackObfuscator from 'webpack-obfuscator';
 import { withSentryConfig } from '@sentry/nextjs';
 import bundleAnalyzer from '@next/bundle-analyzer';

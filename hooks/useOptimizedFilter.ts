@@ -117,8 +117,8 @@ export function useOptimizedFilter<T>(
     if (cache) {
       // Limit cache size
       if (cacheRef.current.size >= maxCacheSize) {
-        const firstKey = cacheRef.current.keys().next().value;
-        cacheRef.current.delete(firstKey);
+        const firstKey = cacheRef.current.keys().next().value as string;
+        if (firstKey) cacheRef.current.delete(firstKey);
       }
 
       cacheRef.current.set(cacheKey, results);
