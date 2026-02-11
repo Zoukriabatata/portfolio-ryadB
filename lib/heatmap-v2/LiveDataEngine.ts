@@ -1,12 +1,12 @@
 /**
- * LIVE DATA ENGINE - Données réelles Binance pour Heatmap
+ * LIVE DATA ENGINE - Real-time Binance data for Heatmap
  *
- * Convertit les données WebSocket Binance en format MarketState
- * compatible avec le HeatmapRenderer.
+ * Converts Binance WebSocket data into MarketState format
+ * compatible with HeatmapRenderer.
  *
- * Streams utilisés:
- * - aggTrade: trades en temps réel
- * - depth20@100ms: orderbook depth 20 niveaux
+ * Streams used:
+ * - aggTrade: real-time trades
+ * - depth20@100ms: orderbook depth 20 levels
  */
 
 import { getBinanceLiveWS } from '@/lib/live/BinanceLiveWS';
@@ -77,7 +77,7 @@ export class LiveDataEngine {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // INITIALISATION
+  // INITIALIZATION
   // ══════════════════════════════════════════════════════════════════════════
 
   private createInitialState(): MarketState {

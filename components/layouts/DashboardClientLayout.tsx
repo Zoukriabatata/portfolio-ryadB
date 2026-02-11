@@ -19,6 +19,7 @@ import {
   JournalIcon,
   ReplayIcon,
 } from '@/components/ui/Icons';
+import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 
 // ============================================================
 // KEEP-ALIVE CHART COMPONENTS
@@ -337,7 +338,9 @@ export function DashboardClientLayout({
               className="h-full"
               style={{ display: activeChart === route ? 'block' : 'none' }}
             >
-              <ChartComponent />
+              <ChartErrorBoundary fallbackTitle={`${route.slice(1)} chart error`}>
+                <ChartComponent />
+              </ChartErrorBoundary>
             </div>
           );
         })}

@@ -24,7 +24,7 @@ export default class ChartErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Envoyer l'erreur à Sentry
+    // Send error to Sentry
     Sentry.captureException(error, {
       contexts: {
         react: {
@@ -36,7 +36,7 @@ export default class ChartErrorBoundary extends Component<Props, State> {
       },
     });
 
-    console.error('ChartErrorBoundary caught:', error, errorInfo);
+    // Error already sent to Sentry above
   }
 
   handleRetry = () => {

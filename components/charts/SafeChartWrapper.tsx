@@ -35,8 +35,7 @@ export class SafeChartWrapper extends Component<Props, State> {
       // Silently ignore these errors
       return;
     }
-    // Log other errors
-    console.error('Chart error:', error);
+    // Non-DOM errors are silently ignored here; use ChartErrorBoundary for reporting
   }
 
   render(): ReactNode {

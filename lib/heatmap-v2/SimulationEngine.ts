@@ -1,10 +1,10 @@
 /**
- * SIMULATION ENGINE V2 - Simple et stable
+ * SIMULATION ENGINE V2 - Simple and stable
  *
- * Génère :
- * - Prix bid/ask qui bougent
- * - Trades (achats/ventes)
- * - Ordres passifs (carnet d'ordres)
+ * Generates:
+ * - Moving bid/ask prices
+ * - Trades (buys/sells)
+ * - Passive orders (order book)
  */
 
 import {
@@ -50,7 +50,7 @@ export class SimulationEngine {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // INITIALISATION
+  // INITIALIZATION
   // ══════════════════════════════════════════════════════════════════════════
   private createInitialState(): MarketState {
     const now = Date.now();
@@ -142,7 +142,7 @@ export class SimulationEngine {
       timestamp: now,
     };
 
-    // Initialiser l'historique de prix
+    // Initialize price history
     for (let i = 100; i >= 0; i--) {
       state.priceHistory.push({
         timestamp: now - i * 100,
@@ -151,10 +151,10 @@ export class SimulationEngine {
       });
     }
 
-    // Initialiser les zones d'intérêt (niveaux significatifs)
+    // Initialize interest zones (significant levels)
     this.initializeInterestZones(state, now);
 
-    // Initialiser le carnet d'ordres (seulement dans les zones d'intérêt)
+    // Initialize order book (only in interest zones)
     this.initializeOrderBook(state, now);
 
     return state;
@@ -163,17 +163,17 @@ export class SimulationEngine {
   private initializeInterestZones(state: MarketState, now: number): void {
     const { tickSize, orderBookDepth, baseLiquidity } = this.config;
 
-    // Créer des zones d'intérêt à des niveaux "ronds" ou significatifs
-    // Pas tous les ticks, seulement certains niveaux importants
-    const zoneSpacing = tickSize * 3; // Zone tous les 3 ticks environ
+    // Create interest zones at "round" or significant levels
+    // Not every tick, only certain important levels
+    const zoneSpacing = tickSize * 3; // Zone every ~3 ticks
 
     for (let i = 1; i <= orderBookDepth; i++) {
-      // Zones bid (en dessous du prix)
+      // Bid zones (below price)
       const bidPrice = this.roundToTick(state.currentBid - i * tickSize);
-      // Zones ask (au dessus du prix)
+      // Ask zones (above price)
       const askPrice = this.roundToTick(state.currentAsk + i * tickSize);
 
-      // Seulement certains niveaux sont des zones d'intérêt
+      // Only certain levels are interest zones
       const isBidZone = i % 3 === 0 || Math.random() < 0.15;
       const isAskZone = i % 3 === 0 || Math.random() < 0.15;
 
@@ -208,7 +208,7 @@ export class SimulationEngine {
   private initializeOrderBook(state: MarketState, now: number): void {
     const { baseLiquidity, wallProbability } = this.config;
 
-    // Créer des ordres SEULEMENT dans les zones d'intérêt
+    // Create orders ONLY in interest zones
     for (const [price, zone] of state.interestZones) {
       let size = zone.totalVolume;
 
@@ -255,7 +255,7 @@ export class SimulationEngine {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // BOUCLE PRINCIPALE
+  // MAIN LOOP
   // ══════════════════════════════════════════════════════════════════════════
   start(): void {
     if (this.intervalId) return;
@@ -273,22 +273,22 @@ export class SimulationEngine {
     const now = Date.now();
     const dt = 50; // ms
 
-    // 1. Mettre à jour le prix
+    // 1. Update price
     this.updatePrice(now);
 
-    // 2. Générer des trades
+    // 2. Generate trades
     this.maybeGenerateTrade(now);
 
-    // 3. Mettre à jour les ordres passifs
+    // 3. Update passive orders
     this.updatePassiveOrders(now, dt);
 
-    // 4. Mettre à jour les trades (animation)
+    // 4. Update trades (animation)
     this.updateTrades(now);
 
-    // 5. Mettre à jour les traces
+    // 5. Update traces
     this.updateTraces(now);
 
-    // 6. Enregistrer snapshot heatmap (tous les 4 ticks = 200ms)
+    // 6. Record heatmap snapshot (every 4 ticks = 200ms)
     this.heatmapTickCounter++;
     if (this.heatmapTickCounter % 4 === 0) {
       this.recordHeatmapSnapshot(now);
@@ -305,7 +305,7 @@ export class SimulationEngine {
     this.updatePressureMeter(now);
     this.updateSessionStats(now);
 
-    // 8. Notifier
+    // 8. Notify
     this.state.timestamp = now;
     if (this.onUpdate) {
       this.onUpdate(this.state);
@@ -313,35 +313,35 @@ export class SimulationEngine {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PRIX
+  // PRICE
   // ══════════════════════════════════════════════════════════════════════════
   private updatePrice(now: number): void {
     const { tickSize, volatility } = this.config;
 
-    // Random walk simple
+    // Simple random walk
     const change = (Math.random() - 0.5) * volatility * this.state.midPrice;
 
-    // Décider si le prix bouge (pas à chaque tick)
+    // Decide if price moves (not every tick)
     if (Math.random() < 0.15) {
       const direction = Math.sign(change);
 
       if (direction > 0) {
-        // Prix monte
+        // Price moves up
         this.state.currentAsk = this.roundToTick(this.state.currentAsk + tickSize);
         this.state.currentBid = this.roundToTick(this.state.currentBid + tickSize);
       } else if (direction < 0) {
-        // Prix descend
+        // Price moves down
         this.state.currentAsk = this.roundToTick(this.state.currentAsk - tickSize);
         this.state.currentBid = this.roundToTick(this.state.currentBid - tickSize);
       }
 
       this.state.midPrice = (this.state.currentBid + this.state.currentAsk) / 2;
 
-      // Mettre à jour le carnet (ajouter/supprimer niveaux)
+      // Update order book (add/remove levels)
       this.adjustOrderBook(now);
     }
 
-    // Ajouter au historique (throttled to avoid too many points)
+    // Add to history (throttled to avoid too many points)
     if (now - this.lastPriceHistoryUpdate >= this.priceHistoryInterval) {
       this.state.priceHistory.push({
         timestamp: now,
@@ -350,7 +350,7 @@ export class SimulationEngine {
       });
       this.lastPriceHistoryUpdate = now;
 
-      // Limiter l'historique (with throttled updates, we can keep fewer points)
+      // Limit history (with throttled updates, we can keep fewer points)
       if (this.state.priceHistory.length > 150) {  // ~30 seconds at 200ms interval
         this.state.priceHistory.shift();
       }
@@ -360,7 +360,7 @@ export class SimulationEngine {
   private adjustOrderBook(now: number): void {
     const { tickSize, orderBookDepth, baseLiquidity, wallProbability } = this.config;
 
-    // Marquer les zones testées par le prix
+    // Mark zones tested by price
     for (const [price, zone] of this.state.interestZones) {
       if (zone.side === 'bid' && price >= this.state.currentBid - tickSize) {
         zone.wasTestedByPrice = true;
@@ -372,7 +372,7 @@ export class SimulationEngine {
       }
     }
 
-    // Absorber les ordres traversés par le prix
+    // Absorb orders crossed by price
     for (const [price, order] of this.state.bids) {
       if (price >= this.state.currentBid) {
         this.consumeOrder(order, now);
@@ -385,26 +385,26 @@ export class SimulationEngine {
       }
     }
 
-    // Créer de nouvelles zones d'intérêt dynamiquement
+    // Dynamically create new interest zones
     this.maybeCreateNewInterestZone(now);
 
-    // Ajouter des ordres dans les zones d'intérêt existantes
+    // Add orders in existing interest zones
     for (const [price, zone] of this.state.interestZones) {
-      // Skip si trop loin
+      // Skip if too far
       if (zone.side === 'bid' && price < this.state.currentBid - orderBookDepth * tickSize) continue;
       if (zone.side === 'ask' && price > this.state.currentAsk + orderBookDepth * tickSize) continue;
 
       const orders = zone.side === 'bid' ? this.state.bids : this.state.asks;
 
       if (!orders.has(price)) {
-        // Créer un nouvel ordre dans cette zone d'intérêt
+        // Create a new order in this interest zone
         let size = zone.totalVolume * (0.5 + Math.random() * 0.5);
         if (zone.strength > 0.7 && Math.random() < wallProbability) size *= 3;
 
         const order = this.createOrder(price, zone.side, size, now, false, zone.strength > 0.5);
         orders.set(price, order);
       } else {
-        // Parfois renforcer l'ordre existant (continuation)
+        // Sometimes reinforce existing order (continuation)
         if (Math.random() < 0.002 && zone.strength > 0.5) {
           const order = orders.get(price)!;
           const addSize = baseLiquidity * (0.3 + Math.random() * 0.5);
@@ -417,7 +417,7 @@ export class SimulationEngine {
       }
     }
 
-    // Supprimer les zones et ordres trop loin
+    // Remove zones and orders that are too far
     const maxDistance = orderBookDepth * tickSize * 1.5;
     for (const [price, zone] of this.state.interestZones) {
       if (zone.side === 'bid' && this.state.currentBid - price > maxDistance) {
@@ -434,7 +434,7 @@ export class SimulationEngine {
   private maybeCreateNewInterestZone(now: number): void {
     const { tickSize, orderBookDepth, baseLiquidity } = this.config;
 
-    // Faible chance de créer une nouvelle zone d'intérêt
+    // Low chance of creating a new interest zone
     if (Math.random() > 0.01) return;
 
     const side = Math.random() < 0.5 ? 'bid' : 'ask';
@@ -443,7 +443,7 @@ export class SimulationEngine {
       ? this.roundToTick(this.state.currentBid - distance * tickSize)
       : this.roundToTick(this.state.currentAsk + distance * tickSize);
 
-    // Ne pas créer si déjà existante
+    // Don't create if already exists
     if (this.state.interestZones.has(price)) return;
 
     const strength = 0.4 + Math.random() * 0.6;
@@ -464,7 +464,7 @@ export class SimulationEngine {
     order.state = 'absorbing';
     order.stateChangeTime = now;
 
-    // Ajouter une trace
+    // Add a trace
     this.state.traces.push({
       price: order.price,
       side: order.side,
@@ -480,7 +480,7 @@ export class SimulationEngine {
   private maybeGenerateTrade(now: number): void {
     const { tradeFrequency, avgTradeSize } = this.config;
 
-    // Probabilité de trade basée sur la fréquence
+    // Trade probability based on frequency
     const prob = tradeFrequency / 20; // 20 ticks/seconde
 
     if (Math.random() < prob) {
@@ -501,10 +501,10 @@ export class SimulationEngine {
 
       this.state.trades.push(trade);
 
-      // Mettre à jour les clusters
+      // Update clusters
       this.updateTradeClusters();
 
-      // Mettre à jour les niveaux cumulatifs
+      // Update cumulative levels
       this.updateCumulativeLevel(price, side, trade.size);
     }
   }
@@ -539,17 +539,17 @@ export class SimulationEngine {
     this.state.trades = this.state.trades.filter(trade => {
       const age = now - trade.timestamp;
 
-      // Animation d'apparition (150ms)
+      // Appear animation (150ms)
       if (age < 150) {
         trade.opacity = age / 150;
         trade.scale = 0.5 + (age / 150) * 0.5;
       }
-      // Stable
+      // Stable phase
       else if (age < tradeLifetimeMs - 500) {
         trade.opacity = 1;
         trade.scale = 1;
       }
-      // Disparition (500ms)
+      // Fade out (500ms)
       else {
         const fadeAge = age - (tradeLifetimeMs - 500);
         trade.opacity = Math.max(0, 1 - fadeAge / 500);
@@ -559,7 +559,7 @@ export class SimulationEngine {
       return age < tradeLifetimeMs;
     });
 
-    // Mettre à jour les clusters après filtrage
+    // Update clusters after filtering
     this.updateTradeClusters();
   }
 
@@ -591,12 +591,12 @@ export class SimulationEngine {
       cluster.count++;
     }
 
-    // Calculer les moyennes et animations
+    // Calculate averages and animations
     this.state.tradeClusters = Array.from(clusterMap.values()).map(cluster => {
-      // Position moyenne sur timeline
+      // Average position on timeline
       cluster.avgHistoryIndex = cluster.trades.reduce((sum, t) => sum + t.historyIndex, 0) / cluster.count;
 
-      // Prendre l'opacité et scale max des trades du cluster
+      // Take max opacity and scale from cluster trades
       cluster.opacity = Math.max(...cluster.trades.map(t => t.opacity));
       cluster.scale = Math.max(...cluster.trades.map(t => t.scale));
 
@@ -605,7 +605,7 @@ export class SimulationEngine {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ORDRES PASSIFS
+  // PASSIVE ORDERS
   // ══════════════════════════════════════════════════════════════════════════
   private updatePassiveOrders(now: number, dt: number): void {
     const { orderFadeInMs, orderFadeOutMs, baseLiquidity } = this.config;
@@ -625,7 +625,7 @@ export class SimulationEngine {
           break;
 
         case 'reinforcing':
-          // Animation flash quand du volume est ajouté
+          // Flash animation when volume is added
           const reinforceProgress = stateAge / 300;
           order.opacity = 1 + Math.sin(reinforceProgress * Math.PI) * 0.3;
           order.displaySize = order.size;
@@ -639,16 +639,16 @@ export class SimulationEngine {
           order.opacity = 1;
           order.displaySize = order.size;
 
-          // Ordres non-significatifs peuvent disparaître par désintérêt
+          // Non-significant orders can fade due to disinterest
           if (!order.isSignificant) {
-            // Plus vieux = plus de chance de disparaître
+            // Older = higher chance of fading
             const fadeChance = 0.0002 + (orderAge / 60000) * 0.001;
             if (Math.random() < fadeChance) {
               order.state = 'fading';
               order.stateChangeTime = now;
             }
           } else {
-            // Ordres significatifs disparaissent moins souvent
+            // Significant orders fade less often
             if (Math.random() < 0.0001) {
               order.state = 'fading';
               order.stateChangeTime = now;
@@ -661,7 +661,7 @@ export class SimulationEngine {
           order.displaySize = order.size * order.opacity;
           order.wasPartiallyAbsorbed = true;
 
-          // Chance de continuation (nouveau volume arrive pendant absorption)
+          // Chance of continuation (new volume arrives during absorption)
           if (order.isSignificant && Math.random() < 0.01 && stateAge < orderFadeOutMs * 0.3) {
             order.state = 'absorbed_continuing';
             order.stateChangeTime = now;
@@ -675,7 +675,7 @@ export class SimulationEngine {
           break;
 
         case 'absorbed_continuing':
-          // L'ordre a été absorbé mais nouveau volume arrive
+          // Order was absorbed but new volume arrives
           const continueProgress = stateAge / 500;
           if (continueProgress < 1) {
             order.opacity = 0.3 + continueProgress * 0.7;
@@ -688,7 +688,7 @@ export class SimulationEngine {
           break;
 
         case 'fading':
-          // Disparition lente par désintérêt (pas de trades)
+          // Slow fade due to disinterest (no trades)
           order.opacity = Math.max(0, 1 - stateAge / (orderFadeOutMs * 2));
           order.displaySize = order.size * order.opacity;
           if (order.opacity <= 0) {
@@ -737,9 +737,9 @@ export class SimulationEngine {
   // ══════════════════════════════════════════════════════════════════════════
   private recordHeatmapSnapshot(now: number): void {
     const timeIndex = this.state.priceHistory.length - 1;
-    const maxHistory = 300; // Garder ~60 secondes d'historique
+    const maxHistory = 300; // Keep ~60 seconds of history
 
-    // Enregistrer l'état actuel de chaque niveau de prix
+    // Record current state of each price level
     for (const [price, order] of this.state.bids) {
       if (order.opacity > 0.1) {
         const key = `${price.toFixed(2)}_${timeIndex}`;
@@ -776,7 +776,7 @@ export class SimulationEngine {
       }
     }
 
-    // Nettoyer les vieilles entrées
+    // Clean up old entries
     const minTimeIndex = timeIndex - maxHistory;
     for (const [key, cell] of this.state.heatmapHistory) {
       if (cell.timeIndex < minTimeIndex) {
@@ -1355,7 +1355,7 @@ export class SimulationEngine {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // UTILITAIRES
+  // UTILITIES
   // ══════════════════════════════════════════════════════════════════════════
   private roundToTick(price: number): number {
     return Math.round(price / this.config.tickSize) * this.config.tickSize;

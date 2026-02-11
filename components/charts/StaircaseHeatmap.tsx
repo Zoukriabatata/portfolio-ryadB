@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * STAIRCASE HEATMAP - Composant React principal
+ * STAIRCASE HEATMAP - Main React component
  *
  * Features:
- * - Ligne staircase bid/ask
- * - Bulles de trades visibles
- * - Heatmap ordres passifs
- * - Navigation zoom/pan
- * - Crosshair interactif
- * - Mode Simulation ou Live (Binance)
+ * - Bid/ask staircase line
+ * - Trade bubbles
+ * - Passive orders heatmap
+ * - Zoom/pan navigation
+ * - Interactive crosshair
+ * - Simulation or Live (Binance) mode
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
@@ -49,11 +49,11 @@ interface CrosshairInfo {
 
 interface NavigationState {
   // Zoom
-  zoomY: number;           // Zoom vertical (prix)
+  zoomY: number;           // Vertical zoom (price)
   zoomX: number;           // Zoom horizontal (temps)
   // Pan offset
-  panY: number;            // Décalage vertical en prix
-  panX: number;            // Décalage horizontal en temps
+  panY: number;            // Vertical offset in price
+  panX: number;            // Horizontal offset in time
   // Drag state
   isDragging: boolean;
   dragStartX: number;
@@ -199,27 +199,30 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     axisStartZoom: 1,
   });
 
-  // Range de prix
+  // Price range
   const basePriceRangeTicks = 50;
   const priceAxisWidth = 60;
   const deltaProfileWidth = showDeltaProfile ? 80 : 0;
   const volumeProfileWidth = showVolumeProfile ? 60 : 0;
 
   const getPriceRange = useCallback(() => {
-    if (!state) return { min: 4980, max: 5020 };
-
     const tickSize = config?.tickSize || 0.5;
     const baseRange = tickSize * basePriceRangeTicks;
     const range = baseRange / nav.zoomY;
 
-    // Centre: soit auto-center sur midPrice, soit position manuelle
+    if (!state) {
+      // Use config basePrice as fallback before data arrives
+      const fallbackCenter = config?.basePrice || 100;
+      return { min: fallbackCenter - range / 2, max: fallbackCenter + range / 2 };
+    }
+
     const center = autoCenter ? state.midPrice : state.midPrice + nav.panY;
 
     return {
       min: center - range / 2,
       max: center + range / 2,
     };
-  }, [state, nav.zoomY, nav.panY, autoCenter, config?.tickSize]);
+  }, [state, nav.zoomY, nav.panY, autoCenter, config?.tickSize, config?.basePrice]);
 
   // Initialisation - based on dataMode
   useEffect(() => {
@@ -243,7 +246,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     let usingWebGL = false;
 
     try {
-      // Créer le renderer approprié
+      // Create the appropriate renderer
       if (useWebGL && canvasWebGLRef.current && webglContainerRef.current) {
         // ═══════════════════════════════════════════════════════════════
         // MODE WEBGL (tentative)
@@ -264,12 +267,10 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           // Verify WebGL actually initialized
           if (webglRendererRef.current.isWebGL) {
             usingWebGL = true;
-            console.log('[StaircaseHeatmap] WebGL renderer initialized successfully');
           } else {
             throw new Error('WebGL not available in HybridRenderer');
           }
         } catch (webglError) {
-          console.warn('[StaircaseHeatmap] WebGL initialization failed, falling back to Canvas 2D:', webglError);
           // Destroy failed WebGL renderer
           webglRendererRef.current?.destroy();
           webglRendererRef.current = null;
@@ -283,7 +284,6 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       if (!usingWebGL && canvas2DRef.current) {
         if (!rendererRef.current) {
           rendererRef.current = new HeatmapRenderer(canvas2DRef.current);
-          console.log('[StaircaseHeatmap] Canvas 2D renderer initialized');
         }
         rendererRef.current.setTickSize(config?.tickSize || 0.5);
       }
@@ -300,7 +300,6 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           setState(newState);
         });
         simulationRef.current.start();
-        console.log('[StaircaseHeatmap] Started in SIMULATION mode');
 
       } else {
         // ═══════════════════════════════════════════════════════════════
@@ -310,21 +309,20 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
         liveEngineRef.current = new LiveDataEngine({
           ...config,
           symbol,
-          basePrice: config?.basePrice || 100000, // BTC typical price
-          tickSize: config?.tickSize || 10, // BTC tick size
+          basePrice: config?.basePrice || 100,
+          tickSize: config?.tickSize || 0.5,
         });
         liveEngineRef.current.setOnUpdate((newState) => {
           stateRef.current = newState;
           setState(newState);
         });
         liveEngineRef.current.start();
-        console.log(`[StaircaseHeatmap] Started in LIVE mode for ${symbol.toUpperCase()}`);
       }
 
       setIsReady(true);
 
-    } catch (err) {
-      console.error('Erreur initialisation:', err);
+    } catch {
+      // Initialization failed silently - fallback UI will show
     }
 
     return () => {
@@ -351,7 +349,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Boucle de rendu (decoupled from React state via stateRef)
+  // Render loop (decoupled from React state via stateRef)
   useEffect(() => {
     const render = () => {
       const currentState = stateRef.current;
@@ -360,7 +358,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
 
         if (actuallyUsingWebGL && webglRendererRef.current) {
           // ═══════════════════════════════════════════════════════════════
-          // RENDU WEBGL
+          // WEBGL RENDERING
           // ═══════════════════════════════════════════════════════════════
 
           // PERF: Only recompute adaptMarketState when state reference changes
@@ -556,10 +554,14 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
               }
               cvdLastTradeCountRef.current = currentCount;
 
-              // Trim old points (keep last 30s)
+              // Trim old points (keep last 30s) - splice instead of shift loop to avoid O(n²)
               const cutoff = Date.now() - 30000;
-              while (cvdPointsRef.current.length > 0 && cvdPointsRef.current[0].time < cutoff) {
-                cvdPointsRef.current.shift();
+              let trimCount = 0;
+              while (trimCount < cvdPointsRef.current.length && cvdPointsRef.current[trimCount].time < cutoff) {
+                trimCount++;
+              }
+              if (trimCount > 0) {
+                cvdPointsRef.current.splice(0, trimCount);
               }
             }
 
@@ -601,7 +603,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           webglRendererRef.current.render(renderData);
         } else if (rendererRef.current) {
           // ═══════════════════════════════════════════════════════════════
-          // RENDU CANVAS 2D
+          // CANVAS 2D RENDERING
           // ═══════════════════════════════════════════════════════════════
           rendererRef.current.render(
             currentState,
@@ -816,19 +818,19 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDrawing, state]);
 
-  // Zoom avec molette
+  // Mouse wheel zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const factor = e.deltaY > 0 ? 0.92 : 1.08;
 
-    // Shift + scroll = zoom horizontal (temps)
+    // Shift + scroll = horizontal zoom (time)
     if (e.shiftKey) {
       setNav(prev => ({
         ...prev,
         zoomX: Math.max(0.5, Math.min(5, prev.zoomX * factor)),
       }));
     } else {
-      // Zoom vertical (prix)
+      // Vertical zoom (price)
       setNav(prev => ({
         ...prev,
         zoomY: Math.max(0.3, Math.min(8, prev.zoomY * factor)),
@@ -894,7 +896,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       }
     }
 
-    // Click sur l'axe des prix ou volume profile = zoom par drag
+    // Click on price axis or volume profile = drag to zoom
     if (x > heatmapEndX) {
       setNav(prev => ({
         ...prev,
@@ -903,7 +905,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
         axisStartZoom: prev.zoomY,
       }));
     } else {
-      // Click sur le chart = pan
+      // Click on chart = pan
       setAutoCenter(false);
       setNav(prev => ({
         ...prev,
@@ -976,25 +978,25 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       return;
     }
 
-    // Ignorer crosshair si on est sur l'axe des prix ou delta profile
+    // Ignore crosshair on price axis or delta profile
     if (x > heatmapEndX || x < heatmapStartX) {
       setCrosshair(prev => ({ ...prev, visible: false }));
       return;
     }
 
-    // Calculer le prix à cette position Y
+    // Calculate price at this Y position
     const priceRange = getPriceRange();
     const priceRangeSpan = priceRange.max - priceRange.min;
     const price = priceRange.max - (y / rect.height) * priceRangeSpan;
 
-    // Calculer l'index temporel à cette position X (relative to heatmap area)
+    // Calculate time index at this X position (relative to heatmap area)
     const heatmapX = x - heatmapStartX;
     const visiblePoints = Math.min(state.priceHistory.length, 200);
     const startIdx = state.priceHistory.length - visiblePoints;
     const pointWidth = actualHeatmapWidth / visiblePoints;
     const timeIndex = Math.floor(heatmapX / pointWidth) + startIdx;
 
-    // Trouver les volumes bid/ask proches de ce prix
+    // Find bid/ask volumes near this price
     const tickSize = config?.tickSize || 0.5;
     const roundedPrice = Math.round(price / tickSize) * tickSize;
 
@@ -1092,7 +1094,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       {/* Loading */}
       {!isReady && (
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/90">
-          <div className="text-zinc-400 text-sm">Chargement...</div>
+          <div className="text-zinc-400 text-sm">Loading...</div>
         </div>
       )}
 
@@ -1138,10 +1140,10 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
               : 'bg-zinc-700/80 text-zinc-400 border border-zinc-600'
           }`}
           title={actuallyUsingWebGL
-            ? 'WebGL actif - Cliquer pour Canvas 2D'
+            ? 'WebGL active - Click for Canvas 2D'
             : useWebGL && !actuallyUsingWebGL
-              ? 'WebGL demandé mais non disponible (fallback Canvas 2D)'
-              : 'Canvas 2D actif - Cliquer pour WebGL'
+              ? 'WebGL requested but unavailable (Canvas 2D fallback)'
+              : 'Canvas 2D active - Click for WebGL'
           }
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1161,7 +1163,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
               ? 'bg-emerald-600/90 text-white border border-emerald-500 shadow-lg shadow-emerald-500/20'
               : 'bg-amber-600/80 text-white border border-amber-500'
           }`}
-          title={dataMode === 'live' ? 'Mode LIVE Binance - Cliquer pour Simulation' : 'Mode Simulation - Cliquer pour LIVE Binance'}
+          title={dataMode === 'live' ? 'LIVE Binance - Click for Simulation' : 'Simulation - Click for LIVE Binance'}
         >
           {dataMode === 'live' ? '● LIVE' : '◯ SIM'}
         </button>
@@ -1208,7 +1210,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           }}
         >
           <div className="bg-zinc-900/95 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm">
-            {/* Prix */}
+            {/* Price */}
             <div className="text-white font-mono text-sm font-semibold mb-1">
               {crosshair.price.toFixed(2)}
             </div>
@@ -1253,9 +1255,9 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
         </div>
       )}
 
-      {/* Légende */}
+      {/* Legend */}
       <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1">
-        {/* Contrôles */}
+        {/* Controls */}
         <div className="flex items-center gap-2 text-[9px] text-zinc-500">
           <span>Scroll: Zoom Y</span>
           <span>|</span>
@@ -1266,7 +1268,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           <span>Drag Price Axis: Zoom</span>
         </div>
 
-        {/* Légende des états */}
+        {/* State legend */}
         <div className="flex items-center gap-3 text-[8px]">
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-cyan-400 rounded" />

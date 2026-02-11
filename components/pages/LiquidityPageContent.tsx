@@ -12,11 +12,16 @@ const IBLiquidityView = dynamic(
 
 type DataSourceType = 'crypto' | 'cme';
 
-// Crypto symbols only (no CME in crypto dropdown)
+// Crypto symbols with approximate base prices and heatmap tick sizes
 const CRYPTO_SYMBOLS = [
-  { value: 'btcusdt', label: 'BTC/USDT', tickSize: 10 },
-  { value: 'ethusdt', label: 'ETH/USDT', tickSize: 1 },
-  { value: 'solusdt', label: 'SOL/USDT', tickSize: 0.1 },
+  { value: 'btcusdt', label: 'BTC/USDT', tickSize: 10, basePrice: 100000 },
+  { value: 'ethusdt', label: 'ETH/USDT', tickSize: 1, basePrice: 3500 },
+  { value: 'solusdt', label: 'SOL/USDT', tickSize: 0.1, basePrice: 200 },
+  { value: 'bnbusdt', label: 'BNB/USDT', tickSize: 0.1, basePrice: 600 },
+  { value: 'xrpusdt', label: 'XRP/USDT', tickSize: 0.001, basePrice: 2.5 },
+  { value: 'dogeusdt', label: 'DOGE/USDT', tickSize: 0.0001, basePrice: 0.35 },
+  { value: 'avaxusdt', label: 'AVAX/USDT', tickSize: 0.01, basePrice: 35 },
+  { value: 'linkusdt', label: 'LINK/USDT', tickSize: 0.01, basePrice: 20 },
 ];
 
 // CME symbols from contracts (for IB view)
@@ -53,7 +58,7 @@ export default function LiquidityPageContent() {
   const getConfig = () => {
     if (dataMode === 'live') {
       return {
-        basePrice: symbol === 'btcusdt' ? 100000 : symbol === 'ethusdt' ? 3500 : 200,
+        basePrice: selectedSymbol.basePrice,
         tickSize: selectedSymbol.tickSize,
         volatility: 0.0001,
         tradeFrequency: 15,
