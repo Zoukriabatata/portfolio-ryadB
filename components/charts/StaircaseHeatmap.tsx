@@ -97,6 +97,10 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   const lastAbsorptionFilterRef = useRef<number>(0);
 
   const [state, setState] = useState<MarketState | null>(null);
+  const stateRef = useRef<MarketState | null>(null);
+  const containerSizeRef = useRef<{ width: number; height: number }>({ width: 800, height: 600 });
+  const lastAdaptedStateRef = useRef<MarketState | null>(null);
+  const cachedRenderDataRef = useRef<ReturnType<typeof adaptMarketState> | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [dataMode, setDataMode] = useState<DataMode>(initialMode);
   const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingType | null>(null);
@@ -292,6 +296,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
         // ═══════════════════════════════════════════════════════════════
         simulationRef.current = new SimulationEngine(config);
         simulationRef.current.setOnUpdate((newState) => {
+          stateRef.current = newState;
           setState(newState);
         });
         simulationRef.current.start();
@@ -309,6 +314,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           tickSize: config?.tickSize || 10, // BTC tick size
         });
         liveEngineRef.current.setOnUpdate((newState) => {
+          stateRef.current = newState;
           setState(newState);
         });
         liveEngineRef.current.start();
@@ -332,35 +338,60 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     };
   }, [dataMode, symbol, useWebGL, priceAxisWidth, deltaProfileWidth, volumeProfileWidth, config?.tickSize, config?.basePrice]);
 
-  // Boucle de rendu
+  // PERF: Cache container size (updated on resize only, not every frame)
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        containerSizeRef.current = { width: rect.width, height: rect.height };
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  // Boucle de rendu (decoupled from React state via stateRef)
   useEffect(() => {
     const render = () => {
-      if (state) {
+      const currentState = stateRef.current;
+      if (currentState) {
         const priceRange = getPriceRange();
 
         if (actuallyUsingWebGL && webglRendererRef.current) {
           // ═══════════════════════════════════════════════════════════════
           // RENDU WEBGL
           // ═══════════════════════════════════════════════════════════════
-          const rect = containerRef.current?.getBoundingClientRect();
-          const renderData = adaptMarketState(state, priceRange, {
-            width: rect?.width || 800,
-            height: rect?.height || 600,
-            tickSize: config?.tickSize || 0.5,
-            contrast: contrast,
-            upperCutoff: upperCutoffPercent / 100,
-            colors: {
-              bidColor: bestBidColor,
-              askColor: bestAskColor,
-              buyColor: tradeFlowSettings.buyColor,
-              sellColor: tradeFlowSettings.sellColor,
-              gridColor: 'rgba(255, 255, 255, 0.05)',
-            },
-            showGrid: true,
-            gridStep: (config?.tickSize || 0.5) * 10,
-            showDeltaProfile,
-            showVolumeProfile,
-          });
+
+          // PERF: Only recompute adaptMarketState when state reference changes
+          if (currentState !== lastAdaptedStateRef.current) {
+            lastAdaptedStateRef.current = currentState;
+            cachedRenderDataRef.current = adaptMarketState(currentState, priceRange, {
+              width: containerSizeRef.current.width,
+              height: containerSizeRef.current.height,
+              tickSize: config?.tickSize || 0.5,
+              contrast: contrast,
+              upperCutoff: upperCutoffPercent / 100,
+              colors: {
+                bidColor: bestBidColor,
+                askColor: bestAskColor,
+                buyColor: tradeFlowSettings.buyColor,
+                sellColor: tradeFlowSettings.sellColor,
+                gridColor: 'rgba(255, 255, 255, 0.05)',
+              },
+              showGrid: true,
+              gridStep: (config?.tickSize || 0.5) * 10,
+              showDeltaProfile,
+              showVolumeProfile,
+            });
+          }
+
+          if (!cachedRenderDataRef.current) {
+            animationRef.current = requestAnimationFrame(render);
+            return;
+          }
+
+          const renderData = cachedRenderDataRef.current;
 
           // Add staircase line settings
           if (staircaseLine) {
@@ -409,12 +440,13 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           // ═══════════════════════════════════════════════════════════════
           // VWAP BANDS - Feed trades to VWAPEngine, generate key levels
           // ═══════════════════════════════════════════════════════════════
-          if (showVWAP && vwapEngineRef.current && state.trades.length > 0) {
+          if (showVWAP && vwapEngineRef.current && currentState.trades.length > 0) {
             // Feed new trades since last frame
-            const newTradeCount = state.trades.length;
+            const newTradeCount = currentState.trades.length;
             if (newTradeCount > lastProcessedTradeCountRef.current) {
-              const newTrades = state.trades.slice(lastProcessedTradeCountRef.current);
-              for (const trade of newTrades) {
+              // Process new trades by index (no .slice() allocation)
+              for (let i = lastProcessedTradeCountRef.current; i < newTradeCount; i++) {
+                const trade = currentState.trades[i];
                 vwapEngineRef.current.processTrade({
                   timestamp: trade.timestamp,
                   price: trade.price,
@@ -474,12 +506,12 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
 
               // Pre-build price->volume Maps: O(m) instead of O(n*m)
               const bidByPrice = new Map<number, number>();
-              for (const [orderPrice, order] of state.bids) {
+              for (const [orderPrice, order] of currentState.bids) {
                 const snapped = Math.round(orderPrice / tickSize) * tickSize;
                 bidByPrice.set(snapped, (bidByPrice.get(snapped) || 0) + order.displaySize);
               }
               const askByPrice = new Map<number, number>();
-              for (const [orderPrice, order] of state.asks) {
+              for (const [orderPrice, order] of currentState.asks) {
                 const snapped = Math.round(orderPrice / tickSize) * tickSize;
                 askByPrice.set(snapped, (askByPrice.get(snapped) || 0) + order.displaySize);
               }
@@ -505,8 +537,8 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           // ═══════════════════════════════════════════════════════════════
           // CVD - Cumulative Volume Delta (incremental)
           // ═══════════════════════════════════════════════════════════════
-          if (showCumulativeDelta && state.trades.length > 0) {
-            const currentCount = state.trades.length;
+          if (showCumulativeDelta && currentState.trades.length > 0) {
+            const currentCount = currentState.trades.length;
 
             // Detect if trades array was trimmed/reset (LiveDataEngine filters old trades)
             if (currentCount < cvdLastTradeCountRef.current) {
@@ -518,7 +550,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
             // Only process new trades (same pattern as VWAP)
             if (currentCount > cvdLastTradeCountRef.current) {
               for (let i = cvdLastTradeCountRef.current; i < currentCount; i++) {
-                const trade = state.trades[i];
+                const trade = currentState.trades[i];
                 cvdRunningDeltaRef.current += trade.side === 'buy' ? trade.size : -trade.size;
                 cvdPointsRef.current.push({ time: trade.timestamp, delta: cvdRunningDeltaRef.current });
               }
@@ -572,7 +604,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           // RENDU CANVAS 2D
           // ═══════════════════════════════════════════════════════════════
           rendererRef.current.render(
-            state,
+            currentState,
             priceRange,
             crosshair.visible ? crosshair : null,
             rendererTradeFlowSettings
@@ -587,7 +619,8 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [state, getPriceRange, crosshair, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getPriceRange, crosshair, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
 
   // Resize
   useEffect(() => {
