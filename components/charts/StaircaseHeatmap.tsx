@@ -19,7 +19,8 @@ import { HeatmapRenderer } from '@/lib/heatmap-v2/HeatmapRenderer';
 import { MarketState, SimulationConfig, DrawingType, TradeFlowSettings as RendererTradeFlowSettings } from '@/lib/heatmap-v2/types';
 import { HybridRenderer, adaptMarketState } from '@/lib/heatmap-webgl';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
-import LiquidityAdvancedSettings from '@/components/settings/LiquidityAdvancedSettings';
+import dynamic from 'next/dynamic';
+const LiquidityAdvancedSettings = dynamic(() => import('@/components/settings/LiquidityAdvancedSettings'), { ssr: false });
 import type { TimeSalesTrade } from '@/components/trading';
 
 export type DataMode = 'simulation' | 'live';
@@ -60,7 +61,7 @@ interface NavigationState {
   axisStartZoom: number;
 }
 
-export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', initialMode = 'simulation' }: StaircaseHeatmapProps) {
+const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', initialMode = 'simulation' }: StaircaseHeatmapProps) {
   const canvas2DRef = useRef<HTMLCanvasElement>(null);
   const canvasWebGLRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1047,6 +1048,7 @@ export function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', ini
       {/* Time & Sales rendered by Canvas2D renderer (HeatmapRenderer.renderTimeSales) */}
     </div>
   );
-}
+});
 
-export default StaircaseHeatmap;
+export { StaircaseHeatmapInner as StaircaseHeatmap };
+export default StaircaseHeatmapInner;

@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
-// @ts-ignore
+// @ts-expect-error - webpack-obfuscator has no type declarations
 import WebpackObfuscator from 'webpack-obfuscator';
 import { withSentryConfig } from '@sentry/nextjs';
+import bundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -81,8 +86,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Wrapping avec Sentry
-export default withSentryConfig(nextConfig, {
+// Wrapping avec Bundle Analyzer + Sentry
+export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   // Sentry Webpack Plugin options
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,

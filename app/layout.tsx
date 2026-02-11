@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import '@/app/globals.css';
 import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: 'Senzoukria — Professional Order Flow Analytics',
@@ -32,6 +34,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <DashboardClientLayout>{children}</DashboardClientLayout>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

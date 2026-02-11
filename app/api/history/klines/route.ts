@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
       candles = await fetchBinanceKlines(symbol, interval, limit, startTime, endTime);
     }
 
-    // ✅ ADD RATE LIMIT HEADERS
+    // ✅ ADD RATE LIMIT + CACHE HEADERS
     return NextResponse.json({
       success: true,
       symbol,
@@ -121,7 +121,10 @@ export async function GET(request: NextRequest) {
       count: candles.length,
       candles,
     }, {
-      headers: authResult.headers,
+      headers: {
+        ...authResult.headers,
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      },
     });
   } catch (error) {
     console.error('Error fetching klines:', error);

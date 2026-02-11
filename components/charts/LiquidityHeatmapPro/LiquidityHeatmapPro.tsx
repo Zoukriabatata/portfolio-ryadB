@@ -26,7 +26,7 @@ interface LiquidityHeatmapProProps {
   priceRangeTicks?: number;
 }
 
-export function LiquidityHeatmapPro({
+export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
   height = 600,
   priceRangeTicks = 100,
 }: LiquidityHeatmapProProps) {
@@ -975,7 +975,7 @@ export function LiquidityHeatmapPro({
       )}
     </div>
   );
-}
+});
 
 // Helper function to get tick size based on symbol
 function getTickSize(symbol: string): number {

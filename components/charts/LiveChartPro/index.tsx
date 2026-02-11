@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/lib/rendering/CanvasChartEngine';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -11,17 +12,19 @@ import { getInteractionController } from '@/lib/tools/InteractionController';
 import { ContextMenu } from '@/components/ui/ContextMenu';
 import { SaveTemplateModal } from '@/components/modals/SaveTemplateModal';
 import ToolSettingsBar from '@/components/tools/ToolSettingsBar';
-import AdvancedToolSettingsModal from '@/components/tools/AdvancedToolSettingsModal';
-import AdvancedChartSettings from '@/components/settings/AdvancedChartSettings';
 import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
 import { SettingsIcon } from '@/components/ui/Icons';
 import QuickTradeBar from '@/components/trading/QuickTradeBar';
-import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal';
 import { PriceCountdownCompact } from '@/components/trading/PriceCountdown';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import MiniDepthHeatmap from '@/components/charts/MiniDepthHeatmap';
-import GlobalSettingsModal from '@/components/settings/GlobalSettingsModal';
+
+// Lazy load modals (not needed at initial render)
+const GlobalSettingsModal = dynamic(() => import('@/components/settings/GlobalSettingsModal'), { ssr: false });
+const AdvancedChartSettings = dynamic(() => import('@/components/settings/AdvancedChartSettings'), { ssr: false });
+const AdvancedToolSettingsModal = dynamic(() => import('@/components/tools/AdvancedToolSettingsModal'), { ssr: false });
+const KeyboardShortcutsModal = dynamic(() => import('@/components/ui/KeyboardShortcutsModal'), { ssr: false });
 import { ASSET_CATEGORY_ICONS, ASSET_CATEGORIES } from './constants/symbols';
 import { TF_GROUPS } from './constants/timeframes';
 import { COLOR_PRESETS } from './constants/colors';

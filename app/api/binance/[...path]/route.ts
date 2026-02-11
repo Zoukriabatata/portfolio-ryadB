@@ -80,10 +80,19 @@ export async function GET(
       console.log(`[Binance Proxy] aggTrades response: ${Array.isArray(data) ? `${data.length} trades` : typeof data}`);
     }
 
-    // ✅ STEP 3: ADD RATE LIMIT HEADERS TO RESPONSE (if authenticated)
-    return NextResponse.json(data, {
-      headers: authResult?.headers || {},
-    });
+    // ✅ STEP 3: ADD CACHE + RATE LIMIT HEADERS TO RESPONSE
+    const headers: Record<string, string> = {
+      ...(authResult?.headers || {}),
+    };
+
+    // Cache public historical endpoints (klines, exchangeInfo)
+    if (isPublicEndpoint && pathStr.includes('klines')) {
+      headers['Cache-Control'] = 'public, s-maxage=60, stale-while-revalidate=120';
+    } else if (isPublicEndpoint) {
+      headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+    }
+
+    return NextResponse.json(data, { headers });
   } catch (error) {
     console.error('[Binance API Proxy] Error:', error);
     return NextResponse.json(

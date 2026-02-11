@@ -158,3 +158,16 @@ export const useMarketStore = create<MarketState>((set) => ({
       };
     }),
 }));
+
+// ============ GRANULAR SELECTORS ============
+// Use these instead of useMarketStore() to avoid unnecessary re-renders
+
+export const useSymbol = () => useMarketStore((s) => s.symbol);
+export const useTimeframe = () => useMarketStore((s) => s.timeframe);
+export const useCurrentPrice = () => useMarketStore((s) => s.currentPrice);
+export const useCandles = () => useMarketStore((s) => s.candles);
+export const useTrades = () => useMarketStore((s) => s.trades);
+export const useIsConnected = () => useMarketStore((s) => s.isConnected);
+export const useIsLoadingHistory = () => useMarketStore((s) => s.isLoadingHistory);
+export const useHistoryError = () => useMarketStore((s) => s.historyError);
+export const useHasMoreHistory = () => useMarketStore((s) => s.hasMoreHistory);

@@ -46,9 +46,13 @@ export async function GET(
 
     const data = await response.json();
 
-    // ✅ ADD RATE LIMIT HEADERS
+    // ✅ ADD RATE LIMIT + CACHE HEADERS
+    // Options data changes frequently but historical snapshots can be cached briefly
     return NextResponse.json(data, {
-      headers: authResult.headers,
+      headers: {
+        ...authResult.headers,
+        'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60',
+      },
     });
   } catch (error) {
     console.error('[Deribit API Proxy] Error:', error);

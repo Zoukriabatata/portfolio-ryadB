@@ -711,3 +711,17 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
     }
   )
 );
+
+// ============ GRANULAR SELECTORS ============
+// Use these instead of useHeatmapSettingsStore() to avoid unnecessary re-renders
+
+export const useColorScheme = () => useHeatmapSettingsStore((s) => s.colorScheme);
+export const useZoomLevel = () => useHeatmapSettingsStore((s) => s.zoomLevel);
+export const usePriceOffset = () => useHeatmapSettingsStore((s) => s.priceOffset);
+export const useDisplayFeatures = () => useHeatmapSettingsStore((s) => s.displayFeatures);
+export const useTradeFlow = () => useHeatmapSettingsStore((s) => s.tradeFlow);
+export const useAutoCenter = () => useHeatmapSettingsStore((s) => s.autoCenter);
+export const useUseWebGL = () => useHeatmapSettingsStore((s) => s.useWebGL);
+export const useContrast = () => useHeatmapSettingsStore((s) => s.contrast);
+export const useSmoothing = () => useHeatmapSettingsStore((s) => s.smoothing);
+export const useIsSettingsPanelOpen = () => useHeatmapSettingsStore((s) => s.isSettingsPanelOpen);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   getOrderflowEngine,
   resetOrderflowEngine,
@@ -50,7 +50,7 @@ import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import { useTimezoneStore, TIMEZONES, type TimezoneId } from '@/stores/useTimezoneStore';
 import { useToolSettingsStore } from '@/stores/useToolSettingsStore';
 import ToolSettingsPanel from '@/components/tools/ToolSettingsPanel';
-import AdvancedToolSettingsModal from '@/components/tools/AdvancedToolSettingsModal';
+const AdvancedToolSettingsModal = dynamic(() => import('@/components/tools/AdvancedToolSettingsModal'), { ssr: false });
 import LayoutManagerPanel from '@/components/tools/LayoutManagerPanel';
 import {
   getCachedLODState,
@@ -77,7 +77,8 @@ import { ContextMenu, createChartContextMenuItems, type ContextMenuItem } from '
 import { useChartTemplatesStore, type ChartTemplate } from '@/stores/useChartTemplatesStore';
 import InlineTextEditor from '@/components/tools/InlineTextEditor';
 import { SaveTemplateModal } from '@/components/modals/SaveTemplateModal';
-import FootprintAdvancedSettings from '@/components/settings/FootprintAdvancedSettings';
+import dynamic from 'next/dynamic';
+const FootprintAdvancedSettings = dynamic(() => import('@/components/settings/FootprintAdvancedSettings'), { ssr: false });
 import ToolSettingsBar from '@/components/tools/ToolSettingsBar';
 import { PriceCountdownCompact } from '@/components/trading/PriceCountdown';
 import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
@@ -152,7 +153,7 @@ const TF_TO_BINANCE: Record<number, string> = {
 };
 
 
-export default function FootprintChartPro({ className }: FootprintChartProProps) {
+const FootprintChartPro = React.memo(function FootprintChartPro({ className }: FootprintChartProProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const layoutEngineRef = useRef<FootprintLayoutEngine | null>(null);
@@ -3896,7 +3897,9 @@ export default function FootprintChartPro({ className }: FootprintChartProProps)
       )}
     </div>
   );
-}
+});
+
+export default FootprintChartPro;
 
 function formatVol(vol: number): string {
   const abs = Math.abs(vol);

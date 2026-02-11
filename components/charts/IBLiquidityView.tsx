@@ -17,7 +17,8 @@ import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
 import { useIBConnection } from '@/hooks/useIBConnection';
 import { CME_CONTRACTS } from '@/types/ib-protocol';
 import type { GatewayConnectionStatus } from '@/types/ib-protocol';
-import LiquidityAdvancedSettings from '@/components/settings/LiquidityAdvancedSettings';
+import dynamic from 'next/dynamic';
+const LiquidityAdvancedSettings = dynamic(() => import('@/components/settings/LiquidityAdvancedSettings'), { ssr: false });
 
 interface IBLiquidityViewProps {
   height?: number;
