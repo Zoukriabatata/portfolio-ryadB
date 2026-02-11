@@ -118,6 +118,7 @@ export default function LivePageContent() {
           <div className="h-full flex flex-col panel-content-fade" style={{ width: 180 }}>
             <WatchlistPanel activeSymbol={symbol} onSymbolSelect={setSymbol} />
             <button
+              data-testid="watchlist-hide"
               onClick={() => setShowWatchlist(false)}
               className="px-2 py-1 border-t text-[10px] hover:bg-white/5 transition-colors button-press"
               style={{ borderColor: 'var(--border)', color: 'var(--text-dimmed)' }}
@@ -127,6 +128,7 @@ export default function LivePageContent() {
           </div>
         ) : (
           <button
+            data-testid="watchlist-show"
             onClick={() => setShowWatchlist(true)}
             className="w-full h-full flex items-center justify-center hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer group button-press"
           >
@@ -145,12 +147,15 @@ export default function LivePageContent() {
         <ConnectionBanner />
 
         {/* Layout Selector */}
-        <div className="flex items-center gap-0.5 absolute top-1 left-1/2 -translate-x-1/2 z-30 px-1.5 py-0.5 rounded-lg fade-in"
+        <div
+          data-testid="layout-selector"
+          className="flex items-center gap-0.5 absolute top-1 left-1/2 -translate-x-1/2 z-30 px-1.5 py-0.5 rounded-lg fade-in"
           style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
         >
           {(['1x1', '2x1', '2x2'] as LayoutMode[]).map(mode => (
             <button
               key={mode}
+              data-testid={`layout-${mode}`}
               onClick={() => setLayout(mode)}
               className={`layout-button button-press w-6 h-6 flex items-center justify-center rounded ${layout === mode ? 'active' : ''}`}
               style={{
