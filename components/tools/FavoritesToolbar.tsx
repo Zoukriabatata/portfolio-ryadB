@@ -93,46 +93,7 @@ const toolAnimationStyles = `
     animation: removeX 0.15s ease-out;
   }
 
-  /* Custom tooltips */
-  [data-tooltip] {
-    position: relative;
-  }
-  [data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%) scale(0.92);
-    padding: 4px 8px;
-    background: rgba(20, 20, 25, 0.95);
-    color: rgba(255,255,255,0.85);
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1.3;
-    white-space: nowrap;
-    border-radius: 5px;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    pointer-events: none;
-    opacity: 0;
-    z-index: 9999;
-    transition: opacity 0.12s ease, transform 0.12s ease;
-    backdrop-filter: blur(8px);
-  }
-  [data-tooltip]:hover::after {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-    transition-delay: 0.35s;
-  }
-  [data-tooltip][data-tooltip-pos="top"]::after {
-    top: auto;
-    bottom: calc(100% + 6px);
-  }
-
-  /* Shortcut key highlight */
-  [data-tooltip] kbd {
-    display: none; /* kbd not used in pseudo - using text */
-  }
+  /* Tooltips: using global CSS from globals.css */
 `;
 
 /**

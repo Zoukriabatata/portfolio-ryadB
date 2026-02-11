@@ -121,8 +121,8 @@ function NavLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
         relative flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-lg
         transition-all duration-200
         ${isActive
-          ? 'bg-green-500/20 text-green-400'
-          : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+          ? 'bg-green-500/20 text-green-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+          : 'text-zinc-400 hover:text-white hover:bg-[var(--surface-hover)] hover:shadow-sm'
         }
       `}
     >
@@ -188,7 +188,7 @@ export default function Sidebar() {
         {/* Connection Status */}
         <div className="p-4 border-t border-zinc-800">
           <div className="flex items-center justify-center lg:justify-start gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-emerald-500" style={{ boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)', animation: 'glowPulse 2s ease-in-out infinite' }} />
             <span className="hidden lg:block text-xs text-zinc-400">Connected</span>
           </div>
         </div>
