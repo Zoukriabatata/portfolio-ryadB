@@ -144,9 +144,33 @@ export interface RenderData {
       sessionHighColor?: string;
       sessionLowColor?: string;
       roundNumberColor?: string;
+      vwapBand1Color?: string;
+      vwapBand2Color?: string;
       opacity?: number;
     };
   };
+
+  // Imbalance markers
+  imbalanceMarkers?: {
+    price: number;
+    direction: 'bullish' | 'bearish';
+    ratio: number;
+    isStrong: boolean;
+  }[];
+
+  // CVD (Cumulative Volume Delta) panel data
+  cvdData?: {
+    points: { time: number; delta: number }[];
+  };
+
+  // Absorption alerts
+  absorptionAlerts?: {
+    price: number;
+    volume: number;
+    side: 'bid' | 'ask';
+    timestamp: number;
+    age: number; // 0-1 normalized age for fade-out
+  }[];
 
   // Settings
   contrast: number;
@@ -766,6 +790,8 @@ export class HybridRenderer {
           sessionHighColor: levelSettings.sessionHighColor || '#22d3ee',
           sessionLowColor: levelSettings.sessionLowColor || '#fb7185',
           roundNumberColor: levelSettings.roundNumberColor || '#fbbf24',
+          vwapBand1Color: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#06b6d4',
+          vwapBand2Color: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#06b6d4',
           dashPhase: this.animationTime * 20, // Animated dash for certain lines
         },
         this.projection
@@ -860,6 +886,8 @@ export class HybridRenderer {
         sessionHigh: levelSettings.sessionHighColor || '#22d3ee',
         sessionLow: levelSettings.sessionLowColor || '#fb7185',
         roundNumber: levelSettings.roundNumberColor || '#fbbf24',
+        vwapBand1: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#06b6d4',
+        vwapBand2: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#06b6d4',
       };
       const overlayLevels = data.keyLevels.levels
         .filter(l => l.price >= data.priceMin && l.price <= data.priceMax)
@@ -887,6 +915,45 @@ export class HybridRenderer {
       { label: 'Trades', value: data.trades.length.toString() },
     ];
     this.overlay.renderStatsBar(statsItems, height! - 12);
+
+    // Imbalance markers (triangles at price levels)
+    if (data.imbalanceMarkers && data.imbalanceMarkers.length > 0) {
+      const imbalanceLevels = data.imbalanceMarkers
+        .filter(m => m.price >= data.priceMin && m.price <= data.priceMax)
+        .map(m => ({
+          ...m,
+          y: this.priceToY(m.price, data.priceMin, data.priceMax, height!),
+        }));
+      if (imbalanceLevels.length > 0) {
+        this.overlay.renderImbalanceMarkers(imbalanceLevels, deltaProfileWidth!);
+      }
+    }
+
+    // CVD panel (bottom of chart)
+    if (data.cvdData && data.cvdData.points.length > 0) {
+      const panelHeight = 60;
+      const panelY = height! - panelHeight - 20; // Above stats bar
+      this.overlay.renderCVDPanel(
+        data.cvdData.points,
+        panelY,
+        panelHeight,
+        width! - priceAxisWidth! - deltaProfileWidth!,
+        deltaProfileWidth!
+      );
+    }
+
+    // Absorption alerts (badges at price levels)
+    if (data.absorptionAlerts && data.absorptionAlerts.length > 0) {
+      const alertLevels = data.absorptionAlerts
+        .filter(a => a.price >= data.priceMin && a.price <= data.priceMax)
+        .map(a => ({
+          ...a,
+          y: this.priceToY(a.price, data.priceMin, data.priceMax, height!),
+        }));
+      if (alertLevels.length > 0) {
+        this.overlay.renderAbsorptionAlerts(alertLevels, width! - priceAxisWidth!);
+      }
+    }
 
     // Crosshair (if visible)
     if (data.crosshair?.visible) {

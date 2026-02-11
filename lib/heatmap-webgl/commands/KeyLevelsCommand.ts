@@ -20,7 +20,7 @@ const keyLevelVert = `
 precision highp float;
 
 attribute vec2 position;
-attribute float levelType;   // 0=POC, 1=VAH, 2=VAL, 3=VWAP, 4=SessionHigh, 5=SessionLow, 6=RoundNumber
+attribute float levelType;   // 0=POC, 1=VAH, 2=VAL, 3=VWAP, 4=SessionHigh, 5=SessionLow, 6=RoundNumber, 7=VWAPBand1, 8=VWAPBand2
 
 uniform mat4 projection;
 
@@ -44,11 +44,14 @@ uniform vec3 vwapColor;
 uniform vec3 sessionHighColor;
 uniform vec3 sessionLowColor;
 uniform vec3 roundNumberColor;
+uniform vec3 vwapBand1Color;
+uniform vec3 vwapBand2Color;
 uniform float opacity;
 uniform float dashPhase;
 
 void main() {
   vec3 color;
+  float bandOpacity = 1.0;
 
   // Select color based on level type
   if (vLevelType < 0.5) {
@@ -63,15 +66,26 @@ void main() {
     color = sessionHighColor;   // Session High
   } else if (vLevelType < 5.5) {
     color = sessionLowColor;    // Session Low
-  } else {
+  } else if (vLevelType < 6.5) {
     color = roundNumberColor;   // Round Number
+  } else if (vLevelType < 7.5) {
+    color = vwapBand1Color;     // VWAP Band 1 SD
+    bandOpacity = 0.6;
+  } else {
+    color = vwapBand2Color;     // VWAP Band 2 SD
+    bandOpacity = 0.35;
   }
 
-  // Dashed line effect for some levels
+  // Dashed line effect for VWAP, bands, and other non-solid levels
   float dashPattern = mod(gl_FragCoord.x + dashPhase, 10.0);
-  float dashAlpha = vLevelType > 2.5 ? (dashPattern < 6.0 ? 1.0 : 0.3) : 1.0;
+  float dashAlpha = 1.0;
+  if (vLevelType > 2.5 && vLevelType < 6.5) {
+    dashAlpha = dashPattern < 6.0 ? 1.0 : 0.3;  // Standard dash
+  } else if (vLevelType > 6.5) {
+    dashAlpha = dashPattern < 4.0 ? 1.0 : 0.15;  // Tighter dash for bands
+  }
 
-  gl_FragColor = vec4(color, opacity * dashAlpha);
+  gl_FragColor = vec4(color, opacity * dashAlpha * bandOpacity);
 }
 `;
 
@@ -79,7 +93,7 @@ void main() {
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type KeyLevelType = 'poc' | 'vah' | 'val' | 'vwap' | 'sessionHigh' | 'sessionLow' | 'roundNumber';
+export type KeyLevelType = 'poc' | 'vah' | 'val' | 'vwap' | 'sessionHigh' | 'sessionLow' | 'roundNumber' | 'vwapBand1' | 'vwapBand2';
 
 export interface KeyLevel {
   price: number;
@@ -105,6 +119,8 @@ export interface KeyLevelsRenderProps {
   sessionHighColor?: string;
   sessionLowColor?: string;
   roundNumberColor?: string;
+  vwapBand1Color?: string;
+  vwapBand2Color?: string;
   // Animation
   dashPhase?: number;
 }
@@ -117,6 +133,8 @@ const LEVEL_TYPE_MAP: Record<KeyLevelType, number> = {
   sessionHigh: 4,
   sessionLow: 5,
   roundNumber: 6,
+  vwapBand1: 7,
+  vwapBand2: 8,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -167,6 +185,8 @@ export class KeyLevelsCommand {
         sessionHighColor: regl.prop<{ sessionHighColor: [number, number, number] }, 'sessionHighColor'>('sessionHighColor'),
         sessionLowColor: regl.prop<{ sessionLowColor: [number, number, number] }, 'sessionLowColor'>('sessionLowColor'),
         roundNumberColor: regl.prop<{ roundNumberColor: [number, number, number] }, 'roundNumberColor'>('roundNumberColor'),
+        vwapBand1Color: regl.prop<{ vwapBand1Color: [number, number, number] }, 'vwapBand1Color'>('vwapBand1Color'),
+        vwapBand2Color: regl.prop<{ vwapBand2Color: [number, number, number] }, 'vwapBand2Color'>('vwapBand2Color'),
         opacity: regl.prop<{ opacity: number }, 'opacity'>('opacity'),
         dashPhase: regl.prop<{ dashPhase: number }, 'dashPhase'>('dashPhase'),
       },
@@ -214,6 +234,8 @@ export class KeyLevelsCommand {
       sessionHighColor = '#22d3ee',
       sessionLowColor = '#fb7185',
       roundNumberColor = '#fbbf24',
+      vwapBand1Color = '#06b6d4',
+      vwapBand2Color = '#06b6d4',
       dashPhase = 0,
     } = props;
 
@@ -256,6 +278,8 @@ export class KeyLevelsCommand {
       sessionHighColor: TextureManager.parseColorRGB(sessionHighColor),
       sessionLowColor: TextureManager.parseColorRGB(sessionLowColor),
       roundNumberColor: TextureManager.parseColorRGB(roundNumberColor),
+      vwapBand1Color: TextureManager.parseColorRGB(vwapBand1Color),
+      vwapBand2Color: TextureManager.parseColorRGB(vwapBand2Color),
       opacity,
       dashPhase,
       count: count * 2, // 2 vertices per line

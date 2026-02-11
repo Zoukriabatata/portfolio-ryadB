@@ -675,6 +675,178 @@ export class Canvas2DOverlay {
   }
 
   /**
+   * Render imbalance markers (triangles at price levels with extreme bid/ask ratio)
+   */
+  renderImbalanceMarkers(
+    markers: { price: number; y: number; direction: 'bullish' | 'bearish'; ratio: number; isStrong: boolean }[],
+    leftMargin: number
+  ): void {
+    const { ctx, config } = this;
+    const size = 8;
+
+    for (const marker of markers) {
+      const x = leftMargin + 12;
+      const opacity = Math.min(0.9, 0.4 + (marker.ratio / 10) * 0.5);
+
+      if (marker.direction === 'bullish') {
+        // Green up-triangle (buyers dominate)
+        ctx.fillStyle = `rgba(34, 197, 94, ${opacity})`;
+        ctx.beginPath();
+        ctx.moveTo(x, marker.y - size / 2);
+        ctx.lineTo(x + size, marker.y);
+        ctx.lineTo(x, marker.y + size / 2);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Red down-triangle (sellers dominate)
+        ctx.fillStyle = `rgba(239, 68, 68, ${opacity})`;
+        ctx.beginPath();
+        ctx.moveTo(x + size, marker.y - size / 2);
+        ctx.lineTo(x, marker.y);
+        ctx.lineTo(x + size, marker.y + size / 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Ratio text
+      if (marker.ratio >= 5) {
+        ctx.font = `bold ${config.fontSize - 3}px ${config.font}`;
+        ctx.fillStyle = marker.direction === 'bullish' ? '#22c55e' : '#ef4444';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${marker.ratio.toFixed(1)}x`, x + size + 3, marker.y);
+      }
+    }
+  }
+
+  /**
+   * Render CVD (Cumulative Volume Delta) panel at bottom of chart
+   */
+  renderCVDPanel(
+    points: { time: number; delta: number }[],
+    panelY: number,
+    panelHeight: number,
+    panelWidth: number,
+    leftMargin: number
+  ): void {
+    if (points.length < 2) return;
+
+    const { ctx, config } = this;
+
+    // Panel background
+    ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
+    ctx.fillRect(leftMargin, panelY, panelWidth, panelHeight);
+
+    // Panel border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(leftMargin, panelY, panelWidth, panelHeight);
+
+    // Calculate min/max delta for scaling
+    let minDelta = Infinity;
+    let maxDelta = -Infinity;
+    for (const p of points) {
+      if (p.delta < minDelta) minDelta = p.delta;
+      if (p.delta > maxDelta) maxDelta = p.delta;
+    }
+    const deltaRange = maxDelta - minDelta || 1;
+
+    // Zero line
+    const zeroY = panelY + panelHeight - ((-minDelta) / deltaRange) * (panelHeight - 8) - 4;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(leftMargin, zeroY);
+    ctx.lineTo(leftMargin + panelWidth, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw CVD line
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+
+    const step = panelWidth / (points.length - 1);
+    for (let i = 0; i < points.length; i++) {
+      const x = leftMargin + i * step;
+      const y = panelY + panelHeight - ((points[i].delta - minDelta) / deltaRange) * (panelHeight - 8) - 4;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+
+    // Color based on last delta direction
+    const lastDelta = points[points.length - 1].delta;
+    ctx.strokeStyle = lastDelta >= 0 ? '#22c55e' : '#ef4444';
+    ctx.stroke();
+
+    // Fill under the line
+    ctx.lineTo(leftMargin + panelWidth, zeroY);
+    ctx.lineTo(leftMargin, zeroY);
+    ctx.closePath();
+    ctx.fillStyle = lastDelta >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+    ctx.fill();
+
+    // CVD label
+    ctx.font = `bold ${config.fontSize - 2}px ${config.font}`;
+    ctx.fillStyle = '#9ca3af';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('CVD', leftMargin + 4, panelY + 3);
+
+    // Current value
+    ctx.fillStyle = lastDelta >= 0 ? '#22c55e' : '#ef4444';
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      lastDelta >= 0 ? `+${lastDelta.toFixed(2)}` : lastDelta.toFixed(2),
+      leftMargin + panelWidth - 4,
+      panelY + 3
+    );
+  }
+
+  /**
+   * Render absorption alerts (badges at price levels where volume was absorbed)
+   */
+  renderAbsorptionAlerts(
+    alerts: { price: number; y: number; volume: number; side: 'bid' | 'ask'; age: number }[],
+    rightEdge: number
+  ): void {
+    const { ctx, config } = this;
+
+    for (const alert of alerts) {
+      const fadeOpacity = Math.max(0, 1 - alert.age);
+      if (fadeOpacity <= 0) continue;
+
+      const x = rightEdge - 60;
+      const isBid = alert.side === 'bid';
+
+      // Badge background
+      const bgColor = isBid ? `rgba(251, 146, 60, ${fadeOpacity * 0.8})` : `rgba(34, 211, 238, ${fadeOpacity * 0.8})`;
+      const height = config.fontSize + 4;
+      const volText = alert.volume >= 1 ? alert.volume.toFixed(2) : alert.volume.toFixed(4);
+      ctx.font = `bold ${config.fontSize - 2}px ${config.font}`;
+      const textWidth = ctx.measureText(volText).width + 18;
+
+      ctx.fillStyle = bgColor;
+      this.roundedRect(x, alert.y - height / 2, textWidth, height, 3);
+      ctx.fill();
+
+      // Icon (shield)
+      ctx.fillStyle = `rgba(255, 255, 255, ${fadeOpacity})`;
+      ctx.font = `bold ${config.fontSize - 2}px ${config.font}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(isBid ? '▼' : '▲', x + 3, alert.y);
+
+      // Volume text
+      ctx.fillText(volText, x + 14, alert.y);
+    }
+  }
+
+  /**
    * Destroy the overlay
    */
   destroy(): void {

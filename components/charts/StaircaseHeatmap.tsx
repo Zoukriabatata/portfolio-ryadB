@@ -18,6 +18,11 @@ import { LiveDataEngine, resetLiveDataEngine } from '@/lib/heatmap-v2/LiveDataEn
 import { HeatmapRenderer } from '@/lib/heatmap-v2/HeatmapRenderer';
 import { MarketState, SimulationConfig, DrawingType, TradeFlowSettings as RendererTradeFlowSettings } from '@/lib/heatmap-v2/types';
 import { HybridRenderer, adaptMarketState } from '@/lib/heatmap-webgl';
+import { getVWAPEngine, type VWAPEngine } from '@/lib/orderflow/VWAPEngine';
+import { getTradeAbsorptionEngine, type TradeAbsorptionEngine } from '@/lib/orderflow/TradeAbsorptionEngine';
+import type { AbsorptionResult } from '@/types/passive-liquidity';
+import type { KeyLevel } from '@/lib/heatmap-webgl/commands/KeyLevelsCommand';
+import { detectImbalance } from '@/lib/calculations/imbalance';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
 import dynamic from 'next/dynamic';
 const LiquidityAdvancedSettings = dynamic(() => import('@/components/settings/LiquidityAdvancedSettings'), { ssr: false });
@@ -71,6 +76,10 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   const rendererRef = useRef<HeatmapRenderer | null>(null);
   const webglRendererRef = useRef<HybridRenderer | null>(null);
   const animationRef = useRef<number>(0);
+  const vwapEngineRef = useRef<VWAPEngine | null>(null);
+  const absorptionEngineRef = useRef<TradeAbsorptionEngine | null>(null);
+  const absorptionAlertsRef = useRef<{ price: number; volume: number; side: 'bid' | 'ask'; timestamp: number }[]>([]);
+  const lastProcessedTradeCountRef = useRef<number>(0);
 
   const [state, setState] = useState<MarketState | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -202,6 +211,15 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     liveEngineRef.current?.destroy();
     simulationRef.current = null;
     liveEngineRef.current = null;
+
+    // Initialize VWAP engine
+    vwapEngineRef.current = getVWAPEngine();
+    vwapEngineRef.current.reset();
+    lastProcessedTradeCountRef.current = 0;
+
+    // Initialize absorption engine
+    absorptionEngineRef.current = getTradeAbsorptionEngine();
+    absorptionAlertsRef.current = [];
 
     let usingWebGL = false;
 
@@ -373,6 +391,113 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
             };
           }
 
+          // ═══════════════════════════════════════════════════════════════
+          // VWAP BANDS - Feed trades to VWAPEngine, generate key levels
+          // ═══════════════════════════════════════════════════════════════
+          if (showVWAP && vwapEngineRef.current && state.trades.length > 0) {
+            // Feed new trades since last frame
+            const newTradeCount = state.trades.length;
+            if (newTradeCount > lastProcessedTradeCountRef.current) {
+              const newTrades = state.trades.slice(lastProcessedTradeCountRef.current);
+              for (const trade of newTrades) {
+                vwapEngineRef.current.processTrade({
+                  timestamp: trade.timestamp,
+                  price: trade.price,
+                  size: trade.size,
+                  side: trade.side,
+                });
+              }
+              lastProcessedTradeCountRef.current = newTradeCount;
+            }
+
+            const vwapPrice = vwapEngineRef.current.getVWAP();
+            if (vwapPrice > 0) {
+              const bands = vwapEngineRef.current.getBands([1, 2]);
+              const keyLevels: KeyLevel[] = [
+                { price: vwapPrice, type: 'vwap', label: 'VWAP' },
+              ];
+              if (bands.length >= 1 && bands[0].upperBand > 0) {
+                keyLevels.push(
+                  { price: bands[0].upperBand, type: 'vwapBand1', label: '+1σ' },
+                  { price: bands[0].lowerBand, type: 'vwapBand1', label: '-1σ' },
+                );
+              }
+              if (bands.length >= 2 && bands[1].upperBand > 0) {
+                keyLevels.push(
+                  { price: bands[1].upperBand, type: 'vwapBand2', label: '+2σ' },
+                  { price: bands[1].lowerBand, type: 'vwapBand2', label: '-2σ' },
+                );
+              }
+              renderData.keyLevels = {
+                levels: keyLevels,
+                settings: {
+                  vwapColor: '#06b6d4',
+                  vwapBand1Color: '#0891b2',
+                  vwapBand2Color: '#0e7490',
+                  opacity: 0.8,
+                },
+              };
+            }
+          }
+
+          // ═══════════════════════════════════════════════════════════════
+          // IMBALANCE MARKERS - Detect bid/ask imbalances
+          // ═══════════════════════════════════════════════════════════════
+          if (showImbalances) {
+            const markers: { price: number; direction: 'bullish' | 'bearish'; ratio: number; isStrong: boolean }[] = [];
+            const tickSize = config?.tickSize || 0.5;
+            const priceRange = getPriceRange();
+
+            // Check each price level for imbalance
+            for (let price = Math.floor(priceRange.min / tickSize) * tickSize; price <= priceRange.max; price += tickSize) {
+              let bidVol = 0;
+              let askVol = 0;
+              for (const [orderPrice, order] of state.bids) {
+                if (Math.abs(orderPrice - price) < tickSize * 0.5) bidVol += order.displaySize;
+              }
+              for (const [orderPrice, order] of state.asks) {
+                if (Math.abs(orderPrice - price) < tickSize * 0.5) askVol += order.displaySize;
+              }
+              if (bidVol > 0 || askVol > 0) {
+                const result = detectImbalance(bidVol, askVol, 3.0);
+                if (result.isStrong) {
+                  markers.push({ price, direction: result.direction as 'bullish' | 'bearish', ratio: result.ratio, isStrong: true });
+                }
+              }
+            }
+            if (markers.length > 0) {
+              renderData.imbalanceMarkers = markers;
+            }
+          }
+
+          // ═══════════════════════════════════════════════════════════════
+          // CVD - Cumulative Volume Delta
+          // ═══════════════════════════════════════════════════════════════
+          if (showCumulativeDelta && state.trades.length > 0) {
+            let cumDelta = 0;
+            const cvdPoints: { time: number; delta: number }[] = [];
+            for (const trade of state.trades) {
+              cumDelta += trade.side === 'buy' ? trade.size : -trade.size;
+              cvdPoints.push({ time: trade.timestamp, delta: cumDelta });
+            }
+            renderData.cvdData = { points: cvdPoints };
+          }
+
+          // ═══════════════════════════════════════════════════════════════
+          // ABSORPTION ALERTS - Show recent absorption events
+          // ═══════════════════════════════════════════════════════════════
+          if (showAbsorption) {
+            const now = Date.now();
+            // Filter out expired alerts (older than 5 seconds)
+            absorptionAlertsRef.current = absorptionAlertsRef.current.filter(a => now - a.timestamp < 5000);
+            if (absorptionAlertsRef.current.length > 0) {
+              renderData.absorptionAlerts = absorptionAlertsRef.current.map(a => ({
+                ...a,
+                age: (now - a.timestamp) / 5000, // 0-1 normalized age for fade-out
+              }));
+            }
+          }
+
           webglRendererRef.current.render(renderData);
         } else if (rendererRef.current) {
           // ═══════════════════════════════════════════════════════════════
@@ -449,6 +574,26 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     if (rendererRef.current) {
       rendererRef.current.setShowAbsorption(showAbsorption);
     }
+  }, [showAbsorption]);
+
+  // Subscribe to absorption events for WebGL overlay alerts
+  useEffect(() => {
+    if (!showAbsorption || !absorptionEngineRef.current) return;
+    const unsubscribe = absorptionEngineRef.current.onAbsorption((result: AbsorptionResult) => {
+      if (result.volumeAbsorbed > 0 && result.affectedLevel) {
+        absorptionAlertsRef.current.push({
+          price: result.affectedLevel.price,
+          volume: result.volumeAbsorbed,
+          side: result.affectedLevel.side,
+          timestamp: Date.now(),
+        });
+        // Cap at 20 active alerts
+        if (absorptionAlertsRef.current.length > 20) {
+          absorptionAlertsRef.current = absorptionAlertsRef.current.slice(-20);
+        }
+      }
+    });
+    return () => unsubscribe();
   }, [showAbsorption]);
 
   useEffect(() => {
