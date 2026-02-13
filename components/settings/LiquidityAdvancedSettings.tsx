@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useHeatmapSettingsStore, type HeatmapSettingsState } from '@/stores/useHeatmapSettingsStore';
-import type { FootprintStyle, PassiveThickness, BubbleShape, ColorScheme } from '@/types/heatmap';
+import type { FootprintStyle, PassiveThickness, BubbleShape, ColorScheme, DeltaProfileMode } from '@/types/heatmap';
 
 /**
  * LIQUIDITY ADVANCED SETTINGS MODAL
@@ -127,20 +128,40 @@ export default function LiquidityAdvancedSettings({
 }: LiquidityAdvancedSettingsProps) {
   const store = useHeatmapSettingsStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>('display');
-  const [position, setPosition] = useState(initialPosition || { x: 100, y: 100 });
+  const [wasDragged, setWasDragged] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [mounted, setMounted] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Ensure we're mounted on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Reset drag state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setWasDragged(false);
+    }
+  }, [isOpen]);
 
   // Dragging logic
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.settings-content')) return;
+    const rect = modalRef.current?.getBoundingClientRect();
+    if (!rect) return;
     setIsDragging(true);
     setDragOffset({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     });
-  }, [position]);
+    if (!wasDragged) {
+      setWasDragged(true);
+      setPosition({ x: rect.left, y: rect.top });
+    }
+  }, [wasDragged]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -177,20 +198,38 @@ export default function LiquidityAdvancedSettings({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div
-      ref={modalRef}
-      className="fixed z-[1000] select-none animate-in fade-in slide-in-from-right-4 duration-200"
-      style={{
-        left: position.x,
-        top: position.y,
-        width: 420,
-      }}
-    >
-      {/* Modal Container */}
-      <div className="bg-[var(--surface)] backdrop-blur-xl rounded-xl border border-[var(--border)] shadow-2xl overflow-hidden">
+  const modalContent = (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50 z-[9999]"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      />
+
+      {/* Modal */}
+      <div
+        ref={modalRef}
+        className="fixed z-[10000] select-none"
+        style={wasDragged ? {
+          left: position.x,
+          top: position.y,
+          width: 420,
+        } : {
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 420,
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Container */}
+        <div className="bg-[var(--surface)] backdrop-blur-xl rounded-xl border border-[var(--border)] shadow-2xl overflow-hidden">
         {/* Header - Draggable */}
         <div
           className="flex items-center justify-between px-4 py-3 bg-[var(--surface)] border-b border-[var(--border)] cursor-move"
@@ -262,7 +301,10 @@ export default function LiquidityAdvancedSettings({
         </div>
       </div>
     </div>
+    </>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 // ============ TAB COMPONENTS ============
@@ -283,6 +325,29 @@ function DisplayTab({ store }: TabProps) {
 
   return (
     <div className="space-y-4">
+      {/* Quick Presets */}
+      <SettingsSection title="Quick Presets" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      }>
+        <div className="flex gap-2">
+          {([
+            { id: 'bookmap' as const, label: 'Bookmap', color: 'bg-blue-600/80 hover:bg-blue-500/80 border-blue-500/50' },
+            { id: 'atas' as const, label: 'ATAS', color: 'bg-emerald-600/80 hover:bg-emerald-500/80 border-emerald-500/50' },
+            { id: 'minimal' as const, label: 'Minimal', color: 'bg-zinc-600/80 hover:bg-zinc-500/80 border-zinc-500/50' },
+          ]).map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => store.applyPreset(preset.id)}
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium text-white border transition-all ${preset.color}`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </SettingsSection>
+
       {/* Theme Section */}
       <SettingsSection title="Color Theme" icon={
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -338,6 +403,38 @@ function DisplayTab({ store }: TabProps) {
         </div>
       </SettingsSection>
 
+      {/* Intensity Controls */}
+      <SettingsSection title="Intensity" icon={
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+        </svg>
+      }>
+        <SliderOption
+          label="Contrast"
+          value={store.contrast}
+          onChange={store.setContrast}
+          min={0.5}
+          max={5}
+          step={0.1}
+          unit="x"
+        />
+        <SliderOption
+          label="Upper Cutoff"
+          value={store.upperCutoffPercent}
+          onChange={store.setUpperCutoffPercent}
+          min={20}
+          max={100}
+          step={5}
+          unit="%"
+        />
+      </SettingsSection>
+
       {/* Performance Section */}
       <SettingsSection title="Performance" icon={
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -375,6 +472,63 @@ function DisplayTab({ store }: TabProps) {
           checked={features.showDeltaProfile}
           onChange={store.setShowDeltaProfile}
         />
+        {features.showDeltaProfile && features.deltaProfile && (
+          <div className="ml-4 space-y-3 border-l-2 border-[var(--border)] pl-3">
+            {/* Mode selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-[var(--text-muted)]">Visualization Mode</label>
+              <div className="flex gap-1.5">
+                {([
+                  { value: 'mirrored' as DeltaProfileMode, label: 'Mirrored', desc: 'Bid left, Ask right' },
+                  { value: 'stacked' as DeltaProfileMode, label: 'Stacked', desc: 'Bid + Ask side by side' },
+                  { value: 'net' as DeltaProfileMode, label: 'Net', desc: 'Net delta (Bid - Ask)' },
+                ]).map((mode) => (
+                  <button
+                    key={mode.value}
+                    onClick={() => store.setDeltaProfileMode(mode.value)}
+                    title={mode.desc}
+                    className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${
+                      features.deltaProfile?.mode === mode.value
+                        ? 'bg-[var(--primary)] text-[var(--text-primary)] border border-[var(--primary)]'
+                        : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--text-muted)]'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Opacity slider */}
+            <SliderOption
+              label="Opacity"
+              value={features.deltaProfile?.opacity ?? 0.85}
+              onChange={store.setDeltaProfileOpacity}
+              min={0.1}
+              max={1}
+              step={0.05}
+              unit=""
+            />
+            {/* Toggles */}
+            <ToggleOption
+              label="Highlight POC"
+              description="Highlight Point of Control on delta profile"
+              checked={features.deltaProfile?.highlightPOC ?? true}
+              onChange={store.setDeltaProfileHighlightPOC}
+            />
+            <ToggleOption
+              label="Center Line"
+              description="Show center divider line"
+              checked={features.deltaProfile?.showCenterLine ?? true}
+              onChange={store.setDeltaProfileShowCenterLine}
+            />
+            <ToggleOption
+              label="Value Labels"
+              description="Show numeric values on bars"
+              checked={features.deltaProfile?.showLabels ?? false}
+              onChange={store.setDeltaProfileShowLabels}
+            />
+          </div>
+        )}
         <ToggleOption
           label="Volume Profile"
           description="Show total volume distribution"

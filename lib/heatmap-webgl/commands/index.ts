@@ -12,3 +12,4 @@ export {
 } from './LinesCommand';
 export { TradeBubblesCommand, type TradeBubbleRenderProps } from './TradeBubblesCommand';
 export { ProfileBarsCommand, type ProfileBarData, type ProfileBarsRenderProps } from './ProfileBarsCommand';
+export { PassiveOrderLinesCommand, type PassiveOrderLinesRenderProps } from './PassiveOrderLinesCommand';

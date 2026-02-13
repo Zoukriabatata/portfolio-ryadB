@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { StaircaseHeatmap, type DataMode } from '@/components/charts/StaircaseHeatmap';
 import { CME_CONTRACTS } from '@/types/ib-protocol';
@@ -54,8 +54,10 @@ export default function LiquidityPageContent() {
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
-  // Get config for crypto modes
-  const getConfig = () => {
+  // Get config for crypto modes (memoized to avoid re-renders)
+  const config = useMemo(() => {
+    const adaptiveBaseLiquidity = selectedSymbol.tickSize >= 1 ? 50 : selectedSymbol.tickSize >= 0.1 ? 20 : 5;
+
     if (dataMode === 'live') {
       return {
         basePrice: selectedSymbol.basePrice,
@@ -64,7 +66,7 @@ export default function LiquidityPageContent() {
         tradeFrequency: 15,
         avgTradeSize: 0.5,
         orderBookDepth: 20,
-        baseLiquidity: 5,
+        baseLiquidity: adaptiveBaseLiquidity,
         wallProbability: 0.05,
         tradeLifetimeMs: 4000,
       };
@@ -81,7 +83,7 @@ export default function LiquidityPageContent() {
         tradeLifetimeMs: 3000,
       };
     }
-  };
+  }, [dataMode, selectedSymbol]);
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
@@ -162,7 +164,7 @@ export default function LiquidityPageContent() {
           <StaircaseHeatmap
             key={`${dataMode}-${symbol}`}
             height={heatmapHeight}
-            config={getConfig()}
+            config={config}
             symbol={symbol}
             initialMode={dataMode}
           />

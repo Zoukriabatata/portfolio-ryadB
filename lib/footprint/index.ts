@@ -28,3 +28,13 @@ export {
   resetOptimizedFootprintService,
   type OptimizedConfig,
 } from './OptimizedFootprintService';
+
+export {
+  FootprintCanvasRenderer,
+  getFootprintRenderer,
+  resetFootprintRenderer,
+  formatVolATAS,
+  formatVolCluster,
+  type RenderParams,
+  type SessionStats,
+} from './FootprintCanvasRenderer';

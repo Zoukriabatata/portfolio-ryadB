@@ -464,8 +464,8 @@ void main() {
   float timeFade = vPos.x / viewportWidth;
   timeFade = 0.2 + 0.8 * timeFade;
 
-  // Subtle gradient
-  float alpha = opacity * 0.15 * timeFade;
+  // Visible gradient fill between bid/ask spread
+  float alpha = opacity * 0.6 * timeFade;
 
   gl_FragColor = vec4(color, alpha);
 }

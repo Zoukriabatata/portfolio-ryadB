@@ -25,7 +25,7 @@ interface FootprintAdvancedSettingsProps {
   initialPosition?: { x: number; y: number };
 }
 
-type SettingsTab = 'candles' | 'delta' | 'layout' | 'features' | 'crosshair';
+type SettingsTab = 'candles' | 'delta' | 'layout' | 'features' | 'indicators' | 'crosshair';
 
 // Helper to find the closest standard color to a custom color
 function findClosestStandardColor(customColor: string, standardColors: string[]): string {
@@ -133,7 +133,7 @@ export default function FootprintAdvancedSettings({
     },
     {
       id: 'delta',
-      label: 'Delta',
+      label: 'Profiles',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M8 4l-4 6h8L8 4z" fill="currentColor" fillOpacity="0.15" />
@@ -170,6 +170,17 @@ export default function FootprintAdvancedSettings({
       ),
     },
     {
+      id: 'indicators',
+      label: 'Indicators',
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M3 17l6-6 4 4 8-8" />
+          <circle cx="21" cy="7" r="2" fill="currentColor" fillOpacity="0.4" />
+          <line x1="3" y1="21" x2="21" y2="21" />
+        </svg>
+      ),
+    },
+    {
       id: 'features',
       label: 'Options',
       icon: (
@@ -186,7 +197,7 @@ export default function FootprintAdvancedSettings({
   return (
     <div
       ref={modalRef}
-      className="fixed z-[1000] select-none animate-slideInRight"
+      className="fixed z-[50] select-none animate-slideInRight"
       style={{
         left: position.x,
         top: position.y,
@@ -667,6 +678,267 @@ export default function FootprintAdvancedSettings({
                   </div>
                 )}
               </div>
+
+              {/* ═══ VOLUME PROFILE SETTINGS ═══ */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <h4 className="text-xs font-semibold text-indigo-400 mb-3 flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="4" height="18" rx="1" />
+                    <rect x="10" y="8" width="4" height="13" rx="1" />
+                    <rect x="17" y="5" width="4" height="16" rx="1" />
+                  </svg>
+                  Volume Profile
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Value Area</label>
+                    <div className="flex gap-1">
+                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfileColor || '#5e7ce2' }} />
+                      <input type="color" value={settings.features.volumeProfileColor || '#5e7ce2'}
+                        onChange={(e) => settings.setFeatures({ volumeProfileColor: e.target.value })}
+                        className="flex-1 h-6 rounded cursor-pointer" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Outside VA</label>
+                    <div className="flex gap-1">
+                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfileOutsideColor || '#3a3f4b' }} />
+                      <input type="color" value={settings.features.volumeProfileOutsideColor || '#3a3f4b'}
+                        onChange={(e) => settings.setFeatures({ volumeProfileOutsideColor: e.target.value })}
+                        className="flex-1 h-6 rounded cursor-pointer" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">POC Bar</label>
+                    <div className="flex gap-1">
+                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfilePocColor || '#e2b93b' }} />
+                      <input type="color" value={settings.features.volumeProfilePocColor || '#e2b93b'}
+                        onChange={(e) => settings.setFeatures({ volumeProfilePocColor: e.target.value })}
+                        className="flex-1 h-6 rounded cursor-pointer" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">VAH/VAL Lines</label>
+                    <div className="flex gap-1">
+                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfileVahValColor || '#7c85f6' }} />
+                      <input type="color" value={settings.features.volumeProfileVahValColor || '#7c85f6'}
+                        onChange={(e) => settings.setFeatures({ volumeProfileVahValColor: e.target.value })}
+                        className="flex-1 h-6 rounded cursor-pointer" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">
+                    Opacity: {Math.round((settings.features.volumeProfileOpacity ?? 0.7) * 100)}%
+                  </label>
+                  <input type="range" min={0.1} max={1} step={0.05}
+                    value={settings.features.volumeProfileOpacity ?? 0.7}
+                    onChange={(e) => settings.setFeatures({ volumeProfileOpacity: Number(e.target.value) })}
+                    className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                </div>
+              </div>
+
+              {/* ═══ DELTA PROFILE SETTINGS ═══ */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <h4 className="text-xs font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2l-8 12h16L12 2z" fill="currentColor" fillOpacity="0.15" />
+                    <line x1="12" y1="14" x2="12" y2="22" />
+                  </svg>
+                  Delta Profile
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Positive Delta</label>
+                    <div className="flex gap-1">
+                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.deltaProfilePositiveColor || '#22c55e' }} />
+                      <input type="color" value={settings.features.deltaProfilePositiveColor || '#22c55e'}
+                        onChange={(e) => settings.setFeatures({ deltaProfilePositiveColor: e.target.value })}
+                        className="flex-1 h-6 rounded cursor-pointer" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Negative Delta</label>
+                    <div className="flex gap-1">
+                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.deltaProfileNegativeColor || '#ef4444' }} />
+                      <input type="color" value={settings.features.deltaProfileNegativeColor || '#ef4444'}
+                        onChange={(e) => settings.setFeatures({ deltaProfileNegativeColor: e.target.value })}
+                        className="flex-1 h-6 rounded cursor-pointer" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">
+                    Opacity: {Math.round((settings.features.deltaProfileOpacity ?? 0.7) * 100)}%
+                  </label>
+                  <input type="range" min={0.1} max={1} step={0.05}
+                    value={settings.features.deltaProfileOpacity ?? 0.7}
+                    onChange={(e) => settings.setFeatures({ deltaProfileOpacity: Number(e.target.value) })}
+                    className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+                </div>
+              </div>
+
+              {/* ═══ VWAP / TWAP SETTINGS ═══ */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <h4 className="text-xs font-semibold text-amber-400 mb-3 flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="4,18 8,12 12,14 16,8 20,10" />
+                  </svg>
+                  VWAP / TWAP
+                </h4>
+
+                {/* VWAP */}
+                <div className="mb-4 pb-3 border-b border-[var(--border)]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium text-[var(--text-secondary)]">VWAP</span>
+                    <button
+                      onClick={() => settings.setFeatures({ showVWAP: !(settings.features.showVWAP !== false) })}
+                      className={`w-10 h-5 rounded-full transition-all ${
+                        settings.features.showVWAP !== false ? 'bg-amber-500' : 'bg-[var(--surface-elevated)]'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
+                        settings.features.showVWAP !== false ? 'translate-x-5' : 'translate-x-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                  {settings.features.showVWAP !== false && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11px] text-[var(--text-muted)] w-12">Color</label>
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.vwapColor || '#e2b93b' }} />
+                        <input type="color" value={settings.features.vwapColor || '#e2b93b'}
+                          onChange={(e) => settings.setFeatures({ vwapColor: e.target.value })}
+                          className="flex-1 h-6 rounded cursor-pointer" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-[var(--text-muted)] mb-1">
+                          Width: {settings.features.vwapLineWidth || 2.5}px
+                        </label>
+                        <input type="range" min={1} max={5} step={0.5}
+                          value={settings.features.vwapLineWidth || 2.5}
+                          onChange={(e) => settings.setFeatures({ vwapLineWidth: Number(e.target.value) })}
+                          className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-[var(--text-muted)]">Show Label</span>
+                        <button
+                          onClick={() => settings.setFeatures({ vwapShowLabel: !(settings.features.vwapShowLabel !== false) })}
+                          className={`w-10 h-5 rounded-full transition-all ${
+                            settings.features.vwapShowLabel !== false ? 'bg-amber-500' : 'bg-[var(--surface-elevated)]'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
+                            settings.features.vwapShowLabel !== false ? 'translate-x-5' : 'translate-x-0.5'
+                          }`} />
+                        </button>
+                      </div>
+                      {/* VWAP Bands */}
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] text-[var(--text-muted)]">Std Dev Bands</span>
+                          <button
+                            onClick={() => settings.setFeatures({ showVWAPBands: !settings.features.showVWAPBands })}
+                            className={`w-10 h-5 rounded-full transition-all ${
+                              settings.features.showVWAPBands ? 'bg-amber-500' : 'bg-[var(--surface-elevated)]'
+                            }`}
+                          >
+                            <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
+                              settings.features.showVWAPBands ? 'translate-x-5' : 'translate-x-0.5'
+                            }`} />
+                          </button>
+                        </div>
+                        {settings.features.showVWAPBands && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-[var(--text-muted)]">Bands:</span>
+                              {[1, 2, 3].map(n => {
+                                const multipliers = settings.features.vwapBandMultipliers || [1, 2];
+                                const active = multipliers.includes(n);
+                                return (
+                                  <button key={n} onClick={() => {
+                                    const newMults = active
+                                      ? multipliers.filter((m: number) => m !== n)
+                                      : [...multipliers, n].sort((a: number, b: number) => a - b);
+                                    settings.setFeatures({ vwapBandMultipliers: newMults });
+                                  }}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                                      active ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-[var(--text-muted)] border border-transparent'
+                                    }`}
+                                  >{n}σ</button>
+                                );
+                              })}
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-[var(--text-muted)] mb-1">
+                                Fill Opacity: {Math.round((settings.features.vwapBandOpacity ?? 0.06) * 100)}%
+                              </label>
+                              <input type="range" min={0} max={0.3} step={0.01}
+                                value={settings.features.vwapBandOpacity ?? 0.06}
+                                onChange={(e) => settings.setFeatures({ vwapBandOpacity: Number(e.target.value) })}
+                                className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* TWAP */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium text-[var(--text-secondary)]">TWAP</span>
+                    <button
+                      onClick={() => settings.setFeatures({ showTWAP: !(settings.features.showTWAP !== false) })}
+                      className={`w-10 h-5 rounded-full transition-all ${
+                        settings.features.showTWAP !== false ? 'bg-blue-500' : 'bg-[var(--surface-elevated)]'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
+                        settings.features.showTWAP !== false ? 'translate-x-5' : 'translate-x-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                  {settings.features.showTWAP !== false && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11px] text-[var(--text-muted)] w-12">Color</label>
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.twapColor || '#5eaeff' }} />
+                        <input type="color" value={settings.features.twapColor || '#5eaeff'}
+                          onChange={(e) => settings.setFeatures({ twapColor: e.target.value })}
+                          className="flex-1 h-6 rounded cursor-pointer" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-[var(--text-muted)] mb-1">
+                          Width: {settings.features.twapLineWidth || 2}px
+                        </label>
+                        <input type="range" min={1} max={5} step={0.5}
+                          value={settings.features.twapLineWidth || 2}
+                          onChange={(e) => settings.setFeatures({ twapLineWidth: Number(e.target.value) })}
+                          className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-[var(--text-muted)]">Show Label</span>
+                        <button
+                          onClick={() => settings.setFeatures({ twapShowLabel: !(settings.features.twapShowLabel !== false) })}
+                          className={`w-10 h-5 rounded-full transition-all ${
+                            settings.features.twapShowLabel !== false ? 'bg-blue-500' : 'bg-[var(--surface-elevated)]'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
+                            settings.features.twapShowLabel !== false ? 'translate-x-5' : 'translate-x-0.5'
+                          }`} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -752,20 +1024,529 @@ export default function FootprintAdvancedSettings({
                   ))}
                 </div>
               </div>
+
+              {/* Font Settings */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-3">Font</h4>
+
+                {/* Font Family */}
+                <div className="mb-3">
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Font Family</label>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { id: 'consolas', label: 'Consolas', value: '"Consolas", "Monaco", "Courier New", monospace' },
+                      { id: 'monaco', label: 'Monaco', value: '"Monaco", "Consolas", monospace' },
+                      { id: 'menlo', label: 'Menlo', value: '"Menlo", "Consolas", monospace' },
+                      { id: 'system', label: 'System', value: 'ui-monospace, monospace' },
+                    ].map(font => (
+                      <button
+                        key={font.id}
+                        onClick={() => settings.setFonts({ volumeFont: font.value, deltaFont: font.value, priceFont: font.value })}
+                        className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all
+                          ${settings.fonts.volumeFont.includes(font.id === 'system' ? 'ui-monospace' : font.label)
+                            ? 'border-[var(--primary)] bg-green-500/20 text-[var(--primary)]'
+                            : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]'
+                          }`}
+                        style={{ fontFamily: font.value }}
+                      >
+                        {font.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Font Size */}
+                <div className="mb-3">
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">
+                    Volume Font Size: {settings.fonts.volumeFontSize}px
+                  </label>
+                  <input
+                    type="range"
+                    min={8}
+                    max={14}
+                    value={settings.fonts.volumeFontSize}
+                    onChange={(e) => settings.setFonts({ volumeFontSize: Number(e.target.value) })}
+                    className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                </div>
+
+                {/* Bold Toggle */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[var(--text-muted)]">Bold Volume Text</span>
+                  <button
+                    onClick={() => settings.setFonts({ volumeFontBold: !settings.fonts.volumeFontBold })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.fonts.volumeFontBold ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.fonts.volumeFontBold ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid Opacity */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">
+                  Grid Opacity: {Math.round((settings.colors.gridOpacity ?? 0.4) * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round((settings.colors.gridOpacity ?? 0.4) * 100)}
+                  onChange={(e) => settings.setColors({ gridOpacity: Number(e.target.value) / 100 })}
+                  className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+              </div>
             </div>
           )}
 
           {/* Features Settings */}
-          {activeTab === 'features' && (
+          {activeTab === 'indicators' && (
+            <div className="space-y-4">
+              {/* CVD Oscillator Panel */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">CVD Panel</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showCVDPanel: !settings.features.showCVDPanel })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showCVDPanel ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showCVDPanel ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.showCVDPanel && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] text-[var(--text-muted)] w-12">Color</label>
+                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.cvdLineColor || '#22c55e' }} />
+                      <input type="color" value={settings.features.cvdLineColor || '#22c55e'}
+                        onChange={(e) => settings.setFeatures({ cvdLineColor: e.target.value })}
+                        className="flex-1 h-6 rounded cursor-pointer" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-[var(--text-muted)] mb-1">
+                        Height: {settings.features.cvdPanelHeight || 70}px
+                      </label>
+                      <input type="range" min={40} max={120} step={5}
+                        value={settings.features.cvdPanelHeight || 70}
+                        onChange={(e) => settings.setFeatures({ cvdPanelHeight: Number(e.target.value) })}
+                        className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-green-500" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* TPO / Market Profile */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">TPO / Market Profile</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showTPO: !settings.features.showTPO } as any)}
+                    className={`w-10 h-5 rounded-full transition-all ${(settings.features as any).showTPO ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${(settings.features as any).showTPO ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {(settings.features as any).showTPO && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-[var(--text-muted)]">Period:</span>
+                      {([30, 60] as const).map(p => (
+                        <button key={p} onClick={() => settings.setFeatures({ tpoPeriod: p } as any)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                            ((settings.features as any).tpoPeriod || 30) === p
+                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                              : 'text-[var(--text-muted)] border border-transparent'
+                          }`}
+                        >{p}min</button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-[var(--text-muted)]">Mode:</span>
+                      {(['letters', 'histogram'] as const).map(m => (
+                        <button key={m} onClick={() => settings.setFeatures({ tpoMode: m } as any)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all capitalize ${
+                            ((settings.features as any).tpoMode || 'letters') === m
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                              : 'text-[var(--text-muted)] border border-transparent'
+                          }`}
+                        >{m}</button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-[var(--text-muted)]">Position:</span>
+                      {(['left', 'right'] as const).map(pos => (
+                        <button key={pos} onClick={() => settings.setFeatures({ tpoPosition: pos } as any)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all capitalize ${
+                            ((settings.features as any).tpoPosition || 'right') === pos
+                              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                              : 'text-[var(--text-muted)] border border-transparent'
+                          }`}
+                        >{pos}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Heatmap Cells */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Heatmap Cells</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showHeatmapCells: !settings.features.showHeatmapCells })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showHeatmapCells ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showHeatmapCells ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.showHeatmapCells && (
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">
+                      Intensity: {Math.round((settings.features.heatmapIntensity || 0.4) * 100)}%
+                    </label>
+                    <input
+                      type="range" min={10} max={100}
+                      value={Math.round((settings.features.heatmapIntensity || 0.4) * 100)}
+                      onChange={(e) => settings.setFeatures({ heatmapIntensity: Number(e.target.value) / 100 })}
+                      className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Developing POC */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Developing POC</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showDevelopingPOC: !settings.features.showDevelopingPOC })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showDevelopingPOC ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showDevelopingPOC ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.showDevelopingPOC && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] text-[var(--text-muted)]">Color</label>
+                    <input
+                      type="color"
+                      value={settings.features.developingPOCColor || '#fbbf24'}
+                      onChange={(e) => settings.setFeatures({ developingPOCColor: e.target.value })}
+                      className="w-8 h-6 rounded cursor-pointer bg-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Large Trade Highlight */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Large Trades</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showLargeTradeHighlight: !settings.features.showLargeTradeHighlight })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showLargeTradeHighlight ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showLargeTradeHighlight ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.showLargeTradeHighlight && (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[11px] text-[var(--text-muted)] mb-1">
+                        Multiplier: {(settings.features.largeTradeMultiplier || 2.0).toFixed(1)}x
+                      </label>
+                      <input
+                        type="range" min={10} max={50} step={5}
+                        value={Math.round((settings.features.largeTradeMultiplier || 2.0) * 10)}
+                        onChange={(e) => settings.setFeatures({ largeTradeMultiplier: Number(e.target.value) / 10 })}
+                        className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-yellow-500"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] text-[var(--text-muted)]">Color</label>
+                      <input
+                        type="color"
+                        value={settings.features.largeTradeColor || '#ffd700'}
+                        onChange={(e) => settings.setFeatures({ largeTradeColor: e.target.value })}
+                        className="w-8 h-6 rounded cursor-pointer bg-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Stacked Imbalances */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Stacked Imbalances</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showStackedImbalances: !settings.features.showStackedImbalances })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showStackedImbalances ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showStackedImbalances ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.showStackedImbalances && (
+                  <div>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">
+                      Min Consecutive: {settings.features.stackedImbalanceMin || 3}
+                    </label>
+                    <input
+                      type="range" min={2} max={10}
+                      value={settings.features.stackedImbalanceMin || 3}
+                      onChange={(e) => settings.setFeatures({ stackedImbalanceMin: Number(e.target.value) })}
+                      className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Naked POC */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Naked POC</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showNakedPOC: !settings.features.showNakedPOC })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showNakedPOC ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showNakedPOC ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.showNakedPOC && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] text-[var(--text-muted)]">Color</label>
+                    <input
+                      type="color"
+                      value={settings.features.nakedPOCColor || '#fbbf24'}
+                      onChange={(e) => settings.setFeatures({ nakedPOCColor: e.target.value })}
+                      className="w-8 h-6 rounded cursor-pointer bg-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Unfinished Auctions */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Unfinished Auctions</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showUnfinishedAuctions: !settings.features.showUnfinishedAuctions })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showUnfinishedAuctions ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showUnfinishedAuctions ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Session Separators */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Session Separators</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showSessionSeparators: !settings.features.showSessionSeparators })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showSessionSeparators ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showSessionSeparators ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.showSessionSeparators && settings.features.customSessions && (
+                  <div className="space-y-2 mt-2">
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {settings.features.customSessions.map((session: any, idx: number) => (
+                      <div key={session.id} className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const updated = [...settings.features.customSessions];
+                            updated[idx] = { ...updated[idx], enabled: !updated[idx].enabled };
+                            settings.setFeatures({ customSessions: updated });
+                          }}
+                          className={`w-8 h-4 rounded-full transition-all flex-shrink-0 ${
+                            session.enabled ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'
+                          }`}
+                        >
+                          <div className={`w-3 h-3 rounded-full bg-white shadow transform transition-transform ${
+                            session.enabled ? 'translate-x-4' : 'translate-x-0.5'
+                          }`} />
+                        </button>
+                        <span className="text-[10px] text-[var(--text-secondary)] w-14">{session.label}</span>
+                        <input type="color" value={session.color}
+                          onChange={(e) => {
+                            const updated = [...settings.features.customSessions];
+                            updated[idx] = { ...updated[idx], color: e.target.value };
+                            settings.setFeatures({ customSessions: updated });
+                          }}
+                          className="w-5 h-5 rounded cursor-pointer bg-transparent flex-shrink-0" />
+                        <span className="text-[9px] text-[var(--text-muted)]">
+                          {String(session.startUTC).padStart(2, '0')}:00-{String(session.endUTC).padStart(2, '0')}:00 UTC
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bid/Ask Spread */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">Bid/Ask Spread</h4>
+                  <button
+                    onClick={() => settings.setFeatures({ showSpread: !settings.features.showSpread })}
+                    className={`w-10 h-5 rounded-full transition-all ${settings.features.showSpread ? 'bg-green-500' : 'bg-[var(--surface-elevated)]'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${settings.features.showSpread ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Volume Filter */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Volume Filter</h4>
+                <div className="mb-2">
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1">
+                    Threshold: {settings.features.volumeFilterThreshold || 0}{settings.features.volumeFilterMode === 'relative' ? '%' : ''}
+                  </label>
+                  <input
+                    type="range" min={0} max={settings.features.volumeFilterMode === 'relative' ? 50 : 100}
+                    value={settings.features.volumeFilterThreshold || 0}
+                    onChange={(e) => settings.setFeatures({ volumeFilterThreshold: Number(e.target.value) })}
+                    className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+                <div className="flex gap-1.5">
+                  {(['relative', 'absolute'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => settings.setFeatures({ volumeFilterMode: mode, volumeFilterThreshold: 0 })}
+                      className={`flex-1 py-1 px-2 rounded-lg border text-[10px] font-medium transition-all capitalize
+                        ${(settings.features.volumeFilterMode || 'relative') === mode
+                          ? 'border-orange-500 bg-orange-500/20 text-orange-400'
+                          : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]'
+                        }`}
+                    >
+                      {mode === 'relative' ? '% of Max' : 'Absolute'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'features' && (() => {
+            const FEATURE_LABELS: Record<string, string> = {
+              showGrid: 'Grid Lines',
+              showOHLC: 'OHLC Candles',
+              showDeltaProfile: 'Delta Profile',
+              showPOC: 'Point of Control',
+              showImbalances: 'Imbalance Highlights',
+              showCurrentPrice: 'Current Price Line',
+              showVolumeProfile: 'Volume Profile (VAH/VAL)',
+              showDeltaPerLevel: 'Delta Per Level',
+              showTotalDelta: 'Total Delta Bar',
+              showClusterStatic: 'Cluster Panel (Bottom)',
+              showVWAPTWAP: 'VWAP / TWAP',
+              showHourMarkers: 'Hour Markers',
+              showPassiveLiquidity: 'Passive Liquidity',
+            };
+            const indicatorKeys = [
+              'showHeatmapCells', 'showDevelopingPOC', 'showLargeTradeHighlight',
+              'showStackedImbalances', 'showNakedPOC', 'showUnfinishedAuctions',
+              'showSpread', 'showSessionSeparators', 'showAbsorptionEvents',
+              'showVWAP', 'showTWAP', 'vwapShowLabel', 'twapShowLabel',
+              'clusterDisplayMode', 'showCVDPanel', 'showVWAPBands', 'showTPO',
+              'aggregationMode', 'tickBarSize', 'volumeBarSize',
+            ];
+            return (
             <div className="space-y-3">
-              {Object.entries(settings.features).map(([key, value]) => (
+              {/* Cluster Display Mode Selector */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Cluster Display Mode</h4>
+                <div className="grid grid-cols-4 gap-1">
+                  {([
+                    { value: 'bid-ask', label: 'Bid x Ask' },
+                    { value: 'delta', label: 'Delta' },
+                    { value: 'volume', label: 'Volume' },
+                    { value: 'bid-ask-split', label: 'Bid | Ask' },
+                  ] as const).map(mode => (
+                    <button
+                      key={mode.value}
+                      onClick={() => settings.setFeatures({ clusterDisplayMode: mode.value })}
+                      className={`px-2 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
+                        (settings.features.clusterDisplayMode ?? 'bid-ask') === mode.value
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-transparent hover:border-[var(--border)]'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bar Aggregation Mode */}
+              <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Bar Aggregation Mode</h4>
+                <div className="grid grid-cols-3 gap-1">
+                  {([
+                    { value: 'time', label: 'Time' },
+                    { value: 'tick', label: 'Tick' },
+                    { value: 'volume', label: 'Volume' },
+                  ] as const).map(mode => (
+                    <button
+                      key={mode.value}
+                      onClick={() => settings.setFeatures({ aggregationMode: mode.value })}
+                      className={`px-2 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
+                        (settings.features.aggregationMode ?? 'time') === mode.value
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-transparent hover:border-[var(--border)]'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+                {settings.features.aggregationMode === 'tick' && (
+                  <div className="mt-2">
+                    <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Trades per bar: {settings.features.tickBarSize}</label>
+                    <input
+                      type="range"
+                      min={50}
+                      max={5000}
+                      step={50}
+                      value={settings.features.tickBarSize}
+                      onChange={(e) => settings.setFeatures({ tickBarSize: Number(e.target.value) })}
+                      className="w-full h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                )}
+                {settings.features.aggregationMode === 'volume' && (
+                  <div className="mt-2">
+                    <label className="text-[10px] text-[var(--text-muted)] mb-1 block">Volume per bar: {settings.features.volumeBarSize}</label>
+                    <input
+                      type="range"
+                      min={10}
+                      max={10000}
+                      step={10}
+                      value={settings.features.volumeBarSize}
+                      onChange={(e) => settings.setFeatures({ volumeBarSize: Number(e.target.value) })}
+                      className="w-full h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {Object.entries(settings.features)
+                .filter(([key, value]) => {
+                  if (typeof value !== 'boolean') return false;
+                  return !indicatorKeys.includes(key);
+                })
+                .map(([key, value]) => (
                 <div
                   key={key}
                   className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]"
                 >
                   <div>
                     <h4 className="text-sm font-medium text-[var(--text-primary)]">
-                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
+                      {FEATURE_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
                     </h4>
                   </div>
                   <button
@@ -936,7 +1717,8 @@ export default function FootprintAdvancedSettings({
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Crosshair Settings */}
           {activeTab === 'crosshair' && (
@@ -1136,12 +1918,43 @@ export default function FootprintAdvancedSettings({
 
         {/* Footer */}
         <div className="px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)] flex items-center justify-between">
-          <button
-            onClick={() => settings.resetToDefaults()}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-          >
-            Reset
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => settings.resetToDefaults()}
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Reset
+            </button>
+            <button
+              onClick={() => {
+                const json = settings.exportSettings();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `footprint-settings-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Export
+            </button>
+            <label className="text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer">
+              Import
+              <input type="file" accept=".json" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const success = settings.importSettings(reader.result as string);
+                  if (!success) alert('Invalid settings file');
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+              }} />
+            </label>
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-light)] text-[var(--text-primary)] text-xs font-medium rounded-lg transition-colors"

@@ -319,13 +319,13 @@ export class TradeBubblesCommand {
   private calculateSize(rawSize: number, scaling: 'sqrt' | 'linear' | 'log'): number {
     switch (scaling) {
       case 'sqrt':
-        return Math.sqrt(rawSize) * 4;
+        return Math.sqrt(rawSize) * 6;
       case 'linear':
-        return rawSize * 0.5;
+        return rawSize * 0.6;
       case 'log':
-        return Math.log(rawSize + 1) * 8;
+        return Math.log(rawSize + 1) * 10;
       default:
-        return Math.sqrt(rawSize) * 4;
+        return Math.sqrt(rawSize) * 6;
     }
   }
 

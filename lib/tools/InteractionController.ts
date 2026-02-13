@@ -81,6 +81,13 @@ export class InteractionController {
   private chartBounds: DOMRect | null = null;
   private magnetMode: MagnetMode = 'none';
   private magnetThreshold: number = 30; // Pixels threshold for snapping (increased for better UX)
+  private stayInDrawingMode: boolean = false; // TradingView-style: keep tool active after drawing
+
+  // Performance optimization: throttle hover hit testing
+  private lastHoverCheckTime = 0;
+  private hoverCheckThrottleMs = 16; // ~60fps
+  private pendingHoverCheck: Point | null = null;
+  private hoverCheckTimeout: NodeJS.Timeout | null = null;
 
   constructor() {
     this.state = {
@@ -117,6 +124,14 @@ export class InteractionController {
 
   getMagnetMode(): MagnetMode {
     return this.magnetMode;
+  }
+
+  setStayInDrawingMode(enabled: boolean): void {
+    this.stayInDrawingMode = enabled;
+  }
+
+  getStayInDrawingMode(): boolean {
+    return this.stayInDrawingMode;
   }
 
   // ============ TOOL SELECTION ============
@@ -301,10 +316,33 @@ export class InteractionController {
 
       // Start drag if clicking on selected tool or handle
       if (hitResult.tool.selected || hitResult.handle) {
-        this.state.mode = 'dragging';
-        this.state.dragHandle = hitResult.handle;
-        engine.startDrag(hitResult.tool.id, hitResult.handle, point);
-        this.callbacks.onModeChanged?.('dragging');
+        // ✨ TradingView-style Alt-Drag Cloning
+        if (this.state.modifiers.alt && !hitResult.tool.locked) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Clone the tool (exclude metadata fields)
+          const { id, createdAt, updatedAt, selected, zIndex, ...toolData } = hitResult.tool;
+          const clonedTool = engine.addTool(toolData as any);
+
+          // Select the clone and start dragging it
+          engine.deselectAll();
+          engine.selectTool(clonedTool.id);
+          this.state.selectedToolId = clonedTool.id;
+          this.callbacks.onToolSelected?.(clonedTool);
+
+          // Start dragging the cloned tool (not the original)
+          this.state.mode = 'dragging';
+          this.state.dragHandle = hitResult.handle;
+          engine.startDrag(clonedTool.id, hitResult.handle, point);
+          this.callbacks.onModeChanged?.('dragging');
+        } else {
+          // Normal drag without Alt
+          this.state.mode = 'dragging';
+          this.state.dragHandle = hitResult.handle;
+          engine.startDrag(hitResult.tool.id, hitResult.handle, point);
+          this.callbacks.onModeChanged?.('dragging');
+        }
       } else {
         this.state.mode = 'selecting';
       }
@@ -363,8 +401,45 @@ export class InteractionController {
       return;
     }
 
-    // ---- IDLE MODE - Update cursor based on hit test ----
-    this.updateCursorForPosition(point);
+    // ---- IDLE MODE - Update cursor based on hit test (throttled) ----
+    this.updateCursorForPositionThrottled(point);
+  }
+
+  /**
+   * Throttled version of updateCursorForPosition for performance
+   * Only performs expensive hit testing at 60fps instead of every mouse move
+   */
+  private updateCursorForPositionThrottled(point: Point): void {
+    const now = Date.now();
+    const timeSinceLastCheck = now - this.lastHoverCheckTime;
+
+    if (timeSinceLastCheck >= this.hoverCheckThrottleMs) {
+      // Enough time has passed, check immediately
+      this.lastHoverCheckTime = now;
+      this.updateCursorForPosition(point);
+      this.pendingHoverCheck = null;
+
+      // Clear any pending timeout
+      if (this.hoverCheckTimeout) {
+        clearTimeout(this.hoverCheckTimeout);
+        this.hoverCheckTimeout = null;
+      }
+    } else {
+      // Too soon - queue this check for later
+      this.pendingHoverCheck = point;
+
+      // Only set timeout if not already pending
+      if (!this.hoverCheckTimeout) {
+        this.hoverCheckTimeout = setTimeout(() => {
+          if (this.pendingHoverCheck) {
+            this.lastHoverCheckTime = Date.now();
+            this.updateCursorForPosition(this.pendingHoverCheck);
+            this.pendingHoverCheck = null;
+          }
+          this.hoverCheckTimeout = null;
+        }, this.hoverCheckThrottleMs - timeSinceLastCheck);
+      }
+    }
   }
 
   handleMouseUp(e: MouseEvent | React.MouseEvent): void {
@@ -389,13 +464,18 @@ export class InteractionController {
         this.callbacks.onToolSelected?.(newTool);
       }
 
-      // Reset to idle mode but keep tool selected for modification
-      // User can click elsewhere, press ESC, or click another tool to deselect
+      // Reset to idle mode
       this.state.mode = 'idle';
-      this.state.activeTool = 'cursor';
-      engine.setActiveTool('cursor');
-      this.callbacks.onActiveToolChanged?.('cursor');
       this.callbacks.onModeChanged?.('idle');
+
+      // TradingView-style: if stay-in-drawing-mode is enabled, keep the tool active
+      if (!this.stayInDrawingMode) {
+        // Return to cursor after drawing
+        this.state.activeTool = 'cursor';
+        engine.setActiveTool('cursor');
+        this.callbacks.onActiveToolChanged?.('cursor');
+      }
+      // else: keep activeTool unchanged for next drawing
     }
 
     // ---- FINISH DRAGGING ----
@@ -498,6 +578,71 @@ export class InteractionController {
       engine.redo();
       this.callbacks.requestRedraw?.();
       return true;
+    }
+
+    // Duplicate selected tool (Ctrl+D / Cmd+D)
+    if (e.key.toLowerCase() === 'd' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      const selected = engine.getSelectedTools();
+
+      if (selected.length > 0) {
+        const clonedIds: string[] = [];
+
+        for (const tool of selected) {
+          // Extract props without id/metadata
+          const { id, createdAt, updatedAt, selected: _, zIndex, ...toolData } = tool;
+
+          // Clone with offset for visibility (simplified - works for most tools)
+          const cloned = engine.addTool({
+            ...toolData,
+          } as any);
+
+          clonedIds.push(cloned.id);
+        }
+
+        // Select clones
+        engine.deselectAll();
+        clonedIds.forEach(id => engine.selectTool(id, true));
+        this.callbacks.requestRedraw?.();
+        return true;
+      }
+    }
+
+    // TradingView-style single-letter tool shortcuts
+    // Only trigger if no input/textarea is focused
+    const activeEl = document.activeElement;
+    const isInputFocused =
+      activeEl instanceof HTMLInputElement ||
+      activeEl instanceof HTMLTextAreaElement ||
+      activeEl?.getAttribute('contenteditable') === 'true';
+
+    if (!isInputFocused && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+      const TOOL_SHORTCUTS: Record<string, ToolType> = {
+        'v': 'cursor',
+        'c': 'crosshair',
+        't': 'trendline',
+        'h': 'horizontalLine',
+        'e': 'horizontalRay', // Extended horizontal
+        'i': 'verticalLine',
+        'r': 'rectangle',
+        'p': 'parallelChannel',
+        'f': 'fibRetracement',
+        'l': 'longPosition',
+        's': 'shortPosition',
+        'a': 'arrow',
+        'b': 'brush',
+        'n': 'text', // Note
+        'm': 'measure',
+      };
+
+      const toolType = TOOL_SHORTCUTS[e.key.toLowerCase()];
+      if (toolType) {
+        e.preventDefault();
+        this.setActiveTool(toolType);
+        engine.setActiveTool(toolType);
+        this.callbacks.onActiveToolChanged?.(toolType);
+        return true;
+      }
     }
 
     return false;

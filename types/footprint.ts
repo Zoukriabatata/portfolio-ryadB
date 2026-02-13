@@ -136,6 +136,14 @@ export interface NakedPOC {
   tested: boolean;         // Has price revisited this level?
 }
 
+export interface UnfinishedAuction {
+  price: number;
+  side: 'high' | 'low';
+  candleTime: number;
+  volume: number;
+  tested: boolean;
+}
+
 export interface VolumeCluster {
   priceStart: number;
   priceEnd: number;

@@ -224,7 +224,7 @@ export default function AdvancedChartSettings({
   return (
     <div
       ref={modalRef}
-      className="fixed z-[1000] select-none"
+      className="fixed z-[50] select-none"
       style={{
         left: position.x,
         top: position.y,

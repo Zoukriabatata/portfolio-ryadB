@@ -119,9 +119,11 @@ export interface OrderflowTheme {
 export const ATAS_GRADIENT_BID: HeatmapGradient = {
   name: 'ATAS Bid',
   stops: [
-    { position: 0.0, color: '#0a0c10' },    // Transparent/dark
-    { position: 0.15, color: '#0d3320' },   // Very dark teal
-    { position: 0.3, color: '#115e38' },    // Dark teal
+    { position: 0.0, color: '#0a0c10' },    // Background (0% intensity)
+    { position: 0.03, color: '#0c1a14' },   // Barely visible tint at 3%
+    { position: 0.08, color: '#0d2a1a' },   // Subtle green at 8%
+    { position: 0.2, color: '#0d3320' },    // Dark teal
+    { position: 0.35, color: '#115e38' },   // Medium dark teal
     { position: 0.5, color: '#16a34a' },    // Medium green
     { position: 0.7, color: '#22c55e' },    // Bright green
     { position: 0.85, color: '#4ade80' },   // Light green
@@ -132,9 +134,11 @@ export const ATAS_GRADIENT_BID: HeatmapGradient = {
 export const ATAS_GRADIENT_ASK: HeatmapGradient = {
   name: 'ATAS Ask',
   stops: [
-    { position: 0.0, color: '#0a0c10' },    // Transparent/dark
-    { position: 0.15, color: '#450a0a' },   // Very dark red
-    { position: 0.3, color: '#7f1d1d' },    // Dark red
+    { position: 0.0, color: '#0a0c10' },    // Background (0% intensity)
+    { position: 0.03, color: '#140c0c' },   // Barely visible tint at 3%
+    { position: 0.08, color: '#1f0e0e' },   // Subtle red at 8%
+    { position: 0.2, color: '#450a0a' },    // Dark red
+    { position: 0.35, color: '#7f1d1d' },   // Medium dark red
     { position: 0.5, color: '#dc2626' },    // Medium red
     { position: 0.7, color: '#ef4444' },    // Bright red
     { position: 0.85, color: '#f87171' },   // Light red
@@ -206,10 +210,12 @@ export const BOOKMAP_GRADIENT_BID: HeatmapGradient = {
   name: 'Bookmap Bid',
   stops: [
     { position: 0.0, color: '#000814' },
-    { position: 0.2, color: '#003566' },
-    { position: 0.4, color: '#0077b6' },
-    { position: 0.6, color: '#00b4d8' },
-    { position: 0.8, color: '#48cae4' },
+    { position: 0.05, color: '#001233' },  // Visible blue tint early
+    { position: 0.15, color: '#002855' },
+    { position: 0.3, color: '#003566' },
+    { position: 0.5, color: '#0077b6' },
+    { position: 0.7, color: '#00b4d8' },
+    { position: 0.85, color: '#48cae4' },
     { position: 1.0, color: '#90e0ef' },
   ],
 };
@@ -218,10 +224,12 @@ export const BOOKMAP_GRADIENT_ASK: HeatmapGradient = {
   name: 'Bookmap Ask',
   stops: [
     { position: 0.0, color: '#000814' },
-    { position: 0.2, color: '#6b2737' },
-    { position: 0.4, color: '#a4133c' },
-    { position: 0.6, color: '#c9184a' },
-    { position: 0.8, color: '#ff4d6d' },
+    { position: 0.05, color: '#1a0a14' },  // Visible pink tint early
+    { position: 0.15, color: '#3d1525' },
+    { position: 0.3, color: '#6b2737' },
+    { position: 0.5, color: '#a4133c' },
+    { position: 0.7, color: '#c9184a' },
+    { position: 0.85, color: '#ff4d6d' },
     { position: 1.0, color: '#ff758f' },
   ],
 };
@@ -427,9 +435,11 @@ export const THEME_HIGHCONTRAST: OrderflowTheme = {
 export const SENZOUKRIA_GRADIENT_BID: HeatmapGradient = {
   name: 'Senzoukria Bid',
   stops: [
-    { position: 0.0, color: '#060a08' },    // Dark forest
-    { position: 0.15, color: '#0d2a10' },   // Very dark green
-    { position: 0.3, color: '#1a5a18' },    // Dark green
+    { position: 0.0, color: '#060a08' },    // Dark forest (0%)
+    { position: 0.03, color: '#081208' },   // Barely visible at 3%
+    { position: 0.08, color: '#0a1e0a' },   // Subtle lime at 8%
+    { position: 0.2, color: '#0d2a10' },    // Very dark green
+    { position: 0.35, color: '#1a5a18' },   // Dark green
     { position: 0.5, color: '#4a9a1a' },    // Medium lime
     { position: 0.7, color: '#7ed321' },    // Senku lime
     { position: 0.85, color: '#a3e635' },   // Bright lime
@@ -440,9 +450,11 @@ export const SENZOUKRIA_GRADIENT_BID: HeatmapGradient = {
 export const SENZOUKRIA_GRADIENT_ASK: HeatmapGradient = {
   name: 'Senzoukria Ask',
   stops: [
-    { position: 0.0, color: '#060a08' },    // Dark forest
-    { position: 0.15, color: '#3a0a0a' },   // Very dark red
-    { position: 0.3, color: '#6e1818' },    // Dark red
+    { position: 0.0, color: '#060a08' },    // Dark forest (0%)
+    { position: 0.03, color: '#100808' },   // Barely visible at 3%
+    { position: 0.08, color: '#1e0a0a' },   // Subtle red at 8%
+    { position: 0.2, color: '#3a0a0a' },    // Very dark red
+    { position: 0.35, color: '#6e1818' },   // Dark red
     { position: 0.5, color: '#c03030' },    // Medium red
     { position: 0.7, color: '#e04040' },    // Warm red
     { position: 0.85, color: '#f06060' },   // Light red

@@ -67,8 +67,13 @@ export class Canvas2DOverlay {
       this.ctx.font = font;
       width = this.ctx.measureText(text).width;
       this.textWidthCache.set(key, width);
+      // FIFO eviction: delete oldest 50 entries when at capacity
       if (this.textWidthCache.size > 200) {
-        this.textWidthCache.clear();
+        let count = 0;
+        for (const k of this.textWidthCache.keys()) {
+          if (count++ >= 50) break;
+          this.textWidthCache.delete(k);
+        }
       }
     }
     return width;
@@ -102,10 +107,8 @@ export class Canvas2DOverlay {
     const { precision, tickSize } = this.labelOptions;
 
     if (precision === 'auto') {
-      // Calculate decimals from tick size
-      const tickStr = tickSize.toString();
-      const decimalIdx = tickStr.indexOf('.');
-      const decimals = decimalIdx === -1 ? 0 : tickStr.length - decimalIdx - 1;
+      // Use log10 for decimal places (handles scientific notation like 1e-6)
+      const decimals = tickSize >= 1 ? 0 : Math.max(0, -Math.floor(Math.log10(tickSize)));
       return price.toFixed(decimals);
     }
 
@@ -453,8 +456,22 @@ export class Canvas2DOverlay {
     x: number
   ): void {
     const { ctx, config } = this;
+    const labelHeight = config.fontSize + 6;
 
-    for (const level of levels) {
+    // Sort by Y position for consistent collision avoidance
+    const sorted = [...levels].sort((a, b) => a.y - b.y);
+    const usedYPositions: number[] = [];
+
+    for (const level of sorted) {
+      // Collision avoidance: nudge down if overlapping
+      let drawY = level.y;
+      for (const usedY of usedYPositions) {
+        if (Math.abs(drawY - usedY) < labelHeight) {
+          drawY = usedY + labelHeight;
+        }
+      }
+      usedYPositions.push(drawY);
+
       const text = level.label || level.type.toUpperCase();
       const priceText = this.formatPrice(level.price);
 
@@ -467,24 +484,24 @@ export class Canvas2DOverlay {
       const height = config.fontSize + 4;
 
       // Background
-      ctx.fillStyle = level.color + '30'; // 30% opacity background
-      this.roundedRect(x - totalWidth - 4, level.y - height / 2, totalWidth, height, 3);
+      ctx.fillStyle = level.color + '30';
+      this.roundedRect(x - totalWidth - 4, drawY - height / 2, totalWidth, height, 3);
       ctx.fill();
 
       // Left border accent
       ctx.fillStyle = level.color;
-      ctx.fillRect(x - totalWidth - 4, level.y - height / 2, 2, height);
+      ctx.fillRect(x - totalWidth - 4, drawY - height / 2, 2, height);
 
       // Type label
       ctx.fillStyle = level.color;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(text, x - totalWidth, level.y);
+      ctx.fillText(text, x - totalWidth, drawY);
 
       // Price
       ctx.font = `${config.fontSize - 1}px ${config.font}`;
       ctx.fillStyle = '#e5e7eb';
-      ctx.fillText(priceText, x - priceWidth - 2, level.y);
+      ctx.fillText(priceText, x - priceWidth - 2, drawY);
     }
   }
 

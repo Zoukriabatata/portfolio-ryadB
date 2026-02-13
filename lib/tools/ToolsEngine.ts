@@ -32,10 +32,11 @@ export type ToolType =
   | 'measure'
   | 'longPosition'
   | 'shortPosition'
-  | 'text';
+  | 'text'
+  | 'ellipse';
 
 export type LineStyle = 'solid' | 'dashed' | 'dotted';
-export type HandlePosition = 'start' | 'end' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+export type HandlePosition = 'start' | 'end' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top' | 'bottom' | 'left' | 'right' | 'center';
 
 export interface Point {
   time: number;   // Unix timestamp (seconds)
@@ -183,6 +184,38 @@ export interface TextTool extends BaseTool {
   textAlign: 'left' | 'center' | 'right';
 }
 
+export interface ParallelChannelTool extends BaseTool {
+  type: 'parallelChannel';
+  startPoint: Point;
+  endPoint: Point;
+  channelWidth: number; // Price distance from main line to parallel line
+  extendLeft: boolean;
+  extendRight: boolean;
+}
+
+export interface FibExtensionTool extends BaseTool {
+  type: 'fibExtension';
+  point1: Point;  // Swing start
+  point2: Point;  // Swing end
+  point3: Point;  // Retracement end
+  levels: number[];
+  showLabels: boolean;
+  showPrices: boolean;
+}
+
+export interface MeasureTool extends BaseTool {
+  type: 'measure';
+  startPoint: Point;
+  endPoint: Point;
+}
+
+export interface EllipseTool extends BaseTool {
+  type: 'ellipse';
+  center: Point;
+  radiusTime: number;   // Horizontal radius in seconds
+  radiusPrice: number;  // Vertical radius in price units
+}
+
 export type Tool =
   | TrendLineTool
   | HorizontalLineTool
@@ -191,7 +224,11 @@ export type Tool =
   | RectangleTool
   | FibRetracementTool
   | PositionTool
-  | TextTool;
+  | TextTool
+  | ParallelChannelTool
+  | FibExtensionTool
+  | MeasureTool
+  | EllipseTool;
 
 // Preview tool types - same as Tool union but without id/timestamps
 export type PreviewTrendLineTool = Omit<TrendLineTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
@@ -202,6 +239,10 @@ export type PreviewRectangleTool = Omit<RectangleTool, 'id' | 'createdAt' | 'upd
 export type PreviewFibRetracementTool = Omit<FibRetracementTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
 export type PreviewPositionTool = Omit<PositionTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
 export type PreviewTextTool = Omit<TextTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
+export type PreviewParallelChannelTool = Omit<ParallelChannelTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
+export type PreviewFibExtensionTool = Omit<FibExtensionTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
+export type PreviewMeasureTool = Omit<MeasureTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
+export type PreviewEllipseTool = Omit<EllipseTool, 'id' | 'createdAt' | 'updatedAt' | 'selected' | 'zIndex'>;
 
 export type PreviewTool =
   | PreviewTrendLineTool
@@ -211,7 +252,11 @@ export type PreviewTool =
   | PreviewRectangleTool
   | PreviewFibRetracementTool
   | PreviewPositionTool
-  | PreviewTextTool;
+  | PreviewTextTool
+  | PreviewParallelChannelTool
+  | PreviewFibExtensionTool
+  | PreviewMeasureTool
+  | PreviewEllipseTool;
 
 export interface DrawingState {
   isDrawing: boolean;
@@ -269,6 +314,7 @@ export const DEFAULT_STYLES: Record<ToolType, ToolStyle> = {
     fillOpacity: 0.3
   },
   measure: { color: '#8b5cf6', lineWidth: 1, lineStyle: 'dashed' },
+  ellipse: { color: '#06b6d4', lineWidth: 1, lineStyle: 'solid', fillColor: '#06b6d4', fillOpacity: 0.08 },
   longPosition: {
     color: '#22c55e',
     lineWidth: 2,
@@ -325,6 +371,7 @@ export class ToolsEngine {
   private history: Tool[][] = [];
   private historyIndex: number = -1;
   private maxHistory: number = 50;
+  private customDefaultStyles: Map<ToolType, ToolStyle> = new Map();
 
   constructor() {
     this.drawingState = {
@@ -349,6 +396,9 @@ export class ToolsEngine {
       'drag:start', 'drag:update', 'drag:end'
     ];
     events.forEach(e => this.listeners.set(e, new Set()));
+
+    // Load custom default styles from localStorage
+    this.loadDefaultStyles();
   }
 
   // ============ TOOL CRUD ============
@@ -388,9 +438,11 @@ export class ToolsEngine {
   /**
    * Update a tool
    */
-  updateTool(id: string, updates: Partial<Tool>): Tool | null {
+  updateTool(id: string, updates: Partial<Tool>, saveToHistory = false): Tool | null {
     const tool = this.tools.get(id);
     if (!tool) return null;
+
+    if (saveToHistory) this.saveHistory();
 
     const updated = {
       ...tool,
@@ -687,7 +739,12 @@ export class ToolsEngine {
       case 'fibRetracement':
       case 'longPosition':
       case 'shortPosition':
+      case 'parallelChannel':
+      case 'measure':
+      case 'ellipse':
         return points.length >= 2;
+      case 'fibExtension':
+        return points.length >= 3;
       case 'horizontalLine':
       case 'horizontalRay':
       case 'verticalLine':
@@ -702,7 +759,7 @@ export class ToolsEngine {
    * Create tool data from points
    */
   private createToolFromPoints(type: ToolType, points: Point[]): PreviewTool | null {
-    const style = { ...DEFAULT_STYLES[type] };
+    const style = { ...this.getDefaultStyle(type) };
     const base = { style, visible: true, locked: false };
 
     switch (type) {
@@ -827,6 +884,52 @@ export class ToolsEngine {
           textAlign: 'left',
         };
 
+      case 'parallelChannel':
+        if (points.length < 2) return null;
+        return {
+          ...base,
+          type: 'parallelChannel',
+          startPoint: points[0],
+          endPoint: points[1],
+          channelWidth: points.length >= 3
+            ? Math.abs(points[2].price - points[0].price)
+            : Math.abs(points[1].price - points[0].price) * 0.5,
+          extendLeft: false,
+          extendRight: false,
+        };
+
+      case 'fibExtension':
+        if (points.length < 3) return null;
+        return {
+          ...base,
+          type: 'fibExtension',
+          point1: points[0],
+          point2: points[1],
+          point3: points[2],
+          levels: [0, 0.618, 1.0, 1.618, 2.618],
+          showLabels: true,
+          showPrices: true,
+        };
+
+      case 'measure':
+        if (points.length < 2) return null;
+        return {
+          ...base,
+          type: 'measure',
+          startPoint: points[0],
+          endPoint: points[1],
+        };
+
+      case 'ellipse':
+        if (points.length < 2) return null;
+        return {
+          ...base,
+          type: 'ellipse',
+          center: points[0],
+          radiusTime: Math.abs(points[1].time - points[0].time),
+          radiusPrice: Math.abs(points[1].price - points[0].price),
+        };
+
       default:
         return null;
     }
@@ -932,6 +1035,26 @@ export class ToolsEngine {
             topLeft: { ...orig.topLeft, time: orig.topLeft.time + deltaTime },
             bottomRight: { ...orig.bottomRight, price: orig.bottomRight.price + deltaPrice },
           };
+        } else if (handle === 'top') {
+          // Resize top edge (price only)
+          updates = {
+            topLeft: { ...orig.topLeft, price: orig.topLeft.price + deltaPrice },
+          };
+        } else if (handle === 'bottom') {
+          // Resize bottom edge (price only)
+          updates = {
+            bottomRight: { ...orig.bottomRight, price: orig.bottomRight.price + deltaPrice },
+          };
+        } else if (handle === 'left') {
+          // Resize left edge (time only)
+          updates = {
+            topLeft: { ...orig.topLeft, time: orig.topLeft.time + deltaTime },
+          };
+        } else if (handle === 'right') {
+          // Resize right edge (time only)
+          updates = {
+            bottomRight: { ...orig.bottomRight, time: orig.bottomRight.time + deltaTime },
+          };
         } else {
           // Move entire rectangle
           updates = {
@@ -1030,6 +1153,60 @@ export class ToolsEngine {
             startTime: orig.startTime + deltaTime,
             endTime: orig.endTime + deltaTime,
           };
+        }
+        break;
+      }
+
+      case 'parallelChannel': {
+        const orig = original as ParallelChannelTool;
+        if (handle === 'start') {
+          updates = { startPoint: { time: orig.startPoint.time + deltaTime, price: orig.startPoint.price + deltaPrice } };
+        } else if (handle === 'end') {
+          updates = { endPoint: { time: orig.endPoint.time + deltaTime, price: orig.endPoint.price + deltaPrice } };
+        } else {
+          updates = {
+            startPoint: { time: orig.startPoint.time + deltaTime, price: orig.startPoint.price + deltaPrice },
+            endPoint: { time: orig.endPoint.time + deltaTime, price: orig.endPoint.price + deltaPrice },
+          };
+        }
+        break;
+      }
+
+      case 'fibExtension': {
+        const orig = original as FibExtensionTool;
+        if (handle === 'start') {
+          updates = { point1: { time: orig.point1.time + deltaTime, price: orig.point1.price + deltaPrice } };
+        } else if (handle === 'end') {
+          updates = { point3: { time: orig.point3.time + deltaTime, price: orig.point3.price + deltaPrice } };
+        } else {
+          updates = {
+            point1: { time: orig.point1.time + deltaTime, price: orig.point1.price + deltaPrice },
+            point2: { time: orig.point2.time + deltaTime, price: orig.point2.price + deltaPrice },
+            point3: { time: orig.point3.time + deltaTime, price: orig.point3.price + deltaPrice },
+          };
+        }
+        break;
+      }
+
+      case 'measure': {
+        const orig = original as MeasureTool;
+        if (handle === 'start') {
+          updates = { startPoint: { time: orig.startPoint.time + deltaTime, price: orig.startPoint.price + deltaPrice } };
+        } else if (handle === 'end') {
+          updates = { endPoint: { time: orig.endPoint.time + deltaTime, price: orig.endPoint.price + deltaPrice } };
+        } else {
+          updates = {
+            startPoint: { time: orig.startPoint.time + deltaTime, price: orig.startPoint.price + deltaPrice },
+            endPoint: { time: orig.endPoint.time + deltaTime, price: orig.endPoint.price + deltaPrice },
+          };
+        }
+        break;
+      }
+
+      case 'ellipse': {
+        const orig = original as EllipseTool;
+        if (handle === 'center' || !handle) {
+          updates = { center: { time: orig.center.time + deltaTime, price: orig.center.price + deltaPrice } };
         }
         break;
       }
@@ -1290,6 +1467,86 @@ export class ToolsEngine {
         }
         break;
       }
+
+      case 'parallelChannel': {
+        const x1 = timeToX(tool.startPoint.time);
+        const y1 = priceToY(tool.startPoint.price);
+        const x2 = timeToX(tool.endPoint.time);
+        const y2 = priceToY(tool.endPoint.price);
+        const handleHitSize = 12;
+        if (Math.hypot(px - x1, py - y1) <= handleHitSize) return { tool, handle: 'start', distance: 0 };
+        if (Math.hypot(px - x2, py - y2) <= handleHitSize) return { tool, handle: 'end', distance: 0 };
+
+        // Main line
+        const dist1 = this.pointToLineDistance(px, py, x1, y1, x2, y2);
+        // Parallel line (offset by channelWidth)
+        const offsetY = priceToY(tool.startPoint.price + tool.channelWidth) - y1;
+        const dist2 = this.pointToLineDistance(px, py, x1, y1 + offsetY, x2, y2 + offsetY);
+        const minDist = Math.min(dist1, dist2);
+        if (minDist <= tolerance) return { tool, handle: null, distance: minDist };
+
+        // Inside channel
+        const channelMinY = Math.min(y1, y1 + offsetY, y2, y2 + offsetY);
+        const channelMaxY = Math.max(y1, y1 + offsetY, y2, y2 + offsetY);
+        const channelMinX = Math.min(x1, x2);
+        const channelMaxX = Math.max(x1, x2);
+        if (px >= channelMinX && px <= channelMaxX && py >= channelMinY && py <= channelMaxY) {
+          return { tool, handle: 'center', distance: 0 };
+        }
+        break;
+      }
+
+      case 'fibExtension': {
+        const x1 = timeToX(tool.point1.time);
+        const y1 = priceToY(tool.point1.price);
+        const x3 = timeToX(tool.point3.time);
+        const y3 = priceToY(tool.point3.price);
+        const handleHitSize = 12;
+        if (Math.hypot(px - x1, py - y1) <= handleHitSize) return { tool, handle: 'start', distance: 0 };
+        if (Math.hypot(px - x3, py - y3) <= handleHitSize) return { tool, handle: 'end', distance: 0 };
+
+        // Check extension level lines
+        const swing = tool.point2.price - tool.point1.price;
+        for (const level of (tool.levels || [0, 0.618, 1.0, 1.618, 2.618])) {
+          const levelPrice = tool.point3.price + swing * level;
+          const levelY = priceToY(levelPrice);
+          if (Math.abs(py - levelY) <= tolerance) return { tool, handle: null, distance: Math.abs(py - levelY) };
+        }
+        break;
+      }
+
+      case 'measure': {
+        const x1 = timeToX(tool.startPoint.time);
+        const y1 = priceToY(tool.startPoint.price);
+        const x2 = timeToX(tool.endPoint.time);
+        const y2 = priceToY(tool.endPoint.price);
+        const handleHitSize = 12;
+        if (Math.hypot(px - x1, py - y1) <= handleHitSize) return { tool, handle: 'start', distance: 0 };
+        if (Math.hypot(px - x2, py - y2) <= handleHitSize) return { tool, handle: 'end', distance: 0 };
+        const dist = this.pointToLineDistance(px, py, x1, y1, x2, y2);
+        if (dist <= tolerance) return { tool, handle: null, distance: dist };
+        break;
+      }
+
+      case 'ellipse': {
+        const cx = timeToX(tool.center.time);
+        const cy = priceToY(tool.center.price);
+        const rx = Math.abs(timeToX(tool.center.time + tool.radiusTime) - cx);
+        const ry = Math.abs(priceToY(tool.center.price + tool.radiusPrice) - cy);
+        if (rx === 0 || ry === 0) break;
+        // Normalized distance from center (1 = on ellipse edge)
+        const nx = (px - cx) / rx;
+        const ny = (py - cy) / ry;
+        const normDist = Math.sqrt(nx * nx + ny * ny);
+        // Hit on edge (between 0.8 and 1.2 normalized) or inside
+        if (Math.abs(normDist - 1) * Math.min(rx, ry) <= tolerance) {
+          return { tool, handle: null, distance: Math.abs(normDist - 1) * Math.min(rx, ry) };
+        }
+        if (normDist <= 1) {
+          return { tool, handle: 'center', distance: 0 };
+        }
+        break;
+      }
     }
 
     return null;
@@ -1330,7 +1587,7 @@ export class ToolsEngine {
     if (!tool.selected) return [];
 
     const handles: Handle[] = [];
-    const size = 10; // Larger handles for better visibility
+    const size = 7; // TradingView-style compact handles
 
     switch (tool.type) {
       case 'horizontalLine': {
@@ -1368,11 +1625,20 @@ export class ToolsEngine {
         const y1 = priceToY(tool.topLeft.price);
         const x2 = timeToX(tool.bottomRight.time);
         const y2 = priceToY(tool.bottomRight.price);
+        const centerX = (x1 + x2) / 2;
+        const centerY = (y1 + y2) / 2;
 
+        // Corner handles
         handles.push({ position: 'top-left', x: x1, y: y1, size, cursor: 'nw-resize' });
         handles.push({ position: 'top-right', x: x2, y: y1, size, cursor: 'ne-resize' });
         handles.push({ position: 'bottom-left', x: x1, y: y2, size, cursor: 'sw-resize' });
         handles.push({ position: 'bottom-right', x: x2, y: y2, size, cursor: 'se-resize' });
+
+        // Edge handles (center of each side)
+        handles.push({ position: 'top', x: centerX, y: y1, size, cursor: 'ns-resize' });
+        handles.push({ position: 'right', x: x2, y: centerY, size, cursor: 'ew-resize' });
+        handles.push({ position: 'bottom', x: centerX, y: y2, size, cursor: 'ns-resize' });
+        handles.push({ position: 'left', x: x1, y: centerY, size, cursor: 'ew-resize' });
         break;
       }
 
@@ -1597,6 +1863,59 @@ export class ToolsEngine {
     this.cancelDrawing();
     this.endDrag();
     this.saveHistory();
+  }
+
+  // ============ DEFAULT STYLES MANAGEMENT ============
+
+  /**
+   * Set custom default style for a tool type
+   */
+  setDefaultStyle(type: ToolType, style: Partial<ToolStyle>): void {
+    const current = this.customDefaultStyles.get(type) || DEFAULT_STYLES[type];
+    this.customDefaultStyles.set(type, { ...current, ...style });
+    this.saveDefaultStyles();
+  }
+
+  /**
+   * Get default style for a tool type (custom or fallback to built-in)
+   */
+  getDefaultStyle(type: ToolType): ToolStyle {
+    return this.customDefaultStyles.get(type) || DEFAULT_STYLES[type];
+  }
+
+  /**
+   * Reset to built-in defaults
+   */
+  resetDefaultStyle(type: ToolType): void {
+    this.customDefaultStyles.delete(type);
+    this.saveDefaultStyles();
+  }
+
+  /**
+   * Save custom default styles to localStorage
+   */
+  private saveDefaultStyles(): void {
+    try {
+      const obj = Object.fromEntries(this.customDefaultStyles);
+      localStorage.setItem('toolDefaultStyles', JSON.stringify(obj));
+    } catch (e) {
+      console.error('Failed to save default styles:', e);
+    }
+  }
+
+  /**
+   * Load custom default styles from localStorage
+   */
+  private loadDefaultStyles(): void {
+    try {
+      const saved = localStorage.getItem('toolDefaultStyles');
+      if (saved) {
+        const obj = JSON.parse(saved);
+        this.customDefaultStyles = new Map(Object.entries(obj) as [ToolType, ToolStyle][]);
+      }
+    } catch (e) {
+      console.error('Failed to load default styles:', e);
+    }
   }
 }
 

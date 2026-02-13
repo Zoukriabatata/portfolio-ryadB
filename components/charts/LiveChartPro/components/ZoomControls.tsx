@@ -15,7 +15,7 @@ interface ZoomControlsProps {
 export default function ZoomControls({ onZoomIn, onZoomOut, onResetView, onScreenshot, theme }: ZoomControlsProps) {
   return (
     <div
-      className="absolute bottom-4 right-4 flex items-center gap-1 p-1 rounded-lg z-20"
+      className="absolute bottom-4 right-4 flex items-center gap-1 p-1 rounded-lg z-15"
       style={{
         backgroundColor: theme.colors.surface + 'dd',
         border: `1px solid ${theme.colors.border}`,

@@ -8,6 +8,7 @@ import { RenderContext } from './core/RenderContext';
 import { TextureManager } from './core/TextureManager';
 import { Canvas2DOverlay } from './Canvas2DOverlay';
 import { HeatmapCommand } from './commands/HeatmapCommand';
+import { PassiveOrderLinesCommand } from './commands/PassiveOrderLinesCommand';
 import { LinesCommand } from './commands/LinesCommand';
 import { TradeBubblesCommand } from './commands/TradeBubblesCommand';
 import { ProfileBarsCommand } from './commands/ProfileBarsCommand';
@@ -49,12 +50,12 @@ const DEFAULT_BUBBLE_SETTINGS = {
   glowIntensity: 0.6,
   showGradient: true,
   rippleEnabled: true,
-  largeTradeThreshold: 2.0,
+  largeTradeThreshold: 50,  // Normalized: top 50% of max trade = "large"
   sizeScaling: 'sqrt' as const,
   popInAnimation: true,
-  bubbleOpacity: 0.7,
-  maxSize: 50,
-  minSize: 8,
+  bubbleOpacity: 0.75,
+  maxSize: 60,   // Plan spec: 5px-60px range
+  minSize: 5,
 };
 
 export interface HybridRendererConfig {
@@ -141,6 +142,15 @@ export interface RenderData {
   deltaProfile?: {
     bars: { price: number; bidValue: number; askValue: number }[];
     maxValue: number;
+    settings?: {
+      mode?: 'mirrored' | 'stacked' | 'net';
+      opacity?: number;
+      bidColor?: string;
+      askColor?: string;
+      highlightPOC?: boolean;
+      showCenterLine?: boolean;
+      showLabels?: boolean;
+    };
   };
   volumeProfile?: {
     bars: { price: number; bidValue: number; askValue: number }[];
@@ -215,6 +225,9 @@ export interface RenderData {
     age: number; // 0-1 normalized age for fade-out
   }[];
 
+  // Passive order render mode
+  passiveRenderMode?: 'heatmap' | 'lines';
+
   // Settings
   contrast: number;
   upperCutoff: number;
@@ -227,6 +240,14 @@ export interface RenderData {
     buyColor?: string;
     sellColor?: string;
     gridColor?: string;
+  };
+
+  // Session stats (for stats bar display)
+  sessionStats?: {
+    delta: number;
+    deltaPercent: number;
+    totalTrades: number;
+    tradesPerSecond: number;
   };
 
   // Dirty flags (optional - for optimization)
@@ -246,6 +267,7 @@ export class HybridRenderer {
 
   // WebGL commands
   private heatmapCommand: HeatmapCommand | null = null;
+  private passiveOrderLinesCommand: PassiveOrderLinesCommand | null = null;
   private linesCommand: LinesCommand | null = null;
   private tradesBubblesCommand: TradeBubblesCommand | null = null;
   private profileBarsCommand: ProfileBarsCommand | null = null;
@@ -254,6 +276,12 @@ export class HybridRenderer {
   // Performance tracking
   private lastRenderTime: number = 0;
   private frameCount: number = 0;
+  private lastFps: number = 0;
+  private lastOrderCount: number = 0;
+
+  // WebGL context loss recovery
+  private contextLostHandler: ((e: Event) => void) | null = null;
+  private contextRestoredHandler: (() => void) | null = null;
 
   // Animation tracking (for trail effect)
   private animationStartTime: number = performance.now();
@@ -328,6 +356,7 @@ export class HybridRenderer {
 
       // Create render commands
       this.heatmapCommand = new HeatmapCommand(this.ctx, this.textureManager);
+      this.passiveOrderLinesCommand = new PassiveOrderLinesCommand(this.ctx, this.textureManager);
       this.linesCommand = new LinesCommand(this.ctx);
       this.tradesBubblesCommand = new TradeBubblesCommand(this.ctx);
       this.profileBarsCommand = new ProfileBarsCommand(this.ctx);
@@ -355,6 +384,39 @@ export class HybridRenderer {
     container.appendChild(this.overlay.element);
 
     this._isInitialized = true;
+
+    // WebGL context loss recovery
+    if (this.useWebGL && canvas) {
+      this.contextLostHandler = (e: Event) => {
+        e.preventDefault();
+        console.warn('[HybridRenderer] WebGL context lost');
+        this._isInitialized = false;
+      };
+      this.contextRestoredHandler = () => {
+        console.debug('[HybridRenderer] WebGL context restored, re-initializing...');
+        try {
+          this.ctx = new RenderContext(canvas);
+          this.ctx.resize(width, height, dpr!);
+          this.textureManager = new TextureManager(this.ctx);
+          this.textureManager.createBidGradient();
+          this.textureManager.createAskGradient();
+          this.projection = this.ctx.createProjection(width * dpr!, height * dpr!);
+          this.heatmapCommand = new HeatmapCommand(this.ctx, this.textureManager);
+          this.passiveOrderLinesCommand = new PassiveOrderLinesCommand(this.ctx, this.textureManager);
+          this.linesCommand = new LinesCommand(this.ctx);
+          this.tradesBubblesCommand = new TradeBubblesCommand(this.ctx);
+          this.profileBarsCommand = new ProfileBarsCommand(this.ctx);
+          this.keyLevelsCommand = new KeyLevelsCommand(this.ctx);
+          this._isInitialized = true;
+          console.debug('[HybridRenderer] WebGL context restored successfully');
+        } catch (err) {
+          console.error('[HybridRenderer] Failed to restore WebGL context:', err);
+          this.useWebGL = false;
+        }
+      };
+      canvas.addEventListener('webglcontextlost', this.contextLostHandler);
+      canvas.addEventListener('webglcontextrestored', this.contextRestoredHandler);
+    }
   }
 
   get isWebGL(): boolean {
@@ -368,7 +430,7 @@ export class HybridRenderer {
   /**
    * Set the color theme
    */
-  setTheme(themeName: 'atas' | 'bookmap' | 'sierra' | 'highcontrast'): void {
+  setTheme(themeName: 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast'): void {
     if (this.textureManager) {
       this.textureManager.setTheme(themeName);
     }
@@ -406,15 +468,19 @@ export class HybridRenderer {
     if (orders.length === 0) return 0;
     const first = orders[0];
     const last = orders[orders.length - 1];
-    // Sample middle element too to detect mid-array changes
     const midIdx = Math.floor(orders.length / 2);
     const mid = orders[midIdx];
+    // Sum total intensity to catch any change across the array
+    let intensitySum = 0;
+    for (let i = 0; i < orders.length; i++) {
+      intensitySum += orders[i].intensity;
+    }
     return orders.length * 10000000 +
       Math.round(first.price * 100) +
       Math.round(last.price * 100) * 1000 +
       Math.round(first.intensity * 100) * 10 +
       Math.round(mid.price * 100) * 100 +
-      Math.round(mid.intensity * 100);
+      Math.round(intensitySum * 10);
   }
 
   private computeTradesHash(trades: TradeData[]): number {
@@ -432,9 +498,15 @@ export class HybridRenderer {
     if (!bars || bars.length === 0) return 0;
     const first = bars[0];
     const last = bars[bars.length - 1];
-    return bars.length * 1000000 +
-      Math.round((first.bidValue + first.askValue) * 10) +
-      Math.round((last.bidValue + last.askValue) * 10) * 100;
+    const midIdx = Math.floor(bars.length / 2);
+    const mid = bars[midIdx];
+    const q1Idx = Math.floor(bars.length / 4);
+    const q1 = bars[q1Idx];
+    return bars.length * 100000000 +
+      Math.round((first.bidValue + first.askValue) * 100) +
+      Math.round((mid.bidValue + mid.askValue) * 100) * 1000 +
+      Math.round((last.bidValue + last.askValue) * 100) * 100000 +
+      Math.round((q1.bidValue + q1.askValue) * 100) * 10;
   }
 
   /**
@@ -600,9 +672,10 @@ export class HybridRenderer {
       }
     }
 
-    // 2. Render heatmap cells
-    if (this.heatmapCommand && data.passiveOrders.length > 0) {
-      const cellHeight = pixelHeight / ((data.priceMax - data.priceMin) / data.tickSize);
+    // 2. Render passive orders (lines or heatmap cells)
+    this.lastOrderCount = data.passiveOrders.length;
+    if (data.passiveOrders.length > 0) {
+      const renderMode = data.passiveRenderMode || 'heatmap';
 
       // Only re-transform if heatmap data changed
       if (shouldRenderHeatmap) {
@@ -610,24 +683,48 @@ export class HybridRenderer {
           ...order,
           x: order.x * dpr!,
           size: order.size * dpr!,
+          cellWidth: order.cellWidth ? order.cellWidth * dpr! : undefined,
         }));
       }
 
-      // Get passive order settings (with defaults)
       const passiveSettings = data.passiveOrderSettings || DEFAULT_PASSIVE_SETTINGS;
 
-      if (this.cachedTransformedOrders.length > 0) {
+      if (renderMode === 'lines' && this.passiveOrderLinesCommand && this.cachedTransformedOrders.length > 0) {
+        // Professional lines mode
+        this.passiveOrderLinesCommand.render(
+          {
+            orders: this.cachedTransformedOrders,
+            priceMin: data.priceMin,
+            priceMax: data.priceMax,
+            contrast: data.contrast,
+            upperCutoff: data.upperCutoff,
+            opacity: data.opacity ?? 0.8,
+            baseX: 0, // Adapter already includes margins in x positions
+            minLineWidth: 2 * dpr!,
+            maxLineWidth: 14 * dpr!,
+            glowEnabled: passiveSettings.glowEnabled,
+            glowIntensity: passiveSettings.glowIntensity,
+            animationTime: this.animationTime * passiveSettings.pulseSpeed,
+          },
+          this.projection,
+          [pixelWidth, pixelHeight]
+        );
+      } else if (this.heatmapCommand && this.cachedTransformedOrders.length > 0) {
+        // Classic heatmap cells mode - exactly one tick per cell
+        const ticksInRange = (data.priceMax - data.priceMin) / data.tickSize;
+        const cellHeight = pixelHeight / ticksInRange;
+        // Subtract 1px for gap between cells (Bookmap style), min 2px
+        const gapAdjustedHeight = Math.max(2, cellHeight - dpr!);
         this.heatmapCommand.render(
           {
             orders: this.cachedTransformedOrders,
             priceMin: data.priceMin,
             priceMax: data.priceMax,
-            cellHeight: Math.max(1, cellHeight),
+            cellHeight: gapAdjustedHeight,
             contrast: data.contrast,
             upperCutoff: data.upperCutoff,
             opacity: data.opacity ?? 0.8,
-            baseX: heatmapLeft,
-            // Enhanced passive order settings
+            baseX: 0, // Adapter already includes margins in x positions
             glowEnabled: passiveSettings.glowEnabled,
             glowIntensity: passiveSettings.glowIntensity,
             animationTime: this.animationTime * passiveSettings.pulseSpeed,
@@ -745,18 +842,21 @@ export class HybridRenderer {
       }
 
       if (this.cachedDeltaProfileBars.length > 0) {
+        const deltaSettings = data.deltaProfile.settings;
         this.profileBarsCommand.render(
           {
             bars: this.cachedDeltaProfileBars,
             priceMin: data.priceMin,
             priceMax: data.priceMax,
+            tickSize: data.tickSize,
             maxValue: data.deltaProfile.maxValue,
-            baseX: 4 * dpr!, // Small padding from edge
-            maxWidth: heatmapLeft - 8 * dpr!, // Leave padding on both sides
-            bidColor: colors.bidColor || '#10b981', // Emerald green (more vibrant)
-            askColor: colors.askColor || '#f43f5e', // Rose red (more vibrant)
-            opacity: 0.85,
+            baseX: 4 * dpr!,
+            maxWidth: heatmapLeft - 8 * dpr!,
+            bidColor: (deltaSettings?.bidColor) || colors.bidColor || '#10b981',
+            askColor: (deltaSettings?.askColor) || colors.askColor || '#f43f5e',
+            opacity: deltaSettings?.opacity ?? 0.85,
             side: 'left',
+            mode: deltaSettings?.mode ?? 'mirrored',
           },
           this.projection,
           pixelHeight
@@ -773,7 +873,7 @@ export class HybridRenderer {
       }
 
       if (this.cachedVolumeProfileBars.length > 0) {
-        const volumeProfileX = heatmapRight + 4 * dpr!; // Small padding
+        const volumeProfileX = heatmapRight + 4 * dpr!;
         const volumeProfileWidth = (priceAxisWidth || 60) * dpr! - 8 * dpr!;
 
         this.profileBarsCommand.render(
@@ -781,13 +881,15 @@ export class HybridRenderer {
             bars: this.cachedVolumeProfileBars,
             priceMin: data.priceMin,
             priceMax: data.priceMax,
+            tickSize: data.tickSize,
             maxValue: data.volumeProfile.maxValue,
             baseX: volumeProfileX,
-            maxWidth: volumeProfileWidth * 0.75, // Leave space for price labels
+            maxWidth: volumeProfileWidth * 0.75,
             bidColor: colors.bidColor || '#10b981',
             askColor: colors.askColor || '#f43f5e',
             opacity: 0.75,
             side: 'right',
+            mode: 'stacked',
           },
           this.projection,
           pixelHeight
@@ -824,13 +926,11 @@ export class HybridRenderer {
       );
     }
 
-    // Track performance
+    // Track performance (FPS counter for stats bar)
     this.frameCount++;
     const now = performance.now();
     if (now - this.lastRenderTime > 1000) {
-      if (this.frameCount > 0) {
-        console.debug(`[HybridRenderer] FPS: ${this.frameCount}`);
-      }
+      this.lastFps = this.frameCount;
       this.frameCount = 0;
       this.lastRenderTime = now;
     }
@@ -849,22 +949,25 @@ export class HybridRenderer {
     // Update label options from grid settings
     const gridSettings = data.gridSettings;
     if (gridSettings) {
+      const autoRoundInterval = data.tickSize >= 10 ? 1000 : data.tickSize >= 1 ? 100 : data.tickSize >= 0.1 ? 10 : data.tickSize >= 0.01 ? 1 : 0.1;
       this.overlay.setLabelOptions({
         precision: gridSettings.labelPrecision ?? 'auto',
         tickSize: data.tickSize,
         highlightRoundNumbers: gridSettings.highlightRoundNumbers ?? true,
-        roundNumberInterval: gridSettings.roundNumberInterval ?? 100,
+        roundNumberInterval: gridSettings.roundNumberInterval ?? autoRoundInterval,
         timeFormat: gridSettings.timeFormat ?? '24h',
         showTimezone: gridSettings.showTimezone ?? false,
         timezone: gridSettings.timezone ?? 'local',
       });
     } else {
-      // Default options
+      // Default options - adapt round number interval to tick size
+      // For BTC (tick=10) → 1000, ETH (tick=1) → 100, SOL (tick=0.1) → 10, XRP (tick=0.001) → 0.1
+      const roundInterval = data.tickSize >= 10 ? 1000 : data.tickSize >= 1 ? 100 : data.tickSize >= 0.1 ? 10 : data.tickSize >= 0.01 ? 1 : 0.1;
       this.overlay.setLabelOptions({
         precision: 'auto',
         tickSize: data.tickSize,
         highlightRoundNumbers: true,
-        roundNumberInterval: 100,
+        roundNumberInterval: roundInterval,
         timeFormat: '24h',
         showTimezone: false,
         timezone: 'local',
@@ -939,16 +1042,25 @@ export class HybridRenderer {
       }
     }
 
-    // Stats bar - show current price, spread, and counts
+    // Stats bar - show current price, spread, delta, trades/s, FPS
     const lastBidPrice = data.bestBidPoints?.length ? data.bestBidPoints[data.bestBidPoints.length - 1].price : 0;
     const lastAskPrice = data.bestAskPoints?.length ? data.bestAskPoints[data.bestAskPoints.length - 1].price : 0;
     const spread = lastAskPrice > 0 && lastBidPrice > 0 ? lastAskPrice - lastBidPrice : 0;
     const statsItems: { label: string; value: string; color?: string }[] = [];
+    statsItems.push({ label: 'FPS', value: this.lastFps.toString(), color: this.lastFps >= 50 ? '#22c55e' : this.lastFps >= 30 ? '#f59e0b' : '#ef4444' });
     if (lastBidPrice > 0) statsItems.push({ label: 'Bid', value: this.overlay.formatPrice(lastBidPrice), color: '#22c55e' });
     if (lastAskPrice > 0) statsItems.push({ label: 'Ask', value: this.overlay.formatPrice(lastAskPrice), color: '#ef4444' });
     if (spread > 0) statsItems.push({ label: 'Spread', value: this.overlay.formatPrice(spread) });
+    // Delta (buy - sell volume)
+    if (data.sessionStats) {
+      const delta = data.sessionStats.delta;
+      const deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1);
+      statsItems.push({ label: 'Delta', value: deltaStr, color: delta >= 0 ? '#22c55e' : '#ef4444' });
+      if (data.sessionStats.tradesPerSecond > 0) {
+        statsItems.push({ label: 'T/s', value: data.sessionStats.tradesPerSecond.toFixed(1) });
+      }
+    }
     statsItems.push({ label: 'Orders', value: data.passiveOrders.length.toString() });
-    statsItems.push({ label: 'Trades', value: data.trades.length.toString() });
     this.overlay.renderStatsBar(statsItems, height! - 12);
 
     // Imbalance markers (triangles at price levels)
@@ -1056,8 +1168,17 @@ export class HybridRenderer {
    * Destroy the renderer and release resources
    */
   destroy(): void {
+    // Remove context loss handlers
+    if (this.contextLostHandler && this.config.canvas) {
+      this.config.canvas.removeEventListener('webglcontextlost', this.contextLostHandler);
+      this.config.canvas.removeEventListener('webglcontextrestored', this.contextRestoredHandler!);
+      this.contextLostHandler = null;
+      this.contextRestoredHandler = null;
+    }
+
     // Destroy commands first
     this.heatmapCommand?.destroy();
+    this.passiveOrderLinesCommand?.destroy();
     this.linesCommand?.destroy();
     this.tradesBubblesCommand?.destroy();
     this.profileBarsCommand?.destroy();
@@ -1069,6 +1190,7 @@ export class HybridRenderer {
     this.overlay?.destroy();
 
     this.heatmapCommand = null;
+    this.passiveOrderLinesCommand = null;
     this.linesCommand = null;
     this.tradesBubblesCommand = null;
     this.profileBarsCommand = null;
@@ -1084,9 +1206,9 @@ export class HybridRenderer {
    */
   getStats(): { fps: number; webgl: boolean; orders: number } {
     return {
-      fps: this.frameCount,
+      fps: this.lastFps,
       webgl: this.useWebGL,
-      orders: 0,
+      orders: this.lastOrderCount,
     };
   }
 }

@@ -19,6 +19,8 @@ import type {
   PassiveOrderSettings,
   TimeSalesSettings,
   KeyLevelsSettings,
+  DeltaProfileSettings,
+  DeltaProfileMode,
 } from '@/types/heatmap';
 import {
   DEFAULT_HEATMAP_SETTINGS,
@@ -29,6 +31,7 @@ import {
   DEFAULT_PASSIVE_ORDER_SETTINGS,
   DEFAULT_TIME_SALES_SETTINGS,
   DEFAULT_KEY_LEVELS_SETTINGS,
+  DEFAULT_DELTA_PROFILE_SETTINGS,
 } from '@/types/heatmap';
 
 export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSettings {
@@ -172,9 +175,20 @@ export interface HeatmapSettingsState extends HeatmapSettings, HeatmapProSetting
   setShowKeyRoundNumbers: (show: boolean) => void;
   setKeyRoundNumberInterval: (interval: number) => void;
 
+  // Delta Profile Settings
+  setDeltaProfileSettings: (settings: Partial<DeltaProfileSettings>) => void;
+  setDeltaProfileMode: (mode: DeltaProfileMode) => void;
+  setDeltaProfileOpacity: (opacity: number) => void;
+  setDeltaProfileHighlightPOC: (highlight: boolean) => void;
+  setDeltaProfileShowCenterLine: (show: boolean) => void;
+  setDeltaProfileShowLabels: (show: boolean) => void;
+
   // WebGL Rendering
   useWebGL: boolean;
   setUseWebGL: (enabled: boolean) => void;
+
+  // Presets
+  applyPreset: (preset: 'bookmap' | 'atas' | 'minimal') => void;
 
   // Reset
   resetToDefaults: () => void;
@@ -623,10 +637,136 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
         },
       })),
 
+      // Delta Profile Settings
+      setDeltaProfileSettings: (settings) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          deltaProfile: { ...state.displayFeatures.deltaProfile, ...settings },
+        },
+      })),
+      setDeltaProfileMode: (mode) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          deltaProfile: { ...state.displayFeatures.deltaProfile, mode },
+        },
+      })),
+      setDeltaProfileOpacity: (opacity) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          deltaProfile: { ...state.displayFeatures.deltaProfile, opacity: Math.max(0.1, Math.min(1, opacity)) },
+        },
+      })),
+      setDeltaProfileHighlightPOC: (highlight) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          deltaProfile: { ...state.displayFeatures.deltaProfile, highlightPOC: highlight },
+        },
+      })),
+      setDeltaProfileShowCenterLine: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          deltaProfile: { ...state.displayFeatures.deltaProfile, showCenterLine: show },
+        },
+      })),
+      setDeltaProfileShowLabels: (show) => set((state) => ({
+        displayFeatures: {
+          ...state.displayFeatures,
+          deltaProfile: { ...state.displayFeatures.deltaProfile, showLabels: show },
+        },
+      })),
+
       // WebGL Rendering
       setUseWebGL: (enabled) => set({ useWebGL: enabled }),
 
       // Reset
+      applyPreset: (preset) => set((state) => {
+        switch (preset) {
+          case 'bookmap':
+            return {
+              colorScheme: 'bookmap' as ColorScheme,
+              contrast: 2.0,
+              upperCutoffPercent: 80,
+              displayFeatures: {
+                ...state.displayFeatures,
+                showDeltaProfile: true,
+                showVolumeProfile: false,
+                showVWAP: true,
+                showImbalances: false,
+                staircaseLine: {
+                  ...state.displayFeatures.staircaseLine,
+                  showSpreadFill: true,
+                  showGlow: true,
+                  glowIntensity: 0.8,
+                  lineWidth: 3,
+                },
+                keyLevels: {
+                  ...state.displayFeatures.keyLevels,
+                  showPOC: true,
+                  showVAH: true,
+                  showVAL: true,
+                  showRoundNumbers: true,
+                },
+              },
+            };
+          case 'atas':
+            return {
+              colorScheme: 'atas' as ColorScheme,
+              contrast: 1.5,
+              upperCutoffPercent: 80,
+              displayFeatures: {
+                ...state.displayFeatures,
+                showDeltaProfile: true,
+                showVolumeProfile: true,
+                showVWAP: true,
+                showImbalances: true,
+                showAbsorption: true,
+                staircaseLine: {
+                  ...state.displayFeatures.staircaseLine,
+                  showSpreadFill: false,
+                  showGlow: false,
+                  lineWidth: 2,
+                },
+                keyLevels: {
+                  ...state.displayFeatures.keyLevels,
+                  showPOC: true,
+                  showVAH: true,
+                  showVAL: true,
+                  showRoundNumbers: true,
+                },
+              },
+            };
+          case 'minimal':
+            return {
+              colorScheme: 'atas' as ColorScheme,
+              contrast: 1.5,
+              upperCutoffPercent: 85,
+              displayFeatures: {
+                ...state.displayFeatures,
+                showDeltaProfile: false,
+                showVolumeProfile: false,
+                showVWAP: false,
+                showImbalances: false,
+                showAbsorption: false,
+                staircaseLine: {
+                  ...state.displayFeatures.staircaseLine,
+                  showSpreadFill: false,
+                  showGlow: false,
+                  lineWidth: 2,
+                },
+                keyLevels: {
+                  ...state.displayFeatures.keyLevels,
+                  showPOC: false,
+                  showVAH: false,
+                  showVAL: false,
+                  showSessionHighLow: false,
+                  showRoundNumbers: false,
+                },
+              },
+            };
+          default:
+            return {};
+        }
+      }),
       resetToDefaults: () => set({
         ...DEFAULT_HEATMAP_SETTINGS,
         ...DEFAULT_HEATMAP_PRO_SETTINGS,
@@ -695,6 +835,11 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
               ...DEFAULT_KEY_LEVELS_SETTINGS,
               ...(persisted?.displayFeatures?.keyLevels || {}),
             },
+            // Deep merge deltaProfile settings
+            deltaProfile: {
+              ...DEFAULT_DELTA_PROFILE_SETTINGS,
+              ...(persisted?.displayFeatures?.deltaProfile || {}),
+            },
           },
           // Deep merge domColors
           domColors: {
@@ -719,6 +864,7 @@ export const useColorScheme = () => useHeatmapSettingsStore((s) => s.colorScheme
 export const useZoomLevel = () => useHeatmapSettingsStore((s) => s.zoomLevel);
 export const usePriceOffset = () => useHeatmapSettingsStore((s) => s.priceOffset);
 export const useDisplayFeatures = () => useHeatmapSettingsStore((s) => s.displayFeatures);
+export const useDeltaProfileSettings = () => useHeatmapSettingsStore((s) => s.displayFeatures.deltaProfile);
 export const useTradeFlow = () => useHeatmapSettingsStore((s) => s.tradeFlow);
 export const useAutoCenter = () => useHeatmapSettingsStore((s) => s.autoCenter);
 export const useUseWebGL = () => useHeatmapSettingsStore((s) => s.useWebGL);

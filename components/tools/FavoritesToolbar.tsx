@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { type ToolType } from '@/lib/tools/ToolsEngine';
+import { getInteractionController } from '@/lib/tools/InteractionController';
 import {
   useFavoritesToolbarStore,
   type ToolbarPreset,
@@ -140,6 +141,7 @@ const TOOL_ICONS: Record<ToolType, React.FC<{ size?: number; color?: string }>> 
   brush: BrushIcon,
   highlighter: HighlighterIcon,
   measure: MeasureIcon,
+  ellipse: RectangleIcon, // Circle-ish icon placeholder
   longPosition: LongPositionIcon,
   shortPosition: ShortPositionIcon,
   text: TextIcon,
@@ -161,6 +163,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
   brush: 'Brush',
   highlighter: 'Highlighter',
   measure: 'Measure',
+  ellipse: 'Ellipse',
   longPosition: 'Long',
   shortPosition: 'Short',
   text: 'Text',
@@ -180,7 +183,7 @@ const TOOL_SHORTCUTS: Partial<Record<ToolType, string>> = {
 const TOOL_GROUPS: ToolType[][] = [
   ['cursor', 'crosshair'],
   ['trendline', 'ray', 'horizontalLine', 'horizontalRay', 'verticalLine'],
-  ['rectangle', 'parallelChannel'],
+  ['rectangle', 'parallelChannel', 'ellipse'],
   ['fibRetracement', 'fibExtension'],
   ['longPosition', 'shortPosition'],
   ['arrow', 'brush', 'highlighter', 'measure', 'text'],
@@ -228,6 +231,9 @@ export default function FavoritesToolbar({
 
   // Hover state for showing remove X
   const [hoveredTool, setHoveredTool] = useState<ToolType | null>(null);
+
+  // Stay-in-drawing-mode toggle (TradingView-style)
+  const [stayInDrawingMode, setStayInDrawingMode] = useState(false);
 
   // Inject animation styles
   useEffect(() => {
@@ -366,7 +372,7 @@ export default function FavoritesToolbar({
       <div
         ref={toolbarRef}
         className={`flex items-center justify-center ${
-          isFloating ? 'fixed z-[9999]' : ''
+          isFloating ? 'fixed z-[25]' : ''
         }`}
         style={{
           ...getPositionStyles(),
@@ -393,7 +399,7 @@ export default function FavoritesToolbar({
   return (
     <div
       ref={toolbarRef}
-      className={`select-none ${isFloating ? 'fixed z-[9999] cursor-move toolbar-float-in' : ''}`}
+      className={`select-none ${isFloating ? 'fixed z-[25] cursor-move toolbar-float-in' : ''}`}
       style={{
         ...getPositionStyles(),
         backgroundColor: isFloating ? 'color-mix(in srgb, var(--background) 92%, transparent)' : colors.surface,
@@ -525,6 +531,43 @@ export default function FavoritesToolbar({
             opacity: 0.6,
           }}
         />
+
+        {/* Lock Drawing Mode Button (TradingView-style) */}
+        <button
+          onClick={() => {
+            const newMode = !stayInDrawingMode;
+            setStayInDrawingMode(newMode);
+            const controller = getInteractionController();
+            if (controller) {
+              controller.setStayInDrawingMode(newMode);
+            }
+          }}
+          className={`relative flex items-center justify-center rounded-md transition-all ${
+            stayInDrawingMode
+              ? 'bg-green-500/20 hover:bg-green-500/30 hover:scale-105 active:scale-95'
+              : 'hover:bg-white/10 hover:scale-105 active:scale-95'
+          }`}
+          style={{
+            width: 30,
+            height: 30,
+            color: stayInDrawingMode ? colors.deltaPositive : colors.textMuted,
+          }}
+          data-tooltip={stayInDrawingMode ? 'Lock: ON (stay active)' : 'Lock: OFF (auto cursor)'}
+        >
+          {stayInDrawingMode ? (
+            // Locked icon
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          ) : (
+            // Unlocked icon
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+            </svg>
+          )}
+        </button>
 
         {/* Delete Tool Button */}
         <button

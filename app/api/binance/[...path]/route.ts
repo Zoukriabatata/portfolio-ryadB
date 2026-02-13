@@ -13,8 +13,8 @@ export async function GET(
   const searchParams = request.nextUrl.searchParams.toString();
   const market = request.headers.get('x-market') || 'futures';
 
-  // Public endpoints (no auth required) - historical data
-  const publicEndpoints = ['klines', 'exchangeInfo', 'ping', 'time'];
+  // Public endpoints (no auth required) - historical data + orderflow
+  const publicEndpoints = ['klines', 'exchangeInfo', 'ping', 'time', 'aggTrades', 'depth', 'ticker/24hr'];
   const isPublicEndpoint = publicEndpoints.some(endpoint => pathStr.includes(endpoint));
 
   let authResult: Awaited<ReturnType<typeof requireAuth>> | null = null;

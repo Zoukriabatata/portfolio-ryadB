@@ -510,10 +510,39 @@ export class LiveDataEngine {
     }
   }
 
+  // Adaptive normalization: windowed max over 60 seconds
+  private recentMaxSizes: number[] = new Array(60).fill(0);
+  private maxSizeIndex: number = 0;
+  private lastMaxUpdateTime: number = 0;
+  private currentSecondMax: number = 0;
+
   private calculateIntensity(size: number): number {
-    // Normalize volume to 0-1 range
-    const maxSize = this.config.baseLiquidity * 5;
-    return Math.min(1, Math.pow(size / maxSize, 0.6));
+    // Track max size within current second
+    if (size > this.currentSecondMax) {
+      this.currentSecondMax = size;
+    }
+
+    const now = Date.now();
+    // Rotate circular buffer once per second
+    if (now - this.lastMaxUpdateTime >= 1000) {
+      this.recentMaxSizes[this.maxSizeIndex] = this.currentSecondMax;
+      this.maxSizeIndex = (this.maxSizeIndex + 1) % 60;
+      this.currentSecondMax = size;
+      this.lastMaxUpdateTime = now;
+    }
+
+    // Use 95th percentile of recent max sizes as reference
+    const nonZero = this.recentMaxSizes.filter(s => s > 0);
+    let observedMax: number;
+    if (nonZero.length >= 3) {
+      nonZero.sort((a, b) => a - b);
+      observedMax = nonZero[Math.floor(nonZero.length * 0.95)];
+    } else {
+      observedMax = this.currentSecondMax;
+    }
+
+    const ref = Math.max(observedMax * 0.3, this.config.baseLiquidity);
+    return Math.min(1, Math.pow(size / ref, 0.6));
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -925,6 +954,9 @@ export class LiveDataEngine {
     }
   }
 
+  // Throttle for VAH/VAL calculation (expensive sort)
+  private lastVahValUpdate: number = 0;
+
   private updateSessionStats(now: number): void {
     const ss = this.state.sessionStats;
     const { midPrice, cumulativeLevels, trades } = this.state;
@@ -933,20 +965,16 @@ export class LiveDataEngine {
     ss.sessionHigh = Math.max(ss.sessionHigh, midPrice);
     ss.sessionLow = Math.min(ss.sessionLow, midPrice);
 
-    // Calculate totals from cumulative levels
+    // Incremental POC: track running max while computing totals
     let totalBuy = 0;
     let totalSell = 0;
     let maxVolumePrice = midPrice;
     let maxVolume = 0;
 
-    const volumeByPrice: { price: number; volume: number }[] = [];
-
     for (const [price, level] of cumulativeLevels) {
       const levelVolume = level.totalBuySize + level.totalSellSize;
       totalBuy += level.totalBuySize;
       totalSell += level.totalSellSize;
-
-      volumeByPrice.push({ price, volume: levelVolume });
 
       if (levelVolume > maxVolume) {
         maxVolume = levelVolume;
@@ -961,23 +989,27 @@ export class LiveDataEngine {
     ss.deltaPercent = ss.totalVolume > 0 ? (ss.delta / ss.totalVolume) * 100 : 0;
     ss.poc = maxVolumePrice;
 
-    // Calculate Value Area (70% of volume)
-    if (volumeByPrice.length > 0) {
+    // Throttled VAH/VAL: sort only once per second
+    if (now - this.lastVahValUpdate >= 1000 && cumulativeLevels.size > 0) {
+      this.lastVahValUpdate = now;
+      const volumeByPrice: { price: number; volume: number }[] = [];
+      for (const [price, level] of cumulativeLevels) {
+        volumeByPrice.push({ price, volume: level.totalBuySize + level.totalSellSize });
+      }
       volumeByPrice.sort((a, b) => b.volume - a.volume);
       const targetVolume = ss.totalVolume * 0.7;
       let accumulatedVolume = 0;
-      const valueAreaPrices: number[] = [];
+      let vah = 0, val = Infinity;
 
       for (const { price, volume } of volumeByPrice) {
         if (accumulatedVolume >= targetVolume) break;
-        valueAreaPrices.push(price);
+        if (price > vah) vah = price;
+        if (price < val) val = price;
         accumulatedVolume += volume;
       }
 
-      if (valueAreaPrices.length > 0) {
-        ss.vah = Math.max(...valueAreaPrices);
-        ss.val = Math.min(...valueAreaPrices);
-      }
+      if (vah > 0) ss.vah = vah;
+      if (val < Infinity) ss.val = val;
     }
 
     // Trade stats

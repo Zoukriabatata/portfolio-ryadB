@@ -41,6 +41,13 @@ import {
   getOptimizedFootprintService,
   resetOptimizedFootprintService,
 } from '@/lib/footprint';
+import { getFootprintRenderer, formatVolCluster } from '@/lib/footprint/FootprintCanvasRenderer';
+import { getFootprintCache } from '@/lib/footprint/FootprintCache';
+import {
+  calculateStackedImbalances,
+  calculateNakedPOCs,
+  calculateUnfinishedAuctions,
+} from '@/lib/footprint/FootprintIndicators';
 import {
   useFootprintSettingsStore,
   COLOR_PRESETS,
@@ -49,6 +56,15 @@ import {
 import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import { useTimezoneStore, TIMEZONES, type TimezoneId } from '@/stores/useTimezoneStore';
 import { useToolSettingsStore } from '@/stores/useToolSettingsStore';
+import { useAlertsStore } from '@/stores/useAlertsStore';
+import { buildTPOProfile } from '@/lib/profile/TPOEngine';
+import {
+  getFootprintWorkerManager,
+  resetFootprintWorkerManager,
+  type IndicatorsResult,
+} from '@/lib/footprint/workers/WorkerManager';
+import { BroadcastChannelManager } from '@/lib/sync/BroadcastChannelManager';
+import { useChartSyncStore } from '@/stores/useChartSyncStore';
 import ToolSettingsPanel from '@/components/tools/ToolSettingsPanel';
 const AdvancedToolSettingsModal = dynamic(() => import('@/components/tools/AdvancedToolSettingsModal'), { ssr: false });
 import LayoutManagerPanel from '@/components/tools/LayoutManagerPanel';
@@ -72,6 +88,8 @@ import {
   MagnetIcon,
   SettingsIcon,
   LayoutIcon,
+  CryptoIcon,
+  FuturesIcon,
 } from '@/components/ui/Icons';
 import { ContextMenu, createChartContextMenuItems, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { useChartTemplatesStore, type ChartTemplate } from '@/stores/useChartTemplatesStore';
@@ -80,8 +98,10 @@ import { SaveTemplateModal } from '@/components/modals/SaveTemplateModal';
 import dynamic from 'next/dynamic';
 const FootprintAdvancedSettings = dynamic(() => import('@/components/settings/FootprintAdvancedSettings'), { ssr: false });
 import ToolSettingsBar from '@/components/tools/ToolSettingsBar';
+import { UnifiedToolPropertiesPanel } from '@/components/tools/UnifiedToolPropertiesPanel';
 import { PriceCountdownCompact } from '@/components/trading/PriceCountdown';
 import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
+import FootprintReplayControls, { type ReplayState } from '@/components/charts/FootprintReplayControls';
 
 /**
  * FOOTPRINT CHART PRO - Style ATAS / NinjaTrader / TradingView
@@ -95,55 +115,127 @@ import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
 
 interface FootprintChartProProps {
   className?: string;
+  onSymbolChange?: (symbol: string) => void;
 }
 
-// Symbols - Crypto + CME Futures
+// Symbols - Crypto + CME Futures (flat list for lookups)
 const SYMBOLS = [
   // Crypto (Binance)
   { value: 'btcusdt', label: 'BTC/USDT', tickSize: 10, exchange: 'binance' },
-  // CME Index Futures - Tick = 0.25 points for all
-  { value: 'NQ', label: 'NQ (E-mini Nasdaq)', tickSize: 0.25, exchange: 'cme' },
-  { value: 'MNQ', label: 'MNQ (Micro Nasdaq)', tickSize: 0.25, exchange: 'cme' },
-  { value: 'ES', label: 'ES (E-mini S&P)', tickSize: 0.25, exchange: 'cme' },
-  { value: 'MES', label: 'MES (Micro S&P)', tickSize: 0.25, exchange: 'cme' },
-  // CME Other Futures
-  { value: 'YM', label: 'YM (E-mini Dow)', tickSize: 1, exchange: 'cme' },
-  { value: 'GC', label: 'GC (Gold)', tickSize: 0.1, exchange: 'cme' },
-  { value: 'CL', label: 'CL (Crude Oil)', tickSize: 0.01, exchange: 'cme' },
+  { value: 'ethusdt', label: 'ETH/USDT', tickSize: 1, exchange: 'binance' },
+  { value: 'solusdt', label: 'SOL/USDT', tickSize: 0.1, exchange: 'binance' },
+  { value: 'bnbusdt', label: 'BNB/USDT', tickSize: 1, exchange: 'binance' },
+  { value: 'xrpusdt', label: 'XRP/USDT', tickSize: 0.001, exchange: 'binance' },
+  { value: 'adausdt', label: 'ADA/USDT', tickSize: 0.001, exchange: 'binance' },
+  { value: 'dogeusdt', label: 'DOGE/USDT', tickSize: 0.0001, exchange: 'binance' },
+  { value: 'avaxusdt', label: 'AVAX/USDT', tickSize: 0.1, exchange: 'binance' },
+  { value: 'linkusdt', label: 'LINK/USDT', tickSize: 0.01, exchange: 'binance' },
+  { value: 'arbusdt', label: 'ARB/USDT', tickSize: 0.001, exchange: 'binance' },
+  { value: 'opusdt', label: 'OP/USDT', tickSize: 0.01, exchange: 'binance' },
+  { value: 'pepeusdt', label: 'PEPE/USDT', tickSize: 0.0000001, exchange: 'binance' },
+  // CME Index Futures
+  { value: 'NQ', label: 'E-mini Nasdaq', tickSize: 0.25, exchange: 'cme' },
+  { value: 'MNQ', label: 'Micro Nasdaq', tickSize: 0.25, exchange: 'cme' },
+  { value: 'ES', label: 'E-mini S&P', tickSize: 0.25, exchange: 'cme' },
+  { value: 'MES', label: 'Micro S&P', tickSize: 0.25, exchange: 'cme' },
+  { value: 'YM', label: 'E-mini Dow', tickSize: 1, exchange: 'cme' },
+  { value: 'GC', label: 'Gold', tickSize: 0.1, exchange: 'cme' },
+  { value: 'CL', label: 'Crude Oil', tickSize: 0.01, exchange: 'cme' },
+  { value: 'RTY', label: 'E-mini Russell', tickSize: 0.1, exchange: 'cme' },
+  { value: 'SI', label: 'Silver', tickSize: 0.005, exchange: 'cme' },
+  { value: 'NG', label: 'Natural Gas', tickSize: 0.001, exchange: 'cme' },
 ];
+
+// Symbol categories for the modal selector
+type FootprintAssetCategory = 'crypto' | 'futures';
+
+const FOOTPRINT_ASSET_CATEGORIES: { id: FootprintAssetCategory; label: string; Icon: React.FC<{ size?: number; color?: string }> }[] = [
+  { id: 'crypto', label: 'Crypto', Icon: CryptoIcon },
+  { id: 'futures', label: 'Futures', Icon: FuturesIcon },
+];
+
+const SYMBOL_CATEGORIES: Record<FootprintAssetCategory, Record<string, { value: string; label: string; exchange?: string }[]>> = {
+  crypto: {
+    'Major': [
+      { value: 'btcusdt', label: 'BTC/USDT' },
+      { value: 'ethusdt', label: 'ETH/USDT' },
+      { value: 'bnbusdt', label: 'BNB/USDT' },
+      { value: 'solusdt', label: 'SOL/USDT' },
+      { value: 'xrpusdt', label: 'XRP/USDT' },
+      { value: 'adausdt', label: 'ADA/USDT' },
+    ],
+    'Alt': [
+      { value: 'dogeusdt', label: 'DOGE/USDT' },
+      { value: 'avaxusdt', label: 'AVAX/USDT' },
+      { value: 'linkusdt', label: 'LINK/USDT' },
+      { value: 'arbusdt', label: 'ARB/USDT' },
+      { value: 'opusdt', label: 'OP/USDT' },
+      { value: 'pepeusdt', label: 'PEPE/USDT' },
+    ],
+  },
+  futures: {
+    'Index': [
+      { value: 'NQ', label: 'E-mini Nasdaq', exchange: 'CME' },
+      { value: 'MNQ', label: 'Micro Nasdaq', exchange: 'CME' },
+      { value: 'ES', label: 'E-mini S&P', exchange: 'CME' },
+      { value: 'MES', label: 'Micro S&P', exchange: 'CME' },
+      { value: 'YM', label: 'E-mini Dow', exchange: 'CBOT' },
+      { value: 'RTY', label: 'E-mini Russell', exchange: 'CME' },
+    ],
+    'Commodities': [
+      { value: 'GC', label: 'Gold', exchange: 'COMEX' },
+      { value: 'SI', label: 'Silver', exchange: 'COMEX' },
+      { value: 'CL', label: 'Crude Oil', exchange: 'NYMEX' },
+      { value: 'NG', label: 'Natural Gas', exchange: 'NYMEX' },
+    ],
+  },
+};
 
 // Timeframes (footprint compatible only - 15m+ removed, candles only)
 const TIMEFRAMES: TimeframeSeconds[] = [15, 30, 60, 180, 300];
+
+// Timeframe groups for visual separation (like LiveChartPro)
+const TF_GROUPS = {
+  seconds: [15, 30] as TimeframeSeconds[],
+  minutes: [60, 180, 300] as TimeframeSeconds[],
+};
 
 // Tick sizes by symbol (for footprint aggregation)
 // CME: 1 tick = 0.25 points (1 bid x 1 ask = 0.25)
 const TICK_SIZE_OPTIONS: Record<string, number[]> = {
   // Crypto
   btcusdt: [5, 10, 25, 50, 100],
-  // NQ/MNQ - tick = 0.25 points
+  ethusdt: [0.5, 1, 2, 5, 10],
+  solusdt: [0.05, 0.1, 0.25, 0.5, 1],
+  bnbusdt: [0.5, 1, 2, 5, 10],
+  xrpusdt: [0.001, 0.005, 0.01, 0.05, 0.1],
+  adausdt: [0.001, 0.005, 0.01, 0.05, 0.1],
+  dogeusdt: [0.0001, 0.0005, 0.001, 0.005, 0.01],
+  avaxusdt: [0.05, 0.1, 0.25, 0.5, 1],
+  linkusdt: [0.01, 0.05, 0.1, 0.25, 0.5],
+  arbusdt: [0.001, 0.005, 0.01, 0.05, 0.1],
+  opusdt: [0.005, 0.01, 0.05, 0.1, 0.25],
+  pepeusdt: [0.0000001, 0.0000005, 0.000001, 0.000005, 0.00001],
+  // CME Futures
   NQ: [0.25, 0.5, 1, 2, 4],
   MNQ: [0.25, 0.5, 1, 2, 4],
-  // ES/MES - tick = 0.25 points
   ES: [0.25, 0.5, 1, 2, 4],
   MES: [0.25, 0.5, 1, 2, 4],
-  // YM - tick = 1 point
   YM: [1, 2, 5, 10, 20],
-  // GC - tick = 0.10
   GC: [0.1, 0.2, 0.5, 1, 2],
-  // CL - tick = 0.01
   CL: [0.01, 0.02, 0.05, 0.1, 0.2],
+  RTY: [0.1, 0.2, 0.5, 1, 2],
+  SI: [0.005, 0.01, 0.025, 0.05, 0.1],
+  NG: [0.001, 0.005, 0.01, 0.025, 0.05],
 };
 
 // Map symbol to exchange for data source routing
 const SYMBOL_EXCHANGE: Record<string, 'binance' | 'cme'> = {
-  btcusdt: 'binance',
-  NQ: 'cme',
-  MNQ: 'cme',
-  ES: 'cme',
-  MES: 'cme',
-  YM: 'cme',
-  GC: 'cme',
-  CL: 'cme',
+  btcusdt: 'binance', ethusdt: 'binance', solusdt: 'binance', bnbusdt: 'binance',
+  xrpusdt: 'binance', adausdt: 'binance', dogeusdt: 'binance', avaxusdt: 'binance',
+  linkusdt: 'binance', arbusdt: 'binance', opusdt: 'binance', pepeusdt: 'binance',
+  NQ: 'cme', MNQ: 'cme', ES: 'cme', MES: 'cme',
+  YM: 'cme', GC: 'cme', CL: 'cme', RTY: 'cme', SI: 'cme', NG: 'cme',
 };
 
 // Map TF to Binance interval
@@ -153,7 +245,209 @@ const TF_TO_BINANCE: Record<number, string> = {
 };
 
 
-const FootprintChartPro = React.memo(function FootprintChartPro({ className }: FootprintChartProProps) {
+// Tool context menu items (adapted from LiveChartPro)
+function createToolContextMenuItems(
+  tool: Tool,
+  engine: ReturnType<typeof getToolsEngine>,
+  onCloseMenu: () => void,
+  onRenderTools: () => void
+): ContextMenuItem[] {
+  return [
+    {
+      id: 'tool-clone',
+      label: 'Clone',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+      ),
+      shortcut: 'Ctrl+D',
+      onClick: () => {
+        const { id, createdAt, updatedAt, selected, zIndex, ...toolData } = tool as any;
+        engine.addTool(toolData);
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'tool-delete',
+      label: 'Delete',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+        </svg>
+      ),
+      shortcut: 'Del',
+      danger: true,
+      onClick: () => {
+        engine.deleteTool(tool.id);
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    { id: 'separator-1', label: '', divider: true },
+    {
+      id: 'tool-lock',
+      label: tool.locked ? 'Unlock' : 'Lock',
+      icon: tool.locked ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 019.9-1"/>
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0110 0v4"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { locked: !tool.locked });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'tool-hide',
+      label: tool.visible !== false ? 'Hide' : 'Show',
+      icon: tool.visible !== false ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { visible: tool.visible === false });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    { id: 'separator-2', label: '', divider: true },
+    {
+      id: 'tool-bring-front',
+      label: 'Bring to Front',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <polyline points="17 11 12 6 7 11"/>
+          <polyline points="17 18 12 13 7 18"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { zIndex: 9999 });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'tool-send-back',
+      label: 'Send to Back',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <polyline points="7 13 12 18 17 13"/>
+          <polyline points="7 6 12 11 17 6"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { zIndex: 1 });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+  ];
+}
+
+// Magnet Toggle for Footprint (adapted from LiveChartPro MagnetToggle)
+const MAGNET_MODES = [
+  { value: 'none' as const, label: 'Off', desc: 'Free movement' },
+  { value: 'ohlc' as const, label: 'OHLC', desc: 'Snap to Open/High/Low/Close' },
+  { value: 'close' as const, label: 'Close', desc: 'Snap to Close price' },
+];
+
+function FootprintMagnetToggle({ colors }: { colors: { currentPriceColor: string; textSecondary: string; surface: string; gridColor: string; textPrimary: string; textMuted: string; background: string } }) {
+  const { magnetMode, setMagnetMode } = useCrosshairStore();
+  const [showMenu, setShowMenu] = useState(false);
+  const isActive = magnetMode !== 'none';
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShowMenu(!showMenu)}
+        className="w-8 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+        style={{
+          backgroundColor: isActive ? colors.currentPriceColor : 'transparent',
+          color: isActive ? '#fff' : colors.textSecondary,
+          boxShadow: isActive ? `0 0 15px ${colors.currentPriceColor}60` : 'none',
+        }}
+        title={`Magnet: ${magnetMode === 'none' ? 'Off' : magnetMode.toUpperCase()}`}
+      >
+        <MagnetIcon size={18} color={isActive ? '#fff' : colors.textSecondary} />
+      </button>
+      {showMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+          <div
+            className="absolute right-0 top-full mt-1 w-44 rounded-lg shadow-xl z-50 py-1"
+            style={{ backgroundColor: colors.surface, border: `1px solid ${colors.gridColor}` }}
+          >
+            <div className="px-2 py-1 text-[10px] font-semibold uppercase" style={{ color: colors.textMuted }}>
+              Magnet Mode
+            </div>
+            {MAGNET_MODES.map(mode => (
+              <button
+                key={mode.value}
+                onClick={() => { setMagnetMode(mode.value); setShowMenu(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs flex flex-col gap-0.5 transition-colors"
+                style={{
+                  backgroundColor: magnetMode === mode.value ? colors.currentPriceColor : 'transparent',
+                  color: magnetMode === mode.value ? '#fff' : colors.textPrimary,
+                }}
+              >
+                <span className="font-medium">{mode.label}</span>
+                <span className="text-[10px]" style={{ color: magnetMode === mode.value ? '#fff' : colors.textMuted }}>
+                  {mode.desc}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Zoom Controls for Footprint
+function FootprintZoomControls({ onZoomIn, onZoomOut, onResetView, colors }: {
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetView: () => void;
+  colors: { surface: string; gridColor: string; textSecondary: string };
+}) {
+  return (
+    <div
+      className="absolute bottom-4 right-4 flex items-center gap-1 p-1 rounded-lg z-15"
+      style={{ backgroundColor: colors.surface + 'dd', border: `1px solid ${colors.gridColor}` }}
+    >
+      <button onClick={onZoomIn} className="w-7 h-7 rounded flex items-center justify-center transition-all hover:scale-110 active:scale-95" style={{ color: colors.textSecondary }} title="Zoom In [+]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" /></svg>
+      </button>
+      <button onClick={onZoomOut} className="w-7 h-7 rounded flex items-center justify-center transition-all hover:scale-110 active:scale-95" style={{ color: colors.textSecondary }} title="Zoom Out [-]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" /></svg>
+      </button>
+      <div className="w-px h-5" style={{ backgroundColor: colors.gridColor }} />
+      <button onClick={onResetView} className="w-7 h-7 rounded flex items-center justify-center transition-all hover:scale-110 active:scale-95" style={{ color: colors.textSecondary }} title="Fit Content [Ctrl+0]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></svg>
+      </button>
+    </div>
+  );
+}
+
+const FootprintChartPro = React.memo(function FootprintChartPro({ className, onSymbolChange }: FootprintChartProProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const layoutEngineRef = useRef<FootprintLayoutEngine | null>(null);
@@ -170,6 +464,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
   const [tickSize, setTickSize] = useState(10);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadGenerationRef = useRef(0); // Guard against stale async loads
   const [activeTool, setActiveTool] = useState<ToolType>('cursor');
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [textEditorState, setTextEditorState] = useState<{
@@ -190,16 +486,47 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
   const [showLayoutManager, setShowLayoutManager] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; clickPrice?: number } | null>(null);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [advancedSettingsPosition, setAdvancedSettingsPosition] = useState({ x: 100, y: 100 });
   const [toolPosition, setToolPosition] = useState<{ x: number; y: number } | undefined>(undefined);
   const [toolSettingsModalPosition, setToolSettingsModalPosition] = useState({ x: 200, y: 150 });
 
+  // Symbol selector modal state
+  const [showSymbolSelector, setShowSymbolSelector] = useState(false);
+  const [assetCategory, setAssetCategory] = useState<FootprintAssetCategory>('crypto');
+  const [symbolSearchQuery, setSymbolSearchQuery] = useState('');
+
+  // Tool context menu state
+  const [toolContextMenu, setToolContextMenu] = useState<{ x: number; y: number; tool: Tool } | null>(null);
+  const [showToolProperties, setShowToolProperties] = useState(false);
+
   // Templates
   const { templates, saveTemplate, getTemplatesByType } = useChartTemplatesStore();
   const [showGrid, setShowGrid] = useState(settings.features.showGrid);
+
+  // Symbol selector: filtered symbols and label
+  const currentSymbolCategories = useMemo(() => {
+    return SYMBOL_CATEGORIES[assetCategory] || SYMBOL_CATEGORIES.crypto;
+  }, [assetCategory]);
+
+  const filteredSymbols = useMemo(() => {
+    if (!symbolSearchQuery.trim()) return currentSymbolCategories;
+    const query = symbolSearchQuery.toLowerCase();
+    const filtered: Record<string, { value: string; label: string; exchange?: string }[]> = {};
+    Object.entries(currentSymbolCategories).forEach(([category, symbols]) => {
+      const matches = symbols.filter(
+        s => s.label.toLowerCase().includes(query) || s.value.toLowerCase().includes(query)
+      );
+      if (matches.length > 0) filtered[category] = matches;
+    });
+    return filtered;
+  }, [symbolSearchQuery, currentSymbolCategories]);
+
+  const selectedSymbolLabel = useMemo(() => {
+    return SYMBOLS.find(s => s.value === symbol)?.label || symbol.toUpperCase();
+  }, [symbol]);
 
 
   // Refs
@@ -220,6 +547,46 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
   const vwapDataRef = useRef<{ price: number; time: number }[]>([]);
   const twapDataRef = useRef<{ price: number; time: number }[]>([]);
 
+  // Cell hover state for tooltip
+  const hoveredCellRef = useRef<{ candleIdx: number; price: number; level: PriceLevel; candleTotalVol: number } | null>(null);
+
+  // Absorption events for visual markers
+  const absorptionEventsRef = useRef<Array<{ price: number; volume: number; side: 'bid' | 'ask'; timestamp: number }>>([]);
+
+  // Replay mode state
+  const replayStateRef = useRef<{
+    active: boolean;
+    currentIndex: number;
+    speed: 1 | 2 | 5 | 10;
+    playing: boolean;
+    allCandles: FootprintCandle[];
+    liveCandlesBackup: FootprintCandle[];
+  }>({
+    active: false,
+    currentIndex: 0,
+    speed: 1,
+    playing: false,
+    allCandles: [],
+    liveCandlesBackup: [],
+  });
+  const replayIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const replayCallbacksRef = useRef<{
+    enter: () => void;
+    exit: () => void;
+    next: () => void;
+    prev: () => void;
+    play: () => void;
+    pause: () => void;
+  }>({ enter: () => {}, exit: () => {}, next: () => {}, prev: () => {}, play: () => {}, pause: () => {} });
+  const [replayActive, setReplayActive] = useState(false);
+  const [replayState, setReplayState] = useState<ReplayState>({
+    active: false,
+    currentIndex: 0,
+    totalCandles: 0,
+    speed: 1,
+    playing: false,
+  });
+
   // Passive liquidity hover state for debug tooltip
   const hoveredPassiveLevelRef = useRef<PassiveOrderLevel | null>(null);
   const passiveLevelBoundsRef = useRef<Array<{
@@ -229,6 +596,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
     width: number;
     height: number;
   }>>([]);
+
+  // Web Worker cached results for indicators
+  const workerIndicatorsRef = useRef<IndicatorsResult | null>(null);
+  const workerDataVersionRef = useRef<string>('');
+
+  // Multi-chart sync
+  const syncManagerRef = useRef<BroadcastChannelManager | null>(null);
+  const syncCrosshairRef = useRef<{ price: number; time: number; visible: boolean } | null>(null);
 
   // Drag state for panning and zooming
   const isDraggingRef = useRef(false);
@@ -299,6 +674,63 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       // Skip if typing in an input
       if (document.activeElement?.tagName === 'INPUT' ||
           document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Shift+R: Toggle replay mode
+      if (e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        if (replayStateRef.current.active) {
+          replayCallbacksRef.current.exit();
+        } else {
+          replayCallbacksRef.current.enter();
+        }
+        return;
+      }
+
+      // Escape: Exit replay mode
+      if (e.key === 'Escape' && replayStateRef.current.active) {
+        e.preventDefault();
+        replayCallbacksRef.current.exit();
+        return;
+      }
+
+      // Arrow keys during replay: step candles
+      if (replayStateRef.current.active) {
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          replayCallbacksRef.current.next();
+          return;
+        }
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          replayCallbacksRef.current.prev();
+          return;
+        }
+        if (e.key === ' ') {
+          e.preventDefault();
+          if (replayStateRef.current.playing) replayCallbacksRef.current.pause();
+          else replayCallbacksRef.current.play();
+          return;
+        }
+      }
+
+      // Ctrl+Z: Undo drawing tool action
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        getToolsEngine().undo();
+        return;
+      }
+      // Ctrl+Shift+Z: Redo drawing tool action
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        getToolsEngine().redo();
+        return;
+      }
+      // Ctrl+Y: Redo (alternative)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        getToolsEngine().redo();
         return;
       }
 
@@ -379,7 +811,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
   const loadHistory = useCallback(async (sym: string, tf: TimeframeSeconds): Promise<FootprintCandle[]> => {
     const exchange = SYMBOL_EXCHANGE[sym] || 'binance';
 
+    // Increment generation to invalidate previous loads
+    const generation = ++loadGenerationRef.current;
+
     setIsLoading(true);
+    setLoadError(null);
     setLoadingProgress(0);
     setLoadingMessage('Loading footprint data...');
 
@@ -398,9 +834,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
         totalHours: 6,    // 6h of real aggTrades
+        aggregationMode: settings.features.aggregationMode,
+        tickBarSize: settings.features.tickBarSize,
+        volumeBarSize: settings.features.volumeBarSize,
       });
 
       service.setProgressCallback((progress, message) => {
+        // Only update if this is still the current load
+        if (loadGenerationRef.current !== generation) return;
         setLoadingProgress(progress);
         setLoadingMessage(message);
       });
@@ -409,26 +850,54 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
 
       const candles = await service.loadOptimized();
 
+      // Guard: if symbol/timeframe changed during load, discard results
+      if (loadGenerationRef.current !== generation) {
+        console.log(`[FootprintChartPro] Stale load discarded (gen ${generation} vs ${loadGenerationRef.current})`);
+        return [];
+      }
+
       console.log(`[FootprintChartPro] ✓ Loaded ${candles.length} candles`);
+
+      // Cache closed candles for faster subsequent loads
+      if (candles.length > 0) {
+        getFootprintCache().storeCandles(sym, tf, candles).catch(() => {});
+      }
 
       return candles;
     } catch (error) {
       console.error('Failed to load footprint:', error);
+
+      // Only show error if this is still the current load
+      if (loadGenerationRef.current !== generation) return [];
+
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load data';
+      setLoadError(errorMsg);
       setLoadingMessage('Error loading data');
 
-      // Fallback to legacy service
-      const service = getFootprintDataService();
-      service.setImbalanceRatio(settings.imbalance.ratio);
+      // Auto-dismiss error after 10s
+      setTimeout(() => {
+        setLoadError(prev => prev === errorMsg ? null : prev);
+      }, 10000);
 
-      return await service.loadHistory({
-        symbol: sym,
-        timeframe: tf,
-        tickSize,
-        hoursBack: 4,
-        imbalanceRatio: settings.imbalance.ratio,
-      });
+      // Fallback to legacy service
+      try {
+        const service = getFootprintDataService();
+        service.setImbalanceRatio(settings.imbalance.ratio);
+
+        return await service.loadHistory({
+          symbol: sym,
+          timeframe: tf,
+          tickSize,
+          hoursBack: 4,
+          imbalanceRatio: settings.imbalance.ratio,
+        });
+      } catch {
+        return [];
+      }
     } finally {
-      setIsLoading(false);
+      if (loadGenerationRef.current === generation) {
+        setIsLoading(false);
+      }
     }
   }, [tickSize, settings.imbalance.ratio]);
 
@@ -436,6 +905,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
    * Canvas rendering
    */
   const renderCanvas = useCallback(() => {
+    const renderStartTime = performance.now();
     const canvas = canvasRef.current;
     const container = containerRef.current;
     const layout = layoutEngineRef.current;
@@ -1010,814 +1480,163 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       ctx.restore();
     }
 
-    // Render each visible candle
-    metrics.visibleCandles.forEach((candle, idx) => {
-      const fpX = layout.getFootprintX(idx, metrics);
+    // Render candles — modular renderer with single-pass cells + cached string formatting
+    const fpRenderer = getFootprintRenderer();
+    if (isFootprintMode) {
+      fpRenderer.renderFootprintCandles({
+        ctx, width, height, candles, metrics, layout, colors, fonts, features,
+        lod, zoom, rowH, fpWidth, ohlcWidth, tickSize, isFootprintMode,
+      });
+    } else {
+      fpRenderer.renderCandleMode(ctx, layout, metrics, colors, lod, footprintWidth);
+    }
 
-      // === OHLC CANDLE (only in footprint mode - thin candle on left) ===
-      if (features.showOHLC && isFootprintMode) {
-        const ohlcX = fpX;
-        const isBullish = candle.close >= candle.open;
-
-        const openY = layout.priceToY(candle.open, metrics);
-        const closeY = layout.priceToY(candle.close, metrics);
-        const highY = layout.priceToY(candle.high, metrics);
-        const lowY = layout.priceToY(candle.low, metrics);
-
-        const bodyTop = Math.min(openY, closeY);
-        const bodyHeight = Math.max(1, Math.abs(closeY - openY));
-        const bodyX = ohlcX + 2;
-        const bodyW = ohlcWidth - 4;
-
-        // Wick
-        ctx.strokeStyle = isBullish ? colors.candleUpWick : colors.candleDownWick;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(bodyX + bodyW / 2, highY);
-        ctx.lineTo(bodyX + bodyW / 2, lowY);
-        ctx.stroke();
-
-        // Body
-        ctx.fillStyle = isBullish ? colors.candleUpBody : colors.candleDownBody;
-        ctx.fillRect(bodyX, bodyTop, bodyW, bodyHeight);
-
-        // Border
-        ctx.strokeStyle = isBullish ? colors.candleUpBorder : colors.candleDownBorder;
-        ctx.strokeRect(bodyX, bodyTop, bodyW, bodyHeight);
-      }
-
-      // === FOOTPRINT CELLS (only in footprint mode) - ATAS Professional Style ===
-      if (isFootprintMode) {
-        const cellStartX = fpX + (features.showOHLC ? ohlcWidth : 0);
-        const centerX = cellStartX + fpWidth / 2;
-        const isBullish = candle.close >= candle.open;
-
-        // ═══════════════════════════════════════════════════════════════
-        // LAYER 1: CANDLE CONTAINER - ATAS Style with visible border
-        // ═══════════════════════════════════════════════════════════════
-        const containerX = cellStartX + 2;
-        const containerW = fpWidth - 4;
-        const containerTop = layout.priceToY(candle.high, metrics) - rowH / 2;
-        const containerBottom = layout.priceToY(candle.low, metrics) + rowH / 2;
-        const containerH = containerBottom - containerTop;
-
-        // Container background (configurable opacity)
-        const containerOpacity = colors.footprintContainerOpacity ?? 0.03;
-        ctx.fillStyle = isBullish ? colors.deltaPositive : colors.deltaNegative;
-        ctx.globalAlpha = containerOpacity;
-        ctx.fillRect(containerX, containerTop, containerW, containerH);
-        ctx.globalAlpha = 1;
-
-        // Container border - visible ATAS style
-        // Use white/light border like in the ATAS screenshots
-        ctx.strokeStyle = isBullish ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(containerX, containerTop, containerW, containerH);
-
-        // Left color indicator bar (like ATAS)
-        ctx.fillStyle = isBullish ? colors.deltaPositive : colors.deltaNegative;
-        ctx.fillRect(containerX, containerTop, 2, containerH);
-
-        // Calculate max volume for normalization
-        let maxLevelVol = 1;
-        candle.levels.forEach(level => {
-          maxLevelVol = Math.max(maxLevelVol, level.bidVolume, level.askVolume);
-        });
-
-        // ═══════════════════════════════════════════════════════════════
-        // LAYER 2: DELTA PROFILE BARS (Fill entire row height)
-        // ═══════════════════════════════════════════════════════════════
-        const barMaxW = (fpWidth / 2) - 8; // More space for bars
-
-        candle.levels.forEach((level, price) => {
-          const y = layout.priceToY(price, metrics);
-          if (y < footprintAreaY - rowH || y > footprintAreaY + footprintAreaHeight + rowH) return;
-
-          const cellY = y - rowH / 2;
-          const barH = rowH - 2; // Fill the row height with small padding
-
-          // Bid volume bar (left side, fills from center to left)
-          if (level.bidVolume > 0) {
-            const intensity = level.bidVolume / maxLevelVol;
-            const bidW = intensity * barMaxW;
-            ctx.fillStyle = colors.bidColor;
-            ctx.globalAlpha = 0.15 + intensity * 0.25; // Intensity-based opacity
-            ctx.fillRect(centerX - 2 - bidW, cellY + 1, bidW, barH);
-            ctx.globalAlpha = 1;
-          }
-
-          // Ask volume bar (right side, fills from center to right)
-          if (level.askVolume > 0) {
-            const intensity = level.askVolume / maxLevelVol;
-            const askW = intensity * barMaxW;
-            ctx.fillStyle = colors.askColor;
-            ctx.globalAlpha = 0.15 + intensity * 0.25; // Intensity-based opacity
-            ctx.fillRect(centerX + 2, cellY + 1, askW, barH);
-            ctx.globalAlpha = 1;
-          }
-        });
-
-        // ═══════════════════════════════════════════════════════════════
-        // LAYER 3: POC HIGHLIGHT (Before text)
-        // ═══════════════════════════════════════════════════════════════
-        if (features.showPOC && candle.poc) {
-          const pocY = layout.priceToY(candle.poc, metrics);
-          const pocCellY = pocY - rowH / 2;
-
-          // Subtle gold background
-          ctx.fillStyle = 'rgba(251, 191, 36, 0.08)';
-          ctx.fillRect(cellStartX + 2, pocCellY + 1, fpWidth - 4, rowH - 2);
-
-          // Gold left border (ATAS style indicator)
-          ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(cellStartX + 1, pocCellY + 2, 2, rowH - 4);
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // LAYER 4: TEXT (Foreground layer - render LAST)
-        // ═══════════════════════════════════════════════════════════════
-        const fontSize = Math.max(9, Math.min(11, Math.round(fonts.volumeFontSize * zoom)));
-        const monoFont = `${fontSize}px "Consolas", "Monaco", "Courier New", monospace`;
-        const boldMonoFont = `bold ${fontSize}px "Consolas", "Monaco", "Courier New", monospace`;
-
-        candle.levels.forEach((level, price) => {
-          const y = layout.priceToY(price, metrics);
-          if (y < footprintAreaY - rowH || y > footprintAreaY + footprintAreaHeight + rowH) return;
-
-          const isPOC = price === candle.poc;
-          const textY = y + fontSize / 3;
-
-          // ─────────────────────────────────────────────────────────────
-          // BID TEXT (Left side)
-          // ─────────────────────────────────────────────────────────────
-          if (level.bidVolume > 0) {
-            // ATAS-style: Imbalance = bright color on NUMBER, not background
-            if (features.showImbalances && level.imbalanceSell) {
-              // Sell imbalance: Bright red/magenta on bid number
-              ctx.fillStyle = '#ff4757';
-              ctx.font = boldMonoFont;
-            } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
-              ctx.font = isPOC ? boldMonoFont : monoFont;
-            }
-            ctx.textAlign = 'right';
-            ctx.fillText(formatVolATAS(level.bidVolume, zoom), centerX - 5, textY);
-          }
-
-          // ─────────────────────────────────────────────────────────────
-          // SEPARATOR (x) - White color
-          // ─────────────────────────────────────────────────────────────
-          ctx.fillStyle = '#ffffff';
-          ctx.globalAlpha = 0.6;
-          ctx.font = `${fontSize - 1}px monospace`;
-          ctx.textAlign = 'center';
-          ctx.fillText('x', centerX, textY);
-          ctx.globalAlpha = 1;
-
-          // ─────────────────────────────────────────────────────────────
-          // ASK TEXT (Right side)
-          // ─────────────────────────────────────────────────────────────
-          if (level.askVolume > 0) {
-            // ATAS-style: Imbalance = bright color on NUMBER, not background
-            if (features.showImbalances && level.imbalanceBuy) {
-              // Buy imbalance: Bright green/cyan on ask number
-              ctx.fillStyle = '#2ed573';
-              ctx.font = boldMonoFont;
-            } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
-              ctx.font = isPOC ? boldMonoFont : monoFont;
-            }
-            ctx.textAlign = 'left';
-            ctx.fillText(formatVolATAS(level.askVolume, zoom), centerX + 5, textY);
-          }
-        });
-      } else {
-        // === CANDLE MODE: Render clean candlestick with crisp pixel-perfect lines ===
-        const isBullish = candle.close >= candle.open;
-
-        // Use integer coordinates + 0.5 offset for crisp 1px lines
-        const openY = Math.round(layout.priceToY(candle.open, metrics));
-        const closeY = Math.round(layout.priceToY(candle.close, metrics));
-        const highY = Math.round(layout.priceToY(candle.high, metrics));
-        const lowY = Math.round(layout.priceToY(candle.low, metrics));
-
-        const bodyTop = Math.min(openY, closeY);
-        const bodyBottom = Math.max(openY, closeY);
-        const bodyHeight = Math.max(1, bodyBottom - bodyTop);
-        const candleWidth = Math.max(2, Math.round(footprintWidth * lod.candleBodyWidth));
-        const candleX = Math.round(fpX + (footprintWidth - candleWidth) / 2);
-        const centerX = Math.round(fpX + footprintWidth / 2) + 0.5; // +0.5 for crisp 1px line
-
-        // Wick - use 0.5 offset for crisp rendering
-        ctx.strokeStyle = isBullish ? colors.candleUpWick : colors.candleDownWick;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(centerX, highY + 0.5);
-        ctx.lineTo(centerX, lowY + 0.5);
-        ctx.stroke();
-
-        // Body
-        ctx.fillStyle = isBullish ? colors.candleUpBody : colors.candleDownBody;
-        ctx.fillRect(candleX, bodyTop, candleWidth, bodyHeight);
-
-        // Border - only if candle is wide enough
-        if (candleWidth > 3) {
-          ctx.strokeStyle = isBullish ? colors.candleUpBorder : colors.candleDownBorder;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(candleX + 0.5, bodyTop + 0.5, candleWidth - 1, bodyHeight - 1);
-        }
-      }
-
-      // Vertical separator
-      const totalFpWidth = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
-      ctx.strokeStyle = colors.gridColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(fpX + totalFpWidth, footprintAreaY);
-      ctx.lineTo(fpX + totalFpWidth, footprintAreaY + footprintAreaHeight);
-      ctx.stroke();
-
-    });
+    // Developing POC line (polyline connecting POC prices, Phase 2)
+    if (isFootprintMode) {
+      fpRenderer.renderDevelopingPOC({
+        ctx, width, height, candles, metrics, layout, colors, fonts, features,
+        lod, zoom, rowH, fpWidth, ohlcWidth, tickSize, isFootprintMode,
+      });
+    }
 
     // ═══════════════════════════════════════════════════════════════
-    // VWAP/TWAP LINE - Professional Orderflow Style
+    // PHASE 3: INDICATORS — Stacked Imbalances, Naked POC, Unfinished Auctions
+    // Offloaded to Web Worker (async with cached results)
     // ═══════════════════════════════════════════════════════════════
-    if (features.showVWAPTWAP && metrics.visibleCandles.length > 0) {
-      const vwapColor = '#e2b93b';   // Warm gold (ATAS-style VWAP)
-      const twapColor = '#5eaeff';   // Ice blue TWAP
+    if (isFootprintMode && metrics.visibleCandles.length > 0) {
+      const needsIndicators = features.showStackedImbalances || features.showNakedPOC || features.showUnfinishedAuctions;
 
-      // Calculate VWAP: Sum(Price * Volume) / Sum(Volume)
-      let cumulativeTPV = 0;
-      let cumulativeVolume = 0;
-      const vwapPoints: { x: number; y: number }[] = [];
+      if (needsIndicators) {
+        // Check if data changed — dispatch to worker if so
+        const lastCandle = metrics.visibleCandles[metrics.visibleCandles.length - 1];
+        const dataVersion = `${metrics.visibleCandles.length}-${lastCandle?.time ?? 0}-${lastCandle?.totalTrades ?? 0}`;
 
-      metrics.visibleCandles.forEach((candle, idx) => {
-        const typicalPrice = (candle.high + candle.low + candle.close) / 3;
-        cumulativeTPV += typicalPrice * candle.totalVolume;
-        cumulativeVolume += candle.totalVolume;
-
-        const vwap = cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : typicalPrice;
-        const fpX = layout.getFootprintX(idx, metrics);
-        const totalFpWidth = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
-        const x = fpX + totalFpWidth / 2;
-        const y = layout.priceToY(vwap, metrics);
-
-        if (y >= footprintAreaY && y <= footprintAreaY + footprintAreaHeight) {
-          vwapPoints.push({ x, y });
+        if (dataVersion !== workerDataVersionRef.current) {
+          workerDataVersionRef.current = dataVersion;
+          const workerMgr = getFootprintWorkerManager();
+          workerMgr.computeIndicators(
+            metrics.visibleCandles,
+            tickSize,
+            currentPriceRef.current,
+            features.stackedImbalanceMin || 3,
+          ).then(result => {
+            workerIndicatorsRef.current = result;
+          });
         }
-      });
 
-      // Draw VWAP with glow effect
-      if (vwapPoints.length > 1) {
-        // Glow layer
-        ctx.save();
-        ctx.strokeStyle = vwapColor;
-        ctx.lineWidth = 6;
-        ctx.globalAlpha = 0.12;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(vwapPoints[0].x, vwapPoints[0].y);
-        for (let i = 1; i < vwapPoints.length; i++) ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
-        ctx.stroke();
-        ctx.restore();
-
-        // Main line
-        ctx.strokeStyle = vwapColor;
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(vwapPoints[0].x, vwapPoints[0].y);
-        for (let i = 1; i < vwapPoints.length; i++) ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
-        ctx.stroke();
-
-        // Label with pill background
-        const lastVP = vwapPoints[vwapPoints.length - 1];
-        const vwapText = 'VWAP';
-        ctx.font = 'bold 9px "Consolas", monospace';
-        const tw = ctx.measureText(vwapText).width;
-        ctx.fillStyle = vwapColor;
-        ctx.globalAlpha = 0.85;
-        ctx.beginPath();
-        ctx.roundRect(lastVP.x + 4, lastVP.y - 8, tw + 8, 14, 3);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#0a0a0f';
-        ctx.textAlign = 'left';
-        ctx.fillText(vwapText, lastVP.x + 8, lastVP.y + 2);
-      }
-
-      // Calculate TWAP: Simple average of typical prices
-      let twapSum = 0;
-      const twapPoints: { x: number; y: number }[] = [];
-
-      metrics.visibleCandles.forEach((candle, idx) => {
-        const typicalPrice = (candle.high + candle.low + candle.close) / 3;
-        twapSum += typicalPrice;
-        const twap = twapSum / (idx + 1);
-
-        const fpX = layout.getFootprintX(idx, metrics);
-        const totalFpWidth = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
-        const x = fpX + totalFpWidth / 2;
-        const y = layout.priceToY(twap, metrics);
-
-        if (y >= footprintAreaY && y <= footprintAreaY + footprintAreaHeight) {
-          twapPoints.push({ x, y });
+        // Render using cached worker results (may be null on first frame)
+        const cached = workerIndicatorsRef.current;
+        if (cached) {
+          if (features.showStackedImbalances && cached.stackedImbalances.length > 0) {
+            fpRenderer.renderStackedImbalances(
+              ctx, layout, metrics, cached.stackedImbalances, rowH, fpWidth, ohlcWidth, features.showOHLC,
+            );
+          }
+          if (features.showNakedPOC && cached.nakedPOCs.length > 0) {
+            fpRenderer.renderNakedPOCs(
+              ctx, layout, metrics, cached.nakedPOCs, features.nakedPOCColor || '#fbbf24', width,
+            );
+          }
+          if (features.showUnfinishedAuctions && cached.unfinishedAuctions.length > 0) {
+            fpRenderer.renderUnfinishedAuctions(ctx, layout, metrics, cached.unfinishedAuctions, width);
+          }
         }
-      });
-
-      // Draw TWAP with glow + dashed style
-      if (twapPoints.length > 1) {
-        // Glow layer
-        ctx.save();
-        ctx.strokeStyle = twapColor;
-        ctx.lineWidth = 5;
-        ctx.globalAlpha = 0.1;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(twapPoints[0].x, twapPoints[0].y);
-        for (let i = 1; i < twapPoints.length; i++) ctx.lineTo(twapPoints[i].x, twapPoints[i].y);
-        ctx.stroke();
-        ctx.restore();
-
-        // Main dashed line
-        ctx.strokeStyle = twapColor;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 3]);
-        ctx.beginPath();
-        ctx.moveTo(twapPoints[0].x, twapPoints[0].y);
-        for (let i = 1; i < twapPoints.length; i++) ctx.lineTo(twapPoints[i].x, twapPoints[i].y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Label with pill background
-        const lastTP = twapPoints[twapPoints.length - 1];
-        const twapText = 'TWAP';
-        ctx.font = 'bold 9px "Consolas", monospace';
-        const tw2 = ctx.measureText(twapText).width;
-        ctx.fillStyle = twapColor;
-        ctx.globalAlpha = 0.85;
-        ctx.beginPath();
-        ctx.roundRect(lastTP.x + 4, lastTP.y + 2, tw2 + 8, 14, 3);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#0a0a0f';
-        ctx.textAlign = 'left';
-        ctx.fillText(twapText, lastTP.x + 8, lastTP.y + 12);
       }
     }
 
-    // === DELTA PROFILE (only in footprint mode) - ATAS Professional Style ===
+    // ═══════════════════════════════════════════════════════════════
+    // MODULAR RENDERING — Uses cached profile data (single pass)
+    // ═══════════════════════════════════════════════════════════════
+
+    // VWAP/TWAP lines
+    fpRenderer.renderVWAPTWAP(ctx, layout, metrics, features, ohlcWidth, fpWidth);
+
+    // Compute profile caches once (shared by delta profile + volume profile)
+    const profileCaches = fpRenderer.getProfileCaches(candles, metrics);
+
+    // Delta Profile (uses cached deltaByPrice — no longer recreated every frame)
     if (isFootprintMode && features.showDeltaProfile && metrics.visibleCandles.length > 0) {
-      const dpPos = layout.getDeltaProfilePosition(metrics);
-      const dpWidth = dpPos.width;
-      const dpX = dpPos.x;
-
-      // Background
-      ctx.fillStyle = colors.surface;
-      ctx.fillRect(dpX, footprintAreaY, dpWidth, footprintAreaHeight);
-
-      // Left border separator
-      ctx.strokeStyle = colors.gridColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(dpX, footprintAreaY);
-      ctx.lineTo(dpX, footprintAreaY + footprintAreaHeight);
-      ctx.stroke();
-
-      // Collect delta by price with smoothing
-      const deltaByPrice = new Map<number, number>();
-      let maxDelta = 1;
-
-      metrics.visibleCandles.forEach(candle => {
-        candle.levels.forEach((level, price) => {
-          const current = deltaByPrice.get(price) || 0;
-          const newDelta = current + level.delta;
-          deltaByPrice.set(price, newDelta);
-          maxDelta = Math.max(maxDelta, Math.abs(newDelta));
-        });
-      });
-
-      // ATAS-compliant: Raw delta profile (no smoothing)
-      // Pas de lissage destructeur - affichage exact du delta agrégé
-      const smoothedDelta = deltaByPrice;
-
-      // Center line (zero reference) with subtle styling
-      const centerLineX = dpX + dpWidth / 2;
-      ctx.strokeStyle = colors.textMuted;
-      ctx.globalAlpha = 0.15;
-      ctx.setLineDash([1, 3]);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(centerLineX, footprintAreaY);
-      ctx.lineTo(centerLineX, footprintAreaY + footprintAreaHeight);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-
-      // Render delta bars with professional gradient intensity
-      const dpBarMaxWidth = (dpWidth - 10) / 2;
-      const dpPositiveColor = '#22c55e'; // Green
-      const dpNegativeColor = '#ef4444'; // Red
-
-      smoothedDelta.forEach((delta, price) => {
-        const y = layout.priceToY(price, metrics);
-        if (y < footprintAreaY || y > footprintAreaY + footprintAreaHeight) return;
-
-        const barWidth = (Math.abs(delta) / maxDelta) * dpBarMaxWidth;
-        const isPositive = delta >= 0;
-        const barH = Math.max(2, rowH * 0.5);
-        const intensity = Math.abs(delta) / maxDelta;
-
-        const baseColor = isPositive ? dpPositiveColor : dpNegativeColor;
-
-        // Glow for high-intensity bars
-        if (intensity > 0.6) {
-          ctx.save();
-          ctx.fillStyle = baseColor;
-          ctx.globalAlpha = 0.08;
-          if (isPositive) {
-            ctx.fillRect(centerLineX - 1, y - barH / 2 - 1, barWidth + 2, barH + 2);
-          } else {
-            ctx.fillRect(centerLineX - barWidth - 1, y - barH / 2 - 1, barWidth + 2, barH + 2);
-          }
-          ctx.restore();
-        }
-
-        ctx.fillStyle = baseColor;
-        ctx.globalAlpha = 0.35 + intensity * 0.55;
-
-        if (isPositive) {
-          ctx.fillRect(centerLineX, y - barH / 2, barWidth, barH);
-        } else {
-          ctx.fillRect(centerLineX - barWidth, y - barH / 2, barWidth, barH);
-        }
-      });
-      ctx.globalAlpha = 1;
+      fpRenderer.renderDeltaProfile(ctx, layout, metrics, colors, profileCaches, rowH, features);
     }
 
-    // === SESSION VOLUME PROFILE - ATAS Professional Style ===
-    // Aggregates volume by price across all visible candles
+    // Volume Profile (uses cached volumeByPrice + session stats)
     if (isFootprintMode && features.showVolumeProfile && metrics.visibleCandles.length > 0) {
-      const vpPos = layout.getVolumeProfilePosition(metrics);
-      const vpWidth = vpPos.width;
-      const vpX = vpPos.x;
+      fpRenderer.renderVolumeProfile(ctx, layout, metrics, colors, profileCaches, rowH, width, features);
+    }
 
-      // Background
-      ctx.fillStyle = colors.surface;
-      ctx.fillRect(vpX, footprintAreaY, vpWidth, footprintAreaHeight);
-
-      // Left border separator
-      ctx.strokeStyle = colors.gridColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(vpX, footprintAreaY);
-      ctx.lineTo(vpX, footprintAreaY + footprintAreaHeight);
-      ctx.stroke();
-
-      // Collect volume by price
-      const volumeByPrice = new Map<number, { total: number; bid: number; ask: number }>();
-      let maxVolume = 1;
-      let pocPrice = 0;
-      let pocVolume = 0;
-
-      metrics.visibleCandles.forEach(candle => {
-        candle.levels.forEach((level, price) => {
-          const current = volumeByPrice.get(price) || { total: 0, bid: 0, ask: 0 };
-          current.total += level.totalVolume;
-          current.bid += level.bidVolume;
-          current.ask += level.askVolume;
-          volumeByPrice.set(price, current);
-
-          if (current.total > maxVolume) {
-            maxVolume = current.total;
-          }
-          if (current.total > pocVolume) {
-            pocVolume = current.total;
-            pocPrice = price;
-          }
-        });
-      });
-
-      // Calculate VAH/VAL (70% of volume)
-      const sortedPrices = Array.from(volumeByPrice.entries())
-        .sort((a, b) => b[1].total - a[1].total);
-      const totalVolume = sortedPrices.reduce((sum, [_, v]) => sum + v.total, 0);
-      const targetVolume = totalVolume * 0.7;
-
-      let accumulatedVolume = 0;
-      const valueAreaPrices = new Set<number>();
-      for (const [price, data] of sortedPrices) {
-        valueAreaPrices.add(price);
-        accumulatedVolume += data.total;
-        if (accumulatedVolume >= targetVolume) break;
-      }
-
-      const valueAreaArray = Array.from(valueAreaPrices);
-      const vah = Math.max(...valueAreaArray);
-      const val = Math.min(...valueAreaArray);
-
-      // --- Professional Orderflow Volume Profile Bars ---
-      const pocColor = '#e2b93b';   // Warm gold (matches VWAP)
-      const vaColor = '#5e7ce2';    // Rich blue for Value Area
-      const outsideColor = '#3a3f4b'; // Dim for outside VA
-      const vahValLineColor = '#7c85f6'; // Indigo for VAH/VAL lines
-      const barMaxWidth = vpWidth - 6;
-
-      volumeByPrice.forEach((data, price) => {
-        const y = layout.priceToY(price, metrics);
-        if (y < footprintAreaY || y > footprintAreaY + footprintAreaHeight) return;
-
-        const barWidth = (data.total / maxVolume) * barMaxWidth;
-        const barH = Math.max(2, rowH * 0.6);
-        const isPOC = price === pocPrice;
-        const isValueArea = valueAreaPrices.has(price);
-        const intensity = data.total / maxVolume;
-
-        if (isPOC) {
-          // POC bar: gold with glow
-          ctx.save();
-          ctx.fillStyle = pocColor;
-          ctx.globalAlpha = 0.15;
-          ctx.fillRect(vpX + 2, y - barH / 2 - 1, barWidth + 2, barH + 2);
-          ctx.restore();
-          ctx.fillStyle = pocColor;
-          ctx.globalAlpha = 0.92;
-        } else if (isValueArea) {
-          ctx.fillStyle = vaColor;
-          ctx.globalAlpha = 0.45 + intensity * 0.4;
-        } else {
-          ctx.fillStyle = outsideColor;
-          ctx.globalAlpha = 0.25 + intensity * 0.2;
-        }
-
-        ctx.fillRect(vpX + 3, y - barH / 2, barWidth, barH);
-        ctx.globalAlpha = 1;
-      });
-
-      // --- Extended VAH/VAL/POC Lines across chart ---
-      if (vah !== val) {
-        const vahY = layout.priceToY(vah, metrics);
-        const valY = layout.priceToY(val, metrics);
-        const sessPocY = layout.priceToY(pocPrice, metrics);
-
-        // VAH Line with glow
-        if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
-          ctx.save();
-          ctx.strokeStyle = vahValLineColor;
-          ctx.lineWidth = 4;
-          ctx.globalAlpha = 0.08;
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(0, vahY);
-          ctx.lineTo(vpX + vpWidth, vahY);
-          ctx.stroke();
-          ctx.restore();
-
-          ctx.strokeStyle = vahValLineColor;
-          ctx.lineWidth = 1;
-          ctx.globalAlpha = 0.6;
-          ctx.setLineDash([4, 3]);
-          ctx.beginPath();
-          ctx.moveTo(0, vahY);
-          ctx.lineTo(vpX - 5, vahY);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(vpX, vahY);
-          ctx.lineTo(vpX + vpWidth, vahY);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-        }
-
-        // VAL Line with glow
-        if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
-          ctx.save();
-          ctx.strokeStyle = vahValLineColor;
-          ctx.lineWidth = 4;
-          ctx.globalAlpha = 0.08;
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(0, valY);
-          ctx.lineTo(vpX + vpWidth, valY);
-          ctx.stroke();
-          ctx.restore();
-
-          ctx.strokeStyle = vahValLineColor;
-          ctx.lineWidth = 1;
-          ctx.globalAlpha = 0.6;
-          ctx.setLineDash([4, 3]);
-          ctx.beginPath();
-          ctx.moveTo(0, valY);
-          ctx.lineTo(vpX - 5, valY);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(vpX, valY);
-          ctx.lineTo(vpX + vpWidth, valY);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-        }
-
-        // POC Line with glow (golden)
-        if (sessPocY >= footprintAreaY && sessPocY <= footprintAreaY + footprintAreaHeight) {
-          ctx.save();
-          ctx.strokeStyle = pocColor;
-          ctx.lineWidth = 5;
-          ctx.globalAlpha = 0.1;
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(0, sessPocY);
-          ctx.lineTo(vpX - 5, sessPocY);
-          ctx.stroke();
-          ctx.restore();
-
-          ctx.strokeStyle = pocColor;
-          ctx.lineWidth = 1.5;
-          ctx.globalAlpha = 0.8;
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(0, sessPocY);
-          ctx.lineTo(vpX - 5, sessPocY);
-          ctx.stroke();
-        }
-
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
-
-        // --- Pill-style labels ---
-        ctx.font = 'bold 8px "Consolas", monospace';
-
-        // Left side labels with pill backgrounds
-        if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
-          const lbl = 'VAH';
-          const lw = ctx.measureText(lbl).width;
-          ctx.fillStyle = vahValLineColor;
-          ctx.globalAlpha = 0.8;
-          ctx.beginPath();
-          ctx.roundRect(3, vahY - 9, lw + 6, 12, 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = '#0a0a0f';
-          ctx.textAlign = 'left';
-          ctx.fillText(lbl, 6, vahY);
-        }
-        if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
-          const lbl = 'VAL';
-          const lw = ctx.measureText(lbl).width;
-          ctx.fillStyle = vahValLineColor;
-          ctx.globalAlpha = 0.8;
-          ctx.beginPath();
-          ctx.roundRect(3, valY + 1, lw + 6, 12, 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = '#0a0a0f';
-          ctx.textAlign = 'left';
-          ctx.fillText(lbl, 6, valY + 10);
-        }
-        if (sessPocY >= footprintAreaY && sessPocY <= footprintAreaY + footprintAreaHeight) {
-          const lbl = 'POC';
-          const lw = ctx.measureText(lbl).width;
-          ctx.fillStyle = pocColor;
-          ctx.globalAlpha = 0.85;
-          ctx.beginPath();
-          ctx.roundRect(3, sessPocY - 5, lw + 6, 12, 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = '#0a0a0f';
-          ctx.textAlign = 'left';
-          ctx.fillText(lbl, 6, sessPocY + 4);
-        }
-
-        // VP side labels
-        ctx.textAlign = 'right';
-        ctx.font = 'bold 7px "Consolas", monospace';
-        if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
-          ctx.fillStyle = vahValLineColor;
-          ctx.globalAlpha = 0.7;
-          ctx.fillText('VAH', vpX + vpWidth - 2, vahY - 2);
-          ctx.globalAlpha = 1;
-        }
-        if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
-          ctx.fillStyle = vahValLineColor;
-          ctx.globalAlpha = 0.7;
-          ctx.fillText('VAL', vpX + vpWidth - 2, valY + 8);
-          ctx.globalAlpha = 1;
-        }
-      }
-
-      // POC Label in VP area
-      const pocY = layout.priceToY(pocPrice, metrics);
-      if (pocY >= footprintAreaY && pocY <= footprintAreaY + footprintAreaHeight) {
-        ctx.fillStyle = pocColor;
-        ctx.font = 'bold 7px "Consolas", monospace';
-        ctx.textAlign = 'right';
-        ctx.fillText('POC', vpX + vpWidth - 2, pocY + 3);
+    // TPO / Market Profile
+    if ((features as any).showTPO && metrics.visibleCandles.length > 0) {
+      const tpoData = buildTPOProfile(
+        metrics.visibleCandles,
+        (features as any).tpoPeriod || 30,
+        tickSize,
+      );
+      if (tpoData) {
+        fpRenderer.renderTPOProfile(ctx, layout, metrics, tpoData, features, width, rowH);
       }
     }
 
-    // === CURRENT PRICE LINE - Customizable Style ===
-    if (features.showCurrentPrice && currentPriceRef.current > 0) {
-      const priceY = layout.priceToY(currentPriceRef.current, metrics);
-      if (priceY >= footprintAreaY && priceY <= footprintAreaY + footprintAreaHeight) {
-        // Line with customizable style
-        ctx.strokeStyle = colors.currentPriceColor;
-        ctx.lineWidth = colors.currentPriceLineWidth || 1;
-
-        // Set line style based on settings
-        const lineStyle = colors.currentPriceLineStyle || 'dashed';
-        if (lineStyle === 'dashed') {
-          ctx.setLineDash([4, 2]);
-        } else if (lineStyle === 'dotted') {
-          ctx.setLineDash([2, 2]);
-        } else {
-          ctx.setLineDash([]);
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(0, priceY);
-        ctx.lineTo(width - 62, priceY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Price label box (only if showLabel enabled)
-        if (colors.currentPriceShowLabel !== false) {
-          const labelH = 18;
-          const labelY = priceY - labelH / 2;
-
-          // Box background (use custom label bg color if set)
-          ctx.fillStyle = colors.currentPriceLabelBg || colors.currentPriceColor;
-          ctx.fillRect(width - 60, labelY, 60, labelH);
-
-          // Triangle pointer
-          ctx.beginPath();
-          ctx.moveTo(width - 62, priceY);
-          ctx.lineTo(width - 60, priceY - 4);
-          ctx.lineTo(width - 60, priceY + 4);
-          ctx.closePath();
-          ctx.fill();
-
-          // Price text
-          ctx.fillStyle = '#ffffff';
-          ctx.font = `bold ${fonts.priceFontSize}px "Consolas", "Monaco", monospace`;
-          ctx.textAlign = 'right';
-          ctx.fillText(
-            `$${currentPriceRef.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            width - 4,
-            priceY + 4
-          );
-        }
-      }
+    // Current price line
+    if (features.showCurrentPrice) {
+      fpRenderer.renderCurrentPriceLine(ctx, layout, metrics, colors, fonts, currentPriceRef.current, width);
     }
 
-    // === PRICE SCALE - Professional Style ===
-    // Background
-    ctx.fillStyle = colors.surface;
-    ctx.fillRect(width - 60, footprintAreaY, 60, footprintAreaHeight);
-
-    // Left border
-    ctx.strokeStyle = colors.gridColor;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(width - 60, footprintAreaY);
-    ctx.lineTo(width - 60, footprintAreaY + footprintAreaHeight);
-    ctx.stroke();
-
-    // Price labels - Intelligent precision based on zoom level
-    ctx.fillStyle = colors.textSecondary;
-    ctx.font = `${fonts.priceFontSize}px "Consolas", "Monaco", monospace`;
-    ctx.textAlign = 'right';
-
-    // Use intelligent grid levels for price labels
+    // Price scale
     const isCME = SYMBOL_EXCHANGE[symbol] === 'cme';
-    const priceLevels = layout.getVisiblePriceLevels(metrics, tickSize);
+    fpRenderer.renderPriceScale(ctx, layout, metrics, colors, fonts, tickSize, isCME, width);
 
-    // Filter to show only every Nth label based on zoom for readability
-    const zoomY = layout.getZoomY();
-    const labelSkip = zoomY < 0.3 ? 3 : zoomY < 0.7 ? 2 : 1;
+    // Bid/Ask Spread on price scale (Phase B)
+    if (features.showSpread && currentPriceRef.current > 0) {
+      // Use last candle's high bid and low ask as approximation
+      const lastCandle = metrics.visibleCandles[metrics.visibleCandles.length - 1];
+      if (lastCandle && lastCandle.levels.size > 0) {
+        // Find best bid/ask from last candle levels
+        let bestBid = 0;
+        let bestAsk = Infinity;
+        lastCandle.levels.forEach((level, price) => {
+          if (level.bidVolume > 0 && price > bestBid) bestBid = price;
+          if (level.askVolume > 0 && price < bestAsk) bestAsk = price;
+        });
+        if (bestBid > 0 && bestAsk < Infinity && bestAsk > bestBid) {
+          fpRenderer.renderSpread(ctx, layout, metrics, bestBid, bestAsk, width, tickSize);
+        }
+      }
+    }
 
-    priceLevels.forEach((price, idx) => {
-      // Skip some labels when very zoomed out for readability
-      if (idx % labelSkip !== 0) return;
+    // Session separators (Phase B)
+    if (features.showSessionSeparators && metrics.visibleCandles.length > 1) {
+      fpRenderer.renderSessionSeparators(
+        ctx, layout, metrics, isCME,
+        metrics.footprintAreaY, metrics.footprintAreaHeight,
+        features.customSessions,
+      );
+    }
 
-      const y = layout.priceToY(price, metrics);
+    // Absorption events (Phase C)
+    if (features.showAbsorptionEvents && absorptionEventsRef.current.length > 0) {
+      fpRenderer.renderAbsorptionEvents(
+        ctx, layout, metrics, absorptionEventsRef.current,
+        metrics.footprintAreaY, metrics.footprintAreaHeight,
+      );
+    }
 
-      // FIXED: Allow some overflow to show prices beyond visible candle data
-      // Add 15px padding to both top and bottom for price labels
-      const labelPadding = 15;
-      if (y < footprintAreaY - labelPadding || y > footprintAreaY + footprintAreaHeight + labelPadding) return;
+    // Alert lines
+    {
+      const alerts = useAlertsStore.getState().alerts.filter(
+        a => !a.triggered && a.symbol.toLowerCase() === symbol.toLowerCase()
+      );
+      if (alerts.length > 0) {
+        fpRenderer.renderAlertLines(
+          ctx, layout, metrics, alerts,
+          metrics.footprintAreaY, metrics.footprintAreaHeight, width,
+        );
+      }
+    }
 
-      // Tick mark
-      ctx.strokeStyle = colors.gridColor;
-      ctx.beginPath();
-      ctx.moveTo(width - 60, y);
-      ctx.lineTo(width - 56, y);
-      ctx.stroke();
-
-      // Format price with intelligent precision
-      const formattedPrice = layout.formatPriceWithZoom(price, tickSize, isCME);
-      const prefix = isCME ? '' : '$';
-      ctx.fillText(`${prefix}${formattedPrice}`, width - 4, y + 3);
-    });
+    // Session stats header (Phase 4)
+    if (isFootprintMode && metrics.visibleCandles.length > 0) {
+      fpRenderer.renderSessionHeader(ctx, metrics, profileCaches, colors, width);
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // CLUSTER STATIC PANEL - Bottom panel with Time/Ask/Bid/Delta/Volume
@@ -1826,7 +1645,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
     const clusterRowH = 16; // Height per row (compact)
     const numRows = features.showHourMarkers ? 5 : 4; // Time + Ask/Bid/Delta/Volume
     const clusterStaticHeight = features.showClusterStatic ? (clusterRowH * numRows + 4) : 0;
-    const footerHeight = clusterStaticHeight + 6;
+    const cvdPanelH = features.showCVDPanel ? (features.cvdPanelHeight || 70) : 0;
+    const footerHeight = clusterStaticHeight + cvdPanelH + 6;
     const footerY = height - footerHeight;
 
     // Footer background
@@ -2059,6 +1879,24 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       });
     }
 
+    // CVD Oscillator Panel
+    if (features.showCVDPanel && cvdPanelH > 0) {
+      const cvdPanelY = footerY + clusterStaticHeight + 6;
+      fpRenderer.renderCVDPanel(
+        ctx, layout, metrics, features, colors,
+        width, cvdPanelY - cvdPanelH, cvdPanelH,
+        ohlcWidth, fpWidth,
+      );
+    }
+
+    // Footer status bar (Phase 4) — FPS, render time, LOD, candle count
+    fpRenderer.renderFooterStatusBar(
+      ctx, width, footerY, colors,
+      currentPriceRef.current,
+      metrics.visibleCandles.length,
+      lod.mode,
+    );
+
     // ═══════════════════════════════════════════════════════════════
     // CROSSHAIR - Using CrosshairStore Settings
     // ═══════════════════════════════════════════════════════════════
@@ -2132,6 +1970,57 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // CELL HOVER TOOLTIP (Phase A)
+    // ═══════════════════════════════════════════════════════════════
+    if (hoveredCellRef.current && mousePositionRef.current) {
+      const cell = hoveredCellRef.current;
+      fpRenderer.renderCellTooltip(
+        ctx,
+        mousePositionRef.current.x,
+        mousePositionRef.current.y,
+        cell.price,
+        cell.level,
+        cell.candleTotalVol,
+        width,
+        height,
+        tickSize,
+        colors,
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // REPLAY MODE OVERLAY (Phase F)
+    // ═══════════════════════════════════════════════════════════════
+    if (replayStateRef.current.active) {
+      const r = replayStateRef.current;
+      ctx.save();
+      // Semi-transparent amber badge top-center
+      const badgeText = `REPLAY  ${r.currentIndex + 1} / ${r.allCandles.length}`;
+      ctx.font = 'bold 11px "Consolas", "Monaco", monospace';
+      const badgeW = ctx.measureText(badgeText).width + 24;
+      const badgeX = (width - badgeW) / 2;
+      const badgeY = 8;
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, badgeW, 22, 6);
+      ctx.fill();
+      ctx.stroke();
+      // Pulsing dot
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 400);
+      ctx.fillStyle = `rgba(245, 158, 11, ${0.6 + 0.4 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(badgeX + 10, badgeY + 11, 3, 0, Math.PI * 2);
+      ctx.fill();
+      // Text
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.9)';
+      ctx.textAlign = 'left';
+      ctx.fillText(badgeText, badgeX + 18, badgeY + 15);
+      ctx.restore();
+    }
+
     // === RENDER TOOLS ===
     const renderContext: RenderContext = {
       ctx,
@@ -2154,6 +2043,9 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
     };
 
     getToolsRenderer().render(renderContext);
+
+    // Track FPS
+    fpRenderer.trackFrame(renderStartTime);
   }, [settings, tickSize, activeTool, crosshairSettings]);
 
   /**
@@ -2170,6 +2062,15 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      // Clean up replay interval on unmount
+      if (replayIntervalRef.current) {
+        clearInterval(replayIntervalRef.current);
+      }
+      // Clean up web worker
+      resetFootprintWorkerManager();
+      // Clean up chart sync
+      syncManagerRef.current?.close();
+      syncManagerRef.current = null;
     };
   }, [renderCanvas]);
 
@@ -2192,6 +2093,9 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       resetOptimizedFootprintService();
       resetDxFeedFootprintEngine();
       configureOrderflow({ tickSize, imbalanceRatio: settings.imbalance.ratio });
+      // Reset worker cached results on symbol/timeframe change
+      workerIndicatorsRef.current = null;
+      workerDataVersionRef.current = '';
 
       // ═══════════════════════════════════════════════════════════════════════
       // CME FUTURES (IB Gateway → Simulation fallback)
@@ -2419,9 +2323,12 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       // Live trades use isBuyerMaker for exact bid/ask classification
       const unsubTick = ws.onTick((tick) => {
         if (!isMounted) return;
+        // Skip live updates during replay mode
+        if (replayStateRef.current.active) return;
 
-        // Update price display
+        // Update price display + check alerts
         currentPriceRef.current = tick.price;
+        useAlertsStore.getState().checkAlerts(symbol, tick.price);
         if (priceRef.current) {
           priceRef.current.textContent = `$${tick.price.toLocaleString('en-US', {
             minimumFractionDigits: 2,
@@ -2479,12 +2386,25 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
         // ═══════════════════════════════════════════════════════════════
         if (settings.features.showPassiveLiquidity && settings.passiveLiquidity.enabled) {
           const absorptionEngine = getTradeAbsorptionEngine();
-          absorptionEngine.feedTrade({
+          const absResult = absorptionEngine.feedTrade({
             price: tick.price,
             quantity: tick.quantity,
             timestamp: tick.timestamp,
             isBuyerMaker: tick.isBuyerMaker,
           });
+
+          // Collect significant absorption events for rendering
+          if (absResult && absResult.levelExecuted && absResult.volumeAbsorbed > 0) {
+            absorptionEventsRef.current.push({
+              price: tick.price,
+              volume: absResult.volumeAbsorbed,
+              side: tick.isBuyerMaker ? 'bid' : 'ask',
+              timestamp: tick.timestamp,
+            });
+            // Keep max 100 events, prune old ones (> 60s)
+            const cutoff = Date.now() - 60000;
+            absorptionEventsRef.current = absorptionEventsRef.current.filter(e => e.timestamp > cutoff);
+          }
         }
       });
       unsubscribersRef.current.push(unsubTick);
@@ -2561,6 +2481,31 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
       layout.setZoom(layout.getZoom() * factor);
       layout.setZoomY(layout.getZoomY() * factor);
     }
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    const layout = layoutEngineRef.current;
+    if (!layout) return;
+    invalidateLODCache();
+    layout.setZoom(layout.getZoom() * 1.2);
+    layout.setZoomY(layout.getZoomY() * 1.2);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    const layout = layoutEngineRef.current;
+    if (!layout) return;
+    invalidateLODCache();
+    layout.setZoom(layout.getZoom() / 1.2);
+    layout.setZoomY(layout.getZoomY() / 1.2);
+  }, []);
+
+  const handleResetView = useCallback(() => {
+    const layout = layoutEngineRef.current;
+    if (!layout) return;
+    invalidateLODCache();
+    layout.setZoom(1);
+    layout.setZoomY(1);
+    layout.resetScroll();
   }, []);
 
   /**
@@ -2838,6 +2783,30 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
     // Store mouse position for crosshair
     mousePositionRef.current = { x, y, price, time };
 
+    // Broadcast crosshair to synced charts
+    const sync = useChartSyncStore.getState();
+    if (sync.syncEnabled && sync.syncCrosshair) {
+      syncManagerRef.current?.broadcastCrosshair(price, time, true);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FOOTPRINT CELL HOVER DETECTION (for tooltip)
+    // ═══════════════════════════════════════════════════════════════
+    const candleIdx = layout.getCandleIndexAtX(x, metrics);
+    if (candleIdx >= 0 && candleIdx < metrics.visibleCandles.length) {
+      const candle = metrics.visibleCandles[candleIdx];
+      const hoverPrice = layout.yToPrice(y, metrics);
+      // Snap to nearest tick
+      const precFactor = Math.pow(10, Math.max(Math.round(-Math.log10(tickSize)) + 2, 2));
+      const snappedPrice = Math.round(Math.round(hoverPrice / tickSize) * tickSize * precFactor) / precFactor;
+      const level = candle.levels.get(snappedPrice);
+      hoveredCellRef.current = level
+        ? { candleIdx, price: snappedPrice, level, candleTotalVol: candle.totalVolume }
+        : null;
+    } else {
+      hoveredCellRef.current = null;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // PASSIVE LIQUIDITY HOVER DETECTION
     // ═══════════════════════════════════════════════════════════════
@@ -2925,6 +2894,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
     // Don't reset drag states on leave - window events will handle mouse up
     mousePositionRef.current = null;
     hoveredPassiveLevelRef.current = null; // Clear hover state
+    hoveredCellRef.current = null; // Clear cell tooltip
     const controller = getInteractionController();
     controller.handleMouseLeave();
   }, []);
@@ -3118,11 +3088,23 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
    */
   const handleSymbolChange = useCallback((newSymbol: string) => {
     if (newSymbol === symbol) return;
+
+    // Exit replay mode if active
+    if (replayStateRef.current.active) {
+      replayCallbacksRef.current.exit();
+    }
+
     const info = SYMBOLS.find(s => s.value === newSymbol);
     const exchange = SYMBOL_EXCHANGE[newSymbol] || 'binance';
 
     setSymbol(newSymbol);
+    onSymbolChange?.(newSymbol);
     setTickSize(info?.tickSize || 10);
+    // Broadcast symbol change to synced charts
+    const sync = useChartSyncStore.getState();
+    if (sync.syncEnabled && sync.syncSymbol) {
+      syncManagerRef.current?.broadcastSymbol(newSymbol);
+    }
     resetOrderflowEngine();
     resetFootprintDataService();
     candlesRef.current = [];
@@ -3150,7 +3132,42 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
     if (newTf === timeframe) return;
     setTimeframe(newTf);
     layoutEngineRef.current?.resetScroll();
+    // Broadcast timeframe change to synced charts
+    const sync = useChartSyncStore.getState();
+    if (sync.syncEnabled && sync.syncTimeframe) {
+      syncManagerRef.current?.broadcastTimeframe(newTf);
+    }
   }, [timeframe]);
+
+  /**
+   * Multi-chart sync via BroadcastChannel
+   */
+  useEffect(() => {
+    const mgr = new BroadcastChannelManager('footprint-' + Math.random().toString(36).slice(2, 8));
+    syncManagerRef.current = mgr;
+
+    mgr.setListeners({
+      onCrosshair: (msg) => {
+        const sync = useChartSyncStore.getState();
+        if (!sync.syncEnabled || !sync.syncCrosshair) return;
+        syncCrosshairRef.current = { price: msg.price, time: msg.time, visible: msg.visible };
+      },
+      onSymbol: (msg) => {
+        const sync = useChartSyncStore.getState();
+        if (!sync.syncEnabled || !sync.syncSymbol) return;
+        handleSymbolChange(msg.symbol);
+      },
+      onTimeframe: (msg) => {
+        const sync = useChartSyncStore.getState();
+        if (!sync.syncEnabled || !sync.syncTimeframe) return;
+        handleTimeframeChange(msg.timeframe as TimeframeSeconds);
+      },
+    });
+
+    return () => {
+      mgr.close();
+    };
+  }, [handleSymbolChange, handleTimeframeChange]);
 
   const handleToolSelect = useCallback((tool: ToolType) => {
     setActiveTool(tool);
@@ -3160,20 +3177,177 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
     }
   }, []);
 
+  // ═══════════════════════════════════════════════════════════════
+  // REPLAY MODE CALLBACKS
+  // ═══════════════════════════════════════════════════════════════
+
+  const syncReplayState = useCallback(() => {
+    const r = replayStateRef.current;
+    setReplayState({
+      active: r.active,
+      currentIndex: r.currentIndex,
+      totalCandles: r.allCandles.length,
+      speed: r.speed,
+      playing: r.playing,
+    });
+  }, []);
+
+  const replayApplyIndex = useCallback((index: number) => {
+    const r = replayStateRef.current;
+    if (!r.active) return;
+    r.currentIndex = Math.max(0, Math.min(index, r.allCandles.length - 1));
+    candlesRef.current = r.allCandles.slice(0, r.currentIndex + 1);
+    syncReplayState();
+  }, [syncReplayState]);
+
+  const replayStopInterval = useCallback(() => {
+    if (replayIntervalRef.current) {
+      clearInterval(replayIntervalRef.current);
+      replayIntervalRef.current = null;
+    }
+  }, []);
+
+  const replayStartInterval = useCallback(() => {
+    replayStopInterval();
+    const r = replayStateRef.current;
+    const intervalMs = Math.max(50, 1000 / r.speed);
+    replayIntervalRef.current = setInterval(() => {
+      const rs = replayStateRef.current;
+      if (!rs.active || !rs.playing) {
+        replayStopInterval();
+        return;
+      }
+      if (rs.currentIndex >= rs.allCandles.length - 1) {
+        rs.playing = false;
+        replayStopInterval();
+        syncReplayState();
+        return;
+      }
+      replayApplyIndex(rs.currentIndex + 1);
+    }, intervalMs);
+  }, [replayStopInterval, replayApplyIndex, syncReplayState]);
+
+  const handleReplayEnter = useCallback(() => {
+    const candles = candlesRef.current;
+    if (candles.length < 2) return;
+    const r = replayStateRef.current;
+    r.active = true;
+    r.allCandles = [...candles];
+    r.liveCandlesBackup = [...candles];
+    r.currentIndex = candles.length - 1;
+    r.playing = false;
+    r.speed = 1;
+    setReplayActive(true);
+    syncReplayState();
+  }, [syncReplayState]);
+
+  const handleReplayExit = useCallback(() => {
+    replayStopInterval();
+    const r = replayStateRef.current;
+    // Restore live candles
+    candlesRef.current = r.liveCandlesBackup;
+    r.active = false;
+    r.playing = false;
+    r.allCandles = [];
+    r.liveCandlesBackup = [];
+    setReplayActive(false);
+    syncReplayState();
+  }, [replayStopInterval, syncReplayState]);
+
+  const handleReplayPlay = useCallback(() => {
+    const r = replayStateRef.current;
+    if (r.currentIndex >= r.allCandles.length - 1) return;
+    r.playing = true;
+    syncReplayState();
+    replayStartInterval();
+  }, [syncReplayState, replayStartInterval]);
+
+  const handleReplayPause = useCallback(() => {
+    replayStateRef.current.playing = false;
+    replayStopInterval();
+    syncReplayState();
+  }, [replayStopInterval, syncReplayState]);
+
+  const handleReplayNext = useCallback(() => {
+    replayApplyIndex(replayStateRef.current.currentIndex + 1);
+  }, [replayApplyIndex]);
+
+  const handleReplayPrev = useCallback(() => {
+    replayApplyIndex(replayStateRef.current.currentIndex - 1);
+  }, [replayApplyIndex]);
+
+  const handleReplayStart = useCallback(() => {
+    replayApplyIndex(0);
+  }, [replayApplyIndex]);
+
+  const handleReplayEnd = useCallback(() => {
+    replayApplyIndex(replayStateRef.current.allCandles.length - 1);
+  }, [replayApplyIndex]);
+
+  const handleReplaySeek = useCallback((index: number) => {
+    replayApplyIndex(index);
+  }, [replayApplyIndex]);
+
+  const handleReplaySpeedChange = useCallback((speed: 1 | 2 | 5 | 10) => {
+    replayStateRef.current.speed = speed;
+    syncReplayState();
+    if (replayStateRef.current.playing) {
+      replayStartInterval();
+    }
+  }, [syncReplayState, replayStartInterval]);
+
+  // Keep the ref in sync with callbacks (for keyboard handler)
+  replayCallbacksRef.current = {
+    enter: handleReplayEnter,
+    exit: handleReplayExit,
+    next: handleReplayNext,
+    prev: handleReplayPrev,
+    play: handleReplayPlay,
+    pause: handleReplayPause,
+  };
+
   /**
    * Context menu handlers
    */
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+
+    // Check if right-click is on a tool
+    const layout = layoutEngineRef.current;
+    const metrics = metricsRef.current;
+    const canvas = canvasRef.current;
+    if (canvas && layout && metrics) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const time = layout.xToTime(x, metrics);
+      const price = layout.yToPrice(y, metrics);
+      const toolsEngine = getToolsEngine();
+      const hit = toolsEngine.hitTest(
+        { time, price },
+        (p: number) => layout.priceToY(p, metrics),
+        (t: number) => layout.timeToX(t, metrics),
+      );
+      if (hit) {
+        setToolContextMenu({ x: e.clientX, y: e.clientY, tool: hit.tool });
+        return;
+      }
+    }
+
+    // Get price at click position for alert creation
+    const clickPrice = (canvas && layout && metrics)
+      ? layout.yToPrice(e.clientY - canvas.getBoundingClientRect().top, metrics)
+      : undefined;
+    setContextMenu({ x: e.clientX, y: e.clientY, clickPrice });
   }, []);
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(null);
+    setToolContextMenu(null);
   }, []);
 
   const toggleGrid = useCallback(() => {
-    setShowGrid(prev => {
+    setShowGrid((prev: boolean) => {
       const newValue = !prev;
       settings.setFeatures({ showGrid: newValue });
       return newValue;
@@ -3266,8 +3440,13 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
         onLoad: () => handleLoadTemplate(t),
       })),
       showGrid,
+      clickPrice: contextMenu?.clickPrice,
+      currentPrice: currentPriceRef.current,
+      onSetAlert: (price: number) => {
+        useAlertsStore.getState().addAlert(symbol, price, currentPriceRef.current);
+      },
     });
-  }, [copyPrice, toggleGrid, resetView, showGrid, availableTemplates, handleLoadTemplate, openAdvancedSettings]);
+  }, [copyPrice, toggleGrid, resetView, showGrid, availableTemplates, handleLoadTemplate, openAdvancedSettings, contextMenu, symbol]);
 
   return (
     <div
@@ -3279,74 +3458,163 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
         className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0"
         style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor }}
       >
-        {/* Left: Symbol & Price */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <select
-              value={symbol}
-              onChange={(e) => handleSymbolChange(e.target.value)}
-              className="text-sm font-bold rounded px-3 py-1.5 border focus:outline-none"
+        {/* Group 1: Symbol & Price */}
+        <div className="flex items-center gap-3 pr-3" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
+          <div className="relative">
+            <button
+              onClick={() => setShowSymbolSelector(!showSymbolSelector)}
+              className="flex items-center gap-2 text-sm font-bold rounded px-3 py-1.5 border focus:outline-none hover:brightness-110 transition-all"
               style={{ backgroundColor: settings.colors.background, borderColor: settings.colors.gridColor, color: settings.colors.textPrimary }}
             >
-              <optgroup label="Crypto (Binance)">
-                {SYMBOLS.filter(s => s.exchange === 'binance').map(s => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="CME Futures">
-                {SYMBOLS.filter(s => s.exchange === 'cme').map(s => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </optgroup>
-            </select>
-            {/* Exchange badge */}
-            <span
-              className="text-xs px-2 py-0.5 rounded font-medium"
-              style={{
-                backgroundColor: SYMBOL_EXCHANGE[symbol] === 'binance' ? 'rgba(247, 147, 26, 0.2)' : 'rgba(59, 130, 246, 0.2)',
-                color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : '#3b82f6',
-              }}
-            >
-              {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME Yahoo')}
-            </span>
+              <span>{selectedSymbolLabel}</span>
+              <span style={{ color: settings.colors.textMuted }}>▼</span>
+            </button>
+
+            {/* Symbol Selector Modal */}
+            {showSymbolSelector && (
+              <div
+                className="absolute top-full left-0 mt-1 w-96 rounded-lg shadow-2xl z-50 max-h-[450px] overflow-hidden"
+                style={{ backgroundColor: settings.colors.surface, border: `1px solid ${settings.colors.gridColor}` }}
+              >
+                {/* Asset Category Tabs */}
+                <div className="flex items-center gap-0.5 p-1.5 border-b overflow-x-auto" style={{ borderColor: settings.colors.gridColor }}>
+                  {FOOTPRINT_ASSET_CATEGORIES.map((cat) => {
+                    const IconComponent = cat.Icon;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setAssetCategory(cat.id)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ease-out ${assetCategory === cat.id ? 'scale-105 shadow-lg' : 'hover:scale-102 active:scale-95'}`}
+                        style={{
+                          backgroundColor: assetCategory === cat.id ? settings.colors.currentPriceColor : 'transparent',
+                          color: assetCategory === cat.id ? '#fff' : settings.colors.textSecondary,
+                          boxShadow: assetCategory === cat.id ? `0 0 10px ${settings.colors.currentPriceColor}40` : 'none',
+                        }}
+                      >
+                        <span className={`transition-transform duration-200 ${assetCategory === cat.id ? 'scale-110' : ''}`}>
+                          <IconComponent size={16} color={assetCategory === cat.id ? '#fff' : undefined} />
+                        </span>
+                        <span className="font-medium">{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Search Input */}
+                <div className="p-2 border-b" style={{ borderColor: settings.colors.gridColor }}>
+                  <input
+                    type="text"
+                    value={symbolSearchQuery}
+                    onChange={(e) => setSymbolSearchQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { setShowSymbolSelector(false); setSymbolSearchQuery(''); } }}
+                    placeholder={`Search ${assetCategory} symbols...`}
+                    autoFocus
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+                    style={{ backgroundColor: settings.colors.background, color: settings.colors.textPrimary, border: `1px solid ${settings.colors.gridColor}` }}
+                  />
+                </div>
+
+                {/* Note for futures */}
+                {assetCategory === 'futures' && (
+                  <div className="px-3 py-2 text-xs border-b" style={{ borderColor: settings.colors.gridColor, color: settings.colors.textSecondary }}>
+                    CME Futures via dxFeed. Connect Interactive Brokers in settings for real-time data.
+                  </div>
+                )}
+
+                {/* Categories */}
+                <div className="overflow-y-auto max-h-64">
+                  {Object.keys(filteredSymbols).length === 0 && symbolSearchQuery.trim() && (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={settings.colors.textMuted} strokeWidth="1.5" opacity="0.4">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                      <span className="text-xs" style={{ color: settings.colors.textMuted }}>
+                        No symbols match &ldquo;{symbolSearchQuery}&rdquo;
+                      </span>
+                    </div>
+                  )}
+                  {Object.entries(filteredSymbols).map(([category, symbols]) => (
+                    <div key={category}>
+                      <div className="px-3 py-1.5 text-xs font-semibold sticky top-0" style={{ backgroundColor: settings.colors.surface, color: settings.colors.textMuted }}>
+                        {category}
+                      </div>
+                      <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
+                        {symbols.map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => { handleSymbolChange(s.value); setShowSymbolSelector(false); setSymbolSearchQuery(''); }}
+                            className="text-left px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-between"
+                            style={{
+                              backgroundColor: symbol === s.value ? settings.colors.currentPriceColor : 'transparent',
+                              color: symbol === s.value ? '#fff' : settings.colors.textPrimary,
+                            }}
+                          >
+                            <span>{s.label}</span>
+                            {s.exchange && <span className="text-[10px]" style={{ color: settings.colors.textMuted }}>{s.exchange}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Backdrop to close modal */}
+            {showSymbolSelector && (
+              <div className="fixed inset-0 z-40" onClick={() => { setShowSymbolSelector(false); setSymbolSearchQuery(''); }} />
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <span ref={priceRef} className="text-xl font-mono font-bold" style={{ color: settings.colors.textPrimary }}>
-              {SYMBOL_EXCHANGE[symbol] === 'cme' ? '' : '$'}0.00
-            </span>
-            <span className="text-xs" style={{ color: settings.colors.textMuted }}>
-              Delta: <span ref={deltaRef} style={{ color: settings.colors.deltaPositive }}>+0</span>
-            </span>
-          </div>
+          {/* Exchange badge */}
+          <span
+            className="text-xs px-2 py-0.5 rounded font-medium"
+            style={{
+              backgroundColor: SYMBOL_EXCHANGE[symbol] === 'binance' ? 'rgba(247, 147, 26, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+              color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : '#3b82f6',
+            }}
+          >
+            {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME Yahoo')}
+          </span>
+
+          <span ref={priceRef} className="text-xl font-mono font-bold" style={{ color: settings.colors.textPrimary }}>
+            {SYMBOL_EXCHANGE[symbol] === 'cme' ? '' : '$'}0.00
+          </span>
+          <span className="text-xs" style={{ color: settings.colors.textMuted }}>
+            Delta: <span ref={deltaRef} style={{ color: settings.colors.deltaPositive }}>+0</span>
+          </span>
         </div>
 
-        {/* Center: Timeframes */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5 rounded p-0.5" style={{ backgroundColor: settings.colors.background }}>
-            {TIMEFRAMES.map(tf => (
-              <button
-                key={tf}
-                onClick={() => handleTimeframeChange(tf)}
-                className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200
-                  ${timeframe === tf ? '' : 'hover:scale-105 active:scale-95 hover:bg-white/5'}
-                `}
-                style={{
-                  backgroundColor: timeframe === tf ? settings.colors.currentPriceColor : 'transparent',
-                  color: timeframe === tf ? '#fff' : settings.colors.textSecondary,
-                }}
-              >
-                {TIMEFRAME_LABELS[tf]}
-              </button>
-            ))}
-          </div>
-
-          {/* Candle Countdown Timer */}
+        {/* Group 2: Timeframes (grouped) */}
+        <div className="flex items-center gap-1 px-3" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
+          {Object.entries(TF_GROUPS).map(([group, tfs]) => (
+            <div key={group} className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: settings.colors.background }}>
+              {tfs.map((tf) => (
+                <button
+                  key={tf}
+                  onClick={() => handleTimeframeChange(tf)}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${timeframe === tf ? '' : 'hover:scale-105 active:scale-95 hover:bg-white/5'}`}
+                  style={{
+                    backgroundColor: timeframe === tf ? settings.colors.currentPriceColor : 'transparent',
+                    color: timeframe === tf ? '#fff' : settings.colors.textSecondary,
+                  }}
+                >
+                  {TIMEFRAME_LABELS[tf]}
+                </button>
+              ))}
+            </div>
+          ))}
           <PriceCountdownCompact timeframeSeconds={timeframe} />
         </div>
 
-        {/* Right: Tools & Settings */}
-        <div className="flex items-center gap-2">
+        {/* Group 3: Controls */}
+        <div className="flex items-center gap-2 pl-3 ml-auto">
+          {/* Magnet Toggle */}
+          <FootprintMagnetToggle colors={settings.colors} />
+
           {/* Tick Size */}
           <select
             value={tickSize}
@@ -3392,7 +3660,6 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
               onClick={() => {
                 const newValue = !settings.passiveLiquidity.useRealOrderbook;
                 settings.setPassiveLiquidity({ useRealOrderbook: newValue });
-                // Force reconnect to apply the change
                 const ws = getBinanceLiveWS();
                 ws.changeSymbol(symbol);
               }}
@@ -3423,6 +3690,23 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
               />
             </button>
           )}
+
+          {/* Replay Mode Toggle */}
+          <button
+            onClick={() => replayActive ? handleReplayExit() : handleReplayEnter()}
+            className="px-2 py-1.5 rounded text-xs border flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{
+              backgroundColor: replayActive ? 'rgba(245, 158, 11, 0.2)' : settings.colors.background,
+              borderColor: replayActive ? 'rgba(245, 158, 11, 0.4)' : settings.colors.gridColor,
+              color: replayActive ? '#f59e0b' : settings.colors.textSecondary,
+            }}
+            title="Replay Mode (Shift+R)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polygon points="5,3 19,12 5,21" fill={replayActive ? 'currentColor' : 'none'} />
+            </svg>
+            <span className="text-[10px] font-semibold">REPLAY</span>
+          </button>
 
           {/* Settings */}
           <button
@@ -3484,6 +3768,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
         >
           <canvas ref={canvasRef} className="w-full h-full" />
 
+          {/* Zoom Controls */}
+          <FootprintZoomControls
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetView={handleResetView}
+            colors={{ surface: settings.colors.surface, gridColor: settings.colors.gridColor, textSecondary: settings.colors.textSecondary }}
+          />
+
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: `${settings.colors.background}ee` }}>
               <div className="flex flex-col items-center gap-3 p-6 rounded-lg" style={{ backgroundColor: settings.colors.surface }}>
@@ -3512,6 +3804,58 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Error Banner */}
+          {loadError && !isLoading && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 rounded-lg border border-red-500/30 bg-red-950/90 backdrop-blur-sm shadow-lg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span className="text-xs text-red-300">{loadError}</span>
+              <button
+                onClick={() => {
+                  setLoadError(null);
+                  loadHistory(symbol, timeframe).then(candles => {
+                    if (candles.length > 0) candlesRef.current = candles;
+                  });
+                }}
+                className="px-2 py-0.5 text-[10px] font-medium text-red-300 border border-red-500/40 rounded hover:bg-red-500/20 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setLoadError(null)}
+                className="text-red-500 hover:text-red-300 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {/* Replay Controls */}
+          {replayActive && (
+            <FootprintReplayControls
+              state={replayState}
+              onPlay={handleReplayPlay}
+              onPause={handleReplayPause}
+              onNext={handleReplayNext}
+              onPrev={handleReplayPrev}
+              onStart={handleReplayStart}
+              onEnd={handleReplayEnd}
+              onSeek={handleReplaySeek}
+              onSpeedChange={handleReplaySpeedChange}
+              onExit={handleReplayExit}
+              candleTime={replayState.totalCandles > 0 && replayState.currentIndex < replayState.totalCandles
+                ? replayStateRef.current.allCandles[replayState.currentIndex]?.time
+                : undefined
+              }
+            />
           )}
         </div>
 
@@ -3600,7 +3944,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
                 <label key={key} className="flex items-center gap-2 mb-1 text-xs cursor-pointer" style={{ color: settings.colors.textSecondary }}>
                   <input
                     type="checkbox"
-                    checked={value}
+                    checked={value as boolean}
                     onChange={(e) => settings.setFeatures({ [key]: e.target.checked })}
                   />
                   {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
@@ -3848,13 +4192,29 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
         </span>
       </div>
 
-      {/* Context Menu */}
+      {/* Chart Context Menu */}
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           items={contextMenuItems}
           onClose={closeContextMenu}
+          theme="senzoukria"
+        />
+      )}
+
+      {/* Tool Context Menu */}
+      {toolContextMenu && (
+        <ContextMenu
+          x={toolContextMenu.x}
+          y={toolContextMenu.y}
+          items={createToolContextMenuItems(
+            toolContextMenu.tool,
+            getToolsEngine(),
+            () => setToolContextMenu(null),
+            () => { /* re-render handled by animation loop */ }
+          )}
+          onClose={() => setToolContextMenu(null)}
           theme="senzoukria"
         />
       )}
@@ -3873,6 +4233,30 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
         initialPosition={advancedSettingsPosition}
       />
 
+      {/* Unified Tool Properties Panel */}
+      {(showToolProperties || selectedTool) && (
+        <UnifiedToolPropertiesPanel
+          selectedTool={selectedTool}
+          activeTool={activeTool}
+          colors={{
+            surface: settings.colors.surface,
+            background: settings.colors.background,
+            textPrimary: settings.colors.textPrimary,
+            textSecondary: settings.colors.textSecondary,
+            textMuted: settings.colors.textMuted,
+            gridColor: settings.colors.gridColor,
+          }}
+          onUpdate={() => { /* re-render handled by animation loop */ }}
+          onClose={() => {
+            setShowToolProperties(false);
+            if (selectedTool) {
+              getToolsEngine().deselectAll();
+              setSelectedTool(null);
+            }
+          }}
+        />
+      )}
+
       {/* Floating Tool Settings Bar */}
       {selectedTool && !showToolSettings && (
         <ToolSettingsBar
@@ -3884,7 +4268,6 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className }: F
             setSelectedTool(null);
           }}
           onOpenAdvanced={() => {
-            // Position the modal near the tool for better UX
             if (toolPosition) {
               setToolSettingsModalPosition({
                 x: Math.max(50, Math.min(window.innerWidth - 400, toolPosition.x + 20)),
@@ -3909,55 +4292,4 @@ function formatVol(vol: number): string {
   return vol.toFixed(2);
 }
 
-/**
- * ATAS-style volume formatting with zoom-based detail level
- * - Zoomed out: More aggressive abbreviation (K, M)
- * - Zoomed in: Full detail
- * - Smooth transition between levels
- */
-function formatVolATAS(vol: number, zoom: number = 1): string {
-  const abs = Math.abs(vol);
-  if (abs < 1) return '';
-
-  // Zoom thresholds for detail level
-  // zoom < 0.6: Very abbreviated (show K for 500+)
-  // zoom 0.6-1.0: Moderately abbreviated (show K for 1000+)
-  // zoom > 1.0: Full detail (show K for 10000+)
-
-  if (zoom < 0.5) {
-    // Very zoomed out - maximum abbreviation
-    if (abs >= 1000000) return `${Math.round(vol / 1000000)}M`;
-    if (abs >= 1000) return `${Math.round(vol / 1000)}K`;
-    if (abs >= 100) return Math.round(vol / 10) * 10 + '';  // Round to nearest 10
-    return Math.round(vol).toString();
-  } else if (zoom < 0.8) {
-    // Moderately zoomed out
-    if (abs >= 100000) return `${Math.round(vol / 1000)}K`;
-    if (abs >= 10000) return `${(vol / 1000).toFixed(0)}K`;
-    if (abs >= 1000) return `${(vol / 1000).toFixed(1)}K`;
-    return Math.round(vol).toString();
-  } else if (zoom < 1.2) {
-    // Normal zoom - standard formatting
-    if (abs >= 10000) return `${Math.round(vol / 1000)}K`;
-    if (abs >= 1000) return `${(vol / 1000).toFixed(1)}K`;
-    return Math.round(vol).toString();
-  } else {
-    // Zoomed in - full detail
-    if (abs >= 100000) return `${(vol / 1000).toFixed(1)}K`;
-    if (abs >= 10000) return Math.round(vol).toLocaleString();
-    return Math.round(vol).toString();
-  }
-}
-
-/**
- * Format volume for Cluster Static panel
- * Compact display for small cells
- */
-function formatVolCluster(vol: number): string {
-  const abs = Math.abs(vol);
-  if (abs < 0.1) return '0';
-  if (abs >= 1000000) return `${(vol / 1000000).toFixed(1)}M`;
-  if (abs >= 10000) return `${Math.round(vol / 1000)}K`;
-  if (abs >= 1000) return `${(vol / 1000).toFixed(1)}K`;
-  return Math.round(vol).toString();
-}
+// formatVolATAS and formatVolCluster are now in lib/footprint/FootprintCanvasRenderer.ts

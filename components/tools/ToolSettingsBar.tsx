@@ -23,6 +23,13 @@ import {
   getToolsEngine,
 } from '@/lib/tools/ToolsEngine';
 
+// Global timestamp: when ToolSettingsBar last received a pointerdown/mousedown
+// Set via native capture-phase listener so it fires BEFORE any React handler
+let _lastToolbarInteraction = 0;
+export function getLastToolbarInteraction(): number {
+  return _lastToolbarInteraction;
+}
+
 interface ToolSettingsBarProps {
   selectedTool: Tool | null;
   /** Position hint from tool location on chart */
@@ -39,6 +46,8 @@ interface ToolSettingsBarProps {
   };
   onClose?: () => void;
   onOpenAdvanced?: (tool: Tool) => void;
+  /** Called when user interacts with the bar (prevents chart deselection) */
+  onInteractionStart?: () => void;
 }
 
 // Fixed preset colors organized by category - no gradients
@@ -71,6 +80,7 @@ export default function ToolSettingsBar({
   colors,
   onClose,
   onOpenAdvanced,
+  onInteractionStart,
 }: ToolSettingsBarProps) {
   const [style, setStyle] = useState<ToolStyle | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -82,17 +92,55 @@ export default function ToolSettingsBar({
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [hasBeenMoved, setHasBeenMoved] = useState(false); // Track if user manually moved the bar
 
-  // Initialize position based on tool location
+  // Helper: get mouse position relative to the chart container
+  const getRelativePos = useCallback((clientX: number, clientY: number) => {
+    if (!barRef.current) return { x: clientX, y: clientY };
+
+    // Find the parent container with position: relative (the chart area)
+    let parent = barRef.current.parentElement;
+    while (parent) {
+      const style = window.getComputedStyle(parent);
+      if (style.position === 'relative' || style.position === 'absolute') {
+        const rect = parent.getBoundingClientRect();
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      }
+      parent = parent.parentElement;
+    }
+
+    return { x: clientX, y: clientY };
+  }, []);
+
+  // Initialize position based on tool location (only if user hasn't manually moved it)
   useEffect(() => {
-    if (toolPosition && !isDragging) {
-      // Position the bar above and centered on the tool
+    if (toolPosition && !isDragging && !hasBeenMoved) {
       setPosition({
         x: toolPosition.x,
-        y: Math.max(60, toolPosition.y - 50), // Keep it on screen
+        y: Math.max(8, toolPosition.y - 50),
       });
     }
-  }, [toolPosition, isDragging]);
+  }, [toolPosition, isDragging, hasBeenMoved]);
+
+  // Reset hasBeenMoved when selectedTool changes (new tool selected)
+  useEffect(() => {
+    setHasBeenMoved(false);
+  }, [selectedTool?.id]);
+
+  // Set global timestamp on ANY pointer/mouse interaction via native capture-phase
+  // This fires BEFORE React's delegated event system, guaranteeing the timestamp
+  // is set before handleCanvasMouseDown in useDrawingTools checks it
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const markInteraction = () => { _lastToolbarInteraction = Date.now(); };
+    el.addEventListener('pointerdown', markInteraction, true); // capture phase
+    el.addEventListener('mousedown', markInteraction, true);   // capture phase
+    return () => {
+      el.removeEventListener('pointerdown', markInteraction, true);
+      el.removeEventListener('mousedown', markInteraction, true);
+    };
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -107,19 +155,21 @@ export default function ToolSettingsBar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle dragging
+  // Handle dragging (convert viewport coords to chart-local coords)
   useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      const rel = getRelativePos(e.clientX, e.clientY);
       setPosition({
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y,
+        x: rel.x - dragOffset.x,
+        y: rel.y - dragOffset.y,
       });
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setHasBeenMoved(true); // Mark as manually moved
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -128,17 +178,18 @@ export default function ToolSettingsBar({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragOffset]);
+  }, [isDragging, dragOffset, getRelativePos]);
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
-    // Don't drag if clicking on interactive elements
     if ((e.target as HTMLElement).closest('button, input')) return;
     setIsDragging(true);
+    // Drag offset is relative to the bar's position within the chart container
+    const rel = getRelativePos(e.clientX, e.clientY);
     setDragOffset({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
+      x: rel.x - position.x,
+      y: rel.y - position.y,
     });
-  }, [position]);
+  }, [position, getRelativePos]);
 
   // Sync with selected tool
   useEffect(() => {
@@ -193,12 +244,14 @@ export default function ToolSettingsBar({
   return (
     <div
       ref={barRef}
-      className="fixed z-50 select-none"
+      className="absolute z-30 select-none"
       style={{
         left: position.x,
         top: position.y,
         transform: 'translate(-50%, 0)',
       }}
+      onMouseDown={(e) => { e.stopPropagation(); onInteractionStart?.(); }}
+      onPointerDown={(e) => { e.stopPropagation(); onInteractionStart?.(); }}
     >
       {/* Main toolbar container */}
       <div
@@ -281,7 +334,6 @@ export default function ToolSettingsBar({
                       key={color}
                       onClick={() => {
                         updateStyle({ color });
-                        setShowColorPicker(false);
                       }}
                       className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
                         style.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
@@ -294,14 +346,13 @@ export default function ToolSettingsBar({
 
               {/* Extended colors */}
               <div className="mb-2">
-                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Étendu</div>
+                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Extended</div>
                 <div className="flex gap-1.5">
                   {PRESET_COLORS_BY_CATEGORY.extended.map(color => (
                     <button
                       key={color}
                       onClick={() => {
                         updateStyle({ color });
-                        setShowColorPicker(false);
                       }}
                       className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
                         style.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
@@ -314,14 +365,13 @@ export default function ToolSettingsBar({
 
               {/* Neutral colors */}
               <div className="mb-3">
-                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Neutres</div>
+                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Neutral</div>
                 <div className="flex gap-1.5">
                   {PRESET_COLORS_BY_CATEGORY.neutral.map(color => (
                     <button
                       key={color}
                       onClick={() => {
                         updateStyle({ color });
-                        setShowColorPicker(false);
                       }}
                       className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
                         style.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
@@ -334,7 +384,7 @@ export default function ToolSettingsBar({
 
               {/* Custom color */}
               <div className="pt-2 border-t border-white/10">
-                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Personnalisé</div>
+                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Custom</div>
                 <div className="flex gap-2">
                   <input
                     type="color"

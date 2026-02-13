@@ -96,18 +96,30 @@ export class CanvasChartEngine {
   private theme: ChartTheme;
   private dimensions: ChartDimensions;
   private viewport: ChartViewport;
+  private targetViewport: ChartViewport; // Target for smooth lerp animation
   private crosshair: CrosshairPosition = { x: 0, y: 0, visible: false };
   private isDragging = false;
   private isDraggingPriceAxis = false;
+  private isDraggingTimeAxis = false;
   private lastDragX = 0;
   private lastDragY = 0;
+
+  // Pan momentum
+  private panVelocity = 0;
+  private panVelocityY = 0;
+  private panMomentumId: number | null = null;
+  private lastDragTimestamp = 0;
   private lastPinchDistance = 0;
   private showVolume = true;
   private showGrid = true;
   private animationFrameId: number | null = null;
+  private smoothAnimationId: number | null = null; // For lerp animation loop
   private dpr = 1;
   private autoScalePrice = true; // Auto-scale price axis
+  private autoScaleButtonBounds: { x: number; y: number; w: number; h: number } | null = null;
   private userHasPanned = false; // Track if user has panned away from latest
+  // Track last viewport state to detect actual changes (avoid firing onViewportChange for crosshair moves)
+  private lastNotifiedViewport = { startIndex: -1, endIndex: -1, priceMin: -1, priceMax: -1 };
   private crosshairStyle: CrosshairStyle = {
     color: '#6b7280',
     lineWidth: 1,
@@ -118,6 +130,7 @@ export class CanvasChartEngine {
   private onPriceChange?: (price: number) => void;
   private onCrosshairMove?: (time: number, price: number) => void;
   private onCrosshairCandleData?: (data: CrosshairCandleData | null) => void;
+  private onViewportChange?: () => void;
 
   constructor(canvas: HTMLCanvasElement, theme?: Partial<ChartTheme>) {
     this.canvas = canvas;
@@ -142,6 +155,8 @@ export class CanvasChartEngine {
       priceMin: 0,
       priceMax: 100,
     };
+
+    this.targetViewport = { ...this.viewport };
 
     this.setupEventListeners();
   }
@@ -268,6 +283,7 @@ export class CanvasChartEngine {
     if (this.autoScalePrice) {
       this.calculatePriceRange();
     }
+    this.syncTargetToViewport();
     this.render();
 
     if (this.onPriceChange) {
@@ -338,6 +354,10 @@ export class CanvasChartEngine {
     this.onCrosshairCandleData = callback;
   }
 
+  setOnViewportChange(callback: () => void): void {
+    this.onViewportChange = callback;
+  }
+
   setCrosshairStyle(style: Partial<CrosshairStyle>): void {
     this.crosshairStyle = { ...this.crosshairStyle, ...style };
     this.render();
@@ -345,98 +365,201 @@ export class CanvasChartEngine {
 
   fitToData(): void {
     this.userHasPanned = false;
+    this.stopSmoothAnimation();
     const visibleCount = this.getVisibleCandleCount();
     this.viewport.endIndex = this.candles.length;
     this.viewport.startIndex = Math.max(0, this.candles.length - visibleCount);
     this.calculatePriceRange();
+    this.syncTargetToViewport();
     this.render();
   }
 
-  zoomIn(): void {
-    const center = (this.viewport.startIndex + this.viewport.endIndex) / 2;
-    const range = this.viewport.endIndex - this.viewport.startIndex;
-    const newRange = Math.max(10, range * 0.8);
-    this.viewport.startIndex = Math.max(0, Math.floor(center - newRange / 2));
-    this.viewport.endIndex = Math.min(this.candles.length, Math.ceil(center + newRange / 2));
-    if (this.autoScalePrice) {
-      this.calculatePriceRange();
-    }
-    this.render();
-  }
+  private static readonly MIN_VISIBLE_CANDLES = 5;
+  private static readonly LERP_SPEED = 0.28; // Interpolation speed (converges in ~4-5 frames)
+  private static readonly LERP_THRESHOLD = 0.05; // Snap when close enough
 
-  zoomOut(): void {
-    const center = (this.viewport.startIndex + this.viewport.endIndex) / 2;
-    const range = this.viewport.endIndex - this.viewport.startIndex;
-    const newRange = Math.min(this.candles.length, range * 1.25);
-    this.viewport.startIndex = Math.max(0, Math.floor(center - newRange / 2));
-    this.viewport.endIndex = Math.min(this.candles.length, Math.ceil(center + newRange / 2));
-    if (this.autoScalePrice) {
-      this.calculatePriceRange();
+  /**
+   * Core X zoom - modifies targetViewport, then starts smooth animation
+   * factor > 1 = zoom out, factor < 1 = zoom in
+   * cursorX: pixel position of cursor in chart area (0 = left edge)
+   */
+  private zoomX(factor: number, cursorX?: number): void {
+    const { startIndex, endIndex } = this.targetViewport;
+    const range = endIndex - startIndex;
+    const newRange = Math.max(
+      CanvasChartEngine.MIN_VISIBLE_CANDLES,
+      Math.min(this.candles.length, range * factor)
+    );
+
+    if (cursorX !== undefined) {
+      const { width, priceAxisWidth } = this.dimensions;
+      const chartWidth = width - priceAxisWidth;
+      const cursorRatio = cursorX / chartWidth;
+      const cursorIndex = startIndex + cursorRatio * range;
+      const newStart = cursorIndex - cursorRatio * newRange;
+      this.targetViewport.startIndex = Math.max(0, newStart);
+      this.targetViewport.endIndex = Math.min(this.candles.length, newStart + newRange);
+    } else {
+      const center = (startIndex + endIndex) / 2;
+      this.targetViewport.startIndex = Math.max(0, center - newRange / 2);
+      this.targetViewport.endIndex = Math.min(this.candles.length, center + newRange / 2);
     }
-    this.render();
+
+    if (this.autoScalePrice) {
+      this.calculateTargetPriceRange();
+    }
   }
 
   /**
-   * Zoom X axis only (time)
+   * Core Y zoom - modifies targetViewport price range, anchored to cursor
+   * factor > 1 = zoom out, factor < 1 = zoom in
    */
-  zoomInX(): void {
-    const center = (this.viewport.startIndex + this.viewport.endIndex) / 2;
-    const range = this.viewport.endIndex - this.viewport.startIndex;
-    const newRange = Math.max(10, range * 0.8);
-    this.viewport.startIndex = Math.max(0, Math.floor(center - newRange / 2));
-    this.viewport.endIndex = Math.min(this.candles.length, Math.ceil(center + newRange / 2));
-    if (this.autoScalePrice) {
-      this.calculatePriceRange();
-    }
-    this.render();
-  }
-
-  zoomOutX(): void {
-    const center = (this.viewport.startIndex + this.viewport.endIndex) / 2;
-    const range = this.viewport.endIndex - this.viewport.startIndex;
-    const newRange = Math.min(this.candles.length, range * 1.25);
-    this.viewport.startIndex = Math.max(0, Math.floor(center - newRange / 2));
-    this.viewport.endIndex = Math.min(this.candles.length, Math.ceil(center + newRange / 2));
-    if (this.autoScalePrice) {
-      this.calculatePriceRange();
-    }
-    this.render();
-  }
-
-  /**
-   * Zoom Y axis only (price) - more detail when zooming in
-   */
-  zoomInY(centerY?: number): void {
+  private zoomY(factor: number, cursorY?: number): void {
     this.autoScalePrice = false;
-    const { priceMin, priceMax } = this.viewport;
+    const { priceMin, priceMax } = this.targetViewport;
     const priceRange = priceMax - priceMin;
-    const newRange = priceRange * 0.8;
+    const newRange = priceRange * factor;
 
-    // Calculate center price (from mouse position or middle)
     const chartHeight = this.getPriceChartHeight();
-    const centerPrice = centerY !== undefined
-      ? priceMax - (centerY / chartHeight) * priceRange
-      : (priceMin + priceMax) / 2;
+    const cursorRatio = cursorY !== undefined ? cursorY / chartHeight : 0.5;
+    const cursorPrice = priceMax - cursorRatio * priceRange;
 
-    this.viewport.priceMin = centerPrice - newRange / 2;
-    this.viewport.priceMax = centerPrice + newRange / 2;
-    this.render();
+    this.targetViewport.priceMin = cursorPrice - (1 - cursorRatio) * newRange;
+    this.targetViewport.priceMax = cursorPrice + cursorRatio * newRange;
+  }
+
+  // Public zoom methods (for buttons +/- in UI)
+  zoomIn(cursorX?: number): void {
+    this.zoomX(0.85, cursorX);
+    this.startSmoothAnimation();
+  }
+
+  zoomOut(cursorX?: number): void {
+    this.zoomX(1.18, cursorX);
+    this.startSmoothAnimation();
+  }
+
+  zoomInX(cursorX?: number): void {
+    this.zoomX(0.85, cursorX);
+    this.startSmoothAnimation();
+  }
+
+  zoomOutX(cursorX?: number): void {
+    this.zoomX(1.18, cursorX);
+    this.startSmoothAnimation();
+  }
+
+  zoomInY(centerY?: number): void {
+    this.zoomY(0.8, centerY);
+    this.startSmoothAnimation();
   }
 
   zoomOutY(centerY?: number): void {
-    this.autoScalePrice = false;
-    const { priceMin, priceMax } = this.viewport;
-    const priceRange = priceMax - priceMin;
-    const newRange = priceRange * 1.25;
+    this.zoomY(1.25, centerY);
+    this.startSmoothAnimation();
+  }
 
-    const chartHeight = this.getPriceChartHeight();
-    const centerPrice = centerY !== undefined
-      ? priceMax - (centerY / chartHeight) * priceRange
-      : (priceMin + priceMax) / 2;
+  // ============ SMOOTH ANIMATION ============
 
-    this.viewport.priceMin = centerPrice - newRange / 2;
-    this.viewport.priceMax = centerPrice + newRange / 2;
-    this.render();
+  /**
+   * Lerp helper: linear interpolation
+   */
+  private static lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * t;
+  }
+
+  /**
+   * Start the smooth animation loop if not already running
+   */
+  private startSmoothAnimation(): void {
+    if (this.smoothAnimationId !== null) return; // Already animating
+    this.smoothAnimationId = requestAnimationFrame(() => this.tickSmoothAnimation());
+  }
+
+  /**
+   * Stop the smooth animation loop
+   */
+  private stopSmoothAnimation(): void {
+    if (this.smoothAnimationId !== null) {
+      cancelAnimationFrame(this.smoothAnimationId);
+      this.smoothAnimationId = null;
+    }
+  }
+
+  /**
+   * One tick of the smooth animation - lerp viewport toward targetViewport
+   */
+  private tickSmoothAnimation(): void {
+    this.smoothAnimationId = null;
+    const t = CanvasChartEngine.LERP_SPEED;
+    const threshold = CanvasChartEngine.LERP_THRESHOLD;
+
+    this.viewport.startIndex = CanvasChartEngine.lerp(this.viewport.startIndex, this.targetViewport.startIndex, t);
+    this.viewport.endIndex = CanvasChartEngine.lerp(this.viewport.endIndex, this.targetViewport.endIndex, t);
+    this.viewport.priceMin = CanvasChartEngine.lerp(this.viewport.priceMin, this.targetViewport.priceMin, t);
+    this.viewport.priceMax = CanvasChartEngine.lerp(this.viewport.priceMax, this.targetViewport.priceMax, t);
+
+    // Check convergence
+    const dStart = Math.abs(this.viewport.startIndex - this.targetViewport.startIndex);
+    const dEnd = Math.abs(this.viewport.endIndex - this.targetViewport.endIndex);
+    const priceRange = this.targetViewport.priceMax - this.targetViewport.priceMin;
+    const dPriceMin = priceRange > 0 ? Math.abs(this.viewport.priceMin - this.targetViewport.priceMin) / priceRange : 0;
+    const dPriceMax = priceRange > 0 ? Math.abs(this.viewport.priceMax - this.targetViewport.priceMax) / priceRange : 0;
+
+    const converged = dStart < threshold && dEnd < threshold && dPriceMin < 0.001 && dPriceMax < 0.001;
+
+    if (converged) {
+      // Snap to target
+      this.viewport.startIndex = this.targetViewport.startIndex;
+      this.viewport.endIndex = this.targetViewport.endIndex;
+      this.viewport.priceMin = this.targetViewport.priceMin;
+      this.viewport.priceMax = this.targetViewport.priceMax;
+      this.renderImmediate();
+    } else {
+      // Continue animating
+      this.renderImmediate();
+      this.smoothAnimationId = requestAnimationFrame(() => this.tickSmoothAnimation());
+    }
+  }
+
+  /**
+   * Render immediately (synchronous draw, no RAF wrapper)
+   * Used by the animation loop to avoid double-buffering with render()
+   */
+  private renderImmediate(): void {
+    this.ctx.save();
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+    this.ctx.fillStyle = this.theme.background;
+    this.ctx.fillRect(0, 0, this.dimensions.width, this.dimensions.height);
+
+    if (this.showGrid) this.drawGrid();
+    this.drawCandles();
+    if (this.showVolume) this.drawVolume();
+    this.drawPriceAxis();
+    this.drawTimeAxis();
+    this.drawCurrentPriceLine();
+    if (this.crosshair.visible) this.drawCrosshair();
+
+    this.ctx.restore();
+    this.notifyViewportChangeIfNeeded();
+  }
+
+  /**
+   * Only fire onViewportChange callback when viewport actually changed
+   * Prevents expensive re-renders of drawing tools on every crosshair move
+   */
+  private notifyViewportChangeIfNeeded(): void {
+    const v = this.viewport;
+    const last = this.lastNotifiedViewport;
+    if (v.startIndex !== last.startIndex || v.endIndex !== last.endIndex ||
+        v.priceMin !== last.priceMin || v.priceMax !== last.priceMax) {
+      last.startIndex = v.startIndex;
+      last.endIndex = v.endIndex;
+      last.priceMin = v.priceMin;
+      last.priceMax = v.priceMax;
+      this.onViewportChange?.();
+    }
   }
 
   /**
@@ -445,6 +568,7 @@ export class CanvasChartEngine {
   resetPriceScale(): void {
     this.autoScalePrice = true;
     this.calculatePriceRange();
+    this.syncTargetToViewport();
     this.render();
   }
 
@@ -456,7 +580,14 @@ export class CanvasChartEngine {
     return x >= width - priceAxisWidth;
   }
 
+  private isOnTimeAxis(y: number): boolean {
+    const { height, timeAxisHeight } = this.dimensions;
+    return y >= height - timeAxisHeight;
+  }
+
   destroy(): void {
+    this.stopMomentum();
+    this.stopSmoothAnimation();
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
@@ -484,11 +615,9 @@ export class CanvasChartEngine {
       this.ctx.save();
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
-      // Clear
       this.ctx.fillStyle = this.theme.background;
       this.ctx.fillRect(0, 0, this.dimensions.width, this.dimensions.height);
 
-      // Draw components
       if (this.showGrid) this.drawGrid();
       this.drawCandles();
       if (this.showVolume) this.drawVolume();
@@ -498,6 +627,8 @@ export class CanvasChartEngine {
       if (this.crosshair.visible) this.drawCrosshair();
 
       this.ctx.restore();
+
+      this.notifyViewportChangeIfNeeded();
     });
   }
 
@@ -617,8 +748,9 @@ export class CanvasChartEngine {
     const priceRange = priceMax - priceMin;
     if (priceRange === 0) return;
 
-    const safeStart = Math.max(0, startIndex);
-    for (let i = safeStart; i < endIndex && i < this.candles.length; i++) {
+    const safeStart = Math.max(0, Math.floor(startIndex));
+    const safeEnd = Math.min(Math.ceil(endIndex), this.candles.length);
+    for (let i = safeStart; i < safeEnd; i++) {
       const candle = this.candles[i];
       const x = (i - startIndex) * candleTotalWidth + candleOffset;
       const isUp = candle.close >= candle.open;
@@ -666,14 +798,15 @@ export class CanvasChartEngine {
     const barOffset = candleTotalWidth * 0.15;
 
     // Find max volume in visible range (clamp to valid indices)
-    const safeStart = Math.max(0, startIndex);
+    const safeStart = Math.max(0, Math.floor(startIndex));
+    const safeEnd = Math.min(Math.ceil(endIndex), this.candles.length);
     let maxVolume = 0;
-    for (let i = safeStart; i < endIndex && i < this.candles.length; i++) {
+    for (let i = safeStart; i < safeEnd; i++) {
       maxVolume = Math.max(maxVolume, this.candles[i].volume);
     }
     if (maxVolume === 0) return;
 
-    for (let i = safeStart; i < endIndex && i < this.candles.length; i++) {
+    for (let i = safeStart; i < safeEnd; i++) {
       const candle = this.candles[i];
       const x = (i - startIndex) * candleTotalWidth + barOffset;
       const isUp = candle.close >= candle.open;
@@ -722,6 +855,35 @@ export class CanvasChartEngine {
         this.ctx.fillText(this.formatPrice(price), axisX + 8, y + 4);
       }
     }
+
+    // Auto-scale button "A" at bottom of price axis (visible when auto-scale is OFF)
+    if (!this.autoScalePrice) {
+      const btnSize = 20;
+      const btnX = axisX + (priceAxisWidth - btnSize) / 2;
+      const btnY = chartHeight - btnSize - 6;
+
+      // Button background
+      this.ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+      this.ctx.beginPath();
+      this.roundRect(btnX, btnY, btnSize, btnSize, 4);
+      this.ctx.fill();
+      this.ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+      this.ctx.lineWidth = 1;
+      this.ctx.beginPath();
+      this.roundRect(btnX, btnY, btnSize, btnSize, 4);
+      this.ctx.stroke();
+
+      // "A" label
+      this.ctx.fillStyle = '#3b82f6';
+      this.ctx.font = 'bold 11px sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('A', btnX + btnSize / 2, btnY + btnSize / 2 + 4);
+
+      // Store button bounds for click detection
+      this.autoScaleButtonBounds = { x: btnX, y: btnY, w: btnSize, h: btnSize };
+    } else {
+      this.autoScaleButtonBounds = null;
+    }
   }
 
   private drawTimeAxis(): void {
@@ -752,9 +914,10 @@ export class CanvasChartEngine {
     const labelInterval = Math.max(1, Math.floor(visibleCandles / 8));
 
     // Start from the first valid candle index, aligned to labelInterval
-    const safeStart = Math.max(0, startIndex);
-    const alignedStart = safeStart + ((labelInterval - ((safeStart - startIndex) % labelInterval)) % labelInterval);
-    for (let i = alignedStart; i < endIndex && i < this.candles.length; i += labelInterval) {
+    const safeStart = Math.max(0, Math.floor(startIndex));
+    const safeEnd = Math.min(Math.ceil(endIndex), this.candles.length);
+    const alignedStart = safeStart + ((labelInterval - ((safeStart - Math.floor(startIndex)) % labelInterval)) % labelInterval);
+    for (let i = alignedStart; i < safeEnd; i += labelInterval) {
       const candle = this.candles[i];
       const x = ((i - startIndex) / visibleCandles) * chartWidth;
       const timeStr = this.formatTime(candle.time);
@@ -846,7 +1009,7 @@ export class CanvasChartEngine {
 
     // Time label + candle highlight
     const visibleCandles = endIndex - startIndex;
-    const candleIndex = Math.floor((x / chartWidth) * visibleCandles) + startIndex;
+    const candleIndex = Math.floor((x / chartWidth) * visibleCandles + startIndex);
     if (candleIndex >= 0 && candleIndex < this.candles.length) {
       const candle = this.candles[candleIndex];
       const timeStr = this.formatTime(candle.time);
@@ -984,9 +1147,8 @@ export class CanvasChartEngine {
 
     if (this.candles.length === 0) return;
 
-    // Clamp indices to valid candle data range (startIndex can be negative when panning into empty space)
-    const safeStart = Math.max(0, startIndex);
-    const safeEnd = Math.min(this.candles.length, endIndex);
+    const safeStart = Math.max(0, Math.floor(startIndex));
+    const safeEnd = Math.min(this.candles.length, Math.ceil(endIndex));
 
     let min = Infinity;
     let max = -Infinity;
@@ -999,11 +1161,48 @@ export class CanvasChartEngine {
 
     if (min === Infinity || max === -Infinity) return;
 
-    // Add padding
     const range = max - min;
     const padding = range * 0.05;
     this.viewport.priceMin = min - padding;
     this.viewport.priceMax = max + padding;
+  }
+
+  /**
+   * Calculate price range for the TARGET viewport (used during animated zoom)
+   */
+  private calculateTargetPriceRange(): void {
+    const { startIndex, endIndex } = this.targetViewport;
+
+    if (this.candles.length === 0) return;
+
+    const safeStart = Math.max(0, Math.floor(startIndex));
+    const safeEnd = Math.min(this.candles.length, Math.ceil(endIndex));
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    for (let i = safeStart; i < safeEnd; i++) {
+      const candle = this.candles[i];
+      min = Math.min(min, candle.low);
+      max = Math.max(max, candle.high);
+    }
+
+    if (min === Infinity || max === -Infinity) return;
+
+    const range = max - min;
+    const padding = range * 0.05;
+    this.targetViewport.priceMin = min - padding;
+    this.targetViewport.priceMax = max + padding;
+  }
+
+  /**
+   * Sync targetViewport to match current viewport (after immediate operations)
+   */
+  private syncTargetToViewport(): void {
+    this.targetViewport.startIndex = this.viewport.startIndex;
+    this.targetViewport.endIndex = this.viewport.endIndex;
+    this.targetViewport.priceMin = this.viewport.priceMin;
+    this.targetViewport.priceMax = this.viewport.priceMax;
   }
 
   /**
@@ -1136,14 +1335,36 @@ export class CanvasChartEngine {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Check if clicking on price axis
+    // Check if clicking on auto-scale "A" button
+    if (this.autoScaleButtonBounds) {
+      const btn = this.autoScaleButtonBounds;
+      if (x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
+        this.autoScalePrice = true;
+        this.calculatePriceRange();
+        this.syncTargetToViewport();
+        this.render();
+        return;
+      }
+    }
+
+    // Check if clicking on price axis or time axis
     if (this.isOnPriceAxis(x)) {
       this.isDraggingPriceAxis = true;
       this.lastDragY = e.clientY;
       this.canvas.style.cursor = 'ns-resize';
+    } else if (this.isOnTimeAxis(y)) {
+      this.isDraggingTimeAxis = true;
+      this.lastDragX = e.clientX;
+      this.canvas.style.cursor = 'ew-resize';
     } else {
       this.isDragging = true;
       this.lastDragX = e.clientX;
+      this.lastDragY = e.clientY;
+      this.lastDragTimestamp = performance.now();
+      this.panVelocity = 0;
+      this.panVelocityY = 0;
+      this.stopMomentum();
+      this.crosshair.visible = false;
       this.canvas.style.cursor = 'grabbing';
     }
   };
@@ -1158,14 +1379,31 @@ export class CanvasChartEngine {
       const deltaY = e.clientY - this.lastDragY;
       this.lastDragY = e.clientY;
       this.zoomYByDrag(deltaY);
-    } else if (this.isDragging) {
+    } else if (this.isDraggingTimeAxis) {
+      // Zoom X by dragging on time axis
       const deltaX = e.clientX - this.lastDragX;
       this.lastDragX = e.clientX;
-      this.pan(deltaX);
+      this.zoomXByDrag(deltaX);
+    } else if (this.isDragging) {
+      const deltaX = e.clientX - this.lastDragX;
+      const deltaY = e.clientY - this.lastDragY;
+      const now = performance.now();
+      const dt = now - this.lastDragTimestamp;
+      this.lastDragX = e.clientX;
+      this.lastDragY = e.clientY;
+      this.lastDragTimestamp = now;
+      // Track velocity for momentum (pixels/ms)
+      if (dt > 0 && dt < 100) {
+        this.panVelocity = deltaX / dt;
+        this.panVelocityY = deltaY / dt;
+      }
+      this.pan(deltaX, deltaY);
     } else {
       // Update cursor based on position
       if (this.isOnPriceAxis(x)) {
         this.canvas.style.cursor = 'ns-resize';
+      } else if (this.isOnTimeAxis(y)) {
+        this.canvas.style.cursor = 'ew-resize';
       } else {
         this.canvas.style.cursor = 'crosshair';
       }
@@ -1175,14 +1413,51 @@ export class CanvasChartEngine {
   };
 
   private handleMouseUp = (): void => {
+    const wasDragging = this.isDragging;
     this.isDragging = false;
     this.isDraggingPriceAxis = false;
+    this.isDraggingTimeAxis = false;
     this.canvas.style.cursor = 'crosshair';
+
+    // Start pan momentum if was panning with velocity (X or Y)
+    if (wasDragging && (Math.abs(this.panVelocity) > 0.05 || Math.abs(this.panVelocityY) > 0.05)) {
+      this.startMomentum();
+    }
   };
 
+  private stopMomentum(): void {
+    if (this.panMomentumId !== null) {
+      cancelAnimationFrame(this.panMomentumId);
+      this.panMomentumId = null;
+    }
+  }
+
+  private startMomentum(): void {
+    this.stopMomentum();
+    let velocityX = this.panVelocity * 16; // Convert px/ms to px/frame (~16ms)
+    let velocityY = this.panVelocityY * 16;
+    const decay = 0.92;
+
+    const tick = () => {
+      if (Math.abs(velocityX) < 0.5 && Math.abs(velocityY) < 0.5) {
+        this.panMomentumId = null;
+        return;
+      }
+      this.pan(velocityX, velocityY);
+      velocityX *= decay;
+      velocityY *= decay;
+      this.panMomentumId = requestAnimationFrame(tick);
+    };
+    this.panMomentumId = requestAnimationFrame(tick);
+  }
+
   private handleMouseLeave = (): void => {
+    if (this.isDragging && (Math.abs(this.panVelocity) > 0.05 || Math.abs(this.panVelocityY) > 0.05)) {
+      this.startMomentum(); // Keep momentum when mouse leaves
+    }
     this.isDragging = false;
     this.isDraggingPriceAxis = false;
+    this.isDraggingTimeAxis = false;
     this.crosshair.visible = false;
     this.canvas.style.cursor = 'crosshair';
     if (this.onCrosshairCandleData) this.onCrosshairCandleData(null);
@@ -1196,54 +1471,76 @@ export class CanvasChartEngine {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Check if on price axis - zoom Y only
+    // Proportional zoom: factor scales with scroll speed
+    // deltaY ~100 for one notch, ~300+ for fast scroll
+    const sensitivity = 0.0025;
+    const factorX = Math.pow(2, e.deltaY * sensitivity);
+    const factorY = Math.pow(2, e.deltaY * sensitivity);
+
+    // On price axis: zoom Y only (anchored to cursor)
     if (this.isOnPriceAxis(x)) {
-      if (e.deltaY < 0) {
-        this.zoomInY(y);
-      } else {
-        this.zoomOutY(y);
-      }
+      this.zoomY(factorY, y);
+      this.startSmoothAnimation();
+      return;
+    }
+
+    // On time axis: zoom X only (anchored to cursor)
+    if (this.isOnTimeAxis(y)) {
+      this.zoomX(factorX, x);
+      this.startSmoothAnimation();
       return;
     }
 
     if (e.ctrlKey || e.metaKey) {
-      // CTRL + scroll = zoom X only (time axis)
-      if (e.deltaY < 0) {
-        this.zoomInX();
-      } else {
-        this.zoomOutX();
-      }
+      // Ctrl+Scroll = zoom X only (time)
+      this.zoomX(factorX, x);
+    } else if (e.shiftKey) {
+      // Shift+Scroll = zoom Y only (price)
+      this.zoomY(factorY, y);
     } else {
-      // Normal scroll = zoom both X and Y
-      if (e.deltaY < 0) {
-        this.zoomIn();
-        if (!this.autoScalePrice) {
-          this.zoomInY(y);
-        }
+      // Normal scroll = zoom X+Y anchored to cursor
+      this.zoomX(factorX, x);
+      if (this.autoScalePrice) {
+        this.calculateTargetPriceRange();
       } else {
-        this.zoomOut();
-        if (!this.autoScalePrice) {
-          this.zoomOutY(y);
-        }
+        this.zoomY(factorY, y);
       }
     }
+    this.startSmoothAnimation();
   };
 
   /**
-   * Zoom Y axis by dragging on price axis
+   * Zoom X axis by dragging on time axis (immediate, no lerp - drag should feel direct)
+   */
+  private zoomXByDrag(deltaX: number): void {
+    const { startIndex, endIndex } = this.viewport;
+    const range = endIndex - startIndex;
+    const zoomFactor = 1 - (deltaX * 0.005);
+    const newRange = Math.max(CanvasChartEngine.MIN_VISIBLE_CANDLES, Math.min(this.candles.length, range * zoomFactor));
+    const center = (startIndex + endIndex) / 2;
+    this.viewport.startIndex = Math.max(0, center - newRange / 2);
+    this.viewport.endIndex = Math.min(this.candles.length, center + newRange / 2);
+    if (this.autoScalePrice) {
+      this.calculatePriceRange();
+    }
+    this.syncTargetToViewport();
+    this.render();
+  }
+
+  /**
+   * Zoom Y axis by dragging on price axis (immediate, no lerp)
    */
   private zoomYByDrag(deltaY: number): void {
     this.autoScalePrice = false;
     const { priceMin, priceMax } = this.viewport;
     const priceRange = priceMax - priceMin;
-
-    // Dragging down = zoom out (expand range), dragging up = zoom in (contract range)
     const zoomFactor = 1 + (deltaY * 0.005);
     const newRange = priceRange * zoomFactor;
 
     const centerPrice = (priceMin + priceMax) / 2;
     this.viewport.priceMin = centerPrice - newRange / 2;
     this.viewport.priceMax = centerPrice + newRange / 2;
+    this.syncTargetToViewport();
     this.render();
   }
 
@@ -1289,32 +1586,40 @@ export class CanvasChartEngine {
     this.lastPinchDistance = 0;
   };
 
-  private pan(deltaX: number): void {
+  private pan(deltaX: number, deltaY?: number): void {
+    // Any drag disables auto-scale for free movement (user can re-enable with "A" button or double-click)
+    this.autoScalePrice = false;
+
     const { width, priceAxisWidth } = this.dimensions;
     const chartWidth = width - priceAxisWidth;
     const visibleCandles = this.viewport.endIndex - this.viewport.startIndex;
-    const candlesPanned = Math.round((deltaX / chartWidth) * visibleCandles);
+    const candlesPanned = (deltaX / chartWidth) * visibleCandles;
 
-    if (candlesPanned === 0) return;
-
-    // Allow panning beyond data: left margin (show empty past) and right margin (show empty future space)
-    const rightMargin = Math.floor(visibleCandles * 0.5); // 50% of visible width as right margin
+    const rightMargin = Math.floor(visibleCandles * 0.5);
     const maxEndIndex = this.candles.length + rightMargin;
 
-    const newStartIndex = Math.max(-rightMargin, this.viewport.startIndex - candlesPanned);
-    const newEndIndex = Math.min(maxEndIndex, this.viewport.endIndex - candlesPanned);
-
-    if (newStartIndex !== this.viewport.startIndex) {
+    if (Math.abs(candlesPanned) >= 0.01) {
+      const newStartIndex = Math.max(-rightMargin, this.viewport.startIndex - candlesPanned);
+      const newEndIndex = Math.min(maxEndIndex, this.viewport.endIndex - candlesPanned);
       this.viewport.startIndex = newStartIndex;
       this.viewport.endIndex = newEndIndex;
-
-      // Mark that user has panned away from latest
-      if (this.viewport.endIndex < this.candles.length) {
-        this.userHasPanned = true;
-      }
-
-      this.calculatePriceRange();
-      this.render();
     }
+
+    // Mark that user has panned away from latest
+    if (this.viewport.endIndex < this.candles.length) {
+      this.userHasPanned = true;
+    }
+
+    // Pan Y (price) - shift price range with vertical drag
+    if (deltaY && Math.abs(deltaY) > 0.5) {
+      const chartHeight = this.getPriceChartHeight();
+      const priceRange = this.viewport.priceMax - this.viewport.priceMin;
+      const priceDelta = (deltaY / chartHeight) * priceRange;
+      this.viewport.priceMin += priceDelta;
+      this.viewport.priceMax += priceDelta;
+    }
+
+    this.syncTargetToViewport();
+    this.render();
   }
 }

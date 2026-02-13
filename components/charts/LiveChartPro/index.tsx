@@ -11,7 +11,8 @@ import { getToolsRenderer } from '@/lib/tools/ToolsRenderer';
 import { getInteractionController } from '@/lib/tools/InteractionController';
 import { ContextMenu } from '@/components/ui/ContextMenu';
 import { SaveTemplateModal } from '@/components/modals/SaveTemplateModal';
-import ToolSettingsBar from '@/components/tools/ToolSettingsBar';
+import { UnifiedToolPropertiesPanel } from '@/components/tools/UnifiedToolPropertiesPanel';
+import { TextEditor } from '@/components/tools/TextEditor';
 import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
 import { SettingsIcon } from '@/components/ui/Icons';
 import QuickTradeBar from '@/components/trading/QuickTradeBar';
@@ -35,10 +36,139 @@ import ChartFooter from './components/ChartFooter';
 import MagnetToggle from './components/MagnetToggle';
 import { useChartEngine, useSymbolData, useChartSettings, useDrawingTools, useContextMenu } from './hooks';
 import { DEFAULT_CUSTOM_COLORS, type SharedRefs, type CustomColors } from './hooks/types';
+import { BroadcastChannelManager } from '@/lib/sync/BroadcastChannelManager';
+import { useChartSyncStore } from '@/stores/useChartSyncStore';
 
 interface LiveChartProProps {
   className?: string;
   onSymbolChange?: (symbol: string) => void;
+}
+
+// Helper function to create tool context menu items
+function createToolContextMenuItems(
+  tool: any,
+  engine: ReturnType<typeof getToolsEngine>,
+  onCloseMenu: () => void,
+  onRenderTools: () => void
+) {
+  return [
+    {
+      id: 'tool-clone',
+      label: 'Clone',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+      ),
+      shortcut: 'Ctrl+D',
+      onClick: () => {
+        const { id, createdAt, updatedAt, selected, zIndex, ...toolData } = tool;
+        engine.addTool(toolData as any);
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'tool-delete',
+      label: 'Delete',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      ),
+      shortcut: 'Del',
+      danger: true,
+      onClick: () => {
+        engine.deleteTool(tool.id);
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'separator-1',
+      label: '',
+      divider: true,
+    },
+    {
+      id: 'tool-lock',
+      label: tool.locked ? 'Unlock' : 'Lock',
+      icon: tool.locked ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 019.9-1"/>
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0110 0v4"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { locked: !tool.locked });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'tool-hide',
+      label: tool.visible ? 'Hide' : 'Show',
+      icon: tool.visible ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { visible: !tool.visible });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'separator-2',
+      label: '',
+      divider: true,
+    },
+    {
+      id: 'tool-bring-front',
+      label: 'Bring to Front',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <polyline points="17 11 12 6 7 11"/>
+          <polyline points="17 18 12 13 7 18"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { zIndex: 9999 });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+    {
+      id: 'tool-send-back',
+      label: 'Send to Back',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <polyline points="7 13 12 18 17 13"/>
+          <polyline points="7 6 12 11 17 6"/>
+        </svg>
+      ),
+      onClick: () => {
+        engine.updateTool(tool.id, { zIndex: 1 });
+        onCloseMenu();
+        onRenderTools();
+      },
+    },
+  ];
 }
 
 export default function LiveChartPro({ className, onSymbolChange }: LiveChartProProps) {
@@ -96,6 +226,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   const [showDepthMap, setShowDepthMap] = useState(false);
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showToolProperties, setShowToolProperties] = useState(false);
   const [customColors, setCustomColors] = useState<CustomColors>(DEFAULT_CUSTOM_COLORS);
 
   // === STORE HOOKS ===
@@ -155,6 +286,13 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   // Keep trading ref in sync
   tradingRef.current = { activeBroker, connections, placeOrder, closePosition, contractQuantity, symbol: symbolData.symbol, showTradeBar };
 
+  // Auto-show tool properties panel when a tool is selected
+  useEffect(() => {
+    if (drawing.selectedTool) {
+      setShowToolProperties(true);
+    }
+  }, [drawing.selectedTool]);
+
   // === KEYBOARD SHORTCUTS (inline - too many cross-deps) ===
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -210,29 +348,51 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
       refs.interactionController.current.handleKeyUp(e);
     };
 
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        engine.smartZoom(e.deltaY < 0);
-      }
-    };
-
-    const container = refs.chartContainer.current;
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-    }
-
+    // Wheel zoom is handled directly by CanvasChartEngine.handleWheel
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      if (container) {
-        container.removeEventListener('wheel', handleWheel);
-      }
     };
   }, [engine, symbolData.timeframe, refs]);
+
+  // === MULTI-CHART SYNC ===
+  useEffect(() => {
+    const mgr = new BroadcastChannelManager('livechart-' + Math.random().toString(36).slice(2, 8));
+
+    // Register crosshair broadcast
+    const chartEngine = refs.chartEngine.current as any;
+    if (chartEngine?.setOnCrosshairMove) {
+      chartEngine.setOnCrosshairMove((time: number, price: number) => {
+        const sync = useChartSyncStore.getState();
+        if (sync.syncEnabled && sync.syncCrosshair) {
+          mgr.broadcastCrosshair(price, time, true);
+        }
+      });
+    }
+
+    // Listen for incoming sync messages
+    mgr.setListeners({
+      onSymbol: (msg) => {
+        const sync = useChartSyncStore.getState();
+        if (sync.syncEnabled && sync.syncSymbol) {
+          symbolData.handleSymbolChange(msg.symbol);
+        }
+      },
+      onTimeframe: (msg) => {
+        const sync = useChartSyncStore.getState();
+        if (sync.syncEnabled && sync.syncTimeframe) {
+          symbolData.handleTimeframeChange(msg.timeframe as TimeframeSeconds);
+        }
+      },
+    });
+
+    return () => {
+      mgr.close();
+    };
+  }, [refs, symbolData.handleSymbolChange, symbolData.handleTimeframeChange]);
 
   return (
     <div
@@ -519,7 +679,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
         {/* Chart Area */}
         <div className="flex-1 relative" onContextMenu={contextMenuHook.handleContextMenu}>
           <div ref={refs.chartContainer} className="w-full h-full">
-            <canvas ref={refs.chartCanvas} className="absolute inset-0 w-full h-full" style={{ cursor: 'crosshair' }} />
+            <canvas ref={refs.chartCanvas} className="absolute inset-0 w-full h-full" style={{ cursor: 'crosshair', zIndex: 1 }} />
           </div>
 
           {showDepthMap && symbolData.viewportState.chartHeight > 0 && (
@@ -529,16 +689,43 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           <canvas
             ref={refs.drawingCanvas}
             className="absolute inset-0"
-            style={{ zIndex: 5, pointerEvents: drawing.activeTool !== 'cursor' && drawing.activeTool !== 'crosshair' ? 'auto' : 'none' }}
+            style={{ zIndex: 5, pointerEvents: (drawing.activeTool !== 'cursor' && drawing.activeTool !== 'crosshair') || drawing.toolCount > 0 ? 'auto' : 'none' }}
             onMouseDown={drawing.handleCanvasMouseDown}
             onMouseMove={drawing.handleCanvasMouseMove}
             onMouseUp={drawing.handleCanvasMouseUp}
             onMouseLeave={drawing.handleCanvasMouseLeave}
+            onContextMenu={drawing.handleCanvasContextMenu}
+            onDoubleClick={drawing.handleCanvasDoubleClick}
           />
 
           <LoadingOverlay loadingPhase={symbolData.loadingPhase} backgroundColor={engine.effectiveColors.background} theme={theme} />
           <AlertNotifications notifications={symbolData.notifications} onDismiss={symbolData.dismissNotification} theme={theme} />
           <ZoomControls onZoomIn={() => engine.smartZoom(true)} onZoomOut={() => engine.smartZoom(false)} onResetView={engine.resetView} onScreenshot={engine.handleScreenshot} theme={theme} />
+
+          {/* Unified Tool Properties Panel - shown when tool is selected */}
+          {(showToolProperties || drawing.selectedTool) && (
+            <UnifiedToolPropertiesPanel
+              selectedTool={drawing.selectedTool}
+              activeTool={drawing.mapToolType(drawing.activeTool) || 'cursor'}
+              colors={{
+                surface: theme.colors.surface,
+                background: theme.colors.background,
+                textPrimary: theme.colors.text,
+                textSecondary: theme.colors.textSecondary,
+                textMuted: theme.colors.textMuted,
+                gridColor: theme.colors.border,
+              }}
+              onUpdate={drawing.renderDrawingTools}
+              onClose={() => {
+                setShowToolProperties(false);
+                if (drawing.selectedTool) {
+                  refs.toolsEngine.current.deselectAll();
+                  drawing.setSelectedTool(null);
+                  drawing.renderDrawingTools();
+                }
+              }}
+            />
+          )}
 
           {/* Customize Panel */}
           {settings.showCustomizePanel && (
@@ -604,19 +791,42 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
         <ContextMenu x={contextMenuHook.contextMenu.x} y={contextMenuHook.contextMenu.y} items={contextMenuHook.contextMenuItems} onClose={contextMenuHook.closeContextMenu} theme="senzoukria" />
       )}
 
+      {/* Tool Context Menu */}
+      {drawing.toolContextMenu && (
+        <ContextMenu
+          x={drawing.toolContextMenu.x}
+          y={drawing.toolContextMenu.y}
+          items={createToolContextMenuItems(
+            drawing.toolContextMenu.tool,
+            refs.toolsEngine.current,
+            () => drawing.setToolContextMenu(null),
+            drawing.renderDrawingTools
+          )}
+          onClose={() => drawing.setToolContextMenu(null)}
+          theme="senzoukria"
+        />
+      )}
+
+      {/* Text Editor Overlay */}
+      {drawing.textEditorState && (
+        <TextEditor
+          tool={drawing.textEditorState.tool}
+          position={drawing.textEditorState.position}
+          onClose={() => {
+            refs.toolsEngine.current.cancelTextEdit(drawing.textEditorState!.tool.id);
+            drawing.setTextEditorState(null);
+          }}
+          onSave={(content) => {
+            refs.toolsEngine.current.finishTextEdit(drawing.textEditorState!.tool.id, content);
+            drawing.setTextEditorState(null);
+            drawing.renderDrawingTools();
+          }}
+        />
+      )}
+
       <SaveTemplateModal isOpen={settings.showSaveTemplateModal} onClose={() => settings.setShowSaveTemplateModal(false)} onSave={settings.handleSaveTemplate} />
       <KeyboardShortcutsModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
       <GlobalSettingsModal isOpen={settings.showGlobalSettings} onClose={() => settings.setShowGlobalSettings(false)} />
-
-      {drawing.selectedTool && (
-        <ToolSettingsBar
-          selectedTool={drawing.selectedTool}
-          toolPosition={drawing.toolPosition}
-          colors={{ surface: theme.colors.surface, background: theme.colors.background, textPrimary: theme.colors.text, textSecondary: theme.colors.textSecondary, textMuted: theme.colors.textMuted, gridColor: theme.colors.border, deltaPositive: theme.colors.success, deltaNegative: theme.colors.error }}
-          onClose={() => { refs.toolsEngine.current.deselectAll(); drawing.setSelectedTool(null); drawing.renderDrawingTools(); }}
-          onOpenAdvanced={() => { settings.setAdvancedSettingsPosition({ x: (drawing.toolPosition?.x || 200) + 50, y: (drawing.toolPosition?.y || 150) + 50 }); settings.setShowAdvancedSettings(true); }}
-        />
-      )}
 
       <AdvancedToolSettingsModal isOpen={settings.showAdvancedSettings && drawing.selectedTool !== null} onClose={() => settings.setShowAdvancedSettings(false)} activeTool={drawing.selectedTool?.type || 'cursor'} selectedTool={drawing.selectedTool} initialPosition={settings.advancedSettingsPosition} theme={theme} />
 

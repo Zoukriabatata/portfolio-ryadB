@@ -115,8 +115,8 @@ export default function MiniDepthHeatmap({ priceMin, priceMax, chartHeight, onCl
 
   return (
     <div
-      className="absolute right-[80px] top-0 z-10 flex flex-col"
-      style={{ height: chartHeight }}
+      className="absolute right-[80px] top-0 flex flex-col"
+      style={{ height: chartHeight, zIndex: 8 }}
     >
       <canvas
         ref={canvasRef}

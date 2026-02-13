@@ -24,8 +24,7 @@ import type { AbsorptionResult } from '@/types/passive-liquidity';
 import type { KeyLevel } from '@/lib/heatmap-webgl/commands/KeyLevelsCommand';
 import { detectImbalance } from '@/lib/calculations/imbalance';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
-import dynamic from 'next/dynamic';
-const LiquidityAdvancedSettings = dynamic(() => import('@/components/settings/LiquidityAdvancedSettings'), { ssr: false });
+import LiquidityAdvancedSettings from '@/components/settings/LiquidityAdvancedSettings';
 import type { TimeSalesTrade } from '@/components/trading';
 
 export type DataMode = 'simulation' | 'live';
@@ -92,9 +91,15 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   // Fix 3: VWAP cache
   const vwapKeyLevelsCacheRef = useRef<{ levels: KeyLevel[]; settings: { vwapColor: string; vwapBand1Color: string; vwapBand2Color: string; opacity: number } } | null>(null);
   const lastVwapPriceRef = useRef<number>(0);
-  // Fix 4: Absorption mapped cache
+  // Fix 4: Session stats key levels cache (POC, VAH, VAL, Session High/Low)
+  const sessionKeyLevelsCacheRef = useRef<KeyLevel[]>([]);
+  const lastSessionStatsPocRef = useRef<number>(0);
+  // Fix 5: Absorption mapped cache
   const absorptionMappedRef = useRef<{ price: number; volume: number; side: 'bid' | 'ask'; timestamp: number; age: number }[]>([]);
   const lastAbsorptionFilterRef = useRef<number>(0);
+
+  // Auto-follow animation
+  const recenterAnimRef = useRef<{ startPanY: number; startTime: number } | null>(null);
 
   const [state, setState] = useState<MarketState | null>(null);
   const stateRef = useRef<MarketState | null>(null);
@@ -105,6 +110,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   const [dataMode, setDataMode] = useState<DataMode>(initialMode);
   const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingType | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   // Track actual rendering mode (may differ from preference if WebGL fails)
   const [actuallyUsingWebGL, setActuallyUsingWebGL] = useState(false);
 
@@ -124,6 +130,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     upperCutoffPercent,
     bestBidColor,
     bestAskColor,
+    colorScheme,
   } = store;
 
   // Destructure display features for convenience
@@ -149,6 +156,8 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     grid: gridSettings,
     passiveOrders: passiveOrderSettings,
     timeSales: timeSalesSettings,
+    deltaProfile: deltaProfileSettings,
+    keyLevels: keyLevelsSettings,
   } = displayFeatures;
 
   // Create renderer-compatible trade flow settings
@@ -184,6 +193,9 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     askVolume: 0,
     visible: false,
   });
+  // PERF: Ref for render loop (avoids re-render on mouse move)
+  const crosshairRef = useRef<CrosshairInfo>(crosshair);
+  const lastCrosshairUpdateRef = useRef<number>(0);
   const [nav, setNav] = useState<NavigationState>({
     zoomY: 1,
     zoomX: 1,
@@ -198,31 +210,49 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     axisStartY: 0,
     axisStartZoom: 1,
   });
+  // Keep a ref in sync so the render loop can access panX without re-creating
+  const navRef = useRef(nav);
+  navRef.current = nav;
 
   // Price range
-  const basePriceRangeTicks = 50;
   const priceAxisWidth = 60;
   const deltaProfileWidth = showDeltaProfile ? 80 : 0;
   const volumeProfileWidth = showVolumeProfile ? 60 : 0;
+  const lastPriceRangeKeyRef = useRef<string>('');
 
   const getPriceRange = useCallback(() => {
     const tickSize = config?.tickSize || 0.5;
-    const baseRange = tickSize * basePriceRangeTicks;
-    const range = baseRange / nav.zoomY;
+    const depth = config?.orderBookDepth || 30;
+    // Default range shows 2x the orderbook depth (reasonable for most assets)
+    const defaultRange = depth * tickSize * 2;
+    const range = defaultRange / nav.zoomY;
 
     if (!state) {
-      // Use config basePrice as fallback before data arrives
       const fallbackCenter = config?.basePrice || 100;
       return { min: fallbackCenter - range / 2, max: fallbackCenter + range / 2 };
     }
 
-    const center = autoCenter ? state.midPrice : state.midPrice + nav.panY;
+    // Animated re-center: ease-out 300ms panY → 0
+    let effectivePanY = autoCenter ? 0 : nav.panY;
+    if (autoCenter && recenterAnimRef.current) {
+      const elapsed = performance.now() - recenterAnimRef.current.startTime;
+      const duration = 300;
+      if (elapsed >= duration) {
+        recenterAnimRef.current = null;
+        effectivePanY = 0;
+      } else {
+        const t = elapsed / duration;
+        const easeOut = 1 - Math.pow(1 - t, 3); // Cubic ease-out
+        effectivePanY = recenterAnimRef.current.startPanY * (1 - easeOut);
+      }
+    }
+    const center = state.midPrice + effectivePanY;
 
     return {
       min: center - range / 2,
       max: center + range / 2,
     };
-  }, [state, nav.zoomY, nav.panY, autoCenter, config?.tickSize, config?.basePrice]);
+  }, [state, nav.zoomY, nav.panY, autoCenter, config?.tickSize, config?.basePrice, config?.orderBookDepth]);
 
   // Initialisation - based on dataMode
   useEffect(() => {
@@ -361,9 +391,12 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           // WEBGL RENDERING
           // ═══════════════════════════════════════════════════════════════
 
-          // PERF: Only recompute adaptMarketState when state reference changes
-          if (currentState !== lastAdaptedStateRef.current) {
+          // Recompute adaptMarketState when state, priceRange, or panX changes
+          const currentPanX = navRef.current.panX;
+          const cacheKey = `${priceRange.min.toFixed(2)}_${priceRange.max.toFixed(2)}_${currentPanX.toFixed(0)}`;
+          if (currentState !== lastAdaptedStateRef.current || cacheKey !== lastPriceRangeKeyRef.current) {
             lastAdaptedStateRef.current = currentState;
+            lastPriceRangeKeyRef.current = cacheKey;
             cachedRenderDataRef.current = adaptMarketState(currentState, priceRange, {
               width: containerSizeRef.current.width,
               height: containerSizeRef.current.height,
@@ -381,6 +414,11 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
               gridStep: (config?.tickSize || 0.5) * 10,
               showDeltaProfile,
               showVolumeProfile,
+              deltaProfileMode: deltaProfileSettings?.mode,
+              priceAxisWidth,
+              deltaProfileWidth,
+              volumeProfileWidth,
+              panX: currentPanX,
             });
           }
 
@@ -425,12 +463,38 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
             minSize: 8,
           };
 
-          // Add crosshair data
-          if (crosshair.visible) {
+          // Add delta profile settings to render data
+          if (renderData.deltaProfile && deltaProfileSettings) {
+            renderData.deltaProfile.settings = {
+              mode: deltaProfileSettings.mode,
+              opacity: deltaProfileSettings.opacity,
+              bidColor: deltaProfileSettings.bidColor || undefined,
+              askColor: deltaProfileSettings.askColor || undefined,
+              highlightPOC: deltaProfileSettings.highlightPOC,
+              showCenterLine: deltaProfileSettings.showCenterLine,
+              showLabels: deltaProfileSettings.showLabels,
+            };
+          }
+
+          // Add session stats for stats bar (delta, trades/s)
+          {
+            const ss = currentState.sessionStats;
+            const elapsed = (Date.now() - ss.sessionStart) / 1000;
+            renderData.sessionStats = {
+              delta: ss.delta,
+              deltaPercent: ss.deltaPercent,
+              totalTrades: ss.totalTrades,
+              tradesPerSecond: elapsed > 0 ? ss.totalTrades / elapsed : 0,
+            };
+          }
+
+          // Add crosshair data (read from ref to avoid re-renders)
+          const ch = crosshairRef.current;
+          if (ch.visible) {
             renderData.crosshair = {
-              x: crosshair.x,
-              y: crosshair.y,
-              price: crosshair.price,
+              x: ch.x,
+              y: ch.y,
+              price: ch.price,
               visible: true,
             };
           }
@@ -486,9 +550,56 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
                   },
                 };
               }
-              if (vwapKeyLevelsCacheRef.current) {
-                renderData.keyLevels = vwapKeyLevelsCacheRef.current;
+              // VWAP levels are merged with session levels below
+            }
+          }
+
+          // ═══════════════════════════════════════════════════════════════
+          // SESSION KEY LEVELS - POC, VAH, VAL, Session High/Low
+          // ═══════════════════════════════════════════════════════════════
+          {
+            const ss = currentState.sessionStats;
+            // Only rebuild when POC changes (throttle per-frame allocations)
+            if (ss.poc !== lastSessionStatsPocRef.current) {
+              lastSessionStatsPocRef.current = ss.poc;
+              const levels: KeyLevel[] = [];
+              if (keyLevelsSettings.showPOC && ss.poc > 0) {
+                levels.push({ price: ss.poc, type: 'poc', label: 'POC' });
               }
+              if (keyLevelsSettings.showVAH && ss.vah > 0) {
+                levels.push({ price: ss.vah, type: 'vah', label: 'VAH' });
+              }
+              if (keyLevelsSettings.showVAL && ss.val > 0) {
+                levels.push({ price: ss.val, type: 'val', label: 'VAL' });
+              }
+              if (keyLevelsSettings.showSessionHighLow) {
+                if (ss.sessionHigh > 0) levels.push({ price: ss.sessionHigh, type: 'sessionHigh', label: 'High' });
+                if (ss.sessionLow < Infinity) levels.push({ price: ss.sessionLow, type: 'sessionLow', label: 'Low' });
+              }
+              sessionKeyLevelsCacheRef.current = levels;
+            }
+
+            // Merge session key levels with VWAP key levels
+            const allLevels: KeyLevel[] = [...sessionKeyLevelsCacheRef.current];
+            if (vwapKeyLevelsCacheRef.current) {
+              allLevels.push(...vwapKeyLevelsCacheRef.current.levels);
+            }
+            if (allLevels.length > 0) {
+              renderData.keyLevels = {
+                levels: allLevels,
+                settings: {
+                  pocColor: '#f59e0b',
+                  vahColor: '#8b5cf6',
+                  valColor: '#8b5cf6',
+                  vwapColor: '#06b6d4',
+                  vwapBand1Color: '#0891b2',
+                  vwapBand2Color: '#0e7490',
+                  sessionHighColor: '#22d3ee',
+                  sessionLowColor: '#fb7185',
+                  roundNumberColor: '#fbbf24',
+                  opacity: 0.8,
+                },
+              };
             }
           }
 
@@ -605,10 +716,11 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           // ═══════════════════════════════════════════════════════════════
           // CANVAS 2D RENDERING
           // ═══════════════════════════════════════════════════════════════
+          const ch2d = crosshairRef.current;
           rendererRef.current.render(
             currentState,
             priceRange,
-            crosshair.visible ? crosshair : null,
+            ch2d.visible ? ch2d : null,
             rendererTradeFlowSettings
           );
         }
@@ -622,7 +734,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getPriceRange, crosshair, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
+  }, [getPriceRange, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
 
   // Resize
   useEffect(() => {
@@ -659,6 +771,21 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       rendererRef.current.setShowVolumeProfile(showVolumeProfile);
     }
   }, [showVolumeProfile]);
+
+  // Animate re-center when autoCenter is toggled on
+  useEffect(() => {
+    if (autoCenter && nav.panY !== 0) {
+      recenterAnimRef.current = { startPanY: nav.panY, startTime: performance.now() };
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCenter]);
+
+  // Update color theme when colorScheme changes
+  useEffect(() => {
+    if (webglRendererRef.current) {
+      webglRendererRef.current.setTheme(colorScheme);
+    }
+  }, [colorScheme]);
 
   // Update advanced features visibility
   useEffect(() => {
@@ -778,8 +905,19 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       // Ignore if typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      // Escape - cancel drawing or deselect
+      // Toggle shortcuts overlay
+      if (e.key === '?') {
+        e.preventDefault();
+        setShowShortcuts(prev => !prev);
+        return;
+      }
+
+      // Escape - cancel drawing, deselect, or close shortcuts
       if (e.key === 'Escape') {
+        if (showShortcuts) {
+          setShowShortcuts(false);
+          return;
+        }
         if (isDrawing && rendererRef.current) {
           rendererRef.current.cancelDrawing();
           setIsDrawing(false);
@@ -796,6 +934,29 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
         if (deleted) {
           e.preventDefault();
         }
+      }
+
+      // Navigation shortcuts
+      if (e.key === ' ') {
+        e.preventDefault();
+        setAutoCenter(!autoCenter);
+        return;
+      }
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setNav(prev => ({ ...prev, zoomY: Math.min(10, prev.zoomY * 1.2) }));
+        return;
+      }
+      if (e.key === '-') {
+        e.preventDefault();
+        setNav(prev => ({ ...prev, zoomY: Math.max(0.1, prev.zoomY / 1.2) }));
+        return;
+      }
+      if (e.key === 'Home' || e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setNav(prev => ({ ...prev, zoomY: 1, zoomX: 1, panY: 0, panX: 0 }));
+        setAutoCenter(true);
+        return;
       }
 
       // Tool shortcuts
@@ -816,24 +977,24 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawing, state]);
+  }, [isDrawing, state, autoCenter, setAutoCenter, showShortcuts]);
 
   // Mouse wheel zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const factor = e.deltaY > 0 ? 0.92 : 1.08;
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
 
-    // Shift + scroll = horizontal zoom (time)
-    if (e.shiftKey) {
+    // Ctrl/Cmd + scroll = horizontal zoom (time)
+    if (e.ctrlKey || e.metaKey) {
       setNav(prev => ({
         ...prev,
-        zoomX: Math.max(0.5, Math.min(5, prev.zoomX * factor)),
+        zoomX: Math.max(0.1, Math.min(10, prev.zoomX * factor)),
       }));
     } else {
       // Vertical zoom (price)
       setNav(prev => ({
         ...prev,
-        zoomY: Math.max(0.3, Math.min(8, prev.zoomY * factor)),
+        zoomY: Math.max(0.1, Math.min(10, prev.zoomY * factor)),
       }));
     }
   }, []);
@@ -848,7 +1009,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       panX: 0,
     }));
     setAutoCenter(true);
-  }, []);
+  }, [setAutoCenter]);
 
   // Mouse down - start drag or drawing
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -958,12 +1119,12 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     if (nav.isAxisDragging) {
       const deltaY = nav.axisStartY - e.clientY;
       const zoomFactor = 1 + deltaY * 0.005;
-      const newZoom = Math.max(0.3, Math.min(8, nav.axisStartZoom * zoomFactor));
+      const newZoom = Math.max(0.1, Math.min(10, nav.axisStartZoom * zoomFactor));
       setNav(prev => ({ ...prev, zoomY: newZoom }));
       return;
     }
 
-    // Handle chart dragging (pan)
+    // Handle chart dragging (pan X + Y)
     if (nav.isDragging) {
       const priceRange = getPriceRange();
       const pricePerPixel = (priceRange.max - priceRange.min) / rect.height;
@@ -971,15 +1132,19 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       const deltaY = e.clientY - nav.dragStartY;
       const deltaPriceY = deltaY * pricePerPixel;
 
+      const deltaX = e.clientX - nav.dragStartX;
+
       setNav(prev => ({
         ...prev,
         panY: prev.dragStartPanY + deltaPriceY,
+        panX: prev.dragStartPanX + deltaX,
       }));
       return;
     }
 
     // Ignore crosshair on price axis or delta profile
     if (x > heatmapEndX || x < heatmapStartX) {
+      crosshairRef.current = { ...crosshairRef.current, visible: false };
       setCrosshair(prev => ({ ...prev, visible: false }));
       return;
     }
@@ -1015,7 +1180,8 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       }
     }
 
-    setCrosshair({
+    // PERF: Update ref immediately (for render loop), throttle React state (for tooltip)
+    const newCrosshair: CrosshairInfo = {
       x,
       y,
       price: roundedPrice,
@@ -1023,11 +1189,20 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       bidVolume,
       askVolume,
       visible: true,
-    });
+    };
+    crosshairRef.current = newCrosshair;
+
+    // Throttle React state updates to ~16ms (60fps)
+    const now = performance.now();
+    if (now - lastCrosshairUpdateRef.current > 16) {
+      lastCrosshairUpdateRef.current = now;
+      setCrosshair(newCrosshair);
+    }
   }, [state, getPriceRange, config?.tickSize, nav.isDragging, nav.isAxisDragging, nav.dragStartY, nav.dragStartPanY, nav.axisStartY, nav.axisStartZoom, deltaProfileWidth, volumeProfileWidth, isDrawing]);
 
   // Mouse leave - hide crosshair
   const handleMouseLeave = useCallback(() => {
+    crosshairRef.current = { ...crosshairRef.current, visible: false };
     setCrosshair(prev => ({ ...prev, visible: false }));
   }, []);
 
@@ -1091,10 +1266,28 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       />
 
 
-      {/* Loading */}
+      {/* Loading skeleton */}
       {!isReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/90">
-          <div className="text-zinc-400 text-sm">Loading...</div>
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/95 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex gap-1.5">
+              {Array.from({ length: 10 }, (_, i) => (
+                <div
+                  key={i}
+                  className="w-10 rounded animate-pulse"
+                  style={{
+                    height: `${80 + Math.sin(i * 0.8) * 40}px`,
+                    background: `linear-gradient(to top, rgba(6,182,212,0.15), rgba(34,197,94,0.2), rgba(245,158,11,0.1))`,
+                    animationDelay: `${i * 80}ms`,
+                    animationDuration: '1.5s',
+                  }}
+                />
+              ))}
+            </div>
+            <div className="text-zinc-500 text-xs font-mono animate-pulse">
+              {dataMode === 'live' ? `Connecting to ${symbol.toUpperCase()}...` : 'Initializing simulation...'}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1107,10 +1300,16 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
         }`}>
           {dataMode === 'live' ? `LIVE ${symbol.toUpperCase()}` : 'SIMULATION'}
         </div>
-        {nav.zoomY !== 1 && (
-          <div className="px-2 py-1 bg-zinc-800/80 rounded text-[10px] text-zinc-300 font-mono">
-            {nav.zoomY.toFixed(1)}x
-          </div>
+        {(nav.zoomY !== 1 || nav.zoomX !== 1) && (
+          <button
+            onClick={() => setNav(prev => ({ ...prev, zoomY: 1, zoomX: 1 }))}
+            className="px-2 py-1 bg-zinc-800/80 hover:bg-zinc-700/80 rounded text-[10px] text-zinc-300 font-mono transition-colors cursor-pointer"
+            title="Click to reset zoom"
+          >
+            {nav.zoomY !== 1 && <span>Y:{nav.zoomY.toFixed(1)}x</span>}
+            {nav.zoomY !== 1 && nav.zoomX !== 1 && <span className="mx-0.5 text-zinc-500">|</span>}
+            {nav.zoomX !== 1 && <span>X:{nav.zoomX.toFixed(1)}x</span>}
+          </button>
         )}
         {!autoCenter && (
           <button
@@ -1120,8 +1319,23 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
             Re-center
           </button>
         )}
+        {(nav.zoomY !== 1 || nav.zoomX !== 1 || nav.panY !== 0 || nav.panX !== 0) && (
+          <button
+            onClick={() => {
+              setNav(prev => ({ ...prev, zoomY: 1, zoomX: 1, panY: 0, panX: 0 }));
+              setAutoCenter(true);
+            }}
+            className="px-2 py-1 bg-blue-600/80 hover:bg-blue-500/80 rounded text-[10px] text-white font-mono transition-colors"
+          >
+            Reset View
+          </button>
+        )}
         <button
-          onClick={() => openSettingsPanel({ x: 100, y: 100 })}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            openSettingsPanel({ x: 100, y: 100 });
+          }}
           className="px-2 py-1 bg-zinc-800/80 hover:bg-zinc-700/80 rounded text-[10px] text-zinc-300 font-mono transition-colors flex items-center gap-1"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1259,13 +1473,17 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1">
         {/* Controls */}
         <div className="flex items-center gap-2 text-[9px] text-zinc-500">
-          <span>Scroll: Zoom Y</span>
+          <span>Scroll: Zoom</span>
           <span>|</span>
-          <span>Shift+Scroll: Zoom X</span>
+          <span>Ctrl+Scroll: Zoom X</span>
           <span>|</span>
           <span>Drag: Pan</span>
           <span>|</span>
-          <span>Drag Price Axis: Zoom</span>
+          <span>DblClick: Reset</span>
+          <span>|</span>
+          <button onClick={() => setShowShortcuts(true)} className="hover:text-zinc-300 transition-colors">
+            ? Shortcuts
+          </button>
         </div>
 
         {/* State legend */}
@@ -1292,6 +1510,41 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
           </div>
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Overlay */}
+      {showShortcuts && (
+        <div
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowShortcuts(false)}
+        >
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold">Keyboard Shortcuts</h3>
+              <button onClick={() => setShowShortcuts(false)} className="text-zinc-400 hover:text-white text-lg leading-none">&times;</button>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              {[
+                ['Space', 'Toggle auto-center'],
+                ['+  /  -', 'Zoom in / out'],
+                ['F  /  Home', 'Reset view'],
+                ['V', 'Select tool'],
+                ['H', 'Horizontal line'],
+                ['T', 'Trendline'],
+                ['R', 'Rectangle'],
+                ['X', 'Text annotation'],
+                ['Esc', 'Cancel / deselect'],
+                ['Del', 'Delete selected'],
+                ['?', 'Toggle this help'],
+              ].map(([key, desc]) => (
+                <div key={key} className="flex items-center justify-between gap-4">
+                  <kbd className="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-300 min-w-[70px] text-center">{key}</kbd>
+                  <span className="text-zinc-400 text-xs">{desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Time & Sales rendered by Canvas2D renderer (HeatmapRenderer.renderTimeSales) */}
     </div>

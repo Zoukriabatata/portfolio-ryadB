@@ -21,7 +21,7 @@ export default function AlertNotifications({ notifications, onDismiss, theme }: 
   if (notifications.length === 0) return null;
 
   return (
-    <div className="absolute top-3 right-3 z-30 flex flex-col gap-1.5" style={{ maxWidth: 260 }}>
+    <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5" style={{ maxWidth: 260 }}>
       {notifications.slice(0, 3).map(notif => (
         <div
           key={notif.id}

@@ -18,6 +18,10 @@ export interface OptimizedConfig {
   tickSize: number;
   imbalanceRatio: number;
   totalHours: number;       // Total hours of real aggTrades (default: 6)
+  // Non-time aggregation modes
+  aggregationMode: 'time' | 'tick' | 'volume';
+  tickBarSize: number;      // Trades per candle (tick mode)
+  volumeBarSize: number;    // Volume per candle (volume mode)
 }
 
 export { type AggTrade };
@@ -38,6 +42,9 @@ export class OptimizedFootprintService {
   private lastTradeId: number = 0;
   private isLoading: boolean = false;
   private onProgress: ((progress: number, message: string) => void) | null = null;
+  // Non-time aggregation state
+  private nonTimeIndex: number = 0;
+  private currentNonTimeCandle: FootprintCandle | null = null;
 
   constructor(config: Partial<OptimizedConfig> & { symbol: string; timeframe: number; tickSize: number }) {
     this.config = {
@@ -46,6 +53,9 @@ export class OptimizedFootprintService {
       tickSize: config.tickSize,
       imbalanceRatio: config.imbalanceRatio ?? 3.0,
       totalHours: config.totalHours ?? 6,
+      aggregationMode: config.aggregationMode ?? 'time',
+      tickBarSize: config.tickBarSize ?? 500,
+      volumeBarSize: config.volumeBarSize ?? 100,
     };
   }
 
@@ -159,15 +169,40 @@ export class OptimizedFootprintService {
    * Process a single trade into the correct candle and price level
    */
   private processTrade(trade: AggTrade): void {
-    const { timeframe, tickSize } = this.config;
-    const candleTime = Math.floor(trade.time / 1000 / timeframe) * timeframe;
+    const { timeframe, tickSize, aggregationMode } = this.config;
     const priceLevel = Math.round(trade.price / tickSize) * tickSize;
 
-    let candle = this.candles.get(candleTime);
+    let candle: FootprintCandle;
 
-    if (!candle) {
-      candle = this.createCandle(candleTime, trade.price);
-      this.candles.set(candleTime, candle);
+    if (aggregationMode === 'tick' || aggregationMode === 'volume') {
+      // Non-time aggregation: use index-based candle keys
+      if (!this.currentNonTimeCandle) {
+        this.currentNonTimeCandle = this.createCandle(this.nonTimeIndex, trade.price);
+        this.candles.set(this.nonTimeIndex, this.currentNonTimeCandle);
+      }
+
+      candle = this.currentNonTimeCandle;
+
+      // Check if candle is complete
+      const shouldClose =
+        (aggregationMode === 'tick' && candle.totalTrades >= this.config.tickBarSize) ||
+        (aggregationMode === 'volume' && candle.totalVolume >= this.config.volumeBarSize);
+
+      if (shouldClose) {
+        this.nonTimeIndex++;
+        this.currentNonTimeCandle = this.createCandle(this.nonTimeIndex, trade.price);
+        this.candles.set(this.nonTimeIndex, this.currentNonTimeCandle);
+        candle = this.currentNonTimeCandle;
+      }
+    } else {
+      // Time-based aggregation (default)
+      const candleTime = Math.floor(trade.time / 1000 / timeframe) * timeframe;
+      let existing = this.candles.get(candleTime);
+      if (!existing) {
+        existing = this.createCandle(candleTime, trade.price);
+        this.candles.set(candleTime, existing);
+      }
+      candle = existing;
     }
 
     // Update OHLC

@@ -342,11 +342,36 @@ export const DEFAULT_TIME_SALES_SETTINGS: TimeSalesSettings = {
   width: 280,
 };
 
+export type DeltaProfileMode = 'mirrored' | 'stacked' | 'net';
+
+export interface DeltaProfileSettings {
+  mode: DeltaProfileMode;
+  opacity: number;            // 0.1-1.0
+  bidColor: string;           // '' = use theme default
+  askColor: string;           // '' = use theme default
+  highlightPOC: boolean;
+  showCenterLine: boolean;
+  showLabels: boolean;
+  labelThreshold: number;     // 0-1 as % of max
+}
+
+export const DEFAULT_DELTA_PROFILE_SETTINGS: DeltaProfileSettings = {
+  mode: 'mirrored',
+  opacity: 0.85,
+  bidColor: '',
+  askColor: '',
+  highlightPOC: true,
+  showCenterLine: true,
+  showLabels: false,
+  labelThreshold: 0.5,
+};
+
 export interface LiquidityDisplayFeatures {
   // Profiles
   showDeltaProfile: boolean;
   showVolumeProfile: boolean;
   showVWAP: boolean;
+  deltaProfile: DeltaProfileSettings;
 
   // Orderflow indicators
   showImbalances: boolean;
@@ -393,6 +418,7 @@ export const DEFAULT_LIQUIDITY_DISPLAY_FEATURES: LiquidityDisplayFeatures = {
   showDeltaProfile: true,
   showVolumeProfile: true,
   showVWAP: true,
+  deltaProfile: DEFAULT_DELTA_PROFILE_SETTINGS,
 
   // Orderflow indicators
   showImbalances: true,

@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { type TradingSession, DEFAULT_SESSIONS } from '@/lib/sessions/SessionConfig';
 
 // ============ TYPES ============
 
@@ -88,6 +89,68 @@ export interface FootprintFeatures {
   showVWAPTWAP: boolean;        // VWAP/TWAP combined line
   showHourMarkers: boolean;     // Hour labels at bottom (13h, 14h, etc.)
   showPassiveLiquidity: boolean; // Passive orders from heatmap (simulation)
+  // Phase 2: Visual polish
+  showHeatmapCells: boolean;           // Heatmap background on cells based on volume
+  heatmapIntensity: number;            // 0-1, heatmap gradient strength
+  showDevelopingPOC: boolean;          // Polyline connecting POCs across candles
+  developingPOCColor: string;          // Default: '#fbbf24' (gold)
+  showLargeTradeHighlight: boolean;    // Highlight abnormally large levels
+  largeTradeMultiplier: number;        // Threshold: level.totalVol > multiplier * avgLevelVol
+  largeTradeColor: string;             // Default: '#ffd700' (gold)
+  // Phase 3: Indicators
+  showStackedImbalances: boolean;      // Stacked imbalance zones
+  stackedImbalanceMin: number;         // Min consecutive levels (3-10)
+  showNakedPOC: boolean;               // Naked POC lines
+  nakedPOCColor: string;               // Default: '#fbbf24'
+  showUnfinishedAuctions: boolean;     // Unfinished auction markers
+  // Phase V2: Session & Spread
+  showSpread: boolean;                 // Bid/ask spread on price scale
+  showSessionSeparators: boolean;      // Session boundary lines
+  showAbsorptionEvents: boolean;       // Absorption event markers
+  // Volume filter
+  volumeFilterThreshold: number;       // 0 = show all
+  volumeFilterMode: 'absolute' | 'relative'; // Fixed qty or % of max
+  // Volume Profile settings
+  volumeProfileColor: string;          // Bar color inside value area
+  volumeProfileOutsideColor: string;   // Bar color outside value area
+  volumeProfilePocColor: string;       // POC bar color
+  volumeProfileVahValColor: string;    // VAH/VAL line color
+  volumeProfileOpacity: number;        // 0-1
+  // Delta Profile settings
+  deltaProfilePositiveColor: string;   // Positive delta bar color
+  deltaProfileNegativeColor: string;   // Negative delta bar color
+  deltaProfileOpacity: number;         // 0-1
+  // VWAP/TWAP settings
+  vwapColor: string;
+  vwapLineWidth: number;               // 1-5
+  vwapShowLabel: boolean;
+  twapColor: string;
+  twapLineWidth: number;               // 1-5
+  twapShowLabel: boolean;
+  showVWAP: boolean;                   // Individual toggle for VWAP
+  showTWAP: boolean;                   // Individual toggle for TWAP
+  // Cluster display mode
+  clusterDisplayMode: 'bid-ask' | 'delta' | 'volume' | 'bid-ask-split';
+  // VWAP Bands
+  showVWAPBands: boolean;
+  vwapBandMultipliers: number[];       // [1, 2] = 1σ, 2σ
+  vwapBandOpacity: number;             // 0-1, fill opacity
+  vwapBandColor: string;               // Band line color (defaults to VWAP color)
+  // CVD Panel
+  showCVDPanel: boolean;
+  cvdPanelHeight: number;              // 40-120px
+  cvdLineColor: string;
+  // Custom Sessions
+  customSessions: TradingSession[];
+  // TPO / Market Profile
+  showTPO: boolean;
+  tpoPeriod: 30 | 60;
+  tpoMode: 'letters' | 'histogram';
+  tpoPosition: 'left' | 'right';
+  // Aggregation mode
+  aggregationMode: 'time' | 'tick' | 'volume';
+  tickBarSize: number;
+  volumeBarSize: number;
 }
 
 // Passive Liquidity Settings (Simulation mode)
@@ -135,6 +198,8 @@ export interface FootprintSettings {
   setPassiveLiquidity: (settings: Partial<PassiveLiquiditySettings>) => void;
   setLayout: (layout: { footprintWidth?: number; rowHeight?: number; maxVisibleFootprints?: number; deltaProfilePosition?: 'left' | 'right'; candleGap?: number }) => void;
   resetToDefaults: () => void;
+  exportSettings: () => string;
+  importSettings: (json: string) => boolean;
 }
 
 // ============ DEFAULTS ============
@@ -217,6 +282,67 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   showVWAPTWAP: true,         // VWAP/TWAP combined line
   showHourMarkers: true,      // Hour labels (13h, 14h, etc.)
   showPassiveLiquidity: true, // Passive liquidity from heatmap (simulation)
+  // Phase 2: Visual polish
+  showHeatmapCells: true,
+  heatmapIntensity: 0.4,
+  showDevelopingPOC: true,
+  developingPOCColor: '#fbbf24',
+  showLargeTradeHighlight: true,
+  largeTradeMultiplier: 2.0,
+  largeTradeColor: '#ffd700',
+  // Phase 3: Indicators
+  showStackedImbalances: true,
+  stackedImbalanceMin: 3,
+  showNakedPOC: true,
+  nakedPOCColor: '#fbbf24',
+  showUnfinishedAuctions: false,  // Off by default (can be noisy)
+  // Phase V2
+  showSpread: true,
+  showSessionSeparators: true,
+  showAbsorptionEvents: false,   // Off by default (needs live data)
+  volumeFilterThreshold: 0,      // 0 = show all
+  volumeFilterMode: 'relative' as const,
+  // Volume Profile
+  volumeProfileColor: '#5e7ce2',
+  volumeProfileOutsideColor: '#3a3f4b',
+  volumeProfilePocColor: '#e2b93b',
+  volumeProfileVahValColor: '#7c85f6',
+  volumeProfileOpacity: 0.7,
+  // Delta Profile
+  deltaProfilePositiveColor: '#22c55e',
+  deltaProfileNegativeColor: '#ef4444',
+  deltaProfileOpacity: 0.7,
+  // VWAP/TWAP
+  vwapColor: '#e2b93b',
+  vwapLineWidth: 2.5,
+  vwapShowLabel: true,
+  twapColor: '#5eaeff',
+  twapLineWidth: 2,
+  twapShowLabel: true,
+  showVWAP: true,
+  showTWAP: true,
+  // Cluster display mode
+  clusterDisplayMode: 'bid-ask' as const,
+  // VWAP Bands
+  showVWAPBands: true,
+  vwapBandMultipliers: [1, 2],
+  vwapBandOpacity: 0.06,
+  vwapBandColor: '#e2b93b',
+  // CVD Panel
+  showCVDPanel: false,
+  cvdPanelHeight: 70,
+  cvdLineColor: '#22c55e',
+  // Custom Sessions
+  customSessions: DEFAULT_SESSIONS,
+  // TPO / Market Profile
+  showTPO: false,
+  tpoPeriod: 30 as const,
+  tpoMode: 'letters' as const,
+  tpoPosition: 'right' as const,
+  // Aggregation Modes (tick/volume bars)
+  aggregationMode: 'time' as const,
+  tickBarSize: 500,
+  volumeBarSize: 100,
 };
 
 const DEFAULT_PASSIVE_LIQUIDITY: PassiveLiquiditySettings = {
@@ -255,7 +381,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
       footprintWidth: 70,
       rowHeight: 16,
       maxVisibleFootprints: 100,
-      deltaProfilePosition: 'right',
+      deltaProfilePosition: 'right' as const,
       candleGap: 3,
 
       setColors: (colors) =>
@@ -299,13 +425,56 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
           footprintWidth: 70,
           rowHeight: 16,
           maxVisibleFootprints: 100,
-          deltaProfilePosition: 'right',
+          deltaProfilePosition: 'right' as const,
           candleGap: 3,
         }),
+
+      exportSettings: (): string => {
+        const state: FootprintSettings = useFootprintSettingsStore.getState();
+        return JSON.stringify({
+          version: 5,
+          timestamp: Date.now(),
+          settings: {
+            colors: state.colors,
+            fonts: state.fonts,
+            features: state.features,
+            imbalance: state.imbalance,
+            passiveLiquidity: state.passiveLiquidity,
+            footprintWidth: state.footprintWidth,
+            rowHeight: state.rowHeight,
+            maxVisibleFootprints: state.maxVisibleFootprints,
+            deltaProfilePosition: state.deltaProfilePosition,
+            candleGap: state.candleGap,
+          },
+        }, null, 2);
+      },
+
+      importSettings: (json: string) => {
+        try {
+          const data = JSON.parse(json);
+          if (!data?.settings) return false;
+          const s = data.settings;
+          set({
+            colors: { ...DEFAULT_COLORS, ...(s.colors || {}) },
+            fonts: { ...DEFAULT_FONTS, ...(s.fonts || {}) },
+            features: { ...DEFAULT_FEATURES, ...(s.features || {}) },
+            imbalance: { ...DEFAULT_IMBALANCE, ...(s.imbalance || {}) },
+            passiveLiquidity: { ...DEFAULT_PASSIVE_LIQUIDITY, ...(s.passiveLiquidity || {}) },
+            footprintWidth: s.footprintWidth ?? 70,
+            rowHeight: s.rowHeight ?? 16,
+            maxVisibleFootprints: s.maxVisibleFootprints ?? 100,
+            deltaProfilePosition: s.deltaProfilePosition ?? 'right',
+            candleGap: s.candleGap ?? 3,
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      },
     }),
     {
       name: 'footprint-settings',
-      version: 4, // Increment when adding new features (added passiveLiquidity)
+      version: 5, // v5: Phase 2+3 features (heatmap cells, developing POC, large trade highlight, indicators)
       partialize: (state) => ({
         colors: state.colors,
         fonts: state.fonts,
@@ -317,6 +486,29 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
         maxVisibleFootprints: state.maxVisibleFootprints,
         deltaProfilePosition: state.deltaProfilePosition,
       }),
+      // Migration function for version upgrades
+      migrate: (persistedState: any, version: number) => {
+        // If stored version is older than current, migrate it
+        if (version < 5) {
+          const state = persistedState as Partial<FootprintSettings>;
+          return {
+            ...state,
+            features: {
+              ...DEFAULT_FEATURES,
+              ...(state?.features || {}),
+            },
+            colors: {
+              ...DEFAULT_COLORS,
+              ...(state?.colors || {}),
+            },
+            fonts: {
+              ...DEFAULT_FONTS,
+              ...(state?.fonts || {}),
+            },
+          };
+        }
+        return persistedState;
+      },
       // Merge stored state with defaults to handle new features
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<FootprintSettings>;

@@ -17,6 +17,7 @@ import { computeSMA, computeEMA, drawIndicatorLine } from '../utils/indicators';
 import { TOOL_TYPE_MAPPING } from '../constants/tools';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
+import { getLastToolbarInteraction } from '@/components/tools/ToolSettingsBar';
 
 interface UseDrawingToolsParams {
   refs: SharedRefs;
@@ -132,27 +133,64 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
         return priceMax - (y / chartHeight) * (priceMax - priceMin);
       },
       timeToX: (time: number) => {
-        const candleIndex = candles.findIndex(c => c.time >= time);
-        if (candleIndex === -1) return chartWidth;
-        const visibleIndex = candleIndex - startIndex;
+        if (candles.length === 0) return 0;
+
         const candleTotalWidth = chartWidth / (endIndex - startIndex);
+
+        // Binary search for the candle bracket
+        let lo = 0, hi = candles.length - 1;
+        if (time <= candles[0].time) {
+          const visibleIndex = 0 - startIndex;
+          return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
+        }
+        if (time >= candles[hi].time) {
+          const visibleIndex = hi - startIndex;
+          return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
+        }
+
+        while (lo < hi - 1) {
+          const mid = (lo + hi) >> 1;
+          if (candles[mid].time <= time) lo = mid;
+          else hi = mid;
+        }
+
+        let candleIndex: number;
+        if (candles[lo].time === time) {
+          candleIndex = lo;
+        } else {
+          const leftTime = candles[lo].time;
+          const rightTime = candles[hi].time;
+          const ratio = (time - leftTime) / (rightTime - leftTime);
+          candleIndex = lo + ratio;
+        }
+
+        const visibleIndex = candleIndex - startIndex;
         return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
       },
       xToTime: (x: number) => {
+        if (candles.length === 0) return Date.now() / 1000;
+
         const visibleCandles = endIndex - startIndex;
-        const candleIndex = Math.floor((x / chartWidth) * visibleCandles) + startIndex;
-        if (candleIndex >= 0 && candleIndex < candles.length) {
-          return candles[candleIndex].time;
-        }
-        return candles[candles.length - 1]?.time || 0;
+        const candleIndexFloat = (x / chartWidth) * visibleCandles + startIndex;
+        const candleIndex = Math.floor(candleIndexFloat);
+        const fraction = candleIndexFloat - candleIndex;
+
+        // Clamp to valid range
+        if (candleIndex < 0) return candles[0].time;
+        if (candleIndex >= candles.length - 1) return candles[candles.length - 1].time;
+
+        // Linear interpolation between two candles
+        const leftTime = candles[candleIndex].time;
+        const rightTime = candles[candleIndex + 1].time;
+        return leftTime + (rightTime - leftTime) * fraction;
       },
       tickSize: 0.01,
       colors: {
         positive: theme.colors.candleUp,
         negative: theme.colors.candleDown,
-        selection: theme.colors.toolActive,
+        selection: '#2962FF', // TradingView blue
         handle: '#ffffff',
-        handleBorder: theme.colors.toolActive,
+        handleBorder: '#2962FF', // TradingView blue
       },
       currentPrice: refs.currentPrice.current || 0,
       hoveredToolId: refs.interactionController.current.getHoveredToolId(),
@@ -306,9 +344,147 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
       ctx.restore();
     }
 
-    // Draw indicator overlays (SMA, EMA, Bollinger, VWAP)
+    // Draw indicator overlays (SMA, EMA, Bollinger, VWAP, VolumeProfile)
+    // Clip to chart area so indicators don't bleed into time/price axes
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, chartWidth, chartHeight);
+    ctx.clip();
+
     const enabledIndicators = indicatorConfigsRef.current.filter(i => i.enabled);
     for (const indicator of enabledIndicators) {
+      // --- Volume Profile: rendered as horizontal bars from right side ---
+      // Uses ALL loaded candles (full session) so the profile stays fixed when panning
+      if (indicator.type === 'VolumeProfile') {
+        if (candles.length === 0) continue;
+
+        // Find price range of ALL loaded candles (session-fixed)
+        let vpMin = Infinity, vpMax = -Infinity;
+        for (const c of candles) {
+          if (c.low < vpMin) vpMin = c.low;
+          if (c.high > vpMax) vpMax = c.high;
+        }
+        if (!isFinite(vpMin) || !isFinite(vpMax) || vpMin >= vpMax) continue;
+
+        // Build volume profile buckets from ALL candles
+        const vpRange = vpMax - vpMin;
+        const numBars = indicator.params.bars || 50;
+        const bucketSize = vpRange / numBars;
+        const buckets: { price: number; buyVol: number; sellVol: number; total: number }[] = [];
+        for (let b = 0; b < numBars; b++) {
+          buckets.push({ price: vpMin + (b + 0.5) * bucketSize, buyVol: 0, sellVol: 0, total: 0 });
+        }
+
+        for (const c of candles) {
+          const isBull = c.close >= c.open;
+          const cLow = c.low, cHigh = c.high;
+          const candleRange = cHigh - cLow || 1;
+          for (let b = 0; b < numBars; b++) {
+            const bLow = vpMin + b * bucketSize;
+            const bHigh = bLow + bucketSize;
+            const overlap = Math.max(0, Math.min(cHigh, bHigh) - Math.max(cLow, bLow));
+            if (overlap <= 0) continue;
+            const vol = (overlap / candleRange) * c.volume;
+            if (isBull) buckets[b].buyVol += vol;
+            else buckets[b].sellVol += vol;
+            buckets[b].total += vol;
+          }
+        }
+
+        // Find max volume for normalization
+        let maxVol = 0;
+        for (const b of buckets) if (b.total > maxVol) maxVol = b.total;
+        if (maxVol === 0) continue;
+
+        // Find POC
+        let pocIdx = 0;
+        for (let i = 1; i < buckets.length; i++) {
+          if (buckets[i].total > buckets[pocIdx].total) pocIdx = i;
+        }
+
+        // Value Area (70% of total volume)
+        const totalVol = buckets.reduce((s, b) => s + b.total, 0);
+        const targetVA = totalVol * 0.7;
+        let vaVol = buckets[pocIdx].total;
+        let vaLow = pocIdx, vaHigh = pocIdx;
+        while (vaVol < targetVA && (vaLow > 0 || vaHigh < buckets.length - 1)) {
+          const upVol = vaHigh < buckets.length - 1 ? buckets[vaHigh + 1].total : 0;
+          const downVol = vaLow > 0 ? buckets[vaLow - 1].total : 0;
+          if (upVol >= downVol && vaHigh < buckets.length - 1) { vaHigh++; vaVol += buckets[vaHigh].total; }
+          else if (vaLow > 0) { vaLow--; vaVol += buckets[vaLow].total; }
+          else break;
+        }
+
+        // Draw bars from right side
+        const maxBarWidth = chartWidth * 0.25; // max 25% of chart width
+        const barH = Math.max(1, (bucketSize / (priceMax - priceMin)) * chartHeight - 1);
+
+        ctx.save();
+        for (let i = 0; i < buckets.length; i++) {
+          const b = buckets[i];
+          if (b.total === 0) continue;
+          const y = ((priceMax - b.price) / (priceMax - priceMin)) * chartHeight - barH / 2;
+          const barW = (b.total / maxVol) * maxBarWidth;
+          const inVA = i >= vaLow && i <= vaHigh;
+          const isPOC = i === pocIdx;
+
+          if (isPOC) {
+            ctx.globalAlpha = 0.7;
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.6)';
+          } else if (inVA) {
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
+          } else {
+            ctx.globalAlpha = 0.35;
+            ctx.fillStyle = 'rgba(156, 163, 175, 0.3)';
+          }
+          ctx.fillRect(chartWidth - barW, y, barW, barH);
+
+          // Delta color on left edge
+          const deltaW = Math.min(3, barW * 0.15);
+          ctx.globalAlpha = 0.8;
+          ctx.fillStyle = b.buyVol >= b.sellVol ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+          ctx.fillRect(chartWidth - barW, y, deltaW, barH);
+        }
+
+        // POC dashed line
+        const pocY = ((priceMax - buckets[pocIdx].price) / (priceMax - priceMin)) * chartHeight;
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath();
+        ctx.moveTo(0, pocY);
+        ctx.lineTo(chartWidth, pocY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // VAH/VAL dashed lines
+        const vahPrice = vpMin + (vaHigh + 1) * bucketSize;
+        const valPrice = vpMin + vaLow * bucketSize;
+        const vahY = ((priceMax - vahPrice) / (priceMax - priceMin)) * chartHeight;
+        const valY = ((priceMax - valPrice) / (priceMax - priceMin)) * chartHeight;
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(0, vahY); ctx.lineTo(chartWidth, vahY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, valY); ctx.lineTo(chartWidth, valY); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Labels
+        ctx.globalAlpha = 1;
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(`POC ${buckets[pocIdx].price.toFixed(2)}`, 4, pocY - 3);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillText(`VAH ${vahPrice.toFixed(2)}`, 4, vahY - 3);
+        ctx.fillText(`VAL ${valPrice.toFixed(2)}`, 4, valY + 11);
+
+        ctx.restore();
+        continue;
+      }
+
+      // --- Line indicators (SMA, EMA, Bollinger, VWAP, TWAP) ---
       const closes = candles.map(c => c.close);
       let values: number[] = [];
       let upperBand: number[] | null = null;
@@ -345,6 +521,13 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           cumVol += vol;
           return cumVol > 0 ? cumTPV / cumVol : 0;
         });
+      } else if (indicator.type === 'TWAP') {
+        let cumTP = 0;
+        values = candles.map((c, i) => {
+          const tp = (c.high + c.low + c.close) / 3;
+          cumTP += tp;
+          return cumTP / (i + 1);
+        });
       } else {
         continue;
       }
@@ -379,6 +562,9 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
         drawIndicatorLine(ctx, lowerBand, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 1, [4, 3]);
       }
     }
+
+    // Restore clip
+    ctx.restore();
   }, [refs, theme.colors, symbol]);
 
   /**
@@ -407,9 +593,17 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           if (!eng || c.length === 0) return 0;
           const vp = eng.getViewport();
           const visibleCount = vp.endIndex - vp.startIndex;
-          const candleIndex = Math.floor((x / vp.chartWidth) * visibleCount) + vp.startIndex;
-          if (candleIndex >= 0 && candleIndex < c.length) return c[candleIndex].time;
-          return c[c.length - 1]?.time || 0;
+          const candleIndexFloat = (x / vp.chartWidth) * visibleCount + vp.startIndex;
+          const candleIndex = Math.floor(candleIndexFloat);
+          const fraction = candleIndexFloat - candleIndex;
+
+          if (candleIndex < 0) return c[0].time;
+          if (candleIndex >= c.length - 1) return c[c.length - 1].time;
+
+          // Interpolate between candles for precise timestamp
+          const leftTime = c[candleIndex].time;
+          const rightTime = c[candleIndex + 1].time;
+          return leftTime + (rightTime - leftTime) * fraction;
         },
         timeToX: (time: number) => {
           const eng = refs.chartEngine.current;
@@ -417,8 +611,27 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           if (!eng || c.length === 0) return 0;
           const vp = eng.getViewport();
           const visibleCount = vp.endIndex - vp.startIndex;
-          const candleIndex = c.findIndex(cd => cd.time >= time);
-          if (candleIndex === -1) return vp.chartWidth;
+
+          // Find candles that bracket this timestamp
+          let leftIdx = -1;
+          let rightIdx = -1;
+          for (let i = 0; i < c.length; i++) {
+            if (c[i].time <= time) leftIdx = i;
+            if (c[i].time >= time && rightIdx === -1) { rightIdx = i; break; }
+          }
+
+          if (leftIdx === -1) leftIdx = 0;
+          if (rightIdx === -1) rightIdx = c.length - 1;
+
+          // Interpolate for precise position
+          let candleIndex: number;
+          if (leftIdx === rightIdx) {
+            candleIndex = leftIdx;
+          } else {
+            const ratio = (time - c[leftIdx].time) / (c[rightIdx].time - c[leftIdx].time);
+            candleIndex = leftIdx + ratio;
+          }
+
           const visibleIndex = candleIndex - vp.startIndex;
           const candleTotalWidth = vp.chartWidth / visibleCount;
           return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
@@ -526,8 +739,19 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
 
     controller.setChartBounds(container.getBoundingClientRect());
 
+    // Re-render drawing tools whenever the chart viewport changes (zoom, pan, new data)
+    const chartEngine = refs.chartEngine.current;
+    if (chartEngine) {
+      chartEngine.setOnViewportChange(() => {
+        renderDrawingTools();
+      });
+    }
+
     return () => {
       resizeObserver.disconnect();
+      if (chartEngine) {
+        chartEngine.setOnViewportChange(() => {});
+      }
     };
   }, [refs, renderDrawingTools]);
 
@@ -541,47 +765,189 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
   /**
    * Mouse event handlers
    */
+  // Track whether we're forwarding events to chart (no tool hit on mousedown)
+  const forwardingToChartRef = useRef(false);
+  // Guard: prevent deselection when interacting with UI overlays (ToolSettingsBar etc.)
+  const ignoreNextCanvasClickRef = useRef(false);
+  // Tool context menu state
+  const [toolContextMenu, setToolContextMenu] = useState<{
+    x: number;
+    y: number;
+    tool: Tool;
+  } | null>(null);
+  // Text editor state
+  const [textEditorState, setTextEditorState] = useState<{
+    tool: Tool;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  const forwardEventToChart = useCallback((e: React.MouseEvent<HTMLCanvasElement>, type: string) => {
+    const chartCanvas = refs.chartCanvas.current;
+    if (!chartCanvas) return;
+    chartCanvas.dispatchEvent(new MouseEvent(type, {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      button: e.button,
+      buttons: e.buttons,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+      metaKey: e.metaKey,
+      bubbles: true,
+    }));
+  }, [refs]);
+
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
+
+    // Skip if ToolSettingsBar was interacted with very recently (within 200ms)
+    // The timestamp is set via native capture-phase listener, so it's always
+    // set before this React handler fires
+    if (Date.now() - getLastToolbarInteraction() < 200) {
+      return;
+    }
+
+    // Skip if a UI overlay (ToolSettingsBar) consumed this interaction
+    if (ignoreNextCanvasClickRef.current) {
+      ignoreNextCanvasClickRef.current = false;
+      return;
+    }
 
     const rect = e.currentTarget.getBoundingClientRect();
     const controller = refs.interactionController.current;
     controller.setChartBounds(rect);
 
     const currentTool = controller.getActiveTool();
+
+    // In cursor mode, check if we're clicking on a tool first
     if (currentTool === 'cursor' || currentTool === 'crosshair') {
       const engine = refs.toolsEngine.current;
       const converter = controller.getCoordinateConverter();
-      if (converter && engine.getAllTools().length > 0) {
+      if (converter) {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const point = { time: converter.xToTime(x), price: converter.yToPrice(y) };
         const hit = engine.hitTest(point, converter.priceToY, converter.timeToX, 15);
-        if (!hit) {
+
+        if (hit) {
+          forwardingToChartRef.current = false;
+          controller.handleMouseDown(e);
+        } else {
+          // No tool hit - forward all events to chart for pan/zoom
+          forwardingToChartRef.current = true;
           engine.deselectAll();
           setSelectedTool(null);
           setToolPosition(undefined);
           renderDrawingTools();
-          return;
+          forwardEventToChart(e, 'mousedown');
         }
+        return;
       }
     }
 
+    // Drawing mode - always handle
+    forwardingToChartRef.current = false;
     controller.handleMouseDown(e);
-  }, [refs, renderDrawingTools]);
+  }, [refs, renderDrawingTools, forwardEventToChart]);
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (forwardingToChartRef.current) {
+      forwardEventToChart(e, 'mousemove');
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     refs.interactionController.current.setChartBounds(rect);
     refs.interactionController.current.handleMouseMove(e);
-  }, [refs]);
+  }, [refs, forwardEventToChart]);
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (forwardingToChartRef.current) {
+      forwardingToChartRef.current = false;
+      forwardEventToChart(e, 'mouseup');
+      return;
+    }
     refs.interactionController.current.handleMouseUp(e);
-  }, [refs]);
+  }, [refs, forwardEventToChart]);
 
   const handleCanvasMouseLeave = useCallback(() => {
+    if (forwardingToChartRef.current) {
+      forwardingToChartRef.current = false;
+      // Trigger mouseup on chart canvas to end drag
+      const chartCanvas = refs.chartCanvas.current;
+      if (chartCanvas) {
+        chartCanvas.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      }
+      return;
+    }
     refs.interactionController.current.handleMouseLeave();
+  }, [refs]);
+
+  const handleCanvasContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const converter = refs.interactionController.current.getCoordinateConverter();
+    if (!converter) return;
+
+    const point = {
+      time: converter.xToTime(x),
+      price: converter.yToPrice(y),
+    };
+
+    // Hit test to find tool under cursor
+    const hit = refs.toolsEngine.current.hitTest(
+      point,
+      converter.priceToY,
+      converter.timeToX,
+      15 // tolerance
+    );
+
+    if (hit) {
+      // Show tool context menu
+      setToolContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        tool: hit.tool,
+      });
+    } else {
+      // No tool hit - allow event to bubble to chart's context menu
+      // (don't preventDefault in this case)
+    }
+  }, [refs]);
+
+  const handleCanvasDoubleClick = useCallback((e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const converter = refs.interactionController.current.getCoordinateConverter();
+    if (!converter) return;
+
+    const point = {
+      time: converter.xToTime(x),
+      price: converter.yToPrice(y),
+    };
+
+    // Hit test to find tool
+    const hit = refs.toolsEngine.current.hitTest(
+      point,
+      converter.priceToY,
+      converter.timeToX,
+      15
+    );
+
+    if (hit && hit.tool.type === 'text') {
+      // Start text editing
+      refs.toolsEngine.current.startTextEdit(hit.tool.id);
+
+      // Show text editor at tool position
+      setTextEditorState({
+        tool: hit.tool,
+        position: { x: e.clientX, y: e.clientY },
+      });
+    }
   }, [refs]);
 
   return {
@@ -601,6 +967,13 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
     handleCanvasMouseMove,
     handleCanvasMouseUp,
     handleCanvasMouseLeave,
+    handleCanvasContextMenu,
+    handleCanvasDoubleClick,
+    toolContextMenu,
+    setToolContextMenu,
+    textEditorState,
+    setTextEditorState,
     mapToolType,
+    ignoreNextCanvasClickRef,
   };
 }

@@ -9,7 +9,7 @@
  * - Lignes étendues
  */
 
-import { Tool, PreviewTool, Handle, ToolsEngine, getToolsEngine, RectangleZone } from './ToolsEngine';
+import { Tool, PreviewTool, Handle, ToolsEngine, getToolsEngine, RectangleZone, type ParallelChannelTool, type FibExtensionTool, type MeasureTool, type EllipseTool } from './ToolsEngine';
 
 // ============ TYPES ============
 
@@ -58,23 +58,101 @@ function roundCoord(coord: number): number {
 
 export class ToolsRenderer {
   private engine: ToolsEngine;
+  private pathCache: Map<string, { tool: Tool; path: Path2D; timestamp: number }> = new Map();
+  private lastRenderTime = 0;
+  private frameRequest: number | null = null;
 
   constructor() {
     this.engine = getToolsEngine();
   }
 
   /**
-   * Render all tools
+   * Check if a tool is visible in the current viewport
+   * Returns true if the tool intersects with the visible area
+   */
+  private isToolVisible(tool: Tool, context: RenderContext): boolean {
+    const { width, height, priceToY, timeToX, xToTime, yToPrice } = context;
+
+    // Get viewport bounds
+    const viewportMinPrice = yToPrice(height);
+    const viewportMaxPrice = yToPrice(0);
+    const viewportMinTime = xToTime(0);
+    const viewportMaxTime = xToTime(width);
+
+    // Check each tool type
+    switch (tool.type) {
+      case 'horizontalLine':
+      case 'horizontalRay': {
+        const price = tool.type === 'horizontalLine' ? tool.price : (tool as any).startPoint?.price;
+        return price >= viewportMinPrice && price <= viewportMaxPrice;
+      }
+
+      case 'verticalLine': {
+        const time = (tool as any).time;
+        return time >= viewportMinTime && time <= viewportMaxTime;
+      }
+
+      case 'trendline':
+      case 'rectangle':
+      case 'fibRetracement': {
+        const startPoint = (tool as any).startPoint;
+        const endPoint = (tool as any).endPoint || (tool as any).bottomRight;
+        if (!startPoint || !endPoint) return true; // Render if we can't determine bounds
+
+        const minPrice = Math.min(startPoint.price, endPoint.price);
+        const maxPrice = Math.max(startPoint.price, endPoint.price);
+        const minTime = Math.min(startPoint.time, endPoint.time);
+        const maxTime = Math.max(startPoint.time, endPoint.time);
+
+        // Check if tool bounds intersect with viewport
+        const priceOverlap = minPrice <= viewportMaxPrice && maxPrice >= viewportMinPrice;
+        const timeOverlap = minTime <= viewportMaxTime && maxTime >= viewportMinTime;
+        return priceOverlap && timeOverlap;
+      }
+
+      case 'longPosition':
+      case 'shortPosition':
+      case 'text': {
+        const price = (tool as any).price || (tool as any).point?.price;
+        const time = (tool as any).time || (tool as any).point?.time;
+        if (!price || !time) return true;
+
+        const priceVisible = price >= viewportMinPrice && price <= viewportMaxPrice;
+        const timeVisible = time >= viewportMinTime && time <= viewportMaxTime;
+        return priceVisible && timeVisible;
+      }
+
+      default:
+        return true; // Render unknown types
+    }
+  }
+
+  /**
+   * Render all tools with viewport culling
    */
   render(context: RenderContext): void {
     const { ctx } = context;
     const tools = this.engine.getAllTools();
 
-    // Render tools in z-order
+    let renderedCount = 0;
+    let culledCount = 0;
+
+    // Render tools in z-order, skip invisible ones
     tools.forEach(tool => {
       if (!tool.visible) return;
+
+      // Viewport culling: skip tools outside visible area
+      if (!this.isToolVisible(tool, context)) {
+        culledCount++;
+        return;
+      }
+
+      renderedCount++;
       this.renderTool(tool, context);
     });
+
+    // Debug info (comment out in production)
+    // console.log(`Rendered: ${renderedCount}, Culled: ${culledCount}`);
 
     // Render preview if drawing
     const drawingState = this.engine.getDrawingState();
@@ -101,8 +179,15 @@ export class ToolsRenderer {
     const { ctx } = context;
     const isHovered = context.hoveredToolId === tool.id;
 
-    // Apply hover effect (subtle glow)
-    if (isHovered && !tool.selected) {
+    // TradingView-style selection glow (blue)
+    if (tool.selected) {
+      ctx.shadowColor = '#2962FF';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+    // Apply hover effect (subtle glow) when not selected
+    else if (isHovered) {
       ctx.shadowColor = tool.style.color;
       ctx.shadowBlur = 8;
     }
@@ -137,6 +222,18 @@ export class ToolsRenderer {
         break;
       case 'text':
         this.renderText(tool, context);
+        break;
+      case 'parallelChannel':
+        this.renderParallelChannel(tool as any, context);
+        break;
+      case 'fibExtension':
+        this.renderFibExtension(tool as any, context);
+        break;
+      case 'measure':
+        this.renderMeasure(tool as any, context);
+        break;
+      case 'ellipse':
+        this.renderEllipse(tool as any, context);
         break;
     }
 
@@ -619,8 +716,8 @@ export class ToolsRenderer {
         const prevY = roundCoord(priceToY(prevPrice));
         const currY = roundCoord(priceToY(price));
 
-        ctx.fillStyle = tool.style.color;
-        ctx.globalAlpha = 0.05;
+        ctx.fillStyle = tool.style.fillColor || tool.style.color;
+        ctx.globalAlpha = tool.style.fillOpacity || 0.05;
         ctx.fillRect(leftBound, Math.min(currY, prevY), rightBound - leftBound, Math.abs(currY - prevY));
         ctx.globalAlpha = 1;
       }
@@ -1072,7 +1169,15 @@ export class ToolsRenderer {
     const handles = this.engine.getToolHandles(tool, priceToY, timeToX);
 
     handles.forEach(handle => {
-      const radius = handle.size / 2;
+      const size = handle.size;
+      const halfSize = size / 2;
+
+      // TradingView-style: square handles for corners, round for edges/points
+      const isCorner =
+        handle.position === 'top-left' ||
+        handle.position === 'top-right' ||
+        handle.position === 'bottom-left' ||
+        handle.position === 'bottom-right';
 
       // Outer glow effect for visibility
       ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
@@ -1080,11 +1185,18 @@ export class ToolsRenderer {
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
 
-      // Handle fill - white with slight transparency
+      // Handle fill - white
       ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(handle.x, handle.y, radius, 0, Math.PI * 2);
-      ctx.fill();
+
+      if (isCorner) {
+        // Square handle for corners
+        ctx.fillRect(handle.x - halfSize, handle.y - halfSize, size, size);
+      } else {
+        // Round handle for edges and points
+        ctx.beginPath();
+        ctx.arc(handle.x, handle.y, halfSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Reset shadow
       ctx.shadowColor = 'transparent';
@@ -1093,12 +1205,19 @@ export class ToolsRenderer {
       // Handle border - tool color for visual connection
       ctx.strokeStyle = tool.style.color;
       ctx.lineWidth = 2;
-      ctx.stroke();
 
-      // Inner dot for precision targeting
+      if (isCorner) {
+        ctx.strokeRect(handle.x - halfSize, handle.y - halfSize, size, size);
+      } else {
+        ctx.beginPath();
+        ctx.arc(handle.x, handle.y, halfSize, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Inner dot for precision targeting (smaller for compact handles)
       ctx.fillStyle = tool.style.color;
       ctx.beginPath();
-      ctx.arc(handle.x, handle.y, 2, 0, Math.PI * 2);
+      ctx.arc(handle.x, handle.y, 1.5, 0, Math.PI * 2);
       ctx.fill();
     });
   }
@@ -1230,6 +1349,209 @@ export class ToolsRenderer {
     ctx.lineTo(x2, y2);
     ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+
+  // ════════════════════════════════════════════
+  // NEW TOOLS: Parallel Channel, Fib Extension, Measure, Ellipse
+  // ════════════════════════════════════════════
+
+  private renderParallelChannel(tool: ParallelChannelTool, context: RenderContext): void {
+    const { ctx, priceToY, timeToX } = context;
+    const x1 = timeToX(tool.startPoint.time);
+    const y1 = priceToY(tool.startPoint.price);
+    const x2 = timeToX(tool.endPoint.time);
+    const y2 = priceToY(tool.endPoint.price);
+
+    // Offset for parallel line
+    const offsetY1 = priceToY(tool.startPoint.price + tool.channelWidth);
+    const offsetY2 = priceToY(tool.endPoint.price + tool.channelWidth);
+    const dy1 = offsetY1 - y1;
+    const dy2 = offsetY2 - y2;
+
+    // Main line
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Parallel line
+    ctx.beginPath();
+    ctx.moveTo(x1, y1 + dy1);
+    ctx.lineTo(x2, y2 + dy2);
+    ctx.stroke();
+
+    // Center line (dashed)
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1 + dy1 / 2);
+    ctx.lineTo(x2, y2 + dy2 / 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Fill between lines
+    ctx.fillStyle = tool.style.fillColor || tool.style.color;
+    ctx.globalAlpha = tool.style.fillOpacity ?? 0.08;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(x2, y2 + dy2);
+    ctx.lineTo(x1, y1 + dy1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  private renderFibExtension(tool: FibExtensionTool, context: RenderContext): void {
+    const { ctx, priceToY, timeToX, width } = context;
+    const x1 = timeToX(tool.point1.time);
+    const y1 = priceToY(tool.point1.price);
+    const x2 = timeToX(tool.point2.time);
+    const y2 = priceToY(tool.point2.price);
+    const x3 = timeToX(tool.point3.time);
+    const y3 = priceToY(tool.point3.price);
+
+    // Draw swing lines (point1 -> point2, point2 -> point3)
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(x3, y3);
+    ctx.stroke();
+    ctx.restore();
+
+    // Extension levels
+    const swing = tool.point2.price - tool.point1.price;
+    const levels = tool.levels || [0, 0.618, 1.0, 1.618, 2.618];
+    const colors = ['#787b86', '#f7525f', '#ff9800', '#2196f3', '#9c27b0'];
+
+    levels.forEach((level, idx) => {
+      const levelPrice = tool.point3.price + swing * level;
+      const levelY = priceToY(levelPrice);
+      const color = colors[idx % colors.length];
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash(level === 1.0 ? [] : [4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(Math.min(x1, x2, x3), levelY);
+      ctx.lineTo(width, levelY);
+      ctx.stroke();
+
+      // Labels
+      if (tool.showLabels) {
+        ctx.font = '9px "Consolas", monospace';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${(level * 100).toFixed(1)}%`, 4, levelY - 3);
+      }
+      if (tool.showPrices) {
+        ctx.font = '9px "Consolas", monospace';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'right';
+        ctx.fillText(levelPrice.toFixed(2), width - 4, levelY - 3);
+      }
+    });
+    ctx.setLineDash([]);
+  }
+
+  private renderMeasure(tool: MeasureTool, context: RenderContext): void {
+    const { ctx, priceToY, timeToX } = context;
+    const x1 = timeToX(tool.startPoint.time);
+    const y1 = priceToY(tool.startPoint.price);
+    const x2 = timeToX(tool.endPoint.time);
+    const y2 = priceToY(tool.endPoint.price);
+
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Arrowhead at end
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const headLen = 10;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+    ctx.stroke();
+
+    // Info popup
+    const priceChange = tool.endPoint.price - tool.startPoint.price;
+    const pctChange = (priceChange / tool.startPoint.price) * 100;
+    const timeDiffSec = Math.abs(tool.endPoint.time - tool.startPoint.time);
+    const timeDiffMin = Math.floor(timeDiffSec / 60);
+    const timeDiffHr = Math.floor(timeDiffMin / 60);
+
+    const timeStr = timeDiffHr > 0
+      ? `${timeDiffHr}h ${timeDiffMin % 60}m`
+      : `${timeDiffMin}m`;
+
+    const lines = [
+      `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}`,
+      `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(2)}%`,
+      timeStr,
+    ];
+
+    // Draw popup
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    ctx.font = 'bold 10px "Consolas", monospace';
+    const maxW = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const popW = maxW + 16;
+    const popH = lines.length * 14 + 8;
+    const popX = midX - popW / 2;
+    const popY = midY - popH - 10;
+
+    ctx.fillStyle = 'rgba(10, 10, 15, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect(popX, popY, popW, popH, 4);
+    ctx.fill();
+
+    ctx.strokeStyle = priceChange >= 0 ? '#22c55e' : '#ef4444';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(popX, popY, popW, popH, 4);
+    ctx.stroke();
+
+    ctx.fillStyle = priceChange >= 0 ? '#22c55e' : '#ef4444';
+    ctx.textAlign = 'center';
+    lines.forEach((line, i) => {
+      ctx.fillStyle = i === 0
+        ? (priceChange >= 0 ? '#22c55e' : '#ef4444')
+        : i === 1
+          ? (priceChange >= 0 ? '#86efac' : '#fca5a5')
+          : '#9ca3af';
+      ctx.fillText(line, midX, popY + 14 + i * 14);
+    });
+  }
+
+  private renderEllipse(tool: EllipseTool, context: RenderContext): void {
+    const { ctx, priceToY, timeToX } = context;
+    const cx = timeToX(tool.center.time);
+    const cy = priceToY(tool.center.price);
+    const rx = Math.abs(timeToX(tool.center.time + tool.radiusTime) - cx);
+    const ry = Math.abs(priceToY(tool.center.price + tool.radiusPrice) - cy);
+
+    if (rx < 1 || ry < 1) return;
+
+    // Fill
+    ctx.fillStyle = tool.style.fillColor || tool.style.color;
+    ctx.globalAlpha = tool.style.fillOpacity ?? 0.08;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Stroke
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
   }
 }
 

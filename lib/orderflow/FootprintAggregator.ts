@@ -426,8 +426,11 @@ export class FootprintAggregator {
       level.imbalanceSell = false;
 
       // Imbalance BUY: Compare Ask[N] vs Bid[N-1]
+      // Use precision-safe rounding based on tickSize decimals (fixes PEPE, DOGE, etc.)
+      const precisionDigits = Math.max(Math.round(-Math.log10(tickSize)) + 2, 2);
+      const factor = Math.pow(10, precisionDigits);
       const levelBelow = candle.levels.get(
-        Math.round((price - tickSize) * 100) / 100
+        Math.round((price - tickSize) * factor) / factor
       );
       if (levelBelow && levelBelow.bidVolume > 0) {
         if (level.askVolume / levelBelow.bidVolume >= ratio) {
@@ -437,7 +440,7 @@ export class FootprintAggregator {
 
       // Imbalance SELL: Compare Bid[N] vs Ask[N+1]
       const levelAbove = candle.levels.get(
-        Math.round((price + tickSize) * 100) / 100
+        Math.round((price + tickSize) * factor) / factor
       );
       if (levelAbove && levelAbove.askVolume > 0) {
         if (level.bidVolume / levelAbove.askVolume >= ratio) {

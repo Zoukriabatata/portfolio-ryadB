@@ -29,10 +29,19 @@ interface AdapterConfig {
   showGrid?: boolean;
   showDeltaProfile?: boolean;
   showVolumeProfile?: boolean;
+  deltaProfileMode?: 'mirrored' | 'stacked' | 'net';
+  // Layout margins (CSS pixels)
+  priceAxisWidth?: number;
+  deltaProfileWidth?: number;
+  volumeProfileWidth?: number;
+  // Horizontal pan offset (CSS pixels)
+  panX?: number;
 }
 
 /**
  * Convert MarketState to WebGL RenderData
+ * All x positions are in CSS pixel space relative to the full canvas width.
+ * The renderer should NOT add any additional baseX offset.
  */
 export function adaptMarketState(
   state: MarketState,
@@ -40,7 +49,14 @@ export function adaptMarketState(
   config: AdapterConfig
 ): RenderData {
   const { width, height, tickSize, contrast = 1.5, upperCutoff = 0.8 } = config;
-  const priceSpan = priceRange.max - priceRange.min;
+  const panX = config.panX || 0;
+
+  // Layout zones (CSS pixels)
+  const leftMargin = config.deltaProfileWidth || 0;
+  const rightMargin = (config.priceAxisWidth || 60) + (config.volumeProfileWidth || 0);
+  const heatmapWidth = Math.max(100, width - leftMargin - rightMargin);
+  const heatmapLeft = leftMargin;
+  const heatmapRight = leftMargin + heatmapWidth;
 
   // Calculate max sizes for normalization
   let maxBidSize = 0;
@@ -55,7 +71,9 @@ export function adaptMarketState(
 
   const maxSize = Math.max(maxBidSize, maxAskSize, 1);
 
-  // Convert passive orders
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASSIVE ORDERS (heatmap cells)
+  // ═══════════════════════════════════════════════════════════════════════════
   const passiveOrders: PassiveOrderData[] = [];
 
   // Compute dynamic time range from heatmap history
@@ -68,16 +86,25 @@ export function adaptMarketState(
   });
 
   const totalTimeIndices = Math.max(1, maxTimeIndex - minTimeIndex);
-  const rightEdgeX = width - 10;
-  const columnWidth = Math.max(2, Math.min(20, (width - 10) / totalTimeIndices));
+  // Subtract 1px gap between columns (Bookmap-style grid), min 3px
+  const rawColumnWidth = heatmapWidth / Math.max(1, totalTimeIndices);
+  const columnWidth = Math.max(3, rawColumnWidth - 1);
 
   // Process heatmap history cells → time-series passive orders
+  // PERF: Skip cells that are off-screen or invisible (intensity < 0.01)
   state.heatmapHistory.forEach((cell) => {
-    // Map timeIndex to X position: oldest at left, newest near right edge
-    const normalizedTime = (cell.timeIndex - minTimeIndex) / totalTimeIndices;
-    const x = normalizedTime * (width - 10);
+    // Skip invisible cells
+    if (cell.bidIntensity < 0.01 && cell.askIntensity < 0.01) return;
+    // Skip cells outside price range
+    if (cell.price < priceRange.min || cell.price > priceRange.max) return;
 
-    if (cell.bidIntensity > 0) {
+    const normalizedTime = (cell.timeIndex - minTimeIndex) / totalTimeIndices;
+    const x = heatmapLeft + normalizedTime * heatmapWidth + panX;
+
+    // Skip cells off-screen horizontally
+    if (x + columnWidth < 0 || x > width) return;
+
+    if (cell.bidIntensity >= 0.01) {
       passiveOrders.push({
         price: cell.price,
         size: cell.bidIntensity * maxSize,
@@ -89,7 +116,7 @@ export function adaptMarketState(
       });
     }
 
-    if (cell.askIntensity > 0) {
+    if (cell.askIntensity >= 0.01) {
       passiveOrders.push({
         price: cell.price,
         size: cell.askIntensity * maxSize,
@@ -102,7 +129,9 @@ export function adaptMarketState(
     }
   });
 
-  // Also add current live orders at the right edge (no cellWidth override)
+  // Current live orders at the right edge of heatmap area
+  const liveColumnWidth = Math.max(columnWidth, 8);
+  const rightEdgeX = heatmapRight - liveColumnWidth;
 
   state.bids.forEach((order, price) => {
     if (price >= priceRange.min && price <= priceRange.max) {
@@ -112,6 +141,7 @@ export function adaptMarketState(
         side: 'bid',
         intensity: Math.min(1, order.size / maxSize),
         x: rightEdgeX,
+        cellWidth: liveColumnWidth,
       });
     }
   });
@@ -124,31 +154,45 @@ export function adaptMarketState(
         side: 'ask',
         intensity: Math.min(1, order.size / maxSize),
         x: rightEdgeX,
+        cellWidth: liveColumnWidth,
       });
     }
   });
 
-  // Convert trades
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRADES
+  // ═══════════════════════════════════════════════════════════════════════════
   const now = Date.now();
   const maxTradeAge = 30000; // 30 seconds
 
-  const trades: TradeData[] = state.trades
-    .filter((trade) => trade.timestamp > now - maxTradeAge)
-    .map((trade) => {
-      const tradeTimeOffset = now - trade.timestamp;
-      const x = rightEdgeX - (tradeTimeOffset / maxTradeAge) * width * 0.5;
+  // Filter recent trades
+  const recentTrades = state.trades.filter((trade) => trade.timestamp > now - maxTradeAge);
 
-      return {
-        price: trade.price,
-        size: trade.size,
-        side: trade.side,
-        x,
-        buyRatio: trade.side === 'buy' ? 1 : 0,
-        age: tradeTimeOffset / maxTradeAge,
-      };
-    });
+  // Find max trade size for normalization (so bubbles scale relative to actual data)
+  let maxTradeSize = 0;
+  for (const trade of recentTrades) {
+    if (trade.size > maxTradeSize) maxTradeSize = trade.size;
+  }
+  const tradeNormFactor = maxTradeSize > 0 ? 100 / maxTradeSize : 1;
 
-  // Extract best bid/ask points from price history
+  const trades: TradeData[] = recentTrades.map((trade) => {
+    const tradeTimeOffset = now - trade.timestamp;
+    const x = heatmapRight - (tradeTimeOffset / maxTradeAge) * heatmapWidth + panX;
+
+    return {
+      price: trade.price,
+      // Normalize size to 0-100 range so sqrt scaling produces visible differentiation
+      size: trade.size * tradeNormFactor,
+      side: trade.side,
+      x: Math.max(heatmapLeft, x),
+      buyRatio: trade.side === 'buy' ? 1 : 0,
+      age: tradeTimeOffset / maxTradeAge,
+    };
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BEST BID/ASK STAIRCASE LINES
+  // ═══════════════════════════════════════════════════════════════════════════
   const bestBidPoints: { x: number; price: number }[] = [];
   const bestAskPoints: { x: number; price: number }[] = [];
 
@@ -159,13 +203,16 @@ export function adaptMarketState(
     const timeSpan = endTime - startTime || 1;
 
     state.priceHistory.forEach((point) => {
-      const x = ((point.timestamp - startTime) / timeSpan) * width;
+      const normalizedTime = (point.timestamp - startTime) / timeSpan;
+      const x = heatmapLeft + normalizedTime * heatmapWidth + panX;
       bestBidPoints.push({ x, price: point.bid });
       bestAskPoints.push({ x, price: point.ask });
     });
   }
 
-  // Generate grid lines
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GRID LINES
+  // ═══════════════════════════════════════════════════════════════════════════
   const gridHorizontalPrices: number[] = [];
   const gridVerticalPositions: number[] = [];
 
@@ -178,11 +225,40 @@ export function adaptMarketState(
       gridHorizontalPrices.push(price);
     }
 
-    // Vertical grid lines (time intervals)
-    const verticalStep = width / 10;
-    for (let x = 0; x <= width; x += verticalStep) {
-      gridVerticalPositions.push(x);
+    // Vertical grid lines within heatmap area
+    const numVertical = 8;
+    const verticalStep = heatmapWidth / numVertical;
+    for (let i = 0; i <= numVertical; i++) {
+      gridVerticalPositions.push(heatmapLeft + i * verticalStep);
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TIME LABELS (for time axis rendering)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const timeLabels: { time: Date; x: number }[] = [];
+
+  if (state.priceHistory.length > 1) {
+    const historyLength = state.priceHistory.length;
+    const startTime = state.priceHistory[0]?.timestamp || 0;
+    const endTime = state.priceHistory[historyLength - 1]?.timestamp || 0;
+    const timeSpan = endTime - startTime || 1;
+
+    // Generate ~6-8 evenly spaced time labels
+    const numLabels = Math.min(8, Math.max(3, Math.floor(heatmapWidth / 100)));
+    const labelStep = Math.max(1, Math.floor(historyLength / numLabels));
+
+    for (let i = 0; i < historyLength; i += labelStep) {
+      const point = state.priceHistory[i];
+      const normalizedTime = (point.timestamp - startTime) / timeSpan;
+      const x = heatmapLeft + normalizedTime * heatmapWidth + panX;
+      timeLabels.push({ time: new Date(point.timestamp), x });
+    }
+    // Always include the last point
+    const lastPoint = state.priceHistory[historyLength - 1];
+    const lastNormTime = (lastPoint.timestamp - startTime) / timeSpan;
+    const lastX = heatmapLeft + lastNormTime * heatmapWidth + panX;
+    timeLabels.push({ time: new Date(lastPoint.timestamp), x: lastX });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -196,7 +272,7 @@ export function adaptMarketState(
     let maxDeltaValue = 1;
     let maxVolumeValue = 1;
 
-    // Extract cumulative levels within price range
+    const isNetMode = config.deltaProfileMode === 'net';
     state.cumulativeLevels.forEach((level) => {
       if (level.price >= priceRange.min && level.price <= priceRange.max) {
         profileBars.push({
@@ -205,27 +281,23 @@ export function adaptMarketState(
           askValue: level.totalSellSize,
         });
 
-        // Track max values for normalization
-        maxDeltaValue = Math.max(maxDeltaValue, level.totalBuySize, level.totalSellSize);
+        if (isNetMode) {
+          maxDeltaValue = Math.max(maxDeltaValue, Math.abs(level.totalBuySize - level.totalSellSize));
+        } else {
+          maxDeltaValue = Math.max(maxDeltaValue, level.totalBuySize, level.totalSellSize);
+        }
         maxVolumeValue = Math.max(maxVolumeValue, level.totalBuySize + level.totalSellSize);
       }
     });
 
-    // Sort by price (ascending)
     profileBars.sort((a, b) => a.price - b.price);
 
     if (config.showDeltaProfile && profileBars.length > 0) {
-      deltaProfile = {
-        bars: profileBars,
-        maxValue: maxDeltaValue,
-      };
+      deltaProfile = { bars: profileBars, maxValue: maxDeltaValue };
     }
 
     if (config.showVolumeProfile && profileBars.length > 0) {
-      volumeProfile = {
-        bars: profileBars,
-        maxValue: maxVolumeValue,
-      };
+      volumeProfile = { bars: profileBars, maxValue: maxVolumeValue };
     }
   }
 
@@ -240,6 +312,7 @@ export function adaptMarketState(
     bestAskPoints,
     gridHorizontalPrices,
     gridVerticalPositions,
+    timeLabels,
     contrast,
     upperCutoff,
     colors: config.colors,
