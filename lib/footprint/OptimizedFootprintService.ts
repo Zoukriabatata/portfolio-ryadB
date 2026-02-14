@@ -110,14 +110,52 @@ export class OptimizedFootprintService {
   }
 
   /**
-   * Load real aggTrades with pagination (1000 per request)
+   * Load real aggTrades in parallel chunks for speed
    */
   private async loadTradesRange(startTime: number, endTime: number): Promise<void> {
-    const { symbol } = this.config;
-    let currentStart = startTime;
+    const totalDuration = endTime - startTime;
+    const PARALLEL_CHUNKS = 6; // 6 parallel workers
+    const chunkDuration = Math.ceil(totalDuration / PARALLEL_CHUNKS);
+
+    // Build chunk ranges
+    const chunks: { start: number; end: number }[] = [];
+    for (let i = 0; i < PARALLEL_CHUNKS; i++) {
+      const chunkStart = startTime + i * chunkDuration;
+      const chunkEnd = Math.min(chunkStart + chunkDuration, endTime);
+      if (chunkStart < endTime) {
+        chunks.push({ start: chunkStart, end: chunkEnd });
+      }
+    }
+
+    this.report(5, `Loading trades (${chunks.length} parallel streams)...`);
+
+    // Fetch all chunks in parallel, each chunk paginates sequentially
+    const chunkResults = await Promise.all(
+      chunks.map((chunk, idx) => this.loadChunk(chunk.start, chunk.end, idx, chunks.length))
+    );
+
+    // Process trades in chronological order (chunks are already time-ordered)
     let totalTrades = 0;
+    for (const trades of chunkResults) {
+      for (const t of trades) {
+        this.processTrade(t);
+        this.lastTradeId = Math.max(this.lastTradeId, t.id);
+      }
+      totalTrades += trades.length;
+    }
+
+    console.log(`[OptimizedFootprint] Fetched ${totalTrades} real trades in ${chunks.length} parallel chunks`);
+  }
+
+  /**
+   * Load a single time chunk with sequential pagination
+   */
+  private async loadChunk(startTime: number, endTime: number, chunkIdx: number, totalChunks: number): Promise<AggTrade[]> {
+    const { symbol } = this.config;
+    const trades: AggTrade[] = [];
+    let currentStart = startTime;
     let batchCount = 0;
-    const maxBatches = 500; // Safety limit
+    const maxBatches = 200;
 
     while (currentStart < endTime && batchCount < maxBatches) {
       batchCount++;
@@ -135,34 +173,28 @@ export class OptimizedFootprintService {
       if (!Array.isArray(data) || data.length === 0) break;
 
       for (const t of data) {
-        const trade: AggTrade = {
+        trades.push({
           id: t.a,
           price: parseFloat(t.p),
           quantity: parseFloat(t.q),
           time: t.T,
           isBuyerMaker: t.m,
-        };
-
-        this.processTrade(trade);
-        this.lastTradeId = Math.max(this.lastTradeId, trade.id);
+        });
       }
 
-      totalTrades += data.length;
-
-      // Move start past last trade
       const lastTradeTime = data[data.length - 1].T;
-      if (lastTradeTime <= currentStart) break; // No progress
+      if (lastTradeTime <= currentStart) break;
       currentStart = lastTradeTime + 1;
 
-      // Progress update
-      const progress = 5 + ((currentStart - startTime) / (endTime - startTime)) * 80;
-      this.report(Math.min(85, progress), `Loaded ${totalTrades.toLocaleString()} trades`);
+      // Report progress for this chunk
+      const chunkProgress = (currentStart - startTime) / (endTime - startTime);
+      const overallProgress = 5 + ((chunkIdx + chunkProgress) / totalChunks) * 80;
+      this.report(Math.min(85, overallProgress), `Loaded ${trades.length.toLocaleString()} trades (stream ${chunkIdx + 1}/${totalChunks})`);
 
-      // If we got less than 1000, we've reached the end
       if (data.length < 1000) break;
     }
 
-    console.log(`[OptimizedFootprint] Fetched ${totalTrades} real trades in ${batchCount} requests`);
+    return trades;
   }
 
   /**
