@@ -21,28 +21,34 @@ interface PaymentProof {
 // Feature lists
 // ---------------------------------------------------------------------------
 
+// Launch offer config
+const LAUNCH_PRICE = 29;
+const REGULAR_PRICE = 39;
+const ANNUAL_PRICE = 279;
+const LAUNCH_SPOTS = 50;
+
 const FREE_FEATURES = [
   'Live crypto charts (Binance)',
   'Basic candlestick charts',
   '1 symbol at a time',
-  'Community timeframes',
+  'Standard timeframes',
 ];
 
 const ULTRA_FEATURES = [
   'Everything in Free, plus:',
-  'Footprint charts',
-  'Liquidity heatmap',
+  'Footprint charts (delta, volume, imbalance)',
+  'Liquidity heatmap (WebGL)',
   'GEX dashboard',
-  'Volatility analysis',
-  'All crypto symbols',
+  'Volatility surface & IV analysis',
+  'GVS Bias engine',
+  'All crypto & futures symbols',
   'Drawing tools',
-  'Backtesting',
-  'Session replay',
-  'Trade journal',
+  'Backtesting & session replay',
+  'Trading journal',
   'News calendar',
   'Up to 2 devices',
   'Priority support',
-  'Data feed configuration (IB, dxFeed, Rithmic, AMP)',
+  'Multi-broker (IB, Rithmic, dxFeed, AMP)',
 ];
 
 // ---------------------------------------------------------------------------
@@ -198,6 +204,22 @@ function PricingContent() {
             Start for free. Upgrade when you need professional-grade order flow tools.
           </p>
 
+          {/* Launch offer banner */}
+          <div className="mt-6 mx-auto max-w-lg p-4 rounded-xl text-sm font-medium"
+            style={{
+              background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(168,85,247,0.1) 100%)',
+              border: '1px solid rgba(16,185,129,0.3)',
+            }}>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span style={{ color: 'var(--primary-light)' }} className="font-bold tracking-wide">LAUNCH OFFER</span>
+            </div>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              First {LAUNCH_SPOTS} subscribers get <strong style={{ color: '#fff' }}>${LAUNCH_PRICE}/mo</strong> locked for life
+              <span style={{ color: 'var(--text-muted)' }}> (regular ${REGULAR_PRICE}/mo)</span>
+            </p>
+          </div>
+
           {/* Upgrade notice banner */}
           {upgrade === 'true' && from && (
             <div
@@ -311,19 +333,28 @@ function PricingContent() {
             </div>
 
             <div className="mb-2">
-              <span
-                className="text-5xl font-bold"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                50&euro;
-              </span>
-              <span className="text-lg ml-1" style={{ color: 'var(--text-muted)' }}>
-                /month
+              <div className="flex items-baseline gap-3">
+                <span
+                  className="text-5xl font-bold"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  ${LAUNCH_PRICE}
+                </span>
+                <span className="text-lg line-through" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
+                  ${REGULAR_PRICE}
+                </span>
+                <span className="text-lg" style={{ color: 'var(--text-muted)' }}>
+                  /month
+                </span>
+              </div>
+              <span className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-bold"
+                style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--primary-light)' }}>
+                LAUNCH PRICE &mdash; {LAUNCH_SPOTS} spots
               </span>
             </div>
             <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
-              or <strong style={{ color: 'var(--text-secondary)' }}>480&euro;/year</strong>{' '}
-              &mdash; 2 months free
+              or <strong style={{ color: 'var(--text-secondary)' }}>${ANNUAL_PRICE}/year</strong>{' '}
+              &mdash; ~${Math.round(ANNUAL_PRICE / 12)}/mo, 4 months free
             </p>
 
             <ul className="space-y-3 mb-10 flex-1">
@@ -446,19 +477,23 @@ function PricingContent() {
                         border: billingPeriod === 'monthly' ? '1px solid #635bff' : '1px solid var(--border)',
                       }}
                     >
-                      50€/month
+                      ${LAUNCH_PRICE}/month
                     </button>
                     <button
                       type="button"
                       onClick={() => setBillingPeriod('yearly')}
-                      className="py-2 px-3 rounded-lg text-sm font-medium transition-all"
+                      className="py-2 px-3 rounded-lg text-sm font-medium transition-all relative"
                       style={{
                         background: billingPeriod === 'yearly' ? 'rgba(99, 91, 255, 0.15)' : 'var(--surface-hover, #1e1e2e)',
                         color: billingPeriod === 'yearly' ? '#635bff' : 'var(--text-secondary)',
                         border: billingPeriod === 'yearly' ? '1px solid #635bff' : '1px solid var(--border)',
                       }}
                     >
-                      480€/year
+                      ${ANNUAL_PRICE}/year
+                      <span className="absolute -top-2 -right-2 text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                        style={{ background: 'var(--primary)', color: '#000' }}>
+                        SAVE 33%
+                      </span>
                     </button>
                   </div>
                 </div>

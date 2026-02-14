@@ -492,7 +492,7 @@ function AccountContent() {
                         {session.user.tier === 'ULTRA' ? 'SENULTRA' : 'Free Plan'}
                       </span>
                       {session.user.tier === 'ULTRA' && (
-                        <span className="text-xs ml-3" style={{ color: 'var(--text-muted)' }}>50&euro;/mo</span>
+                        <span className="text-xs ml-3" style={{ color: 'var(--text-muted)' }}>$29/mo</span>
                       )}
                     </div>
                   </div>
