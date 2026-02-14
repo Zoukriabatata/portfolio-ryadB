@@ -8,7 +8,7 @@ export { default as FootprintChartPro } from './FootprintChartPro';
 export { LiquidityHeatmapPro, HeatmapSettingsPanel, TradeFlowRenderer } from './LiquidityHeatmapPro';
 export type { RenderConfig as HeatmapRenderConfig, OrderbookSnapshot, HeatmapLayout, Point } from './LiquidityHeatmapPro';
 
-// Institutional Heatmap (professional-grade, superior to ATAS)
+// Institutional Heatmap (professional-grade)
 export { InstitutionalHeatmap } from './InstitutionalHeatmap';
 
 // Smoothed Heatmap (human-readable, time-dilated)

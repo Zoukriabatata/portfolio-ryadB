@@ -314,9 +314,9 @@ interface TabProps {
 }
 
 const THEME_OPTIONS: { value: ColorScheme; label: string; description: string }[] = [
-  { value: 'atas', label: 'ATAS Pro', description: 'Professional green/red gradients' },
-  { value: 'bookmap', label: 'Bookmap', description: 'Blue/pink oceanic style' },
-  { value: 'sierra', label: 'Sierra', description: 'Warm earthy tones' },
+  { value: 'atas', label: 'Professional', description: 'Professional green/red gradients' },
+  { value: 'bookmap', label: 'Oceanic', description: 'Blue/pink oceanic style' },
+  { value: 'sierra', label: 'Classic', description: 'Warm earthy tones' },
   { value: 'highcontrast', label: 'High Contrast', description: 'Accessibility-focused' },
 ];
 
@@ -333,8 +333,8 @@ function DisplayTab({ store }: TabProps) {
       }>
         <div className="flex gap-2">
           {([
-            { id: 'bookmap' as const, label: 'Bookmap', color: 'bg-blue-600/80 hover:bg-blue-500/80 border-blue-500/50' },
-            { id: 'atas' as const, label: 'ATAS', color: 'bg-emerald-600/80 hover:bg-emerald-500/80 border-emerald-500/50' },
+            { id: 'bookmap' as const, label: 'Oceanic', color: 'bg-blue-600/80 hover:bg-blue-500/80 border-blue-500/50' },
+            { id: 'atas' as const, label: 'Pro', color: 'bg-emerald-600/80 hover:bg-emerald-500/80 border-emerald-500/50' },
             { id: 'minimal' as const, label: 'Minimal', color: 'bg-zinc-600/80 hover:bg-zinc-500/80 border-zinc-500/50' },
           ]).map((preset) => (
             <button

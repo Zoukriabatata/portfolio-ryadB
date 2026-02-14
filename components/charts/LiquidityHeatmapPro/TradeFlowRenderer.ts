@@ -1,7 +1,7 @@
 /**
- * TRADE FLOW RENDERER - ATAS Style
+ * TRADE FLOW RENDERER - Professional Style
  *
- * Rendu des bulles de trades sur la heatmap style ATAS.
+ * Rendu des bulles de trades sur la heatmap professionnelle.
  * - Cercles gris semi-transparents avec glow
  * - Camembert (pie chart) quand buy+sell au même prix/moment
  * - Mode cumulatif pour agréger les trades
@@ -63,7 +63,7 @@ export class TradeFlowRenderer {
   }
 
   /**
-   * Rend les bulles de trades style ATAS - FIXÉ: position fixe par rapport au temps absolu
+   * Rend les bulles de trades professionnelles - FIXÉ: position fixe par rapport au temps absolu
    */
   render(
     ctx: CanvasRenderingContext2D,

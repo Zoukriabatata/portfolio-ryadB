@@ -4,7 +4,7 @@
  * CROSSHAIR SETTINGS BAR
  *
  * Barre d'outils pour configurer le crosshair
- * Style TradingView
+ * Professional style
  */
 
 import { useState, useRef, useEffect } from 'react';

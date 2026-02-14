@@ -551,7 +551,7 @@ export class LiveDataEngine {
 
   /**
    * Capture a full orderbook snapshot for the time-series heatmap.
-   * Called periodically (every ~360ms) to build a Bookmap-style view.
+   * Called periodically (every ~360ms) to build a depth visualization style view.
    */
   private captureFullSnapshot(now: number): void {
     this.heatmapTimeIndex++;

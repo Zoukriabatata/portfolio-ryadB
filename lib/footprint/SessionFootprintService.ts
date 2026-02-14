@@ -1,5 +1,5 @@
 /**
- * SESSION FOOTPRINT SERVICE - ATAS-Style Professional Implementation
+ * SESSION FOOTPRINT SERVICE - Professional Implementation
  *
  * Architecture:
  * 1. Session Management: 00:00 UTC → Now (crypto 24/7)
@@ -7,7 +7,7 @@
  * 3. Live Buffer: Continue adding trades in real-time
  * 4. Footprint Reconstruction: Build candles from individual trades
  *
- * This is how professional platforms (ATAS, NinjaTrader, Quantower) work.
+ * This is how institutional platforms work.
  */
 
 import type { FootprintCandle, PriceLevel } from '@/lib/orderflow/OrderflowEngine';
@@ -106,7 +106,7 @@ export class SessionFootprintService {
   /**
    * MAIN ENTRY POINT: Load complete session from trades
    *
-   * This is the ATAS-style approach:
+   * This is the professional approach:
    * 1. Fetch ALL aggTrades since 00:00 UTC
    * 2. Reconstruct every M1 footprint candle
    * 3. Return 100+ candles for a full day
@@ -494,7 +494,7 @@ export class SessionFootprintService {
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // DIAGONAL IMBALANCES (ATAS methodology)
+    // DIAGONAL IMBALANCES (professional methodology)
     //
     // Buy imbalance: Ask[price] vs Bid[price - tickSize]
     // Sell imbalance: Bid[price] vs Ask[price + tickSize]

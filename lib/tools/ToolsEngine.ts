@@ -1,7 +1,7 @@
 /**
  * TOOLS ENGINE - Professional Trading Tools System
  *
- * Architecture style TradingView / ATAS / NinjaTrader
+ * Institutional architecture
  *
  * Features:
  * - Sélection / désélection au clic
@@ -1587,7 +1587,7 @@ export class ToolsEngine {
     if (!tool.selected) return [];
 
     const handles: Handle[] = [];
-    const size = 7; // TradingView-style compact handles
+    const size = 7; // Professional compact handles
 
     switch (tool.type) {
       case 'horizontalLine': {

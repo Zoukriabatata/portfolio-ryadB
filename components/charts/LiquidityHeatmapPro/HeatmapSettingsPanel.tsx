@@ -162,9 +162,9 @@ function GeneralTab({ store }: TabProps) {
         value={store.colorScheme}
         onChange={store.setColorScheme}
         options={[
-          { value: 'atas', label: 'ATAS Professional' },
-          { value: 'bookmap', label: 'Bookmap' },
-          { value: 'sierra', label: 'Sierra Chart' },
+          { value: 'atas', label: 'Professional' },
+          { value: 'bookmap', label: 'Oceanic' },
+          { value: 'sierra', label: 'Classic' },
           { value: 'highcontrast', label: 'High Contrast' },
         ]}
       />

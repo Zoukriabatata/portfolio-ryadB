@@ -1,7 +1,7 @@
 /**
  * FOOTPRINT ENGINE - Professional Orderflow Processing
  *
- * Architecture style ATAS / NinjaTrader / Quantower
+ * Institutional architecture
  *
  * Features:
  * - Fixed width footprint layout
@@ -344,7 +344,7 @@ export class FootprintEngine {
   }
 
   /**
-   * Calculate imbalances (ATAS diagonal comparison)
+   * Calculate imbalances (professional diagonal comparison)
    */
   private calculateImbalances(candle: FootprintCandle): void {
     const { imbalanceRatio, imbalanceMinVolume, tickSize } = this.config;

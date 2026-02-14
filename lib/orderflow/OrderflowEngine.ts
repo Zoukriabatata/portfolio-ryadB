@@ -1,7 +1,7 @@
 /**
  * ORDERFLOW ENGINE - Moteur d'agrégation Bid x Ask par niveau de prix
  *
- * Architecture style ATAS / NinjaTrader :
+ * Institutional architecture:
  *
  *   Trade (price, qty, side)
  *          │
@@ -248,7 +248,7 @@ export class OrderflowEngine {
     level.totalVolume = level.bidVolume + level.askVolume;
     level.delta = level.askVolume - level.bidVolume;
 
-    // Détecte les imbalances (diagonal comparison ATAS-style)
+    // Détecte les imbalances (diagonal comparison professional style)
     // Buy imbalance: askVolume at this level >> bidVolume at level below
     // Sell imbalance: bidVolume at this level >> askVolume at level above
     const levelBelow = candle.levels.get(priceLevel - tickSize);

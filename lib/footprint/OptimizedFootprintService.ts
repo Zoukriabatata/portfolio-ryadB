@@ -272,7 +272,7 @@ export class OptimizedFootprintService {
   }
 
   /**
-   * Calculate POC, diagonal imbalances (ATAS style)
+   * Calculate POC, diagonal imbalances (professional style)
    */
   private calculateMetrics(candle: FootprintCandle): void {
     const { tickSize, imbalanceRatio } = this.config;

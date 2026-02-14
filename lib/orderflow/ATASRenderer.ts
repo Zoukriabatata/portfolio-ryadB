@@ -1,7 +1,7 @@
 /**
- * ATAS-STYLE FOOTPRINT RENDERER
+ * PROFESSIONAL FOOTPRINT RENDERER
  *
- * RÈGLES DE RENDU STRICTES (IDENTIQUE À ATAS):
+ * RÈGLES DE RENDU STRICTES (professional standard):
  *
  * 1. AXE DELTA = 0 EST FIXE ET CENTRAL (IMMUABLE)
  * 2. Barres DELTA s'étendent depuis le centre:
@@ -154,7 +154,7 @@ interface RenderContext {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ATAS RENDERER CLASS
+// PROFESSIONAL RENDERER CLASS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export class ATASRenderer {
@@ -470,11 +470,11 @@ export class ATASRenderer {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // DELTA BAR - ATAS STYLE (FIXED CENTER AXIS)
+  // DELTA BAR - PROFESSIONAL STYLE (FIXED CENTER AXIS)
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * RENDU DELTA BAR - MÉTHODE ATAS
+   * RENDU DELTA BAR - professional methodology
    *
    * RÈGLE ABSOLUE:
    * - L'axe Delta = 0 est AU CENTRE de la colonne delta

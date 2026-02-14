@@ -1,8 +1,8 @@
 /**
- * HEATMAP RENDERER - ATAS Style
+ * HEATMAP RENDERER - Professional Style
  *
  * Moteur de rendu Canvas pour la Liquidity Heatmap Pro.
- * Design inspiré d'ATAS/Bookmap avec:
+ * Professional design with:
  * - Gradient heatmap (bleu → violet → magenta → rouge)
  * - DOM bars horizontaux (cyan bid / rose ask)
  * - Price ladder professionnel
@@ -69,7 +69,7 @@ export class HeatmapRenderer {
   private lastBestBid: number = 0;
   private lastBestAsk: number = 0;
 
-  // Colors - ATAS Style
+  // Colors - Professional Style
   private colors = {
     background: '#0a0e14',
     gridLine: 'rgba(255, 255, 255, 0.04)',
@@ -100,7 +100,7 @@ export class HeatmapRenderer {
     statBid: '#22c55e',
     statVolume: '#ffffff',
     statLabel: '#6b7280',
-    // Tick lines (behind bubbles) - ATAS style
+    // Tick lines (behind bubbles) - professional style
     tickLineBid: 'rgba(34, 197, 94, 0.6)',   // Green
     tickLineAsk: 'rgba(239, 68, 68, 0.6)',    // Red
     tickLineBidBright: '#22c55e',
@@ -471,7 +471,7 @@ export class HeatmapRenderer {
   }
 
   /**
-   * Render current liquidity bars - Bookmap style depth visualization
+   * Render current liquidity bars - depth visualization style
    */
   private renderLiquidityBars(
     bids: Map<number, number>,
@@ -815,7 +815,7 @@ export class HeatmapRenderer {
   }
 
   /**
-   * Échelle des prix style ATAS
+   * Échelle des prix professionnelle
    */
   private renderPriceLadder(
     priceRange: PriceRange,
@@ -884,7 +884,7 @@ export class HeatmapRenderer {
   }
 
   /**
-   * Barre de statistiques style ATAS
+   * Barre de statistiques professionnelle
    */
   private renderStatsBar(stats: HeatmapStats, currentPrice: number): void {
     const { statsBar } = this.layout;

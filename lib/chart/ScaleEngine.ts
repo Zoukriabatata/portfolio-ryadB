@@ -1,7 +1,7 @@
 /**
  * SCALE ENGINE - Professional Price & Time Scale Management
  *
- * Architecture style TradingView / ATAS
+ * Professional architecture
  * - Adaptive price scale with nice numbers
  * - Time scale with zoom at cursor
  * - Coordinate transformations

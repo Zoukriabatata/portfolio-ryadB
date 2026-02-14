@@ -86,6 +86,12 @@ export default function BiasPageContent() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[var(--background)]">
+      {/* ─── Disclaimer ─── */}
+      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-[10px] text-amber-400 animate-fadeIn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
+        <span>Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.</span>
+      </div>
+
       {/* ── Header Bar ── */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)] animate-slideUp stagger-1">
         <div className="flex items-center gap-3">

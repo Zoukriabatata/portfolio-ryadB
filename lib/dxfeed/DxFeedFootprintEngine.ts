@@ -1,7 +1,7 @@
 /**
- * DXFEED FOOTPRINT ENGINE - ATAS-LIKE
+ * DXFEED FOOTPRINT ENGINE - Professional
  *
- * Agrégation tick-by-tick STRICTEMENT IDENTIQUE à ATAS
+ * Agrégation tick-by-tick professional standard
  *
  * RÈGLES FONDAMENTALES:
  * 1. Chaque niveau = 1 TICK EXACT (0.25 pour NQ/ES, 0.10 pour GC)
@@ -11,11 +11,11 @@
  * 5. Axe Delta = 0 est FIXE et CENTRAL (immuable)
  *
  * DIFFÉRENCE FOOTPRINT TIME-BASED vs TICK-BASED:
- * - Time-based (ATAS): Nouvelle candle toutes les X secondes
+ * - Time-based: Nouvelle candle toutes les X secondes
  * - Tick-based: Nouvelle candle tous les N trades
  * - Volume-based: Nouvelle candle tous les V contrats
  *
- * Ici on implémente TIME-BASED (1m, 5m, 15m) comme ATAS standard.
+ * Ici on implémente TIME-BASED (1m, 5m, 15m) standard.
  */
 
 import {
@@ -34,7 +34,7 @@ import {
 
 /**
  * Un niveau de prix dans le footprint
- * = 1 LIGNE dans ATAS (correspondant à 1 TICK exact)
+ * = 1 LIGNE dans le footprint (correspondant à 1 TICK exact)
  */
 export interface FootprintLevel {
   price: number;            // Prix aligné au tick exact
@@ -53,7 +53,7 @@ export interface FootprintLevel {
   // Volume total
   totalVolume: number;
 
-  // Imbalances ATAS (calculées diagonalement)
+  // Imbalances (calculées diagonalement)
   imbalanceBuy: boolean;    // Ask[N] / Bid[N-1] >= ratio
   imbalanceSell: boolean;   // Bid[N] / Ask[N+1] >= ratio
 
@@ -64,7 +64,7 @@ export interface FootprintLevel {
 
 /**
  * Une candle footprint complète
- * = 1 BOUGIE dans ATAS
+ * = 1 BOUGIE footprint
  */
 export interface FootprintCandle {
   symbol: string;
@@ -359,7 +359,7 @@ export class DxFeedFootprintEngine {
   /**
    * Mettre à jour une candle avec un trade
    *
-   * RÈGLES ATAS:
+   * RÈGLES:
    * - ASK (buy aggressor) → colonne DROITE → totalBuyVolume
    * - BID (sell aggressor) → colonne GAUCHE → totalSellVolume
    */
@@ -455,11 +455,11 @@ export class DxFeedFootprintEngine {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // IMBALANCE CALCULATION (MÉTHODE ATAS)
+  // IMBALANCE CALCULATION (PROFESSIONAL METHODOLOGY)
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * CALCUL DES IMBALANCES - STRICTEMENT ATAS
+   * CALCUL DES IMBALANCES - professional standard
    *
    * Les imbalances sont calculées DIAGONALEMENT, pas horizontalement !
    *
@@ -474,7 +474,7 @@ export class DxFeedFootprintEngine {
    *   les acheteurs UN TICK AU-DESSUS
    *
    * ERREUR COMMUNE: Comparer Ask[N] / Bid[N] (même ligne)
-   * C'EST FAUX - ATAS compare toujours diagonalement
+   * C'EST FAUX - la comparaison correcte est toujours diagonale
    */
   private calculateImbalances(candle: FootprintCandle): void {
     const { imbalanceRatio } = this.config;

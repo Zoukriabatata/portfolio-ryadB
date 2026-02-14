@@ -1,5 +1,5 @@
 /**
- * VWAP & TWAP INDICATORS - ATAS Professional Style
+ * VWAP & TWAP INDICATORS - Professional Style
  *
  * VWAP: Volume Weighted Average Price
  * - Sum(Price × Volume) / Sum(Volume)

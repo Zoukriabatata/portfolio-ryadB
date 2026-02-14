@@ -2,7 +2,6 @@
  * ORDERFLOW THEME SYSTEM
  *
  * Professional color schemes and visual settings for orderflow analysis.
- * Inspired by ATAS, Bookmap, and Sierra Chart.
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -113,11 +112,11 @@ export interface OrderflowTheme {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ATAS PROFESSIONAL THEME
+// PROFESSIONAL THEME
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const ATAS_GRADIENT_BID: HeatmapGradient = {
-  name: 'ATAS Bid',
+  name: 'Professional Bid',
   stops: [
     { position: 0.0, color: '#0a0c10' },    // Background (0% intensity)
     { position: 0.03, color: '#0c1a14' },   // Barely visible tint at 3%
@@ -132,7 +131,7 @@ export const ATAS_GRADIENT_BID: HeatmapGradient = {
 };
 
 export const ATAS_GRADIENT_ASK: HeatmapGradient = {
-  name: 'ATAS Ask',
+  name: 'Professional Ask',
   stops: [
     { position: 0.0, color: '#0a0c10' },    // Background (0% intensity)
     { position: 0.03, color: '#140c0c' },   // Barely visible tint at 3%
@@ -147,7 +146,7 @@ export const ATAS_GRADIENT_ASK: HeatmapGradient = {
 };
 
 export const THEME_ATAS: OrderflowTheme = {
-  name: 'ATAS Professional',
+  name: 'Professional',
   colors: {
     // Background - very dark with slight blue tint
     background: '#0a0c10',
@@ -203,11 +202,11 @@ export const THEME_ATAS: OrderflowTheme = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// BOOKMAP THEME
+// OCEANIC THEME
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const BOOKMAP_GRADIENT_BID: HeatmapGradient = {
-  name: 'Bookmap Bid',
+  name: 'Oceanic Bid',
   stops: [
     { position: 0.0, color: '#000814' },
     { position: 0.05, color: '#001233' },  // Visible blue tint early
@@ -221,7 +220,7 @@ export const BOOKMAP_GRADIENT_BID: HeatmapGradient = {
 };
 
 export const BOOKMAP_GRADIENT_ASK: HeatmapGradient = {
-  name: 'Bookmap Ask',
+  name: 'Oceanic Ask',
   stops: [
     { position: 0.0, color: '#000814' },
     { position: 0.05, color: '#1a0a14' },  // Visible pink tint early
@@ -235,7 +234,7 @@ export const BOOKMAP_GRADIENT_ASK: HeatmapGradient = {
 };
 
 export const THEME_BOOKMAP: OrderflowTheme = {
-  name: 'Bookmap',
+  name: 'Oceanic',
   colors: {
     background: '#000814',
     backgroundSecondary: '#001d3d',
@@ -283,11 +282,11 @@ export const THEME_BOOKMAP: OrderflowTheme = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SIERRA CHART THEME
+// CLASSIC THEME
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const SIERRA_GRADIENT_BID: HeatmapGradient = {
-  name: 'Sierra Bid',
+  name: 'Classic Bid',
   stops: [
     { position: 0.0, color: '#1a1a2e' },
     { position: 0.25, color: '#1f4037' },
@@ -298,7 +297,7 @@ export const SIERRA_GRADIENT_BID: HeatmapGradient = {
 };
 
 export const SIERRA_GRADIENT_ASK: HeatmapGradient = {
-  name: 'Sierra Ask',
+  name: 'Classic Ask',
   stops: [
     { position: 0.0, color: '#1a1a2e' },
     { position: 0.25, color: '#5c1a1b' },
@@ -309,7 +308,7 @@ export const SIERRA_GRADIENT_ASK: HeatmapGradient = {
 };
 
 export const THEME_SIERRA: OrderflowTheme = {
-  name: 'Sierra Chart',
+  name: 'Classic',
   colors: {
     background: '#1a1a2e',
     backgroundSecondary: '#16213e',

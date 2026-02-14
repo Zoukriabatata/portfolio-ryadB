@@ -1,7 +1,7 @@
 /**
  * FOOTPRINT LAYOUT ENGINE
  *
- * Gère le layout fixe des footprints style ATAS/NinjaTrader
+ * Gère le layout fixe des footprints institutional style
  *
  * Contraintes :
  * - Largeur fixe par footprint (80-100px)
@@ -277,7 +277,7 @@ export class FootprintLayoutEngine {
   }
 
   /**
-   * Pan (drag) - TradingView-style natural behavior
+   * Pan (drag) - Professional natural behavior
    *
    * Mental model:
    * - Drag RIGHT → See PAST (older candles) - grab content
@@ -298,7 +298,7 @@ export class FootprintLayoutEngine {
     this.velocityX = this.velocityX * (1 - smoothing) + (deltaX / Math.max(dt, 0.5)) * smoothing;
     this.velocityY = this.velocityY * (1 - smoothing) + (deltaY / Math.max(dt, 0.5)) * smoothing;
 
-    // Apply pan with 1:1 ratio (TradingView feel)
+    // Apply pan with 1:1 ratio (professional feel)
     // Horizontal: drag right = scroll into history (older candles)
     this.scroll(deltaX);
     // Vertical: drag down = see lower prices (natural)
@@ -363,7 +363,7 @@ export class FootprintLayoutEngine {
   /**
    * Reset scroll - Returns to default view
    *
-   * Default view (ATAS/NinjaTrader style):
+   * Default view (institutional style):
    * - scrollIndex = 0 means "show the latest candles"
    * - The rightmost candle is the most recent
    * - Viewport is filled with N candles (N = viewport capacity)
@@ -463,7 +463,7 @@ export class FootprintLayoutEngine {
   /**
    * Calcule les métriques de layout pour un ensemble de bougies
    *
-   * ARCHITECTURE (ATAS/NinjaTrader style):
+   * ARCHITECTURE (institutional style):
    * - Viewport is INDEX-based, not time-based
    * - Candles have FIXED width (zoom-adjusted)
    * - NO empty space: viewport always filled with existing candles
@@ -958,7 +958,7 @@ export class FootprintLayoutEngine {
 
     // Extended range: add extra padding to ensure we see prices beyond data
     // This is the key fix: extend by 50% on each side to allow scrolling beyond data
-    // PROFESSIONAL: Match ATAS/Sierra Chart behavior - allow full vertical panning
+    // PROFESSIONAL: allow full vertical panning
     const extensionFactor = 2.0; // 100% total extension (50% each direction)
     const extendedRange = effectiveRange * extensionFactor;
 

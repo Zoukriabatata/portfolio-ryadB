@@ -300,7 +300,7 @@ export class PassiveLiquiditySimulator {
   /**
    * Generate passive levels for the entire visible price range
    *
-   * ORDERFLOW LOGIC (style ATAS/Sierra):
+   * ORDERFLOW LOGIC (professional style):
    * - BID passif = AU-DESSUS du prix actuel seulement
    * - ASK passif = EN-DESSOUS du prix actuel seulement
    * - Un seul cote par niveau de prix selon position relative au current price
@@ -352,7 +352,7 @@ export class PassiveLiquiditySimulator {
    * Process an incoming trade and absorb matching passive liquidity
    *
    * ═══════════════════════════════════════════════════════════════════════════
-   * RÈGLE : Style ATAS/Sierra Chart
+   * RÈGLE : Professional style
    * ═══════════════════════════════════════════════════════════════════════════
    *
    * - BID passif est AU-DESSUS du prix actuel

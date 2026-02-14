@@ -64,7 +64,7 @@ const COLORS = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// COLOR GRADIENTS (ATAS style)
+// COLOR GRADIENTS (professional style)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Bid gradient: Dark blue → Cyan → White
@@ -630,7 +630,7 @@ export class HeatmapRenderer {
       this.renderTraces(state, priceRange);
     }
 
-    // 3b. Footprint Numbers (ATAS style bid/ask volumes)
+    // 3b. Footprint Numbers (professional style bid/ask volumes)
     if (this.showFootprintNumbers) {
       this.renderFootprintNumbers(state, priceRange);
     }
@@ -725,7 +725,7 @@ export class HeatmapRenderer {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // DELTA PROFILE - Cumulative Buy/Sell volume at each price level (ATAS style)
+  // DELTA PROFILE - Cumulative Buy/Sell volume at each price level (professional style)
   // ══════════════════════════════════════════════════════════════════════════
   private renderDeltaProfile(state: MarketState, priceRange: { min: number; max: number }): void {
     const { ctx, deltaProfileWidth, height, tickSize } = this;
@@ -1868,7 +1868,7 @@ export class HeatmapRenderer {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // VOLUME PROFILE - Total volume at each price level (ATAS/Sierra style)
+  // VOLUME PROFILE - Total volume at each price level (professional style)
   // ══════════════════════════════════════════════════════════════════════════
   private renderVolumeProfile(state: MarketState, priceRange: { min: number; max: number }): void {
     const { ctx, heatmapWidth, heatmapStartX, volumeProfileWidth, height, tickSize } = this;
@@ -2290,7 +2290,7 @@ export class HeatmapRenderer {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // FOOTPRINT NUMBERS - ATAS style bid/ask volume display
+  // FOOTPRINT NUMBERS - Professional style bid/ask volume display
   // ══════════════════════════════════════════════════════════════════════════
   private renderFootprintNumbers(state: MarketState, priceRange: { min: number; max: number }): void {
     const { ctx, heatmapWidth, heatmapStartX, height, tickSize } = this;
@@ -2365,7 +2365,7 @@ export class HeatmapRenderer {
           break;
       }
 
-      // Diagonal imbalance indicator (ATAS style)
+      // Diagonal imbalance indicator (professional style)
       this.renderDiagonalImbalance(ctx, cellX, y, rowHeight, level, state, priceRange);
     }
   }
@@ -2549,7 +2549,7 @@ export class HeatmapRenderer {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PASSIVE ORDERS - LIFECYCLE BASED RENDERING (Bookmap/ATAS style)
+  // PASSIVE ORDERS - LIFECYCLE BASED RENDERING (professional style)
   // ══════════════════════════════════════════════════════════════════════════
   //
   // RÈGLES:

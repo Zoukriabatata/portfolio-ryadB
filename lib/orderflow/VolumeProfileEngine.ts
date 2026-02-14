@@ -246,8 +246,7 @@ export class VolumeProfileEngine {
    *
    * This is the industry-standard method used by:
    *   - CME Market Profile
-   *   - Sierra Chart
-   *   - ATAS
+   *   - Institutional platforms
    */
   calculateValueArea(): ValueArea {
     // Return cached if valid

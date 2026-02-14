@@ -2,7 +2,7 @@
  * CANVAS CHART ENGINE - Custom Chart Rendering
  *
  * Chart professionnel 100% custom sans dépendance externe
- * Style TradingView / ATAS
+ * Professional style
  */
 
 export interface ChartCandle {

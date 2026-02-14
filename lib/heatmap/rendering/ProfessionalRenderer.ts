@@ -2,7 +2,7 @@
  * PROFESSIONAL HEATMAP RENDERER
  *
  * Ultra-clean, visually hierarchical rendering system.
- * Superior to ATAS, inspired by Bookmap.
+ * Professional-grade depth visualization design.
  *
  * Visual Philosophy:
  * - Dark, matte background (near-black)

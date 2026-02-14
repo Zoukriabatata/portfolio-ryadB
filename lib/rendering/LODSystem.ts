@@ -1,5 +1,5 @@
 /**
- * LOD (Level of Detail) System - ATAS Professional Style
+ * LOD (Level of Detail) System - Professional Style
  *
  * SIMPLE 2-STATE SYSTEM:
  * - FOOTPRINT: When visible bars <= threshold (full orderflow detail)

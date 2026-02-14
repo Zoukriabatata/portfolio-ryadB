@@ -1,7 +1,7 @@
 /**
  * FOOTPRINT RENDERER PRO - Professional Canvas Rendering
  *
- * Architecture style ATAS / NinjaTrader / Quantower
+ * Institutional architecture
  *
  *   ┌──────────────────────────────────────────────────────────────────┐
  *   │  FOOTPRINT STRUCTURE (Fixed Width per Candle)                    │
@@ -580,7 +580,7 @@ export class FootprintRendererPro {
       ctx.fillRect(x, cellY, width, rowHeight);
     }
 
-    // ATAS-style: NO imbalance backgrounds
+    // Professional style: NO imbalance backgrounds
     // Imbalance is indicated ONLY through text color (see text rendering below)
     // This provides cleaner, more professional orderflow visualization
 
@@ -637,7 +637,7 @@ export class FootprintRendererPro {
   }
 
   /**
-   * ATAS-STYLE DELTA PROFILE RENDERING
+   * PROFESSIONAL DELTA PROFILE RENDERING
    *
    * CRITICAL ARCHITECTURE:
    *

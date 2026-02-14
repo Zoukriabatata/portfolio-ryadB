@@ -7,7 +7,7 @@
 
 import type { ColorStop, ColorConfig, LiquidityStats } from '../core/types';
 
-// Bookmap-inspired gradient: Blue → Cyan → Green → Yellow → Orange → Red
+// Depth visualization gradient: Blue → Cyan → Green → Yellow → Orange → Red
 const BOOKMAP_BID_GRADIENT: ColorStop[] = [
   { position: 0.00, r: 8, g: 12, b: 20, a: 0.0 },
   { position: 0.05, r: 10, g: 30, b: 50, a: 0.25 },
@@ -38,7 +38,7 @@ const BOOKMAP_ASK_GRADIENT: ColorStop[] = [
   { position: 1.00, r: 255, g: 240, b: 150, a: 1.0 },
 ];
 
-// ATAS-style thermal gradient
+// Professional thermal gradient
 const ATAS_BID_GRADIENT: ColorStop[] = [
   { position: 0.00, r: 6, g: 10, b: 16, a: 0.0 },
   { position: 0.10, r: 15, g: 25, b: 50, a: 0.3 },
@@ -53,7 +53,7 @@ const ATAS_BID_GRADIENT: ColorStop[] = [
   { position: 1.00, r: 255, g: 180, b: 50, a: 1.0 },
 ];
 
-const ATAS_ASK_GRADIENT: ColorStop[] = ATAS_BID_GRADIENT; // Same for ATAS
+const ATAS_ASK_GRADIENT: ColorStop[] = ATAS_BID_GRADIENT; // Same gradient for ask side
 
 // Thermal gradient (fire)
 const THERMAL_GRADIENT: ColorStop[] = [

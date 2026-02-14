@@ -1,12 +1,12 @@
 /**
  * ORDERFLOW MODULE
  *
- * Agrégation et rendu de données orderflow style ATAS/NinjaTrader
+ * Agrégation et rendu de données orderflow institutional
  *
  * Architecture:
  * 1. CMEContractSpecs - Spécifications exactes des contrats CME
- * 2. FootprintAggregator - Agrégation tick-by-tick ATAS-like
- * 3. ATASRenderer - Rendu Canvas style ATAS
+ * 2. FootprintAggregator - Agrégation tick-by-tick professionnelle
+ * 3. ATASRenderer - Rendu Canvas professionnel
  * 4. OrderflowEngine - Engine legacy (compatibilité)
  */
 
@@ -30,7 +30,7 @@ export {
 } from './CMEContractSpecs';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FOOTPRINT AGGREGATOR (ATAS-LIKE)
+// FOOTPRINT AGGREGATOR (PROFESSIONAL)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export {
@@ -46,7 +46,7 @@ export {
 } from './FootprintAggregator';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ATAS RENDERER
+// PROFESSIONAL RENDERER
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export {

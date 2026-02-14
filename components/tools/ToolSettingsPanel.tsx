@@ -4,7 +4,7 @@
  * TOOL SETTINGS PANEL
  *
  * Panneau de configuration pour l'outil sélectionné
- * Style TradingView avec :
+ * Professional style with:
  * - Couleur
  * - Épaisseur
  * - Opacité

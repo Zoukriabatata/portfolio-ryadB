@@ -205,7 +205,7 @@ export interface FootprintSettings {
 // ============ DEFAULTS ============
 
 const DEFAULT_COLORS: FootprintColors = {
-  // ATAS Professional Dark Theme
+  // Professional Dark Theme
   background: '#0c0c0c',
   surface: '#141414',
   gridColor: '#1e1e1e',

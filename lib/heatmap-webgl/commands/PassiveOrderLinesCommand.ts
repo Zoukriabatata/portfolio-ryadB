@@ -1,6 +1,6 @@
 /**
  * Passive Order Lines Command
- * Renders passive orders as horizontal lines (professional ATAS/Bookmap style)
+ * Renders passive orders as horizontal lines (professional style)
  * Line thickness proportional to order size, gradient colors, glow for large orders
  * Uses GPU instanced rendering for performance
  */

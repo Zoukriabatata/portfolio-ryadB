@@ -11,7 +11,7 @@
  * POURQUOI QUOTES + TRADES:
  * - Trades SEULS = pas de distinction bid/ask fiable
  * - Quotes = best bid/ask au moment du trade
- * - Combinaison = classification aggressor EXACTE comme ATAS
+ * - Combinaison = classification aggressor EXACTE professionnelle
  */
 
 // Note: @dxfeed/api is a browser/node package
@@ -177,7 +177,7 @@ export function alignToTick(symbol: string, price: number): number {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * CLASSIFICATION BID/ASK - MÉTHODE ATAS
+ * CLASSIFICATION BID/ASK - Professional methodology
  *
  * RÈGLE PRINCIPALE (Quote Rule):
  * - trade.price >= lastAsk → ASK (buy market order, lifted the offer)

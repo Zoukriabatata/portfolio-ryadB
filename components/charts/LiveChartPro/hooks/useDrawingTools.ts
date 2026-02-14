@@ -188,9 +188,9 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
       colors: {
         positive: theme.colors.candleUp,
         negative: theme.colors.candleDown,
-        selection: '#2962FF', // TradingView blue
+        selection: '#2962FF', // Professional blue
         handle: '#ffffff',
-        handleBorder: '#2962FF', // TradingView blue
+        handleBorder: '#2962FF', // Professional blue
       },
       currentPrice: refs.currentPrice.current || 0,
       hoveredToolId: refs.interactionController.current.getHoveredToolId(),

@@ -3,7 +3,7 @@
 /**
  * FLOATING TOOL SETTINGS BAR
  *
- * TradingView-style minimal floating toolbar that appears near a selected tool.
+ * Professional minimal floating toolbar that appears near a selected tool.
  * Provides quick access to common settings without blocking the chart.
  *
  * Features:

@@ -4,7 +4,7 @@
  * Professional interaction state machine for trading charts
  * Handles all mouse/keyboard events with proper state transitions
  *
- * Architecture based on TradingView / ATAS / NinjaTrader
+ * Institutional architecture
  */
 
 import {
@@ -81,7 +81,7 @@ export class InteractionController {
   private chartBounds: DOMRect | null = null;
   private magnetMode: MagnetMode = 'none';
   private magnetThreshold: number = 30; // Pixels threshold for snapping (increased for better UX)
-  private stayInDrawingMode: boolean = false; // TradingView-style: keep tool active after drawing
+  private stayInDrawingMode: boolean = false; // Professional style: keep tool active after drawing
 
   // Performance optimization: throttle hover hit testing
   private lastHoverCheckTime = 0;
@@ -316,7 +316,7 @@ export class InteractionController {
 
       // Start drag if clicking on selected tool or handle
       if (hitResult.tool.selected || hitResult.handle) {
-        // ✨ TradingView-style Alt-Drag Cloning
+        // Alt-Drag Cloning
         if (this.state.modifiers.alt && !hitResult.tool.locked) {
           e.preventDefault();
           e.stopPropagation();
@@ -468,7 +468,7 @@ export class InteractionController {
       this.state.mode = 'idle';
       this.callbacks.onModeChanged?.('idle');
 
-      // TradingView-style: if stay-in-drawing-mode is enabled, keep the tool active
+      // Professional style: if stay-in-drawing-mode is enabled, keep the tool active
       if (!this.stayInDrawingMode) {
         // Return to cursor after drawing
         this.state.activeTool = 'cursor';
@@ -608,7 +608,7 @@ export class InteractionController {
       }
     }
 
-    // TradingView-style single-letter tool shortcuts
+    // Professional single-letter tool shortcuts
     // Only trigger if no input/textarea is focused
     const activeEl = document.activeElement;
     const isInputFocused =

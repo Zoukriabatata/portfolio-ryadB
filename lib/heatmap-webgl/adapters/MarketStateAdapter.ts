@@ -86,7 +86,7 @@ export function adaptMarketState(
   });
 
   const totalTimeIndices = Math.max(1, maxTimeIndex - minTimeIndex);
-  // Subtract 1px gap between columns (Bookmap-style grid), min 3px
+  // Subtract 1px gap between columns (depth visualization style grid), min 3px
   const rawColumnWidth = heatmapWidth / Math.max(1, totalTimeIndices);
   const columnWidth = Math.max(3, rawColumnWidth - 1);
 

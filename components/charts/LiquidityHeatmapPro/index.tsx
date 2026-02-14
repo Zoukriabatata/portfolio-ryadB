@@ -1,10 +1,10 @@
 /**
  * LIQUIDITY HEATMAP PRO
  *
- * Professional-grade liquidity heatmap component inspired by ATAS/Bookmap.
+ * Professional-grade liquidity heatmap component.
  *
  * Features:
- * - Real-time orderbook visualization with ATAS-style gradients
+ * - Real-time orderbook visualization with professional gradients
  * - Trade flow bubbles with pie charts for buy/sell visualization
  * - Draggable settings panel with multiple configuration tabs
  * - Context menu (right-click) for quick actions

@@ -70,28 +70,28 @@ export const DEFAULT_STYLE_CONFIG: FootprintStyleConfig = {
   footprintBorderRadius: 0,
   footprintBorderOpacity: 0.5,
 
-  // Bougie (ATAS style: pas de bougie visible, juste footprint)
+  // Bougie (professional style: pas de bougie visible, juste footprint)
   candleBodyWidth: 4,
   candleWickWidth: 2,
   candleBorderWidth: 1,
   candleBorderColor: 'auto',      // 'auto' = même couleur que la bougie (bordure + mèche)
-  candleBullishColor: '#00d4aa',  // Cyan-vert ATAS
-  candleBearishColor: '#ff4466',  // Rouge-rose ATAS
+  candleBullishColor: '#00d4aa',  // Cyan-vert
+  candleBearishColor: '#ff4466',  // Rouge-rose
   candleBodyOpacity: 0.08,
 
-  // Volume footprint (ATAS style: rouge/cyan)
+  // Volume footprint (professional style: rouge/cyan)
   volumeBidColor: '#ff4466',      // Rouge-rose pour bid/sell
   volumeAskColor: '#00d4aa',      // Cyan pour ask/buy
   volumeBarOpacity: 0.7,
 
-  // Texte des valeurs (ATAS style)
+  // Texte des valeurs (professional style)
   priceTextColor: '#ffffff',
   volumeTextColor: '#666666',
   bidTextColor: '#ff6688',        // Rouge clair pour bid
   askTextColor: '#00ddbb',        // Cyan pour ask
   pocTextColor: '#ffaa00',
 
-  // Imbalances (ATAS style: fond coloré intense)
+  // Imbalances (professional style: fond coloré intense)
   imbalanceBuyColor: '#00ffaa',
   imbalanceSellColor: '#ff4466',
   imbalanceOpacity: 0.6,
@@ -162,7 +162,7 @@ export interface FootprintSettings {
   // Type de footprint (legacy)
   footprintType: FootprintType;
 
-  // Cluster settings (ATAS style)
+  // Cluster settings (professional style)
   clusterContent: ClusterContent;
   clusterDisplayMode: ClusterDisplayMode;
 
@@ -192,7 +192,7 @@ export const DEFAULT_FOOTPRINT_SETTINGS: FootprintSettings = {
   // Type de footprint (legacy)
   footprintType: 'bidxask',
 
-  // Cluster settings (ATAS style)
+  // Cluster settings (professional style)
   clusterContent: 'bidXAsk',
   clusterDisplayMode: 'deltaProfile',
 

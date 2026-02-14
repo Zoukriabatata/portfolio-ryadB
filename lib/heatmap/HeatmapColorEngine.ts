@@ -1,5 +1,5 @@
 /**
- * HEATMAP COLOR ENGINE - ATAS/Bookmap Style
+ * HEATMAP COLOR ENGINE - Professional Style
  *
  * Génère les gradients de couleurs professionnels pour la heatmap.
  * Supporte plusieurs schémas avec ajustements de contraste.
@@ -15,7 +15,7 @@ interface GradientStop {
   a: number;
 }
 
-// ATAS Style: Fond sombre → Bleu → Violet → Magenta → Rouge → Orange vif
+// Professional thermal style: Fond sombre → Bleu → Violet → Magenta → Rouge → Orange vif
 const ATAS_GRADIENT: GradientStop[] = [
   { stop: 0.00, r: 6, g: 10, b: 16, a: 0.0 },       // Invisible (fond)
   { stop: 0.05, r: 10, g: 15, b: 35, a: 0.3 },      // Bleu très foncé
@@ -31,7 +31,7 @@ const ATAS_GRADIENT: GradientStop[] = [
   { stop: 1.00, r: 255, g: 200, b: 80, a: 1.0 },    // Jaune-orange vif
 ];
 
-// Bookmap Style: Bleu → Cyan → Vert → Jaune → Rouge
+// Depth visualization style: Bleu → Cyan → Vert → Jaune → Rouge
 const BOOKMAP_GRADIENT: GradientStop[] = [
   { stop: 0.00, r: 0, g: 8, b: 20, a: 0.0 },
   { stop: 0.08, r: 0, g: 30, b: 60, a: 0.35 },
@@ -46,7 +46,7 @@ const BOOKMAP_GRADIENT: GradientStop[] = [
   { stop: 1.00, r: 255, g: 50, b: 50, a: 1.0 },
 ];
 
-// Sierra Chart Style: Dark teal → Green → Orange (warm earthy tones)
+// Classic style: Dark teal → Green → Orange (warm earthy tones)
 const SIERRA_GRADIENT: GradientStop[] = [
   { stop: 0.00, r: 26, g: 26, b: 46, a: 0.0 },
   { stop: 0.15, r: 31, g: 64, b: 55, a: 0.4 },

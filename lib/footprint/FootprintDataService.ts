@@ -295,7 +295,7 @@ export class FootprintDataService {
       }
     });
 
-    // Diagonal imbalances (ATAS style)
+    // Diagonal imbalances (professional style)
     candle.levels.forEach((level, price) => {
       const priceBelowKey = Math.round((price - tickSize) * 1000000) / 1000000;
       const priceAboveKey = Math.round((price + tickSize) * 1000000) / 1000000;

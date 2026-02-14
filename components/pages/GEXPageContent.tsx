@@ -232,6 +232,12 @@ export default function GEXPageContent() {
 
   return (
     <div className="h-full flex flex-col bg-[var(--background)] p-4 gap-3 overflow-auto">
+      {/* ─── Disclaimer ─── */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 animate-fadeIn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
+        <span>Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.</span>
+      </div>
+
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between flex-wrap gap-3 animate-slideUp stagger-1">
         <div className="flex items-center gap-4">

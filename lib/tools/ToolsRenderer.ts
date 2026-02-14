@@ -2,7 +2,7 @@
  * TOOLS RENDERER
  *
  * Rendu professionnel des outils sur canvas
- * Style TradingView avec :
+ * Professional style with:
  * - Handles de sélection
  * - Labels de prix
  * - Zones colorées
@@ -179,7 +179,7 @@ export class ToolsRenderer {
     const { ctx } = context;
     const isHovered = context.hoveredToolId === tool.id;
 
-    // TradingView-style selection glow (blue)
+    // Professional selection glow (blue)
     if (tool.selected) {
       ctx.shadowColor = '#2962FF';
       ctx.shadowBlur = 8;
@@ -746,7 +746,7 @@ export class ToolsRenderer {
     ctx.stroke();
   }
 
-  // ============ POSITION (LONG/SHORT) - Professional TradingView Style ============
+  // ============ POSITION (LONG/SHORT) - Professional Style ============
 
   private renderPosition(tool: Tool & { type: 'longPosition' | 'shortPosition' }, context: RenderContext): void {
     const { ctx, priceToY, timeToX, width } = context;
@@ -919,7 +919,7 @@ export class ToolsRenderer {
       }
     }
 
-    // ═══ DRAG HANDLES (always visible like TradingView) ═══
+    // ═══ DRAG HANDLES (always visible) ═══
     const handleRadius = 5;
 
     // Line handles on left edge
@@ -1172,7 +1172,7 @@ export class ToolsRenderer {
       const size = handle.size;
       const halfSize = size / 2;
 
-      // TradingView-style: square handles for corners, round for edges/points
+      // Professional style: square handles for corners, round for edges/points
       const isCorner =
         handle.position === 'top-left' ||
         handle.position === 'top-right' ||

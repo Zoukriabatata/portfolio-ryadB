@@ -1,7 +1,7 @@
 /**
- * FOOTPRINT AGGREGATOR - ATAS-LIKE ENGINE
+ * FOOTPRINT AGGREGATOR - Professional ENGINE
  *
- * Agrégation tick-by-tick EXACTE comme ATAS
+ * Agrégation tick-by-tick professionnelle
  *
  * RÈGLES FONDAMENTALES:
  * 1. Chaque trade = 1 classification (Bid OU Ask)
@@ -42,7 +42,7 @@ export interface CMETrade {
 
 /**
  * Niveau de prix dans le footprint
- * = 1 LIGNE dans le footprint ATAS
+ * = 1 LIGNE dans le footprint
  */
 export interface FootprintLevel {
   price: number;            // Prix aligné au tick
@@ -71,7 +71,7 @@ export interface FootprintLevel {
 
 /**
  * Candle footprint complète
- * = 1 BOUGIE dans ATAS
+ * = 1 BOUGIE footprint
  */
 export interface FootprintCandle {
   // Identité
@@ -106,7 +106,7 @@ export interface FootprintCandle {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CLASSIFICATION BID/ASK - MÉTHODE ATAS
+// CLASSIFICATION BID/ASK - PROFESSIONAL METHODOLOGY
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -401,11 +401,11 @@ export class FootprintAggregator {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // IMBALANCE CALCULATION (ATAS METHOD)
+  // IMBALANCE CALCULATION (PROFESSIONAL METHOD)
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * CALCUL DES IMBALANCES - MÉTHODE ATAS
+   * CALCUL DES IMBALANCES - professional methodology
    *
    * Imbalance BUY (niveau N):
    *   Ask[N] / Bid[N-1] >= imbalanceRatio

@@ -2,7 +2,7 @@
  * SYSTÈME DE THÈMES - Trading Chart
  *
  * Système complet de personnalisation visuelle :
- * - Thèmes prédéfinis (Dark, Light, TradingView, Midnight)
+ * - Thèmes prédéfinis (Dark, Light, Pro, Midnight)
  * - Personnalisation complète des couleurs
  * - Persistance localStorage
  */
@@ -166,8 +166,8 @@ export const THEME_LIGHT: ChartTheme = {
   grid: { visible: true, style: 'solid', opacity: 0.5 },
 };
 
-export const THEME_TRADINGVIEW: ChartTheme = {
-  id: 'tradingview',
+export const THEME_PRO: ChartTheme = {
+  id: 'pro',
   name: 'Orderflow Pro',
   colors: {
     background: '#131722',
@@ -295,10 +295,10 @@ export const THEME_SENZOUKRIA: ChartTheme = {
   grid: { visible: true, style: 'solid', opacity: 0.2 },
 };
 
-// Bloomberg Terminal - Classic institutional
-export const THEME_BLOOMBERG: ChartTheme = {
-  id: 'bloomberg',
-  name: 'Bloomberg',
+// Terminal Classic - Institutional orange-on-black
+export const THEME_TERMINAL: ChartTheme = {
+  id: 'terminal',
+  name: 'Terminal',
   colors: {
     background: '#000000',
     surface: '#1a1a1a',
@@ -531,10 +531,10 @@ export const THEMES: ChartTheme[] = [
   THEME_SENZOUKRIA,
   THEME_DARK,
   THEME_LIGHT,
-  THEME_TRADINGVIEW,
+  THEME_PRO,
   THEME_MIDNIGHT,
   THEME_FOREST,
-  THEME_BLOOMBERG,
+  THEME_TERMINAL,
   THEME_ARCTIC,
   THEME_VOLCANO,
   THEME_CYBERPUNK,

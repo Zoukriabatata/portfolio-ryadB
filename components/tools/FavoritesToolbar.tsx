@@ -232,7 +232,7 @@ export default function FavoritesToolbar({
   // Hover state for showing remove X
   const [hoveredTool, setHoveredTool] = useState<ToolType | null>(null);
 
-  // Stay-in-drawing-mode toggle (TradingView-style)
+  // Stay-in-drawing-mode toggle (professional style)
   const [stayInDrawingMode, setStayInDrawingMode] = useState(false);
 
   // Inject animation styles
@@ -532,7 +532,7 @@ export default function FavoritesToolbar({
           }}
         />
 
-        {/* Lock Drawing Mode Button (TradingView-style) */}
+        {/* Lock Drawing Mode Button (professional style) */}
         <button
           onClick={() => {
             const newMode = !stayInDrawingMode;

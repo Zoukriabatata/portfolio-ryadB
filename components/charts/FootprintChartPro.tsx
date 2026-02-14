@@ -101,7 +101,7 @@ import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
 import FootprintReplayControls, { type ReplayState } from '@/components/charts/FootprintReplayControls';
 
 /**
- * FOOTPRINT CHART PRO - Style ATAS / NinjaTrader / TradingView
+ * FOOTPRINT CHART PRO - Institutional Style
  *
  * Features:
  * - Layout fixe (pas de scroll page)
@@ -2674,7 +2674,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     }
 
     // Handle chart panning - FREE diagonal movement
-    // Uses pan() with delta movement for smooth TradingView-like feel
+    // Uses pan() with delta movement for smooth professional feel
     if (isDraggingRef.current && dragStartRef.current) {
       const deltaX = e.clientX - dragStartRef.current.x;
       const deltaY = e.clientY - dragStartRef.current.y;
@@ -4205,4 +4205,4 @@ function formatVol(vol: number): string {
   return vol.toFixed(2);
 }
 
-// formatVolATAS and formatVolCluster are now in lib/footprint/FootprintCanvasRenderer.ts
+// formatVolATAS and formatVolCluster are now in FootprintCanvasRenderer

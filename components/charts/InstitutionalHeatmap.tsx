@@ -3,7 +3,7 @@
 /**
  * INSTITUTIONAL LIQUIDITY HEATMAP
  *
- * Professional-grade visualization superior to ATAS:
+ * Professional-grade visualization:
  * - Percentile color compression
  * - Focus band around current price
  * - Liquidity age encoding

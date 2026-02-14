@@ -713,7 +713,7 @@ export class HybridRenderer {
         // Classic heatmap cells mode - exactly one tick per cell
         const ticksInRange = (data.priceMax - data.priceMin) / data.tickSize;
         const cellHeight = pixelHeight / ticksInRange;
-        // Subtract 1px for gap between cells (Bookmap style), min 2px
+        // Subtract 1px for gap between cells (depth visualization style), min 2px
         const gapAdjustedHeight = Math.max(2, cellHeight - dpr!);
         this.heatmapCommand.render(
           {

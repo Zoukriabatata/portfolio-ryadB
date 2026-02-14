@@ -1,5 +1,5 @@
 /**
- * Footprint LOD System - ATAS Professional Style
+ * Footprint LOD System - Professional Style
  *
  * Adapts footprint rendering based on:
  * - Timeframe
