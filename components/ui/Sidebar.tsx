@@ -84,6 +84,19 @@ const tradingItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    name: 'GVS Bias',
+    href: '/bias',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <circle cx="12" cy="12" r="8" strokeWidth={1.5} strokeOpacity={0.5} />
+        <circle cx="12" cy="12" r="4" strokeWidth={1.5} />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        <path strokeLinecap="round" strokeWidth={1.5} d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+      </svg>
+    ),
+    badge: 'new' as const,
+  },
 ];
 
 // Tools & Resources section

@@ -4,8 +4,7 @@ import { getToken } from 'next-auth/jwt';
 /**
  * Economic Calendar API
  *
- * Fetches economic events from Forex Factory public JSON feed.
- * Falls back to realistic simulated data if the external fetch fails.
+ * Returns realistic simulated economic events.
  *
  * Query params:
  *   - from: ISO date string (inclusive lower bound)
@@ -54,102 +53,6 @@ function getCachedEvents(): CacheEntry | null {
 
 function setCachedEvents(entry: CacheEntry): void {
   cache = entry;
-}
-
-// ---------------------------------------------------------------------------
-// Forex Factory feed parsing
-// ---------------------------------------------------------------------------
-
-interface ForexFactoryEvent {
-  title: string;
-  country: string;
-  date: string; // e.g. "01-06-2026"
-  time: string; // e.g. "8:30am" or "All Day" or "Tentative"
-  impact: string; // "High", "Medium", "Low", "Holiday", "Non-Economic"
-  forecast: string;
-  previous: string;
-}
-
-function mapImpact(raw: string): 'high' | 'medium' | 'low' {
-  const lower = raw.toLowerCase();
-  if (lower === 'high') return 'high';
-  if (lower === 'medium') return 'medium';
-  return 'low';
-}
-
-function parseFFDate(dateStr: string, timeStr: string): string {
-  // dateStr format: "MM-DD-YYYY"
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return new Date().toISOString();
-
-  const [month, day, year] = parts;
-
-  // Handle non-standard time values
-  if (!timeStr || timeStr === 'All Day' || timeStr === 'Tentative' || timeStr === '') {
-    return new Date(`${year}-${month}-${day}T00:00:00Z`).toISOString();
-  }
-
-  // Parse "8:30am" / "2:00pm" style
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
-  if (!match) {
-    return new Date(`${year}-${month}-${day}T00:00:00Z`).toISOString();
-  }
-
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const ampm = match[3].toLowerCase();
-
-  if (ampm === 'pm' && hours !== 12) hours += 12;
-  if (ampm === 'am' && hours === 12) hours = 0;
-
-  const h = hours.toString().padStart(2, '0');
-  const m = minutes.toString().padStart(2, '0');
-
-  // FF times are US Eastern
-  return new Date(`${year}-${month}-${day}T${h}:${m}:00-05:00`).toISOString();
-}
-
-async function fetchForexFactoryEvents(): Promise<EconomicEvent[]> {
-  const url = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'OrderFlow/2.0' },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Forex Factory responded with ${response.status}`);
-    }
-
-    const data: ForexFactoryEvent[] = await response.json();
-
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error('Empty or invalid response from Forex Factory');
-    }
-
-    return data
-      .filter(
-        (e) =>
-          e.impact &&
-          !['Holiday', 'Non-Economic'].includes(e.impact)
-      )
-      .map((e, index) => ({
-        id: `ff-${e.date}-${index}`,
-        time: parseFFDate(e.date, e.time),
-        currency: e.country || 'USD',
-        impact: mapImpact(e.impact),
-        event: e.title,
-        actual: undefined, // FF free feed doesn't include actuals reliably
-        forecast: e.forecast || undefined,
-        previous: e.previous || undefined,
-      }));
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -412,28 +315,11 @@ export async function GET(req: NextRequest) {
     let entry = getCachedEvents();
 
     if (!entry) {
-      // Try Forex Factory first, fall back to simulation
-      let events: EconomicEvent[];
-      let source: string;
-
-      try {
-        events = await fetchForexFactoryEvents();
-        source = 'forex-factory';
-      } catch (fetchError) {
-        console.warn(
-          'Forex Factory fetch failed, using simulated data:',
-          fetchError instanceof Error ? fetchError.message : fetchError
-        );
-        events = generateSimulatedEvents();
-        source = 'simulation';
-      }
-
-      // Sort by time ascending
+      const events = generateSimulatedEvents();
       events.sort(
         (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
       );
-
-      entry = { events, source, fetchedAt: Date.now() };
+      entry = { events, source: 'simulation', fetchedAt: Date.now() };
       setCachedEvents(entry);
     }
 

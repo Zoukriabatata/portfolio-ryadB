@@ -80,10 +80,7 @@ import {
 import {
   resetDxFeedFootprintEngine,
 } from '@/lib/dxfeed';
-import {
-  getYahooFootprintService,
-  resetYahooFootprintService,
-} from '@/lib/yahoo';
+import { isCMESymbol } from '@/lib/utils/symbolUtils';
 import {
   MagnetIcon,
   SettingsIcon,
@@ -2196,95 +2193,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           });
 
         } else {
-          // ═══════════════════════════════════════════════════════════════
-          // YAHOO FOOTPRINT - Real CME historical data (free)
-          // ═══════════════════════════════════════════════════════════════
-          console.log(`[FootprintChartPro] Initializing CME symbol: ${symbol} via Yahoo Finance`);
-
-          resetYahooFootprintService();
-
-          const yahooService = getYahooFootprintService({
-            symbol: symbol,
-            timeframe: timeframe,
-            tickSize: tickSize,
-            imbalanceRatio: settings.imbalance.ratio,
-          });
-
-          // Status callback
-          yahooService.onStatus((s) => {
-            if (!isMounted) return;
-
-            if (s === 'connected') {
-              setStatus('connected');
-              setIsLoading(false);
-              if (statusDotRef.current) {
-                statusDotRef.current.style.backgroundColor = settings.colors.deltaPositive;
-              }
-            } else if (s === 'connecting') {
-              setStatus('connecting');
-              if (statusDotRef.current) {
-                statusDotRef.current.style.backgroundColor = '#eab308';
-              }
-            } else {
-              setStatus('disconnected');
-              if (statusDotRef.current) {
-                statusDotRef.current.style.backgroundColor = settings.colors.textMuted;
-              }
-            }
-          });
-
-          // Candles callback
-          yahooService.onCandles((candles) => {
-            if (!isMounted) return;
-            if (candles.length === 0) return;
-
-            const convertedCandles = candles.map(c => ({
-              time: c.time,
-              open: c.open,
-              high: c.high,
-              low: c.low,
-              close: c.close,
-              levels: c.levels,
-              totalVolume: c.totalVolume,
-              totalBuyVolume: c.totalBuyVolume,
-              totalSellVolume: c.totalSellVolume,
-              totalDelta: c.totalDelta,
-              totalTrades: c.totalTrades,
-              poc: c.poc,
-              vah: c.vah,
-              val: c.val,
-              isClosed: c.isClosed,
-            }));
-
-            candlesRef.current = convertedCandles;
-
-            const lastCandle = candles[candles.length - 1];
-            if (lastCandle) {
-              currentPriceRef.current = lastCandle.close;
-              if (priceRef.current) {
-                priceRef.current.textContent = lastCandle.close.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                });
-              }
-              if (deltaRef.current) {
-                const delta = lastCandle.totalDelta;
-                deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
-                deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
-              }
-            }
-          });
-
-          setIsLoading(true);
-          setLoadingMessage('Loading CME historical data...');
-          await yahooService.connect();
-
-          unsubscribersRef.current.push(() => {
-            yahooService.disconnect();
-            resetYahooFootprintService();
-          });
-
+          // CME without IB Gateway - show connection prompt
+          console.log(`[FootprintChartPro] CME symbol ${symbol} requires IB Gateway`);
+          setStatus('disconnected');
           setIsLoading(false);
+          setLoadError('CME data requires IB Gateway connection. Go to Settings > Broker to connect.');
         }
 
         return; // Exit early for CME - don't run Binance logic
@@ -3577,7 +3490,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
               color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : '#3b82f6',
             }}
           >
-            {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME Yahoo')}
+            {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME')}
           </span>
 
           <span ref={priceRef} className="text-xl font-mono font-bold" style={{ color: settings.colors.textPrimary }}>

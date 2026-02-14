@@ -15,12 +15,20 @@ import { useFuturesStore } from '@/stores/useFuturesStore';
 
 const POLL_INTERVAL = 30_000; // 30 seconds
 
+// Only subscribe for crypto symbols (lowercase, ends with usdt/busd/btc)
+function isCryptoSymbol(sym: string): boolean {
+  const lower = sym.toLowerCase();
+  return lower.endsWith('usdt') || lower.endsWith('busd') || lower.endsWith('btc') || lower.endsWith('eth');
+}
+
 export function useFuturesData(symbol: string) {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const store = useFuturesStore;
+  const isCrypto = isCryptoSymbol(symbol);
 
   // WebSocket subscriptions
   useEffect(() => {
+    if (!isCrypto) return;
     const ws = getBinanceLiveWS();
 
     const unsubMarkPrice = ws.onMarkPrice((update) => {
@@ -35,10 +43,11 @@ export function useFuturesData(symbol: string) {
       unsubMarkPrice();
       unsubLiquidation();
     };
-  }, [symbol]);
+  }, [symbol, isCrypto]);
 
   // REST polling
   const fetchFuturesMetrics = useCallback(async () => {
+    if (!isCrypto) return;
     const upperSymbol = symbol.toUpperCase();
 
     try {
@@ -111,10 +120,11 @@ export function useFuturesData(symbol: string) {
     } finally {
       store.getState().setPolling(false);
     }
-  }, [symbol]);
+  }, [symbol, isCrypto]);
 
   // Start/stop polling + reset on symbol change
   useEffect(() => {
+    if (!isCrypto) return;
     store.getState().reset();
     fetchFuturesMetrics();
 

@@ -34,7 +34,6 @@
     "regl": "^2.1.1",
     "stripe": "^20.3.0",
     "uuid": "^13.0.0",
-    "yahoo-finance2": "^3.13.0",
     "zustand": "^5.0.10"
   },
   "devDependencies": {

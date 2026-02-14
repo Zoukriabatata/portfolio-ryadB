@@ -18,6 +18,7 @@ import {
   DataFeedIcon,
   JournalIcon,
   ReplayIcon,
+  BiasIcon,
 } from '@/components/ui/Icons';
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 
@@ -27,7 +28,7 @@ import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 // Only `display` toggles — no unmount/remount, no data loss.
 // ============================================================
 
-const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility'] as const;
+const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility', '/bias'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
 const LivePageContent = dynamic(() => import('@/components/pages/LivePageContent'), { ssr: false });
@@ -35,6 +36,7 @@ const FootprintPageContent = dynamic(() => import('@/components/pages/FootprintP
 const LiquidityPageContent = dynamic(() => import('@/components/pages/LiquidityPageContent'), { ssr: false });
 const GEXPageContent = dynamic(() => import('@/components/pages/GEXPageContent'), { ssr: false });
 const VolatilityPageContent = dynamic(() => import('@/components/pages/VolatilityPageContent'), { ssr: false });
+const BiasPageContent = dynamic(() => import('@/components/pages/BiasPageContent'), { ssr: false });
 
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
@@ -42,6 +44,7 @@ const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/liquidity': LiquidityPageContent,
   '/gex': GEXPageContent,
   '/volatility': VolatilityPageContent,
+  '/bias': BiasPageContent,
 };
 
 // ============================================================
@@ -59,6 +62,7 @@ const NAV_ITEMS: Array<{
   { href: '/liquidity', label: 'Liquidity', Icon: HeatmapIcon, color: '#06b6d4' },
   { href: '/gex', label: 'GEX', Icon: GexIcon, color: '#22d3ee' },
   { href: '/volatility', label: 'Volatility', Icon: VolatilityIcon, color: '#0ea5e9' },
+  { href: '/bias', label: 'GVS Bias', Icon: BiasIcon, color: '#f59e0b' },
   { href: '/news', label: 'News', Icon: NewsIcon, color: '#84cc16' },
   { href: '/journal', label: 'Journal', Icon: JournalIcon, color: '#f59e0b' },
   { href: '/replay', label: 'Replay', Icon: ReplayIcon, color: '#8b5cf6' },

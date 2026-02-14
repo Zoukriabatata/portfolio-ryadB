@@ -1781,3 +1781,18 @@ export function YouTubeIcon({ size = 20, className = '', color = 'currentColor' 
     </svg>
   );
 }
+
+export function BiasIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      {/* Crosshair target */}
+      <circle cx="12" cy="12" r="8" stroke={color} strokeWidth="1.5" strokeOpacity="0.5" />
+      <circle cx="12" cy="12" r="4" stroke={color} strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="1.5" fill={color} />
+      {/* Directional arrows */}
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      {/* Bias indicator */}
+      <path d="M17 7l-3 3" stroke={color} strokeWidth="2" strokeLinecap="round" strokeOpacity="0.7" />
+    </svg>
+  );
+}

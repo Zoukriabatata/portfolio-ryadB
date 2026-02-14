@@ -1,4 +1,3 @@
-export { default as AdvancedChart } from './AdvancedChart';
 export { default as VolatilitySkewChart } from './VolatilitySkewChart';
 export { default as GEXChart } from './GEXChart';
 export { default as TradingDOM } from './TradingDOM';

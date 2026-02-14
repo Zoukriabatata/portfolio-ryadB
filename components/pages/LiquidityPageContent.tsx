@@ -124,7 +124,6 @@ export default function LiquidityPageContent() {
           {/* Crypto controls */}
           {dataSource === 'crypto' && (
             <>
-              {/* Symbol Selector - Crypto only */}
               <select
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
@@ -135,7 +134,6 @@ export default function LiquidityPageContent() {
                 ))}
               </select>
 
-              {/* Mode Badge */}
               <div className={`px-2.5 py-1 rounded text-[10px] font-medium border ${
                 dataMode === 'live'
                   ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-bg)]'

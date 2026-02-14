@@ -8,7 +8,7 @@ import {
 } from '@/lib/live/HierarchicalAggregator';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
 import { getIBLiveWS } from '@/lib/live/IBLiveWS';
-import { isCMESymbol, loadYahooHistory } from '@/lib/live/YahooHistoryLoader';
+import { isCMESymbol } from '@/lib/utils/symbolUtils';
 import { useAlertsStore } from '@/stores/useAlertsStore';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { type AssetCategory, SYMBOL_CATEGORIES_BY_ASSET } from '../constants/symbols';
@@ -47,16 +47,17 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
   }, [notifications, dismissNotification]);
 
   /**
-   * Load history from Binance API or Yahoo Finance
+   * Load history from Binance API (CME requires IB Gateway)
    */
   const loadHistory = useCallback(async (sym: string, tf: TimeframeSeconds) => {
     console.log('[useSymbolData] loadHistory START:', { sym, tf });
     setLoadingPhase('fetching');
     try {
       if (isCMESymbol(sym)) {
-        const candles = await loadYahooHistory(sym, tf);
-        console.log('[useSymbolData] Yahoo history loaded:', candles.length);
-        return candles;
+        // CME historical data requires IB Gateway connection
+        // IB live WS will provide real-time candles once connected
+        console.log('[useSymbolData] CME symbol detected - history requires IB Gateway');
+        return [];
       }
 
       const binanceInterval = TF_TO_BINANCE[tf] || '1m';

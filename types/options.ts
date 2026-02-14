@@ -61,10 +61,10 @@ export interface VolatilitySkewPoint {
 // Crypto options (Deribit)
 export type Currency = 'BTC' | 'ETH';
 
-// Equity/Index options (Yahoo Finance via yahoo-finance2)
-export type EquitySymbol = 'SPY' | 'QQQ';
+// Equity/Index symbol labels (simulation)
+export type EquitySymbol = 'SPY' | 'QQQ' | 'TSLA' | 'NVDA' | 'AAPL';
 
-// Equity option from Yahoo Finance
+// Equity option data (simulation)
 export interface EquityOptionData {
   strike: number;
   expiration: number; // Unix timestamp
@@ -79,15 +79,57 @@ export interface EquityOptionData {
   contractSymbol: string;
 }
 
-export interface YahooOption {
+// ─── Multi-Greek Exposure Types ──────────────────────────────
+
+/** Per-strike multi-Greek exposure data */
+export interface MultiGreekData {
   strike: number;
-  expiration: number;
-  lastPrice: number;
-  bid: number;
-  ask: number;
-  volume: number;
-  openInterest: number;
-  impliedVolatility: number;
-  inTheMoney: boolean;
-  contractSymbol: string;
+  gex: number;      // Gamma Exposure ($)
+  vex: number;      // Vanna Exposure
+  cex: number;      // Charm Exposure
+  dex: number;      // Delta Exposure
+  callOI: number;
+  putOI: number;
+  callIV: number;   // Call implied volatility
+  putIV: number;    // Put implied volatility
 }
+
+/** Summary metrics for the full options chain */
+export interface MultiGreekSummary {
+  netGEX: number;
+  netVEX: number;
+  netCEX: number;
+  netDEX: number;
+  zeroGammaLevel: number;
+  callWall: number;    // Strike with highest call GEX
+  putWall: number;     // Strike with most negative put GEX
+  maxPain: number;     // Strike where options expire max worthless
+  impliedMove: number; // Expected move from ATM straddle
+  regime: 'positive' | 'negative';
+  gammaIntensity: number; // 0-100 percentile vs history
+}
+
+/** A point-in-time snapshot for history tracking */
+export interface GEXSnapshot {
+  timestamp: number;
+  summary: MultiGreekSummary;
+  data: MultiGreekData[];
+  spotPrice: number;
+}
+
+/** Greek type selector for UI */
+export type GreekType = 'gex' | 'vex' | 'cex' | 'dex';
+
+/** Labels and metadata for each Greek type */
+export const GREEK_META: Record<GreekType, {
+  label: string;
+  symbol: string;
+  fullName: string;
+  description: string;
+  color: string;
+}> = {
+  gex: { label: 'GEX', symbol: 'Γ', fullName: 'Gamma Exposure', description: 'Dealer gamma hedging pressure', color: '#22c55e' },
+  vex: { label: 'VEX', symbol: 'ν', fullName: 'Vanna Exposure', description: 'Sensitivity of delta to volatility', color: '#8b5cf6' },
+  cex: { label: 'CEX', symbol: 'θ', fullName: 'Charm Exposure', description: 'Delta decay over time', color: '#f59e0b' },
+  dex: { label: 'DEX', symbol: 'Δ', fullName: 'Delta Exposure', description: 'Directional dealer exposure', color: '#3b82f6' },
+};
