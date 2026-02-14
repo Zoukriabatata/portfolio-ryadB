@@ -21,7 +21,7 @@ export default function IBSetupWizard() {
 
   const handleTestConnection = async () => {
     setTestStatus('testing');
-    setTestMessage('Connexion au gateway...');
+    setTestMessage('Connecting to gateway...');
 
     try {
       // Test HTTP health endpoint
@@ -31,14 +31,14 @@ export default function IBSetupWizard() {
       if (res.ok) {
         const data = await res.json();
         setTestStatus('success');
-        setTestMessage(`Gateway en ligne - ${data.connectedUsers || 0} utilisateurs connectes`);
+        setTestMessage(`Gateway online - ${data.connectedUsers || 0} users connected`);
       } else {
         setTestStatus('error');
-        setTestMessage('Gateway inaccessible');
+        setTestMessage('Gateway unreachable');
       }
     } catch {
       setTestStatus('error');
-      setTestMessage('Impossible de contacter le gateway. Verifiez l\'URL et votre connexion.');
+      setTestMessage('Unable to reach the gateway. Check the URL and your connection.');
     }
   };
 
@@ -49,8 +49,8 @@ export default function IBSetupWizard() {
           &larr; Dashboard
         </Link>
 
-        <h1 className="text-3xl font-bold text-white mb-2">Configuration IB Gateway</h1>
-        <p className="text-zinc-400 mb-8">Connectez votre compte Interactive Brokers pour les futures CME</p>
+        <h1 className="text-3xl font-bold text-white mb-2">IB Gateway Setup</h1>
+        <p className="text-zinc-400 mb-8">Connect your Interactive Brokers account for CME futures</p>
 
         {/* Progress Steps */}
         <div className="flex items-center gap-2 mb-8">
@@ -72,39 +72,39 @@ export default function IBSetupWizard() {
         {step === 1 && (
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
             <h2 className="text-xl font-semibold text-white mb-4">
-              Etape 1 : Souscrire aux donnees CME
+              Step 1: Subscribe to CME Data
             </h2>
             <p className="text-zinc-400 mb-6">
-              Vous devez avoir un compte Interactive Brokers avec un abonnement aux donnees futures CME.
+              You need an Interactive Brokers account with a CME futures data subscription.
             </p>
 
             <div className="space-y-4">
               <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
-                <h3 className="text-white font-medium mb-2">1. Ouvrir un compte IB</h3>
+                <h3 className="text-white font-medium mb-2">1. Open an IB Account</h3>
                 <p className="text-zinc-400 text-sm">
-                  Si ce n&apos;est pas deja fait, ouvrez un compte sur interactivebrokers.com
+                  If you haven&apos;t already, open an account at interactivebrokers.com
                 </p>
               </div>
 
               <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
-                <h3 className="text-white font-medium mb-2">2. Souscrire au Market Data</h3>
+                <h3 className="text-white font-medium mb-2">2. Subscribe to Market Data</h3>
                 <p className="text-zinc-400 text-sm mb-2">
-                  Dans votre compte IB, allez dans Settings &rarr; Market Data Subscriptions et ajoutez :
+                  In your IB account, go to Settings &rarr; Market Data Subscriptions and add:
                 </p>
                 <div className="p-3 bg-green-500/10 border border-green-500/20 rounded">
                   <p className="text-green-400 font-mono text-sm font-bold">US Futures Value Bundle</p>
-                  <p className="text-zinc-400 text-xs mt-1">~$14.50/mois (Non-Professional)</p>
+                  <p className="text-zinc-400 text-xs mt-1">~$14.50/month (Non-Professional)</p>
                 </div>
                 <p className="text-zinc-500 text-xs mt-2">
-                  Couvre : ES, MES, NQ, MNQ, YM, GC, MGC, CL et plus
+                  Covers: ES, MES, NQ, MNQ, YM, GC, MGC, CL and more
                 </p>
               </div>
 
               <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
-                <h3 className="text-white font-medium mb-2">3. Statut Non-Professional</h3>
+                <h3 className="text-white font-medium mb-2">3. Non-Professional Status</h3>
                 <p className="text-zinc-400 text-sm">
-                  Assurez-vous que votre statut de donnees est &quot;Non-Professional&quot; pour beneficier du tarif reduit.
-                  IB le demande lors de l&apos;ouverture de compte.
+                  Make sure your data status is &quot;Non-Professional&quot; to get the reduced rate.
+                  IB asks for this during account opening.
                 </p>
               </div>
             </div>
@@ -113,7 +113,7 @@ export default function IBSetupWizard() {
               onClick={() => setStep(2)}
               className="mt-6 w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
             >
-              J&apos;ai souscrit aux donnees &rarr;
+              I&apos;ve subscribed to data &rarr;
             </button>
           </div>
         )}
@@ -122,43 +122,43 @@ export default function IBSetupWizard() {
         {step === 2 && (
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
             <h2 className="text-xl font-semibold text-white mb-4">
-              Etape 2 : IB Gateway API
+              Step 2: IB Gateway API
             </h2>
             <p className="text-zinc-400 mb-6">
-              SENZOUKRIA se connecte a IB via un serveur gateway qui fait le pont entre IB Gateway et votre navigateur.
+              SENZOUKRIA connects to IB via a gateway server that bridges IB Gateway and your browser.
             </p>
 
             <div className="space-y-4">
               <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
-                <h3 className="text-white font-medium mb-2">Comment ca marche ?</h3>
+                <h3 className="text-white font-medium mb-2">How does it work?</h3>
                 <div className="text-zinc-400 text-sm font-mono bg-zinc-900 p-3 rounded mt-2 overflow-x-auto">
-                  <div>Votre navigateur</div>
-                  <div className="text-green-400 ml-4">&darr; WebSocket (chiffre)</div>
-                  <div className="ml-4">Gateway SENZOUKRIA (VPS)</div>
+                  <div>Your browser</div>
+                  <div className="text-green-400 ml-4">&darr; WebSocket (encrypted)</div>
+                  <div className="ml-4">SENZOUKRIA Gateway (VPS)</div>
                   <div className="text-green-400 ml-8">&darr; TCP</div>
-                  <div className="ml-8">IB Gateway (votre compte)</div>
+                  <div className="ml-8">IB Gateway (your account)</div>
                   <div className="text-green-400 ml-12">&darr;</div>
-                  <div className="ml-12">CME (votre data)</div>
+                  <div className="ml-12">CME (your data)</div>
                 </div>
               </div>
 
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                 <p className="text-amber-400 text-sm">
-                  Vos identifiants IB ne sont jamais transmis a SENZOUKRIA.
-                  Le gateway se connecte a une instance IB Gateway configuree avec votre propre compte.
+                  Your IB credentials are never transmitted to SENZOUKRIA.
+                  The gateway connects to an IB Gateway instance configured with your own account.
                 </p>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setStep(1)} className="px-6 py-3 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 transition-colors">
-                &larr; Retour
+                &larr; Back
               </button>
               <button
                 onClick={() => setStep(3)}
                 className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
-                Compris &rarr;
+                Got it &rarr;
               </button>
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function IBSetupWizard() {
         {step === 3 && (
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
             <h2 className="text-xl font-semibold text-white mb-4">
-              Etape 3 : Tester la connexion
+              Step 3: Test Connection
             </h2>
 
             <div className="space-y-4">
@@ -180,7 +180,7 @@ export default function IBSetupWizard() {
                   onChange={(e) => setGatewayUrl(e.target.value)}
                   className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-green-500 transition-colors"
                 />
-                <p className="text-zinc-600 text-xs mt-1">URL du gateway fournie par SENZOUKRIA</p>
+                <p className="text-zinc-600 text-xs mt-1">Gateway URL provided by SENZOUKRIA</p>
               </div>
 
               <button
@@ -188,7 +188,7 @@ export default function IBSetupWizard() {
                 disabled={testStatus === 'testing'}
                 className="w-full py-3 bg-zinc-800 border border-zinc-700 text-white rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
               >
-                {testStatus === 'testing' ? 'Test en cours...' : 'Tester la connexion'}
+                {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
               </button>
 
               {testStatus === 'success' && (
@@ -206,13 +206,13 @@ export default function IBSetupWizard() {
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setStep(2)} className="px-6 py-3 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 transition-colors">
-                &larr; Retour
+                &larr; Back
               </button>
               <button
                 onClick={() => setStep(4)}
                 className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
-                Suivant &rarr;
+                Next &rarr;
               </button>
             </div>
           </div>
@@ -222,9 +222,9 @@ export default function IBSetupWizard() {
         {step === 4 && (
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
             <h2 className="text-xl font-semibold text-white mb-4">
-              Etape 4 : Choisir votre symbole
+              Step 4: Choose Your Symbol
             </h2>
-            <p className="text-zinc-400 mb-6">Selectionnez le contrat futures que vous souhaitez analyser.</p>
+            <p className="text-zinc-400 mb-6">Select the futures contract you want to analyze.</p>
 
             <div className="grid grid-cols-2 gap-3">
               {CME_SYMBOLS.map(([sym, spec]) => (
@@ -251,13 +251,13 @@ export default function IBSetupWizard() {
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setStep(3)} className="px-6 py-3 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 transition-colors">
-                &larr; Retour
+                &larr; Back
               </button>
               <Link
                 href={`/liquidity?source=ib&symbol=${selectedSymbol}`}
                 className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-center"
               >
-                Lancer {selectedSymbol} &rarr;
+                Launch {selectedSymbol} &rarr;
               </Link>
             </div>
           </div>

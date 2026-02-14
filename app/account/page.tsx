@@ -120,12 +120,12 @@ const BROKER_CONNECTIONS: BrokerConnection[] = [
 ];
 
 const TABS: { id: AccountTab; label: string; icon: React.ComponentType<any> }[] = [
-  { id: 'profile', label: 'Profil', icon: UserIcon },
-  { id: 'preferences', label: 'Préférences', icon: SlidersIcon },
-  { id: 'connections', label: 'Connexions', icon: LinkIcon },
-  { id: 'security', label: 'Sécurité', icon: ShieldIcon },
+  { id: 'profile', label: 'Profile', icon: UserIcon },
+  { id: 'preferences', label: 'Preferences', icon: SlidersIcon },
+  { id: 'connections', label: 'Connections', icon: LinkIcon },
+  { id: 'security', label: 'Security', icon: ShieldIcon },
   { id: 'notifications', label: 'Notifications', icon: BellIcon },
-  { id: 'data', label: 'Données', icon: DatabaseIcon },
+  { id: 'data', label: 'Data', icon: DatabaseIcon },
   { id: 'support', label: 'Support', icon: UserIcon },
 ];
 
@@ -188,7 +188,7 @@ function AccountContent() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   // Preferences state
-  const [language, setLanguage] = useState('fr');
+  const [language, setLanguage] = useState('en');
   const [timezone, setTimezone] = useState('Europe/Paris');
   const [defaultTimeframe, setDefaultTimeframe] = useState('5m');
   const [defaultSymbol, setDefaultSymbol] = useState('BTCUSDT');
@@ -302,7 +302,7 @@ function AccountContent() {
         if (response.ok) {
           const data = await response.json();
           setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
-          setConnectionMessage(prev => ({ ...prev, [brokerId]: `Gateway en ligne (${data.connectedUsers || 0} utilisateurs)` }));
+          setConnectionMessage(prev => ({ ...prev, [brokerId]: `Gateway online (${data.connectedUsers || 0} users)` }));
           dataFeedStore.updateStatus('ib', 'connected');
         } else {
           throw new Error(`HTTP ${response.status}`);
@@ -311,13 +311,13 @@ function AccountContent() {
         // Other brokers - simulate test
         await new Promise(r => setTimeout(r, 1500));
         setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
-        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Intégration à venir' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Integration coming soon' }));
       }
     } catch (error: any) {
       setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
       const msg = error.message?.includes('AbortError') || error.message?.includes('timeout')
-        ? 'Gateway hors ligne - lance le gateway avec: cd gateway && npm run dev'
-        : `Connexion échouée: ${error.message || 'Gateway hors ligne'}`;
+        ? 'Gateway offline - start the gateway with: cd gateway && npm run dev'
+        : `Connection failed: ${error.message || 'Gateway offline'}`;
       setConnectionMessage(prev => ({ ...prev, [brokerId]: msg }));
     }
   };
@@ -348,22 +348,22 @@ function AccountContent() {
           const response = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
           if (response.ok) {
             setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
-            setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration sauvegardée - Gateway connecté' }));
+            setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved - Gateway connected' }));
             dataFeedStore.updateStatus('ib', 'connected');
           } else {
-            throw new Error('Gateway non disponible');
+            throw new Error('Gateway unavailable');
           }
         } catch {
           setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
           setConnectionMessage(prev => ({
             ...prev,
-            [brokerId]: 'Configuration sauvegardée. Pour connecter: lance le gateway avec "cd gateway && npm run dev"',
+            [brokerId]: 'Configuration saved. To connect: start the gateway with "cd gateway && npm run dev"',
           }));
         }
       } else {
         await new Promise(r => setTimeout(r, 1000));
         setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
-        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Intégration à venir' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Integration coming soon' }));
       }
     } catch (error: any) {
       setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
@@ -412,13 +412,13 @@ function AccountContent() {
             style={{ color: 'var(--text-muted)' }}
           >
             <LogOutIcon size={14} />
-            Déconnexion
+            Sign Out
           </button>
         </div>
 
         {success && (
           <div className="mb-6 p-4 rounded-lg" style={{ background: 'var(--success-bg)', border: '1px solid rgba(34, 197, 94, 0.2)', color: 'var(--success)' }}>
-            Paiement réussi ! Votre abonnement est maintenant actif.
+            Payment successful! Your subscription is now active.
           </div>
         )}
 
@@ -453,7 +453,7 @@ function AccountContent() {
             {/* ===== PROFILE TAB ===== */}
             {activeTab === 'profile' && (
               <>
-                <SectionCard title="Informations personnelles">
+                <SectionCard title="Personal Information">
                   <div className="space-y-0">
                     <SettingRow label="Avatar">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
@@ -464,16 +464,16 @@ function AccountContent() {
                     <SettingRow label="Email">
                       <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{session.user.email}</span>
                     </SettingRow>
-                    <SettingRow label="Nom">
+                    <SettingRow label="Name">
                       <input
                         type="text"
                         defaultValue={session.user.name || ''}
-                        placeholder="Votre nom"
+                        placeholder="Your name"
                         className="px-3 py-1.5 rounded-lg text-sm w-48 focus:outline-none"
                         style={inputStyle}
                       />
                     </SettingRow>
-                    <SettingRow label="Nom d'affichage" description="Visible dans le journal et les sessions">
+                    <SettingRow label="Display Name" description="Visible in journal and sessions">
                       <input
                         type="text"
                         placeholder="Trader123"
@@ -484,7 +484,7 @@ function AccountContent() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Abonnement">
+                <SectionCard title="Subscription">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <span className="inline-block px-3 py-1 rounded-full text-sm font-medium"
@@ -492,7 +492,7 @@ function AccountContent() {
                         {session.user.tier === 'ULTRA' ? 'SENULTRA' : 'Free Plan'}
                       </span>
                       {session.user.tier === 'ULTRA' && (
-                        <span className="text-xs ml-3" style={{ color: 'var(--text-muted)' }}>50&euro;/mois</span>
+                        <span className="text-xs ml-3" style={{ color: 'var(--text-muted)' }}>50&euro;/mo</span>
                       )}
                     </div>
                   </div>
@@ -506,7 +506,7 @@ function AccountContent() {
                     <button onClick={handleManageSubscription} disabled={isLoading}
                       className="w-full py-3 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
                       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-                      {isLoading ? 'Chargement...' : 'Gérer l\'abonnement'}
+                      {isLoading ? 'Loading...' : 'Manage Subscription'}
                     </button>
                   )}
                 </SectionCard>
@@ -516,43 +516,43 @@ function AccountContent() {
             {/* ===== PREFERENCES TAB ===== */}
             {activeTab === 'preferences' && (
               <>
-                <SectionCard title="Général">
+                <SectionCard title="General">
                   <div className="space-y-0">
-                    <SettingRow label="Langue" description="Langue de l'interface">
+                    <SettingRow label="Language" description="Interface language">
                       <select value={language} onChange={e => setLanguage(e.target.value)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
-                        <option value="fr">Français</option>
                         <option value="en">English</option>
+                        <option value="fr">Français</option>
                         <option value="es">Español</option>
                         <option value="de">Deutsch</option>
                         <option value="ar">العربية</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Fuseau horaire">
+                    <SettingRow label="Timezone">
                       <select value={timezone} onChange={e => setTimezone(e.target.value)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
-                        <option value="Europe/Paris">Europe/Paris (CET)</option>
                         <option value="America/New_York">New York (EST)</option>
                         <option value="America/Chicago">Chicago (CST)</option>
                         <option value="America/Los_Angeles">Los Angeles (PST)</option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="Europe/Paris">Europe/Paris (CET)</option>
                         <option value="Asia/Tokyo">Tokyo (JST)</option>
                         <option value="Asia/Shanghai">Shanghai (CST)</option>
-                        <option value="Europe/London">London (GMT)</option>
                         <option value="UTC">UTC</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Mode compact" description="Réduit l'espacement UI">
+                    <SettingRow label="Compact Mode" description="Reduce UI spacing">
                       <Toggle checked={compactMode} onChange={setCompactMode} />
                     </SettingRow>
-                    <SettingRow label="Sons" description="Effets sonores pour alertes et trades">
+                    <SettingRow label="Sounds" description="Sound effects for alerts and trades">
                       <Toggle checked={soundEnabled} onChange={setSoundEnabled} />
                     </SettingRow>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Charts par défaut">
+                <SectionCard title="Default Charts">
                   <div className="space-y-0">
-                    <SettingRow label="Symbole par défaut">
+                    <SettingRow label="Default Symbol">
                       <select value={defaultSymbol} onChange={e => setDefaultSymbol(e.target.value)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
                         <option value="BTCUSDT">BTC/USDT</option>
@@ -564,24 +564,24 @@ function AccountContent() {
                         <option value="GC">GC (Gold)</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Timeframe par défaut">
+                    <SettingRow label="Default Timeframe">
                       <select value={defaultTimeframe} onChange={e => setDefaultTimeframe(e.target.value)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
                         <option value="1m">1 minute</option>
                         <option value="5m">5 minutes</option>
                         <option value="15m">15 minutes</option>
-                        <option value="1h">1 heure</option>
-                        <option value="4h">4 heures</option>
-                        <option value="1d">1 jour</option>
+                        <option value="1h">1 hour</option>
+                        <option value="4h">4 hours</option>
+                        <option value="1d">1 day</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Auto-connexion WebSocket" description="Se connecter automatiquement au démarrage">
+                    <SettingRow label="Auto-connect WebSocket" description="Automatically connect on startup">
                       <Toggle checked={autoConnect} onChange={setAutoConnect} />
                     </SettingRow>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Thème de l'interface">
+                <SectionCard title="Interface Theme">
                   <div className="grid grid-cols-2 gap-3">
                     {UI_THEMES.map((theme) => (
                       <button
@@ -614,7 +614,7 @@ function AccountContent() {
               <>
                 <SectionCard title="Brokers & Data Feeds">
                   <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Connectez vos comptes broker pour le trading live et les données en temps réel.
+                    Connect your broker accounts for live trading and real-time data.
                   </p>
                   <div className="space-y-2">
                     {BROKER_CONNECTIONS.map((broker) => {
@@ -643,11 +643,11 @@ function AccountContent() {
                                   ? { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }
                                   : { background: 'var(--surface-elevated)', color: 'var(--text-muted)' }
                               }>
-                              {connectionStatus[broker.id] === 'connected' ? 'Connecté'
-                                : connectionStatus[broker.id] === 'configured' ? 'Configuré'
-                                : connectionStatus[broker.id] === 'testing' ? 'Test...'
-                                : connectionStatus[broker.id] === 'connecting' ? 'Connexion...'
-                                : 'Non configuré'}
+                              {connectionStatus[broker.id] === 'connected' ? 'Connected'
+                                : connectionStatus[broker.id] === 'configured' ? 'Configured'
+                                : connectionStatus[broker.id] === 'testing' ? 'Testing...'
+                                : connectionStatus[broker.id] === 'connecting' ? 'Connecting...'
+                                : 'Not configured'}
                             </span>
                           </button>
                           {isExpanded && (
@@ -674,14 +674,14 @@ function AccountContent() {
                                   disabled={connectionStatus[broker.id] === 'connecting'}
                                   className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                                   style={{ background: 'var(--primary)', color: '#fff' }}>
-                                  {connectionStatus[broker.id] === 'connecting' ? 'Connexion...' : 'Connecter'}
+                                  {connectionStatus[broker.id] === 'connecting' ? 'Connecting...' : 'Connect'}
                                 </button>
                                 <button
                                   onClick={() => handleTestConnection(broker.id)}
                                   disabled={connectionStatus[broker.id] === 'testing'}
                                   className="px-4 py-2 rounded-lg text-xs transition-colors disabled:opacity-50"
                                   style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
-                                  {connectionStatus[broker.id] === 'testing' ? 'Test...' : 'Tester'}
+                                  {connectionStatus[broker.id] === 'testing' ? 'Testing...' : 'Test'}
                                 </button>
                               </div>
                               {connectionMessage[broker.id] && (
@@ -711,8 +711,8 @@ function AccountContent() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Clés API">
-                  <SettingRow label="Clé API Senzoukria" description="Pour accéder à l'API depuis des scripts externes">
+                <SectionCard title="API Keys">
+                  <SettingRow label="Senzoukria API Key" description="Access the API from external scripts">
                     <div className="flex items-center gap-2">
                       <code className="text-xs px-2 py-1 rounded font-mono"
                         style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
@@ -721,7 +721,7 @@ function AccountContent() {
                       <button onClick={() => setShowApiKey(!showApiKey)}
                         className="text-xs px-2 py-1 rounded transition-colors"
                         style={{ color: 'var(--primary)' }}>
-                        {showApiKey ? 'Masquer' : 'Afficher'}
+                        {showApiKey ? 'Hide' : 'Show'}
                       </button>
                     </div>
                   </SettingRow>
@@ -732,28 +732,28 @@ function AccountContent() {
             {/* ===== SECURITY TAB ===== */}
             {activeTab === 'security' && (
               <>
-                <SectionCard title="Authentification">
+                <SectionCard title="Authentication">
                   <div className="space-y-0">
-                    <SettingRow label="Mot de passe" description="Dernière modification: jamais">
+                    <SettingRow label="Password" description="Last changed: never">
                       <button className="text-xs px-3 py-1.5 rounded-lg transition-colors"
                         style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-                        Changer
+                        Change
                       </button>
                     </SettingRow>
-                    <SettingRow label="Authentification 2FA" description="Sécurisez votre compte avec TOTP">
+                    <SettingRow label="Two-Factor Authentication" description="Secure your account with TOTP">
                       <Toggle checked={twoFA} onChange={setTwoFA} />
                     </SettingRow>
-                    <SettingRow label="Connexion biométrique" description="Face ID / empreinte digitale">
+                    <SettingRow label="Biometric Login" description="Face ID / fingerprint">
                       <Toggle checked={false} onChange={() => {}} />
                     </SettingRow>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Sessions actives">
+                <SectionCard title="Active Sessions">
                   <div className="space-y-3">
                     {[
-                      { device: 'Windows - Chrome', location: 'Paris, France', current: true, last: 'Maintenant' },
-                      { device: 'iPhone - Safari', location: 'Paris, France', current: false, last: 'Il y a 2h' },
+                      { device: 'Windows - Chrome', location: 'Paris, France', current: true, last: 'Now' },
+                      { device: 'iPhone - Safari', location: 'Paris, France', current: false, last: '2h ago' },
                     ].map((s, i) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-lg"
                         style={{ background: 'var(--surface-elevated)' }}>
@@ -763,7 +763,7 @@ function AccountContent() {
                             {s.current && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded-full"
                                 style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
-                                Actif
+                                Active
                               </span>
                             )}
                           </div>
@@ -774,7 +774,7 @@ function AccountContent() {
                         {!s.current && (
                           <button className="text-xs px-2 py-1 rounded transition-colors"
                             style={{ color: 'var(--error)' }}>
-                            Révoquer
+                            Revoke
                           </button>
                         )}
                       </div>
@@ -782,15 +782,15 @@ function AccountContent() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Limites">
-                  <SettingRow label="Appareils connectés">
+                <SectionCard title="Limits">
+                  <SettingRow label="Connected Devices">
                     <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
                       2 / {session.user.tier === 'ULTRA' ? '5' : '2'}
                     </span>
                   </SettingRow>
-                  <SettingRow label="Requêtes API / jour">
+                  <SettingRow label="API Requests / day">
                     <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
-                      {session.user.tier === 'ULTRA' ? 'Illimité' : '1,000'}
+                      {session.user.tier === 'ULTRA' ? 'Unlimited' : '1,000'}
                     </span>
                   </SettingRow>
                 </SectionCard>
@@ -800,29 +800,29 @@ function AccountContent() {
             {/* ===== NOTIFICATIONS TAB ===== */}
             {activeTab === 'notifications' && (
               <>
-                <SectionCard title="Alertes trading">
+                <SectionCard title="Trading Alerts">
                   <div className="space-y-0">
-                    <SettingRow label="Exécution de trades" description="Notification quand un trade est exécuté">
+                    <SettingRow label="Trade Execution" description="Notification when a trade is executed">
                       <Toggle checked={notifyTrades} onChange={setNotifyTrades} />
                     </SettingRow>
-                    <SettingRow label="Alertes de prix" description="Quand un niveau de prix est touché">
+                    <SettingRow label="Price Alerts" description="When a price level is hit">
                       <Toggle checked={notifyAlerts} onChange={setNotifyAlerts} />
                     </SettingRow>
-                    <SettingRow label="Actualités marché" description="Breaking news et événements macro">
+                    <SettingRow label="Market News" description="Breaking news and macro events">
                       <Toggle checked={notifyNews} onChange={setNotifyNews} />
                     </SettingRow>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Plateforme">
+                <SectionCard title="Platform">
                   <div className="space-y-0">
-                    <SettingRow label="Mises à jour" description="Nouvelles fonctionnalités et changelog">
+                    <SettingRow label="Updates" description="New features and changelog">
                       <Toggle checked={notifyUpdates} onChange={setNotifyUpdates} />
                     </SettingRow>
-                    <SettingRow label="Notifications email">
+                    <SettingRow label="Email Notifications">
                       <Toggle checked={notifyEmail} onChange={setNotifyEmail} />
                     </SettingRow>
-                    <SettingRow label="Notifications push">
+                    <SettingRow label="Push Notifications">
                       <Toggle checked={notifyPush} onChange={setNotifyPush} />
                     </SettingRow>
                   </div>
@@ -833,22 +833,22 @@ function AccountContent() {
             {/* ===== DATA TAB ===== */}
             {activeTab === 'data' && (
               <>
-                <SectionCard title="Stockage local">
+                <SectionCard title="Local Storage">
                   <div className="space-y-0">
-                    <SettingRow label="Cache des charts" description="Données historiques mises en cache">
+                    <SettingRow label="Chart Cache" description="Cached historical data">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>24 MB</span>
                         <button className="text-xs px-2 py-1 rounded transition-colors"
                           style={{ color: 'var(--error)' }}
                           onClick={() => { if (typeof window !== 'undefined') { localStorage.clear(); location.reload(); } }}>
-                          Vider
+                          Clear
                         </button>
                       </div>
                     </SettingRow>
-                    <SettingRow label="Paramètres sauvegardés" description="Zustand stores + préférences">
+                    <SettingRow label="Saved Settings" description="Zustand stores + preferences">
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>8 stores</span>
                     </SettingRow>
-                    <SettingRow label="Journal de trading" description="Trades enregistrés localement">
+                    <SettingRow label="Trading Journal" description="Locally stored trades">
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>SQLite</span>
                     </SettingRow>
                   </div>
@@ -858,43 +858,43 @@ function AccountContent() {
                   <div className="grid grid-cols-2 gap-3">
                     <button className="py-3 rounded-lg text-sm font-medium transition-colors"
                       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                      Exporter paramètres
+                      Export Settings
                     </button>
                     <button className="py-3 rounded-lg text-sm font-medium transition-colors"
                       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                      Importer paramètres
+                      Import Settings
                     </button>
                     <button className="py-3 rounded-lg text-sm font-medium transition-colors"
                       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                      Exporter journal (CSV)
+                      Export Journal (CSV)
                     </button>
                     <button className="py-3 rounded-lg text-sm font-medium transition-colors"
                       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                      Exporter journal (JSON)
+                      Export Journal (JSON)
                     </button>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Zone dangereuse">
+                <SectionCard title="Danger Zone">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
                       <div>
-                        <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Réinitialiser tout</div>
-                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Supprime tous les paramètres locaux</div>
+                        <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Reset Everything</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Deletes all local settings</div>
                       </div>
                       <button className="text-xs px-3 py-1.5 rounded-lg font-medium"
                         style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                        Réinitialiser
+                        Reset
                       </button>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
                       <div>
-                        <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Supprimer le compte</div>
-                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Action irréversible</div>
+                        <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Delete Account</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Irreversible action</div>
                       </div>
                       <button className="text-xs px-3 py-1.5 rounded-lg font-medium"
                         style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                        Supprimer
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -905,51 +905,51 @@ function AccountContent() {
             {/* ===== SUPPORT TAB ===== */}
             {activeTab === 'support' && (
               <>
-                <SectionCard title="Contacter le support">
+                <SectionCard title="Contact Support">
                   <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Email direct: <a href="mailto:ryad.bouderga78@gmail.com" style={{ color: 'var(--primary-light)' }}>ryad.bouderga78@gmail.com</a>
+                    Direct email: <a href="mailto:ryad.bouderga78@gmail.com" style={{ color: 'var(--primary-light)' }}>ryad.bouderga78@gmail.com</a>
                   </p>
 
                   {submitSuccess && (
                     <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
-                      Ticket envoyé ! Nous vous répondrons sous 24-48h.
+                      Ticket submitted! We&apos;ll respond within 24-48h.
                     </div>
                   )}
 
                   <form onSubmit={handleSubmitTicket} className="space-y-4">
                     <div>
-                      <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Catégorie</label>
+                      <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Category</label>
                       <select value={category} onChange={e => setCategory(e.target.value as TicketCategory)}
                         className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none" style={inputStyle}>
-                        <option value="TECHNICAL">Problème technique</option>
-                        <option value="BILLING">Facturation</option>
-                        <option value="ACCOUNT">Mon compte</option>
-                        <option value="FEATURE_REQUEST">Suggestion</option>
-                        <option value="OTHER">Autre</option>
+                        <option value="TECHNICAL">Technical Issue</option>
+                        <option value="BILLING">Billing</option>
+                        <option value="ACCOUNT">My Account</option>
+                        <option value="FEATURE_REQUEST">Feature Request</option>
+                        <option value="OTHER">Other</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Sujet</label>
+                      <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Subject</label>
                       <input type="text" value={subject} onChange={e => setSubject(e.target.value)}
                         className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none" style={inputStyle}
-                        placeholder="Résumé de votre demande" required />
+                        placeholder="Brief summary of your request" required />
                     </div>
                     <div>
                       <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Message</label>
                       <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4}
                         className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none resize-none" style={inputStyle}
-                        placeholder="Décrivez votre problème en détail..." required />
+                        placeholder="Describe your issue in detail..." required />
                     </div>
                     <button type="submit" disabled={isLoading}
                       className="w-full py-3 font-semibold rounded-lg transition-colors disabled:opacity-50 text-sm"
                       style={{ background: 'var(--primary)', color: '#fff' }}>
-                      {isLoading ? 'Envoi...' : 'Envoyer'}
+                      {isLoading ? 'Sending...' : 'Submit'}
                     </button>
                   </form>
                 </SectionCard>
 
                 {tickets.length > 0 && (
-                  <SectionCard title="Mes tickets">
+                  <SectionCard title="My Tickets">
                     <div className="space-y-3">
                       {tickets.map((ticket) => (
                         <div key={ticket.id} className="p-4 rounded-lg" style={{ background: 'var(--surface-elevated)' }}>
@@ -961,17 +961,17 @@ function AccountContent() {
                                 ticket.status === 'IN_PROGRESS' ? { background: 'var(--warning-bg)', color: 'var(--warning)' } :
                                 { background: 'var(--surface-hover)', color: 'var(--text-muted)' }
                               }>
-                              {ticket.status === 'OPEN' ? 'Ouvert' :
-                               ticket.status === 'IN_PROGRESS' ? 'En cours' :
-                               ticket.status === 'RESOLVED' ? 'Résolu' : 'Fermé'}
+                              {ticket.status === 'OPEN' ? 'Open' :
+                               ticket.status === 'IN_PROGRESS' ? 'In Progress' :
+                               ticket.status === 'RESOLVED' ? 'Resolved' : 'Closed'}
                             </span>
                           </div>
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {new Date(ticket.createdAt).toLocaleDateString('fr-FR')}
+                            {new Date(ticket.createdAt).toLocaleDateString('en-US')}
                           </p>
                           {ticket.response && (
                             <div className="mt-3 p-3 rounded text-sm" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
-                              <strong>Réponse:</strong> {ticket.response}
+                              <strong>Response:</strong> {ticket.response}
                             </div>
                           )}
                         </div>

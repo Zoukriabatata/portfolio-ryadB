@@ -45,13 +45,13 @@ export default function RegisterPage() {
 
     // Validation
     if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
+      setError('Passwords do not match');
       setIsLoading(false);
       return;
     }
 
     if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères');
+      setError('Password must be at least 8 characters');
       setIsLoading(false);
       return;
     }
@@ -72,7 +72,7 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Erreur lors de l\'inscription');
+        setError(data.error || 'Registration failed');
         return;
       }
 
@@ -81,7 +81,7 @@ export default function RegisterPage() {
         router.push('/auth/login');
       }, 2000);
     } catch (err) {
-      setError('Une erreur est survenue');
+      setError('An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -95,12 +95,12 @@ export default function RegisterPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
             SENZOUKRIA
           </h1>
-          <p className="text-zinc-500 mt-2">Créez votre compte</p>
+          <p className="text-zinc-500 mt-2">Create your account</p>
         </div>
 
         {/* Register Form */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
-          <h2 className="text-xl font-semibold text-white mb-6">Inscription</h2>
+          <h2 className="text-xl font-semibold text-white mb-6">Sign Up</h2>
 
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
@@ -110,19 +110,19 @@ export default function RegisterPage() {
 
           {success && (
             <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
-              ✓ Compte créé avec succès ! Redirection...
+              Account created successfully! Redirecting...
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5">Nom (optionnel)</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Name (optional)</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-green-500 transition-colors"
-                placeholder="Votre nom"
+                placeholder="Your name"
               />
             </div>
 
@@ -133,26 +133,26 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-green-500 transition-colors"
-                placeholder="vous@exemple.com"
+                placeholder="you@example.com"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5">Mot de passe *</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Password *</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-green-500 transition-colors"
-                placeholder="Minimum 8 caractères"
+                placeholder="Minimum 8 characters"
                 required
                 minLength={8}
               />
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5">Confirmer le mot de passe *</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Confirm password *</label>
               <input
                 type="password"
                 value={confirmPassword}
@@ -171,19 +171,19 @@ export default function RegisterPage() {
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white" />
-                  Création...
+                  Creating...
                 </span>
               ) : (
-                'Créer mon compte'
+                'Create account'
               )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-zinc-500 text-sm">
-              Déjà inscrit ?{' '}
+              Already have an account?{' '}
               <Link href="/auth/login" className="text-green-400 hover:text-green-300">
-                Se connecter
+                Sign in
               </Link>
             </p>
           </div>
@@ -192,7 +192,8 @@ export default function RegisterPage() {
         {/* Terms */}
         <div className="mt-6 text-center">
           <p className="text-zinc-600 text-xs">
-            En créant un compte, vous acceptez nos conditions d'utilisation.
+            By creating an account, you agree to our{' '}
+            <Link href="/legal/terms" className="text-zinc-500 hover:text-zinc-300 underline">terms of service</Link>.
           </p>
         </div>
       </div>

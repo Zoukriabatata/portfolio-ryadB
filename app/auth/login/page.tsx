@@ -81,7 +81,7 @@ function LoginForm() {
         router.push(callbackUrl);
       }
     } catch (err) {
-      setError('Une erreur est survenue');
+      setError('An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +108,7 @@ function LoginForm() {
 
         {/* Login Form */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
-          <h2 className="text-xl font-semibold text-white mb-6">Connexion</h2>
+          <h2 className="text-xl font-semibold text-white mb-6">Sign In</h2>
 
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
@@ -124,13 +124,13 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-green-500 transition-colors"
-                placeholder="vous@exemple.com"
+                placeholder="you@example.com"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5">Mot de passe</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Password</label>
               <input
                 type="password"
                 value={password}
@@ -149,19 +149,19 @@ function LoginForm() {
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white" />
-                  Connexion...
+                  Signing in...
                 </span>
               ) : (
-                'Se connecter'
+                'Sign In'
               )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-zinc-500 text-sm">
-              Pas encore de compte ?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/auth/register" className="text-green-400 hover:text-green-300">
-                Créer un compte
+                Create account
               </Link>
             </p>
           </div>
@@ -170,7 +170,7 @@ function LoginForm() {
         {/* Security Notice */}
         <div className="mt-6 text-center">
           <p className="text-zinc-600 text-xs">
-            🔒 Connexion sécurisée • Un seul appareil à la fois
+            Secure login &bull; One device at a time
           </p>
         </div>
       </div>

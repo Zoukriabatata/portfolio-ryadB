@@ -12,10 +12,10 @@ export function LegalFooter() {
         </p>
         <div className="flex items-center gap-4 text-xs">
           <Link href="/legal/terms" className="text-zinc-500 hover:text-zinc-300 transition-colors">
-            CGU
+            Terms
           </Link>
           <Link href="/legal/privacy" className="text-zinc-500 hover:text-zinc-300 transition-colors">
-            Confidentialite
+            Privacy
           </Link>
           <Link href="/pricing" className="text-zinc-500 hover:text-zinc-300 transition-colors">
             Pricing

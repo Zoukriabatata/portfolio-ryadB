@@ -13,7 +13,7 @@ interface NavItem {
 // Trading section items
 const tradingItems: NavItem[] = [
   {
-    name: 'Accueil',
+    name: 'Home',
     href: '/',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -111,7 +111,7 @@ const toolsItems: NavItem[] = [
     ),
   },
   {
-    name: 'Boutique',
+    name: 'Shop',
     href: '/boutique',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -184,7 +184,7 @@ export default function Sidebar() {
           {/* Tools & Resources Section */}
           <div>
             <div className="hidden lg:block px-3 mb-2">
-              <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Outils</span>
+              <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Tools</span>
             </div>
             <div className="space-y-0.5 p-1 rounded-xl border border-zinc-800/50 bg-zinc-900/30">
               {toolsItems.map((item) => (
