@@ -8,12 +8,12 @@ import * as Sentry from '@sentry/nextjs';
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-  // Performance Monitoring
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0, // 10% en prod, 100% en dev
+  // Performance Monitoring — disabled for bundle size
+  tracesSampleRate: 0,
 
-  // Session Replay (utile pour debugging)
-  replaysSessionSampleRate: 0.1, // 10% des sessions normales
-  replaysOnErrorSampleRate: 1.0, // 100% des sessions avec erreurs
+  // Session Replay — disabled for bundle size
+  replaysSessionSampleRate: 0,
+  replaysOnErrorSampleRate: 0,
 
   // Environnement
   environment: process.env.NODE_ENV || 'development',
@@ -48,12 +48,6 @@ Sentry.init({
     'NotAllowedError: play() failed',
   ],
 
-  // Breadcrumbs (historique d'actions avant l'erreur)
-  integrations: [
-    Sentry.replayIntegration({
-      maskAllText: false, // Masquer le texte sensible
-      blockAllMedia: true, // Bloquer images/vidéos
-    }),
-    Sentry.browserTracingIntegration(),
-  ],
+  // Keep only basic error reporting — replay & tracing removed for perf
+  integrations: [],
 });

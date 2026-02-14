@@ -52,7 +52,6 @@
     "javascript-obfuscator": "^5.3.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.0.18",
-    "webpack-obfuscator": "^3.6.0"
+    "vitest": "^4.0.18"
   }
 }
