@@ -139,7 +139,7 @@ export default function VolatilityPageContent() {
     <div className="h-full flex flex-col bg-[var(--background)] p-4 gap-3 overflow-auto">
 
       {/* ─── Header Row ─── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-3 animate-slideUp stagger-1">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
             <ChartSmileIcon size={20} color="#fff" />
@@ -189,7 +189,7 @@ export default function VolatilityPageContent() {
       </div>
 
       {/* ─── Metrics Strip ─── */}
-      <div className="flex items-center gap-0 bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden text-xs">
+      <div className="flex items-center gap-0 bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden text-xs animate-slideUp stagger-2">
         <Metric label="Spot" value={`$${effectiveSpotPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="text-blue-400" />
         <Sep />
         <Metric label="ATM" value={atmStrike ? `$${atmStrike.toLocaleString()}` : '---'} />
@@ -217,7 +217,7 @@ export default function VolatilityPageContent() {
       </div>
 
       {/* ─── Controls Row ─── */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 animate-slideUp stagger-3">
         {/* Expirations */}
         <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
           <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap mr-1">EXP</span>
@@ -261,7 +261,7 @@ export default function VolatilityPageContent() {
       </div>
 
       {/* ─── Chart ─── */}
-      <div className="flex-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] min-h-[350px] overflow-hidden"
+      <div className="flex-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] min-h-[350px] overflow-hidden animate-scaleIn stagger-4"
         onWheel={(e) => { if (viewMode === 'smile' && skewData.length > 0) e.stopPropagation(); }}
       >
         {isLoading ? (
@@ -312,7 +312,7 @@ export default function VolatilityPageContent() {
 
       {/* ─── IV Table ─── */}
       {tableData.length > 0 && (
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden animate-slideUp stagger-5">
           <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--text-secondary)]">IV by Strike</span>
             <span className="text-[10px] text-[var(--text-muted)]">{tableData.length} strikes near ATM</span>

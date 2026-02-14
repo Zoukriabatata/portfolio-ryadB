@@ -88,7 +88,7 @@ export default function LiquidityPageContent() {
   return (
     <div className="h-full flex flex-col p-4 gap-3">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[var(--surface)] rounded-xl border border-[var(--border)] px-4 py-3">
+      <div className="flex items-center justify-between bg-[var(--surface)] rounded-xl border border-[var(--border)] px-4 py-3 animate-slideUp stagger-1">
         <div>
           <h1 className="text-base font-semibold text-[var(--text-primary)]">Liquidity Heatmap</h1>
           <p className="text-[var(--text-muted)] text-[11px]">
@@ -156,7 +156,7 @@ export default function LiquidityPageContent() {
       {/* Heatmap */}
       <div
         ref={containerRef}
-        className="flex-1 rounded-xl border border-[var(--border)] overflow-hidden min-h-[500px]"
+        className="flex-1 rounded-xl border border-[var(--border)] overflow-hidden min-h-[500px] animate-scaleIn stagger-2"
       >
         {dataSource === 'crypto' ? (
           <StaircaseHeatmap

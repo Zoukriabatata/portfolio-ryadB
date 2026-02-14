@@ -87,7 +87,7 @@ export default function BiasPageContent() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[var(--background)]">
       {/* ── Header Bar ── */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)]">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)] animate-slideUp stagger-1">
         <div className="flex items-center gap-3">
           {/* Contract selector */}
           <div className="flex items-center gap-1 bg-[var(--background)] rounded-lg p-0.5">
@@ -147,7 +147,7 @@ export default function BiasPageContent() {
       {/* ── Main Content ── */}
       <div className="flex-1 overflow-auto p-3 space-y-3">
         {/* Top Row: Gauge + Zone Map */}
-        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-3 animate-scaleIn stagger-2">
           {/* Left: Bias Gauge */}
           <div className="space-y-3">
             <BiasGauge
@@ -215,15 +215,17 @@ export default function BiasPageContent() {
         </div>
 
         {/* Bottom: Trade Plan */}
-        <TradePlanPanel
-          plan={biasResult.tradePlan}
-          bias={biasResult.bias}
-          direction={biasResult.direction}
-          biasScore={biasResult.biasScore}
-        />
+        <div className="animate-slideUp stagger-3">
+          <TradePlanPanel
+            plan={biasResult.tradePlan}
+            bias={biasResult.bias}
+            direction={biasResult.direction}
+            biasScore={biasResult.biasScore}
+          />
+        </div>
 
         {/* Support & Resistance summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-slideUp stagger-4">
           <LevelList
             title="Supports"
             levels={biasResult.supports}
@@ -239,7 +241,7 @@ export default function BiasPageContent() {
         </div>
 
         {/* Keyboard hints */}
-        <div className="flex items-center gap-4 text-[9px] text-[var(--text-muted)] px-1">
+        <div className="flex items-center gap-4 text-[9px] text-[var(--text-muted)] px-1 animate-fadeIn stagger-5">
           <span><kbd className="px-1 py-0.5 bg-[var(--surface)] rounded text-[8px]">1-4</kbd> Switch contract</span>
           <span><kbd className="px-1 py-0.5 bg-[var(--surface)] rounded text-[8px]">R</kbd> Refresh</span>
         </div>

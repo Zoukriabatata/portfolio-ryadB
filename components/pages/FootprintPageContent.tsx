@@ -110,7 +110,7 @@ export default function FootprintPageContent() {
       </div>
 
       {/* Chart + Bottom Widgets */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className="flex-1 flex flex-col min-w-0 relative animate-scaleIn stagger-1">
         <ConnectionBanner />
 
         {/* Footprint Chart */}
@@ -125,7 +125,7 @@ export default function FootprintPageContent() {
 
       {/* Futures Panel — animated width + drag resize */}
       <div
-        className={`flex-shrink-0 border-l border-[var(--border)] overflow-hidden relative panel-slide ${!showFutures ? 'panel-collapsed' : ''}`}
+        className={`flex-shrink-0 border-l border-[var(--border)] overflow-hidden relative panel-slide animate-slideInRight stagger-2 ${!showFutures ? 'panel-collapsed' : ''}`}
         style={{
           width: showFutures ? futuresWidth : 24,
           transition: isDraggingRef.current ? 'none' : undefined,

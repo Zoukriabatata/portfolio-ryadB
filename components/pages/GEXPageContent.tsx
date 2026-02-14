@@ -233,7 +233,7 @@ export default function GEXPageContent() {
   return (
     <div className="h-full flex flex-col bg-[var(--background)] p-4 gap-3 overflow-auto">
       {/* ─── Header ─── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-3 animate-slideUp stagger-1">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--primary)] flex items-center justify-center">
@@ -326,17 +326,19 @@ export default function GEXPageContent() {
 
       {/* ─── KPI Grid ─── */}
       {multiGreekSummary && (
-        <GEXKPIGrid
-          summary={multiGreekSummary}
-          spotPrice={spotPrice}
-          history={historyRef.current}
-          totalCallOI={totalCallOI}
-          totalPutOI={totalPutOI}
-        />
+        <div className="animate-slideUp stagger-2">
+          <GEXKPIGrid
+            summary={multiGreekSummary}
+            spotPrice={spotPrice}
+            history={historyRef.current}
+            totalCallOI={totalCallOI}
+            totalPutOI={totalPutOI}
+          />
+        </div>
       )}
 
       {/* ─── Controls Row ─── */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 animate-slideUp stagger-3">
         {/* Expiration selector */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
           <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">EXP</span>
@@ -413,7 +415,7 @@ export default function GEXPageContent() {
       </div>
 
       {/* ─── Chart Area ─── */}
-      <div className="flex-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] min-h-[350px] overflow-hidden flex flex-col">
+      <div className="flex-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] min-h-[350px] overflow-hidden flex flex-col animate-scaleIn stagger-4">
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="flex items-center gap-3">
@@ -474,7 +476,7 @@ export default function GEXPageContent() {
 
       {/* ─── Intelligence Panel: Gauge + Narrative ─── */}
       {multiGreekSummary && (
-        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3 animate-slideUp stagger-5">
           {/* Intensity Gauge */}
           <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 flex items-center justify-center">
             <GEXIntensityGauge
@@ -494,7 +496,7 @@ export default function GEXPageContent() {
       )}
 
       {/* ─── Legend ─── */}
-      <div className="flex items-center justify-center gap-4 text-[10px] text-[var(--text-muted)] bg-[var(--surface)] rounded-xl py-2 px-4 border border-[var(--border)]">
+      <div className="flex items-center justify-center gap-4 text-[10px] text-[var(--text-muted)] bg-[var(--surface)] rounded-xl py-2 px-4 border border-[var(--border)] animate-fadeIn stagger-6">
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded shadow-sm shadow-green-500/50" />
           <span>Positive {greekMeta.label}</span>
