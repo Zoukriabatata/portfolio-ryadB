@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { provider, host, port, username, apiKey } = body;
 
-    if (!provider || !['IB', 'DXFEED', 'RITHMIC', 'AMP'].includes(provider)) {
+    const validProviders = ['IB', 'DXFEED', 'RITHMIC', 'AMP', 'BINANCE', 'BYBIT', 'DERIBIT', 'TRADOVATE', 'CQG'];
+    if (!provider || !validProviders.includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
     }
 
@@ -81,7 +82,8 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const provider = searchParams.get('provider');
 
-    if (!provider || !['IB', 'DXFEED', 'RITHMIC', 'AMP'].includes(provider)) {
+    const validProviders = ['IB', 'DXFEED', 'RITHMIC', 'AMP', 'BINANCE', 'BYBIT', 'DERIBIT', 'TRADOVATE', 'CQG'];
+    if (!provider || !validProviders.includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
     }
 

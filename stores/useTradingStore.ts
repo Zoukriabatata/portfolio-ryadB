@@ -303,11 +303,17 @@ export const useTradingStore = create<TradingState>()(
           setTimeout(() => {
             // Play sound if enabled
             try {
-              const soundEnabled = useAccountPrefsStore.getState().soundEnabled;
-              if (soundEnabled) {
+              const { soundEnabled, alertSound } = useAccountPrefsStore.getState();
+              if (soundEnabled && alertSound !== 'none') {
                 const sm = getSoundManager();
-                if (orderData.side === 'buy') sm.playBuyFilled();
-                else sm.playSellFilled();
+                if (alertSound === 'voice_male') {
+                  sm.playVoiceAlert(orderData.side, 'male');
+                } else if (alertSound === 'voice_female') {
+                  sm.playVoiceAlert(orderData.side, 'female');
+                } else {
+                  if (orderData.side === 'buy') sm.playBuyFilled();
+                  else sm.playSellFilled();
+                }
               }
             } catch {}
 

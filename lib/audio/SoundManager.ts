@@ -7,6 +7,19 @@
 
 class SoundManagerClass {
   private ctx: AudioContext | null = null;
+  private voices: SpeechSynthesisVoice[] = [];
+  private voicesLoaded = false;
+
+  constructor() {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      this.voices = window.speechSynthesis.getVoices();
+      if (this.voices.length > 0) this.voicesLoaded = true;
+      window.speechSynthesis.addEventListener('voiceschanged', () => {
+        this.voices = window.speechSynthesis.getVoices();
+        this.voicesLoaded = true;
+      });
+    }
+  }
 
   private getContext(): AudioContext {
     if (!this.ctx || this.ctx.state === 'closed') {
@@ -109,6 +122,51 @@ class SoundManagerClass {
   /** Error sound */
   playError() {
     this.playTone(220, 0.25, 'sawtooth', 0.06);
+  }
+
+  /** Play a voice alert using Web Speech API */
+  playVoiceAlert(side: 'buy' | 'sell', voiceType: 'male' | 'female') {
+    try {
+      if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+      // Cancel any in-progress speech
+      window.speechSynthesis.cancel();
+
+      const text = side === 'buy' ? 'Buy filled' : 'Sell filled';
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      if (voiceType === 'male') {
+        utterance.pitch = 0.8;
+        utterance.rate = 1.1;
+      } else {
+        utterance.pitch = 1.4;
+        utterance.rate = 1.0;
+      }
+
+      utterance.volume = 0.8;
+      utterance.lang = 'en-US';
+
+      // Try to pick a voice matching the gender
+      const voices = this.voicesLoaded ? this.voices : window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        const preferred = voices.find(v =>
+          v.lang.startsWith('en') &&
+          (voiceType === 'female'
+            ? /female|zira|samantha|victoria|karen|jenny|aria/i.test(v.name)
+            : /male|david|daniel|james|mark|guy|roger/i.test(v.name))
+        );
+        if (preferred) {
+          utterance.voice = preferred;
+        } else {
+          const english = voices.find(v => v.lang.startsWith('en'));
+          if (english) utterance.voice = english;
+        }
+      }
+
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Silently fail if speech synthesis is not available
+    }
   }
 }
 

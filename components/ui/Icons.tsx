@@ -1660,6 +1660,26 @@ export function DeribitIcon({ size = 18, className = '', color = 'currentColor' 
   );
 }
 
+export function DxFeedIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.2" strokeOpacity="0.3" />
+      <text x="5" y="17" fill="#ff6f00" fontSize="12" fontWeight="bold" fontFamily="monospace">dX</text>
+    </svg>
+  );
+}
+
+export function AMPIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="4" stroke={color} strokeWidth="1.2" strokeOpacity="0.3" />
+      <path d="M6 17L10 7L14 17" stroke="#00897b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="7.5" y1="14" x2="12.5" y2="14" stroke="#00897b" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M16 7V17M16 7L19 11M16 7L13 11" stroke="#00897b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Account page icons
 export function UserIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (

@@ -655,6 +655,20 @@ function AccountContent() {
                     <SettingRow label={t('account.sounds')} description={t('account.soundsDesc')}>
                       <Toggle checked={prefs.soundEnabled} onChange={prefs.setSoundEnabled} />
                     </SettingRow>
+                    <SettingRow label={t('account.alertSound')} description="Sound type for order fills">
+                      <select
+                        value={prefs.alertSound}
+                        onChange={e => prefs.setAlertSound(e.target.value as 'beep' | 'voice_male' | 'voice_female' | 'none')}
+                        className="px-3 py-1.5 rounded-lg text-sm focus:outline-none"
+                        style={{ ...inputStyle, opacity: prefs.soundEnabled ? 1 : 0.4 }}
+                        disabled={!prefs.soundEnabled}
+                      >
+                        <option value="beep">{t('account.alertBeep')}</option>
+                        <option value="voice_male">{t('account.alertVoiceMale')}</option>
+                        <option value="voice_female">{t('account.alertVoiceFemale')}</option>
+                        <option value="none">{t('account.alertNone')}</option>
+                      </select>
+                    </SettingRow>
                   </div>
                 </SectionCard>
 

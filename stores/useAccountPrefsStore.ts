@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type SupportedLanguage = 'en' | 'fr' | 'es' | 'de' | 'ar';
+export type AlertSoundType = 'beep' | 'voice_male' | 'voice_female' | 'none';
 
 interface AccountPrefsState {
   // General
@@ -9,6 +10,7 @@ interface AccountPrefsState {
   timezone: string;
   compactMode: boolean;
   soundEnabled: boolean;
+  alertSound: AlertSoundType;
 
   // Charts
   defaultSymbol: string;
@@ -31,6 +33,7 @@ interface AccountPrefsState {
   setTimezone: (tz: string) => void;
   setCompactMode: (v: boolean) => void;
   setSoundEnabled: (v: boolean) => void;
+  setAlertSound: (v: AlertSoundType) => void;
   setDefaultSymbol: (s: string) => void;
   setDefaultTimeframe: (tf: string) => void;
   setAutoConnect: (v: boolean) => void;
@@ -50,6 +53,7 @@ export const useAccountPrefsStore = create<AccountPrefsState>()(
       timezone: 'Europe/Paris',
       compactMode: false,
       soundEnabled: false,
+      alertSound: 'beep',
       defaultSymbol: 'BTCUSDT',
       defaultTimeframe: '5m',
       autoConnect: true,
@@ -65,6 +69,7 @@ export const useAccountPrefsStore = create<AccountPrefsState>()(
       setTimezone: (tz) => set({ timezone: tz }),
       setCompactMode: (v) => set({ compactMode: v }),
       setSoundEnabled: (v) => set({ soundEnabled: v }),
+      setAlertSound: (v) => set({ alertSound: v }),
       setDefaultSymbol: (s) => set({ defaultSymbol: s }),
       setDefaultTimeframe: (tf) => set({ defaultTimeframe: tf }),
       setAutoConnect: (v) => set({ autoConnect: v }),
