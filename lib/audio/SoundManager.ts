@@ -132,7 +132,7 @@ class SoundManagerClass {
       // Cancel any in-progress speech
       window.speechSynthesis.cancel();
 
-      const text = side === 'buy' ? 'Buy filled' : 'Sell filled';
+      const text = 'Order filled';
       const utterance = new SpeechSynthesisUtterance(text);
 
       if (voiceType === 'male') {
