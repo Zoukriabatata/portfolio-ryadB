@@ -15,22 +15,25 @@ export async function PUT(
 ) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   if (!token?.id) {
-    return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { id } = await params;
 
-  // Verify ownership
   const existing = await prisma.journalEntry.findFirst({
     where: { id, userId: token.id as string },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: 'Entree introuvable' }, { status: 404 });
+    return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
   }
 
   const body = await req.json();
-  const { symbol, side, entryPrice, exitPrice, quantity, entryTime, exitTime, setup, tags, notes, rating, emotions } = body;
+  const {
+    symbol, side, entryPrice, exitPrice, quantity, entryTime, exitTime,
+    timeframe, setup, tags, notes, rating, emotions,
+    screenshotUrls, playbookSetupId,
+  } = body;
 
   // Recalculate PnL
   const finalEntryPrice = entryPrice !== undefined ? parseFloat(entryPrice) : existing.entryPrice;
@@ -55,11 +58,14 @@ export async function PUT(
       pnl,
       ...(entryTime !== undefined && { entryTime: new Date(entryTime) }),
       ...(exitTime !== undefined && { exitTime: exitTime ? new Date(exitTime) : null }),
+      ...(timeframe !== undefined && { timeframe: timeframe || null }),
       ...(setup !== undefined && { setup }),
-      ...(tags !== undefined && { tags }),
+      ...(tags !== undefined && { tags: tags ? JSON.stringify(tags) : null }),
       ...(notes !== undefined && { notes }),
       ...(rating !== undefined && { rating }),
       ...(emotions !== undefined && { emotions }),
+      ...(screenshotUrls !== undefined && { screenshotUrls }),
+      ...(playbookSetupId !== undefined && { playbookSetupId: playbookSetupId || null }),
     },
   });
 
@@ -72,18 +78,17 @@ export async function DELETE(
 ) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   if (!token?.id) {
-    return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { id } = await params;
 
-  // Verify ownership
   const existing = await prisma.journalEntry.findFirst({
     where: { id, userId: token.id as string },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: 'Entree introuvable' }, { status: 404 });
+    return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
   }
 
   await prisma.journalEntry.delete({ where: { id } });

@@ -53,6 +53,8 @@ model User {
   journalEntries    JournalEntry[]
   dataFeedConfigs   DataFeedConfig[]
   promoCodeUsages   PromoCodeUsage[]
+  dailyNotes        DailyNote[]
+  playbookSetups    PlaybookSetup[]
 
   @@index([email])
   @@index([customerId])
@@ -254,7 +256,12 @@ model JournalEntry {
   emotions    String?  // "calm", "fomo", "revenge", etc.
 
   // Screenshot reference
-  screenshotUrl String?
+  screenshotUrl  String?
+  screenshotUrls String[]  @default([])
+
+  // Playbook link
+  playbookSetupId String?
+  playbookSetup   PlaybookSetup? @relation(fields: [playbookSetupId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -262,4 +269,46 @@ model JournalEntry {
   @@index([userId])
   @@index([symbol])
   @@index([entryTime])
+}
+
+// ============ DAILY NOTE MODEL ============
+model DailyNote {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date           DateTime @db.Date
+  premarketPlan  String?
+  endOfDayReview String?
+  lessons        String?
+  mood           Int?     @default(5)
+  marketConditions String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+// ============ PLAYBOOK SETUP MODEL ============
+model PlaybookSetup {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name           String
+  description    String?
+  rules          String[]  @default([])
+  exampleUrls    String[]  @default([])
+  isActive       Boolean   @default(true)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  journalEntries JournalEntry[]
+
+  @@unique([userId, name])
+  @@index([userId])
 }

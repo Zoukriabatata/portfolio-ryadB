@@ -1,7 +1,7 @@
 /**
  * JOURNAL API - CRUD for trading journal entries
  *
- * GET  /api/journal         - List entries (with filters)
+ * GET  /api/journal         - List entries (with advanced filters, pagination, sorting)
  * POST /api/journal         - Create entry
  */
 
@@ -12,34 +12,97 @@ import { prisma } from '@/lib/db';
 export async function GET(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   if (!token?.id) {
-    return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const url = new URL(req.url);
-  const symbol = url.searchParams.get('symbol');
-  const from = url.searchParams.get('from');
-  const to = url.searchParams.get('to');
-  const limit = parseInt(url.searchParams.get('limit') || '50', 10);
 
+  // Pagination
+  const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
+  const pageSize = Math.min(200, Math.max(1, parseInt(url.searchParams.get('pageSize') || '25', 10)));
+
+  // Sorting
+  const sortBy = url.searchParams.get('sortBy') || 'entryTime';
+  const sortDir = url.searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
+  const validSortFields = ['entryTime', 'symbol', 'side', 'pnl', 'entryPrice', 'exitPrice', 'quantity', 'setup', 'createdAt'];
+  const orderField = validSortFields.includes(sortBy) ? sortBy : 'entryTime';
+
+  // Filters
   const where: Record<string, unknown> = { userId: token.id as string };
 
-  if (symbol) where.symbol = symbol;
+  // Symbol filter (comma-separated for multi-select)
+  const symbols = url.searchParams.get('symbols');
+  if (symbols) {
+    const symbolList = symbols.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    if (symbolList.length === 1) {
+      where.symbol = symbolList[0];
+    } else if (symbolList.length > 1) {
+      where.symbol = { in: symbolList };
+    }
+  }
+  // Legacy single symbol support
+  const symbol = url.searchParams.get('symbol');
+  if (symbol && !symbols) where.symbol = symbol;
+
+  // Date range
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
   if (from || to) {
     where.entryTime = {};
     if (from) (where.entryTime as Record<string, unknown>).gte = new Date(from);
     if (to) (where.entryTime as Record<string, unknown>).lte = new Date(to);
   }
 
-  const entries = await prisma.journalEntry.findMany({
-    where,
-    orderBy: { entryTime: 'desc' },
-    take: Math.min(limit, 200),
-  });
+  // Side filter
+  const side = url.searchParams.get('side');
+  if (side === 'LONG' || side === 'SHORT') where.side = side;
 
-  // Compute stats
+  // Setup filter (comma-separated)
+  const setups = url.searchParams.get('setups');
+  if (setups) {
+    const setupList = setups.split(',').map(s => s.trim()).filter(Boolean);
+    if (setupList.length === 1) {
+      where.setup = setupList[0];
+    } else if (setupList.length > 1) {
+      where.setup = { in: setupList };
+    }
+  }
+
+  // Emotion filter (comma-separated)
+  const emotions = url.searchParams.get('emotions');
+  if (emotions) {
+    const emotionList = emotions.split(',').map(s => s.trim()).filter(Boolean);
+    if (emotionList.length === 1) {
+      where.emotions = emotionList[0];
+    } else if (emotionList.length > 1) {
+      where.emotions = { in: emotionList };
+    }
+  }
+
+  // P&L range
+  const pnlMin = url.searchParams.get('pnlMin');
+  const pnlMax = url.searchParams.get('pnlMax');
+  if (pnlMin || pnlMax) {
+    where.pnl = {};
+    if (pnlMin) (where.pnl as Record<string, unknown>).gte = parseFloat(pnlMin);
+    if (pnlMax) (where.pnl as Record<string, unknown>).lte = parseFloat(pnlMax);
+  }
+
+  // Query with pagination
+  const [entries, total] = await Promise.all([
+    prisma.journalEntry.findMany({
+      where,
+      orderBy: { [orderField]: sortDir },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.journalEntry.count({ where }),
+  ]);
+
+  // Compute stats (across all user's trades, not just filtered)
   const allEntries = await prisma.journalEntry.findMany({
     where: { userId: token.id as string },
-    select: { pnl: true, side: true, symbol: true },
+    select: { pnl: true },
   });
 
   const totalPnl = allEntries.reduce((sum, e) => sum + (e.pnl || 0), 0);
@@ -57,20 +120,30 @@ export async function GET(req: NextRequest) {
       lossCount,
       winRate: Math.round(winRate * 10) / 10,
     },
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    },
   });
 }
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   if (!token?.id) {
-    return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const body = await req.json();
-  const { symbol, side, entryPrice, exitPrice, quantity, entryTime, exitTime, setup, tags, notes, rating, emotions } = body;
+  const {
+    symbol, side, entryPrice, exitPrice, quantity, entryTime, exitTime,
+    timeframe, setup, tags, notes, rating, emotions,
+    screenshotUrls, playbookSetupId,
+  } = body;
 
   if (!symbol || !side || !entryPrice || !entryTime) {
-    return NextResponse.json({ error: 'Champs requis: symbol, side, entryPrice, entryTime' }, { status: 400 });
+    return NextResponse.json({ error: 'Required fields: symbol, side, entryPrice, entryTime' }, { status: 400 });
   }
 
   // Calculate PnL if both entry and exit prices
@@ -78,7 +151,6 @@ export async function POST(req: NextRequest) {
   if (exitPrice && entryPrice) {
     const multiplier = side === 'LONG' ? 1 : -1;
     const priceDiff = (exitPrice - entryPrice) * multiplier;
-    // Use a generic point value - user should adjust
     pnl = priceDiff * (quantity || 1);
   }
 
@@ -93,11 +165,14 @@ export async function POST(req: NextRequest) {
       pnl,
       entryTime: new Date(entryTime),
       exitTime: exitTime ? new Date(exitTime) : null,
+      timeframe: timeframe || null,
       setup: setup || null,
-      tags: tags || [],
+      tags: tags ? JSON.stringify(tags) : null,
       notes: notes || null,
       rating: rating || null,
       emotions: emotions || null,
+      ...(screenshotUrls && { screenshotUrls }),
+      ...(playbookSetupId && { playbookSetupId }),
     },
   });
 

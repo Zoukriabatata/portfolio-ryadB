@@ -283,6 +283,15 @@ export class ReplayRecorder {
     });
   }
 
+  async updateSession(sessionId: string, updates: { description?: string; tags?: string[] }): Promise<void> {
+    if (!this.db) await this.init();
+    const sessions = await this.getSessions();
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    session.metadata = { ...session.metadata, ...updates };
+    await this.putSession(session);
+  }
+
   async deleteSession(sessionId: string): Promise<void> {
     if (!this.db) await this.init();
 

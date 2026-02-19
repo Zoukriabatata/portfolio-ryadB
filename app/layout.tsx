@@ -34,8 +34,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={spaceGrotesk.className}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+if(typeof Node!=='undefined'){
+  var oRC=Node.prototype.removeChild;
+  Node.prototype.removeChild=function(c){
+    if(c.parentNode!==this)return c;
+    return oRC.call(this,c);
+  };
+  var oIB=Node.prototype.insertBefore;
+  Node.prototype.insertBefore=function(n,r){
+    if(r&&r.parentNode!==this)return n;
+    return oIB.call(this,n,r);
+  };
+}`,
+          }}
+        />
+      </head>
+      <body className={spaceGrotesk.className} suppressHydrationWarning>
         <DashboardClientLayout>{children}</DashboardClientLayout>
         <Analytics />
         <SpeedInsights />

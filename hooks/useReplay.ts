@@ -35,6 +35,7 @@ export interface UseReplayReturn {
   recordingStats: { tradeCount: number; depthCount: number; duration: number; sizeEstimate: number };
 
   // Session management
+  updateSession: (sessionId: string, updates: { description?: string; tags?: string[] }) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   refreshSessions: () => Promise<void>;
 }
@@ -124,6 +125,12 @@ export function useReplay(): UseReplayReturn {
     return session;
   }, [refreshSessions]);
 
+  const updateSession = useCallback(async (sessionId: string, updates: { description?: string; tags?: string[] }) => {
+    const recorder = getReplayRecorder();
+    await recorder.updateSession(sessionId, updates);
+    await refreshSessions();
+  }, [refreshSessions]);
+
   const deleteSession = useCallback(async (sessionId: string) => {
     const recorder = getReplayRecorder();
     await recorder.deleteSession(sessionId);
@@ -143,6 +150,7 @@ export function useReplay(): UseReplayReturn {
     stopRecording,
     isRecording,
     recordingStats,
+    updateSession,
     deleteSession,
     refreshSessions,
   };
