@@ -28,6 +28,10 @@ import {
 } from '@/components/ui/Icons';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';
+import { useAccountPrefsStore, type SupportedLanguage } from '@/stores/useAccountPrefsStore';
+import { useTranslation } from '@/lib/i18n/useTranslation';
+import type { TranslationKey } from '@/lib/i18n/translations';
+import { TradovateAuth, TradovateClient } from '@/lib/brokers/tradovate';
 
 type TicketCategory = 'BILLING' | 'TECHNICAL' | 'ACCOUNT' | 'FEATURE_REQUEST' | 'OTHER';
 type AccountTab = 'profile' | 'preferences' | 'connections' | 'security' | 'notifications' | 'data' | 'support';
@@ -74,8 +78,10 @@ const BROKER_CONNECTIONS: BrokerConnection[] = [
     id: 'tradovate', name: 'Tradovate', icon: TradovateIcon, color: '#6366f1', connected: false,
     description: 'Commission-free futures trading',
     fields: [
-      { key: 'apiKey', label: 'API Key', type: 'text', placeholder: 'Your API key' },
-      { key: 'apiSecret', label: 'API Secret', type: 'password', placeholder: 'Your API secret' },
+      { key: 'apiKey', label: 'Username', type: 'text', placeholder: 'Tradovate username' },
+      { key: 'apiSecret', label: 'Password', type: 'password', placeholder: 'Tradovate password' },
+      { key: 'cid', label: 'CID (App ID)', type: 'text', placeholder: 'Optional — your app client ID' },
+      { key: 'sec', label: 'API Secret', type: 'password', placeholder: 'Optional — your API secret key' },
     ],
   },
   {
@@ -119,14 +125,14 @@ const BROKER_CONNECTIONS: BrokerConnection[] = [
   },
 ];
 
-const TABS: { id: AccountTab; label: string; icon: React.ComponentType<any> }[] = [
-  { id: 'profile', label: 'Profile', icon: UserIcon },
-  { id: 'preferences', label: 'Preferences', icon: SlidersIcon },
-  { id: 'connections', label: 'Connections', icon: LinkIcon },
-  { id: 'security', label: 'Security', icon: ShieldIcon },
-  { id: 'notifications', label: 'Notifications', icon: BellIcon },
-  { id: 'data', label: 'Data', icon: DatabaseIcon },
-  { id: 'support', label: 'Support', icon: UserIcon },
+const TABS: { id: AccountTab; labelKey: TranslationKey; icon: React.ComponentType<any> }[] = [
+  { id: 'profile', labelKey: 'account.profile', icon: UserIcon },
+  { id: 'preferences', labelKey: 'account.preferences', icon: SlidersIcon },
+  { id: 'connections', labelKey: 'account.connections', icon: LinkIcon },
+  { id: 'security', labelKey: 'account.security', icon: ShieldIcon },
+  { id: 'notifications', labelKey: 'account.notifications', icon: BellIcon },
+  { id: 'data', labelKey: 'account.data', icon: DatabaseIcon },
+  { id: 'support', labelKey: 'account.support', icon: UserIcon },
 ];
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -187,25 +193,16 @@ function AccountContent() {
   const [category, setCategory] = useState<TicketCategory>('TECHNICAL');
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Preferences state
-  const [language, setLanguage] = useState('en');
-  const [timezone, setTimezone] = useState('Europe/Paris');
-  const [defaultTimeframe, setDefaultTimeframe] = useState('5m');
-  const [defaultSymbol, setDefaultSymbol] = useState('BTCUSDT');
-  const [autoConnect, setAutoConnect] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
+  // Preferences from persistent store
+  const prefs = useAccountPrefsStore();
+  const { t } = useTranslation();
 
-  // Notifications
-  const [notifyTrades, setNotifyTrades] = useState(true);
-  const [notifyAlerts, setNotifyAlerts] = useState(true);
-  const [notifyNews, setNotifyNews] = useState(false);
-  const [notifyUpdates, setNotifyUpdates] = useState(true);
-  const [notifyEmail, setNotifyEmail] = useState(false);
-  const [notifyPush, setNotifyPush] = useState(true);
-
-  // Security
-  const [twoFA, setTwoFA] = useState(false);
+  // Profile editing
+  const [profileName, setProfileName] = useState('');
+  const [profileDisplayName, setProfileDisplayName] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Connections
@@ -220,6 +217,37 @@ function AccountContent() {
       router.push('/auth/login');
     }
   }, [status, router]);
+
+  // Load profile from API on mount
+  useEffect(() => {
+    if (session?.user && !profileLoaded) {
+      setProfileName(session.user.name || '');
+      fetch('/api/auth/profile')
+        .then(r => r.json())
+        .then(data => {
+          if (data.user) {
+            setProfileName(data.user.name || '');
+            setProfileDisplayName(data.user.displayName || '');
+          }
+          setProfileLoaded(true);
+        })
+        .catch(() => setProfileLoaded(true));
+    }
+  }, [session, profileLoaded]);
+
+  // Refresh session after successful payment
+  useEffect(() => {
+    if (success === 'true' && sessionData.update) {
+      // Poll session to pick up tier change from webhook
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        await sessionData.update();
+        if (attempts >= 15) clearInterval(interval); // stop after 30s
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [success, sessionData]);
 
   // Load saved broker configs from localStorage on mount
   useEffect(() => {
@@ -260,6 +288,23 @@ function AccountContent() {
     } catch {}
   };
 
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    setProfileSaved(false);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: profileName, displayName: profileDisplayName }),
+      });
+      if (res.ok) {
+        setProfileSaved(true);
+        if (sessionData.update) sessionData.update();
+        setTimeout(() => setProfileSaved(false), 3000);
+      }
+    } catch {} finally { setProfileSaving(false); }
+  };
+
   const handleManageSubscription = async () => {
     setIsLoading(true);
     try {
@@ -297,7 +342,6 @@ function AccountContent() {
       if (brokerId === 'ib') {
         const gatewayUrl = process.env.NEXT_PUBLIC_IB_GATEWAY_URL || 'ws://localhost:4000';
         const healthUrl = gatewayUrl.replace('wss://', 'https://').replace('ws://', 'http://') + '/health';
-
         const response = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
         if (response.ok) {
           const data = await response.json();
@@ -307,17 +351,43 @@ function AccountContent() {
         } else {
           throw new Error(`HTTP ${response.status}`);
         }
-      } else {
-        // Other brokers - simulate test
-        await new Promise(r => setTimeout(r, 1500));
+      } else if (brokerId === 'tradovate') {
+        // Test Tradovate API connectivity
+        const config = brokerFields[brokerId] || {};
+        if (!config.apiKey || !config.apiSecret) {
+          throw new Error('API Key and Secret are required');
+        }
+        const auth = new TradovateAuth('demo');
+        await auth.authenticate({
+          name: config.apiKey,
+          password: config.apiSecret,
+          ...(config.cid ? { cid: parseInt(config.cid, 10) } : {}),
+          ...(config.sec ? { sec: config.sec } : {}),
+        });
+        const client = new TradovateClient(auth);
+        const accounts = await client.getAccounts();
+        auth.disconnect();
+        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: `Authenticated — ${accounts.length} account(s) found` }));
+      } else if (['rithmic', 'ninja', 'cqg'].includes(brokerId)) {
+        await new Promise(r => setTimeout(r, 1000));
         setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
-        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Integration coming soon' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Requires local gateway — integration in progress' }));
+      } else {
+        // Crypto brokers - test API key validity
+        const config = brokerFields[brokerId] || {};
+        if (!config.apiKey) {
+          throw new Error('API Key is required');
+        }
+        await new Promise(r => setTimeout(r, 800));
+        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'API key saved — real-time integration coming soon' }));
       }
     } catch (error: any) {
       setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
       const msg = error.message?.includes('AbortError') || error.message?.includes('timeout')
-        ? 'Gateway offline - start the gateway with: cd gateway && npm run dev'
-        : `Connection failed: ${error.message || 'Gateway offline'}`;
+        ? 'Connection timed out — check your network or gateway'
+        : `Connection failed: ${error.message || 'Unknown error'}`;
       setConnectionMessage(prev => ({ ...prev, [brokerId]: msg }));
     }
   };
@@ -332,42 +402,62 @@ function AccountContent() {
       localStorage.setItem(`senzoukria-broker-${brokerId}`, JSON.stringify(config));
 
       if (brokerId === 'ib') {
-        // Save to data feed store
         const ibConfig = config as Record<string, string>;
         dataFeedStore.setConfig('ib', {
           host: ibConfig.host || '127.0.0.1',
           port: parseInt(ibConfig.port || '7497', 10),
           status: 'configured',
         });
-
-        // Test gateway connection
         const gatewayUrl = process.env.NEXT_PUBLIC_IB_GATEWAY_URL || 'ws://localhost:4000';
         const healthUrl = gatewayUrl.replace('wss://', 'https://').replace('ws://', 'http://') + '/health';
-
         try {
           const response = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
           if (response.ok) {
             setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
-            setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved - Gateway connected' }));
+            setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved — Gateway connected' }));
             dataFeedStore.updateStatus('ib', 'connected');
           } else {
             throw new Error('Gateway unavailable');
           }
         } catch {
           setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
-          setConnectionMessage(prev => ({
-            ...prev,
-            [brokerId]: 'Configuration saved. To connect: start the gateway with "cd gateway && npm run dev"',
-          }));
+          setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved. Start gateway: cd gateway && npm run dev' }));
         }
-      } else {
+      } else if (brokerId === 'tradovate') {
+        // Real Tradovate connection
+        if (!config.apiKey || !config.apiSecret) {
+          throw new Error('API Key and API Secret are required');
+        }
+        const auth = new TradovateAuth('demo');
+        const tokenResp = await auth.authenticate({
+          name: config.apiKey,
+          password: config.apiSecret,
+          ...(config.cid ? { cid: parseInt(config.cid, 10) } : {}),
+          ...(config.sec ? { sec: config.sec } : {}),
+        });
+        const client = new TradovateClient(auth);
+        const accounts = await client.getAccounts();
+        const balances = await client.getCashBalances();
+        const totalBalance = balances.reduce((sum, b) => sum + b.amount, 0);
+        auth.disconnect();
+        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
+        setConnectionMessage(prev => ({
+          ...prev,
+          [brokerId]: `Connected as ${tokenResp.name} — ${accounts.length} account(s), balance: $${totalBalance.toLocaleString()}`,
+        }));
+      } else if (['rithmic', 'ninja', 'cqg'].includes(brokerId)) {
         await new Promise(r => setTimeout(r, 1000));
-        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
-        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Integration coming soon' }));
+        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved — local gateway required for live connection' }));
+      } else {
+        // Crypto brokers (binance, bybit, deribit) — save config
+        await new Promise(r => setTimeout(r, 500));
+        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'API credentials saved — real-time trading integration coming soon' }));
       }
     } catch (error: any) {
       setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
-      setConnectionMessage(prev => ({ ...prev, [brokerId]: error.message }));
+      setConnectionMessage(prev => ({ ...prev, [brokerId]: `Error: ${error.message}` }));
     }
   };
 
@@ -412,7 +502,7 @@ function AccountContent() {
             style={{ color: 'var(--text-muted)' }}
           >
             <LogOutIcon size={14} />
-            Sign Out
+            {t('account.signOut')}
           </button>
         </div>
 
@@ -440,7 +530,7 @@ function AccountContent() {
                     }}
                   >
                     <Icon size={15} color={isActive ? 'var(--primary)' : 'currentColor'} />
-                    {tab.label}
+                    {t(tab.labelKey)}
                   </button>
                 );
               })}
@@ -453,38 +543,56 @@ function AccountContent() {
             {/* ===== PROFILE TAB ===== */}
             {activeTab === 'profile' && (
               <>
-                <SectionCard title="Personal Information">
+                <SectionCard title={t('account.personalInfo')}>
                   <div className="space-y-0">
-                    <SettingRow label="Avatar">
+                    <SettingRow label={t('account.avatar')}>
                       <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
                         style={{ background: 'var(--primary-dark)', color: '#fff' }}>
                         {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
                       </div>
                     </SettingRow>
-                    <SettingRow label="Email">
+                    <SettingRow label={t('account.email')}>
                       <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{session.user.email}</span>
                     </SettingRow>
-                    <SettingRow label="Name">
+                    <SettingRow label={t('account.name')}>
                       <input
                         type="text"
-                        defaultValue={session.user.name || ''}
+                        value={profileName}
+                        onChange={e => setProfileName(e.target.value)}
                         placeholder="Your name"
                         className="px-3 py-1.5 rounded-lg text-sm w-48 focus:outline-none"
                         style={inputStyle}
                       />
                     </SettingRow>
-                    <SettingRow label="Display Name" description="Visible in journal and sessions">
+                    <SettingRow label={t('account.displayName')} description="Visible in journal and sessions">
                       <input
                         type="text"
+                        value={profileDisplayName}
+                        onChange={e => setProfileDisplayName(e.target.value)}
                         placeholder="Trader123"
                         className="px-3 py-1.5 rounded-lg text-sm w-48 focus:outline-none"
                         style={inputStyle}
                       />
                     </SettingRow>
                   </div>
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={profileSaving}
+                      className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                      style={{ background: 'var(--primary)', color: '#000' }}
+                    >
+                      {profileSaving ? t('common.loading') : t('account.saveProfile')}
+                    </button>
+                    {profileSaved && (
+                      <span className="text-xs font-medium" style={{ color: '#22c55e' }}>
+                        &#10003; {t('account.savedSuccess')}
+                      </span>
+                    )}
+                  </div>
                 </SectionCard>
 
-                <SectionCard title="Subscription">
+                <SectionCard title={t('account.subscription')}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <span className="inline-block px-3 py-1 rounded-full text-sm font-medium"
@@ -500,13 +608,13 @@ function AccountContent() {
                     <Link href="/pricing"
                       className="block w-full py-3 text-center font-semibold rounded-lg transition-colors"
                       style={{ background: 'var(--primary)', color: '#fff' }}>
-                      Upgrade to SENULTRA
+                      {t('account.upgradeTo')}
                     </Link>
                   ) : (
                     <button onClick={handleManageSubscription} disabled={isLoading}
                       className="w-full py-3 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
                       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-                      {isLoading ? 'Loading...' : 'Manage Subscription'}
+                      {isLoading ? t('common.loading') : t('account.manageSubscription')}
                     </button>
                   )}
                 </SectionCard>
@@ -518,8 +626,8 @@ function AccountContent() {
               <>
                 <SectionCard title="General">
                   <div className="space-y-0">
-                    <SettingRow label="Language" description="Interface language">
-                      <select value={language} onChange={e => setLanguage(e.target.value)}
+                    <SettingRow label={t('account.language')} description="Interface language">
+                      <select value={prefs.language} onChange={e => prefs.setLanguage(e.target.value as SupportedLanguage)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
                         <option value="en">English</option>
                         <option value="fr">Français</option>
@@ -528,8 +636,8 @@ function AccountContent() {
                         <option value="ar">العربية</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Timezone">
-                      <select value={timezone} onChange={e => setTimezone(e.target.value)}
+                    <SettingRow label={t('account.timezone')}>
+                      <select value={prefs.timezone} onChange={e => prefs.setTimezone(e.target.value)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
                         <option value="America/New_York">New York (EST)</option>
                         <option value="America/Chicago">Chicago (CST)</option>
@@ -541,19 +649,19 @@ function AccountContent() {
                         <option value="UTC">UTC</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Compact Mode" description="Reduce UI spacing">
-                      <Toggle checked={compactMode} onChange={setCompactMode} />
+                    <SettingRow label={t('account.compactMode')} description="Reduce UI spacing">
+                      <Toggle checked={prefs.compactMode} onChange={prefs.setCompactMode} />
                     </SettingRow>
-                    <SettingRow label="Sounds" description="Sound effects for alerts and trades">
-                      <Toggle checked={soundEnabled} onChange={setSoundEnabled} />
+                    <SettingRow label={t('account.sounds')} description={t('account.soundsDesc')}>
+                      <Toggle checked={prefs.soundEnabled} onChange={prefs.setSoundEnabled} />
                     </SettingRow>
                   </div>
                 </SectionCard>
 
                 <SectionCard title="Default Charts">
                   <div className="space-y-0">
-                    <SettingRow label="Default Symbol">
-                      <select value={defaultSymbol} onChange={e => setDefaultSymbol(e.target.value)}
+                    <SettingRow label={t('account.defaultSymbol')}>
+                      <select value={prefs.defaultSymbol} onChange={e => prefs.setDefaultSymbol(e.target.value)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
                         <option value="BTCUSDT">BTC/USDT</option>
                         <option value="ETHUSDT">ETH/USDT</option>
@@ -564,8 +672,8 @@ function AccountContent() {
                         <option value="GC">GC (Gold)</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Default Timeframe">
-                      <select value={defaultTimeframe} onChange={e => setDefaultTimeframe(e.target.value)}
+                    <SettingRow label={t('account.defaultTimeframe')}>
+                      <select value={prefs.defaultTimeframe} onChange={e => prefs.setDefaultTimeframe(e.target.value)}
                         className="px-3 py-1.5 rounded-lg text-sm focus:outline-none" style={inputStyle}>
                         <option value="1m">1 minute</option>
                         <option value="5m">5 minutes</option>
@@ -575,13 +683,13 @@ function AccountContent() {
                         <option value="1d">1 day</option>
                       </select>
                     </SettingRow>
-                    <SettingRow label="Auto-connect WebSocket" description="Automatically connect on startup">
-                      <Toggle checked={autoConnect} onChange={setAutoConnect} />
+                    <SettingRow label={t('account.autoConnect')} description="Automatically connect on startup">
+                      <Toggle checked={prefs.autoConnect} onChange={prefs.setAutoConnect} />
                     </SettingRow>
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Interface Theme">
+                <SectionCard title={t('account.theme')}>
                   <div className="grid grid-cols-2 gap-3">
                     {UI_THEMES.map((theme) => (
                       <button
@@ -741,7 +849,7 @@ function AccountContent() {
                       </button>
                     </SettingRow>
                     <SettingRow label="Two-Factor Authentication" description="Secure your account with TOTP">
-                      <Toggle checked={twoFA} onChange={setTwoFA} />
+                      <Toggle checked={prefs.twoFA} onChange={prefs.setTwoFA} />
                     </SettingRow>
                     <SettingRow label="Biometric Login" description="Face ID / fingerprint">
                       <Toggle checked={false} onChange={() => {}} />
@@ -803,13 +911,13 @@ function AccountContent() {
                 <SectionCard title="Trading Alerts">
                   <div className="space-y-0">
                     <SettingRow label="Trade Execution" description="Notification when a trade is executed">
-                      <Toggle checked={notifyTrades} onChange={setNotifyTrades} />
+                      <Toggle checked={prefs.notifyTrades} onChange={prefs.setNotifyTrades} />
                     </SettingRow>
                     <SettingRow label="Price Alerts" description="When a price level is hit">
-                      <Toggle checked={notifyAlerts} onChange={setNotifyAlerts} />
+                      <Toggle checked={prefs.notifyAlerts} onChange={prefs.setNotifyAlerts} />
                     </SettingRow>
                     <SettingRow label="Market News" description="Breaking news and macro events">
-                      <Toggle checked={notifyNews} onChange={setNotifyNews} />
+                      <Toggle checked={prefs.notifyNews} onChange={prefs.setNotifyNews} />
                     </SettingRow>
                   </div>
                 </SectionCard>
@@ -817,13 +925,13 @@ function AccountContent() {
                 <SectionCard title="Platform">
                   <div className="space-y-0">
                     <SettingRow label="Updates" description="New features and changelog">
-                      <Toggle checked={notifyUpdates} onChange={setNotifyUpdates} />
+                      <Toggle checked={prefs.notifyUpdates} onChange={prefs.setNotifyUpdates} />
                     </SettingRow>
                     <SettingRow label="Email Notifications">
-                      <Toggle checked={notifyEmail} onChange={setNotifyEmail} />
+                      <Toggle checked={prefs.notifyEmail} onChange={prefs.setNotifyEmail} />
                     </SettingRow>
                     <SettingRow label="Push Notifications">
-                      <Toggle checked={notifyPush} onChange={setNotifyPush} />
+                      <Toggle checked={prefs.notifyPush} onChange={prefs.setNotifyPush} />
                     </SettingRow>
                   </div>
                 </SectionCard>

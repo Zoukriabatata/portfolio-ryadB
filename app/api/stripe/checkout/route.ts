@@ -11,25 +11,35 @@ import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { createOrGetCustomer, createCheckoutSession, stripe } from '@/lib/stripe';
 import { validatePromoCodeUsage, recordPromoCodeAttempt } from '@/lib/stripe/promo-code-service';
+import { z } from 'zod';
+
+const checkoutSchema = z.object({
+  tier: z.literal('ULTRA'),
+  billingPeriod: z.enum(['monthly', 'yearly']),
+  promoCode: z.string().max(30).optional(),
+}).strict();
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ error: 'Please sign in to continue' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { tier, billingPeriod, promoCode } = body;
-
-    if (!tier || tier !== 'ULTRA') {
-      return NextResponse.json({ error: 'Tier invalide' }, { status: 400 });
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    if (!billingPeriod || !['monthly', 'yearly'].includes(billingPeriod)) {
-      return NextResponse.json({ error: 'Période de facturation invalide' }, { status: 400 });
+    const parsed = checkoutSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 });
     }
+
+    const { tier, billingPeriod, promoCode } = parsed.data;
 
     // Get device fingerprint and IP for anti-abuse detection
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -46,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     let customerId = user.customerId;
@@ -138,8 +148,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: checkoutUrl });
   } catch (error) {
     console.error('Checkout error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
+      return NextResponse.json(
+        { error: 'Stripe is not configured. Please contact support.' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Erreur lors de la création du paiement' },
+      { error: `Payment error: ${message}` },
       { status: 500 }
     );
   }

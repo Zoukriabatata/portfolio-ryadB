@@ -14,6 +14,45 @@ import { getToken } from 'next-auth/jwt';
 import { detectConcurrentSession, sendSecurityAlert } from '@/lib/auth/session-validator';
 import { detectImpossibleTravel } from '@/lib/auth/geo-validator';
 
+// ─── Rate Limiter (edge-compatible, in-memory) ─────────
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+const RATE_LIMITS: Record<string, number> = {
+  '/api/auth/': 20,           // 20 auth requests per minute
+  '/api/stripe/checkout': 5,   // 5 checkout attempts per minute
+  '/api/support': 5,           // 5 support tickets per minute
+};
+
+function checkRateLimit(ip: string, pathname: string): boolean {
+  for (const [prefix, maxRequests] of Object.entries(RATE_LIMITS)) {
+    if (!pathname.startsWith(prefix)) continue;
+
+    const key = `${ip}:${prefix}`;
+    const now = Date.now();
+    const entry = rateLimitMap.get(key);
+
+    if (!entry || now > entry.resetAt) {
+      rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+      return false;
+    }
+
+    entry.count++;
+    if (entry.count > maxRequests) return true; // Rate limited
+  }
+  return false;
+}
+
+// Clean up stale entries periodically (avoid memory leak in long-running edge)
+if (typeof globalThis !== 'undefined') {
+  const cleanup = () => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitMap) {
+      if (now > entry.resetAt) rateLimitMap.delete(key);
+    }
+  };
+  setInterval(cleanup, 60_000);
+}
+
 // Admin emails
 const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
 
@@ -65,6 +104,18 @@ const PUBLIC_ROUTES = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Rate limiting for API routes
+  if (pathname.startsWith('/api/')) {
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    const ip = forwardedFor?.split(',')[0].trim() || request.headers.get('x-real-ip') || '127.0.0.1';
+    if (checkRateLimit(ip, pathname)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+  }
 
   // Skip public routes and static files
   if (
@@ -221,6 +272,21 @@ export async function middleware(request: NextRequest) {
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.tradovateapi.com wss://*.tradovateapi.com https://api.stripe.com https://stream.binance.com wss://stream.binance.com wss://stream.bybit.com wss://www.deribit.com https://*.vercel.app",
+      "frame-src https://js.stripe.com https://hooks.stripe.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ')
+  );
 
   response.headers.set('x-user-id', token.id as string);
   response.headers.set('x-user-tier', userTier);

@@ -7,6 +7,7 @@ import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import ConnectionBanner from '@/components/ui/ConnectionBanner';
 import BottomWidgetsPanel from '@/components/widgets/BottomWidgetsPanel';
 import WatchlistPanel from '@/components/widgets/WatchlistPanel';
+import QuickTradeBar from '@/components/trading/QuickTradeBar';
 
 const FootprintChartPro = dynamic(
   () => import('@/components/charts/FootprintChartPro'),
@@ -33,6 +34,7 @@ export default function FootprintPageContent() {
   const [showFutures, setShowFutures] = useState(true);
   const [futuresWidth, setFuturesWidth] = useState(240);
   const [showWatchlist, setShowWatchlist] = useState(true);
+  const [showTradeBar, setShowTradeBar] = useState(false);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(240);
@@ -112,6 +114,36 @@ export default function FootprintPageContent() {
       {/* Chart + Bottom Widgets */}
       <div className="flex-1 flex flex-col min-w-0 relative animate-scaleIn stagger-1">
         <ConnectionBanner />
+
+        {/* Quick Trade Toggle + Bar */}
+        <div className="flex items-center" style={{ borderBottom: '1px solid var(--border)' }}>
+          <button
+            onClick={() => setShowTradeBar(!showTradeBar)}
+            className="px-2 py-1 text-[10px] font-medium transition-colors"
+            style={{
+              color: showTradeBar ? 'var(--primary)' : 'var(--text-muted)',
+              background: showTradeBar ? 'rgba(16,185,129,0.08)' : 'transparent',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-1"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+            Trade
+          </button>
+        </div>
+        <div style={{ height: showTradeBar ? 38 : 0, overflow: 'hidden', transition: 'height 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+          <QuickTradeBar
+            symbol={symbol}
+            colors={{
+              surface: 'var(--surface)',
+              border: 'var(--border)',
+              text: 'var(--text-primary)',
+              textSecondary: 'var(--text-secondary)',
+              textMuted: 'var(--text-muted)',
+              success: '#22c55e',
+              error: '#ef4444',
+              background: 'var(--background)',
+            }}
+          />
+        </div>
 
         {/* Footprint Chart */}
         <ChartErrorBoundary fallbackTitle="Footprint Error">

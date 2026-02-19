@@ -38,11 +38,11 @@ export async function validatePromoCodeUsage(
   });
 
   if (!promoCode) {
-    return { valid: false, reason: 'Code promo invalide' };
+    return { valid: false, reason: 'Invalid promo code' };
   }
 
   if (!promoCode.active) {
-    return { valid: false, reason: 'Ce code promo n\'est plus actif' };
+    return { valid: false, reason: 'This promo code is no longer active' };
   }
 
   // 2. Vérifier la date de validité
@@ -52,7 +52,7 @@ export async function validatePromoCodeUsage(
 
   // 3. Vérifier la limite globale
   if (promoCode.usedCount >= promoCode.maxUses) {
-    return { valid: false, reason: 'Ce code promo a atteint sa limite d\'utilisation' };
+    return { valid: false, reason: 'This promo code has reached its usage limit' };
   }
 
   // 4. Vérifier si l'utilisateur a déjà utilisé ce code
@@ -66,7 +66,7 @@ export async function validatePromoCodeUsage(
   });
 
   if (existingUsage) {
-    return { valid: false, reason: 'Vous avez déjà utilisé ce code promo' };
+    return { valid: false, reason: 'You have already used this promo code' };
   }
 
   // 5. DÉTECTION ANTI-ABUS
@@ -81,7 +81,7 @@ export async function validatePromoCodeUsage(
   if (abuseCheck.suspicious) {
     return {
       valid: false,
-      reason: 'Ce code promo ne peut pas être utilisé avec ce compte',
+      reason: 'This promo code cannot be used with this account',
       similarityScore: abuseCheck.score,
     };
   }

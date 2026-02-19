@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getSoundManager } from '@/lib/audio/SoundManager';
+import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
 
 /**
  * TRADING STORE
@@ -64,6 +66,7 @@ interface TradingState {
 
   // Trading settings
   contractQuantity: number;
+  leverage: number;
   quickOrderEnabled: boolean;
   confirmOrders: boolean;
 
@@ -81,6 +84,7 @@ interface TradingState {
   disconnect: (broker: BrokerType) => void;
 
   setContractQuantity: (qty: number) => void;
+  setLeverage: (lev: number) => void;
   setQuickOrderEnabled: (enabled: boolean) => void;
   setConfirmOrders: (confirm: boolean) => void;
   setShowBrokerSelector: (show: boolean) => void;
@@ -164,6 +168,7 @@ export const useTradingStore = create<TradingState>()(
       },
 
       contractQuantity: 1,
+      leverage: 10,
       quickOrderEnabled: true,
       confirmOrders: true,
 
@@ -259,6 +264,7 @@ export const useTradingStore = create<TradingState>()(
       },
 
       setContractQuantity: (qty) => set({ contractQuantity: Math.max(1, qty) }),
+      setLeverage: (lev) => set({ leverage: Math.max(1, Math.min(125, lev)) }),
       setQuickOrderEnabled: (enabled) => set({ quickOrderEnabled: enabled }),
       setConfirmOrders: (confirm) => set({ confirmOrders: confirm }),
       setShowBrokerSelector: (show) => set({ showBrokerSelector: show }),
@@ -295,6 +301,16 @@ export const useTradingStore = create<TradingState>()(
           const fillPrice = orderData.price || orderData.marketPrice || 0;
 
           setTimeout(() => {
+            // Play sound if enabled
+            try {
+              const soundEnabled = useAccountPrefsStore.getState().soundEnabled;
+              if (soundEnabled) {
+                const sm = getSoundManager();
+                if (orderData.side === 'buy') sm.playBuyFilled();
+                else sm.playSellFilled();
+              }
+            } catch {}
+
             set((state) => {
               // Update order to filled
               const updatedOrders = state.orders.map((o) =>
@@ -390,10 +406,11 @@ export const useTradingStore = create<TradingState>()(
                 }
               }
 
-              // Deduct notional from demo balance for new/averaged positions
+              // Deduct margin (notional / leverage) from demo balance
               const currentBalance = state.connections.demo?.balance || 100000;
               const notional = fillPrice * orderData.quantity;
-              const newBalance = currentBalance - notional;
+              const margin = notional / (state.leverage || 10);
+              const newBalance = currentBalance - margin;
 
               return {
                 orders: updatedOrders,
@@ -424,12 +441,13 @@ export const useTradingStore = create<TradingState>()(
           const closingPositions = state.positions.filter((p) => p.symbol === symbol);
           const remainingPositions = state.positions.filter((p) => p.symbol !== symbol);
 
-          // Calculate realized PnL and return notional to balance
+          // Calculate realized PnL and return margin to balance
+          const leverage = state.leverage || 10;
           let balanceAdjustment = 0;
           for (const pos of closingPositions) {
-            // Return notional value + realized PnL
-            const notional = pos.entryPrice * pos.quantity;
-            balanceAdjustment += notional + pos.pnl;
+            // Return margin (notional / leverage) + realized PnL
+            const margin = (pos.entryPrice * pos.quantity) / leverage;
+            balanceAdjustment += margin + pos.pnl;
           }
 
           const activeBroker = state.activeBroker;
@@ -472,8 +490,12 @@ export const useTradingStore = create<TradingState>()(
         activeBroker: state.activeBroker,
         credentials: state.credentials,
         contractQuantity: state.contractQuantity,
+        leverage: state.leverage,
         quickOrderEnabled: state.quickOrderEnabled,
         confirmOrders: state.confirmOrders,
+        positions: state.positions,
+        orders: state.orders.filter(o => o.status === 'filled' || o.status === 'pending').slice(0, 50),
+        connections: state.activeBroker === 'demo' ? { demo: state.connections.demo } : undefined,
       }),
     }
   )

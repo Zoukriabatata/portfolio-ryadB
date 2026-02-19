@@ -19,8 +19,8 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_place
 
 export const STRIPE_PRICES = {
   ULTRA: {
-    monthly: process.env.STRIPE_ULTRA_MONTHLY_PRICE_ID || 'price_ultra_monthly',
-    yearly: process.env.STRIPE_ULTRA_YEARLY_PRICE_ID || 'price_ultra_yearly',
+    monthly: process.env.STRIPE_MONTHLY_PRICE_ID || process.env.STRIPE_ULTRA_MONTHLY_PRICE_ID || '',
+    yearly: process.env.STRIPE_YEARLY_PRICE_ID || process.env.STRIPE_ULTRA_YEARLY_PRICE_ID || '',
   },
 };
 
@@ -71,6 +71,13 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
   const { customerId, userId, tier, billingPeriod, successUrl, cancelUrl, couponId, promoCodeUsageId, trialDays } = params;
 
   const priceId = STRIPE_PRICES[tier][billingPeriod];
+
+  if (!priceId || !priceId.startsWith('price_')) {
+    throw new Error(
+      `Stripe price not configured for ${tier} ${billingPeriod}. ` +
+      `Run: npx tsx scripts/setup-stripe.ts to create prices, then add IDs to .env.local`
+    );
+  }
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,

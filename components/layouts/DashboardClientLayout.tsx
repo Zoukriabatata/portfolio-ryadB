@@ -7,6 +7,8 @@ import dynamic from 'next/dynamic';
 import { SessionProvider } from 'next-auth/react';
 import Logo from '@/components/ui/Logo';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
+import { useTranslation } from '@/lib/i18n/useTranslation';
+import type { TranslationKey } from '@/lib/i18n/translations';
 import {
   LiveIcon,
   FootprintIcon,
@@ -53,20 +55,20 @@ const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
 
 const NAV_ITEMS: Array<{
   href: string;
-  label: string;
+  labelKey: TranslationKey;
   Icon: React.ComponentType<any>;
   color: string;
 }> = [
-  { href: '/live', label: 'Live', Icon: LiveIcon, color: '#10b981' },
-  { href: '/footprint', label: 'Footprint', Icon: FootprintIcon, color: '#14b8a6' },
-  { href: '/liquidity', label: 'Liquidity', Icon: HeatmapIcon, color: '#06b6d4' },
-  { href: '/gex', label: 'GEX', Icon: GexIcon, color: '#22d3ee' },
-  { href: '/volatility', label: 'Volatility', Icon: VolatilityIcon, color: '#0ea5e9' },
-  { href: '/bias', label: 'GVS Bias', Icon: BiasIcon, color: '#f59e0b' },
-  { href: '/news', label: 'News', Icon: NewsIcon, color: '#84cc16' },
-  { href: '/journal', label: 'Journal', Icon: JournalIcon, color: '#f59e0b' },
-  { href: '/replay', label: 'Replay', Icon: ReplayIcon, color: '#8b5cf6' },
-  { href: '/boutique', label: 'Data Feeds', Icon: DataFeedIcon, color: '#fbbf24' },
+  { href: '/live', labelKey: 'nav.live', Icon: LiveIcon, color: '#10b981' },
+  { href: '/footprint', labelKey: 'nav.footprint', Icon: FootprintIcon, color: '#14b8a6' },
+  { href: '/liquidity', labelKey: 'nav.liquidity', Icon: HeatmapIcon, color: '#06b6d4' },
+  { href: '/gex', labelKey: 'nav.gex', Icon: GexIcon, color: '#22d3ee' },
+  { href: '/volatility', labelKey: 'nav.volatility', Icon: VolatilityIcon, color: '#0ea5e9' },
+  { href: '/bias', labelKey: 'nav.bias', Icon: BiasIcon, color: '#f59e0b' },
+  { href: '/news', labelKey: 'nav.news', Icon: NewsIcon, color: '#84cc16' },
+  { href: '/journal', labelKey: 'nav.journal', Icon: JournalIcon, color: '#f59e0b' },
+  { href: '/replay', labelKey: 'nav.replay', Icon: ReplayIcon, color: '#8b5cf6' },
+  { href: '/boutique', labelKey: 'nav.dataFeeds', Icon: DataFeedIcon, color: '#fbbf24' },
 ];
 
 export function DashboardClientLayout({
@@ -79,6 +81,7 @@ export function DashboardClientLayout({
   const { activeTheme, setTheme } = useUIThemeStore();
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const { t } = useTranslation();
 
   // Apply UI theme on mount and changes
   useEffect(() => {
@@ -132,6 +135,7 @@ export function DashboardClientLayout({
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               const IconComponent = item.Icon;
+              const label = t(item.labelKey);
 
               return (
                 <Link
@@ -145,7 +149,7 @@ export function DashboardClientLayout({
                       : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]'
                     }
                   `}
-                  title={item.label}
+                  title={label}
                 >
                   <span
                     className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}
@@ -155,7 +159,7 @@ export function DashboardClientLayout({
                   </span>
 
                   <span className="text-xs font-medium hidden lg:inline">
-                    {item.label}
+                    {label}
                   </span>
 
                   {isActive && (
@@ -236,7 +240,7 @@ export function DashboardClientLayout({
               <div className="w-6 h-6 rounded-full bg-[var(--primary-dark)] flex items-center justify-center">
                 <span className="text-[10px] font-bold text-white">S</span>
               </div>
-              <span className="text-xs text-[var(--text-secondary)] hidden xl:block">Account</span>
+              <span className="text-xs text-[var(--text-secondary)] hidden xl:block">{t('nav.account')}</span>
             </Link>
           </div>
         </div>
@@ -285,7 +289,7 @@ export function DashboardClientLayout({
                     <span style={{ color: isActive ? item.color : 'currentColor' }}>
                       <IconComponent size={18} />
                     </span>
-                    <span className="text-sm font-medium">{item.label}</span>
+                    <span className="text-sm font-medium">{t(item.labelKey)}</span>
                     {isActive && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
                     )}
@@ -313,7 +317,7 @@ export function DashboardClientLayout({
                 <div className="w-[18px] h-[18px] rounded-full bg-[var(--primary-dark)] flex items-center justify-center">
                   <span className="text-[8px] font-bold text-white">S</span>
                 </div>
-                <span className="text-sm font-medium">Account</span>
+                <span className="text-sm font-medium">{t('nav.account')}</span>
               </Link>
             </div>
           </div>

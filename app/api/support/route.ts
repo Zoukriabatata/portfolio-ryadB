@@ -8,47 +8,66 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
+import { z } from 'zod';
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'ryad.bouderga78@gmail.com';
+
+const ticketSchema = z.object({
+  subject: z.string().min(1).max(200),
+  message: z.string().min(1).max(5000),
+  category: z.enum(['BILLING', 'TECHNICAL', 'ACCOUNT', 'FEATURE_REQUEST', 'OTHER']),
+}).strict();
+
+/** Strip HTML tags and dangerous characters */
+function sanitize(input: string): string {
+  return input
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>"'`]/g, '')
+    .trim();
+}
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { subject, message, category } = body;
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
 
-    if (!subject || !message || !category) {
+    const parsed = ticketSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Tous les champs sont requis' },
+        { error: 'All fields are required and must be valid' },
         { status: 400 }
       );
     }
 
-    // Create support ticket
+    const { subject, message, category } = parsed.data;
+
+    // Create support ticket with sanitized input
     const ticket = await prisma.supportTicket.create({
       data: {
         userId: session.user.id,
-        subject,
-        message,
+        subject: sanitize(subject),
+        message: sanitize(message),
         category,
         priority: session.user.tier === 'ULTRA' ? 'HIGH' : 'NORMAL',
       },
     });
 
-    // TODO: Send email notification to support
-    // For now, just log it
     console.log(`
 === NEW SUPPORT TICKET ===
 From: ${session.user.email}
 Tier: ${session.user.tier}
-Subject: ${subject}
+Subject: ${sanitize(subject)}
 Category: ${category}
-Message: ${message}
 Ticket ID: ${ticket.id}
 ==========================
     `);
@@ -56,23 +75,23 @@ Ticket ID: ${ticket.id}
     return NextResponse.json({
       success: true,
       ticketId: ticket.id,
-      message: 'Votre ticket a été créé. Nous vous répondrons sous 24-48h.',
+      message: 'Your ticket has been created. We will respond within 24-48h.',
     });
   } catch (error) {
     console.error('Support ticket error:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la création du ticket' },
+      { error: 'Error creating ticket' },
       { status: 500 }
     );
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const tickets = await prisma.supportTicket.findMany({
@@ -84,7 +103,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Get tickets error:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération des tickets' },
+      { error: 'Error retrieving tickets' },
       { status: 500 }
     );
   }

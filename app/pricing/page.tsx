@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +65,7 @@ function PricingContent() {
   const from = searchParams.get('from');
 
   const isUltra = session?.user?.tier === 'ULTRA';
+  const { t } = useTranslation();
 
   // Payment proof form state
   const [proofMethod, setProofMethod] = useState('PayPal');
@@ -83,7 +85,10 @@ function PricingContent() {
   // Promo code state
   const [promoCode, setPromoCode] = useState('');
   const [promoError, setPromoError] = useState('');
+  const [promoValid, setPromoValid] = useState<{ discount: string; remaining: number } | null>(null);
+  const [promoValidating, setPromoValidating] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
+  const promoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch existing payment proofs on mount (only if logged in)
   useEffect(() => {
@@ -104,6 +109,32 @@ function PricingContent() {
       // silently ignore
     } finally {
       setProofsLoading(false);
+    }
+  };
+
+  const validatePromoCode = async (code: string) => {
+    if (!code.trim()) {
+      setPromoValid(null);
+      setPromoError('');
+      return;
+    }
+    setPromoValidating(true);
+    setPromoError('');
+    setPromoValid(null);
+    try {
+      const res = await fetch(`/api/stripe/validate-promo?code=${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (data.valid) {
+        setPromoValid({ discount: data.discount, remaining: data.remaining });
+        setPromoError('');
+      } else {
+        setPromoValid(null);
+        setPromoError(data.error || 'Invalid code');
+      }
+    } catch {
+      setPromoValid(null);
+    } finally {
+      setPromoValidating(false);
     }
   };
 
@@ -180,9 +211,15 @@ function PricingContent() {
 
   return (
     <div
-      className="min-h-screen py-16 px-4"
+      className="min-h-screen py-16 px-4 relative"
       style={{ background: 'var(--background)', color: 'var(--text-primary)', overflow: 'auto', height: '100vh' }}
     >
+      {/* Animated gradient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div className="absolute -top-40 -left-40 w-80 h-80 rounded-full opacity-[0.04]" style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)', animation: 'pulse 8s ease-in-out infinite' }} />
+        <div className="absolute top-1/3 -right-20 w-96 h-96 rounded-full opacity-[0.03]" style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)', animation: 'pulse 10s ease-in-out infinite 2s' }} />
+        <div className="absolute bottom-20 left-1/4 w-64 h-64 rounded-full opacity-[0.03]" style={{ background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)', animation: 'pulse 12s ease-in-out infinite 4s' }} />
+      </div>
       <div className="max-w-6xl mx-auto">
         {/* ----------------------------------------------------------------- */}
         {/* Header                                                            */}
@@ -198,10 +235,10 @@ function PricingContent() {
             className="text-4xl md:text-5xl font-bold mb-4"
             style={{ color: 'var(--text-primary)' }}
           >
-            Choose Your Plan
+            {t('pricing.chooseYourPlan')}
           </h2>
           <p style={{ color: 'var(--text-muted)' }} className="max-w-xl mx-auto text-lg">
-            Start for free. Upgrade when you need professional-grade order flow tools.
+            {t('pricing.subtitle')}
           </p>
 
           {/* Launch offer banner */}
@@ -212,7 +249,7 @@ function PricingContent() {
             }}>
             <div className="flex items-center justify-center gap-2 mb-1">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span style={{ color: 'var(--primary-light)' }} className="font-bold tracking-wide">LAUNCH OFFER</span>
+              <span style={{ color: 'var(--primary-light)' }} className="font-bold tracking-wide">{t('pricing.launchOffer')}</span>
             </div>
             <p style={{ color: 'var(--text-secondary)' }}>
               First {LAUNCH_SPOTS} subscribers get <strong style={{ color: '#fff' }}>${LAUNCH_PRICE}/mo</strong> locked for life
@@ -252,10 +289,10 @@ function PricingContent() {
                 className="text-xl font-semibold mb-1"
                 style={{ color: 'var(--text-primary)' }}
               >
-                FREE
+                {t('pricing.freeTitle')}
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                For exploring the platform
+                {t('pricing.freeDesc')}
               </p>
             </div>
 
@@ -296,7 +333,7 @@ function PricingContent() {
                 (e.currentTarget as HTMLElement).style.background = 'var(--border)';
               }}
             >
-              Get Started Free
+              {t('pricing.getStartedFree')}
             </Link>
           </div>
 
@@ -328,7 +365,7 @@ function PricingContent() {
                 SEN<span style={{ color: 'var(--primary-light)' }}>ULTRA</span>
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                For professional traders
+                {t('pricing.ultraDesc')}
               </p>
             </div>
 
@@ -398,7 +435,7 @@ function PricingContent() {
                   color: '#000',
                 }}
               >
-                Subscribe Now
+                {t('pricing.subscribeNow')}
               </button>
             ) : (
               <Link
@@ -424,7 +461,7 @@ function PricingContent() {
               className="text-2xl font-bold text-center mb-10"
               style={{ color: 'var(--text-primary)' }}
             >
-              Payment Methods
+              {t('pricing.paymentMethods')}
             </h2>
 
             <div className="grid sm:grid-cols-2 gap-5">
@@ -464,7 +501,7 @@ function PricingContent() {
                 {/* Billing Period Selector */}
                 <div className="mb-4">
                   <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                    Billing Period
+                    {t('pricing.billingPeriod')}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -501,24 +538,48 @@ function PricingContent() {
                 {/* Promo Code Input */}
                 <div className="mb-4">
                   <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                    Promo Code (Optional)
+                    {t('pricing.promoCode')}
                   </label>
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => {
-                      setPromoCode(e.target.value.toUpperCase());
-                      setPromoError('');
-                    }}
-                    placeholder="SENBETA5"
-                    maxLength={20}
-                    className="w-full px-3 py-2 rounded-lg text-sm transition-colors"
-                    style={{
-                      background: 'var(--surface-hover, #1e1e2e)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                    }}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setPromoCode(val);
+                        setPromoError('');
+                        setPromoValid(null);
+                        if (promoTimerRef.current) clearTimeout(promoTimerRef.current);
+                        if (val.trim().length >= 3) {
+                          promoTimerRef.current = setTimeout(() => validatePromoCode(val), 600);
+                        }
+                      }}
+                      placeholder="SENBETA5"
+                      maxLength={20}
+                      className="w-full px-3 py-2 rounded-lg text-sm transition-colors pr-10"
+                      style={{
+                        background: 'var(--surface-hover, #1e1e2e)',
+                        border: `1px solid ${promoValid ? '#22c55e' : promoError ? '#ef4444' : 'var(--border)'}`,
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                    {promoValidating && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--text-muted)', borderTopColor: 'transparent' }} />
+                      </div>
+                    )}
+                    {promoValid && !promoValidating && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-400 text-lg">&#10003;</div>
+                    )}
+                    {promoError && !promoValidating && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 text-lg">&#10007;</div>
+                    )}
+                  </div>
+                  {promoValid && (
+                    <p className="mt-1.5 text-xs font-medium" style={{ color: '#22c55e' }}>
+                      Code valid! {promoValid.discount} &mdash; {promoValid.remaining} spot{promoValid.remaining > 1 ? 's' : ''} remaining
+                    </p>
+                  )}
                   {promoError && (
                     <p className="mt-1 text-xs" style={{ color: '#ef4444' }}>
                       {promoError}
@@ -532,7 +593,7 @@ function PricingContent() {
                   className="w-full py-2.5 rounded-lg font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-40"
                   style={{ background: '#635bff', color: '#fff' }}
                 >
-                  {stripeLoading ? 'Redirecting...' : !session ? 'Sign in to pay' : 'Pay with Card'}
+                  {stripeLoading ? 'Redirecting...' : !session ? t('pricing.signInToPay') : t('pricing.payWithCard')}
                 </button>
               </div>
 
@@ -878,6 +939,106 @@ function PricingContent() {
             )}
           </div>
         )}
+
+        {/* ----------------------------------------------------------------- */}
+        {/* Feature Comparison Table                                          */}
+        {/* ----------------------------------------------------------------- */}
+        <div className="max-w-4xl mx-auto mb-20">
+          <h2 className="text-2xl font-bold text-center mb-8" style={{ color: 'var(--text-primary)' }}>
+            Feature Comparison
+          </h2>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: 'var(--surface-elevated)' }}>
+                  <th className="text-left py-3 px-4 font-medium" style={{ color: 'var(--text-muted)' }}>Feature</th>
+                  <th className="text-center py-3 px-4 font-medium" style={{ color: 'var(--text-muted)' }}>Free</th>
+                  <th className="text-center py-3 px-4 font-medium" style={{ color: 'var(--primary-light)' }}>SENULTRA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Live Candlestick Charts', true, true],
+                  ['Crypto Symbols (Binance)', '1', 'All'],
+                  ['Futures Symbols (CME)', false, true],
+                  ['Footprint Charts', false, true],
+                  ['Liquidity Heatmap (WebGL)', false, true],
+                  ['GEX Dashboard', false, true],
+                  ['Volatility Surface', false, true],
+                  ['GVS Bias Engine', false, true],
+                  ['Drawing Tools', false, true],
+                  ['Trading Journal', false, true],
+                  ['News Calendar', false, true],
+                  ['Session Replay', false, true],
+                  ['Multi-Broker (IB, Rithmic, Tradovate)', false, true],
+                  ['Demo Trading', true, true],
+                  ['Connected Devices', '1', '2'],
+                  ['Priority Support', false, true],
+                ].map(([feature, free, ultra], i) => (
+                  <tr key={i} style={{ borderTop: '1px solid var(--border)', background: i % 2 === 0 ? 'var(--surface)' : 'transparent' }}>
+                    <td className="py-2.5 px-4" style={{ color: 'var(--text-secondary)' }}>{feature as string}</td>
+                    <td className="text-center py-2.5 px-4">
+                      {free === true ? <span style={{ color: 'var(--primary)' }}>&#10003;</span>
+                        : free === false ? <span style={{ color: 'var(--text-muted)', opacity: 0.4 }}>&mdash;</span>
+                        : <span style={{ color: 'var(--text-secondary)' }}>{free as string}</span>}
+                    </td>
+                    <td className="text-center py-2.5 px-4">
+                      {ultra === true ? <span style={{ color: 'var(--primary)' }}>&#10003;</span>
+                        : <span style={{ color: 'var(--primary-light)' }}>{ultra as string}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ----------------------------------------------------------------- */}
+        {/* FAQ Section                                                        */}
+        {/* ----------------------------------------------------------------- */}
+        <div className="max-w-3xl mx-auto mb-20">
+          <h2 className="text-2xl font-bold text-center mb-8" style={{ color: 'var(--text-primary)' }}>
+            Frequently Asked Questions
+          </h2>
+          <div className="space-y-3">
+            {[
+              {
+                q: 'Can I cancel my subscription anytime?',
+                a: 'Yes, you can cancel at any time from your account settings. Your access continues until the end of the current billing period.',
+              },
+              {
+                q: 'What payment methods do you accept?',
+                a: 'We accept Visa, Mastercard, AMEX via Stripe (instant activation), plus PayPal, Revolut, and Binance Pay (manual verification within 24h).',
+              },
+              {
+                q: 'Is my data safe?',
+                a: 'All data is encrypted in transit (TLS) and at rest. We never store your broker credentials on our servers — they stay in your browser\'s local storage.',
+              },
+              {
+                q: 'Can I use SENULTRA on multiple devices?',
+                a: 'SENULTRA supports up to 2 concurrent devices. If a third device connects, the oldest session is automatically disconnected.',
+              },
+              {
+                q: 'Do I need a broker account to use the platform?',
+                a: 'No! You can use all analysis tools with free market data from Binance. Broker connections are optional and only needed for live trading.',
+              },
+              {
+                q: 'What is the SENBETA5 promo code?',
+                a: 'SENBETA5 gives 100% off for the first month — limited to our first 5 beta testers. Enter it during checkout.',
+              },
+            ].map(({ q, a }, i) => (
+              <details key={i} className="group rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none select-none">
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{q}</span>
+                  <span className="ml-4 flex-shrink-0 transition-transform group-open:rotate-45 text-lg" style={{ color: 'var(--text-muted)' }}>+</span>
+                </summary>
+                <div className="px-5 pb-4 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  {a}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
 
         {/* ----------------------------------------------------------------- */}
         {/* Anti-sharing notice                                               */}
