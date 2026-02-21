@@ -219,11 +219,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Admin route protection
+  // Admin route protection — show 404 to non-admins (don't reveal /admin exists)
   if (pathname.startsWith('/admin')) {
     const userEmail = token.email as string;
     if (!ADMIN_EMAILS.includes(userEmail)) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.rewrite(new URL('/not-found', request.url));
     }
   }
 
@@ -237,28 +237,20 @@ export async function middleware(request: NextRequest) {
     const allowedTiers = TIER_ROUTES[matchingRoute];
 
     if (!allowedTiers.includes(userTier)) {
-      // User doesn't have access - redirect to upgrade page
-      const upgradeUrl = new URL('/pricing', request.url);
-      upgradeUrl.searchParams.set('upgrade', 'true');
-      upgradeUrl.searchParams.set('required', getRequiredTier(matchingRoute));
-      upgradeUrl.searchParams.set('from', pathname);
-      return NextResponse.redirect(upgradeUrl);
+      // User doesn't have access — show 404 (don't reveal route exists)
+      return NextResponse.rewrite(new URL('/not-found', request.url));
     }
   }
 
   // Check subscription expiration
   const subscriptionEnd = token.subscriptionEnd as string | null;
   if (subscriptionEnd && new Date(subscriptionEnd) < new Date()) {
-    // Subscription expired - treat as FREE
+    // Subscription expired — treat as FREE, show 404 for ULTRA routes
     const expiredTier = 'FREE' as const;
     if (matchingRoute) {
       const allowedTiers = TIER_ROUTES[matchingRoute];
       if (allowedTiers && !allowedTiers.includes(expiredTier)) {
-        const upgradeUrl = new URL('/pricing', request.url);
-        upgradeUrl.searchParams.set('upgrade', 'true');
-        upgradeUrl.searchParams.set('expired', 'true');
-        upgradeUrl.searchParams.set('from', pathname);
-        return NextResponse.redirect(upgradeUrl);
+        return NextResponse.rewrite(new URL('/not-found', request.url));
       }
     }
   }
@@ -293,15 +285,6 @@ export async function middleware(request: NextRequest) {
   response.headers.set('x-user-email', token.email as string);
 
   return response;
-}
-
-function getRequiredTier(route: string): string {
-  const tiers = TIER_ROUTES[route];
-  if (!tiers) return 'ULTRA';
-
-  // Return the lowest tier that has access
-  if (tiers.includes('FREE')) return 'FREE';
-  return 'ULTRA';
 }
 
 export const config = {
