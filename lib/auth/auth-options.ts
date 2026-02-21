@@ -2,10 +2,12 @@
  * NEXTAUTH CONFIGURATION
  *
  * Secure authentication with device tracking
+ * Providers: Credentials (email/password) + Google OAuth
  */
 
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { prisma } from '@/lib/db';
 import {
   verifyPassword,
@@ -24,6 +26,7 @@ declare module 'next-auth' {
       id: string;
       email: string;
       name: string | null;
+      image?: string | null;
       tier: SubscriptionTier;
       deviceId: string;
       sessionId: string;
@@ -34,6 +37,7 @@ declare module 'next-auth' {
     id: string;
     email: string;
     name: string | null;
+    image?: string | null;
     tier: SubscriptionTier;
     deviceId?: string;
     sessionId?: string;
@@ -45,6 +49,7 @@ declare module 'next-auth/jwt' {
     id: string;
     email: string;
     name: string | null;
+    picture?: string | null;
     tier: SubscriptionTier;
     deviceId: string;
     sessionId: string;
@@ -53,6 +58,16 @@ declare module 'next-auth/jwt' {
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      authorization: {
+        params: {
+          prompt: 'select_account',
+        },
+      },
+    }),
+
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -79,7 +94,7 @@ export const authOptions: NextAuthOptions = {
           include: { devices: true, sessions: { where: { isActive: true } } },
         });
 
-        if (!user) {
+        if (!user || !user.password) {
           recordLoginAttempt(email, false);
           throw new Error('Identifiants invalides');
         }
@@ -206,15 +221,136 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      // Credentials provider — already handled in authorize()
+      if (account?.provider === 'credentials') {
+        return true;
+      }
+
+      // Google OAuth — find or create user, link account
+      if (account?.provider === 'google' && profile?.email) {
+        try {
+          const email = profile.email.toLowerCase().trim();
+
+          // Find existing user by email
+          let dbUser = await prisma.user.findUnique({
+            where: { email },
+            include: { accounts: true },
+          });
+
+          if (!dbUser) {
+            // Create new user (FREE tier, no password)
+            dbUser = await prisma.user.create({
+              data: {
+                email,
+                name: profile.name || null,
+                avatar: (profile as { picture?: string }).picture || null,
+                emailVerified: new Date(),
+                subscriptionTier: 'FREE',
+                maxDevices: 1,
+              },
+              include: { accounts: true },
+            });
+          } else {
+            // Update name/avatar if not set
+            if (!dbUser.name && profile.name) {
+              await prisma.user.update({
+                where: { id: dbUser.id },
+                data: {
+                  name: profile.name,
+                  avatar: (profile as { picture?: string }).picture || dbUser.avatar,
+                  emailVerified: dbUser.emailVerified || new Date(),
+                },
+              });
+            }
+          }
+
+          // Link Google account if not already linked
+          const existingAccount = dbUser.accounts?.find(
+            (a: { provider: string }) => a.provider === 'google'
+          );
+
+          if (!existingAccount) {
+            await prisma.account.create({
+              data: {
+                userId: dbUser.id,
+                type: account.type || 'oauth',
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                access_token: account.access_token || null,
+                refresh_token: account.refresh_token || null,
+                expires_at: account.expires_at || null,
+                token_type: account.token_type || null,
+                scope: account.scope || null,
+                id_token: account.id_token || null,
+              },
+            });
+          }
+
+          // Create session in DB
+          const sessionId = generateSessionId();
+          const deviceFingerprint = `google_${dbUser.id}`;
+
+          await prisma.session.create({
+            data: {
+              userId: dbUser.id,
+              token: sessionId,
+              deviceId: deviceFingerprint,
+              ipAddress: 'oauth',
+              userAgent: 'Google OAuth',
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+          });
+
+          // Update login info
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: {
+              lastLoginAt: new Date(),
+              failedLoginAttempts: 0,
+              lockedUntil: null,
+            },
+          });
+
+          // Attach DB info to user object for jwt callback
+          user.id = dbUser.id;
+          user.tier = dbUser.subscriptionTier as SubscriptionTier;
+          user.deviceId = deviceFingerprint;
+          user.sessionId = sessionId;
+
+          return true;
+        } catch (error) {
+          console.error('[Auth] Google signIn error:', error);
+          return false;
+        }
+      }
+
+      return true;
+    },
+
+    async jwt({ token, user, account }) {
+      // First sign-in — populate token from user object
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
-        token.tier = user.tier;
+        token.picture = user.image || null;
+        token.tier = user.tier || 'FREE';
         token.deviceId = user.deviceId || '';
         token.sessionId = user.sessionId || '';
       }
+
+      // For Google OAuth, ensure we have the DB user's data
+      if (account?.provider === 'google' && !token.tier) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+        });
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.tier = dbUser.subscriptionTier as SubscriptionTier;
+        }
+      }
+
       return token;
     },
 
@@ -223,6 +359,7 @@ export const authOptions: NextAuthOptions = {
         id: token.id,
         email: token.email,
         name: token.name,
+        image: token.picture,
         tier: token.tier,
         deviceId: token.deviceId,
         sessionId: token.sessionId,

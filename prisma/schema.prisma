@@ -14,7 +14,7 @@ datasource db {
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
-  password          String    // Hashed with bcrypt
+  password          String?   // Hashed with bcrypt (null for OAuth users)
   name              String?
   displayName       String?
   avatar            String?
@@ -47,6 +47,7 @@ model User {
   updatedAt         DateTime  @updatedAt
 
   // Relations
+  accounts          Account[]
   sessions          Session[]
   devices           Device[]
   payments          Payment[]
@@ -59,6 +60,29 @@ model User {
 
   @@index([email])
   @@index([customerId])
+}
+
+// ============ ACCOUNT MODEL (OAuth) ============
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type              String  // "oauth"
+  provider          String  // "google", "github", etc.
+  providerAccountId String  // Provider user ID
+
+  access_token      String?
+  refresh_token     String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+
+  createdAt         DateTime @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 // ============ SESSION MODEL ============
