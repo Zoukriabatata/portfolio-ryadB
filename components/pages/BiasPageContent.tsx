@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 import { generateSimulatedMultiGreek } from '@/lib/simulation/GEXSimulator';
 import { generateVolatilitySkew } from '@/lib/simulation/VolatilitySimulator';
 import {
@@ -54,11 +55,13 @@ export default function BiasPageContent() {
     );
   }, [simResult, contract, volData]);
 
-  // Auto-refresh (30s)
+  // Auto-refresh (30s) — only when page is active
+  const isActive = usePageActive();
   useEffect(() => {
+    if (!isActive) return;
     const interval = setInterval(() => setRefreshKey(k => k + 1), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isActive]);
 
   // Keyboard shortcuts
   useEffect(() => {

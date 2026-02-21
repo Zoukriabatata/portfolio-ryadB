@@ -9,6 +9,7 @@
  */
 
 import type { FootprintCandle, PriceLevel } from '@/lib/orderflow/OrderflowEngine';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 
 // ============ TYPES ============
 
@@ -114,7 +115,7 @@ export class OptimizedFootprintService {
    */
   private async loadTradesRange(startTime: number, endTime: number): Promise<void> {
     const totalDuration = endTime - startTime;
-    const PARALLEL_CHUNKS = 6; // 6 parallel workers
+    const PARALLEL_CHUNKS = 3; // Limit parallel requests
     const chunkDuration = Math.ceil(totalDuration / PARALLEL_CHUNKS);
 
     // Build chunk ranges
@@ -167,7 +168,7 @@ export class OptimizedFootprintService {
         limit: '1000',
       });
 
-      const response = await fetch(`/api/binance/fapi/v1/aggTrades?${params}`);
+      const response = await throttledFetch(`/api/binance/fapi/v1/aggTrades?${params}`);
       const data = await response.json();
 
       if (!Array.isArray(data) || data.length === 0) break;

@@ -1,4 +1,5 @@
 // Fetch historical trades from Bybit and process into footprint data
+import { throttledFetch } from '@/lib/api/throttledFetch';
 
 interface BybitTrade {
   execId: string;
@@ -62,7 +63,7 @@ export async function fetchHistoricalTrades(
         params.set('cursor', cursor);
       }
 
-      const response = await fetch(`/api/bybit/v5/market/recent-trade?${params}`);
+      const response = await throttledFetch(`/api/bybit/v5/market/recent-trade?${params}`);
       const data = await response.json();
 
       if (data.retCode !== 0 || !data.result?.list?.length) {
@@ -148,7 +149,7 @@ export async function fetchHistoricalKlines(
       limit: '1000',
     });
 
-    const response = await fetch(`/api/bybit/v5/market/kline?${params}`);
+    const response = await throttledFetch(`/api/bybit/v5/market/kline?${params}`);
     const data = await response.json();
 
     if (data.retCode !== 0 || !data.result?.list?.length) {

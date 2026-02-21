@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 import { useWatchlistStore, type WatchlistItem } from '@/stores/useWatchlistStore';
 import { formatPrice, formatVolume } from '@/lib/utils/formatters';
 
@@ -51,12 +52,14 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
   const { items, prices, removeItem, addItem, updatePrice } = useWatchlistStore();
   const [showAdd, setShowAdd] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const isActive = usePageActive();
 
   // Stable symbol list key to avoid reconnecting on every reorder
   const symbolsKey = useMemo(() => items.map((i) => i.symbol).sort().join(','), [items]);
 
-  // Connect mini-ticker WebSocket for all watchlist symbols
+  // Connect mini-ticker WebSocket for all watchlist symbols — paused when page hidden
   useEffect(() => {
+    if (!isActive) return;
     const symbols = symbolsKey.split(',').filter(Boolean);
     if (symbols.length === 0) return;
 
@@ -103,7 +106,7 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
     return () => {
       ws.close();
     };
-  }, [symbolsKey, updatePrice]);
+  }, [isActive, symbolsKey, updatePrice]);
 
   const fmtPrice = formatPrice;
   const fmtVol = formatVolume;

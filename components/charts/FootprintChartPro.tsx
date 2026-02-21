@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 import {
   getOrderflowEngine,
   resetOrderflowEngine,
@@ -445,6 +446,7 @@ function FootprintZoomControls({ onZoomIn, onZoomOut, onResetView, colors }: {
 }
 
 const FootprintChartPro = React.memo(function FootprintChartPro({ className, onSymbolChange }: FootprintChartProProps) {
+  const isActive = usePageActive();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const layoutEngineRef = useRef<FootprintLayoutEngine | null>(null);
@@ -2046,9 +2048,10 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
   }, [settings, tickSize, activeTool, crosshairSettings]);
 
   /**
-   * Animation loop
+   * Animation loop — paused when page is hidden (keep-alive optimization)
    */
   useEffect(() => {
+    if (!isActive) return;
     const animate = () => {
       renderCanvas();
       animationRef.current = requestAnimationFrame(animate);
@@ -2069,7 +2072,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       syncManagerRef.current?.close();
       syncManagerRef.current = null;
     };
-  }, [renderCanvas]);
+  }, [isActive, renderCanvas]);
 
   /**
    * Initialize and connect

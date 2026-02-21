@@ -6,6 +6,7 @@ import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
 import { SYMBOLS } from '@/types/market';
 import { createOrderbookSimulator, type OrderbookSimulator } from '@/lib/simulation/OrderbookSimulator';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 
 // Use Bybit API (not blocked in EU/France)
 const BYBIT_API_BASE = '/api/bybit';
@@ -63,7 +64,7 @@ export function useOrderbook() {
 
       // Mode live Bybit
       try {
-        const response = await fetch(
+        const response = await throttledFetch(
           `${BYBIT_API_BASE}/v5/market/orderbook?category=linear&symbol=${symbol}&limit=200`
         );
 

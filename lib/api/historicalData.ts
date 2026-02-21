@@ -6,6 +6,7 @@
  */
 
 import type { Candle } from '@/types/market';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 
 export interface HistoricalDataOptions {
   symbol: string;
@@ -69,7 +70,7 @@ export async function fetchHistoricalCandles(
   if (startTime) params.append('startTime', startTime.toString());
 
   try {
-    const response = await fetch(`/api/history/klines?${params}`);
+    const response = await throttledFetch(`/api/history/klines?${params}`);
     const data = await response.json();
 
     if (!data.success) {

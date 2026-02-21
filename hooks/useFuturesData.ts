@@ -12,6 +12,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { getBinanceLiveWS } from '@/lib/live/BinanceLiveWS';
 import { useFuturesStore } from '@/stores/useFuturesStore';
+import { usePageActive } from '@/hooks/usePageActive';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 
 const POLL_INTERVAL = 30_000; // 30 seconds
 
@@ -25,10 +27,11 @@ export function useFuturesData(symbol: string) {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const store = useFuturesStore;
   const isCrypto = isCryptoSymbol(symbol);
+  const isActive = usePageActive();
 
-  // WebSocket subscriptions
+  // WebSocket subscriptions — only when page is active
   useEffect(() => {
-    if (!isCrypto) return;
+    if (!isCrypto || !isActive) return;
     const ws = getBinanceLiveWS();
 
     const unsubMarkPrice = ws.onMarkPrice((update) => {
@@ -43,7 +46,7 @@ export function useFuturesData(symbol: string) {
       unsubMarkPrice();
       unsubLiquidation();
     };
-  }, [symbol, isCrypto]);
+  }, [symbol, isCrypto, isActive]);
 
   // REST polling
   const fetchFuturesMetrics = useCallback(async () => {
@@ -54,10 +57,10 @@ export function useFuturesData(symbol: string) {
       store.getState().setPolling(true);
 
       const [oiRes, oiHistRes, lsRes, topLsRes] = await Promise.allSettled([
-        fetch(`/api/binance/fapi/v1/openInterest?symbol=${upperSymbol}`),
-        fetch(`/api/binance/futures/data/openInterestHist?symbol=${upperSymbol}&period=5m&limit=60`),
-        fetch(`/api/binance/futures/data/globalLongShortAccountRatio?symbol=${upperSymbol}&period=5m&limit=1`),
-        fetch(`/api/binance/futures/data/topLongShortAccountRatio?symbol=${upperSymbol}&period=5m&limit=1`),
+        throttledFetch(`/api/binance/fapi/v1/openInterest?symbol=${upperSymbol}`),
+        throttledFetch(`/api/binance/futures/data/openInterestHist?symbol=${upperSymbol}&period=5m&limit=60`),
+        throttledFetch(`/api/binance/futures/data/globalLongShortAccountRatio?symbol=${upperSymbol}&period=5m&limit=1`),
+        throttledFetch(`/api/binance/futures/data/topLongShortAccountRatio?symbol=${upperSymbol}&period=5m&limit=1`),
       ]);
 
       // Open Interest
@@ -122,9 +125,9 @@ export function useFuturesData(symbol: string) {
     }
   }, [symbol, isCrypto]);
 
-  // Start/stop polling + reset on symbol change
+  // Start/stop polling + reset on symbol change — only when page is active
   useEffect(() => {
-    if (!isCrypto) return;
+    if (!isCrypto || !isActive) return;
     store.getState().reset();
     fetchFuturesMetrics();
 
@@ -136,5 +139,5 @@ export function useFuturesData(symbol: string) {
         pollTimerRef.current = null;
       }
     };
-  }, [symbol, fetchFuturesMetrics]);
+  }, [symbol, isActive, fetchFuturesMetrics]);
 }

@@ -310,6 +310,8 @@ export const useTradingStore = create<TradingState>()(
                   sm.playVoiceAlert(orderData.side, 'male');
                 } else if (alertSound === 'voice_female') {
                   sm.playVoiceAlert(orderData.side, 'female');
+                } else if (alertSound === 'voice_senzoukria') {
+                  sm.playVoiceAlert(orderData.side, 'senzoukria');
                 } else {
                   if (orderData.side === 'buy') sm.playBuyFilled();
                   else sm.playSellFilled();

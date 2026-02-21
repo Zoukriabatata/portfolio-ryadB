@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type SupportedLanguage = 'en' | 'fr' | 'es' | 'de' | 'ar';
-export type AlertSoundType = 'beep' | 'voice_male' | 'voice_female' | 'none';
+export type AlertSoundType = 'beep' | 'voice_male' | 'voice_female' | 'voice_senzoukria' | 'none';
 
 interface AccountPrefsState {
   // General

@@ -13,6 +13,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 import { SimulationEngine } from '@/lib/heatmap-v2/SimulationEngine';
 import { LiveDataEngine, resetLiveDataEngine } from '@/lib/heatmap-v2/LiveDataEngine';
 import { HeatmapRenderer } from '@/lib/heatmap-v2/HeatmapRenderer';
@@ -66,6 +67,7 @@ interface NavigationState {
 }
 
 const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 600, config, symbol = 'btcusdt', initialMode = 'simulation' }: StaircaseHeatmapProps) {
+  const isActive = usePageActive();
   const canvas2DRef = useRef<HTMLCanvasElement>(null);
   const canvasWebGLRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -366,6 +368,16 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     };
   }, [dataMode, symbol, useWebGL, priceAxisWidth, deltaProfileWidth, volumeProfileWidth, config?.tickSize, config?.basePrice]);
 
+  // Pause/resume simulation engine when page visibility changes
+  useEffect(() => {
+    if (isActive) {
+      simulationRef.current?.start();
+      liveEngineRef.current?.start();
+    } else {
+      simulationRef.current?.stop();
+    }
+  }, [isActive]);
+
   // PERF: Cache container size (updated on resize only, not every frame)
   useEffect(() => {
     const updateSize = () => {
@@ -381,6 +393,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
 
   // Render loop (decoupled from React state via stateRef)
   useEffect(() => {
+    if (!isActive) return;
     const render = () => {
       const currentState = stateRef.current;
       if (currentState) {
@@ -734,7 +747,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getPriceRange, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
+  }, [isActive, getPriceRange, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
 
   // Resize
   useEffect(() => {

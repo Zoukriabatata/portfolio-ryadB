@@ -125,41 +125,58 @@ class SoundManagerClass {
   }
 
   /** Play a voice alert using Web Speech API */
-  playVoiceAlert(side: 'buy' | 'sell', voiceType: 'male' | 'female') {
+  playVoiceAlert(side: 'buy' | 'sell', voiceType: 'male' | 'female' | 'senzoukria') {
     try {
       if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
       // Cancel any in-progress speech
       window.speechSynthesis.cancel();
 
-      const text = 'Order filled';
+      const text = voiceType === 'senzoukria' ? 'SENZOUUUUU!' : 'Order filled';
       const utterance = new SpeechSynthesisUtterance(text);
 
-      if (voiceType === 'male') {
-        utterance.pitch = 0.8;
+      if (voiceType === 'senzoukria') {
+        utterance.pitch = 1.3;
         utterance.rate = 1.1;
+      } else if (voiceType === 'male') {
+        utterance.pitch = 0.3;
+        utterance.rate = 1.2;
       } else {
-        utterance.pitch = 1.4;
-        utterance.rate = 1.0;
+        utterance.pitch = 1.8;
+        utterance.rate = 1.15;
       }
 
-      utterance.volume = 0.8;
-      utterance.lang = 'en-US';
+      utterance.volume = 0.85;
+      utterance.lang = voiceType === 'senzoukria' ? 'ja-JP' : 'en-US';
 
-      // Try to pick a voice matching the gender
+      // Try to pick a voice matching the type
       const voices = this.voicesLoaded ? this.voices : window.speechSynthesis.getVoices();
       if (voices.length > 0) {
-        const preferred = voices.find(v =>
-          v.lang.startsWith('en') &&
-          (voiceType === 'female'
-            ? /female|zira|samantha|victoria|karen|jenny|aria/i.test(v.name)
-            : /male|david|daniel|james|mark|guy|roger/i.test(v.name))
-        );
-        if (preferred) {
-          utterance.voice = preferred;
+        if (voiceType === 'senzoukria') {
+          // Senku: prefer a Japanese male voice for the anime feel
+          const jpVoice = voices.find(v => v.lang.startsWith('ja') && /male|haruka|ichiro|otoya|takumi/i.test(v.name))
+            || voices.find(v => v.lang.startsWith('ja'));
+          if (jpVoice) {
+            utterance.voice = jpVoice;
+            utterance.lang = jpVoice.lang;
+          }
         } else {
-          const english = voices.find(v => v.lang.startsWith('en'));
-          if (english) utterance.voice = english;
+          const preferred = voices.find(v =>
+            v.lang.startsWith('en') &&
+            (voiceType === 'female'
+              ? /female|zira|samantha|victoria|karen|jenny|hazel|susan|linda|catherine/i.test(v.name)
+              : /male|david|daniel|james|mark|guy|roger|george|richard|sean/i.test(v.name))
+          );
+          if (preferred) {
+            utterance.voice = preferred;
+          } else {
+            const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+            if (englishVoices.length > 1) {
+              utterance.voice = voiceType === 'male' ? englishVoices[0] : englishVoices[englishVoices.length - 1];
+            } else if (englishVoices.length === 1) {
+              utterance.voice = englishVoices[0];
+            }
+          }
         }
       }
 

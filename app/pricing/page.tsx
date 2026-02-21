@@ -214,11 +214,15 @@ function PricingContent() {
       className="min-h-screen py-16 px-4 relative"
       style={{ background: 'var(--background)', color: 'var(--text-primary)', overflow: 'auto', height: '100vh' }}
     >
-      {/* Animated gradient orbs */}
+      {/* Subtle grid background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute -top-40 -left-40 w-80 h-80 rounded-full opacity-[0.04]" style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)', animation: 'pulse 8s ease-in-out infinite' }} />
-        <div className="absolute top-1/3 -right-20 w-96 h-96 rounded-full opacity-[0.03]" style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)', animation: 'pulse 10s ease-in-out infinite 2s' }} />
-        <div className="absolute bottom-20 left-1/4 w-64 h-64 rounded-full opacity-[0.03]" style={{ background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)', animation: 'pulse 12s ease-in-out infinite 4s' }} />
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'linear-gradient(var(--primary) 1px, transparent 1px), linear-gradient(90deg, var(--primary) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
+        }} />
+        <div className="absolute top-0 left-0 right-0 h-[500px] opacity-[0.06]" style={{
+          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, var(--primary), transparent)',
+        }} />
       </div>
       <div className="max-w-6xl mx-auto">
         {/* ----------------------------------------------------------------- */}

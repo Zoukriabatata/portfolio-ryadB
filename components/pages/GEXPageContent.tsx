@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { usePageActive } from '@/hooks/usePageActive';
 import {
   generateSimulatedGEX,
   generateSimulatedExpirations,
@@ -174,11 +175,13 @@ export default function GEXPageContent() {
     if (expiration) loadSimulatedData();
   }, [expiration, loadSimulatedData]);
 
-  // Auto refresh (30s)
+  // Auto refresh (30s) — only when page is active
+  const isActive = usePageActive();
   useEffect(() => {
+    if (!isActive) return;
     const interval = setInterval(() => loadSimulatedData(), 30_000);
     return () => clearInterval(interval);
-  }, [loadSimulatedData]);
+  }, [isActive, loadSimulatedData]);
 
   // Keyboard shortcuts
   useEffect(() => {
