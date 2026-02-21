@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import { useJournal } from '@/hooks/useJournal';
 import { useJournalStore } from '@/stores/useJournalStore';
 import { exportToCsv } from '@/lib/journal/csvExport';
@@ -39,13 +40,13 @@ export default function TradesTab() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this trade?')) return;
-    await fetch(`/api/journal/${id}`, { method: 'DELETE' });
+    await throttledFetch(`/api/journal/${id}`, { method: 'DELETE' });
     refetch();
   };
 
   const handleBulkDelete = async () => {
     if (!confirm(`Delete ${selectedIds.size} trades?`)) return;
-    await fetch('/api/journal/bulk', {
+    await throttledFetch('/api/journal/bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', ids: Array.from(selectedIds) }),

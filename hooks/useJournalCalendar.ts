@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useJournalStore } from '@/stores/useJournalStore';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { JournalEntry } from '@/types/journal';
 
 interface DayData {
@@ -39,7 +40,7 @@ export function useJournalCalendar() {
       const to = new Date(year, month, 0, 23, 59, 59).toISOString();
 
       const params = new URLSearchParams({ from, to, pageSize: '200' });
-      const res = await fetch(`/api/journal?${params}`);
+      const res = await throttledFetch(`/api/journal?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
 
       const data = await res.json();

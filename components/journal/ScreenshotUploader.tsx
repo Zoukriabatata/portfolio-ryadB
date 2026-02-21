@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 
 interface ScreenshotUploaderProps {
   urls: string[];
@@ -26,7 +27,7 @@ export default function ScreenshotUploader({ urls, onChange, maxFiles = 5 }: Scr
     const formData = new FormData();
     formData.append('file', file);
 
-    const res = await fetch('/api/journal/upload', { method: 'POST', body: formData });
+    const res = await throttledFetch('/api/journal/upload', { method: 'POST', body: formData });
     if (!res.ok) return null;
 
     const data = await res.json();

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useJournalStore } from '@/stores/useJournalStore';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { JournalAnalytics } from '@/types/journal';
 
 const EMPTY_ANALYTICS: JournalAnalytics = {
@@ -34,7 +35,7 @@ export function useJournalAnalytics() {
       if (dashboardDateRange.from) params.set('from', dashboardDateRange.from);
       if (dashboardDateRange.to) params.set('to', dashboardDateRange.to);
 
-      const res = await fetch(`/api/journal/analytics?${params}`);
+      const res = await throttledFetch(`/api/journal/analytics?${params}`);
       if (!res.ok) throw new Error('Failed to fetch analytics');
 
       const data = await res.json();

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
 import { useOrderbookStore } from '@/stores/useOrderbookStore';
 import { useMarketStore } from '@/stores/useMarketStore';
@@ -30,6 +31,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
   height = 600,
   priceRangeTicks = 100,
 }: LiquidityHeatmapProProps) {
+  const isActive = usePageActive();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<HeatmapRenderer | null>(null);
@@ -254,7 +256,9 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
 
   // Subscribe to trades (Binance only for crypto symbols)
   // For CME symbols, generate simulated trades
+  // Paused when page is hidden (keep-alive optimization)
   useEffect(() => {
+    if (!isActive) return;
     // Start trade cleanup interval
     startTradeCleanup(5000);
 
@@ -401,7 +405,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         setMaxBidVolume(snapshot.maxBidVolume || 100);
         setMaxAskVolume(snapshot.maxAskVolume || 100);
       }
-    }, 100); // Update 10x per second
+    }, 500); // Update 2x per second
 
     return () => {
       if (unsubscribe) {
@@ -415,7 +419,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       }
       stopTradeCleanup();
     };
-  }, [symbol, addTrade, currentPrice, midPrice, tickSize]);
+  }, [symbol, isActive, addTrade, currentPrice, midPrice, tickSize]);
 
   // Update renderer settings
   useEffect(() => {
@@ -445,8 +449,9 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
     }
   }, [settings]);
 
-  // Render loop - optimized for 60 FPS
+  // Render loop - optimized for 60 FPS, paused when page is hidden
   useEffect(() => {
+    if (!isActive) return;
     const render = (timestamp: number) => {
       // Throttle to target FPS
       const elapsed = timestamp - lastRenderTimeRef.current;
@@ -524,7 +529,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, settings.tradeFlow.enabled, tradeEvents, frameInterval, absorptionLevels, maxBidVolume, maxAskVolume]);
+  }, [isActive, bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, settings.tradeFlow.enabled, tradeEvents, frameInterval, absorptionLevels, maxBidVolume, maxAskVolume]);
 
   // Handle resize
   useEffect(() => {

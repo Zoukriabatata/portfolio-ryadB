@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 
 interface PriceCountdownProps {
   timeframeSeconds: number;
@@ -16,8 +17,11 @@ interface PriceCountdownProps {
 export default function PriceCountdown({ timeframeSeconds, className = '' }: PriceCountdownProps) {
   const [countdown, setCountdown] = useState<string>('');
   const [progress, setProgress] = useState<number>(0);
+  const isActive = usePageActive();
 
   useEffect(() => {
+    if (!isActive) return;
+
     const updateCountdown = () => {
       const now = Date.now();
       const currentCandleStart = Math.floor(now / (timeframeSeconds * 1000)) * timeframeSeconds * 1000;
@@ -44,10 +48,10 @@ export default function PriceCountdown({ timeframeSeconds, className = '' }: Pri
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 100); // Update every 100ms for smooth progress
+    const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [timeframeSeconds]);
+  }, [timeframeSeconds, isActive]);
 
   // Get color based on remaining time
   const getColor = () => {
@@ -115,8 +119,11 @@ export default function PriceCountdown({ timeframeSeconds, className = '' }: Pri
 export function PriceCountdownCompact({ timeframeSeconds }: { timeframeSeconds: number }) {
   const [countdown, setCountdown] = useState<string>('');
   const [progress, setProgress] = useState<number>(0);
+  const isActive = usePageActive();
 
   useEffect(() => {
+    if (!isActive) return;
+
     const updateCountdown = () => {
       const now = Date.now();
       const currentCandleStart = Math.floor(now / (timeframeSeconds * 1000)) * timeframeSeconds * 1000;
@@ -139,10 +146,10 @@ export function PriceCountdownCompact({ timeframeSeconds }: { timeframeSeconds: 
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 100);
+    const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [timeframeSeconds]);
+  }, [timeframeSeconds, isActive]);
 
   const getColor = () => {
     if (progress > 90) return '#ef4444';

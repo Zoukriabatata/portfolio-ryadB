@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { EconomicEvent, CalendarFilters, TimeFilter } from '@/types/news';
+import { throttledFetch } from '@/lib/api/throttledFetch';
+import { usePageActive } from '@/hooks/usePageActive';
 
 const STORAGE_KEY = 'senzoukria-news-simulation';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -11,6 +13,7 @@ export function useEconomicCalendar() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const isActive = usePageActive();
 
   // Filters
   const [filters, setFilters] = useState<CalendarFilters>({
@@ -37,7 +40,7 @@ export function useEconomicCalendar() {
     setError(null);
     try {
       const url = `/api/news/calendar${simulationMode ? '?simulation=true' : ''}`;
-      const response = await fetch(url);
+      const response = await throttledFetch(url);
       const data = await response.json();
       if (data.error) throw new Error(data.error);
       setEvents(data.events || []);
@@ -50,10 +53,11 @@ export function useEconomicCalendar() {
   }, [simulationMode]);
 
   useEffect(() => {
+    if (!isActive) return;
     refresh();
     const interval = setInterval(refresh, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [refresh]);
+  }, [refresh, isActive]);
 
   // Filter
   const filteredEvents = useMemo(() => {

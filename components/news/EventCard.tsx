@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 import type { EconomicEvent } from '@/types/news';
 import { MarketImpactPanel } from './MarketImpactPanel';
 import { EventDetailPanel } from './EventDetailPanel';
@@ -61,8 +62,10 @@ function DataPill({ label, value, className }: { label: string; value?: string; 
 
 function CountdownBadge({ targetTime }: { targetTime: string }) {
   const [remaining, setRemaining] = useState('');
+  const isActive = usePageActive();
 
   useEffect(() => {
+    if (!isActive) return;
     const update = () => {
       const diff = new Date(targetTime).getTime() - Date.now();
       if (diff <= 0) { setRemaining('NOW'); return; }
@@ -74,7 +77,7 @@ function CountdownBadge({ targetTime }: { targetTime: string }) {
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [targetTime]);
+  }, [targetTime, isActive]);
 
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-[var(--warning)] bg-[var(--warning-bg)] animate-pulse">

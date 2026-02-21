@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { PlaybookSetup, JournalEntry } from '@/types/journal';
 import { formatCurrency } from '@/lib/journal/chartUtils';
 
@@ -18,7 +19,7 @@ export default function PlaybookSetupDetail({ setup, onClose, onEdit }: Playbook
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/journal/playbook/${setup.id}`);
+        const res = await throttledFetch(`/api/journal/playbook/${setup.id}`);
         if (res.ok) {
           const data = await res.json();
           setTrades(data.setup.journalEntries || []);

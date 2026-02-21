@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useJournalStore } from '@/stores/useJournalStore';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { JournalEntry, JournalStats } from '@/types/journal';
 
 interface UseJournalReturn {
@@ -52,7 +53,7 @@ export function useJournal(): UseJournalReturn {
       if (tradeFilters.pnlMin !== null) params.set('pnlMin', String(tradeFilters.pnlMin));
       if (tradeFilters.pnlMax !== null) params.set('pnlMax', String(tradeFilters.pnlMax));
 
-      const res = await fetch(`/api/journal?${params}`);
+      const res = await throttledFetch(`/api/journal?${params}`);
       if (!res.ok) throw new Error('Failed to fetch journal entries');
 
       const data = await res.json();

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import Modal from '@/components/ui/Modal';
 import { CME_CONTRACTS } from '@/types/ib-protocol';
 import { SETUPS, EMOTIONS, TIMEFRAMES } from '@/types/journal';
@@ -87,7 +88,7 @@ export default function TradeFormModal({ open, onClose, editTrade, onSuccess }: 
       const url = editTrade ? `/api/journal/${editTrade.id}` : '/api/journal';
       const method = editTrade ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await throttledFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

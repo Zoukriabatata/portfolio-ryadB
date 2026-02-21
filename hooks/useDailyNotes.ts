@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { DailyNote } from '@/types/journal';
 
 export function useDailyNotes(month: string) {
@@ -10,7 +11,7 @@ export function useDailyNotes(month: string) {
   const fetchNotes = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/journal/daily-notes?month=${month}`);
+      const res = await throttledFetch(`/api/journal/daily-notes?month=${month}`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setNotes(data.notes || []);
@@ -33,7 +34,7 @@ export function useDailyNotes(month: string) {
     mood?: number;
     marketConditions?: string;
   }) => {
-    const res = await fetch('/api/journal/daily-notes', {
+    const res = await throttledFetch('/api/journal/daily-notes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -43,7 +44,7 @@ export function useDailyNotes(month: string) {
   };
 
   const deleteNote = async (id: string) => {
-    const res = await fetch(`/api/journal/daily-notes/${id}`, { method: 'DELETE' });
+    const res = await throttledFetch(`/api/journal/daily-notes/${id}`, { method: 'DELETE' });
     if (res.ok) fetchNotes();
     return res.ok;
   };

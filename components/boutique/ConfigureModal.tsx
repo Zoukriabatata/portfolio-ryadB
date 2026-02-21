@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { DataFeedProviderInfo } from '@/lib/boutique/providers';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
@@ -42,7 +43,7 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
     setState('testing');
     setMessage('');
     try {
-      const res = await fetch('/api/datafeed/test', {
+      const res = await throttledFetch('/api/datafeed/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: provider.id.toUpperCase(), ...fields }),
@@ -75,7 +76,7 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
     setState('saving');
     setMessage('');
     try {
-      const res = await fetch('/api/datafeed', {
+      const res = await throttledFetch('/api/datafeed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

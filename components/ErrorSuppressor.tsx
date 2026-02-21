@@ -89,7 +89,7 @@ export default function ErrorSuppressor() {
           overlay.remove();
         }
       });
-    }, 500);
+    }, 2000);
 
     return () => {
       console.error = originalError;

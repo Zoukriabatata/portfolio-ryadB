@@ -23,6 +23,7 @@ import {
   BiasIcon,
 } from '@/components/ui/Icons';
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
+import { PageActiveProvider } from '@/hooks/usePageActive';
 
 // ============================================================
 // KEEP-ALIVE CHART COMPONENTS
@@ -33,12 +34,41 @@ import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility', '/bias'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
-const LivePageContent = dynamic(() => import('@/components/pages/LivePageContent'), { ssr: false });
-const FootprintPageContent = dynamic(() => import('@/components/pages/FootprintPageContent'), { ssr: false });
-const LiquidityPageContent = dynamic(() => import('@/components/pages/LiquidityPageContent'), { ssr: false });
-const GEXPageContent = dynamic(() => import('@/components/pages/GEXPageContent'), { ssr: false });
-const VolatilityPageContent = dynamic(() => import('@/components/pages/VolatilityPageContent'), { ssr: false });
-const BiasPageContent = dynamic(() => import('@/components/pages/BiasPageContent'), { ssr: false });
+function ChartLoadingFallback({ label }: { label: string }) {
+  return (
+    <div className="w-full h-full bg-[var(--background)] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+        <span className="text-[var(--text-muted)] text-sm">Loading {label}...</span>
+      </div>
+    </div>
+  );
+}
+
+const LivePageContent = dynamic(() => import('@/components/pages/LivePageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="Live" />,
+});
+const FootprintPageContent = dynamic(() => import('@/components/pages/FootprintPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="Footprint" />,
+});
+const LiquidityPageContent = dynamic(() => import('@/components/pages/LiquidityPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="Heatmap" />,
+});
+const GEXPageContent = dynamic(() => import('@/components/pages/GEXPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="GEX" />,
+});
+const VolatilityPageContent = dynamic(() => import('@/components/pages/VolatilityPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="Volatility" />,
+});
+const BiasPageContent = dynamic(() => import('@/components/pages/BiasPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="Bias" />,
+});
 
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
@@ -87,6 +117,14 @@ export function DashboardClientLayout({
   useEffect(() => {
     applyUITheme(activeTheme);
   }, [activeTheme]);
+
+  // Pause everything when browser tab is hidden (minimized, switched tab)
+  const [tabHidden, setTabHidden] = useState(false);
+  useEffect(() => {
+    const onVisibilityChange = () => setTabHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
 
   // Track which chart routes have been visited (lazy mount)
   const [mounted, setMounted] = useState<Set<ChartRoute>>(new Set());
@@ -333,22 +371,27 @@ export function DashboardClientLayout({
           className="h-full overflow-auto animate-page-enter"
           style={{ display: isChartRoute ? 'none' : 'block' }}
         >
-          {children}
+          <PageActiveProvider value={!tabHidden}>
+            {children}
+          </PageActiveProvider>
         </div>
 
         {/* Keep-alive chart containers */}
         {CHART_ROUTES.map((route) => {
           if (!mounted.has(route)) return null;
           const ChartComponent = CHART_COMPONENTS[route];
+          const isActive = activeChart === route;
           return (
             <div
               key={route}
               className="h-full"
-              style={{ display: activeChart === route ? 'block' : 'none' }}
+              style={{ display: isActive ? 'block' : 'none' }}
             >
-              <ChartErrorBoundary fallbackTitle={`${route.slice(1)} chart error`}>
-                <ChartComponent />
-              </ChartErrorBoundary>
+              <PageActiveProvider value={isActive && !tabHidden}>
+                <ChartErrorBoundary fallbackTitle={`${route.slice(1)} chart error`}>
+                  <ChartComponent />
+                </ChartErrorBoundary>
+              </PageActiveProvider>
             </div>
           );
         })}

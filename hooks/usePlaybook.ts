@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { PlaybookSetup } from '@/types/journal';
 
 export function usePlaybook() {
@@ -10,7 +11,7 @@ export function usePlaybook() {
   const fetchSetups = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/journal/playbook');
+      const res = await throttledFetch('/api/journal/playbook');
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setSetups(data.setups || []);
@@ -26,7 +27,7 @@ export function usePlaybook() {
   }, [fetchSetups]);
 
   const createSetup = async (data: { name: string; description?: string; rules?: string[]; exampleUrls?: string[] }) => {
-    const res = await fetch('/api/journal/playbook', {
+    const res = await throttledFetch('/api/journal/playbook', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -36,7 +37,7 @@ export function usePlaybook() {
   };
 
   const updateSetup = async (id: string, data: Partial<PlaybookSetup>) => {
-    const res = await fetch(`/api/journal/playbook/${id}`, {
+    const res = await throttledFetch(`/api/journal/playbook/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -46,7 +47,7 @@ export function usePlaybook() {
   };
 
   const deleteSetup = async (id: string) => {
-    const res = await fetch(`/api/journal/playbook/${id}`, { method: 'DELETE' });
+    const res = await throttledFetch(`/api/journal/playbook/${id}`, { method: 'DELETE' });
     if (res.ok) fetchSetups();
     return res.ok;
   };
