@@ -1,36 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
-import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
+import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
-// Admin emails qui peuvent accéder à cette API
 const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
-
-// Vérifier si l'utilisateur est admin (via header ou session)
-async function isAdmin(request: NextRequest): Promise<boolean> {
-  const adminSecret = request.headers.get('x-admin-secret');
-
-  // Option 1: Secret header pour les appels API directs
-  if (adminSecret === process.env.ADMIN_SECRET) {
-    return true;
-  }
-
-  // Option 2: Vérifier via l'email de l'utilisateur connecté
-  const userEmail = request.headers.get('x-user-email');
-  if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
-    return true;
-  }
-
-  return false;
-}
 
 // GET - Liste tous les utilisateurs
 export async function GET(request: NextRequest) {
-  // Rate limit: 30 admin requests per minute per IP
-  const rl = rateLimitByIP(request, 30, 60_000);
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  const rl = apiRateLimit(session.user.id);
   if (!rl.allowed) return tooManyRequests(rl);
 
-  if (!await isAdmin(request)) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+  if (!ADMIN_EMAILS.includes(session.user.email)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   try {
@@ -58,11 +46,17 @@ export async function GET(request: NextRequest) {
 
 // POST - Activer/Désactiver l'accès d'un utilisateur
 export async function POST(request: NextRequest) {
-  const rl2 = rateLimitByIP(request, 30, 60_000);
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  const rl2 = apiRateLimit(session.user.id);
   if (!rl2.allowed) return tooManyRequests(rl2);
 
-  if (!await isAdmin(request)) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+  if (!ADMIN_EMAILS.includes(session.user.email)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   try {

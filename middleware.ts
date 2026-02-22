@@ -105,8 +105,35 @@ const PUBLIC_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rate limiting for API routes
+  // ─── CORS + Rate limiting for API routes ─────────
   if (pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin') || '';
+    const allowedOrigins = [
+      process.env.NEXTAUTH_URL || 'http://localhost:3000',
+      process.env.NEXT_PUBLIC_APP_URL,
+      'https://senzoukria.com',
+      'https://www.senzoukria.com',
+    ].filter(Boolean) as string[];
+
+    // Block CORS preflight from unauthorized origins
+    if (request.method === 'OPTIONS') {
+      const isAllowed = !origin || allowedOrigins.some(o => origin.startsWith(o));
+      if (!isAllowed) {
+        return new NextResponse(null, { status: 403 });
+      }
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': origin || allowedOrigins[0],
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
+    }
+
+    // Rate limiting
     const forwardedFor = request.headers.get('x-forwarded-for');
     const ip = forwardedFor?.split(',')[0].trim() || request.headers.get('x-real-ip') || '127.0.0.1';
     if (checkRateLimit(ip, pathname)) {
@@ -114,6 +141,18 @@ export async function middleware(request: NextRequest) {
         { error: 'Too many requests. Please try again later.' },
         { status: 429, headers: { 'Retry-After': '60' } }
       );
+    }
+
+    // Webhook routes skip CORS (server-to-server)
+    const isWebhook = pathname.includes('/webhook');
+    if (!isWebhook && origin) {
+      const isAllowed = allowedOrigins.some(o => origin.startsWith(o));
+      if (!isAllowed) {
+        return NextResponse.json(
+          { error: 'Forbidden' },
+          { status: 403 }
+        );
+      }
     }
   }
 
@@ -282,7 +321,13 @@ export async function middleware(request: NextRequest) {
 
   response.headers.set('x-user-id', token.id as string);
   response.headers.set('x-user-tier', userTier);
-  response.headers.set('x-user-email', token.email as string);
+
+  // CORS headers for API responses
+  const origin = request.headers.get('origin');
+  if (origin) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+  }
 
   return response;
 }
