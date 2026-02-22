@@ -316,54 +316,73 @@ export default function ChartPage() {
     });
   };
 
+  const theme = selectedTheme.theme;
+  const lastCandle = candles[candles.length - 1];
+
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col" style={{ backgroundColor: selectedTheme.theme.background }}>
-      {/* Header */}
+    <div
+      className="h-[calc(100vh-80px)] flex flex-col animate-page-enter"
+      style={{
+        '--chart-bg': theme.background,
+        '--chart-grid': theme.gridLines,
+        '--chart-text': theme.text,
+        '--chart-muted': theme.textMuted,
+        '--chart-up': theme.candleUp,
+        '--chart-down': theme.candleDown,
+        '--chart-accent': theme.candleUp,
+        backgroundColor: 'var(--chart-bg)',
+      } as React.CSSProperties}
+    >
+      {/* ─── Header ─── */}
       <div
-        className="flex items-center justify-between px-4 py-2 border-b"
+        className="flex items-center justify-between px-3 py-2 border-b backdrop-blur-md animate-fadeIn"
         style={{
-          backgroundColor: selectedTheme.theme.background,
-          borderColor: selectedTheme.theme.gridLines,
+          backgroundColor: `${theme.background}cc`,
+          borderColor: theme.gridLines,
         }}
       >
-        <div className="flex items-center gap-4">
-          {/* Symbol */}
-          <div className="flex items-center gap-3">
-            <select
-              value={symbol}
-              onChange={(e) => handleSymbolChange(e.target.value as Symbol)}
-              className="border text-sm rounded px-3 py-1.5 font-medium focus:outline-none"
-              style={{
-                backgroundColor: selectedTheme.theme.gridLines,
-                borderColor: selectedTheme.theme.gridLines,
-                color: selectedTheme.theme.text,
-              }}
-            >
-              {CRYPTO_SYMBOLS.map((s) => (
-                <option key={s} value={s}>
-                  {SYMBOLS[s].name}
-                </option>
-              ))}
-            </select>
-
-            <span className="text-xl font-bold font-mono" style={{ color: selectedTheme.theme.candleUp }}>
+        {/* Left: Symbol + Price + Timeframes */}
+        <div className="flex items-center gap-3">
+          {/* Symbol chip */}
+          <div
+            className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-all duration-200"
+            style={{
+              backgroundColor: `${theme.gridLines}80`,
+              borderColor: theme.gridLines,
+            }}
+          >
+            <span className="text-sm font-semibold" style={{ color: theme.text }}>
+              {SYMBOLS[symbol].name}
+            </span>
+            <div className="w-px h-4" style={{ backgroundColor: theme.gridLines }} />
+            <span className="text-base font-bold font-mono tabular-nums" style={{ color: theme.candleUp }}>
               ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
+          {/* LIVE badge */}
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ backgroundColor: `${theme.candleUp}15`, border: `1px solid ${theme.candleUp}30` }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: theme.candleUp }} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: theme.candleUp }}>Live</span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-6" style={{ backgroundColor: theme.gridLines }} />
+
           {/* Timeframes */}
           <div
-            className="flex items-center gap-0.5 rounded p-0.5"
-            style={{ backgroundColor: selectedTheme.theme.gridLines }}
+            className="flex items-center gap-0.5 rounded-lg p-1 border"
+            style={{ backgroundColor: `${theme.gridLines}60`, borderColor: theme.gridLines }}
           >
             {TIMEFRAMES.map((tf) => (
               <button
                 key={tf.value}
                 onClick={() => handleTimeframeChange(tf.value)}
-                className="px-3 py-1 rounded text-xs font-medium transition-colors"
+                className="px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 hover:scale-105 active:scale-95"
                 style={{
-                  backgroundColor: timeframe === tf.value ? selectedTheme.theme.candleUp : 'transparent',
-                  color: timeframe === tf.value ? '#ffffff' : selectedTheme.theme.text,
+                  backgroundColor: timeframe === tf.value ? theme.candleUp : 'transparent',
+                  color: timeframe === tf.value ? '#ffffff' : theme.text,
+                  boxShadow: timeframe === tf.value ? `0 2px 8px ${theme.candleUp}40` : 'none',
                 }}
               >
                 {tf.label}
@@ -372,47 +391,62 @@ export default function ChartPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Theme Selector */}
+        {/* Right: Controls */}
+        <div className="flex items-center gap-1.5">
+          {/* Theme selector */}
           <select
             value={selectedTheme.id}
             onChange={(e) => setSelectedTheme(THEMES.find((t) => t.id === e.target.value) || THEMES[0])}
-            className="border text-xs rounded px-2 py-1.5 focus:outline-none"
+            className="text-[11px] rounded-lg px-2 py-1.5 border focus:outline-none transition-all duration-200 cursor-pointer"
             style={{
-              backgroundColor: selectedTheme.theme.gridLines,
-              borderColor: selectedTheme.theme.gridLines,
-              color: selectedTheme.theme.text,
+              backgroundColor: `${theme.gridLines}80`,
+              borderColor: theme.gridLines,
+              color: theme.text,
             }}
           >
             {THEMES.map((t) => (
-              <option key={t.id} value={t.id}>
-                🎨 {t.name}
-              </option>
+              <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
+
+          {/* Divider */}
+          <div className="w-px h-6" style={{ backgroundColor: theme.gridLines }} />
 
           {/* Grid Toggle */}
           <button
             onClick={() => setShowGrid(!showGrid)}
-            className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
-              backgroundColor: showGrid ? selectedTheme.theme.candleUp : selectedTheme.theme.gridLines,
-              color: showGrid ? '#ffffff' : selectedTheme.theme.text,
+              backgroundColor: showGrid ? `${theme.candleUp}20` : 'transparent',
+              color: showGrid ? theme.candleUp : theme.textMuted,
             }}
+            title="Toggle Grid"
           >
-            Grid
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <line x1="3" y1="3" x2="3" y2="21" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <line x1="15" y1="3" x2="15" y2="21" />
+              <line x1="21" y1="3" x2="21" y2="21" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="3" y1="15" x2="21" y2="15" />
+            </svg>
           </button>
 
           {/* Volume Toggle */}
           <button
             onClick={() => setShowVolume(!showVolume)}
-            className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
-              backgroundColor: showVolume ? selectedTheme.theme.candleUp : selectedTheme.theme.gridLines,
-              color: showVolume ? '#ffffff' : selectedTheme.theme.text,
+              backgroundColor: showVolume ? `${theme.candleUp}20` : 'transparent',
+              color: showVolume ? theme.candleUp : theme.textMuted,
             }}
+            title="Toggle Volume"
           >
-            Vol
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="4" y="14" width="4" height="6" rx="1" />
+              <rect x="10" y="8" width="4" height="12" rx="1" />
+              <rect x="16" y="4" width="4" height="16" rx="1" />
+            </svg>
           </button>
 
           {/* Fullscreen */}
@@ -424,28 +458,35 @@ export default function ChartPage() {
                 document.documentElement.requestFullscreen();
               }
             }}
-            className="px-3 py-1.5 rounded text-xs transition-colors"
-            style={{
-              backgroundColor: selectedTheme.theme.gridLines,
-              color: selectedTheme.theme.text,
-            }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ color: theme.textMuted }}
+            title="Fullscreen"
           >
-            [ ]
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+              <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+              <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+              <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Chart */}
+      {/* ─── Chart Area ─── */}
       <div ref={containerRef} className="flex-1 relative">
+        {/* Loading overlay */}
         {loading && (
           <div
-            className="absolute inset-0 flex items-center justify-center z-10"
-            style={{ backgroundColor: `${selectedTheme.theme.background}ee` }}
+            className="absolute inset-0 flex items-center justify-center z-10 animate-fadeIn"
+            style={{ backgroundColor: `${theme.background}ee` }}
           >
-            <div
-              className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
-              style={{ borderColor: selectedTheme.theme.candleUp }}
-            />
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+                style={{ borderColor: theme.candleUp, borderTopColor: 'transparent' }}
+              />
+              <span className="text-xs font-medium" style={{ color: theme.textMuted }}>Loading chart...</span>
+            </div>
           </div>
         )}
 
@@ -453,19 +494,19 @@ export default function ChartPage() {
 
         {/* Zoom Controls */}
         <div
-          className="absolute bottom-4 right-4 flex items-center gap-1 p-1 rounded-lg z-10"
+          className="absolute bottom-4 right-4 flex items-center gap-1 p-1 rounded-xl z-10 backdrop-blur-sm"
           style={{
-            backgroundColor: `${selectedTheme.theme.background}dd`,
-            border: `1px solid ${selectedTheme.theme.gridLines}`,
+            backgroundColor: `${theme.background}cc`,
+            border: `1px solid ${theme.gridLines}`,
           }}
         >
           <button
             onClick={() => engineRef.current?.zoomIn()}
-            className="w-7 h-7 rounded flex items-center justify-center transition-all hover:scale-110"
-            style={{ color: selectedTheme.theme.text }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+            style={{ color: theme.text }}
             title="Zoom In (+)"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
               <line x1="11" y1="8" x2="11" y2="14" />
@@ -474,24 +515,24 @@ export default function ChartPage() {
           </button>
           <button
             onClick={() => engineRef.current?.zoomOut()}
-            className="w-7 h-7 rounded flex items-center justify-center transition-all hover:scale-110"
-            style={{ color: selectedTheme.theme.text }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+            style={{ color: theme.text }}
             title="Zoom Out (-)"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
               <line x1="8" y1="11" x2="14" y2="11" />
             </svg>
           </button>
-          <div className="w-px h-5" style={{ backgroundColor: selectedTheme.theme.gridLines }} />
+          <div className="w-px h-4 mx-0.5 opacity-40" style={{ backgroundColor: theme.text }} />
           <button
             onClick={() => engineRef.current?.fitToData()}
-            className="w-7 h-7 rounded flex items-center justify-center transition-all hover:scale-110"
-            style={{ color: selectedTheme.theme.text }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+            style={{ color: theme.text }}
             title="Fit Content (Ctrl+0)"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M8 3H5a2 2 0 0 0-2 2v3" />
               <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
               <path d="M3 16v3a2 2 0 0 0 2 2h3" />
@@ -503,48 +544,62 @@ export default function ChartPage() {
         {/* Crosshair Info */}
         {crosshairInfo && (
           <div
-            className="absolute top-2 left-2 px-3 py-1.5 rounded text-xs font-mono z-10"
+            className="absolute top-3 left-3 px-3 py-1.5 rounded-lg text-xs font-mono z-10 backdrop-blur-sm animate-fadeIn"
             style={{
-              backgroundColor: `${selectedTheme.theme.background}dd`,
-              border: `1px solid ${selectedTheme.theme.gridLines}`,
-              color: selectedTheme.theme.text,
+              backgroundColor: `${theme.background}cc`,
+              border: `1px solid ${theme.gridLines}`,
+              color: theme.text,
             }}
           >
             <span>{formatCrosshairTime(crosshairInfo.time)}</span>
-            <span className="mx-2">|</span>
-            <span style={{ color: selectedTheme.theme.candleUp }}>
+            <span className="mx-2 opacity-30">|</span>
+            <span className="font-semibold" style={{ color: theme.candleUp }}>
               ${crosshairInfo.price.toFixed(2)}
             </span>
           </div>
         )}
       </div>
 
-      {/* Footer */}
+      {/* ─── Footer ─── */}
       <div
-        className="flex items-center justify-between px-4 py-1.5 border-t text-xs"
+        className="flex items-center justify-between px-3 py-1.5 border-t text-xs backdrop-blur-md"
         style={{
-          backgroundColor: selectedTheme.theme.background,
-          borderColor: selectedTheme.theme.gridLines,
-          color: selectedTheme.theme.textMuted,
+          backgroundColor: `${theme.background}cc`,
+          borderColor: theme.gridLines,
+          color: theme.textMuted,
         }}
       >
-        <div className="flex items-center gap-4">
-          <span>Bybit Perpetual</span>
-          <span style={{ color: selectedTheme.theme.candleUp }}>● Connected</span>
-          <span className="text-[10px] opacity-50">Custom Canvas Chart Engine</span>
+        <div className="flex items-center gap-3">
+          {/* Exchange badge */}
+          <div
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md"
+            style={{ backgroundColor: `${theme.gridLines}80` }}
+          >
+            <span className="text-[10px] font-medium" style={{ color: theme.text }}>Bybit Perpetual</span>
+          </div>
+          <div className="flex items-center gap-1" style={{ color: theme.candleUp }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: theme.candleUp }} />
+            <span className="text-[10px] font-medium">Connected</span>
+          </div>
         </div>
-        <div className="flex items-center gap-4 font-mono">
+
+        {/* OHLC */}
+        <div className="flex items-center gap-3 font-mono tabular-nums">
           <span>
-            O: <span style={{ color: selectedTheme.theme.text }}>{candles[candles.length - 1]?.open.toFixed(2) || '-'}</span>
+            <span className="opacity-50 mr-1">O</span>
+            <span style={{ color: theme.text }}>{lastCandle?.open.toFixed(2) || '-'}</span>
           </span>
           <span>
-            H: <span style={{ color: selectedTheme.theme.candleUp }}>{candles[candles.length - 1]?.high.toFixed(2) || '-'}</span>
+            <span className="opacity-50 mr-1">H</span>
+            <span style={{ color: theme.candleUp }}>{lastCandle?.high.toFixed(2) || '-'}</span>
           </span>
           <span>
-            L: <span style={{ color: selectedTheme.theme.candleDown }}>{candles[candles.length - 1]?.low.toFixed(2) || '-'}</span>
+            <span className="opacity-50 mr-1">L</span>
+            <span style={{ color: theme.candleDown }}>{lastCandle?.low.toFixed(2) || '-'}</span>
           </span>
           <span>
-            C: <span style={{ color: selectedTheme.theme.text }}>{candles[candles.length - 1]?.close.toFixed(2) || '-'}</span>
+            <span className="opacity-50 mr-1">C</span>
+            <span style={{ color: theme.text }}>{lastCandle?.close.toFixed(2) || '-'}</span>
           </span>
         </div>
       </div>
