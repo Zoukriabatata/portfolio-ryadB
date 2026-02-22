@@ -27,12 +27,30 @@ export interface HistoricalDataResponse {
 }
 
 // Cache for historical data to avoid redundant fetches
+// LRU: max 10 entries, oldest-accessed evicted when full
+const MAX_CACHE_ENTRIES = 10;
+const MAX_CANDLES_PER_ENTRY = 3000;
+
 const dataCache = new Map<string, {
   candles: Candle[];
   oldestTime: number;
   newestTime: number;
   lastFetch: number;
 }>();
+
+/** Move key to end of Map (most recently used) and evict oldest if over limit */
+function cacheTouchAndEvict(key: string): void {
+  const entry = dataCache.get(key);
+  if (entry) {
+    dataCache.delete(key);
+    dataCache.set(key, entry);
+  }
+  // Evict oldest entries (first in Map) if over limit
+  while (dataCache.size > MAX_CACHE_ENTRIES) {
+    const oldest = dataCache.keys().next().value;
+    if (oldest) dataCache.delete(oldest);
+  }
+}
 
 // Minimum time between fetches for the same key (ms)
 const FETCH_DEBOUNCE = 1000;
@@ -116,13 +134,14 @@ export async function fetchInitialHistory(
   });
 
   if (result.success && result.candles.length > 0) {
-    // Update cache
+    const capped = result.candles.slice(-MAX_CANDLES_PER_ENTRY);
     dataCache.set(cacheKey, {
-      candles: result.candles,
-      oldestTime: result.candles[0].time,
-      newestTime: result.candles[result.candles.length - 1].time,
+      candles: capped,
+      oldestTime: capped[0].time,
+      newestTime: capped[capped.length - 1].time,
       lastFetch: Date.now(),
     });
+    cacheTouchAndEvict(cacheKey);
 
     return result.candles;
   }
@@ -160,14 +179,14 @@ export async function loadMoreHistory(
   if (result.success && result.candles.length > 0) {
     // Update cache with merged data
     if (cached) {
-      const mergedCandles = [...result.candles, ...cached.candles];
-      // Remove duplicates based on time
-      const uniqueCandles = mergedCandles.filter(
-        (candle, index, self) =>
-          index === self.findIndex((c) => c.time === candle.time)
-      );
-      // Sort by time
-      uniqueCandles.sort((a, b) => a.time - b.time);
+      // Deduplicate using Map (O(n) instead of O(n²))
+      const timeMap = new Map<number, Candle>();
+      for (const c of result.candles) timeMap.set(c.time, c);
+      for (const c of cached.candles) timeMap.set(c.time, c);
+
+      const uniqueCandles = Array.from(timeMap.values())
+        .sort((a, b) => a.time - b.time)
+        .slice(-MAX_CANDLES_PER_ENTRY);
 
       dataCache.set(cacheKey, {
         candles: uniqueCandles,
@@ -175,6 +194,7 @@ export async function loadMoreHistory(
         newestTime: uniqueCandles[uniqueCandles.length - 1].time,
         lastFetch: Date.now(),
       });
+      cacheTouchAndEvict(cacheKey);
     }
 
     return result.candles;

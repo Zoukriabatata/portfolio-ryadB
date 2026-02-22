@@ -82,37 +82,42 @@ export const useMarketStore = create<MarketState>((set) => ({
   },
 
   addCandle: (candle) =>
-    set((state) => ({
-      candles: [...state.candles.slice(-(MAX_CANDLES - 1)), candle],
-    })),
+    set((state) => {
+      const prev = state.candles;
+      const next = prev.length >= MAX_CANDLES
+        ? prev.slice(1).concat(candle)
+        : prev.concat(candle);
+      return { candles: next };
+    }),
 
   updateCurrentCandle: (candle) =>
     set((state) => {
-      const candles = [...state.candles];
-      if (candles.length > 0) {
-        const lastCandle = candles[candles.length - 1];
-        if (lastCandle.time === candle.time) {
-          candles[candles.length - 1] = candle;
-        } else {
-          candles.push(candle);
-          if (candles.length > MAX_CANDLES) {
-            candles.shift();
-          }
-        }
-      } else {
-        candles.push(candle);
+      const prev = state.candles;
+      if (prev.length === 0) {
+        return { candles: [candle], currentPrice: candle.close };
       }
-      return {
-        candles,
-        currentPrice: candle.close,
-      };
+      const last = prev[prev.length - 1];
+      if (last.time === candle.time) {
+        // Replace last element — single allocation via slice + concat
+        const next = prev.slice(0, -1);
+        next.push(candle);
+        return { candles: next, currentPrice: candle.close };
+      }
+      // New candle
+      const next = prev.length >= MAX_CANDLES
+        ? prev.slice(1).concat(candle)
+        : prev.concat(candle);
+      return { candles: next, currentPrice: candle.close };
     }),
 
   addTrade: (trade) =>
-    set((state) => ({
-      trades: [...state.trades.slice(-(MAX_TRADES - 1)), trade],
-      currentPrice: trade.price,
-    })),
+    set((state) => {
+      const prev = state.trades;
+      const next = prev.length >= MAX_TRADES
+        ? prev.slice(1).concat(trade)
+        : prev.concat(trade);
+      return { trades: next, currentPrice: trade.price };
+    }),
 
   setConnected: (connected) => set({ isConnected: connected }),
 

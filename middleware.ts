@@ -14,6 +14,10 @@ import { getToken } from 'next-auth/jwt';
 import { detectConcurrentSession, sendSecurityAlert } from '@/lib/auth/session-validator';
 import { detectImpossibleTravel } from '@/lib/auth/geo-validator';
 
+// ─── Security check cache (skip DB calls for recently validated sessions) ─────
+const securityCheckCache = new Map<string, number>();
+const SECURITY_CHECK_TTL = 5 * 60 * 1000; // 5 minutes
+
 // ─── Rate Limiter (edge-compatible, in-memory) ─────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW = 60_000; // 1 minute
@@ -48,6 +52,9 @@ if (typeof globalThis !== 'undefined') {
     const now = Date.now();
     for (const [key, entry] of rateLimitMap) {
       if (now > entry.resetAt) rateLimitMap.delete(key);
+    }
+    for (const [key, ts] of securityCheckCache) {
+      if (now - ts > SECURITY_CHECK_TTL) securityCheckCache.delete(key);
     }
   };
   setInterval(cleanup, 60_000);
@@ -202,64 +209,56 @@ export async function middleware(request: NextRequest) {
     const fingerprintCookie = request.cookies.get('_fp');
     const fingerprint = fingerprintCookie?.value || 'unknown';
 
-    // Detect suspicious session activity
-    const sessionCheck = await detectConcurrentSession(
-      token.id as string,
-      token.sessionId as string,
-      ip,
-      fingerprint
-    );
+    // Skip session check if recently validated (within 5 min)
+    const securityCacheKey = `${token.id}:${token.sessionId}:${ip}:${fingerprint}`;
+    const lastCheck = securityCheckCache.get(securityCacheKey);
+    const skipSessionCheck = lastCheck && (Date.now() - lastCheck < SECURITY_CHECK_TTL);
 
-    if (sessionCheck.suspicious) {
-      // ⚠️ BALANCED APPROACH: Alert + Re-auth, not brutal blocking
-      if (sessionCheck.severity === 'high') {
-        // HIGH SEVERITY: Invalidate session and force re-auth
-        const loginUrl = new URL('/auth/login', request.url);
-        loginUrl.searchParams.set('error', 'session_invalid');
-        loginUrl.searchParams.set('reason', encodeURIComponent(sessionCheck.reason || 'Activité suspecte détectée'));
+    if (!skipSessionCheck) {
+      const sessionCheck = await detectConcurrentSession(
+        token.id as string,
+        token.sessionId as string,
+        ip,
+        fingerprint
+      );
 
-        // Send security alert email to user
-        await sendSecurityAlert(token.email as string, {
-          type: 'concurrent_session',
-          reason: sessionCheck.reason,
-        });
+      if (sessionCheck.suspicious) {
+        if (sessionCheck.severity === 'high') {
+          const loginUrl = new URL('/auth/login', request.url);
+          loginUrl.searchParams.set('error', 'session_invalid');
+          loginUrl.searchParams.set('reason', encodeURIComponent(sessionCheck.reason || 'Activité suspecte détectée'));
 
-        return NextResponse.redirect(loginUrl);
-      } else if (sessionCheck.severity === 'medium') {
-        // MEDIUM SEVERITY: Add warning header but allow request
-        const response = NextResponse.next();
-        response.headers.set('X-Security-Warning', sessionCheck.reason || 'Session activity flagged');
-        return response;
+          // Fire-and-forget — don't block response
+          void sendSecurityAlert(token.email as string, {
+            type: 'concurrent_session',
+            reason: sessionCheck.reason,
+          });
+
+          return NextResponse.redirect(loginUrl);
+        } else if (sessionCheck.severity === 'medium') {
+          const response = NextResponse.next();
+          response.headers.set('X-Security-Warning', sessionCheck.reason || 'Session activity flagged');
+          return response;
+        }
+      } else {
+        // Cache successful check for 5 minutes
+        securityCheckCache.set(securityCacheKey, Date.now());
       }
-      // LOW SEVERITY: Just log, don't block
     }
 
     // ✅ GEOLOCATION & IMPOSSIBLE TRAVEL DETECTION
-    // Check if user moved impossibly fast between locations
-    const geoCheck = await detectImpossibleTravel(
-      token.id as string,
-      ip
-    );
-
-    if (geoCheck.suspicious) {
-      // ⚠️ BALANCED APPROACH: Alert + Re-auth for impossible travel
-      const loginUrl = new URL('/auth/login', request.url);
-      loginUrl.searchParams.set('error', 'security_check');
-      loginUrl.searchParams.set('reason', 'geo');
-
-      // Send security alert with travel details
-      await sendSecurityAlert(token.email as string, {
-        type: 'impossible_travel',
-        reason: geoCheck.reason,
-        distance: geoCheck.distance,
-        timeDiff: geoCheck.timeDiff,
-      });
-
-      // Log event for admin review
-      console.warn(`🌍 Impossible travel detected for user ${token.email}:`, geoCheck);
-
-      return NextResponse.redirect(loginUrl);
-    }
+    // Fire-and-forget: don't block page navigation for geo check
+    void detectImpossibleTravel(token.id as string, ip).then(geoCheck => {
+      if (geoCheck.suspicious) {
+        console.warn(`Impossible travel detected for user ${token.email}:`, geoCheck);
+        void sendSecurityAlert(token.email as string, {
+          type: 'impossible_travel',
+          reason: geoCheck.reason,
+          distance: geoCheck.distance,
+          timeDiff: geoCheck.timeDiff,
+        });
+      }
+    }).catch(err => console.error('Geo check error:', err));
   }
 
   // Admin route protection — show 404 to non-admins (don't reveal /admin exists)

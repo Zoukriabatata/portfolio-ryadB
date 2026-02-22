@@ -92,13 +92,31 @@ export async function GET(req: NextRequest) {
     if (pnlMax) (where.pnl as Record<string, unknown>).lte = parseFloat(pnlMax);
   }
 
-  // Query with pagination
+  // Query with pagination — only select fields needed for list view
   const [entries, total] = await Promise.all([
     prisma.journalEntry.findMany({
       where,
       orderBy: { [orderField]: sortDir },
       skip: (page - 1) * pageSize,
       take: pageSize,
+      select: {
+        id: true,
+        symbol: true,
+        side: true,
+        entryPrice: true,
+        exitPrice: true,
+        quantity: true,
+        pnl: true,
+        entryTime: true,
+        exitTime: true,
+        timeframe: true,
+        setup: true,
+        tags: true,
+        rating: true,
+        emotions: true,
+        playbookSetupId: true,
+        createdAt: true,
+      },
     }),
     prisma.journalEntry.count({ where }),
   ]);

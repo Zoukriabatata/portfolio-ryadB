@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { formatPrice as fmtPrice, formatVolume as fmtVolume } from '@/lib/utils/formatters';
 
 interface PriceInfoBarProps {
@@ -20,7 +20,7 @@ interface PriceInfoBarProps {
   pricePositionColor?: string;
 }
 
-export function PriceInfoBar({
+export const PriceInfoBar = memo(function PriceInfoBar({
   symbol,
   open,
   high,
@@ -176,4 +176,4 @@ export function PriceInfoBar({
       )}
     </div>
   );
-}
+});

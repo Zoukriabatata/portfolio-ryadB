@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, memo } from 'react';
 import { useOrderbookStore } from '@/stores/useOrderbookStore';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
@@ -50,7 +50,7 @@ const ROW_HEIGHT = 24;
 const HEADER_HEIGHT = 80;
 const FOOTER_HEIGHT = 120;
 
-export default function TradingDOM({
+export default memo(function TradingDOM({
   height = 700,
   width = 320,
   levels = 15,
@@ -466,7 +466,7 @@ export default function TradingDOM({
       </div>
     </div>
   );
-}
+});
 
 function formatQty(qty: number): string {
   if (qty >= 1000000) return `${(qty / 1000000).toFixed(1)}M`;

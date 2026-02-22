@@ -26,6 +26,7 @@ export async function PUT(
 
   const existing = await prisma.journalEntry.findFirst({
     where: { id, userId: token.id as string },
+    select: { id: true, entryPrice: true, exitPrice: true, side: true, quantity: true },
   });
 
   if (!existing) {
@@ -92,6 +93,7 @@ export async function DELETE(
 
   const existing = await prisma.journalEntry.findFirst({
     where: { id, userId: token.id as string },
+    select: { id: true },
   });
 
   if (!existing) {

@@ -9,15 +9,17 @@ class SoundManagerClass {
   private ctx: AudioContext | null = null;
   private voices: SpeechSynthesisVoice[] = [];
   private voicesLoaded = false;
+  private onVoicesChanged: (() => void) | null = null;
 
   constructor() {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       this.voices = window.speechSynthesis.getVoices();
       if (this.voices.length > 0) this.voicesLoaded = true;
-      window.speechSynthesis.addEventListener('voiceschanged', () => {
+      this.onVoicesChanged = () => {
         this.voices = window.speechSynthesis.getVoices();
         this.voicesLoaded = true;
-      });
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', this.onVoicesChanged);
     }
   }
 
@@ -52,59 +54,78 @@ class SoundManagerClass {
     }
   }
 
+  /** Close AudioContext and clean up listeners */
+  destroy() {
+    if (this.ctx && this.ctx.state !== 'closed') {
+      this.ctx.close().catch(() => {});
+      this.ctx = null;
+    }
+    if (this.onVoicesChanged && typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.removeEventListener('voiceschanged', this.onVoicesChanged);
+      this.onVoicesChanged = null;
+    }
+  }
+
   /** Short rising tone for buy order filled */
   playBuyFilled() {
-    const ctx = this.getContext();
-    const now = ctx.currentTime;
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
 
-    // Rising two-tone
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(523, now); // C5
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(659, now); // E5
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523, now); // C5
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(659, now); // E5
 
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc1.start(now);
-    osc2.start(now + 0.08);
-    osc1.stop(now + 0.25);
-    osc2.stop(now + 0.3);
+      osc1.start(now);
+      osc2.start(now + 0.08);
+      osc1.stop(now + 0.25);
+      osc2.stop(now + 0.3);
+    } catch {
+      // Silently fail if audio context isn't available
+    }
   }
 
   /** Short falling tone for sell order filled */
   playSellFilled() {
-    const ctx = this.getContext();
-    const now = ctx.currentTime;
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
 
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(659, now); // E5
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(523, now); // C5
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(659, now); // E5
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(523, now); // C5
 
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc1.start(now);
-    osc2.start(now + 0.08);
-    osc1.stop(now + 0.25);
-    osc2.stop(now + 0.3);
+      osc1.start(now);
+      osc2.start(now + 0.08);
+      osc1.stop(now + 0.25);
+      osc2.stop(now + 0.3);
+    } catch {
+      // Silently fail if audio context isn't available
+    }
   }
 
   /** Double beep for price alert */

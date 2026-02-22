@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   compress: true,
 
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {
       exclude: ['error', 'warn'],
@@ -20,7 +24,24 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
-    optimizePackageImports: ['@sentry/nextjs', 'lightweight-charts'],
+    optimizePackageImports: ['@sentry/nextjs', 'lightweight-charts', 'lucide-react', 'recharts'],
+  },
+
+  async headers() {
+    return [
+      {
+        source: '/api/binance/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=30, stale-while-revalidate=60' },
+        ],
+      },
+      {
+        source: '/api/history/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=120' },
+        ],
+      },
+    ];
   },
 };
 

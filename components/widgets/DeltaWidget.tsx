@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { useTrades } from '@/hooks/useTrades';
 
 interface DeltaWidgetProps {
@@ -13,7 +13,7 @@ interface DeltaPoint {
   cumulativeDelta: number;
 }
 
-export default function DeltaWidget({ historyLength = 60 }: DeltaWidgetProps) {
+export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProps) {
   const { trades, isLive } = useTrades();
   const [deltaHistory, setDeltaHistory] = useState<DeltaPoint[]>([]);
   const lastProcessedIndex = useRef(0);
@@ -188,4 +188,4 @@ export default function DeltaWidget({ historyLength = 60 }: DeltaWidgetProps) {
       </div>
     </div>
   );
-}
+});

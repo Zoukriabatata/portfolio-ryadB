@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
 
@@ -44,7 +44,7 @@ const COLORS = {
   neutral: '#6b7280',
 };
 
-export default function TimeSales({
+export default memo(function TimeSales({
   height = 400,
   width = 250,
   maxTrades = 100,
@@ -296,4 +296,4 @@ export default function TimeSales({
       `}</style>
     </div>
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import type { TapeVelocityStats } from '@/lib/heatmap/analytics/TapeVelocityEngine';
 import { formatVolume } from '@/lib/utils/formatters';
 
@@ -18,7 +18,7 @@ interface TapeSpeedMeterProps {
  * - Buy/Sell pressure bars
  * - Stop run alert
  */
-export function TapeSpeedMeter({ stats, compact = false }: TapeSpeedMeterProps) {
+export const TapeSpeedMeter = memo(function TapeSpeedMeter({ stats, compact = false }: TapeSpeedMeterProps) {
   const velocityPercent = useMemo(() => {
     // Map 0-100 trades/s to 0-100%
     return Math.min(100, stats.tradesPerSecond * 2);
@@ -142,7 +142,7 @@ export function TapeSpeedMeter({ stats, compact = false }: TapeSpeedMeterProps) 
       </div>
     </div>
   );
-}
+});
 
 /**
  * Stop Run Alert - Flash component for stop runs

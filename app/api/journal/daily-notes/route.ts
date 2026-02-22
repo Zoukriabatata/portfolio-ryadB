@@ -40,25 +40,45 @@ export async function GET(req: NextRequest) {
     orderBy: { date: 'desc' },
   });
 
-  // For each note, fetch that day's trades
-  const notesWithTrades = await Promise.all(
-    notes.map(async (note) => {
-      const dayStart = new Date(note.date);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(note.date);
-      dayEnd.setHours(23, 59, 59, 999);
+  // Batch query: fetch all trades spanning the date range of notes
+  let allTrades: { id: string; symbol: string; side: string; pnl: number | null; entryTime: Date; entryPrice: number; exitPrice: number | null; quantity: number; setup: string | null }[] = [];
+  if (notes.length > 0) {
+    const dates = notes.map(n => n.date);
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    minDate.setHours(0, 0, 0, 0);
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    maxDate.setHours(23, 59, 59, 999);
 
-      const trades = await prisma.journalEntry.findMany({
-        where: {
-          userId: token.id as string,
-          entryTime: { gte: dayStart, lte: dayEnd },
-        },
-        orderBy: { entryTime: 'asc' },
-      });
+    allTrades = await prisma.journalEntry.findMany({
+      where: {
+        userId: token.id as string,
+        entryTime: { gte: minDate, lte: maxDate },
+      },
+      select: {
+        id: true, symbol: true, side: true, pnl: true,
+        entryTime: true, entryPrice: true, exitPrice: true,
+        quantity: true, setup: true,
+      },
+      orderBy: { entryTime: 'asc' },
+    });
+  }
 
-      return { ...note, linkedTrades: trades };
-    })
-  );
+  // Group trades by day
+  const notesWithTrades = notes.map(note => {
+    const dayStart = new Date(note.date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(note.date);
+    dayEnd.setHours(23, 59, 59, 999);
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayEnd.getTime();
+
+    const linkedTrades = allTrades.filter(t => {
+      const ms = t.entryTime.getTime();
+      return ms >= dayStartMs && ms <= dayEndMs;
+    });
+
+    return { ...note, linkedTrades };
+  });
 
   return NextResponse.json({ notes: notesWithTrades });
 }
