@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
   const symbol = searchParams.get('symbol') || 'BTCUSDT';
   const interval = searchParams.get('interval') || '1m';
-  const limit = Math.min(parseInt(searchParams.get('limit') || '500'), 1500);
+  const limit = Math.min(parseInt(searchParams.get('limit') || '500', 10), 1500);
   const endTime = searchParams.get('endTime'); // For pagination (load older data)
   const startTime = searchParams.get('startTime');
   const exchange = searchParams.get('exchange') || 'binance';
@@ -224,7 +224,7 @@ async function fetchBybitKlines(
   const klines: BybitKline[] = data.result?.list || [];
 
   return klines.reverse().map((k) => ({
-    time: Math.floor(parseInt(k.start as unknown as string) / 1000),
+    time: Math.floor(Number(k.start) / 1000),
     open: parseFloat(k.open),
     high: parseFloat(k.high),
     low: parseFloat(k.low),

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   const symbol = (searchParams.get('symbol') || 'BTCUSDT').toUpperCase();
   const startTime = searchParams.get('startTime');
   const endTime = searchParams.get('endTime');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '1000'), 1000);
+  const limit = Math.min(parseInt(searchParams.get('limit') || '1000', 10), 1000);
 
   try {
     const trades = await fetchBinanceAggTrades(symbol, limit, startTime, endTime);

@@ -11,6 +11,15 @@ import { constructWebhookEvent } from '@/lib/stripe';
 import { confirmPromoCodeUsage } from '@/lib/stripe/promo-code-service';
 import Stripe from 'stripe';
 
+// Stripe API objects may include fields not in the SDK types (depends on API version / expand)
+interface StripeSubscriptionRaw extends Stripe.Subscription {
+  current_period_end?: number;
+}
+// Access invoice fields that exist but may differ from SDK types depending on expand
+type StripeInvoiceRaw = Stripe.Invoice & {
+  payment_intent?: string | { id: string } | null;
+};
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get('stripe-signature');
@@ -23,8 +32,8 @@ export async function POST(req: NextRequest) {
 
   try {
     event = constructWebhookEvent(body, signature);
-  } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err instanceof Error ? err.message : err);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -120,6 +129,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.userId;
+  const subRaw = subscription as StripeSubscriptionRaw;
 
   if (!userId) {
     // Try to find user by subscription ID
@@ -133,7 +143,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     }
 
     // Update subscription end date
-    const currentPeriodEnd = (subscription as any).current_period_end;
+    const currentPeriodEnd = subRaw.current_period_end;
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -186,7 +196,7 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
-  const invoiceData = invoice as any;
+  const inv = invoice as StripeInvoiceRaw;
 
   const user = await prisma.user.findFirst({
     where: { customerId },
@@ -195,14 +205,17 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   if (!user) return;
 
   // Record successful renewal payment
+  const paymentIntent = typeof inv.payment_intent === 'string'
+    ? inv.payment_intent
+    : inv.payment_intent?.id;
   await prisma.payment.create({
     data: {
       userId: user.id,
-      stripePaymentId: invoiceData.payment_intent as string || `invoice_${invoice.id}`,
-      amount: invoiceData.amount_paid || 0,
+      stripePaymentId: paymentIntent || `invoice_${invoice.id}`,
+      amount: inv.amount_paid || 0,
       currency: invoice.currency || 'eur',
       status: 'COMPLETED',
-      tier: user.subscriptionTier as any,
+      tier: user.subscriptionTier,
       billingPeriod: 'MONTHLY',
       completedAt: new Date(),
     },
@@ -211,7 +224,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
-  const invoiceData = invoice as any;
+  const inv = invoice as StripeInvoiceRaw;
 
   const user = await prisma.user.findFirst({
     where: { customerId },
@@ -220,17 +233,20 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   if (!user) return;
 
   // Record failed payment
+  const paymentIntent = typeof inv.payment_intent === 'string'
+    ? inv.payment_intent
+    : inv.payment_intent?.id;
   await prisma.payment.create({
     data: {
       userId: user.id,
-      stripePaymentId: invoiceData.payment_intent as string || `failed_${Date.now()}`,
-      amount: invoiceData.amount_due || 0,
+      stripePaymentId: paymentIntent || `failed_${Date.now()}`,
+      amount: inv.amount_due || 0,
       currency: invoice.currency || 'eur',
       status: 'FAILED',
-      tier: user.subscriptionTier as any,
+      tier: user.subscriptionTier,
       billingPeriod: 'MONTHLY',
     },
   });
 
-  console.log(`Payment failed for user ${user.id}`);
+  console.warn(`[Stripe] Payment failed for user ${user.id}`);
 }

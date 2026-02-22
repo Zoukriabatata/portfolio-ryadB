@@ -66,15 +66,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(`
-=== NEW SUPPORT TICKET ===
-From: ${session.user.email}
-Tier: ${session.user.tier}
-Subject: ${sanitize(subject)}
-Category: ${category}
-Ticket ID: ${ticket.id}
-==========================
-    `);
+    console.log(`[Support] New ticket ${ticket.id} from ${session.user.email} (${category})`);
 
     return NextResponse.json({
       success: true,

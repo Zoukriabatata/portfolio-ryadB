@@ -76,23 +76,22 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'activate') {
-      // Calculer la date de fin en fonction de la durée
+      // Calculer la date de fin en fonction de la durée (immutable)
       const now = new Date();
       let endDate: Date;
 
       switch (duration) {
         case 'month':
-          endDate = new Date(now.setMonth(now.getMonth() + 1));
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
           break;
         case 'year':
-          endDate = new Date(now.setFullYear(now.getFullYear() + 1));
+          endDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
           break;
         case 'lifetime':
           endDate = new Date('2099-12-31');
           break;
         default:
-          // Par défaut 1 mois
-          endDate = new Date(now.setMonth(now.getMonth() + 1));
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
       }
 
       const updatedUser = await prisma.user.update({
@@ -140,17 +139,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Utilisateur sans abonnement actif' }, { status: 400 });
       }
 
-      let newEndDate = new Date(user.subscriptionEnd);
+      const base = new Date(user.subscriptionEnd);
+      let newEndDate: Date;
 
       switch (duration) {
         case 'month':
-          newEndDate.setMonth(newEndDate.getMonth() + 1);
+          newEndDate = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
           break;
         case 'year':
-          newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+          newEndDate = new Date(base.getFullYear() + 1, base.getMonth(), base.getDate());
           break;
         default:
-          newEndDate.setMonth(newEndDate.getMonth() + 1);
+          newEndDate = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
       }
 
       const updatedUser = await prisma.user.update({

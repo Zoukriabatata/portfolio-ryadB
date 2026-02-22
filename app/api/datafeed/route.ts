@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       },
       update: {
         host: host || null,
-        port: port ? parseInt(port) : null,
+        port: port ? parseInt(port, 10) : null,
         username: username || null,
         apiKey: apiKey || null,
         status: 'CONFIGURED',
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         userId: session.user.id,
         provider,
         host: host || null,
-        port: port ? parseInt(port) : null,
+        port: port ? parseInt(port, 10) : null,
         username: username || null,
         apiKey: apiKey || null,
         status: 'CONFIGURED',
@@ -100,7 +100,7 @@ export async function DELETE(req: NextRequest) {
     await prisma.dataFeedConfig.deleteMany({
       where: {
         userId: session.user.id,
-        provider: provider as any,
+        provider,
       },
     });
 
