@@ -229,6 +229,44 @@ function getPasswordResetEmailContent(resetUrl: string): string {
 // ============ EMAIL SENDING ============
 
 /**
+ * Generic email sender — reusable across the app
+ * Falls back to console logging if SMTP is not configured
+ */
+export async function sendEmail(options: {
+  to: string;
+  subject: string;
+  content: string;  // Inner HTML content (wrapped in base template)
+  text?: string;    // Plain text fallback
+}): Promise<boolean> {
+  const config = getSmtpConfig();
+  const transporter = createTransport();
+
+  if (!transporter) {
+    console.log('========================================');
+    console.log(`SMTP not configured - ${options.subject}`);
+    console.log('========================================');
+    console.log(`To:      ${options.to}`);
+    console.log(`Subject: ${options.subject}`);
+    console.log('========================================');
+    return false;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: options.to,
+      subject: options.subject,
+      html: getBaseEmailTemplate(options.content),
+      text: options.text,
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to send email:', error);
+    return false;
+  }
+}
+
+/**
  * Send a verification email to the user
  * Falls back to console logging if SMTP is not configured (beta testing)
  */

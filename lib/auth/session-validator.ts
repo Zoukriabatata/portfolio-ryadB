@@ -10,6 +10,7 @@
  */
 
 import { prisma } from '@/lib/db';
+import { sendEmail } from '@/lib/auth/email-verification';
 
 interface SessionActivity {
   sessionId: string;
@@ -232,7 +233,8 @@ async function updateSessionInDB(
  * Send security alert to user
  *
  * Notifies user of suspicious activity via email.
- * TODO: Implement email sending service
+ * Uses the shared SMTP transport from email-verification.ts.
+ * Falls back to console.warn if SMTP is not configured.
  */
 export async function sendSecurityAlert(
   email: string,
@@ -243,22 +245,128 @@ export async function sendSecurityAlert(
     timeDiff?: number;
   }
 ): Promise<void> {
-  // For now, just log - implement email service later
-  console.warn(`📧 Security alert for ${email}:`, data);
+  console.warn(`Security alert for ${email}:`, data);
 
-  // TODO: Send email using your email service
-  // Example with Resend, SendGrid, or Nodemailer:
-  /*
-  await sendEmail({
-    to: email,
-    subject: '⚠️ Activité suspecte détectée sur votre compte',
-    html: `
-      <p>Une activité inhabituelle a été détectée sur votre compte:</p>
-      <p><strong>${data.reason || data.type}</strong></p>
-      <p>Si ce n'était pas vous, changez immédiatement votre mot de passe.</p>
-    `,
-  });
-  */
+  const { subject, content, text } = getSecurityAlertEmail(data);
+
+  await sendEmail({ to: email, subject, content, text });
+}
+
+function getSecurityAlertEmail(data: {
+  type: string;
+  reason?: string;
+  distance?: number;
+  timeDiff?: number;
+}): { subject: string; content: string; text: string } {
+  if (data.type === 'concurrent_session') {
+    return {
+      subject: 'Alerte de sécurité — Session suspecte détectée',
+      content: `
+        <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 600; color: #e2e8f0;">
+          Activité suspecte détectée
+        </h2>
+        <p style="margin: 0 0 24px; font-size: 15px; color: #94a3b8; line-height: 1.6;">
+          Nous avons détecté une activité inhabituelle sur votre compte Senzoukria.
+          Votre session semble être utilisée depuis plusieurs appareils ou emplacements simultanément.
+        </p>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+          <tr>
+            <td style="padding: 16px 20px; background-color: #1a1520; border-radius: 8px; border-left: 3px solid #f59e0b;">
+              <p style="margin: 0 0 4px; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                Détail
+              </p>
+              <p style="margin: 0; font-size: 14px; color: #fbbf24; font-weight: 500;">
+                ${data.reason || 'Session concurrente détectée'}
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin: 0 0 24px; font-size: 15px; color: #94a3b8; line-height: 1.6;">
+          Par mesure de sécurité, votre session a été invalidée. Vous devrez vous reconnecter.
+        </p>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 12px 16px; background-color: #1c1215; border-radius: 8px; border-left: 3px solid #ef4444;">
+              <p style="margin: 0; font-size: 13px; color: #fca5a5; line-height: 1.5;">
+                <strong>Si ce n'était pas vous</strong>, changez immédiatement votre mot de passe
+                et vérifiez les appareils connectés à votre compte.
+              </p>
+            </td>
+          </tr>
+        </table>`,
+      text: `Alerte de sécurité Senzoukria\n\nActivité suspecte détectée sur votre compte.\n${data.reason || 'Session concurrente détectée'}\n\nVotre session a été invalidée par mesure de sécurité.\nSi ce n'était pas vous, changez immédiatement votre mot de passe.`,
+    };
+  }
+
+  if (data.type === 'impossible_travel') {
+    const distanceStr = data.distance ? `${Math.round(data.distance)} km` : 'inconnue';
+    const timeStr = data.timeDiff ? `${data.timeDiff.toFixed(1)}h` : 'inconnu';
+
+    return {
+      subject: 'Alerte de sécurité — Connexion depuis un lieu inhabituel',
+      content: `
+        <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 600; color: #e2e8f0;">
+          Connexion depuis un lieu inhabituel
+        </h2>
+        <p style="margin: 0 0 24px; font-size: 15px; color: #94a3b8; line-height: 1.6;">
+          Nous avons détecté une connexion à votre compte depuis un emplacement géographique
+          incompatible avec votre activité récente.
+        </p>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 16px;">
+          <tr>
+            <td style="padding: 16px 20px; background-color: #1a1520; border-radius: 8px; border-left: 3px solid #f59e0b;">
+              <p style="margin: 0 0 4px; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                Détail
+              </p>
+              <p style="margin: 0 0 8px; font-size: 14px; color: #fbbf24; font-weight: 500;">
+                ${data.reason || 'Voyage impossible détecté'}
+              </p>
+              <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+                Distance : ${distanceStr} en ${timeStr}
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 12px 16px; background-color: #1c1215; border-radius: 8px; border-left: 3px solid #ef4444;">
+              <p style="margin: 0; font-size: 13px; color: #fca5a5; line-height: 1.5;">
+                <strong>Si ce n'était pas vous</strong>, votre compte est peut-être compromis.
+                Changez votre mot de passe immédiatement.
+              </p>
+            </td>
+          </tr>
+        </table>`,
+      text: `Alerte de sécurité Senzoukria\n\nConnexion depuis un lieu inhabituel détectée.\n${data.reason || 'Voyage impossible détecté'}\nDistance : ${distanceStr} en ${timeStr}\n\nSi ce n'était pas vous, changez immédiatement votre mot de passe.`,
+    };
+  }
+
+  // Generic fallback
+  return {
+    subject: 'Alerte de sécurité — Senzoukria',
+    content: `
+      <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 600; color: #e2e8f0;">
+        Alerte de sécurité
+      </h2>
+      <p style="margin: 0 0 24px; font-size: 15px; color: #94a3b8; line-height: 1.6;">
+        Une activité inhabituelle a été détectée sur votre compte Senzoukria.
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding: 16px 20px; background-color: #1a1520; border-radius: 8px; border-left: 3px solid #f59e0b;">
+            <p style="margin: 0; font-size: 14px; color: #fbbf24;">
+              ${data.reason || data.type}
+            </p>
+          </td>
+        </tr>
+      </table>`,
+    text: `Alerte de sécurité Senzoukria\n\n${data.reason || data.type}\n\nSi ce n'était pas vous, changez immédiatement votre mot de passe.`,
+  };
 }
 
 /**
