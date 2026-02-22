@@ -31,18 +31,18 @@ export default function ProviderCard({ provider, status, userTier, onConfigure }
   const { t } = useTranslation();
   const Icon = ICON_MAP[provider.iconName];
   const statusInfo = STATUS_COLORS[status];
-  const isLocked = provider.tier === 'ULTRA' && userTier === 'FREE';
-  const isUltra = provider.tier === 'ULTRA';
+  const isLocked = false; // All data feeds are freely accessible
+  const isPremiumBroker = provider.requiresCredentials;
 
   return (
     <div
       className="relative rounded-2xl p-6 flex flex-col transition-all duration-200 hover:translate-y-[-2px]"
       style={{
-        background: isUltra
+        background: isPremiumBroker
           ? `linear-gradient(170deg, ${provider.color}0F 0%, var(--surface) 40%)`
           : 'var(--surface)',
-        border: isUltra ? `1.5px solid ${provider.color}40` : '1px solid var(--border)',
-        boxShadow: isUltra ? `0 0 30px ${provider.color}10` : 'none',
+        border: isPremiumBroker ? `1.5px solid ${provider.color}40` : '1px solid var(--border)',
+        boxShadow: isPremiumBroker ? `0 0 30px ${provider.color}10` : 'none',
         opacity: isLocked ? 0.7 : 1,
       }}
     >

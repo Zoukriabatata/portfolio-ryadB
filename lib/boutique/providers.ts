@@ -85,12 +85,12 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     fields: [],
   },
 
-  // ── Futures (ULTRA) ────────────────────────────
+  // ── Futures ───────────────────────────────────
   {
     id: 'rithmic',
     name: 'Rithmic',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'FREE',
     color: '#1E88E5',
     iconName: 'RithmicIcon',
     description: 'Ultra-low latency futures data. Used by professional prop firms and scalpers.',
@@ -109,7 +109,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'tradovate',
     name: 'Tradovate',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'FREE',
     color: '#4CAF50',
     iconName: 'TradovateIcon',
     description: 'Commission-free futures trading with REST and WebSocket APIs. CME and ICE markets.',
@@ -128,7 +128,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'cqg',
     name: 'CQG',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'FREE',
     color: '#7B1FA2',
     iconName: 'CQGIcon',
     description: 'Institutional-grade market data and execution. Used by banks and hedge funds.',
@@ -146,7 +146,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'dxfeed',
     name: 'dxFeed',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'FREE',
     color: '#FF6F00',
     iconName: 'DxFeedIcon',
     description: 'Financial market data provider for futures, equities, and indices with global coverage.',
@@ -164,7 +164,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'amp',
     name: 'AMP Futures',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'FREE',
     color: '#00897B',
     iconName: 'AMPIcon',
     description: 'Discount futures broker with multiple platform integrations and competitive data feeds.',
@@ -179,12 +179,12 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     ],
   },
 
-  // ── Multi-Asset (ULTRA) ────────────────────────
+  // ── Multi-Asset ────────────────────────────────
   {
     id: 'ib',
     name: 'Interactive Brokers',
     category: 'multi-asset',
-    tier: 'ULTRA',
+    tier: 'FREE',
     color: '#D32F2F',
     iconName: 'InteractiveBrokersIcon',
     description: 'Access to 150+ markets worldwide. Stocks, futures, options, forex, bonds, and more.',
