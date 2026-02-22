@@ -13,7 +13,10 @@ import { SYMBOLS, type Symbol, type Timeframe } from '@/types/market';
  * Moteur de rendu canvas custom
  */
 
-const CRYPTO_SYMBOLS: Symbol[] = ['BTCUSDT'];
+const CRYPTO_SYMBOLS: Symbol[] = [
+  'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT',
+  'DOGEUSDT', 'ARBUSDT', 'SUIUSDT', 'AVAXUSDT', 'LINKUSDT',
+];
 
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [
   { value: '1m', label: '1m' },
@@ -117,6 +120,8 @@ export default function ChartPage() {
   const [showGrid, setShowGrid] = useState(true);
   const [selectedTheme, setSelectedTheme] = useState(THEMES[0]);
   const [crosshairInfo, setCrosshairInfo] = useState<{ time: number; price: number } | null>(null);
+  const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
+  const symbolDropdownRef = useRef<HTMLDivElement>(null);
 
   const {
     symbol,
@@ -298,8 +303,28 @@ export default function ChartPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Close symbol dropdown on click outside or Escape
+  useEffect(() => {
+    if (!symbolDropdownOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (symbolDropdownRef.current && !symbolDropdownRef.current.contains(e.target as Node)) {
+        setSymbolDropdownOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSymbolDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [symbolDropdownOpen]);
+
   const handleSymbolChange = (newSymbol: Symbol) => {
     setSymbol(newSymbol);
+    setSymbolDropdownOpen(false);
   };
 
   const handleTimeframeChange = (newTimeframe: Timeframe) => {
@@ -343,21 +368,79 @@ export default function ChartPage() {
       >
         {/* Left: Symbol + Price + Timeframes */}
         <div className="flex items-center gap-3">
-          {/* Symbol chip */}
-          <div
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-all duration-200"
-            style={{
-              backgroundColor: `${theme.gridLines}80`,
-              borderColor: theme.gridLines,
-            }}
-          >
-            <span className="text-sm font-semibold" style={{ color: theme.text }}>
-              {SYMBOLS[symbol].name}
-            </span>
-            <div className="w-px h-4" style={{ backgroundColor: theme.gridLines }} />
-            <span className="text-base font-bold font-mono tabular-nums" style={{ color: theme.candleUp }}>
-              ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+          {/* Symbol selector dropdown */}
+          <div ref={symbolDropdownRef} className="relative">
+            {/* Trigger */}
+            <button
+              onClick={() => setSymbolDropdownOpen(!symbolDropdownOpen)}
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-all duration-200 hover:brightness-110 active:scale-[0.97]"
+              style={{
+                backgroundColor: `${theme.gridLines}80`,
+                borderColor: symbolDropdownOpen ? theme.candleUp : theme.gridLines,
+                boxShadow: symbolDropdownOpen ? `0 0 0 2px ${theme.candleUp}20` : 'none',
+              }}
+            >
+              <span className="text-sm font-semibold" style={{ color: theme.text }}>
+                {SYMBOLS[symbol].name}
+              </span>
+              <div className="w-px h-4" style={{ backgroundColor: theme.gridLines }} />
+              <span className="text-base font-bold font-mono tabular-nums" style={{ color: theme.candleUp }}>
+                ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <svg
+                className={`w-3 h-3 transition-transform duration-200 ${symbolDropdownOpen ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                style={{ color: theme.textMuted }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown panel */}
+            {symbolDropdownOpen && (
+              <div
+                className="absolute top-full left-0 mt-2 w-56 rounded-xl overflow-hidden z-50 animate-dropdown-in"
+                style={{
+                  backgroundColor: theme.background,
+                  border: `1px solid ${theme.gridLines}`,
+                  boxShadow: `0 12px 40px rgba(0, 0, 0, 0.5)`,
+                }}
+              >
+                <div className="py-1 max-h-72 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                  {CRYPTO_SYMBOLS.map((s) => {
+                    const info = SYMBOLS[s];
+                    const isActive = s === symbol;
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => handleSymbolChange(s)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-left transition-all duration-150"
+                        style={{
+                          backgroundColor: isActive ? `${theme.candleUp}15` : 'transparent',
+                          color: isActive ? theme.candleUp : theme.text,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = `${theme.gridLines}80`;
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isActive && (
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.candleUp }} />
+                          )}
+                          <span className={`text-sm font-medium ${isActive ? '' : 'ml-3.5'}`}>
+                            {info?.name || s}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono" style={{ color: theme.textMuted }}>{s}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* LIVE badge */}
