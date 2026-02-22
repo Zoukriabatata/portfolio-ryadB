@@ -83,13 +83,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // P&L range
+  // P&L range (with NaN guard)
   const pnlMin = url.searchParams.get('pnlMin');
   const pnlMax = url.searchParams.get('pnlMax');
   if (pnlMin || pnlMax) {
-    where.pnl = {};
-    if (pnlMin) (where.pnl as Record<string, unknown>).gte = parseFloat(pnlMin);
-    if (pnlMax) (where.pnl as Record<string, unknown>).lte = parseFloat(pnlMax);
+    const parsedMin = pnlMin ? parseFloat(pnlMin) : NaN;
+    const parsedMax = pnlMax ? parseFloat(pnlMax) : NaN;
+    if (!isNaN(parsedMin) || !isNaN(parsedMax)) {
+      where.pnl = {};
+      if (!isNaN(parsedMin)) (where.pnl as Record<string, unknown>).gte = parsedMin;
+      if (!isNaN(parsedMax)) (where.pnl as Record<string, unknown>).lte = parsedMax;
+    }
   }
 
   // Query with pagination — only select fields needed for list view
@@ -160,7 +164,12 @@ export async function POST(req: NextRequest) {
   const rl = await apiRateLimit(token.id as string);
   if (!rl.allowed) return tooManyRequests(rl);
 
-  const body = await req.json();
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
   const {
     symbol, side, entryPrice, exitPrice, quantity, entryTime, exitTime,
     timeframe, setup, tags, notes, rating, emotions,

@@ -33,7 +33,12 @@ export async function PUT(
     return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
   }
 
-  const body = await req.json();
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
   const {
     symbol, side, entryPrice, exitPrice, quantity, entryTime, exitTime,
     timeframe, setup, tags, notes, rating, emotions,

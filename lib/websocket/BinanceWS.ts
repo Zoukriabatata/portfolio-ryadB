@@ -64,6 +64,7 @@ class BinanceWebSocket {
   private klineHandlers: Map<string, Set<KlineHandler>> = new Map();
   private tradeHandlers: Map<string, Set<TradeHandler>> = new Map();
   private depthHandlers: Map<string, Set<DepthHandler>> = new Map();
+  private messageUnsubscribers: Map<string, () => void> = new Map(); // exchangeId -> unsub fn
 
   private constructor() {}
 
@@ -94,10 +95,14 @@ class BinanceWebSocket {
       console.log(`[Binance ${market}] Connected with streams: ${streamList}`);
     });
 
+    // Unsubscribe previous handler to avoid duplicates
+    this.messageUnsubscribers.get(exchangeId)?.();
+
     // Subscribe to all messages
-    wsManager.subscribe(exchangeId, '*', (data) => {
+    const unsub = wsManager.subscribe(exchangeId, '*', (data) => {
       this.handleMessage(data as BinanceStreamMessage);
     });
+    this.messageUnsubscribers.set(exchangeId, unsub);
   }
 
   disconnect(market: BinanceMarket = 'futures'): void {
@@ -210,15 +215,20 @@ class BinanceWebSocket {
     const streamList = Array.from(streams).join('/');
     const url = `${baseUrl}?streams=${streamList}`;
 
+    // Unsubscribe previous handler before disconnect
+    this.messageUnsubscribers.get(exchangeId)?.();
+    this.messageUnsubscribers.delete(exchangeId);
+
     // Disconnect and reconnect with new streams
     wsManager.disconnect(exchangeId);
 
     // Small delay before reconnecting
     setTimeout(() => {
       wsManager.connect(exchangeId, url);
-      wsManager.subscribe(exchangeId, '*', (data) => {
+      const unsub = wsManager.subscribe(exchangeId, '*', (data) => {
         this.handleMessage(data as BinanceStreamMessage);
       });
+      this.messageUnsubscribers.set(exchangeId, unsub);
     }, 100);
   }
 

@@ -10,7 +10,7 @@ import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
-const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
 // GET - List pending payment proofs (admin only)
 export async function GET() {

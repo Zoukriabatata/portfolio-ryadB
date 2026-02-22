@@ -69,10 +69,21 @@ async function checkRateLimit(ip: string, pathname: string): Promise<boolean> {
       }
     }
 
-    // In-memory fallback
+    // In-memory fallback (capped at 10k entries to prevent memory leak)
     const now = Date.now();
     const entry = rateLimitMap.get(key);
     if (!entry || now > entry.resetAt) {
+      if (rateLimitMap.size >= 10_000) {
+        // Evict expired entries first
+        for (const [k, v] of rateLimitMap) {
+          if (now > v.resetAt) rateLimitMap.delete(k);
+        }
+        // If still over limit, drop oldest half
+        if (rateLimitMap.size >= 10_000) {
+          const keys = Array.from(rateLimitMap.keys());
+          for (let i = 0; i < keys.length / 2; i++) rateLimitMap.delete(keys[i]);
+        }
+      }
       rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 });
       return false;
     }
@@ -96,8 +107,8 @@ if (typeof globalThis !== 'undefined') {
   setInterval(cleanup, 60_000);
 }
 
-// Admin emails
-const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
+// Admin emails (from env var, fallback to empty)
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
 // Routes that require authentication
 const PROTECTED_ROUTES = [
@@ -361,11 +372,19 @@ export async function middleware(request: NextRequest) {
   response.headers.set('x-user-id', token.id as string);
   response.headers.set('x-user-tier', userTier);
 
-  // CORS headers for API responses
+  // CORS headers for API responses (only for allowed origins)
   const origin = request.headers.get('origin');
   if (origin) {
-    response.headers.set('Access-Control-Allow-Origin', origin);
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    const allowedOrigins = [
+      process.env.NEXTAUTH_URL || 'http://localhost:3000',
+      process.env.NEXT_PUBLIC_APP_URL,
+      'https://senzoukria.com',
+      'https://www.senzoukria.com',
+    ].filter(Boolean) as string[];
+    if (allowedOrigins.some(o => origin.startsWith(o))) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
   }
 
   return response;

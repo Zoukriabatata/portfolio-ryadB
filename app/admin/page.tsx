@@ -30,7 +30,7 @@ interface PaymentProof {
 
 type AdminTab = 'users' | 'payments';
 
-const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
 export default function AdminPage() {
   const sessionData = useSession();

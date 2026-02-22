@@ -17,6 +17,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email) && email.length <= 254;
+}
+
 const PAYPAL_MODE = process.env.PAYPAL_MODE || 'sandbox';
 const PAYPAL_BASE_URL = PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
@@ -87,7 +93,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
-  const event = JSON.parse(body);
+  let event;
+  try {
+    event = JSON.parse(body);
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
   const eventType = event.event_type;
 
   console.debug(`[PayPal] Webhook event: ${eventType}`);
@@ -101,7 +112,7 @@ export async function POST(req: NextRequest) {
         const payerEmail = sub.subscriber?.email_address?.toLowerCase();
         const subscriptionId = sub.id;
 
-        if (!payerEmail) break;
+        if (!payerEmail || !isValidEmail(payerEmail)) break;
 
         const user = await prisma.user.findUnique({ where: { email: payerEmail } });
         if (!user) {
@@ -147,7 +158,7 @@ export async function POST(req: NextRequest) {
         const sub = event.resource;
         const payerEmail = sub.subscriber?.email_address?.toLowerCase();
 
-        if (!payerEmail) break;
+        if (!payerEmail || !isValidEmail(payerEmail)) break;
 
         const user = await prisma.user.findUnique({ where: { email: payerEmail } });
         if (!user) break;
@@ -162,7 +173,7 @@ export async function POST(req: NextRequest) {
         const sub = event.resource;
         const payerEmail = sub.subscriber?.email_address?.toLowerCase();
 
-        if (!payerEmail) break;
+        if (!payerEmail || !isValidEmail(payerEmail)) break;
 
         const user = await prisma.user.findUnique({ where: { email: payerEmail } });
         if (!user) break;
@@ -188,7 +199,7 @@ export async function POST(req: NextRequest) {
         const capture = event.resource;
         const payerEmail = capture.payer?.email_address?.toLowerCase();
 
-        if (!payerEmail) break;
+        if (!payerEmail || !isValidEmail(payerEmail)) break;
 
         // Try to match payer email to a user
         const user = await prisma.user.findUnique({ where: { email: payerEmail } });
