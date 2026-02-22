@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { CanvasChartEngine, type ChartCandle, type ChartTheme } from '@/lib/rendering/CanvasChartEngine';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
+import { tradovateWS, timeframeToMinutes } from '@/lib/websocket/TradovateWS';
 import { SYMBOLS, type Symbol, type Timeframe } from '@/types/market';
 
 // Granular selectors to avoid re-renders on every price tick
@@ -30,6 +31,8 @@ const CRYPTO_SYMBOLS: Symbol[] = [
   'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT',
   'DOGEUSDT', 'ARBUSDT', 'SUIUSDT', 'AVAXUSDT', 'LINKUSDT',
 ];
+
+const CME_SYMBOLS: Symbol[] = ['NQ', 'MNQ', 'ES', 'MES', 'GC', 'MGC'];
 
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [
   { value: '1m', label: '1m' },
@@ -206,20 +209,16 @@ export default function ChartPage() {
     }
   }, [showGrid]);
 
-  // Fetch historical data
-  const fetchHistoricalData = useCallback(async () => {
+  // Determine exchange for current symbol
+  const exchange = SYMBOLS[symbol]?.exchange || 'bybit';
+
+  // Fetch historical data (Bybit only — Tradovate sends history via subscribeChart)
+  const fetchBybitHistory = useCallback(async () => {
     setLoading(true);
     try {
       const intervalMap: Record<string, string> = {
-        '1m': '1',
-        '3m': '3',
-        '5m': '5',
-        '15m': '15',
-        '30m': '30',
-        '1h': '60',
-        '2h': '120',
-        '4h': '240',
-        '1d': 'D',
+        '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
+        '1h': '60', '2h': '120', '4h': '240', '1d': 'D',
       };
       const interval = intervalMap[timeframe] || '1';
 
@@ -241,14 +240,8 @@ export default function ChartPage() {
           .reverse();
 
         setCandles(fetchedCandles);
-
-        if (engineRef.current) {
-          engineRef.current.setCandles(fetchedCandles);
-        }
-
-        if (fetchedCandles.length > 0) {
-          setCurrentPrice(fetchedCandles[fetchedCandles.length - 1].close);
-        }
+        if (engineRef.current) engineRef.current.setCandles(fetchedCandles);
+        if (fetchedCandles.length > 0) setCurrentPrice(fetchedCandles[fetchedCandles.length - 1].close);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -257,37 +250,84 @@ export default function ChartPage() {
     }
   }, [symbol, timeframe, setCandles, setCurrentPrice]);
 
-  // Fetch data and subscribe to WebSocket
+  // Main data subscription effect — routes to Bybit or Tradovate
   useEffect(() => {
-    fetchHistoricalData();
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
-    bybitWS.connect('linear');
+    const liveHandler = (candle: ChartCandle) => {
+      if (cancelled) return;
+      if (engineRef.current) engineRef.current.updateCandle(candle);
+      setCurrentPrice(candle.close);
+      updateCurrentCandle(candle);
+    };
 
-    const unsubscribe = bybitWS.subscribeKline(
-      symbol,
-      timeframe,
-      (candle, isClosed) => {
-        const chartCandle: ChartCandle = {
-          time: candle.time,
-          open: candle.open,
-          high: candle.high,
-          low: candle.low,
-          close: candle.close,
-          volume: candle.volume,
-        };
+    if (exchange === 'tradovate') {
+      // ── Tradovate flow ──
+      setLoading(true);
 
-        if (engineRef.current) {
-          engineRef.current.updateCandle(chartCandle);
+      const connectTradovate = async () => {
+        try {
+          const intervalMin = timeframeToMinutes(timeframe);
+          const unsub = await tradovateWS.subscribeChart(
+            symbol,
+            intervalMin,
+            (candle, _isClosed) => {
+              liveHandler({
+                time: candle.time,
+                open: candle.open,
+                high: candle.high,
+                low: candle.low,
+                close: candle.close,
+                volume: candle.volume,
+              });
+            },
+            (historicalCandles) => {
+              if (cancelled) return;
+              const chartCandles: ChartCandle[] = historicalCandles.map(c => ({
+                time: c.time, open: c.open, high: c.high,
+                low: c.low, close: c.close, volume: c.volume,
+              }));
+              setCandles(chartCandles);
+              if (engineRef.current) engineRef.current.setCandles(chartCandles);
+              if (chartCandles.length > 0) setCurrentPrice(chartCandles[chartCandles.length - 1].close);
+              setLoading(false);
+            }
+          );
+          cleanup = () => {
+            unsub();
+            tradovateWS.disconnect();
+          };
+        } catch (error) {
+          console.error('[Tradovate] Connection failed:', error);
+          setLoading(false);
         }
+      };
 
-        setCurrentPrice(candle.close);
-        updateCurrentCandle(candle);
-      },
-      'linear'
-    );
+      connectTradovate();
+    } else {
+      // ── Bybit flow (existing) ──
+      fetchBybitHistory();
 
-    return () => unsubscribe();
-  }, [symbol, timeframe, fetchHistoricalData, setCurrentPrice, updateCurrentCandle]);
+      bybitWS.connect('linear');
+      const unsubscribe = bybitWS.subscribeKline(
+        symbol, timeframe,
+        (candle, _isClosed) => {
+          liveHandler({
+            time: candle.time, open: candle.open, high: candle.high,
+            low: candle.low, close: candle.close, volume: candle.volume,
+          });
+        },
+        'linear'
+      );
+      cleanup = unsubscribe;
+    }
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [symbol, timeframe, exchange, fetchBybitHistory, setCurrentPrice, updateCurrentCandle, setCandles]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -392,7 +432,7 @@ export default function ChartPage() {
               </span>
               <div className="w-px h-4" style={{ backgroundColor: theme.gridLines }} />
               <span className="text-base font-bold font-mono tabular-nums" style={{ color: theme.candleUp }}>
-                ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {exchange === 'tradovate' ? '' : '$'}{currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <svg
                 className={`w-3 h-3 transition-transform duration-200 ${symbolDropdownOpen ? 'rotate-180' : ''}`}
@@ -413,7 +453,40 @@ export default function ChartPage() {
                   boxShadow: `0 12px 40px rgba(0, 0, 0, 0.5)`,
                 }}
               >
-                <div className="py-1 max-h-72 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                <div className="py-1 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                  {/* CME Futures */}
+                  <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: theme.textMuted }}>
+                    CME Futures
+                  </div>
+                  {CME_SYMBOLS.map((s) => {
+                    const info = SYMBOLS[s];
+                    const isActive = s === symbol;
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => handleSymbolChange(s)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-left transition-all duration-150"
+                        style={{
+                          backgroundColor: isActive ? `${theme.candleUp}15` : 'transparent',
+                          color: isActive ? theme.candleUp : theme.text,
+                        }}
+                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = `${theme.gridLines}80`; }}
+                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isActive && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.candleUp }} />}
+                          <span className={`text-sm font-medium ${isActive ? '' : 'ml-3.5'}`}>{info?.name || s}</span>
+                        </div>
+                        <span className="text-[10px] font-mono" style={{ color: theme.textMuted }}>{s}</span>
+                      </button>
+                    );
+                  })}
+                  {/* Divider */}
+                  <div className="mx-3 my-1 border-t" style={{ borderColor: theme.gridLines }} />
+                  {/* Crypto */}
+                  <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest" style={{ color: theme.textMuted }}>
+                    Crypto Perpetual
+                  </div>
                   {CRYPTO_SYMBOLS.map((s) => {
                     const info = SYMBOLS[s];
                     const isActive = s === symbol;
@@ -426,20 +499,12 @@ export default function ChartPage() {
                           backgroundColor: isActive ? `${theme.candleUp}15` : 'transparent',
                           color: isActive ? theme.candleUp : theme.text,
                         }}
-                        onMouseEnter={(e) => {
-                          if (!isActive) e.currentTarget.style.backgroundColor = `${theme.gridLines}80`;
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
+                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = `${theme.gridLines}80`; }}
+                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
                       >
                         <div className="flex items-center gap-2">
-                          {isActive && (
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.candleUp }} />
-                          )}
-                          <span className={`text-sm font-medium ${isActive ? '' : 'ml-3.5'}`}>
-                            {info?.name || s}
-                          </span>
+                          {isActive && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.candleUp }} />}
+                          <span className={`text-sm font-medium ${isActive ? '' : 'ml-3.5'}`}>{info?.name || s}</span>
                         </div>
                         <span className="text-[10px] font-mono" style={{ color: theme.textMuted }}>{s}</span>
                       </button>
@@ -665,7 +730,9 @@ export default function ChartPage() {
             className="flex items-center gap-1.5 px-2 py-0.5 rounded-md"
             style={{ backgroundColor: `${theme.gridLines}80` }}
           >
-            <span className="text-[10px] font-medium" style={{ color: theme.text }}>Bybit Perpetual</span>
+            <span className="text-[10px] font-medium" style={{ color: theme.text }}>
+              {exchange === 'tradovate' ? 'CME Futures' : 'Bybit Perpetual'}
+            </span>
           </div>
           <div className="flex items-center gap-1" style={{ color: theme.candleUp }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: theme.candleUp }} />

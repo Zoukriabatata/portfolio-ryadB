@@ -473,12 +473,12 @@ export class OrderbookSimulator {
 export function createOrderbookSimulator(symbol: string): OrderbookSimulator {
   // Configuration par symbole - valeurs réalistes pour 2025
   const configs: Record<string, Partial<SimulationConfig>> = {
-    MNQH5: { basePrice: 22150, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.7 },
-    MESH5: { basePrice: 6250, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.5 },
-    NQH5: { basePrice: 22150, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.7 },
-    ESH5: { basePrice: 6250, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.5 },
-    GCJ5: { basePrice: 2850, tickSize: 0.1, spreadTicks: 2, maxDepthLevels: 80, volatility: 0.4 },
-    MGCJ5: { basePrice: 2850, tickSize: 0.1, spreadTicks: 2, maxDepthLevels: 80, volatility: 0.4 },
+    NQ: { basePrice: 22150, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.7 },
+    MNQ: { basePrice: 22150, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.7 },
+    ES: { basePrice: 6250, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.5 },
+    MES: { basePrice: 6250, tickSize: 0.25, spreadTicks: 2, maxDepthLevels: 100, volatility: 0.5 },
+    GC: { basePrice: 2850, tickSize: 0.1, spreadTicks: 2, maxDepthLevels: 80, volatility: 0.4 },
+    MGC: { basePrice: 2850, tickSize: 0.1, spreadTicks: 2, maxDepthLevels: 80, volatility: 0.4 },
   };
 
   const defaultConfig: SimulationConfig = {

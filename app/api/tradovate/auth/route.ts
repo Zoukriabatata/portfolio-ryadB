@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/api-middleware';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
+import { prisma } from '@/lib/db';
 
 const TRADOVATE_DEMO_API = 'https://demo.tradovateapi.com/v1';
 const TRADOVATE_LIVE_API = 'https://live.tradovateapi.com/v1';
 
 export async function GET(req: NextRequest) {
-  // Require authentication + rate limit
-  const auth = await requireAuth(req);
-  if ('error' in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status, headers: auth.headers });
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
-  // Get credentials from environment variables
-  const username = process.env.TRADOVATE_USERNAME;
-  const password = process.env.TRADOVATE_PASSWORD;
-  const appId = process.env.TRADOVATE_APP_ID;
+
+  // 1. Try user's saved credentials from DB (set via /boutique)
+  let username = process.env.TRADOVATE_USERNAME;
+  let password = process.env.TRADOVATE_PASSWORD;
+
+  try {
+    const config = await prisma.dataFeedConfig.findFirst({
+      where: { userId: session.user.id, provider: 'TRADOVATE' },
+    });
+    if (config?.username && config?.apiKey) {
+      username = config.username;
+      password = config.apiKey; // ConfigureModal stores password as apiKey
+    }
+  } catch {
+    // DB read failed — fall through to env vars
+  }
+
+  const appId = process.env.TRADOVATE_APP_ID || 'Senzoukria';
   const appVersion = process.env.TRADOVATE_APP_VERSION || '1.0.0';
   const cid = process.env.TRADOVATE_CID;
   const sec = process.env.TRADOVATE_SECRET;
@@ -22,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (!username || !password) {
     return NextResponse.json({
       error: 'Tradovate credentials not configured',
-      message: 'Set TRADOVATE_USERNAME and TRADOVATE_PASSWORD in .env.local',
+      message: 'Configure Tradovate on the Data Feeds page first.',
     }, { status: 401 });
   }
 
@@ -37,24 +52,36 @@ export async function GET(req: NextRequest) {
       },
       body: JSON.stringify({
         name: username,
-        password: password,
-        appId: appId || 'Sample App',
-        appVersion: appVersion,
-        cid: cid,
-        sec: sec,
+        password,
+        appId,
+        appVersion,
+        cid: cid || undefined,
+        sec: sec || undefined,
       }),
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('[Tradovate Auth] Failed:', error);
-      return NextResponse.json({
-        error: 'Authentication failed',
-        details: error,
-      }, { status: response.status });
+      const errorText = await response.text();
+      console.error('[Tradovate Auth] Failed:', errorText);
+      let errorMsg = 'Authentication failed';
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMsg = errorJson['p-ticket']
+          ? 'Captcha required — log into Tradovate website first, then retry'
+          : errorJson.errorText || errorJson.message || errorMsg;
+      } catch {
+        // use default
+      }
+      return NextResponse.json({ error: errorMsg }, { status: response.status });
     }
 
     const data = await response.json();
+
+    if (data['p-ticket']) {
+      return NextResponse.json({
+        error: 'Captcha required — log into Tradovate website first, then retry',
+      }, { status: 403 });
+    }
 
     return NextResponse.json({
       accessToken: data.accessToken,
