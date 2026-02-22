@@ -724,28 +724,67 @@ function AccountContent() {
                 </SectionCard>
 
                 <SectionCard title={t('account.theme')}>
-                  <div className="grid grid-cols-2 gap-3">
-                    {UI_THEMES.map((theme) => (
-                      <button
-                        key={theme.id}
-                        onClick={() => setTheme(theme.id)}
-                        className="flex items-center gap-3 p-3 rounded-lg transition-all text-left"
-                        style={{
-                          background: activeTheme === theme.id ? 'var(--surface-elevated)' : 'transparent',
-                          border: `1px solid ${activeTheme === theme.id ? 'var(--primary)' : 'var(--border)'}`,
-                        }}
-                      >
-                        <div className="flex gap-1">
-                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.preview.bg, border: '1px solid rgba(255,255,255,0.1)' }} />
-                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.preview.primary }} />
-                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.preview.accent }} />
-                        </div>
-                        <div>
-                          <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{theme.name}</div>
-                          <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{theme.description}</div>
-                        </div>
-                      </button>
-                    ))}
+                  <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+                    Applies globally — UI, charts, logo, and all pages.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {UI_THEMES.map((theme) => {
+                      const isActive = activeTheme === theme.id;
+                      const c = theme.colors;
+                      return (
+                        <button
+                          key={theme.id}
+                          onClick={() => { setTheme(theme.id); applyUITheme(theme.id); }}
+                          className="relative p-3 rounded-xl transition-all text-left group"
+                          style={{
+                            background: c.surface,
+                            border: `2px solid ${isActive ? c.primary : c.border}`,
+                            boxShadow: isActive ? `0 0 12px ${c.primaryGlow}` : 'none',
+                          }}
+                        >
+                          {/* Active indicator */}
+                          {isActive && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                              style={{ background: c.primary, color: c.background }}>
+                              &#10003;
+                            </div>
+                          )}
+
+                          {/* Mini chart preview */}
+                          <div className="h-12 rounded-lg mb-2 flex items-end gap-[3px] px-2 pb-1 overflow-hidden"
+                            style={{ background: c.chartBg, border: `1px solid ${c.chartGrid}` }}>
+                            {/* Simulated candles */}
+                            {[
+                              { h: 24, up: true }, { h: 18, up: false }, { h: 30, up: true },
+                              { h: 14, up: false }, { h: 22, up: true }, { h: 28, up: true },
+                              { h: 16, up: false }, { h: 26, up: true }, { h: 20, up: false },
+                              { h: 32, up: true }, { h: 12, up: false }, { h: 24, up: true },
+                            ].map((bar, i) => (
+                              <div key={i} className="flex-1 rounded-[1px] min-w-[3px]"
+                                style={{
+                                  height: `${bar.h}px`,
+                                  background: bar.up ? c.candleUp : c.candleDown,
+                                  opacity: 0.85,
+                                }} />
+                            ))}
+                          </div>
+
+                          {/* Theme info */}
+                          <div className="flex items-center gap-2">
+                            {/* Color dots: logo + primary + accent */}
+                            <div className="flex gap-1">
+                              <div className="w-3 h-3 rounded-full" style={{ background: c.logoBright }} />
+                              <div className="w-3 h-3 rounded-full" style={{ background: c.primary }} />
+                              <div className="w-3 h-3 rounded-full" style={{ background: c.accent }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold truncate" style={{ color: c.textPrimary }}>{theme.name}</div>
+                              <div className="text-[10px] truncate" style={{ color: c.textMuted }}>{theme.description}</div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </SectionCard>
               </>
