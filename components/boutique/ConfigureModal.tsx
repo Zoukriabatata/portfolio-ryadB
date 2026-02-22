@@ -50,7 +50,8 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
       });
       const data = await res.json();
       if (data.success) {
-        setMessage(`Connection successful (${data.latency || '~'}ms latency)`);
+        const latencyInfo = data.latency ? ` (${data.latency}ms)` : '';
+        setMessage(data.message ? `${data.message}${latencyInfo}` : `Connection successful${latencyInfo}`);
         setState('success');
       } else {
         setMessage(data.error || 'Connection failed');
