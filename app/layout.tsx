@@ -9,19 +9,50 @@ import { Toaster } from 'sonner';
 
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'] });
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://senzoukria.com';
+const SITE_NAME = 'Senzoukria';
+const DEFAULT_DESCRIPTION =
+  'Institutional-grade orderflow analytics platform. Real-time heatmaps, footprint charts, delta profiles and gamma exposure. Connect Rithmic, Interactive Brokers, CQG or AMP.';
+
 export const metadata: Metadata = {
-  title: 'Senzoukria — Professional Order Flow Analytics',
-  description:
-    'Institutional-grade orderflow analytics platform. Real-time heatmaps, footprint charts, delta profiles and gamma exposure. Connect Rithmic, Interactive Brokers, CQG or AMP.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Professional Order Flow Analytics`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  keywords: [
+    'order flow', 'footprint chart', 'liquidity heatmap', 'gamma exposure', 'GEX',
+    'volatility surface', 'trading platform', 'Rithmic', 'Interactive Brokers',
+    'CQG', 'AMP', 'Binance', 'futures trading', 'crypto trading', 'delta profile',
+  ],
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
   openGraph: {
-    title: 'Senzoukria — Professional Order Flow Analytics',
-    description:
-      'Institutional-grade orderflow analytics platform. Real-time heatmaps, footprint charts, delta profiles and gamma exposure. Connect Rithmic, Interactive Brokers, CQG or AMP.',
+    title: `${SITE_NAME} — Professional Order Flow Analytics`,
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
     type: 'website',
-    siteName: 'Senzoukria',
+    siteName: SITE_NAME,
+    locale: 'en_US',
+    images: [
+      {
+        url: '/screenshots/example-1.png',
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} — Order Flow Analytics Dashboard`,
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
+    title: `${SITE_NAME} — Professional Order Flow Analytics`,
+    description: DEFAULT_DESCRIPTION,
+    images: ['/screenshots/example-1.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
