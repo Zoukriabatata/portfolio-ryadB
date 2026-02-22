@@ -383,9 +383,10 @@ function AccountContent() {
         setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
         setConnectionMessage(prev => ({ ...prev, [brokerId]: `Authenticated — ${accounts.length} account(s) found` }));
       } else if (['rithmic', 'ninja', 'cqg'].includes(brokerId)) {
-        await new Promise(r => setTimeout(r, 1000));
-        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'error' }));
-        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Requires local gateway — integration in progress' }));
+        await new Promise(r => setTimeout(r, 800));
+        const names: Record<string, string> = { rithmic: 'Rithmic', ninja: 'NinjaTrader', cqg: 'CQG' };
+        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
+        setConnectionMessage(prev => ({ ...prev, [brokerId]: `${names[brokerId] || brokerId} credentials saved — direct connection coming in a future update. Use Tradovate or Binance/Bybit for live data now.` }));
       } else {
         // Crypto brokers - test API key validity
         const config = brokerFields[brokerId] || {};
@@ -511,10 +512,10 @@ function AccountContent() {
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-[var(--surface)]"
-            style={{ color: 'var(--text-muted)' }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:bg-[var(--error)]/15 active:scale-95"
+            style={{ color: 'var(--error)', border: '1px solid var(--error)', opacity: 0.8 }}
           >
-            <LogOutIcon size={14} />
+            <LogOutIcon size={16} />
             {t('account.signOut')}
           </button>
         </div>
