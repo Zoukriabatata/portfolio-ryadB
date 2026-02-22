@@ -89,10 +89,10 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setShowBrokerSelector(!showBrokerSelector)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:bg-white/5"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:bg-[var(--surface-hover)]"
           style={{
-            backgroundColor: connection?.connected ? `${brokerInfo?.color}15` : 'rgba(39, 39, 42, 0.8)',
-            border: `1px solid ${connection?.connected ? brokerInfo?.color + '40' : 'rgba(63, 63, 70, 0.5)'}`,
+            backgroundColor: connection?.connected ? `${brokerInfo?.color}15` : 'var(--surface-elevated)',
+            border: `1px solid ${connection?.connected ? brokerInfo?.color + '40' : 'var(--border)'}`,
           }}
         >
           {/* Broker Logo */}
@@ -108,7 +108,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
 
           {/* Status */}
           <div className="flex flex-col items-start">
-            <span className="text-[10px] text-zinc-400">
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
               {connection?.connected ? 'Connected' : 'Not connected'}
             </span>
             <span
@@ -127,20 +127,23 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className={`text-zinc-500 transition-transform ${showBrokerSelector ? 'rotate-180' : ''}`}
+            className={`transition-transform ${showBrokerSelector ? 'rotate-180' : ''}`}
+            style={{ color: 'var(--text-dimmed)' }}
           >
             <path d="M6 9l6 6 6-6" />
           </svg>
 
           {/* Connection indicator */}
           <div
-            className={`w-2 h-2 rounded-full ${
-              connection?.connected
-                ? 'bg-green-500 animate-pulse'
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: connection?.connected
+                ? 'var(--bull)'
                 : connection?.connecting
-                  ? 'bg-yellow-500 animate-pulse'
-                  : 'bg-zinc-600'
-            }`}
+                  ? 'var(--warning)'
+                  : 'var(--text-dimmed)',
+              animation: connection?.connected || connection?.connecting ? 'pulse 2s infinite' : undefined,
+            }}
           />
         </button>
 
@@ -149,14 +152,14 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
           <div
             className="absolute top-full left-0 mt-2 w-72 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
             style={{
-              backgroundColor: 'rgba(20, 20, 28, 0.98)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--surface-elevated)',
+              border: '1px solid var(--border-light)',
               backdropFilter: 'blur(12px)',
             }}
           >
-            <div className="p-3 border-b border-white/10">
-              <h3 className="text-sm font-semibold text-white">Select Broker</h3>
-              <p className="text-[10px] text-zinc-500">Connect to trade</p>
+            <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Select Broker</h3>
+              <p className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Connect to trade</p>
             </div>
 
             <div className="max-h-[300px] overflow-y-auto p-2">
@@ -167,7 +170,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                 return (
                   <div
                     key={broker}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -177,20 +180,21 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                         {info.logo}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-white">{info.name}</div>
-                        <div className="text-[10px] text-zinc-500">{info.description}</div>
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{info.name}</div>
+                        <div className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>{info.description}</div>
                       </div>
                     </div>
 
                     {conn.connected ? (
                       <button
                         onClick={() => disconnect(broker)}
-                        className="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors"
+                        style={{ backgroundColor: 'var(--bear-bg)', color: 'var(--bear)' }}
                       >
                         Disconnect
                       </button>
                     ) : conn.connecting ? (
-                      <div className="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-yellow-500/20 text-yellow-400">
+                      <div className="px-3 py-1.5 rounded-lg text-[10px] font-medium" style={{ backgroundColor: 'var(--warning-bg, rgba(234,179,8,0.2))', color: 'var(--warning)' }}>
                         Connecting...
                       </div>
                     ) : (
@@ -212,10 +216,10 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
 
             {/* Balance display */}
             {connection?.connected && connection.balance !== undefined && (
-              <div className="p-3 border-t border-white/10 bg-black/20">
+              <div className="p-3 border-t" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-zinc-500">Account Balance</span>
-                  <span className="text-sm font-bold text-green-400">
+                  <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Account Balance</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--bull)' }}>
                     {connection.balance.toLocaleString()} {connection.currency}
                   </span>
                 </div>
@@ -226,7 +230,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
       </div>
 
       {/* Separator */}
-      <div className="w-px h-8 bg-zinc-700/50" />
+      <div className="w-px h-8" style={{ backgroundColor: 'var(--border)' }} />
 
       {/* Sell Button */}
       <button
@@ -241,8 +245,8 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
         }}
       >
         <div className="flex flex-col items-center">
-          <span className="text-[10px] text-red-200 opacity-80">SELL</span>
-          <span className="text-white">{currentPrice.toFixed(2)}</span>
+          <span className="text-[10px] opacity-80" style={{ color: 'var(--bear)' }}>SELL</span>
+          <span style={{ color: '#fff' }}>{currentPrice.toFixed(2)}</span>
         </div>
         {isPlacingOrder === 'sell' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
@@ -253,11 +257,12 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
 
       {/* Contract Quantity */}
       <div className="flex flex-col items-center gap-1 px-3">
-        <span className="text-[9px] text-zinc-500 uppercase">Contracts</span>
+        <span className="text-[9px] uppercase" style={{ color: 'var(--text-dimmed)' }}>Contracts</span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setContractQuantity(contractQuantity - 1)}
-            className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors flex items-center justify-center text-sm"
+            className="w-6 h-6 rounded flex items-center justify-center text-sm transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
           >
             -
           </button>
@@ -265,11 +270,13 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             type="number"
             value={contractQuantity}
             onChange={(e) => setContractQuantity(parseInt(e.target.value) || 1)}
-            className="w-12 h-6 text-center text-sm font-bold bg-zinc-900 border border-zinc-700 rounded text-white focus:border-blue-500 focus:outline-none"
+            className="w-12 h-6 text-center text-sm font-bold rounded focus:outline-none"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           />
           <button
             onClick={() => setContractQuantity(contractQuantity + 1)}
-            className="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors flex items-center justify-center text-sm"
+            className="w-6 h-6 rounded flex items-center justify-center text-sm transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
           >
             +
           </button>
@@ -280,11 +287,11 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             <button
               key={qty}
               onClick={() => setContractQuantity(qty)}
-              className={`px-1.5 py-0.5 rounded text-[9px] transition-colors ${
-                contractQuantity === qty
-                  ? 'bg-blue-500/30 text-blue-400'
-                  : 'bg-zinc-800/50 text-zinc-500 hover:text-zinc-300'
-              }`}
+              className="px-1.5 py-0.5 rounded text-[9px] transition-colors"
+              style={{
+                backgroundColor: contractQuantity === qty ? 'var(--primary-glow)' : 'var(--surface-elevated)',
+                color: contractQuantity === qty ? 'var(--primary)' : 'var(--text-dimmed)',
+              }}
             >
               {qty}
             </button>
@@ -305,8 +312,8 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
         }}
       >
         <div className="flex flex-col items-center">
-          <span className="text-[10px] text-green-200 opacity-80">BUY</span>
-          <span className="text-white">{currentPrice.toFixed(2)}</span>
+          <span className="text-[10px] opacity-80" style={{ color: 'var(--bull)' }}>BUY</span>
+          <span style={{ color: '#fff' }}>{currentPrice.toFixed(2)}</span>
         </div>
         {isPlacingOrder === 'buy' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">

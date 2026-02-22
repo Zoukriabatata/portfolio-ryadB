@@ -371,29 +371,29 @@ export default function GEXDashboard({
         const level = gexData.find(d => d.strike === hoveredStrike);
         if (!level) return null;
         return (
-          <div className="absolute top-2 right-2 bg-zinc-900/95 border border-zinc-700 rounded-lg p-3 text-xs">
-            <div className="font-bold text-white mb-2">Strike: ${hoveredStrike}</div>
+          <div className="absolute top-2 right-2 rounded-lg p-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Strike: ${hoveredStrike}</div>
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-400">Call GEX:</span>
-              <span className="text-green-400 font-mono">{formatGEX(level.callGEX)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Call GEX:</span>
+              <span className="font-mono" style={{ color: 'var(--bull)' }}>{formatGEX(level.callGEX)}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-400">Put GEX:</span>
-              <span className="text-red-400 font-mono">{formatGEX(level.putGEX)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Put GEX:</span>
+              <span className="font-mono" style={{ color: 'var(--bear)' }}>{formatGEX(level.putGEX)}</span>
             </div>
-            <div className="flex justify-between gap-4 border-t border-zinc-700 mt-2 pt-2">
-              <span className="text-zinc-400">Net GEX:</span>
-              <span className={`font-mono font-bold ${level.netGEX >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <div className="flex justify-between gap-4 border-t mt-2 pt-2" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Net GEX:</span>
+              <span className="font-mono font-bold" style={{ color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                 {formatGEX(level.netGEX)}
               </span>
             </div>
             <div className="flex justify-between gap-4 mt-1">
-              <span className="text-zinc-400">Call OI:</span>
-              <span className="text-zinc-300 font-mono">{level.callOI.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Call OI:</span>
+              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.callOI.toLocaleString()}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-400">Put OI:</span>
-              <span className="text-zinc-300 font-mono">{level.putOI.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Put OI:</span>
+              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.putOI.toLocaleString()}</span>
             </div>
           </div>
         );

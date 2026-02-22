@@ -208,7 +208,8 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
           <select
             value={ibSymbol}
             onChange={(e) => handleSymbolChange(e.target.value)}
-            className="px-2 py-1 bg-zinc-900/90 border border-zinc-700 rounded text-white text-xs font-mono backdrop-blur-sm"
+            className="px-2 py-1 rounded text-xs font-mono backdrop-blur-sm"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           >
             {Object.entries(CME_CONTRACTS).map(([sym, spec]) => (
               <option key={sym} value={sym}>
@@ -218,19 +219,20 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
           </select>
 
           {/* Connection Status */}
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-900/90 rounded border border-zinc-700 backdrop-blur-sm">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded backdrop-blur-sm" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div
               className={`w-2 h-2 rounded-full ${status === 'authenticating' || status === 'connecting_ib' ? 'animate-pulse' : ''}`}
               style={{ backgroundColor: STATUS_COLORS[status] }}
             />
-            <span className="text-xs text-zinc-400">{STATUS_LABELS[status]}</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{STATUS_LABELS[status]}</span>
           </div>
 
           {/* Connect Button (when disconnected) */}
           {status === 'disconnected' && (
             <button
               onClick={handleConnect}
-              className="px-3 py-1 bg-green-600/80 text-white text-xs rounded hover:bg-green-600 transition-colors backdrop-blur-sm"
+              className="px-3 py-1 text-xs rounded transition-colors backdrop-blur-sm"
+              style={{ backgroundColor: 'var(--bull)', color: '#fff' }}
             >
               Connect
             </button>
@@ -238,8 +240,8 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
 
           {/* Price */}
           {isConnected && currentPrice > 0 && (
-            <div className="px-2 py-1 bg-zinc-900/90 rounded border border-zinc-700 backdrop-blur-sm">
-              <span className="text-sm font-mono font-bold text-white">
+            <div className="px-2 py-1 rounded backdrop-blur-sm" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <span className="text-sm font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
                 {currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -249,7 +251,7 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
         <div className="flex items-center gap-2">
           {/* Stats */}
           {isConnected && (
-            <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
+            <div className="flex items-center gap-2 text-[10px] font-mono" style={{ color: 'var(--text-dimmed)' }}>
               <span>Trades: {stats.tradeCount}</span>
               <span>Snapshots: {stats.heatmapSnapshots}</span>
             </div>
@@ -258,7 +260,8 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
           {/* Settings Button */}
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-1.5 bg-zinc-900/90 rounded border border-zinc-700 text-zinc-400 hover:text-white transition-colors backdrop-blur-sm"
+            className="p-1.5 rounded transition-colors backdrop-blur-sm"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
             title="Settings"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -268,7 +271,7 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
           </button>
 
           {/* CME Badge */}
-          <div className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-[10px] font-bold border border-blue-600/30 backdrop-blur-sm">
+          <div className="px-2 py-1 rounded text-[10px] font-bold backdrop-blur-sm" style={{ backgroundColor: 'var(--primary-glow)', color: 'var(--primary)', border: '1px solid var(--primary-dark)' }}>
             CME {ibSymbol}
           </div>
         </div>
@@ -277,25 +280,26 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
       {/* Waiting for connection overlay */}
       {!isConnected && (
         <div className="absolute inset-0 flex items-center justify-center z-5">
-          <div className="text-center bg-zinc-900/90 rounded-xl p-6 border border-zinc-700 backdrop-blur-sm">
-            <div className="text-zinc-400 text-sm mb-2">
+          <div className="text-center rounded-xl p-6 backdrop-blur-sm" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>
               {status === 'disconnected' ? 'IB Gateway Not Connected' :
                status === 'error' ? 'Connection Error' :
                'Connecting to IB Gateway...'}
             </div>
-            <div className="text-zinc-600 text-xs mb-4">
+            <div className="text-xs mb-4" style={{ color: 'var(--text-dimmed)' }}>
               {contract?.description || ibSymbol} via Interactive Brokers
             </div>
             {status === 'disconnected' && (
               <button
                 onClick={handleConnect}
-                className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                className="px-4 py-2 text-sm rounded-lg transition-colors"
+                style={{ backgroundColor: 'var(--bull)', color: '#fff' }}
               >
                 Connect to IB Gateway
               </button>
             )}
             {(status === 'authenticating' || status === 'connecting_ib') && (
-              <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: 'var(--bull)', borderTopColor: 'transparent' }} />
             )}
           </div>
         </div>

@@ -50,13 +50,14 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
   };
 
   return (
-    <div className="absolute top-12 right-2 z-20 w-72 bg-zinc-900/95 backdrop-blur rounded-lg shadow-xl border border-zinc-800">
+    <div className="absolute top-12 right-2 z-20 w-72 backdrop-blur rounded-lg shadow-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
-        <span className="text-sm font-medium text-zinc-200">Indicators</span>
+      <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+        <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Indicators</span>
         <button
           onClick={onClose}
-          className="text-zinc-500 hover:text-zinc-300 text-lg"
+          className="text-lg transition-colors"
+          style={{ color: 'var(--text-dimmed)' }}
         >
           ×
         </button>
@@ -65,23 +66,24 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
       {/* Active Indicators */}
       <div className="p-2 max-h-60 overflow-y-auto">
         {indicators.length === 0 ? (
-          <p className="text-xs text-zinc-500 text-center py-2">No indicators added</p>
+          <p className="text-xs text-center py-2" style={{ color: 'var(--text-dimmed)' }}>No indicators added</p>
         ) : (
           <div className="space-y-1">
             {indicators.map((indicator) => (
               <div
                 key={indicator.id}
-                className="bg-zinc-800/50 rounded"
+                className="rounded"
+                style={{ backgroundColor: 'var(--surface-elevated)' }}
               >
                 <div className="flex items-center gap-2 px-2 py-1.5">
                   {/* Toggle */}
                   <button
                     onClick={() => toggleIndicator(indicator.id)}
-                    className={`w-4 h-4 rounded border flex items-center justify-center
-                      ${indicator.enabled
-                        ? 'bg-blue-600 border-blue-600'
-                        : 'border-zinc-600'
-                      }`}
+                    className="w-4 h-4 rounded border flex items-center justify-center"
+                    style={{
+                      backgroundColor: indicator.enabled ? 'var(--primary)' : 'transparent',
+                      borderColor: indicator.enabled ? 'var(--primary)' : 'var(--border)',
+                    }}
                   >
                     {indicator.enabled && (
                       <span className="text-white text-xs">✓</span>
@@ -95,7 +97,7 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
                   />
 
                   {/* Label */}
-                  <span className="text-xs text-zinc-300 flex-1">
+                  <span className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>
                     {indicator.type}
                     {indicator.params.period && ` (${indicator.params.period})`}
                   </span>
@@ -103,7 +105,8 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
                   {/* Settings toggle */}
                   <button
                     onClick={() => setExpandedId(expandedId === indicator.id ? null : indicator.id)}
-                    className="text-zinc-500 hover:text-zinc-300 text-xs"
+                    className="text-xs transition-colors"
+                    style={{ color: 'var(--text-dimmed)' }}
                   >
                     ⚙
                   </button>
@@ -111,7 +114,8 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
                   {/* Remove */}
                   <button
                     onClick={() => removeIndicator(indicator.id)}
-                    className="text-zinc-500 hover:text-red-400 text-xs"
+                    className="text-xs transition-colors"
+                    style={{ color: 'var(--text-dimmed)' }}
                   >
                     ×
                   </button>
@@ -119,23 +123,24 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
 
                 {/* Expanded settings */}
                 {expandedId === indicator.id && (
-                  <div className="px-2 pb-2 pt-1 border-t border-zinc-700/50">
+                  <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(indicator.params).map(([key, value]) => (
                         <label key={key} className="flex flex-col gap-0.5">
-                          <span className="text-[10px] text-zinc-500 capitalize">{key}</span>
+                          <span className="text-[10px] capitalize" style={{ color: 'var(--text-dimmed)' }}>{key}</span>
                           <input
                             type="number"
                             value={value}
                             onChange={(e) => updateIndicator(indicator.id, {
                               params: { ...indicator.params, [key]: Number(e.target.value) }
                             })}
-                            className="bg-zinc-700 text-zinc-300 text-xs rounded px-2 py-1 w-full"
+                            className="text-xs rounded px-2 py-1 w-full focus:outline-none"
+                            style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                           />
                         </label>
                       ))}
                       <label className="flex flex-col gap-0.5">
-                        <span className="text-[10px] text-zinc-500">Color</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Color</span>
                         <input
                           type="color"
                           value={indicator.style.color}
@@ -155,8 +160,8 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
       </div>
 
       {/* Add Indicator */}
-      <div className="p-2 border-t border-zinc-800">
-        <p className="text-[10px] text-zinc-500 mb-1.5">Add Indicator</p>
+      <div className="p-2 border-t" style={{ borderColor: 'var(--border)' }}>
+        <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-dimmed)' }}>Add Indicator</p>
         <div className="space-y-1">
           {AVAILABLE_INDICATORS.map((ind) => {
             const isAdded = indicators.some(i => i.type === ind.type);
@@ -165,14 +170,16 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
                 key={ind.type}
                 onClick={() => handleAddIndicator(ind.type)}
                 disabled={isAdded}
-                className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded transition-colors ${
-                  isAdded
-                    ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed'
-                    : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'
-                }`}
+                className="w-full flex items-center justify-between px-2 py-1.5 text-xs rounded transition-colors active:scale-[0.98]"
+                style={{
+                  backgroundColor: isAdded ? 'var(--surface)' : 'var(--surface-elevated)',
+                  color: isAdded ? 'var(--text-dimmed)' : 'var(--text-secondary)',
+                  cursor: isAdded ? 'not-allowed' : undefined,
+                  opacity: isAdded ? 0.5 : 1,
+                }}
               >
                 <span className="font-medium">{ind.label}</span>
-                <span className="text-[10px] text-zinc-500">{ind.description}</span>
+                <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>{ind.description}</span>
               </button>
             );
           })}
