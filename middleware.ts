@@ -59,16 +59,19 @@ const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
 // Routes that require authentication
 const PROTECTED_ROUTES = [
   '/chart',
+  '/live',
   '/footprint',
   '/orderflow',
   '/liquidity',
   '/volatility',
   '/gex',
+  '/bias',
   '/backtest',
   '/replay',
   '/news',
   '/journal',
   '/account',
+  '/boutique',
   '/admin',
 ];
 
@@ -76,6 +79,7 @@ const PROTECTED_ROUTES = [
 const TIER_ROUTES: Record<string, ('FREE' | 'ULTRA')[]> = {
   '/chart': ['FREE', 'ULTRA'],
   '/live': ['FREE', 'ULTRA'],
+  '/bias': ['FREE', 'ULTRA'],
   '/boutique': ['FREE', 'ULTRA'],
   '/account': ['FREE', 'ULTRA'],
   '/footprint': ['ULTRA'],

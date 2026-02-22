@@ -63,6 +63,10 @@ export default function AdminPage() {
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/admin/users');
+      if (!res.ok) {
+        setError(`Erreur serveur (${res.status})`);
+        return;
+      }
       const data = await res.json();
 
       if (data.error) {
@@ -80,6 +84,7 @@ export default function AdminPage() {
   const fetchProofs = async () => {
     try {
       const res = await fetch('/api/admin/payments');
+      if (!res.ok) return;
       const data = await res.json();
 
       if (data.error) {
@@ -101,6 +106,11 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proofId, action }),
       });
+
+      if (!res.ok) {
+        alert(`Erreur serveur (${res.status})`);
+        return;
+      }
 
       const data = await res.json();
 
@@ -126,6 +136,11 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, action, duration: selectedDuration }),
       });
+
+      if (!res.ok) {
+        alert(`Erreur serveur (${res.status})`);
+        return;
+      }
 
       const data = await res.json();
 
@@ -156,6 +171,11 @@ export default function AdminPage() {
           duration: selectedDuration
         }),
       });
+
+      if (!res.ok) {
+        alert(`Erreur serveur (${res.status})`);
+        return;
+      }
 
       const data = await res.json();
 

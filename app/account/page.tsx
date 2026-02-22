@@ -223,7 +223,10 @@ function AccountContent() {
     if (session?.user && !profileLoaded) {
       setProfileName(session.user.name || '');
       fetch('/api/auth/profile')
-        .then(r => r.json())
+        .then(r => {
+          if (!r.ok) throw new Error(`Profile fetch failed: ${r.status}`);
+          return r.json();
+        })
         .then(data => {
           if (data.user) {
             setProfileName(data.user.name || '');
@@ -283,6 +286,7 @@ function AccountContent() {
   const fetchTickets = async () => {
     try {
       const res = await fetch('/api/support');
+      if (!res.ok) return;
       const data = await res.json();
       setTickets(data.tickets || []);
     } catch {}
@@ -309,6 +313,7 @@ function AccountContent() {
     setIsLoading(true);
     try {
       const res = await fetch('/api/stripe/portal', { method: 'POST' });
+      if (!res.ok) return;
       const data = await res.json();
       if (data.url) window.location.href = data.url;
     } catch {} finally { setIsLoading(false); }
@@ -323,6 +328,7 @@ function AccountContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject, message, category }),
       });
+      if (!res.ok) return;
       const data = await res.json();
       if (data.success) {
         setSubmitSuccess(true);

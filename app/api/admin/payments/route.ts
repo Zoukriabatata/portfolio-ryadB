@@ -25,7 +25,7 @@ export async function GET() {
     if (!rl.allowed) return tooManyRequests(rl);
 
     if (!ADMIN_EMAILS.includes(session.user.email!)) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const payments = await prisma.payment.findMany({
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) return tooManyRequests(rl);
 
     if (!ADMIN_EMAILS.includes(session.user.email!)) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const body = await req.json();

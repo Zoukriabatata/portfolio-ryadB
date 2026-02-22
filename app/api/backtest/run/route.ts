@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
   const tier = token.tier as string;
   if (tier !== 'ULTRA') {
-    return NextResponse.json({ error: 'Backtest requires ULTRA tier' }, { status: 403 });
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   try {
