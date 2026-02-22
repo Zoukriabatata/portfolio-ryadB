@@ -34,10 +34,10 @@ export default function Error({
         </div>
 
         <h2 className="text-xl font-semibold text-white/90 mb-2">
-          Une erreur est survenue
+          Something went wrong
         </h2>
         <p className="text-sm text-white/40 mb-6 leading-relaxed">
-          Quelque chose s&apos;est mal pass&eacute;. Vous pouvez r&eacute;essayer ou retourner &agrave; l&apos;accueil.
+          An unexpected error occurred. You can try again or go back to the homepage.
         </p>
 
         {error.digest && (
@@ -55,13 +55,13 @@ export default function Error({
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
             </svg>
-            R&eacute;essayer
+            Try Again
           </button>
           <Link
             href="/"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-all duration-200 border border-emerald-500/20 hover:border-emerald-500/30"
           >
-            Accueil
+            Home
           </Link>
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 export default function JournalError({
   error,
@@ -10,6 +11,7 @@ export default function JournalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    Sentry.captureException(error, { tags: { errorBoundary: 'journal' } });
     console.error('[Journal Error]', error);
   }, [error]);
 
@@ -28,16 +30,19 @@ export default function JournalError({
           </svg>
         </div>
         <h3 className="text-sm font-semibold text-[var(--text-primary,rgba(255,255,255,0.9))] mb-1">
-          Erreur du journal
+          Journal Error
         </h3>
         <p className="text-xs text-[var(--text-muted,rgba(255,255,255,0.4))] mb-4">
-          Impossible de charger le journal de trading.
+          Failed to load trading journal. Please try again.
         </p>
+        {error.digest && (
+          <p className="text-[10px] text-white/20 mb-3 font-mono">Ref: {error.digest}</p>
+        )}
         <button
           onClick={reset}
           className="px-4 py-2 text-xs font-medium rounded-lg bg-white/10 hover:bg-white/15 text-white/80 border border-white/10 transition-colors cursor-pointer"
         >
-          R&eacute;essayer
+          Try Again
         </button>
       </div>
     </div>
