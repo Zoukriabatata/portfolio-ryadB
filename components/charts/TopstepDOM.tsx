@@ -33,7 +33,8 @@ export default function TopstepDOM({ width = 320, height }: TopstepDOMProps) {
   const animationFrameRef = useRef<number | null>(null);
 
   const { bids, asks, midPrice, spread } = useOrderbookStore();
-  const { currentPrice, symbol } = useMarketStore();
+  const currentPrice = useMarketStore((s) => s.currentPrice);
+  const symbol = useMarketStore((s) => s.symbol);
   const symbolInfo = SYMBOLS[symbol];
   const tickSize = symbolInfo?.tickSize || 0.01;
 

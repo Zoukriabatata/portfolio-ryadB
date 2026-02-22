@@ -43,6 +43,11 @@ const MAX_HEATMAP_HISTORY = 300; // ~30 seconds at 100ms updates
 const MAX_LIQUIDITY_DELTAS = 100;
 const MAX_WHALE_ORDERS = 50;
 
+// Throttle heavy analysis (whale detection, liquidity delta) to every 500ms
+// instead of running on every 100ms orderbook update
+const ANALYSIS_THROTTLE_MS = 500;
+let lastAnalysisTime = 0;
+
 export const useOrderbookStore = create<OrderbookState>((set, get) => ({
   bids: new Map(),
   asks: new Map(),
@@ -123,6 +128,37 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
         }
       });
 
+      // Calculate metrics (for-loop avoids stack overflow on large maps)
+      let bestBid = -Infinity;
+      if (newBids.size > 0) { for (const k of newBids.keys()) { if (k > bestBid) bestBid = k; } }
+      let bestAsk = Infinity;
+      if (newAsks.size > 0) { for (const k of newAsks.keys()) { if (k < bestAsk) bestAsk = k; } }
+      const hasBoth = newBids.size > 0 && newAsks.size > 0;
+      const midPrice = hasBoth ? (bestBid + bestAsk) / 2 : state.midPrice;
+      const spread = hasBoth ? bestAsk - bestBid : state.spread;
+
+      // Throttle heavy analysis: liquidity deltas, whale detection, imbalance, heatmap history
+      // Only run every 500ms instead of every 100ms update
+      const now = Date.now();
+      const shouldRunAnalysis = now - lastAnalysisTime >= ANALYSIS_THROTTLE_MS;
+
+      if (!shouldRunAnalysis) {
+        // Fast path: only update orderbook data + metrics, skip heavy analysis
+        return {
+          bids: newBids,
+          asks: newAsks,
+          previousBids: state.bids,
+          previousAsks: state.asks,
+          lastUpdateId: updateId,
+          midPrice,
+          spread,
+        };
+      }
+
+      lastAnalysisTime = now;
+
+      // Heavy analysis below - runs every ~500ms
+
       // Calculate liquidity deltas
       let newDeltas = state.liquidityDeltas;
       if (state.previousBids.size > 0 || state.previousAsks.size > 0) {
@@ -138,15 +174,6 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
       // Detect whale orders
       const whales = detectWhaleOrders(newBids, newAsks, 3.0);
 
-      // Calculate metrics (for-loop avoids stack overflow on large maps)
-      let bestBid = -Infinity;
-      if (newBids.size > 0) { for (const k of newBids.keys()) { if (k > bestBid) bestBid = k; } }
-      let bestAsk = Infinity;
-      if (newAsks.size > 0) { for (const k of newAsks.keys()) { if (k < bestAsk) bestAsk = k; } }
-      const hasBoth = newBids.size > 0 && newAsks.size > 0;
-      const midPrice = hasBoth ? (bestBid + bestAsk) / 2 : state.midPrice;
-      const spread = hasBoth ? bestAsk - bestBid : state.spread;
-
       // Calculate bid/ask imbalance (top 10 levels)
       const bidPrices = Array.from(newBids.keys()).sort((a, b) => b - a).slice(0, 10);
       const askPrices = Array.from(newAsks.keys()).sort((a, b) => a - b).slice(0, 10);
@@ -160,7 +187,7 @@ export const useOrderbookStore = create<OrderbookState>((set, get) => ({
 
       // Add to heatmap history
       const snapshot: OrderbookSnapshot = {
-        timestamp: Date.now(),
+        timestamp: now,
         bids: bidPrices.map((p) => [p, newBids.get(p)!]),
         asks: askPrices.map((p) => [p, newAsks.get(p)!]),
       };

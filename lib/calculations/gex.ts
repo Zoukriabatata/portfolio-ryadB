@@ -43,12 +43,13 @@ export function calculateGEXByStrike(
 ): Map<number, GEXData> {
   const gexByStrike = new Map<number, GEXData>();
 
-  options.forEach((option) => {
+  for (const option of options) {
     const { strike, optionType, greeks, openInterest } = option;
     const gamma = greeks?.gamma || 0;
 
-    if (!gexByStrike.has(strike)) {
-      gexByStrike.set(strike, {
+    let data = gexByStrike.get(strike);
+    if (!data) {
+      data = {
         strike,
         callGEX: 0,
         putGEX: 0,
@@ -57,10 +58,10 @@ export function calculateGEXByStrike(
         putOI: 0,
         callGamma: 0,
         putGamma: 0,
-      });
+      };
+      gexByStrike.set(strike, data);
     }
 
-    const data = gexByStrike.get(strike)!;
     const gex = calculateOptionGEX(gamma, openInterest, spotPrice, optionType);
 
     if (optionType === 'call') {
@@ -74,7 +75,7 @@ export function calculateGEXByStrike(
     }
 
     data.netGEX = data.callGEX + data.putGEX;
-  });
+  }
 
   return gexByStrike;
 }
@@ -94,7 +95,7 @@ export function calculateGEXSummary(
   let negGEXStrike: number | null = null;
   let maxNegGEX = 0;
 
-  gexByStrike.forEach((data, strike) => {
+  for (const [strike, data] of gexByStrike) {
     totalCallGEX += data.callGEX;
     totalPutGEX += data.putGEX;
 
@@ -116,7 +117,7 @@ export function calculateGEXSummary(
       maxNegGEX = data.netGEX;
       negGEXStrike = strike;
     }
-  });
+  }
 
   const netGEX = totalCallGEX + totalPutGEX;
   const gexRatio = totalPutGEX !== 0 ? Math.abs(totalCallGEX / totalPutGEX) : 0;

@@ -56,7 +56,7 @@ export default memo(function TimeSales({
   const [isPaused, setIsPaused] = useState(false);
   const [stats, setStats] = useState({ buyVol: 0, sellVol: 0, trades: 0 });
 
-  const { symbol } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
   const lastPriceRef = useRef<number>(0);
 
   // Subscribe to trades

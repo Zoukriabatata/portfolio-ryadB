@@ -17,6 +17,12 @@ import { subdivideCandles } from '../utils/candles';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
 
+// Cached formatter to avoid creating options object on every candle update
+const priceFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 interface UseSymbolDataParams {
   refs: SharedRefs;
   theme: ChartTheme;
@@ -35,8 +41,10 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
   const [symbolSearchQuery, setSymbolSearchQuery] = useState('');
   const [viewportState, setViewportState] = useState({ priceMin: 0, priceMax: 100, chartHeight: 400 });
 
-  const { checkAlerts, notifications, dismissNotification } = useAlertsStore();
-  const { updatePositionPrices } = useTradingStore();
+  const checkAlerts = useAlertsStore((s) => s.checkAlerts);
+  const notifications = useAlertsStore((s) => s.notifications);
+  const dismissNotification = useAlertsStore((s) => s.dismissNotification);
+  const updatePositionPrices = useTradingStore((s) => s.updatePositionPrices);
 
   // Auto-dismiss alert notifications after 5s
   useEffect(() => {
@@ -51,32 +59,26 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
    * Load history from Binance API (CME requires IB Gateway)
    */
   const loadHistory = useCallback(async (sym: string, tf: TimeframeSeconds) => {
-    console.log('[useSymbolData] loadHistory START:', { sym, tf });
     setLoadingPhase('fetching');
     try {
       if (isCMESymbol(sym)) {
         // CME historical data requires IB Gateway connection
         // IB live WS will provide real-time candles once connected
-        console.log('[useSymbolData] CME symbol detected - history requires IB Gateway');
         return [];
       }
 
       const binanceInterval = TF_TO_BINANCE[tf] || '1m';
       const limit = 500;
 
-      console.log('[useSymbolData] Fetching Binance klines:', { sym, binanceInterval, limit });
       // Call via proxy (klines is a public endpoint, no auth required)
       const response = await fetch(
         `/api/binance/api/v3/klines?symbol=${sym.toUpperCase()}&interval=${binanceInterval}&limit=${limit}`,
         { headers: { 'x-market': 'spot' }, signal: AbortSignal.timeout(15_000) }
       );
 
-      console.log('[useSymbolData] Response status:', response.status, response.ok);
       const data = await response.json();
-      console.log('[useSymbolData] Response data:', Array.isArray(data) ? `Array(${data.length})` : data);
 
       if (!Array.isArray(data)) {
-        console.error('[useSymbolData] Invalid Binance response - not an array:', data);
         return [];
       }
 
@@ -93,19 +95,13 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       }));
 
       if (tf < 60) {
-        console.log('[useSymbolData] Subdividing candles for tf < 60s');
-        const subdivided = subdivideCandles(candles, tf);
-        console.log('[useSymbolData] Subdivided candles:', subdivided.length);
-        return subdivided;
+        return subdivideCandles(candles, tf);
       }
 
-      console.log('[useSymbolData] Returning candles:', candles.length);
       return candles;
-    } catch (error) {
-      console.error('[useSymbolData] Failed to load history:', error);
+    } catch {
       return [];
     } finally {
-      console.log('[useSymbolData] Setting loadingPhase to rendering');
       setLoadingPhase('rendering');
       requestAnimationFrame(() => {
         setTimeout(() => {
@@ -182,10 +178,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     // Update price
     if (lastCandle && refs.price.current) {
       refs.currentPrice.current = lastCandle.close;
-      refs.price.current.textContent = `$${lastCandle.close.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
+      refs.price.current.textContent = `$${priceFormatter.format(lastCandle.close)}`;
     }
 
     // Update session high/low for price position indicator
@@ -264,10 +257,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         // Update price directly in DOM
         if (refs.price.current) {
           refs.currentPrice.current = candle.close;
-          refs.price.current.textContent = `$${candle.close.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`;
+          refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
         }
 
         // Check price alerts + update positions + viewport (throttled)

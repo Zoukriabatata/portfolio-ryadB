@@ -54,6 +54,7 @@ class DeribitWebSocket {
   private subscribedChannels: Set<string> = new Set();
   private messageId = 1;
   private useTestnet = false;
+  private messageUnsubscriber: (() => void) | null = null;
 
   private constructor() {}
 
@@ -75,12 +76,16 @@ class DeribitWebSocket {
       this.resubscribeAll();
     });
 
-    wsManager.subscribe(exchangeId, '*', (data) => {
+    // Unsubscribe previous handler to prevent stacking on reconnect
+    this.messageUnsubscriber?.();
+    this.messageUnsubscriber = wsManager.subscribe(exchangeId, '*', (data) => {
       this.handleMessage(data as DeribitMessage);
     });
   }
 
   disconnect(): void {
+    this.messageUnsubscriber?.();
+    this.messageUnsubscriber = null;
     wsManager.disconnect('deribit');
   }
 

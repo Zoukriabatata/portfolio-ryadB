@@ -8,7 +8,9 @@ import { SYMBOLS } from '@/types/market';
 const MAX_TRADES = 100;
 
 export function useTrades() {
-  const { symbol, trades, addTrade } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
+  const trades = useMarketStore((s) => s.trades);
+  const addTrade = useMarketStore((s) => s.addTrade);
   const symbolInfo = SYMBOLS[symbol];
   const isBybit = symbolInfo?.exchange === 'bybit';
 

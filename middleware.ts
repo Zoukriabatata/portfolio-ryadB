@@ -93,20 +93,6 @@ async function checkRateLimit(ip: string, pathname: string): Promise<boolean> {
   return false;
 }
 
-// Clean up stale entries periodically
-if (typeof globalThis !== 'undefined') {
-  const cleanup = () => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitMap) {
-      if (now > entry.resetAt) rateLimitMap.delete(key);
-    }
-    for (const [key, ts] of securityCheckCache) {
-      if (now - ts > SECURITY_CHECK_TTL) securityCheckCache.delete(key);
-    }
-  };
-  setInterval(cleanup, 60_000);
-}
-
 // Admin emails (from env var, fallback to empty)
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 

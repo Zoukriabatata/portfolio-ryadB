@@ -55,6 +55,9 @@ class WebSocketManager {
       return;
     }
 
+    // Reset reconnect counter so a fresh connect() after disconnect() works
+    connection.reconnectAttempts = 0;
+
     this.updateStatus(exchangeId, 'connecting');
 
     try {

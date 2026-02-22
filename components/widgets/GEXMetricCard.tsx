@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { HistoryStats } from '@/lib/calculations/gexHistory';
 
 interface GEXMetricCardProps {
@@ -35,17 +35,17 @@ function formatValue(value: number, format: string): string {
   }
 }
 
-function Sparkline({ data, color, width = 80, height = 24 }: {
+const Sparkline = memo(function Sparkline({ data, color, width = 80, height = 24 }: {
   data: number[];
   color: string;
   width?: number;
   height?: number;
 }) {
-  const path = useMemo(() => {
-    if (data.length < 2) return '';
+  const { path, fillPath, lastY } = useMemo(() => {
+    if (data.length < 2) return { path: '', fillPath: '', lastY: 0 };
 
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    let min = Infinity, max = -Infinity;
+    for (const v of data) { if (v < min) min = v; if (v > max) max = v; }
     const range = max - min || 1;
 
     const points = data.map((v, i) => {
@@ -54,13 +54,13 @@ function Sparkline({ data, color, width = 80, height = 24 }: {
       return `${x},${y}`;
     });
 
-    return `M${points.join('L')}`;
+    const p = `M${points.join('L')}`;
+    return {
+      path: p,
+      fillPath: `${p}L${width},${height}L0,${height}Z`,
+      lastY: height - ((data[data.length - 1] - min) / range) * height,
+    };
   }, [data, width, height]);
-
-  const fillPath = useMemo(() => {
-    if (data.length < 2) return '';
-    return `${path}L${width},${height}L0,${height}Z`;
-  }, [path, width, height]);
 
   if (data.length < 2) return null;
 
@@ -74,23 +74,14 @@ function Sparkline({ data, color, width = 80, height = 24 }: {
       </defs>
       <path d={fillPath} fill={`url(#spark-${color.replace('#', '')})`} />
       <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Current value dot */}
-      {data.length > 0 && (() => {
-        const min = Math.min(...data);
-        const max = Math.max(...data);
-        const range = max - min || 1;
-        const lastY = height - ((data[data.length - 1] - min) / range) * height;
-        return (
-          <circle cx={width} cy={lastY} r="2" fill={color}>
-            <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
-          </circle>
-        );
-      })()}
+      <circle cx={width} cy={lastY} r="2" fill={color}>
+        <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
+      </circle>
     </svg>
   );
-}
+});
 
-function TrendArrow({ trend, changePercent, color }: {
+const TrendArrow = memo(function TrendArrow({ trend, changePercent }: {
   trend: 'up' | 'down' | 'flat';
   changePercent: number;
   color: string;
@@ -104,7 +95,7 @@ function TrendArrow({ trend, changePercent, color }: {
       <span>{Math.abs(changePercent).toFixed(1)}%</span>
     </span>
   );
-}
+});
 
 export function GEXMetricCard({
   label,

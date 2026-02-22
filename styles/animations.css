@@ -5,11 +5,13 @@
 
 /* =============================================
    0. BASE TRANSITION LAYER
-   Smooth defaults for all interactive elements
+   Smooth defaults for interactive elements only.
+   Avoid applying to *, canvas, svg to prevent GPU overdraw on live data.
    ============================================= */
 
-* {
-  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform, filter;
+button, a, input, select, textarea,
+[role="button"], [tabindex] {
+  transition-property: background-color, border-color, color, opacity, box-shadow, transform, filter;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }

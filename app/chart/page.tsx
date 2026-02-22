@@ -6,6 +6,19 @@ import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
 import { SYMBOLS, type Symbol, type Timeframe } from '@/types/market';
 
+// Granular selectors to avoid re-renders on every price tick
+const useSymbol = () => useMarketStore((s) => s.symbol);
+const useTimeframe = () => useMarketStore((s) => s.timeframe);
+const useCurrentPrice = () => useMarketStore((s) => s.currentPrice);
+const useCandles = () => useMarketStore((s) => s.candles);
+const useActions = () => useMarketStore((s) => ({
+  setSymbol: s.setSymbol,
+  setTimeframe: s.setTimeframe,
+  setCurrentPrice: s.setCurrentPrice,
+  setCandles: s.setCandles,
+  updateCurrentCandle: s.updateCurrentCandle,
+}));
+
 /**
  * CHART PAGE - 100% Custom Canvas Chart
  *
@@ -123,17 +136,11 @@ export default function ChartPage() {
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
   const symbolDropdownRef = useRef<HTMLDivElement>(null);
 
-  const {
-    symbol,
-    timeframe,
-    setSymbol,
-    setTimeframe,
-    currentPrice,
-    setCurrentPrice,
-    candles,
-    setCandles,
-    updateCurrentCandle,
-  } = useMarketStore();
+  const symbol = useSymbol();
+  const timeframe = useTimeframe();
+  const currentPrice = useCurrentPrice();
+  const candles = useCandles();
+  const { setSymbol, setTimeframe, setCurrentPrice, setCandles, updateCurrentCandle } = useActions();
 
   // Initialize chart engine
   useEffect(() => {

@@ -4,6 +4,8 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { useEquityOptionsStore } from '@/stores/useEquityOptionsStore';
 import { formatGEX } from '@/lib/calculations/gex';
 
+const CHART_PADDING = { top: 30, right: 100, bottom: 50, left: 80 } as const;
+
 interface GEXChartProps {
   className?: string;
   height?: number;
@@ -35,9 +37,11 @@ export default function GEXChart({
   const getVisibleRange = useCallback(() => {
     if (gexData.length === 0) return { min: 0, max: 0 };
 
-    const strikes = gexData.map(d => d.strike);
-    const fullMin = Math.min(...strikes);
-    const fullMax = Math.max(...strikes);
+    let fullMin = Infinity, fullMax = -Infinity;
+    for (const d of gexData) {
+      if (d.strike < fullMin) fullMin = d.strike;
+      if (d.strike > fullMax) fullMax = d.strike;
+    }
     const fullRange = fullMax - fullMin;
 
     // Visible range based on zoom level
@@ -75,7 +79,7 @@ export default function GEXChart({
     }
 
     // Chart dimensions
-    const padding = { top: 30, right: 100, bottom: 50, left: 80 };
+    const padding = CHART_PADDING;
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
 
@@ -96,9 +100,14 @@ export default function GEXChart({
 
     // Find max absolute GEX for scaling
     let maxAbsGEX = 0;
-    visibleData.forEach(d => {
-      maxAbsGEX = Math.max(maxAbsGEX, Math.abs(d.callGEX), Math.abs(d.putGEX), Math.abs(d.netGEX));
-    });
+    for (const d of visibleData) {
+      const absCall = Math.abs(d.callGEX);
+      const absPut = Math.abs(d.putGEX);
+      const absNet = Math.abs(d.netGEX);
+      if (absCall > maxAbsGEX) maxAbsGEX = absCall;
+      if (absPut > maxAbsGEX) maxAbsGEX = absPut;
+      if (absNet > maxAbsGEX) maxAbsGEX = absNet;
+    }
     if (maxAbsGEX === 0) maxAbsGEX = 1;
 
     // Bar height based on visible strikes
@@ -290,10 +299,14 @@ export default function GEXChart({
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
 
-    const strikes = gexData.map(d => d.strike);
-    if (strikes.length === 0) return;
+    if (gexData.length === 0) return;
 
-    const fullRange = Math.max(...strikes) - Math.min(...strikes);
+    let sMin = Infinity, sMax = -Infinity;
+    for (const d of gexData) {
+      if (d.strike < sMin) sMin = d.strike;
+      if (d.strike > sMax) sMax = d.strike;
+    }
+    const fullRange = sMax - sMin;
     const dy = e.clientY - dragStartY;
     const priceChange = (dy / height) * (fullRange / zoomLevel);
     setPanOffset(dragStartOffset + priceChange);

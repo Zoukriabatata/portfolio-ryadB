@@ -62,7 +62,8 @@ export default memo(function TradingDOM({
   const [stopLoss, setStopLoss] = useState<number | null>(null);
   const [takeProfit, setTakeProfit] = useState<number | null>(null);
 
-  const { symbol, currentPrice } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
+  const currentPrice = useMarketStore((s) => s.currentPrice);
   const {
     bids,
     asks,

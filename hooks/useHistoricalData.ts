@@ -28,20 +28,18 @@ export function useHistoricalData(options: UseHistoricalDataOptions = {}) {
     exchange = 'binance',
   } = options;
 
-  const {
-    symbol,
-    timeframe,
-    candles,
-    isLoadingHistory,
-    historyError,
-    oldestLoadedTime,
-    hasMoreHistory,
-    setCandles,
-    prependCandles,
-    setLoadingHistory,
-    setHistoryError,
-    setHasMoreHistory,
-  } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
+  const timeframe = useMarketStore((s) => s.timeframe);
+  const candles = useMarketStore((s) => s.candles);
+  const isLoadingHistory = useMarketStore((s) => s.isLoadingHistory);
+  const historyError = useMarketStore((s) => s.historyError);
+  const oldestLoadedTime = useMarketStore((s) => s.oldestLoadedTime);
+  const hasMoreHistory = useMarketStore((s) => s.hasMoreHistory);
+  const setCandles = useMarketStore((s) => s.setCandles);
+  const prependCandles = useMarketStore((s) => s.prependCandles);
+  const setLoadingHistory = useMarketStore((s) => s.setLoadingHistory);
+  const setHistoryError = useMarketStore((s) => s.setHistoryError);
+  const setHasMoreHistory = useMarketStore((s) => s.setHasMoreHistory);
 
   const loadingRef = useRef(false);
   const lastLoadedRef = useRef<string>('');
@@ -163,17 +161,15 @@ export function useInfiniteHistory(options: {
 } = {}) {
   const { threshold = 50, loadLimit = 300, exchange = 'binance' } = options;
 
-  const {
-    symbol,
-    timeframe,
-    candles,
-    oldestLoadedTime,
-    hasMoreHistory,
-    isLoadingHistory,
-    prependCandles,
-    setLoadingHistory,
-    setHasMoreHistory,
-  } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
+  const timeframe = useMarketStore((s) => s.timeframe);
+  const candles = useMarketStore((s) => s.candles);
+  const oldestLoadedTime = useMarketStore((s) => s.oldestLoadedTime);
+  const hasMoreHistory = useMarketStore((s) => s.hasMoreHistory);
+  const isLoadingHistory = useMarketStore((s) => s.isLoadingHistory);
+  const prependCandles = useMarketStore((s) => s.prependCandles);
+  const setLoadingHistory = useMarketStore((s) => s.setLoadingHistory);
+  const setHasMoreHistory = useMarketStore((s) => s.setHasMoreHistory);
 
   const loadingRef = useRef(false);
   const lastTriggerRef = useRef(0);

@@ -67,8 +67,8 @@ export default function FuturesMetricsWidget() {
   const oiPoints = useMemo(() => {
     if (openInterestHistory.length < 2) return '';
     const values = openInterestHistory.map(p => p.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    let min = Infinity, max = -Infinity;
+    for (const v of values) { if (v < min) min = v; if (v > max) max = v; }
     const range = max - min || 1;
     return openInterestHistory.map((p, i) => {
       const x = (i / (openInterestHistory.length - 1)) * 100;
@@ -82,8 +82,8 @@ export default function FuturesMetricsWidget() {
   const lsPoints = useMemo(() => {
     if (longShortHistory.length < 2) return '';
     const values = longShortHistory.map(p => p.ratio);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    let min = Infinity, max = -Infinity;
+    for (const v of values) { if (v < min) min = v; if (v > max) max = v; }
     const range = max - min || 0.01;
     return longShortHistory.map((p, i) => {
       const x = (i / (longShortHistory.length - 1)) * 100;

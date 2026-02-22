@@ -37,6 +37,7 @@ export interface FootprintCandle {
 interface FootprintState {
   // Footprint data
   candles: FootprintCandle[];
+  candleMap: Map<number, FootprintCandle>; // O(1) lookup by candleTime
   tickSize: number;  // Price aggregation level
 
   // Volume profile (session-wide)
@@ -82,6 +83,7 @@ let absorptionTracker: AbsorptionTracker | null = null;
 
 export const useFootprintStore = create<FootprintState>((set, get) => ({
   candles: [],
+  candleMap: new Map(),
   tickSize: DEFAULT_TICK_SIZE,
   volumeProfile: new Map(),
   sessionPOC: 0,
@@ -102,7 +104,7 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
   })),
 
   processTradeForFootprint: (trade, candleTime, ohlc) => {
-    const { tickSize, candles, volumeProfile, settings, cumulativeDelta, nakedPOCs } = get();
+    const { tickSize, candles, candleMap, volumeProfile, settings, cumulativeDelta, nakedPOCs } = get();
     const roundedPrice = roundToTick(trade.price, tickSize);
 
     // Initialize absorption tracker if needed
@@ -119,12 +121,17 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
       isBuyerMaker: trade.isBuyerMaker,
     });
 
+    // Collect all state updates to batch into a single set() call
+    let newNakedPOCs = nakedPOCs;
+    let newAbsorptionEvents = get().absorptionEvents;
+
+    // Add absorption event if detected (previously a separate set() call)
     if (absorptionEvent) {
-      get().addAbsorptionEvent(absorptionEvent);
+      newAbsorptionEvents = [...newAbsorptionEvents.slice(-MAX_ABSORPTION_EVENTS), absorptionEvent];
     }
 
-    // Track if this is a new candle
-    const isNewCandle = !candles.find(c => c.time === candleTime);
+    // Track if this is a new candle - O(1) Map lookup instead of O(n) find()
+    const isNewCandle = !candleMap.has(candleTime);
 
     // If new candle, add previous candle's POC to naked POCs
     if (isNewCandle && candles.length > 0) {
@@ -137,14 +144,12 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
           volume: pocVolume ? pocVolume.bidVolume + pocVolume.askVolume : 0,
           tested: false,
         };
-        set((state) => ({
-          nakedPOCs: [...state.nakedPOCs.slice(-MAX_NAKED_POCS), newNakedPOC],
-        }));
+        newNakedPOCs = [...newNakedPOCs.slice(-MAX_NAKED_POCS), newNakedPOC];
       }
     }
 
-    // Find or create candle for this time
-    let candle = candles.find(c => c.time === candleTime);
+    // Find or create candle for this time - O(1) Map lookup
+    let candle = candleMap.get(candleTime);
 
     if (!candle) {
       candle = {
@@ -162,6 +167,7 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
         stackedImbalances: [],
       };
       candles.push(candle);
+      candleMap.set(candleTime, candle);
     }
 
     // Update OHLC
@@ -242,22 +248,41 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
     const tradeDelta = trade.isBuyerMaker ? -trade.quantity : trade.quantity;
     const newCumDelta = [...cumulativeDelta, { time: candleTime, delta: lastCumDelta + tradeDelta }];
 
-    // Update naked POCs (mark as tested if price touches them)
-    get().updateNakedPOCs(trade.price);
+    // Update naked POCs inline (mark as tested if price touches them)
+    // Previously this was a separate set() call via get().updateNakedPOCs()
+    newNakedPOCs = newNakedPOCs.map(poc => {
+      if (!poc.tested && Math.abs(trade.price - poc.price) <= tickSize) {
+        return { ...poc, tested: true };
+      }
+      return poc;
+    });
 
     // Trim old candles
     const trimmedCandles = candles.slice(-MAX_CANDLES);
 
+    // Rebuild candleMap if trimmed
+    let newCandleMap = candleMap;
+    if (trimmedCandles.length < candles.length) {
+      newCandleMap = new Map();
+      for (const c of trimmedCandles) {
+        newCandleMap.set(c.time, c);
+      }
+    }
+
+    // Single batched set() - previously 3 separate set() calls per trade
     set({
       candles: trimmedCandles,
+      candleMap: newCandleMap,
       volumeProfile,
       sessionPOC: newSessionPOC,
-      cumulativeDelta: newCumDelta.slice(-1000), // Keep last 1000 points
+      cumulativeDelta: newCumDelta.slice(-1000),
+      nakedPOCs: newNakedPOCs,
+      absorptionEvents: newAbsorptionEvents,
     });
   },
 
   createNewCandle: (time, ohlc) => {
-    const { candles, tickSize } = get();
+    const { candles, candleMap, tickSize } = get();
     const roundedPrice = roundToTick(ohlc.close, tickSize);
 
     const newCandle: FootprintCandle = {
@@ -275,8 +300,17 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
       stackedImbalances: [],
     };
 
+    const trimmedCandles = [...candles.slice(-(MAX_CANDLES - 1)), newCandle];
+
+    // Rebuild candleMap
+    const newCandleMap = new Map<number, FootprintCandle>();
+    for (const c of trimmedCandles) {
+      newCandleMap.set(c.time, c);
+    }
+
     set({
-      candles: [...candles.slice(-(MAX_CANDLES - 1)), newCandle],
+      candles: trimmedCandles,
+      candleMap: newCandleMap,
     });
   },
 
@@ -301,6 +335,7 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
     absorptionTracker?.reset();
     set({
       candles: [],
+      candleMap: new Map(),
       volumeProfile: new Map(),
       sessionPOC: 0,
       nakedPOCs: [],

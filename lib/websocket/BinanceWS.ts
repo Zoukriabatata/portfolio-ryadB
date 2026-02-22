@@ -65,6 +65,7 @@ class BinanceWebSocket {
   private tradeHandlers: Map<string, Set<TradeHandler>> = new Map();
   private depthHandlers: Map<string, Set<DepthHandler>> = new Map();
   private messageUnsubscribers: Map<string, () => void> = new Map(); // exchangeId -> unsub fn
+  private subRequestId = 1; // Incrementing ID for SUBSCRIBE/UNSUBSCRIBE requests
 
   private constructor() {}
 
@@ -77,32 +78,12 @@ class BinanceWebSocket {
 
   connect(market: BinanceMarket = 'futures'): void {
     const exchangeId = `binance-${market}`;
-    const baseUrl = market === 'futures' ? BINANCE_FUTURES_WS : BINANCE_SPOT_WS;
+    const status = wsManager.getStatus(exchangeId);
 
-    // Get current subscriptions
-    const streams = this.subscriptions.get(exchangeId);
-    const streamList = streams ? Array.from(streams).join('/') : '';
+    // Already connected or connecting
+    if (status === 'connected' || status === 'connecting') return;
 
-    // Don't connect without any streams - Binance will reject empty connections
-    if (!streamList) {
-      console.log(`[Binance ${market}] No streams configured, skipping connection`);
-      return;
-    }
-
-    const url = `${baseUrl}?streams=${streamList}`;
-
-    wsManager.connect(exchangeId, url, () => {
-      console.log(`[Binance ${market}] Connected with streams: ${streamList}`);
-    });
-
-    // Unsubscribe previous handler to avoid duplicates
-    this.messageUnsubscribers.get(exchangeId)?.();
-
-    // Subscribe to all messages
-    const unsub = wsManager.subscribe(exchangeId, '*', (data) => {
-      this.handleMessage(data as BinanceStreamMessage);
-    });
-    this.messageUnsubscribers.set(exchangeId, unsub);
+    this.connectWithCurrentStreams(market);
   }
 
   disconnect(market: BinanceMarket = 'futures'): void {
@@ -119,21 +100,17 @@ class BinanceWebSocket {
     const stream = `${symbol.toLowerCase()}@kline_${interval}`;
     const exchangeId = `binance-${market}`;
 
-    this.addStream(exchangeId, stream);
-
     if (!this.klineHandlers.has(stream)) {
       this.klineHandlers.set(stream, new Set());
     }
     this.klineHandlers.get(stream)!.add(handler);
 
-    // Reconnect with new stream
-    this.reconnectWithStreams(market);
+    this.addStreamDynamic(exchangeId, stream, market);
 
     return () => {
       this.klineHandlers.get(stream)?.delete(handler);
       if (this.klineHandlers.get(stream)?.size === 0) {
-        this.removeStream(exchangeId, stream);
-        this.reconnectWithStreams(market);
+        this.removeStreamDynamic(exchangeId, stream, market);
       }
     };
   }
@@ -146,20 +123,17 @@ class BinanceWebSocket {
     const stream = `${symbol.toLowerCase()}@aggTrade`;
     const exchangeId = `binance-${market}`;
 
-    this.addStream(exchangeId, stream);
-
     if (!this.tradeHandlers.has(stream)) {
       this.tradeHandlers.set(stream, new Set());
     }
     this.tradeHandlers.get(stream)!.add(handler);
 
-    this.reconnectWithStreams(market);
+    this.addStreamDynamic(exchangeId, stream, market);
 
     return () => {
       this.tradeHandlers.get(stream)?.delete(handler);
       if (this.tradeHandlers.get(stream)?.size === 0) {
-        this.removeStream(exchangeId, stream);
-        this.reconnectWithStreams(market);
+        this.removeStreamDynamic(exchangeId, stream, market);
       }
     };
   }
@@ -173,63 +147,101 @@ class BinanceWebSocket {
     const stream = `${symbol.toLowerCase()}@depth@${updateSpeed}`;
     const exchangeId = `binance-${market}`;
 
-    this.addStream(exchangeId, stream);
-
     if (!this.depthHandlers.has(stream)) {
       this.depthHandlers.set(stream, new Set());
     }
     this.depthHandlers.get(stream)!.add(handler);
 
-    this.reconnectWithStreams(market);
+    this.addStreamDynamic(exchangeId, stream, market);
 
     return () => {
       this.depthHandlers.get(stream)?.delete(handler);
       if (this.depthHandlers.get(stream)?.size === 0) {
-        this.removeStream(exchangeId, stream);
-        this.reconnectWithStreams(market);
+        this.removeStreamDynamic(exchangeId, stream, market);
       }
     };
   }
 
-  private addStream(exchangeId: string, stream: string): void {
+  /**
+   * Add a stream dynamically. If not connected, connect with the stream.
+   * If already connected, send SUBSCRIBE over the existing connection (no reconnect).
+   */
+  private addStreamDynamic(exchangeId: string, stream: string, market: BinanceMarket): void {
     if (!this.subscriptions.has(exchangeId)) {
       this.subscriptions.set(exchangeId, new Set());
     }
-    this.subscriptions.get(exchangeId)!.add(stream);
+    const streams = this.subscriptions.get(exchangeId)!;
+
+    // Already subscribed to this stream
+    if (streams.has(stream)) return;
+
+    streams.add(stream);
+
+    const status = wsManager.getStatus(exchangeId);
+    if (status === 'connected') {
+      // Send SUBSCRIBE command over existing connection - no disconnect needed
+      wsManager.send(exchangeId, {
+        method: 'SUBSCRIBE',
+        params: [stream],
+        id: this.subRequestId++,
+      });
+    } else if (status !== 'connecting') {
+      // Not connected yet, do initial connection
+      this.connectWithCurrentStreams(market);
+    }
   }
 
-  private removeStream(exchangeId: string, stream: string): void {
-    this.subscriptions.get(exchangeId)?.delete(stream);
-  }
-
-  private reconnectWithStreams(market: BinanceMarket): void {
-    const exchangeId = `binance-${market}`;
-    const baseUrl = market === 'futures' ? BINANCE_FUTURES_WS : BINANCE_SPOT_WS;
+  /**
+   * Remove a stream dynamically. Send UNSUBSCRIBE over existing connection.
+   */
+  private removeStreamDynamic(exchangeId: string, stream: string, market: BinanceMarket): void {
     const streams = this.subscriptions.get(exchangeId);
+    if (!streams) return;
 
-    if (!streams || streams.size === 0) {
+    streams.delete(stream);
+
+    if (streams.size === 0) {
       wsManager.disconnect(exchangeId);
       return;
     }
 
+    const status = wsManager.getStatus(exchangeId);
+    if (status === 'connected') {
+      // Send UNSUBSCRIBE command - no reconnect needed
+      wsManager.send(exchangeId, {
+        method: 'UNSUBSCRIBE',
+        params: [stream],
+        id: this.subRequestId++,
+      });
+    }
+  }
+
+  /**
+   * Initial connection with all current streams in the URL.
+   * Only called when there's no active connection.
+   */
+  private connectWithCurrentStreams(market: BinanceMarket): void {
+    const exchangeId = `binance-${market}`;
+    const baseUrl = market === 'futures' ? BINANCE_FUTURES_WS : BINANCE_SPOT_WS;
+    const streams = this.subscriptions.get(exchangeId);
+
+    if (!streams || streams.size === 0) return;
+
     const streamList = Array.from(streams).join('/');
     const url = `${baseUrl}?streams=${streamList}`;
 
-    // Unsubscribe previous handler before disconnect
+    // Unsubscribe previous message handler
     this.messageUnsubscribers.get(exchangeId)?.();
     this.messageUnsubscribers.delete(exchangeId);
 
-    // Disconnect and reconnect with new streams
-    wsManager.disconnect(exchangeId);
+    wsManager.connect(exchangeId, url, () => {
+      console.log(`[Binance ${market}] Connected with ${streams.size} streams`);
+    });
 
-    // Small delay before reconnecting
-    setTimeout(() => {
-      wsManager.connect(exchangeId, url);
-      const unsub = wsManager.subscribe(exchangeId, '*', (data) => {
-        this.handleMessage(data as BinanceStreamMessage);
-      });
-      this.messageUnsubscribers.set(exchangeId, unsub);
-    }, 100);
+    const unsub = wsManager.subscribe(exchangeId, '*', (data) => {
+      this.handleMessage(data as BinanceStreamMessage);
+    });
+    this.messageUnsubscribers.set(exchangeId, unsub);
   }
 
   private handleMessage(message: BinanceStreamMessage): void {
@@ -278,22 +290,29 @@ class BinanceWebSocket {
   }
 
   private handleDepthMessage(stream: string, data: BinanceDepthMessage): void {
-    // Find the matching handler (stream might have @100ms suffix)
+    const update: OrderbookUpdate = {
+      eventType: 'depthUpdate',
+      eventTime: data.E,
+      symbol: data.s,
+      firstUpdateId: data.U,
+      finalUpdateId: data.u,
+      bids: data.b,
+      asks: data.a,
+    };
+
+    // Try exact match first (O(1) instead of scanning all handlers)
+    const handlers = this.depthHandlers.get(stream);
+    if (handlers) {
+      handlers.forEach((handler) => handler(update));
+      return;
+    }
+
+    // Fallback: try matching with different speed suffixes
     const baseStream = stream.split('@').slice(0, 2).join('@');
-
-    for (const [key, handlers] of this.depthHandlers) {
-      if (key.startsWith(baseStream) || stream.startsWith(key.split('@').slice(0, 2).join('@'))) {
-        const update: OrderbookUpdate = {
-          eventType: 'depthUpdate',
-          eventTime: data.E,
-          symbol: data.s,
-          firstUpdateId: data.U,
-          finalUpdateId: data.u,
-          bids: data.b,
-          asks: data.a,
-        };
-
-        handlers.forEach((handler) => handler(update));
+    for (const [key, h] of this.depthHandlers) {
+      if (key.startsWith(baseStream)) {
+        h.forEach((handler) => handler(update));
+        return;
       }
     }
   }

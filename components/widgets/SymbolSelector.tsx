@@ -29,7 +29,11 @@ const symbolGroups = [
 const timeframes: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
 export default function SymbolSelector() {
-  const { symbol, timeframe, currentPrice, setSymbol, setTimeframe } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
+  const timeframe = useMarketStore((s) => s.timeframe);
+  const currentPrice = useMarketStore((s) => s.currentPrice);
+  const setSymbol = useMarketStore((s) => s.setSymbol);
+  const setTimeframe = useMarketStore((s) => s.setTimeframe);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);

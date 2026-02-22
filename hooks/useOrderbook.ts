@@ -12,7 +12,7 @@ import { throttledFetch } from '@/lib/api/throttledFetch';
 const BYBIT_API_BASE = '/api/bybit';
 
 export function useOrderbook() {
-  const { symbol } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
   const {
     updateOrderbook,
     setInitialOrderbook,

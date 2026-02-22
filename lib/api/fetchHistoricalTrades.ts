@@ -47,8 +47,6 @@ export async function fetchHistoricalTrades(
   let iterations = 0;
   const maxIterations = 100; // Safety limit
 
-  console.log(`[Historical] Fetching ${hoursBack}h of trades for ${symbol}...`);
-
   while (fetchedOldestTime > startTime && iterations < maxIterations) {
     iterations++;
 
@@ -67,7 +65,6 @@ export async function fetchHistoricalTrades(
       const data = await response.json();
 
       if (data.retCode !== 0 || !data.result?.list?.length) {
-        console.log(`[Historical] No more data or error:`, data.retMsg);
         break;
       }
 
@@ -85,32 +82,29 @@ export async function fetchHistoricalTrades(
       allTrades.push(...converted);
 
       // Update oldest time
-      const oldestInBatch = Math.min(...converted.map(t => t.time));
+      let oldestInBatch = converted[0].time;
+      for (let i = 1; i < converted.length; i++) {
+        if (converted[i].time < oldestInBatch) oldestInBatch = converted[i].time;
+      }
       fetchedOldestTime = oldestInBatch;
 
       // Get cursor for next batch
       cursor = data.result.nextPageCursor;
 
       if (!cursor) {
-        console.log(`[Historical] No more pages`);
         break;
       }
-
-      console.log(`[Historical] Batch ${iterations}: ${converted.length} trades, oldest: ${new Date(oldestInBatch).toLocaleTimeString()}`);
 
       // Small delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 100));
 
-    } catch (error) {
-      console.error(`[Historical] Error fetching trades:`, error);
+    } catch {
       break;
     }
   }
 
   // Sort by time ascending
   allTrades.sort((a, b) => a.time - b.time);
-
-  console.log(`[Historical] Total: ${allTrades.length} trades over ${iterations} requests`);
 
   return {
     trades: allTrades,
@@ -153,7 +147,6 @@ export async function fetchHistoricalKlines(
     const data = await response.json();
 
     if (data.retCode !== 0 || !data.result?.list?.length) {
-      console.log(`[Klines] No data:`, data.retMsg);
       return [];
     }
 
@@ -167,11 +160,9 @@ export async function fetchHistoricalKlines(
       volume: parseFloat(k[5]),
     }));
 
-    console.log(`[Klines] Fetched ${klines.length} candles`);
     return klines;
 
-  } catch (error) {
-    console.error(`[Klines] Error:`, error);
+  } catch {
     return [];
   }
 }

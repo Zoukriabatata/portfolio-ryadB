@@ -11,7 +11,8 @@ interface ClusterPanelProps {
 }
 
 export default function ClusterPanel({ maxLevels = 15 }: ClusterPanelProps) {
-  const { symbol, currentPrice } = useMarketStore();
+  const symbol = useMarketStore((s) => s.symbol);
+  const currentPrice = useMarketStore((s) => s.currentPrice);
   const [clusters, setClusters] = useState<ClusterLevel[]>([]);
   const [totals, setTotals] = useState({ bid: 0, ask: 0, delta: 0 });
   const tradesRef = useRef<Trade[]>([]);

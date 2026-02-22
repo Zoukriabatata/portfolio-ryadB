@@ -15,9 +15,6 @@ interface GEXState {
   // Spot price used for calculation
   spotPrice: number;
 
-  // Loading state
-  isCalculating: boolean;
-
   // Actions
   calculateGEX: (options: OptionData[], spotPrice: number) => void;
   reset: () => void;
@@ -28,11 +25,8 @@ export const useGEXStore = create<GEXState>((set) => ({
   gexChartData: [],
   summary: null,
   spotPrice: 0,
-  isCalculating: false,
 
   calculateGEX: (options, spotPrice) => {
-    set({ isCalculating: true });
-
     // Calculate GEX by strike
     const gexByStrike = calculateGEXByStrike(options, spotPrice);
 
@@ -47,7 +41,6 @@ export const useGEXStore = create<GEXState>((set) => ({
       gexChartData,
       summary,
       spotPrice,
-      isCalculating: false,
     });
   },
 
@@ -57,6 +50,5 @@ export const useGEXStore = create<GEXState>((set) => ({
       gexChartData: [],
       summary: null,
       spotPrice: 0,
-      isCalculating: false,
     }),
 }));

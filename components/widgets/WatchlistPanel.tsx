@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { usePageActive } from '@/hooks/usePageActive';
 import { useWatchlistStore, type WatchlistItem } from '@/stores/useWatchlistStore';
 import { formatPrice, formatVolume } from '@/lib/utils/formatters';
@@ -27,8 +27,8 @@ function Sparkline({ data, color, width = 48, height = 18 }: { data: number[]; c
 
     ctx.clearRect(0, 0, width, height);
 
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    let min = Infinity, max = -Infinity;
+    for (const v of data) { if (v < min) min = v; if (v > max) max = v; }
     const range = max - min || 1;
 
     ctx.strokeStyle = color;
@@ -58,16 +58,24 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
   const symbolsKey = useMemo(() => items.map((i) => i.symbol).sort().join(','), [items]);
 
   // Connect mini-ticker WebSocket for all watchlist symbols — paused when page hidden
-  useEffect(() => {
-    if (!isActive) return;
+  // Uses managed WebSocket with reconnect logic instead of raw WebSocket
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSparklineUpdateRef = useRef<Record<string, number>>({});
+
+  const connectWatchlistWS = useCallback(() => {
     const symbols = symbolsKey.split(',').filter(Boolean);
     if (symbols.length === 0) return;
 
-    // Use combined stream for all symbols
+    // Clean up existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
     const streams = symbols.map((s) => `${s}@miniTicker`).join('/');
     const ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`);
-    // Throttle sparkline updates — only add a new point every 2s per symbol
-    const lastSparklineUpdate: Record<string, number> = {};
+    wsRef.current = ws;
 
     ws.onmessage = (event) => {
       try {
@@ -75,22 +83,23 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
         const data = msg.data;
         if (!data || !data.s) return;
 
-        const symbol = data.s.toLowerCase();
+        const sym = data.s.toLowerCase();
         const price = parseFloat(data.c);
         const change24h = parseFloat(data.c) - parseFloat(data.o);
         const changePercent24h = parseFloat(data.o) > 0 ? (change24h / parseFloat(data.o)) * 100 : 0;
 
-        const existing = useWatchlistStore.getState().prices[symbol];
+        const existing = useWatchlistStore.getState().prices[sym];
         const now = Date.now();
         let newSparkline = existing?.sparkline || [];
 
         // Only add sparkline point every 2 seconds
-        if (!lastSparklineUpdate[symbol] || now - lastSparklineUpdate[symbol] >= 2000) {
+        const lastUpdate = lastSparklineUpdateRef.current;
+        if (!lastUpdate[sym] || now - lastUpdate[sym] >= 2000) {
           newSparkline = [...newSparkline, price].slice(-20);
-          lastSparklineUpdate[symbol] = now;
+          lastUpdate[sym] = now;
         }
 
-        updatePrice(symbol, {
+        updatePrice(sym, {
           price,
           prevPrice: existing?.price || price,
           change24h,
@@ -103,10 +112,46 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
       } catch { /* ignore parse errors */ }
     };
 
-    return () => {
-      ws.close();
+    // Auto-reconnect on close (with backoff)
+    ws.onclose = () => {
+      wsRef.current = null;
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectWatchlistWS();
+      }, 3000);
     };
-  }, [isActive, symbolsKey, updatePrice]);
+
+    ws.onerror = () => {
+      // onclose will fire after this, triggering reconnect
+    };
+  }, [symbolsKey, updatePrice]);
+
+  useEffect(() => {
+    if (!isActive) {
+      // Cleanup when page hidden
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    connectWatchlistWS();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    };
+  }, [isActive, connectWatchlistWS]);
 
   const fmtPrice = formatPrice;
   const fmtVol = formatVolume;

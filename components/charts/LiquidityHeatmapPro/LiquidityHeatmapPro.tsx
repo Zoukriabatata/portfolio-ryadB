@@ -85,15 +85,45 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
     recentSellVolume: 0,
   });
 
-  // Absorption levels for rendering
-  const [absorptionLevels, setAbsorptionLevels] = useState<Map<string, PassiveOrderLevel>>(new Map());
-  const [maxBidVolume, setMaxBidVolume] = useState(100);
-  const [maxAskVolume, setMaxAskVolume] = useState(100);
+  // Absorption levels for rendering - single state object to avoid triple re-renders
+  const [absorptionState, setAbsorptionState] = useState<{
+    levels: Map<string, PassiveOrderLevel>;
+    maxBidVolume: number;
+    maxAskVolume: number;
+  }>({ levels: new Map(), maxBidVolume: 100, maxAskVolume: 100 });
+  const absorptionLevels = absorptionState.levels;
+  const maxBidVolume = absorptionState.maxBidVolume;
+  const maxAskVolume = absorptionState.maxAskVolume;
 
-  // Stores
-  const settings = useHeatmapSettingsStore();
+  // Stores - granular selectors to avoid re-renders on unrelated settings changes
+  const autoCenter = useHeatmapSettingsStore((s) => s.autoCenter);
+  const colorScheme = useHeatmapSettingsStore((s) => s.colorScheme);
+  const upperCutoffPercent = useHeatmapSettingsStore((s) => s.upperCutoffPercent);
+  const contrast = useHeatmapSettingsStore((s) => s.contrast);
+  const smoothing = useHeatmapSettingsStore((s) => s.smoothing);
+  const smoothingValue = useHeatmapSettingsStore((s) => s.smoothingValue);
+  const useTransparency = useHeatmapSettingsStore((s) => s.useTransparency);
+  const bestBidAskPixelSize = useHeatmapSettingsStore((s) => s.bestBidAskPixelSize);
+  const bestBidColor = useHeatmapSettingsStore((s) => s.bestBidColor);
+  const bestAskColor = useHeatmapSettingsStore((s) => s.bestAskColor);
+  const domColors = useHeatmapSettingsStore((s) => s.domColors);
+  const maxVolumePixelSize = useHeatmapSettingsStore((s) => s.maxVolumePixelSize);
+  const tradeFlow = useHeatmapSettingsStore((s) => s.tradeFlow);
+  const zoomLevel = useHeatmapSettingsStore((s) => s.zoomLevel);
+  const priceOffset = useHeatmapSettingsStore((s) => s.priceOffset);
+  const displayFeatures = useHeatmapSettingsStore((s) => s.displayFeatures);
+  const isSettingsPanelOpen = useHeatmapSettingsStore((s) => s.isSettingsPanelOpen);
+  const settingsPanelPosition = useHeatmapSettingsStore((s) => s.settingsPanelPosition);
+  // Actions - stable references, never cause re-renders
+  const setZoomLevel = useHeatmapSettingsStore((s) => s.setZoomLevel);
+  const setPriceOffset = useHeatmapSettingsStore((s) => s.setPriceOffset);
+  const setAutoCenter = useHeatmapSettingsStore((s) => s.setAutoCenter);
+  const resetZoom = useHeatmapSettingsStore((s) => s.resetZoom);
+  const openSettingsPanel = useHeatmapSettingsStore((s) => s.openSettingsPanel);
+  const closeSettingsPanel = useHeatmapSettingsStore((s) => s.closeSettingsPanel);
   const { bids, asks, midPrice, heatmapHistory } = useOrderbookStore();
-  const { currentPrice, symbol } = useMarketStore();
+  const currentPrice = useMarketStore((s) => s.currentPrice);
+  const symbol = useMarketStore((s) => s.symbol);
   const { tradeEvents, addTrade } = useTradeStore();
 
   // Calculate best bid/ask (optimized - avoid spread on large Maps)
@@ -122,14 +152,14 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
   const getPriceRange = useCallback((): PriceRange => {
     const center = currentPrice || midPrice || 100000;
     const baseRange = tickSize * priceRangeTicks;
-    const effectiveRange = baseRange / settings.zoomLevel;
-    const offset = settings.autoCenter ? 0 : settings.priceOffset;
+    const effectiveRange = baseRange / zoomLevel;
+    const offset = autoCenter ? 0 : priceOffset;
 
     return {
       min: center + offset - effectiveRange / 2,
       max: center + offset + effectiveRange / 2,
     };
-  }, [currentPrice, midPrice, tickSize, priceRangeTicks, settings.zoomLevel, settings.priceOffset, settings.autoCenter]);
+  }, [currentPrice, midPrice, tickSize, priceRangeTicks, zoomLevel, priceOffset, autoCenter]);
 
   // Calculate stats
   const getStats = useCallback((): HeatmapStats => {
@@ -177,8 +207,8 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         timestamp: snapshot.timestamp,
         bids: bidMap,
         asks: askMap,
-        bestBid: snapshot.bestBid || (bidMap.size > 0 ? Math.max(...bidMap.keys()) : 0),
-        bestAsk: snapshot.bestAsk || (askMap.size > 0 ? Math.min(...askMap.keys()) : 0),
+        bestBid: snapshot.bestBid || (() => { if (bidMap.size === 0) return 0; let max = -Infinity; for (const k of bidMap.keys()) { if (k > max) max = k; } return max; })(),
+        bestAsk: snapshot.bestAsk || (() => { if (askMap.size === 0) return 0; let min = Infinity; for (const k of askMap.keys()) { if (k < min) min = k; } return min; })(),
       };
     });
   }, [heatmapHistory]);
@@ -190,22 +220,22 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
     const config = {
       ...DEFAULT_RENDER_CONFIG,
       settings: {
-        autoCenter: settings.autoCenter,
-        colorScheme: settings.colorScheme,
-        upperCutoffPercent: settings.upperCutoffPercent,
-        contrast: settings.contrast,
-        smoothing: settings.smoothing,
-        smoothingValue: settings.smoothingValue,
-        useTransparency: settings.useTransparency,
-        bestBidAskPixelSize: settings.bestBidAskPixelSize,
-        bestBidColor: settings.bestBidColor,
-        bestAskColor: settings.bestAskColor,
-        domColors: settings.domColors,
-        maxVolumePixelSize: settings.maxVolumePixelSize,
-        tradeFlow: settings.tradeFlow,
-        zoomLevel: settings.zoomLevel,
-        priceOffset: settings.priceOffset,
-        displayFeatures: settings.displayFeatures,
+        autoCenter: autoCenter,
+        colorScheme: colorScheme,
+        upperCutoffPercent: upperCutoffPercent,
+        contrast: contrast,
+        smoothing: smoothing,
+        smoothingValue: smoothingValue,
+        useTransparency: useTransparency,
+        bestBidAskPixelSize: bestBidAskPixelSize,
+        bestBidColor: bestBidColor,
+        bestAskColor: bestAskColor,
+        domColors: domColors,
+        maxVolumePixelSize: maxVolumePixelSize,
+        tradeFlow: tradeFlow,
+        zoomLevel: zoomLevel,
+        priceOffset: priceOffset,
+        displayFeatures: displayFeatures,
       },
     };
 
@@ -213,8 +243,8 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
 
     zoomControllerRef.current = new HeatmapZoomController(
       (state) => {
-        settings.setZoomLevel(state.zoomLevel);
-        settings.setPriceOffset(state.priceOffset);
+        setZoomLevel(state.zoomLevel);
+        setPriceOffset(state.priceOffset);
       },
       {
         smoothing: true,
@@ -223,9 +253,9 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
     );
 
     // Initialize auto-center state
-    zoomControllerRef.current.setAutoCenter(settings.autoCenter);
+    zoomControllerRef.current.setAutoCenter(autoCenter);
 
-    tradeFlowRendererRef.current = new TradeFlowRenderer(settings.tradeFlow);
+    tradeFlowRendererRef.current = new TradeFlowRenderer(tradeFlow);
 
     // Initialize passive liquidity simulator
     passiveSimulatorRef.current = new PassiveLiquiditySimulator({
@@ -251,8 +281,8 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
 
   // Update auto-center state
   useEffect(() => {
-    zoomControllerRef.current?.setAutoCenter(settings.autoCenter);
-  }, [settings.autoCenter]);
+    zoomControllerRef.current?.setAutoCenter(autoCenter);
+  }, [autoCenter]);
 
   // Subscribe to trades (Binance only for crypto symbols)
   // For CME symbols, generate simulated trades
@@ -398,12 +428,14 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         setTapeStats(tapeVelocityRef.current.getStats());
       }
 
-      // Update absorption levels from simulator
+      // Update absorption levels from simulator - single state update
       if (passiveSimulatorRef.current) {
         const snapshot = passiveSimulatorRef.current.getCoherentSnapshot();
-        setAbsorptionLevels(new Map(snapshot.levels));
-        setMaxBidVolume(snapshot.maxBidVolume || 100);
-        setMaxAskVolume(snapshot.maxAskVolume || 100);
+        setAbsorptionState({
+          levels: new Map(snapshot.levels),
+          maxBidVolume: snapshot.maxBidVolume || 100,
+          maxAskVolume: snapshot.maxAskVolume || 100,
+        });
       }
     }, 500); // Update 2x per second
 
@@ -425,29 +457,29 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
   useEffect(() => {
     if (rendererRef.current) {
       rendererRef.current.applySettings({
-        autoCenter: settings.autoCenter,
-        colorScheme: settings.colorScheme,
-        upperCutoffPercent: settings.upperCutoffPercent,
-        contrast: settings.contrast,
-        smoothing: settings.smoothing,
-        smoothingValue: settings.smoothingValue,
-        useTransparency: settings.useTransparency,
-        bestBidAskPixelSize: settings.bestBidAskPixelSize,
-        bestBidColor: settings.bestBidColor,
-        bestAskColor: settings.bestAskColor,
-        domColors: settings.domColors,
-        maxVolumePixelSize: settings.maxVolumePixelSize,
-        tradeFlow: settings.tradeFlow,
-        zoomLevel: settings.zoomLevel,
-        priceOffset: settings.priceOffset,
-        displayFeatures: settings.displayFeatures,
+        autoCenter: autoCenter,
+        colorScheme: colorScheme,
+        upperCutoffPercent: upperCutoffPercent,
+        contrast: contrast,
+        smoothing: smoothing,
+        smoothingValue: smoothingValue,
+        useTransparency: useTransparency,
+        bestBidAskPixelSize: bestBidAskPixelSize,
+        bestBidColor: bestBidColor,
+        bestAskColor: bestAskColor,
+        domColors: domColors,
+        maxVolumePixelSize: maxVolumePixelSize,
+        tradeFlow: tradeFlow,
+        zoomLevel: zoomLevel,
+        priceOffset: priceOffset,
+        displayFeatures: displayFeatures,
       });
     }
 
     if (tradeFlowRendererRef.current) {
-      tradeFlowRendererRef.current.updateSettings(settings.tradeFlow);
+      tradeFlowRendererRef.current.updateSettings(tradeFlow);
     }
-  }, [settings]);
+  }, [autoCenter, colorScheme, upperCutoffPercent, contrast, smoothing, smoothingValue, useTransparency, bestBidAskPixelSize, bestBidColor, bestAskColor, domColors, maxVolumePixelSize, tradeFlow, zoomLevel, priceOffset, displayFeatures]);
 
   // Render loop - optimized for 60 FPS, paused when page is hidden
   useEffect(() => {
@@ -501,7 +533,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       // Si vous voulez les réactiver, décommentez le code ci-dessous
       /*
       // Render trade flow on top (only if enabled and has trades)
-      if (tradeFlowRendererRef.current && settings.tradeFlow.enabled && tradeEvents.length > 0) {
+      if (tradeFlowRendererRef.current && tradeFlow.enabled && tradeEvents.length > 0) {
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
           const layout = rendererRef.current.getLayout();
@@ -529,7 +561,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isActive, bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, settings.tradeFlow.enabled, tradeEvents, frameInterval, absorptionLevels, maxBidVolume, maxAskVolume]);
+  }, [isActive, bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, tradeFlow.enabled, tradeEvents, frameInterval, absorptionLevels, maxBidVolume, maxAskVolume]);
 
   // Handle resize
   useEffect(() => {
@@ -551,7 +583,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       switch (e.key) {
         case 'r':
         case 'R':
-          settings.resetZoom();
+          resetZoom();
           zoomControllerRef.current?.reset();
           break;
         case '+':
@@ -563,18 +595,18 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
           break;
         case 'c':
         case 'C':
-          settings.setAutoCenter(!settings.autoCenter);
+          setAutoCenter(!autoCenter);
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [settings]);
+  }, [autoCenter, resetZoom, setAutoCenter]);
 
   // Check if mouse is over a trade bubble
   const checkTradeHover = useCallback((mouseX: number, mouseY: number) => {
-    if (!tradeFlowRendererRef.current || !settings.tradeFlow.enabled) {
+    if (!tradeFlowRendererRef.current || !tradeFlow.enabled) {
       setHoveredTrade(null);
       return;
     }
@@ -616,7 +648,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
     }
 
     setHoveredTrade(null);
-  }, [getPriceRange, tradeEvents, settings.tradeFlow.enabled]);
+  }, [getPriceRange, tradeEvents, tradeFlow.enabled]);
 
   // Mouse handlers
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -644,8 +676,8 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
 
       // Vertical: adjust price offset
       const newPriceOffset = rightDragStart.priceOffset + deltaY * pricePerPixel;
-      settings.setPriceOffset(newPriceOffset);
-      settings.setAutoCenter(false);
+      setPriceOffset(newPriceOffset);
+      setAutoCenter(false);
 
       // Horizontal: adjust time offset
       const timePerPixel = 0.5 / timeZoom; // Adjust sensitivity
@@ -671,7 +703,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
     } else {
       setCursorStyle(onPriceAxis ? 'ns-resize' : 'crosshair');
     }
-  }, [getPriceRange, height, isRightDragging, rightDragStart, settings, timeZoom, checkTradeHover]);
+  }, [getPriceRange, height, isRightDragging, rightDragStart, setPriceOffset, setAutoCenter, timeZoom, checkTradeHover]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -687,7 +719,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       setRightDragStart({
         x,
         y,
-        priceOffset: settings.priceOffset,
+        priceOffset: priceOffset,
         timeOffset: timeOffset,
       });
       setCursorStyle('grabbing');
@@ -705,7 +737,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       zoomControllerRef.current.startPan(y);
       setCursorStyle('grabbing');
     }
-  }, [settings.priceOffset, timeOffset]);
+  }, [priceOffset, timeOffset]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     // End right-click drag
@@ -758,9 +790,9 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
 
   const handleDoubleClick = useCallback(() => {
     zoomControllerRef.current?.handleDoubleClick();
-    settings.setAutoCenter(true);
-    settings.resetZoom();
-  }, [settings]);
+    setAutoCenter(true);
+    resetZoom();
+  }, [setAutoCenter, resetZoom]);
 
   // Context menu - only open if not dragging
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -803,14 +835,14 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       ),
       shortcut: 'R',
       onClick: () => {
-        settings.resetZoom();
+        resetZoom();
         zoomControllerRef.current?.reset();
         closeContextMenu();
       },
     },
     {
       id: 'auto-center',
-      label: settings.autoCenter ? 'Disable Auto-Center' : 'Enable Auto-Center',
+      label: autoCenter ? 'Disable Auto-Center' : 'Enable Auto-Center',
       icon: (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -818,7 +850,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       ),
       shortcut: 'C',
       onClick: () => {
-        settings.setAutoCenter(!settings.autoCenter);
+        setAutoCenter(!autoCenter);
         closeContextMenu();
       },
     },
@@ -854,7 +886,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         const containerRect = containerRef.current?.getBoundingClientRect();
         const panelX = containerRect ? containerRect.right - 380 : 100;
         const panelY = containerRect ? containerRect.top + 50 : 100;
-        settings.openSettingsPanel({ x: panelX, y: panelY });
+        openSettingsPanel({ x: panelX, y: panelY });
         closeContextMenu();
       },
     },
@@ -892,9 +924,9 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
 
       {/* Settings Panel */}
       <HeatmapSettingsPanel
-        isOpen={settings.isSettingsPanelOpen}
-        onClose={settings.closeSettingsPanel}
-        initialPosition={settings.settingsPanelPosition}
+        isOpen={isSettingsPanelOpen}
+        onClose={closeSettingsPanel}
+        initialPosition={settingsPanelPosition}
       />
 
       {/* Zoom indicators */}
@@ -907,14 +939,14 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         )}
 
         {/* Price zoom indicator */}
-        {settings.zoomLevel !== 1 && (
+        {zoomLevel !== 1 && (
           <div className="px-2 py-1 bg-zinc-800/90 rounded text-xs text-zinc-300 font-mono">
-            P:{settings.zoomLevel.toFixed(1)}x
+            P:{zoomLevel.toFixed(1)}x
           </div>
         )}
 
         {/* Auto-center indicator */}
-        {settings.autoCenter && (
+        {autoCenter && (
           <div className="px-2 py-1 bg-blue-600/80 rounded text-xs text-white">
             Auto
           </div>
