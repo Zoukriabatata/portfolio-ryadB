@@ -98,10 +98,10 @@ export default function LivePageContent() {
   useFuturesData(symbol);
 
   return (
-    <div className="h-[calc(100vh-56px)] flex">
-      {/* Watchlist Panel */}
+    <div className="h-[calc(100svh-56px)] flex">
+      {/* Watchlist Panel — hidden on mobile */}
       <div
-        className={`flex-shrink-0 border-r overflow-hidden relative panel-slide ${!showWatchlist ? 'panel-collapsed' : ''}`}
+        className={`flex-shrink-0 border-r overflow-hidden relative panel-slide hidden sm:block ${!showWatchlist ? 'panel-collapsed' : ''}`}
         style={{
           width: showWatchlist ? 180 : 24,
           borderColor: 'var(--border)',
@@ -211,9 +211,9 @@ export default function LivePageContent() {
         <BottomWidgetsPanel symbol={symbol} />
       </div>
 
-      {/* Futures Panel — animated width + drag resize */}
+      {/* Futures Panel — animated width + drag resize, hidden on mobile */}
       <div
-        className={`flex-shrink-0 border-l border-[var(--border)] overflow-hidden relative panel-slide ${!showFutures ? 'panel-collapsed' : ''}`}
+        className={`flex-shrink-0 border-l border-[var(--border)] overflow-hidden relative panel-slide hidden sm:block ${!showFutures ? 'panel-collapsed' : ''}`}
         style={{
           width: showFutures ? futuresWidth : 24,
           transition: isDraggingRef.current ? 'none' : undefined,

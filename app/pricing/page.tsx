@@ -212,8 +212,8 @@ function PricingContent() {
 
   return (
     <div
-      className="min-h-screen py-16 px-4 relative"
-      style={{ background: 'var(--background)', color: 'var(--text-primary)', overflow: 'auto', height: '100vh' }}
+      className="min-h-screen py-8 sm:py-16 px-3 sm:px-4 relative"
+      style={{ background: 'var(--background)', color: 'var(--text-primary)', overflow: 'auto', height: '100svh' }}
     >
       {/* Subtle grid background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">

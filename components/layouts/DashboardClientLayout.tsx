@@ -274,7 +274,7 @@ export function DashboardClientLayout({
           {/* Hamburger - mobile only */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--surface)] transition-colors sm:hidden btn-elevate"
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[var(--surface)] transition-colors sm:hidden btn-elevate"
             aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
             aria-expanded={showMobileMenu}
           >
@@ -478,7 +478,7 @@ export function DashboardClientLayout({
           />
           {/* Drawer */}
           <div
-            className="fixed top-14 left-0 bottom-0 w-64 z-40 border-r border-[var(--border)] overflow-y-auto sm:hidden custom-scrollbar"
+            className="fixed top-14 left-0 bottom-0 w-[220px] z-40 border-r border-[var(--border)] overflow-y-auto sm:hidden custom-scrollbar"
             style={{
               backgroundColor: 'var(--surface)',
               transform: showMobileMenu ? 'translateX(0)' : 'translateX(-100%)',
@@ -497,7 +497,7 @@ export function DashboardClientLayout({
                     href={item.href}
                     onClick={() => setShowMobileMenu(false)}
                     className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150
+                      flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-150
                       ${showMobileMenu ? 'drawer-item-enter' : ''}
                       ${isActive
                         ? 'text-[var(--text-primary)]'

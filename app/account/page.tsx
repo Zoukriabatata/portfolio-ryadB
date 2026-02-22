@@ -498,9 +498,9 @@ function AccountContent() {
 
   return (
     <div className="min-h-screen overflow-y-auto animate-fadeIn" style={{ background: 'var(--background)' }}>
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-8">
           <div className="flex items-center gap-4">
             <Link href="/live" className="text-xl font-bold" style={{ color: 'var(--primary-light)' }}>
               SENZOUKRIA
@@ -526,10 +526,10 @@ function AccountContent() {
           </div>
         )}
 
-        <div className="flex gap-8">
-          {/* Sidebar Navigation */}
-          <nav className="w-48 flex-shrink-0">
-            <div className="space-y-1">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-8">
+          {/* Tab Navigation — horizontal scroll on mobile, sidebar on desktop */}
+          <nav className="md:w-48 flex-shrink-0">
+            <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 custom-scrollbar">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -537,7 +537,7 @@ function AccountContent() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all text-left"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all text-left whitespace-nowrap flex-shrink-0"
                     style={{
                       background: isActive ? 'var(--surface-elevated)' : 'transparent',
                       color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',

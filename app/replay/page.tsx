@@ -41,7 +41,7 @@ export default function ReplayPage() {
   }, [replay.isRecording]);
 
   return (
-    <div className="h-[calc(100vh-56px)] flex overflow-hidden animate-fadeIn">
+    <div className="h-[calc(100svh-56px)] flex overflow-hidden animate-fadeIn">
       <div className="animate-slideInLeft" style={{ animationDuration: '300ms' }}>
         <SessionSidebar />
       </div>

@@ -353,7 +353,7 @@ export default function ChartPage() {
 
   return (
     <div
-      className="h-[calc(100vh-80px)] flex flex-col animate-page-enter"
+      className="h-[calc(100svh-80px)] flex flex-col animate-page-enter"
       style={{
         '--chart-bg': theme.background,
         '--chart-grid': theme.gridLines,

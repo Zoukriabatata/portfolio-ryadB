@@ -33,7 +33,9 @@ export default function ComparisonTable() {
   const { t } = useTranslation();
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Scroll hint shadow on right edge */}
+      <div className="absolute top-0 right-0 bottom-0 w-6 pointer-events-none z-10 sm:hidden" style={{ background: 'linear-gradient(to left, var(--background), transparent)' }} />
       <div className="min-w-[700px]">
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           {/* Header row */}
