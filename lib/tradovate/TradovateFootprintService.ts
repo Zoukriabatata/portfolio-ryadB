@@ -55,7 +55,7 @@ class TradovateFootprintService {
 
   constructor(config: Partial<TradovateFootprintConfig> = {}) {
     this.config = {
-      symbol: 'NQH5',
+      symbol: 'NQ',
       timeframe: 60,
       tickSize: 1,
       imbalanceRatio: 3.0,

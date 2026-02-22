@@ -1021,12 +1021,12 @@ function getTickSize(symbol: string): number {
   const tickSizes: Record<string, number> = {
     BTCUSDT: 0.1,
     ETHUSDT: 0.01,
-    MNQH5: 0.25,
-    MESH5: 0.25,
-    NQH5: 0.25,
-    ESH5: 0.25,
-    GCJ5: 0.1,
-    MGCJ5: 0.1,
+    NQ: 0.25,
+    MNQ: 0.25,
+    ES: 0.25,
+    MES: 0.25,
+    GC: 0.1,
+    MGC: 0.1,
   };
   return tickSizes[symbol] || 0.01;
 }
