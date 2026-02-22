@@ -23,15 +23,14 @@ const STATUS_COLORS: Record<DataFeedStatus, { bg: string; text: string; label: s
 interface ProviderCardProps {
   provider: DataFeedProviderInfo;
   status: DataFeedStatus;
-  userTier: 'FREE' | 'ULTRA';
+  userTier?: 'FREE' | 'ULTRA';
   onConfigure: (providerId: string) => void;
 }
 
-export default function ProviderCard({ provider, status, userTier, onConfigure }: ProviderCardProps) {
+export default function ProviderCard({ provider, status, onConfigure }: ProviderCardProps) {
   const { t } = useTranslation();
   const Icon = ICON_MAP[provider.iconName];
   const statusInfo = STATUS_COLORS[status];
-  const isLocked = false; // All data feeds are freely accessible
   const isPremiumBroker = provider.requiresCredentials;
 
   return (
@@ -43,7 +42,7 @@ export default function ProviderCard({ provider, status, userTier, onConfigure }
           : 'var(--surface)',
         border: isPremiumBroker ? `1.5px solid ${provider.color}40` : '1px solid var(--border)',
         boxShadow: isPremiumBroker ? `0 0 30px ${provider.color}10` : 'none',
-        opacity: isLocked ? 0.7 : 1,
+        opacity: 1,
       }}
     >
       {/* Header: Icon + Name + Badges */}
@@ -124,30 +123,20 @@ export default function ProviderCard({ provider, status, userTier, onConfigure }
       </div>
 
       {/* Action button */}
-      {isLocked ? (
-        <a
-          href="/pricing?upgrade=true"
-          className="w-full py-2.5 rounded-lg text-sm font-medium text-center transition-opacity hover:opacity-90"
-          style={{ background: 'var(--accent-bg, rgba(168,85,247,0.15))', color: 'var(--accent, #a855f7)', display: 'block' }}
-        >
-          {t('boutique.upgrade')}
-        </a>
-      ) : (
-        <button
-          onClick={() => onConfigure(provider.id)}
-          className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-          style={{
-            background: status === 'connected' ? `${provider.color}20` : provider.color,
-            color: status === 'connected' ? provider.color : 'var(--primary-foreground, #000)',
-          }}
-        >
-          {status === 'connected'
-            ? t('boutique.connected')
-            : status === 'configured'
-              ? t('boutique.connect')
-              : t('boutique.configure')}
-        </button>
-      )}
+      <button
+        onClick={() => onConfigure(provider.id)}
+        className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+        style={{
+          background: status === 'connected' ? `${provider.color}20` : provider.color,
+          color: status === 'connected' ? provider.color : 'var(--primary-foreground, #000)',
+        }}
+      >
+        {status === 'connected'
+          ? t('boutique.connected')
+          : status === 'configured'
+            ? t('boutique.connect')
+            : t('boutique.configure')}
+      </button>
     </div>
   );
 }
