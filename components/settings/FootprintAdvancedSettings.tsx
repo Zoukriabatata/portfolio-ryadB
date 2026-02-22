@@ -198,6 +198,9 @@ export default function FootprintAdvancedSettings({
   return (
     <div
       ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Footprint Settings"
       className="fixed z-[50] select-none animate-slideInRight"
       style={{
         left: position.x,
@@ -221,6 +224,7 @@ export default function FootprintAdvancedSettings({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close settings"
             className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-elevated)] transition-colors"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

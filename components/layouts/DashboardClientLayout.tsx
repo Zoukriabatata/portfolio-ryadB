@@ -261,6 +261,9 @@ export function DashboardClientLayout({
   return (
     <SessionProvider>
       <div className="h-screen w-screen overflow-hidden flex flex-col bg-[var(--background)] text-[var(--text-primary)]">
+      {/* Skip Link for keyboard navigation */}
+      <a href="#main-content" className="skip-link">Skip to main content</a>
+
       {/* ============================================================
           TOPBAR NAVIGATION (hidden on landing page)
           ============================================================ */}
@@ -465,6 +468,7 @@ export function DashboardClientLayout({
         <>
           {/* Backdrop — blur + fade */}
           <div
+            aria-hidden="true"
             className="fixed inset-0 z-40 sm:hidden"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -557,7 +561,7 @@ export function DashboardClientLayout({
       {/* ============================================================
           MAIN CONTENT AREA
           ============================================================ */}
-      <main className="flex-1 overflow-hidden bg-[var(--background)]">
+      <main id="main-content" className="flex-1 overflow-hidden bg-[var(--background)]">
         {/* Non-chart pages (normal Next.js routing) */}
         <div
           className="h-full overflow-auto animate-page-enter"

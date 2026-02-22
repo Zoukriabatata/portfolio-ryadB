@@ -205,6 +205,7 @@ export default function LiquidityAdvancedSettings({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 z-[9999]"
+        aria-hidden="true"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
@@ -214,6 +215,9 @@ export default function LiquidityAdvancedSettings({
       {/* Modal */}
       <div
         ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Liquidity Settings"
         className="fixed z-[10000] select-none"
         style={wasDragged ? {
           left: position.x,
@@ -244,9 +248,10 @@ export default function LiquidityAdvancedSettings({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close settings"
             className="p-1.5 rounded-lg hover:bg-[var(--surface-elevated)] transition-colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>

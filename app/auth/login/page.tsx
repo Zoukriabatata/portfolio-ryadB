@@ -81,7 +81,7 @@ function LoginForm() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--primary)]" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--primary)]" role="status" aria-label="Loading" />
       </div>
     );
   }
@@ -202,7 +202,7 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--primary)]" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--primary)]" role="status" aria-label="Loading" />
       </div>
     }>
       <LoginForm />

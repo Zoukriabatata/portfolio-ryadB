@@ -50,6 +50,7 @@ export default function AlertZoneManager({ isOpen, onClose, currentPrice }: Aler
         <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Alert Zones</span>
         <button
           onClick={onClose}
+          aria-label="Close alert zones"
           className="text-lg transition-colors"
           style={{ color: 'var(--text-dimmed)' }}
         >
@@ -74,6 +75,7 @@ export default function AlertZoneManager({ isOpen, onClose, currentPrice }: Aler
                 {/* Enable toggle */}
                 <button
                   onClick={() => updateAlertZone(zone.id, { enabled: !zone.enabled })}
+                  aria-label={zone.enabled ? 'Disable zone' : 'Enable zone'}
                   className="w-4 h-4 rounded border flex items-center justify-center"
                   style={{
                     backgroundColor: zone.enabled ? 'var(--primary)' : 'transparent',
@@ -105,6 +107,7 @@ export default function AlertZoneManager({ isOpen, onClose, currentPrice }: Aler
                 {/* Remove */}
                 <button
                   onClick={() => removeAlertZone(zone.id)}
+                  aria-label="Remove zone"
                   className="text-xs transition-colors"
                   style={{ color: 'var(--text-dimmed)' }}
                 >

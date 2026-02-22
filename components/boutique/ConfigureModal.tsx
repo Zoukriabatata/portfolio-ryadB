@@ -120,6 +120,9 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Configure ${provider.name}`}
         className="w-full max-w-md rounded-2xl p-6"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
@@ -141,6 +144,7 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="ml-auto p-1.5 rounded-lg hover:bg-[var(--surface-elevated)] transition-colors"
             style={{ color: 'var(--text-muted)' }}
           >
