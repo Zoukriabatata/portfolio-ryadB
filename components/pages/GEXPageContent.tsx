@@ -68,6 +68,8 @@ export default function GEXPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isSimulation, setIsSimulation] = useState(true);
+  const [realSpotPrice, setRealSpotPrice] = useState<number | undefined>();
+  const [priceSource, setPriceSource] = useState<'yahoo-finance' | 'fallback' | null>(null);
 
   // View controls
   const [viewMode, setViewMode] = useState<ViewMode>('bars');
@@ -132,6 +134,31 @@ export default function GEXPageContent() {
     };
   }, [multiGreekSummary, legacySummary, selectedGreek]);
 
+  // ─── Fetch real ETF price ───
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch(`/api/market/etf-price?symbol=${symbol}`);
+        if (!res.ok) throw new Error('fetch failed');
+        const data = await res.json();
+        if (!cancelled) {
+          setRealSpotPrice(data.price);
+          setPriceSource(data.source);
+        }
+      } catch {
+        if (!cancelled) {
+          setRealSpotPrice(undefined);
+          setPriceSource('fallback');
+        }
+      }
+    };
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [symbol]);
+
   // ─── Data Loading ───
 
   const loadSimulatedData = useCallback(() => {
@@ -152,8 +179,8 @@ export default function GEXPageContent() {
       setLegacySummary(simSummary);
       setSpotPrice(simSpot);
 
-      // Multi-Greek data (new)
-      const multiResult = generateSimulatedMultiGreek(symbol, 5);
+      // Multi-Greek data (new) — anchored on real price when available
+      const multiResult = generateSimulatedMultiGreek(symbol, 5, realSpotPrice);
       setMultiGreekData(multiResult.data);
       setMultiGreekSummary(multiResult.summary);
       setSpotPrice(multiResult.spotPrice); // Override with multi-Greek spot
@@ -164,7 +191,7 @@ export default function GEXPageContent() {
       setLastUpdate(new Date());
       setIsLoading(false);
     }, 300);
-  }, [symbol, expiration]);
+  }, [symbol, expiration, realSpotPrice]);
 
   // Initial load
   useEffect(() => {
@@ -236,9 +263,17 @@ export default function GEXPageContent() {
   return (
     <div className="h-full flex flex-col bg-[var(--background)] p-4 gap-3 overflow-auto">
       {/* ─── Disclaimer ─── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 animate-fadeIn">
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] animate-fadeIn ${
+        priceSource === 'yahoo-finance'
+          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+      }`}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
-        <span>Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.</span>
+        <span>
+          {priceSource === 'yahoo-finance'
+            ? `Live ${symbol} price anchored. GEX/Greeks data is simulated. Not financial advice.`
+            : 'Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.'}
+        </span>
       </div>
 
       {/* ─── Header ─── */}
@@ -312,9 +347,14 @@ export default function GEXPageContent() {
             })}
           </div>
 
-          {/* SIM badge */}
-          <div className="px-3 py-1 text-sm rounded-lg border flex items-center gap-2 bg-[var(--accent)] text-[var(--text-primary)] border-[var(--accent-dark)]">
-            <SimulationIcon size={16} color="#fff" /><span>SIM</span>
+          {/* LIVE / SIM badge */}
+          <div className={`px-3 py-1 text-sm rounded-lg border flex items-center gap-2 ${
+            priceSource === 'yahoo-finance'
+              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+              : 'bg-[var(--accent)] text-[var(--text-primary)] border-[var(--accent-dark)]'
+          }`}>
+            <SimulationIcon size={16} color={priceSource === 'yahoo-finance' ? '#34d399' : '#fff'} />
+            <span>{priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}</span>
           </div>
 
           {lastUpdate && (
@@ -526,12 +566,10 @@ export default function GEXPageContent() {
         <span className="text-[var(--text-muted)] opacity-60">
           Shortcuts: 1-4 switch Greek, R refresh
         </span>
-        {isSimulation && (
-          <>
-            <span className="text-[var(--border-light)]">|</span>
-            <span className="text-[var(--primary-light)]">Simulated</span>
-          </>
-        )}
+        <span className="text-[var(--border-light)]">|</span>
+        <span className={priceSource === 'yahoo-finance' ? 'text-emerald-400' : 'text-[var(--primary-light)]'}>
+          {priceSource === 'yahoo-finance' ? 'Live Price' : 'Simulated'}
+        </span>
       </div>
     </div>
   );
