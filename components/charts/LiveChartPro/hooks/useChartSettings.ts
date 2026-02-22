@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useChartTemplatesStore, type ChartTemplate } from '@/stores/useChartTemplatesStore';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
 import type { TimeframeSeconds } from '@/lib/live/HierarchicalAggregator';
@@ -51,6 +52,7 @@ export function useChartSettings({ refs, timeframe, handleTimeframeChange, custo
   const copyPrice = useCallback(() => {
     if (refs.currentPrice.current) {
       navigator.clipboard.writeText(refs.currentPrice.current.toString());
+      toast.success('Price copied');
     }
   }, [refs]);
 

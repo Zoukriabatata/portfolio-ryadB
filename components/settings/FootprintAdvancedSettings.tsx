@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import {
   useFootprintSettingsStore,
   COLOR_PRESETS,
@@ -1948,7 +1949,7 @@ export default function FootprintAdvancedSettings({
                 const reader = new FileReader();
                 reader.onload = () => {
                   const success = settings.importSettings(reader.result as string);
-                  if (!success) alert('Invalid settings file');
+                  if (!success) toast.error('Invalid settings file');
                 };
                 reader.readAsText(file);
                 e.target.value = '';

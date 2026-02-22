@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -109,7 +110,7 @@ export default function AdminPage() {
       });
 
       if (!res.ok) {
-        alert(`Erreur serveur (${res.status})`);
+        toast.error(`Erreur serveur (${res.status})`);
         return;
       }
 
@@ -118,11 +119,12 @@ export default function AdminPage() {
       if (data.success) {
         await fetchProofs();
         await fetchUsers();
+        toast.success('Action effectuée');
       } else {
-        alert(data.error || 'Erreur');
+        toast.error(data.error || 'Erreur');
       }
     } catch {
-      alert('Erreur de connexion');
+      toast.error('Erreur de connexion');
     } finally {
       setActionLoading(null);
     }
@@ -139,7 +141,7 @@ export default function AdminPage() {
       });
 
       if (!res.ok) {
-        alert(`Erreur serveur (${res.status})`);
+        toast.error(`Erreur serveur (${res.status})`);
         return;
       }
 
@@ -147,11 +149,12 @@ export default function AdminPage() {
 
       if (data.success) {
         await fetchUsers();
+        toast.success('Action effectuée');
       } else {
-        alert(data.error || 'Erreur');
+        toast.error(data.error || 'Erreur');
       }
     } catch {
-      alert('Erreur de connexion');
+      toast.error('Erreur de connexion');
     } finally {
       setActionLoading(null);
     }
@@ -174,7 +177,7 @@ export default function AdminPage() {
       });
 
       if (!res.ok) {
-        alert(`Erreur serveur (${res.status})`);
+        toast.error(`Erreur serveur (${res.status})`);
         return;
       }
 
@@ -183,12 +186,12 @@ export default function AdminPage() {
       if (data.success) {
         setSearchEmail('');
         await fetchUsers();
-        alert(data.message);
+        toast.success(data.message);
       } else {
-        alert(data.error || 'Erreur');
+        toast.error(data.error || 'Erreur');
       }
     } catch {
-      alert('Erreur de connexion');
+      toast.error('Erreur de connexion');
     } finally {
       setActionLoading(null);
     }

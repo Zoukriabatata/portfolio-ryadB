@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { toast } from 'sonner';
 import { throttledFetch } from '@/lib/api/throttledFetch';
 
 interface ScreenshotUploaderProps {
@@ -16,11 +17,11 @@ export default function ScreenshotUploader({ urls, onChange, maxFiles = 5 }: Scr
 
   const uploadFile = useCallback(async (file: File) => {
     if (file.size > 5 * 1024 * 1024) {
-      alert('File too large (max 5MB)');
+      toast.error('File too large (max 5MB)');
       return null;
     }
     if (!file.type.startsWith('image/')) {
-      alert('Only image files are allowed');
+      toast.error('Only image files are allowed');
       return null;
     }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { usePageActive } from '@/hooks/usePageActive';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
 import { useOrderbookStore } from '@/stores/useOrderbookStore';
@@ -867,6 +868,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       onClick: () => {
         if (contextMenu.priceAtCursor) {
           navigator.clipboard.writeText(contextMenu.priceAtCursor.toFixed(2));
+          toast.success('Price copied');
         }
         closeContextMenu();
       },

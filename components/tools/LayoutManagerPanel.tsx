@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { toast } from 'sonner';
 import {
   layoutPersistence,
   LayoutMeta,
@@ -92,6 +93,7 @@ export default function LayoutManagerPanel({
         currentImbalance,
         currentLayout
       );
+      toast.success(`Layout "${newLayoutName.trim()}" saved`);
       setNewLayoutName('');
       refreshLayouts();
     } finally {
@@ -117,6 +119,7 @@ export default function LayoutManagerPanel({
       layoutPersistence.applyLayout(layout);
       onLoadLayout(layout);
       setSelectedLayoutId(id);
+      toast.success('Layout loaded');
     }
   }, [onLoadLayout]);
 
@@ -178,8 +181,9 @@ export default function LayoutManagerPanel({
     const id = await layoutPersistence.importLayoutFromFile(file);
     if (id) {
       refreshLayouts();
+      toast.success('Layout imported');
     } else {
-      alert('Failed to import layout');
+      toast.error('Failed to import layout');
     }
 
     // Reset input

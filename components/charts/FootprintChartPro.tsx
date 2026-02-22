@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { usePageActive } from '@/hooks/usePageActive';
 import {
   getOrderflowEngine,
@@ -3273,6 +3274,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
   const copyPrice = useCallback(() => {
     if (currentPriceRef.current) {
       navigator.clipboard.writeText(currentPriceRef.current.toString());
+      toast.success('Price copied');
     }
   }, []);
 

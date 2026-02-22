@@ -5,6 +5,7 @@ import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Toaster } from 'sonner';
 
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'] });
 
@@ -56,6 +57,20 @@ if(typeof Node!=='undefined'){
       </head>
       <body className={spaceGrotesk.className} suppressHydrationWarning>
         <DashboardClientLayout>{children}</DashboardClientLayout>
+        <Toaster
+          theme="dark"
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'inherit',
+              fontSize: '13px',
+            },
+          }}
+          gap={8}
+        />
         <Analytics />
         <SpeedInsights />
       </body>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, Suspense } from 'react';
+import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -164,11 +165,11 @@ function PricingContent() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error || 'An error occurred. Please try again.');
+        toast.error(data.error || 'An error occurred. Please try again.');
         setStripeLoading(false);
       }
     } catch {
-      alert('Failed to initiate checkout. Please try again.');
+      toast.error('Failed to initiate checkout. Please try again.');
       setStripeLoading(false);
     }
   };
@@ -730,7 +731,7 @@ function PricingContent() {
                     Open Binance Pay
                   </a>
                   <button
-                    onClick={() => { navigator.clipboard.writeText('1017835844'); }}
+                    onClick={() => { navigator.clipboard.writeText('1017835844'); toast.success('ID copied'); }}
                     className="px-4 py-2.5 rounded-lg text-sm font-mono transition-opacity hover:opacity-80"
                     style={{
                       background: 'var(--surface-elevated, #1a1a24)',

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { type Tool, type ToolType, type ToolStyle, getToolsEngine } from '@/lib/tools/ToolsEngine';
 import { ExpandableSection } from './ExpandableSection';
 import { NumberInput } from './NumberInput';
@@ -340,7 +341,7 @@ export function UnifiedToolPropertiesPanel({
             <button
               onClick={() => {
                 // Already applied via handleStyleChange
-                alert(`✓ Default style saved for ${TOOL_LABELS[defaultToolType]}`);
+                toast.success(`Default style saved for ${TOOL_LABELS[defaultToolType]}`);
               }}
               className="w-full mt-3 px-3 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
             >
