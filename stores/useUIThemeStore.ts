@@ -29,6 +29,17 @@ export interface UIThemeColors {
   primaryGlow: string;
   accent: string;
   accentLight: string;
+  // Logo colors
+  logoBright: string;
+  logoMid: string;
+  logoDark: string;
+  // Chart colors
+  candleUp: string;
+  candleDown: string;
+  wickUp: string;
+  wickDown: string;
+  chartBg: string;
+  chartGrid: string;
 }
 
 export interface UIThemeDefinition {
@@ -61,6 +72,15 @@ export const UI_THEMES: UIThemeDefinition[] = [
       primaryGlow: 'rgba(126, 211, 33, 0.15)',
       accent: '#22d3ee',
       accentLight: '#67e8f9',
+      logoBright: '#a3e635',
+      logoMid: '#7ed321',
+      logoDark: '#5fa31a',
+      candleUp: '#7ed321',
+      candleDown: '#e04040',
+      wickUp: '#5fa31a',
+      wickDown: '#b91c1c',
+      chartBg: '#060a08',
+      chartGrid: '#0f1e12',
     },
   },
   {
@@ -84,6 +104,15 @@ export const UI_THEMES: UIThemeDefinition[] = [
       primaryGlow: 'rgba(16, 185, 129, 0.15)',
       accent: '#06b6d4',
       accentLight: '#22d3ee',
+      logoBright: '#34d399',
+      logoMid: '#10b981',
+      logoDark: '#059669',
+      candleUp: '#10b981',
+      candleDown: '#ef4444',
+      wickUp: '#059669',
+      wickDown: '#dc2626',
+      chartBg: '#0a0a0f',
+      chartGrid: '#1a1a2f',
     },
   },
   {
@@ -107,6 +136,15 @@ export const UI_THEMES: UIThemeDefinition[] = [
       primaryGlow: 'rgba(161, 161, 170, 0.12)',
       accent: '#e4e4e7',
       accentLight: '#fafafa',
+      logoBright: '#d4d4d8',
+      logoMid: '#a1a1aa',
+      logoDark: '#71717a',
+      candleUp: '#a1a1aa',
+      candleDown: '#ef4444',
+      wickUp: '#71717a',
+      wickDown: '#dc2626',
+      chartBg: '#09090b',
+      chartGrid: '#1a1a1a',
     },
   },
   {
@@ -130,6 +168,15 @@ export const UI_THEMES: UIThemeDefinition[] = [
       primaryGlow: 'rgba(59, 130, 246, 0.15)',
       accent: '#06b6d4',
       accentLight: '#22d3ee',
+      logoBright: '#60a5fa',
+      logoMid: '#3b82f6',
+      logoDark: '#2563eb',
+      candleUp: '#3b82f6',
+      candleDown: '#f97316',
+      wickUp: '#2563eb',
+      wickDown: '#ea580c',
+      chartBg: '#0a0e1a',
+      chartGrid: '#1a1a2f',
     },
   },
   {
@@ -153,6 +200,15 @@ export const UI_THEMES: UIThemeDefinition[] = [
       primaryGlow: 'rgba(239, 68, 68, 0.15)',
       accent: '#f59e0b',
       accentLight: '#fbbf24',
+      logoBright: '#f87171',
+      logoMid: '#ef4444',
+      logoDark: '#dc2626',
+      candleUp: '#ef4444',
+      candleDown: '#8b5cf6',
+      wickUp: '#dc2626',
+      wickDown: '#7c3aed',
+      chartBg: '#0f0a0a',
+      chartGrid: '#1a1212',
     },
   },
   {
@@ -176,6 +232,15 @@ export const UI_THEMES: UIThemeDefinition[] = [
       primaryGlow: 'rgba(20, 184, 166, 0.15)',
       accent: '#0ea5e9',
       accentLight: '#38bdf8',
+      logoBright: '#2dd4bf',
+      logoMid: '#14b8a6',
+      logoDark: '#0d9488',
+      candleUp: '#14b8a6',
+      candleDown: '#f97316',
+      wickUp: '#0d9488',
+      wickDown: '#ea580c',
+      chartBg: '#0a0f14',
+      chartGrid: '#162332',
     },
   },
   {
@@ -199,6 +264,15 @@ export const UI_THEMES: UIThemeDefinition[] = [
       primaryGlow: 'rgba(245, 158, 11, 0.15)',
       accent: '#eab308',
       accentLight: '#facc15',
+      logoBright: '#fbbf24',
+      logoMid: '#f59e0b',
+      logoDark: '#d97706',
+      candleUp: '#f59e0b',
+      candleDown: '#ef4444',
+      wickUp: '#d97706',
+      wickDown: '#dc2626',
+      chartBg: '#0a0a08',
+      chartGrid: '#1e1e16',
     },
   },
 ];
@@ -245,4 +319,15 @@ export function applyUITheme(themeId: UIThemeId): void {
   root.style.setProperty('--primary-glow', c.primaryGlow);
   root.style.setProperty('--accent', c.accent);
   root.style.setProperty('--accent-light', c.accentLight);
+  // Logo
+  root.style.setProperty('--logo-bright', c.logoBright);
+  root.style.setProperty('--logo-mid', c.logoMid);
+  root.style.setProperty('--logo-dark', c.logoDark);
+  // Chart
+  root.style.setProperty('--candle-up', c.candleUp);
+  root.style.setProperty('--candle-down', c.candleDown);
+  root.style.setProperty('--wick-up', c.wickUp);
+  root.style.setProperty('--wick-down', c.wickDown);
+  root.style.setProperty('--chart-bg', c.chartBg);
+  root.style.setProperty('--chart-grid', c.chartGrid);
 }

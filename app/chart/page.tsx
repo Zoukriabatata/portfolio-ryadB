@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { CanvasChartEngine, type ChartCandle, type ChartTheme } from '@/lib/rendering/CanvasChartEngine';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
 import { tradovateWS, timeframeToMinutes } from '@/lib/websocket/TradovateWS';
+import { useUIThemeStore, UI_THEMES } from '@/stores/useUIThemeStore';
 import { SYMBOLS, type Symbol, type Timeframe } from '@/types/market';
 
 // Granular selectors to avoid re-renders on every price tick
@@ -43,88 +44,30 @@ const TIMEFRAMES: { value: Timeframe; label: string }[] = [
   { value: '1d', label: '1D' },
 ];
 
-const THEMES: { id: string; name: string; theme: Partial<ChartTheme> }[] = [
-  {
-    id: 'senzoukria',
-    name: 'Senzoukria',
-    theme: {
-      background: '#060a08',
-      gridLines: '#0f1e12',
-      text: '#8aab8a',
-      textMuted: '#5a7a5a',
-      candleUp: '#7ed321',
-      candleDown: '#e04040',
-      wickUp: '#5fa31a',
-      wickDown: '#b91c1c',
-      volumeUp: 'rgba(126, 211, 33, 0.4)',
-      volumeDown: 'rgba(224, 64, 64, 0.4)',
-      crosshair: '#7ed321',
+// Derive chart theme from the global UI theme
+function useChartTheme(): Partial<ChartTheme> {
+  const activeThemeId = useUIThemeStore((s) => s.activeTheme);
+  return useMemo(() => {
+    const uiTheme = UI_THEMES.find(t => t.id === activeThemeId) || UI_THEMES[0];
+    const c = uiTheme.colors;
+    return {
+      background: c.chartBg,
+      gridLines: c.chartGrid,
+      text: c.textSecondary,
+      textMuted: c.textMuted,
+      candleUp: c.candleUp,
+      candleDown: c.candleDown,
+      wickUp: c.wickUp,
+      wickDown: c.wickDown,
+      volumeUp: `${c.candleUp}66`,
+      volumeDown: `${c.candleDown}66`,
+      crosshair: c.primary,
       crosshairLabel: '#ffffff',
-      crosshairLabelBg: '#1a3a10',
-      priceLineColor: '#7ed321',
-    },
-  },
-  {
-    id: 'dark',
-    name: 'Dark',
-    theme: {
-      background: '#0a0a0a',
-      gridLines: '#1a1a1a',
-      text: '#888888',
-      textMuted: '#555555',
-      candleUp: '#26a69a',
-      candleDown: '#ef5350',
-      wickUp: '#26a69a',
-      wickDown: '#ef5350',
-      volumeUp: 'rgba(38, 166, 154, 0.4)',
-      volumeDown: 'rgba(239, 83, 80, 0.4)',
-      crosshair: '#6b7280',
-      crosshairLabel: '#ffffff',
-      crosshairLabelBg: '#374151',
-      priceLineColor: '#3b82f6',
-    },
-  },
-  {
-    id: 'midnight',
-    name: 'Midnight',
-    theme: {
-      background: '#0a0a1a',
-      gridLines: '#1a1a2f',
-      text: '#8888aa',
-      textMuted: '#5555aa',
-      candleUp: '#3b82f6',
-      candleDown: '#f97316',
-      wickUp: '#3b82f6',
-      wickDown: '#f97316',
-      volumeUp: 'rgba(59, 130, 246, 0.4)',
-      volumeDown: 'rgba(249, 115, 22, 0.4)',
-      crosshair: '#60a5fa',
-      crosshairLabel: '#ffffff',
-      crosshairLabelBg: '#1e40af',
-      priceLineColor: '#60a5fa',
-    },
-  },
-  {
-    id: 'cyberpunk',
-    name: 'Cyberpunk',
-    theme: {
-      background: '#0a0010',
-      gridLines: '#1a0025',
-      text: '#ec4899',
-      textMuted: '#a855f7',
-      candleUp: '#ec4899',
-      candleDown: '#8b5cf6',
-      wickUp: '#ec4899',
-      wickDown: '#8b5cf6',
-      volumeUp: 'rgba(236, 72, 153, 0.4)',
-      volumeDown: 'rgba(139, 92, 246, 0.4)',
-      crosshair: '#f472b6',
-      crosshairLabel: '#ffffff',
-      crosshairLabelBg: '#831843',
-      priceLineColor: '#f472b6',
-    },
-  },
-];
+      crosshairLabelBg: c.surfaceElevated,
+      priceLineColor: c.primary,
+    };
+  }, [activeThemeId]);
+}
 
 export default function ChartPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,8 +77,8 @@ export default function ChartPage() {
   const [loading, setLoading] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
-  const [selectedTheme, setSelectedTheme] = useState(THEMES[0]);
   const [crosshairInfo, setCrosshairInfo] = useState<{ time: number; price: number } | null>(null);
+  const chartTheme = useChartTheme();
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
   const symbolDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -159,7 +102,7 @@ export default function ChartPage() {
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
 
-    const engine = new CanvasChartEngine(canvas, selectedTheme.theme);
+    const engine = new CanvasChartEngine(canvas, chartTheme);
     engineRef.current = engine;
 
     engine.resize(rect.width, rect.height);
@@ -191,9 +134,9 @@ export default function ChartPage() {
   // Update theme
   useEffect(() => {
     if (engineRef.current) {
-      engineRef.current.setTheme(selectedTheme.theme);
+      engineRef.current.setTheme(chartTheme);
     }
-  }, [selectedTheme]);
+  }, [chartTheme]);
 
   // Update volume visibility
   useEffect(() => {
@@ -388,7 +331,7 @@ export default function ChartPage() {
     });
   };
 
-  const theme = selectedTheme.theme;
+  const theme = chartTheme;
   const lastCandle = candles[candles.length - 1];
 
   return (
@@ -548,25 +491,6 @@ export default function ChartPage() {
 
         {/* Right: Controls */}
         <div className="flex items-center gap-1.5">
-          {/* Theme selector */}
-          <select
-            value={selectedTheme.id}
-            onChange={(e) => setSelectedTheme(THEMES.find((t) => t.id === e.target.value) || THEMES[0])}
-            className="text-[11px] rounded-lg px-2 py-1.5 border focus:outline-none transition-all duration-200 cursor-pointer"
-            style={{
-              backgroundColor: `${theme.gridLines}80`,
-              borderColor: theme.gridLines,
-              color: theme.text,
-            }}
-          >
-            {THEMES.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-
-          {/* Divider */}
-          <div className="w-px h-6" style={{ backgroundColor: theme.gridLines }} />
-
           {/* Grid Toggle */}
           <button
             onClick={() => setShowGrid(!showGrid)}
