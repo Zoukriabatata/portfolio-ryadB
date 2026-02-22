@@ -156,11 +156,11 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="px-2.5 py-1 rounded text-[10px] font-medium transition-all button-press"
+                  className="px-2.5 py-1 rounded text-[10px] font-medium transition-all button-press hover:bg-[var(--surface-hover)]"
                   style={{
-                    backgroundColor: activeTab === tab.id ? 'var(--background)' : 'transparent',
+                    backgroundColor: activeTab === tab.id ? 'var(--background)' : undefined,
                     color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
-                    transform: activeTab === tab.id ? 'scale(1)' : 'scale(0.96)',
+                    boxShadow: activeTab === tab.id ? 'inset 0 -2px 0 var(--primary)' : undefined,
                   }}
                 >
                   {tab.label}

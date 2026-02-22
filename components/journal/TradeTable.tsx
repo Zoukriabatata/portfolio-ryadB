@@ -81,7 +81,7 @@ export default function TradeTable({
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
-                  className={`px-4 py-3 text-xs font-medium text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none ${
+                  className={`px-4 py-3 text-xs font-medium text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all select-none ${
                     col.align === 'right' ? 'text-right' : 'text-left'
                   }`}
                 >
@@ -137,7 +137,7 @@ export default function TradeTable({
               <tr
                 key={entry.id}
                 onClick={() => onRowClick(entry)}
-                className={`border-t border-[var(--border)] transition-colors cursor-pointer hover:bg-[var(--surface-hover)] ${
+                className={`border-t border-[var(--border)] transition-all cursor-pointer hover:bg-[var(--surface-hover)] row-hover ${
                   selectedIds.has(entry.id) ? 'bg-[var(--primary)]/5' : ''
                 }`}
               >

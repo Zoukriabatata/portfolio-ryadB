@@ -219,10 +219,11 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         <button
           onClick={() => handleTrade('buy')}
           disabled={isSubmitting}
-          className={`px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${lastAction?.side === 'buy' ? 'trade-success' : ''}`}
+          className={`px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed ${lastAction?.side === 'buy' ? 'trade-success' : ''}`}
           style={{
             backgroundColor: lastAction?.side === 'buy' ? '#059669' : '#10b981',
             color: '#fff',
+            boxShadow: lastAction?.side === 'buy' ? '0 0 12px rgba(5,150,105,0.5)' : undefined,
           }}
         >
           {isSubmitting ? (
@@ -234,10 +235,11 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         <button
           onClick={() => handleTrade('sell')}
           disabled={isSubmitting}
-          className={`px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${lastAction?.side === 'sell' ? 'trade-success' : ''}`}
+          className={`px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed ${lastAction?.side === 'sell' ? 'trade-success' : ''}`}
           style={{
             backgroundColor: lastAction?.side === 'sell' ? '#dc2626' : '#ef4444',
             color: '#fff',
+            boxShadow: lastAction?.side === 'sell' ? '0 0 12px rgba(220,38,38,0.5)' : undefined,
           }}
         >
           {isSubmitting ? (

@@ -34,21 +34,18 @@ export default function DrawingToolbar({ onClearAll }: DrawingToolbarProps) {
   } = useChartToolsStore();
 
   return (
-    <div className="flex items-center gap-1 bg-zinc-900/95 backdrop-blur rounded-lg p-1.5 shadow-lg border border-zinc-800">
+    <div className="flex items-center gap-1 backdrop-blur rounded-lg p-1.5 shadow-lg" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
       {/* Drawing Tools */}
       <div className="flex items-center gap-0.5">
         {TOOLS.map((tool) => (
           <button
             key={tool.id}
             onClick={() => setActiveTool(tool.id)}
-            className={`
-              w-8 h-8 flex items-center justify-center rounded text-lg
-              transition-colors
-              ${activeTool === tool.id
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
-              }
-            `}
+            className="w-8 h-8 flex items-center justify-center rounded text-lg transition-all active:scale-90"
+            style={{
+              backgroundColor: activeTool === tool.id ? 'var(--primary)' : undefined,
+              color: activeTool === tool.id ? '#fff' : 'var(--text-muted)',
+            }}
             title={tool.label}
           >
             {tool.icon}
@@ -57,7 +54,7 @@ export default function DrawingToolbar({ onClearAll }: DrawingToolbarProps) {
       </div>
 
       {/* Separator */}
-      <div className="w-px h-6 bg-zinc-700 mx-1" />
+      <div className="w-px h-6 mx-1" style={{ backgroundColor: 'var(--border)' }} />
 
       {/* Color Picker */}
       <div className="flex items-center gap-0.5">
@@ -79,13 +76,14 @@ export default function DrawingToolbar({ onClearAll }: DrawingToolbarProps) {
       </div>
 
       {/* Separator */}
-      <div className="w-px h-6 bg-zinc-700 mx-1" />
+      <div className="w-px h-6 mx-1" style={{ backgroundColor: 'var(--border)' }} />
 
       {/* Line Width */}
       <select
         value={defaultStyle.lineWidth}
         onChange={(e) => setDefaultStyle({ lineWidth: Number(e.target.value) })}
-        className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700"
+        className="text-xs rounded px-2 py-1 transition-colors focus:outline-none"
+        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
         title="Line Width"
       >
         <option value={1}>1px</option>
@@ -98,7 +96,8 @@ export default function DrawingToolbar({ onClearAll }: DrawingToolbarProps) {
       <select
         value={defaultStyle.lineStyle}
         onChange={(e) => setDefaultStyle({ lineStyle: e.target.value as 'solid' | 'dashed' | 'dotted' })}
-        className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700"
+        className="text-xs rounded px-2 py-1 transition-colors focus:outline-none"
+        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
         title="Line Style"
       >
         <option value="solid">Solid</option>
@@ -109,10 +108,11 @@ export default function DrawingToolbar({ onClearAll }: DrawingToolbarProps) {
       {/* Clear All */}
       {onClearAll && (
         <>
-          <div className="w-px h-6 bg-zinc-700 mx-1" />
+          <div className="w-px h-6 mx-1" style={{ backgroundColor: 'var(--border)' }} />
           <button
             onClick={onClearAll}
-            className="px-2 py-1 text-xs text-red-400 hover:bg-red-500/20 rounded transition-colors"
+            className="px-2 py-1 text-xs rounded transition-all hover:bg-[var(--error)]/15 active:scale-95"
+            style={{ color: 'var(--error)' }}
             title="Clear All Drawings"
           >
             Clear

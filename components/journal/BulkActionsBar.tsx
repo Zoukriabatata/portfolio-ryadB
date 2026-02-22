@@ -17,13 +17,13 @@ export default function BulkActionsBar({ selectedCount, onBulkDelete, onClearSel
       <div className="w-px h-4 bg-[var(--border)]" />
       <button
         onClick={onBulkDelete}
-        className="text-xs font-medium text-[var(--error)] hover:text-[var(--error)] hover:underline transition-colors"
+        className="text-xs font-medium text-[var(--error)] px-2 py-1 rounded transition-all hover:bg-[var(--error)]/10 active:scale-95"
       >
         Delete selected
       </button>
       <button
         onClick={onClearSelection}
-        className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+        className="text-xs text-[var(--text-muted)] px-2 py-1 rounded transition-all hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:scale-95"
       >
         Clear selection
       </button>

@@ -186,7 +186,7 @@ export default function SymbolSelector() {
                       <button
                         key={s}
                         onClick={() => handleSelect(s)}
-                        className="w-full flex items-center justify-between px-3 py-2 text-left transition-all duration-150"
+                        className="w-full flex items-center justify-between px-3 py-2 text-left transition-all duration-150 hover:bg-[var(--surface-hover)] active:scale-[0.99]"
                         style={{
                           background: isActive ? 'var(--primary-glow)' : undefined,
                           color: isActive ? 'var(--primary-light)' : 'var(--text-secondary)',

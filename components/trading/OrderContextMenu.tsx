@@ -149,17 +149,17 @@ export default function OrderContextMenu({
       <div
         className="rounded-xl shadow-2xl overflow-hidden"
         style={{
-          backgroundColor: 'rgba(15, 15, 20, 0.98)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          backgroundColor: 'var(--surface-elevated)',
+          border: '1px solid var(--border-light)',
           backdropFilter: 'blur(16px)',
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)',
           minWidth: 220,
         }}
       >
         {/* Header - Price Info */}
-        <div className="px-4 py-3 border-b border-white/10">
+        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-zinc-500 uppercase">Order at Price</span>
+            <span className="text-[10px] uppercase" style={{ color: 'var(--text-dimmed)' }}>Order at Price</span>
             <span
               className="text-[10px] px-2 py-0.5 rounded"
               style={{
@@ -170,10 +170,10 @@ export default function OrderContextMenu({
               {isAbovePrice ? `+${priceDiffPercent}%` : `-${priceDiffPercent}%`}
             </span>
           </div>
-          <div className="text-lg font-bold text-white font-mono">
+          <div className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
             {clickPrice.toFixed(2)}
           </div>
-          <div className="text-[10px] text-zinc-500">
+          <div className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>
             Current: {currentPrice.toFixed(2)} | Qty: {contractQuantity}
           </div>
         </div>
@@ -199,8 +199,8 @@ export default function OrderContextMenu({
                 {option.icon}
               </div>
               <div className="flex-1 text-left">
-                <div className="text-sm font-semibold text-white">{option.label}</div>
-                <div className="text-[10px] text-zinc-400">{option.description}</div>
+                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{option.label}</div>
+                <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{option.description}</div>
               </div>
               <svg
                 width="16"
@@ -217,15 +217,14 @@ export default function OrderContextMenu({
         </div>
 
         {/* Broker Status */}
-        <div className="px-4 py-2 border-t border-white/10 bg-black/20">
+        <div className="px-4 py-2 border-t" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div
-                className={`w-2 h-2 rounded-full ${
-                  isConnected ? 'bg-green-500' : 'bg-zinc-600'
-                }`}
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: isConnected ? 'var(--bull)' : 'var(--text-dimmed)' }}
               />
-              <span className="text-[10px] text-zinc-500">
+              <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>
                 {isConnected ? brokerInfo?.name : 'Not connected'}
               </span>
             </div>
@@ -235,7 +234,8 @@ export default function OrderContextMenu({
                   setShowBrokerSelector(true);
                   onClose();
                 }}
-                className="text-[10px] text-blue-400 hover:text-blue-300"
+                className="text-[10px] hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--primary)' }}
               >
                 Connect
               </button>
@@ -247,7 +247,8 @@ export default function OrderContextMenu({
         <div className="px-2 pb-2">
           <button
             onClick={onClose}
-            className="w-full py-2 rounded-lg text-xs text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-colors"
+            className="w-full py-2 rounded-lg text-xs transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]"
+            style={{ color: 'var(--text-dimmed)' }}
           >
             Cancel (Esc)
           </button>
