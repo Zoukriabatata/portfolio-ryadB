@@ -21,7 +21,7 @@ function LoginForm() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/chart';
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
   const sessionData = useSession();
   const session = sessionData?.data;
@@ -87,18 +87,31 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--background)' }}>
-      <div className="w-full max-w-md animate-fadeIn">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'var(--background)' }}>
+      {/* Ambient gradient orbs */}
+      <div
+        className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.04) 0%, transparent 70%)', filter: 'blur(80px)' }}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.03) 0%, transparent 70%)', filter: 'blur(80px)' }}
+      />
+
+      <div className="w-full max-w-md animate-fadeIn relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', boxShadow: '0 0 40px rgba(16,185,129,0.15)' }}>
+            <span className="text-xl font-black text-white">S</span>
+          </div>
           <h1 className="text-3xl font-bold" style={{ background: 'linear-gradient(to right, var(--primary-light), var(--primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             SENZOUKRIA
           </h1>
-          <p className="mt-2" style={{ color: 'var(--text-muted)' }}>Professional Trading Platform</p>
+          <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>Professional Order Flow Analytics</p>
         </div>
 
         {/* Login Form */}
-        <div className="rounded-2xl p-8 animate-slideUp" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="rounded-2xl p-8 animate-slideUp backdrop-blur-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
           <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>Sign In</h2>
 
           {error && (
@@ -187,11 +200,19 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Security Notice */}
-        <div className="mt-6 text-center">
-          <p className="text-xs" style={{ color: 'var(--text-dimmed)' }}>
-            Secure login &bull; One device at a time
-          </p>
+        {/* Security & Social Proof */}
+        <div className="mt-6 text-center space-y-2">
+          <div className="flex items-center justify-center gap-4">
+            {[
+              { icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', label: 'TLS Encrypted' },
+              { icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', label: 'Single Device' },
+            ].map((item) => (
+              <span key={item.label} className="flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--text-dimmed)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d={item.icon} /></svg>
+                {item.label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

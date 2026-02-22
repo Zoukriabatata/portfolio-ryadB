@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   // App pages (lower priority, still indexable for SEO value)
   const appPages = [
+    { path: '/dashboard', priority: 0.7, changeFrequency: 'weekly' as const },
     { path: '/live', priority: 0.7, changeFrequency: 'daily' as const },
     { path: '/footprint', priority: 0.7, changeFrequency: 'daily' as const },
     { path: '/liquidity', priority: 0.7, changeFrequency: 'daily' as const },

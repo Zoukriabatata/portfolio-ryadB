@@ -650,6 +650,17 @@ export function DataFeedIcon({ size = 18, className = '', color = 'currentColor'
   );
 }
 
+export function DashboardIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" stroke={color} strokeWidth="1.5" />
+      <rect x="14" y="3" width="7" height="4" rx="1.5" stroke={color} strokeWidth="1.5" />
+      <rect x="14" y="10" width="7" height="11" rx="1.5" stroke={color} strokeWidth="1.5" />
+      <rect x="3" y="13" width="7" height="8" rx="1.5" stroke={color} strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 // ============ BOUTIQUE ICONS - DR. STONE / SCIENTIFIC STYLE ============
 
 export function BoutiqueIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {

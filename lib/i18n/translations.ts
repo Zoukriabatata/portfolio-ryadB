@@ -4,6 +4,7 @@ type TranslationKey = keyof typeof en;
 
 const en = {
   // Navigation
+  'nav.dashboard': 'Home',
   'nav.live': 'Live',
   'nav.footprint': 'Footprint',
   'nav.liquidity': 'Liquidity',
@@ -162,6 +163,7 @@ const en = {
 };
 
 const fr: Record<TranslationKey, string> = {
+  'nav.dashboard': 'Accueil',
   'nav.live': 'Live',
   'nav.footprint': 'Footprint',
   'nav.liquidity': 'Liquidité',
@@ -302,6 +304,7 @@ const fr: Record<TranslationKey, string> = {
 };
 
 const es: Record<TranslationKey, string> = {
+  'nav.dashboard': 'Inicio',
   'nav.live': 'En vivo', 'nav.footprint': 'Footprint', 'nav.liquidity': 'Liquidez',
   'nav.gex': 'GEX', 'nav.volatility': 'Volatilidad', 'nav.bias': 'GVS Bias',
   'nav.news': 'Noticias', 'nav.journal': 'Diario', 'nav.replay': 'Replay',
@@ -370,6 +373,7 @@ const es: Record<TranslationKey, string> = {
 };
 
 const de: Record<TranslationKey, string> = {
+  'nav.dashboard': 'Startseite',
   'nav.live': 'Live', 'nav.footprint': 'Footprint', 'nav.liquidity': 'Liquidität',
   'nav.gex': 'GEX', 'nav.volatility': 'Volatilität', 'nav.bias': 'GVS Bias',
   'nav.news': 'Nachrichten', 'nav.journal': 'Journal', 'nav.replay': 'Replay',
@@ -438,6 +442,7 @@ const de: Record<TranslationKey, string> = {
 };
 
 const ar: Record<TranslationKey, string> = {
+  'nav.dashboard': 'الرئيسية',
   'nav.live': 'مباشر', 'nav.footprint': 'بصمة', 'nav.liquidity': 'سيولة',
   'nav.gex': 'GEX', 'nav.volatility': 'تقلب', 'nav.bias': 'GVS انحياز',
   'nav.news': 'أخبار', 'nav.journal': 'دفتر', 'nav.replay': 'إعادة',

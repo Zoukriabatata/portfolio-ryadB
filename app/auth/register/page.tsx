@@ -85,18 +85,31 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--background)' }}>
-      <div className="w-full max-w-md animate-fadeIn">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'var(--background)' }}>
+      {/* Ambient gradient orbs */}
+      <div
+        className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.04) 0%, transparent 70%)', filter: 'blur(80px)' }}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.03) 0%, transparent 70%)', filter: 'blur(80px)' }}
+      />
+
+      <div className="w-full max-w-md animate-fadeIn relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', boxShadow: '0 0 40px rgba(16,185,129,0.15)' }}>
+            <span className="text-xl font-black text-white">S</span>
+          </div>
           <h1 className="text-3xl font-bold" style={{ background: 'linear-gradient(to right, var(--primary-light), var(--primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             SENZOUKRIA
           </h1>
-          <p className="mt-2" style={{ color: 'var(--text-muted)' }}>Create your account</p>
+          <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>Create your trading account</p>
         </div>
 
         {/* Register Form */}
-        <div className="rounded-2xl p-8 animate-slideUp" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="rounded-2xl p-8 animate-slideUp backdrop-blur-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
           <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>Sign Up</h2>
 
           {error && (
@@ -194,7 +207,7 @@ export default function RegisterPage() {
           {/* Google Sign Up */}
           <button
             type="button"
-            onClick={() => signIn('google', { callbackUrl: '/chart' })}
+            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
             className="w-full py-3 flex items-center justify-center gap-3 rounded-lg transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
             style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           >

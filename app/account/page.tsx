@@ -138,8 +138,11 @@ const TABS: { id: AccountTab; labelKey: TranslationKey; icon: React.ComponentTyp
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+    <div className="rounded-xl p-6 transition-all duration-200 hover:border-[var(--border-light)]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+        <span className="w-1 h-4 rounded-full" style={{ background: 'var(--primary)' }} />
+        {title}
+      </h3>
       {children}
     </div>
   );
@@ -537,13 +540,14 @@ function AccountContent() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all text-left whitespace-nowrap flex-shrink-0"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all text-left whitespace-nowrap flex-shrink-0 group"
                     style={{
                       background: isActive ? 'var(--surface-elevated)' : 'transparent',
                       color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+                      borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                     }}
                   >
-                    <Icon size={15} color={isActive ? 'var(--primary)' : 'currentColor'} />
+                    <Icon size={15} color={isActive ? 'var(--primary)' : 'currentColor'} className="transition-transform group-hover:scale-110" />
                     {t(tab.labelKey)}
                   </button>
                 );

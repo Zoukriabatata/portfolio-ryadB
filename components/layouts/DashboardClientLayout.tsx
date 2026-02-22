@@ -21,8 +21,10 @@ import {
   JournalIcon,
   ReplayIcon,
   BiasIcon,
+  DashboardIcon,
 } from '@/components/ui/Icons';
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
+import FeatureTour from '@/components/ui/FeatureTour';
 import { PageActiveProvider } from '@/hooks/usePageActive';
 
 // ============================================================
@@ -665,6 +667,9 @@ export function DashboardClientLayout({
           );
         })}
       </main>
+
+      {/* Feature Tour — shows once for new users */}
+      {!isLandingPage && <FeatureTour />}
     </div>
     </SessionProvider>
   );

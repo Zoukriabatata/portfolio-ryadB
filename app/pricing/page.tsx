@@ -353,10 +353,11 @@ function PricingContent() {
           >
             {/* Recommended badge */}
             <div
-              className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-5 py-1 text-sm font-semibold rounded-full"
+              className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-5 py-1 text-sm font-semibold rounded-full animate-glowPulse"
               style={{
                 background: 'var(--primary)',
                 color: '#000',
+                boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
               }}
             >
               Full Access
