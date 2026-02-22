@@ -41,9 +41,13 @@ export default function ReplayPage() {
   }, [replay.isRecording]);
 
   return (
-    <div className="h-[calc(100vh-56px)] flex overflow-hidden">
-      <SessionSidebar />
-      <ReplayViewer />
+    <div className="h-[calc(100vh-56px)] flex overflow-hidden animate-fadeIn">
+      <div className="animate-slideInLeft" style={{ animationDuration: '300ms' }}>
+        <SessionSidebar />
+      </div>
+      <div className="flex-1 animate-slideUp" style={{ animationDuration: '400ms', animationDelay: '100ms', animationFillMode: 'both' }}>
+        <ReplayViewer />
+      </div>
       <SessionInfoModal />
       <SessionRenameModal />
       <KeyboardShortcutsHelp />

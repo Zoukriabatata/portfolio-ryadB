@@ -9,19 +9,19 @@ const symbolGroups = [
   {
     label: 'Crypto Futures',
     tag: 'Live',
-    tagColor: 'text-emerald-400 bg-emerald-500/15',
+    tagColor: 'text-[var(--success)] bg-[var(--success-bg)]',
     symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'ARBUSDT', 'SUIUSDT', 'AVAXUSDT', 'LINKUSDT'] as Symbol[],
   },
   {
     label: 'CME Index',
     tag: 'License',
-    tagColor: 'text-blue-400 bg-blue-500/15',
+    tagColor: 'text-[var(--info)] bg-[var(--info-bg)]',
     symbols: ['NQ', 'MNQ', 'ES', 'MES'] as Symbol[],
   },
   {
     label: 'CME Gold',
     tag: 'License',
-    tagColor: 'text-amber-400 bg-amber-500/15',
+    tagColor: 'text-[var(--warning)] bg-[var(--warning-bg)]',
     symbols: ['GC', 'MGC'] as Symbol[],
   },
 ];
@@ -111,29 +111,29 @@ export default function SymbolSelector() {
           style={{
             background: 'var(--surface)',
             borderColor: isOpen ? 'var(--primary)' : 'var(--border)',
-            boxShadow: isOpen ? '0 0 0 2px rgba(16, 185, 129, 0.15)' : 'none',
+            boxShadow: isOpen ? '0 0 0 2px var(--primary-glow)' : 'none',
           }}
         >
-          <span className="text-sm font-semibold text-white">{SYMBOLS[symbol]?.name || symbol}</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{SYMBOLS[symbol]?.name || symbol}</span>
 
           {/* Exchange badge */}
           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
             currentExchange === 'binance'
-              ? 'bg-yellow-500/15 text-yellow-400'
+              ? 'bg-[var(--warning-bg)] text-[var(--warning)]'
               : currentExchange === 'tradovate'
-              ? 'bg-blue-500/15 text-blue-400'
-              : 'bg-zinc-500/15 text-zinc-400'
-          }`}>
+              ? 'bg-[var(--info-bg)] text-[var(--info)]'
+              : 'text-[var(--text-muted)]'
+          }`} style={currentExchange !== 'binance' && currentExchange !== 'tradovate' ? { background: 'var(--surface-elevated)' } : undefined}>
             {currentExchange === 'binance' ? 'Binance' : currentExchange === 'tradovate' ? 'CME' : currentExchange}
           </span>
 
           {/* Live dot */}
           {isCrypto && (
-            <span className="w-2 h-2 rounded-full bg-emerald-500" style={{ boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)', animation: 'glowPulse 2s ease-in-out infinite' }} />
+            <span className="w-2 h-2 rounded-full live-dot" style={{ backgroundColor: 'var(--success)' }} />
           )}
 
           {/* Chevron */}
-          <svg className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
@@ -147,14 +147,14 @@ export default function SymbolSelector() {
               border: '1px solid var(--border-light)',
               boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
               zIndex: 'var(--z-dropdown, 100)',
-              animation: 'fadeIn 0.15s ease-out, scaleIn 0.15s ease-out',
+              animation: 'dropdownIn 0.2s ease-out',
               transformOrigin: 'top left',
             }}
           >
             {/* Search input */}
             <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
               <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
                 </svg>
                 <input
@@ -163,7 +163,7 @@ export default function SymbolSelector() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search symbol..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-[var(--surface)] border border-[var(--border)] text-white placeholder-zinc-500 focus:outline-none focus:border-[var(--primary)] transition-colors"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:border-[var(--primary)] transition-colors"
                 />
               </div>
             </div>
@@ -174,7 +174,7 @@ export default function SymbolSelector() {
                 <div key={group.label}>
                   {/* Group header */}
                   <div className="flex items-center justify-between px-3 py-1.5 mt-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{group.label}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{group.label}</span>
                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${group.tagColor}`}>{group.tag}</span>
                   </div>
 
@@ -186,18 +186,18 @@ export default function SymbolSelector() {
                       <button
                         key={s}
                         onClick={() => handleSelect(s)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-left transition-all duration-150 ${
-                          isActive
-                            ? 'bg-[var(--primary)]/10 text-emerald-400'
-                            : 'text-zinc-300 hover:bg-[var(--surface-hover)] hover:text-white'
-                        }`}
+                        className="w-full flex items-center justify-between px-3 py-2 text-left transition-all duration-150"
+                        style={{
+                          background: isActive ? 'var(--primary-glow)' : undefined,
+                          color: isActive ? 'var(--primary-light)' : 'var(--text-secondary)',
+                        }}
                       >
                         <div className="flex items-center gap-2">
                           {isActive && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--primary)' }} />
                           )}
                           <span className={`text-sm font-medium ${isActive ? '' : 'ml-3.5'}`}>{info?.name || s}</span>
-                          <span className="text-[10px] text-zinc-500 font-mono">{s}</span>
+                          <span className="text-[10px] font-mono" style={{ color: 'var(--text-dimmed)' }}>{s}</span>
                         </div>
                       </button>
                     );
@@ -206,7 +206,7 @@ export default function SymbolSelector() {
               ))}
 
               {filteredGroups.length === 0 && (
-                <div className="px-3 py-6 text-center text-xs text-zinc-500">No symbols found</div>
+                <div className="px-3 py-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>No symbols found</div>
               )}
             </div>
           </div>
@@ -214,7 +214,7 @@ export default function SymbolSelector() {
       </div>
 
       {/* Current Price */}
-      <div className="text-xl font-mono font-semibold text-white">
+      <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
         ${formatPrice(currentPrice)}
       </div>
 
@@ -227,8 +227,8 @@ export default function SymbolSelector() {
             className={`
               px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200
               ${timeframe === tf
-                ? 'bg-[var(--surface-elevated)] text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-300 hover:bg-[var(--surface-hover)]'
+                ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
               }
             `}
           >

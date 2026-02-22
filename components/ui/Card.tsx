@@ -2,7 +2,7 @@
 
 import { HTMLAttributes, forwardRef } from 'react';
 
-type CardVariant = 'default' | 'glass' | 'elevated';
+type CardVariant = 'default' | 'glass' | 'elevated' | 'interactive';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
@@ -17,6 +17,8 @@ const variantStyles: Record<CardVariant, string> = {
     'glass rounded-[var(--radius-lg,12px)]',
   elevated:
     'bg-[var(--surface-elevated)] border border-[var(--border-light)] rounded-[var(--radius-lg,12px)] shadow-lg',
+  interactive:
+    'bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg,12px)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:border-[var(--primary)]/40 cursor-pointer active:translate-y-0 active:shadow-lg',
 };
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
@@ -27,7 +29,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
         className={`
           ${variantStyles[variant]}
           ${padding ? 'p-4' : ''}
-          ${hover ? 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:border-[var(--border-focus)]' : ''}
+          ${hover && variant !== 'interactive' ? 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:border-[var(--border-focus)]' : ''}
           ${className}
         `}
         {...props}

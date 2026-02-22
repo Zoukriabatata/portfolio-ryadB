@@ -28,15 +28,17 @@ export default function JournalPage() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-[var(--background)]">
+    <div className="h-full flex flex-col bg-[var(--background)] animate-fadeIn">
       <JournalHeader onNewTrade={handleNewTrade} />
 
-      <div className="flex-1 overflow-auto" key={refreshKey}>
-        {activeTab === 'dashboard' && <DashboardTab />}
-        {activeTab === 'trades' && <TradesTab />}
-        {activeTab === 'calendar' && <CalendarTab />}
-        {activeTab === 'playbook' && <PlaybookTab />}
-        {activeTab === 'notes' && <DailyNotesTab />}
+      <div className="flex-1 overflow-auto" key={`${refreshKey}-${activeTab}`}>
+        <div className="animate-tab-enter h-full">
+          {activeTab === 'dashboard' && <DashboardTab />}
+          {activeTab === 'trades' && <TradesTab />}
+          {activeTab === 'calendar' && <CalendarTab />}
+          {activeTab === 'playbook' && <PlaybookTab />}
+          {activeTab === 'notes' && <DailyNotesTab />}
+        </div>
       </div>
 
       {/* Global trade form (from header button) */}

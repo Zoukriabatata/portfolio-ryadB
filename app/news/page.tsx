@@ -81,12 +81,13 @@ export default function NewsPage() {
                   <div className="absolute left-[5px] top-0 bottom-0 w-px bg-gradient-to-b from-[var(--primary)]/30 via-[var(--border)] to-transparent" />
                   <div className="space-y-3">
                     {dayEvents.map((event, idx) => (
-                      <TimelineEvent
-                        key={event.id}
-                        event={event}
-                        index={idx}
-                        simulationMode={simulationMode}
-                      />
+                      <div key={event.id} className="animate-slideUp" style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'both' }}>
+                        <TimelineEvent
+                          event={event}
+                          index={idx}
+                          simulationMode={simulationMode}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>

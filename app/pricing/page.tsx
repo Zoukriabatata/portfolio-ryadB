@@ -230,7 +230,7 @@ function PricingContent() {
         {/* ----------------------------------------------------------------- */}
         <div className="text-center mb-14">
           <Link href="/" className="inline-block mb-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold" style={{ background: 'linear-gradient(to right, var(--primary-light), var(--primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               SENZOUKRIA
             </h1>
           </Link>
@@ -248,15 +248,15 @@ function PricingContent() {
           {/* Launch offer banner */}
           <div className="mt-6 mx-auto max-w-lg p-4 rounded-xl text-sm font-medium"
             style={{
-              background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(168,85,247,0.1) 100%)',
-              border: '1px solid rgba(16,185,129,0.3)',
+              background: 'linear-gradient(135deg, var(--success-bg) 0%, var(--accent-bg, rgba(168,85,247,0.1)) 100%)',
+              border: '1px solid var(--primary)',
             }}>
             <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--primary)' }} />
               <span style={{ color: 'var(--primary-light)' }} className="font-bold tracking-wide">{t('pricing.launchOffer')}</span>
             </div>
             <p style={{ color: 'var(--text-secondary)' }}>
-              First {LAUNCH_SPOTS} subscribers get <strong style={{ color: '#fff' }}>${LAUNCH_PRICE}/mo</strong> locked for life
+              First {LAUNCH_SPOTS} subscribers get <strong style={{ color: 'var(--text-primary)' }}>${LAUNCH_PRICE}/mo</strong> locked for life
               <span style={{ color: 'var(--text-muted)' }}> (regular ${REGULAR_PRICE}/mo)</span>
             </p>
           </div>
@@ -266,9 +266,9 @@ function PricingContent() {
             <div
               className="mt-6 mx-auto max-w-lg p-4 rounded-lg border text-sm font-medium"
               style={{
-                background: 'rgba(245, 158, 11, 0.08)',
-                borderColor: 'rgba(245, 158, 11, 0.25)',
-                color: '#fbbf24',
+                background: 'var(--warning-bg)',
+                borderColor: 'var(--warning)',
+                color: 'var(--warning)',
               }}
             >
               Upgrade required to access <strong>{from}</strong>. Choose the SENULTRA plan below.
@@ -282,7 +282,7 @@ function PricingContent() {
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-20">
           {/* FREE Card */}
           <div
-            className="rounded-2xl p-8 flex flex-col"
+            className="rounded-2xl p-8 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
@@ -343,9 +343,9 @@ function PricingContent() {
 
           {/* SENULTRA Card */}
           <div
-            className="rounded-2xl p-8 flex flex-col relative"
+            className="rounded-2xl p-8 flex flex-col relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_40px_var(--primary-glow)]"
             style={{
-              background: 'linear-gradient(170deg, rgba(16,185,129,0.06) 0%, var(--surface) 40%)',
+              background: 'linear-gradient(170deg, var(--success-bg) 0%, var(--surface) 40%)',
               border: '2px solid var(--primary)',
               boxShadow: '0 0 40px rgba(16, 185, 129, 0.08)',
             }}
