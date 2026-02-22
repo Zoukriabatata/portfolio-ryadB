@@ -20,42 +20,6 @@ import {
   type SubscriptionTier,
 } from './security';
 
-declare module 'next-auth' {
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      name: string | null;
-      image?: string | null;
-      tier: SubscriptionTier;
-      deviceId: string;
-      sessionId: string;
-    };
-  }
-
-  interface User {
-    id: string;
-    email: string;
-    name: string | null;
-    image?: string | null;
-    tier: SubscriptionTier;
-    deviceId?: string;
-    sessionId?: string;
-  }
-}
-
-declare module 'next-auth/jwt' {
-  interface JWT {
-    id: string;
-    email: string;
-    name: string | null;
-    picture?: string | null;
-    tier: SubscriptionTier;
-    deviceId: string;
-    sessionId: string;
-  }
-}
-
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -221,13 +185,13 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile, credentials }) {
       // Credentials provider — already handled in authorize()
       if (account?.provider === 'credentials') {
         return true;
       }
 
-      // Google OAuth — find or create user, link account
+      // Google OAuth — find or create user, link account, manage devices
       if (account?.provider === 'google' && profile?.email) {
         try {
           const email = profile.email.toLowerCase().trim();
@@ -235,7 +199,7 @@ export const authOptions: NextAuthOptions = {
           // Find existing user by email
           let dbUser = await prisma.user.findUnique({
             where: { email },
-            include: { accounts: true },
+            include: { accounts: true, devices: { where: { isActive: true } } },
           });
 
           if (!dbUser) {
@@ -249,20 +213,31 @@ export const authOptions: NextAuthOptions = {
                 subscriptionTier: 'FREE',
                 maxDevices: 1,
               },
-              include: { accounts: true },
+              include: { accounts: true, devices: { where: { isActive: true } } },
             });
           } else {
-            // Update name/avatar if not set
-            if (!dbUser.name && profile.name) {
+            // Update name/avatar if changed or not set
+            const picture = (profile as { picture?: string }).picture || null;
+            const needsUpdate = (!dbUser.name && profile.name) ||
+                                (!dbUser.avatar && picture) ||
+                                !dbUser.emailVerified;
+
+            if (needsUpdate) {
               await prisma.user.update({
                 where: { id: dbUser.id },
                 data: {
-                  name: profile.name,
-                  avatar: (profile as { picture?: string }).picture || dbUser.avatar,
+                  name: dbUser.name || profile.name || null,
+                  avatar: dbUser.avatar || picture,
                   emailVerified: dbUser.emailVerified || new Date(),
                 },
               });
             }
+          }
+
+          // Check if account is locked
+          if (dbUser.lockedUntil && dbUser.lockedUntil > new Date()) {
+            console.warn(`[Auth] Google signIn blocked — account locked: ${email}`);
+            return '/auth/login?error=account_locked';
           }
 
           // Link Google account if not already linked
@@ -285,12 +260,90 @@ export const authOptions: NextAuthOptions = {
                 id_token: account.id_token || null,
               },
             });
+          } else {
+            // Update tokens if they changed
+            await prisma.account.update({
+              where: { id: existingAccount.id },
+              data: {
+                access_token: account.access_token || existingAccount.access_token,
+                refresh_token: account.refresh_token || existingAccount.refresh_token,
+                expires_at: account.expires_at || existingAccount.expires_at,
+                id_token: account.id_token || existingAccount.id_token,
+              },
+            });
           }
 
-          // Create session in DB
-          const sessionId = generateSessionId();
-          const deviceFingerprint = `google_${dbUser.id}`;
+          // Generate device fingerprint from Google profile (consistent per user/browser)
+          const deviceFingerprint = generateDeviceFingerprint(
+            `google_oauth_${account.providerAccountId}`,
+            email
+          );
 
+          // Check device limit
+          const tierConfig = TIER_CONFIG[dbUser.subscriptionTier as SubscriptionTier];
+          const activeDevices = dbUser.devices || [];
+          const existingDevice = activeDevices.find(
+            (d: { fingerprint: string }) => d.fingerprint === deviceFingerprint
+          );
+
+          if (!existingDevice && activeDevices.length >= tierConfig.maxDevices) {
+            // Deactivate oldest device
+            const oldestDevice = activeDevices.sort(
+              (a: { lastUsed: Date }, b: { lastUsed: Date }) =>
+                a.lastUsed.getTime() - b.lastUsed.getTime()
+            )[0] as { id: string; fingerprint: string } | undefined;
+
+            if (oldestDevice) {
+              await prisma.$transaction([
+                prisma.device.update({
+                  where: { id: oldestDevice.id },
+                  data: { isActive: false },
+                }),
+                prisma.session.updateMany({
+                  where: { deviceId: oldestDevice.fingerprint, isActive: true },
+                  data: { isActive: false },
+                }),
+              ]);
+            }
+          }
+
+          // Create or update device record
+          await prisma.device.upsert({
+            where: {
+              userId_fingerprint: {
+                userId: dbUser.id,
+                fingerprint: deviceFingerprint,
+              },
+            },
+            update: {
+              lastUsed: new Date(),
+              isActive: true,
+              browser: 'Google OAuth',
+              os: 'OAuth',
+              name: `Google (${profile.name || email})`,
+            },
+            create: {
+              userId: dbUser.id,
+              fingerprint: deviceFingerprint,
+              browser: 'Google OAuth',
+              os: 'OAuth',
+              name: `Google (${profile.name || email})`,
+              isActive: true,
+            },
+          });
+
+          // Expire old sessions for this device
+          await prisma.session.updateMany({
+            where: {
+              userId: dbUser.id,
+              deviceId: deviceFingerprint,
+              isActive: true,
+            },
+            data: { isActive: false, expiresAt: new Date() },
+          });
+
+          // Create new session in DB
+          const sessionId = generateSessionId();
           await prisma.session.create({
             data: {
               userId: dbUser.id,
@@ -321,33 +374,36 @@ export const authOptions: NextAuthOptions = {
           return true;
         } catch (error) {
           console.error('[Auth] Google signIn error:', error);
-          return false;
+          return '/auth/login?error=oauth_error';
         }
       }
 
       return true;
     },
 
-    async jwt({ token, user, account }) {
-      // First sign-in — populate token from user object
+    async jwt({ token, user, trigger }) {
+      // First sign-in — populate token from user object (works for both providers)
       if (user) {
         token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
+        token.email = user.email!;
+        token.name = user.name || null;
         token.picture = user.image || null;
         token.tier = user.tier || 'FREE';
         token.deviceId = user.deviceId || '';
         token.sessionId = user.sessionId || '';
       }
 
-      // For Google OAuth, ensure we have the DB user's data
-      if (account?.provider === 'google' && !token.tier) {
+      // On session update or periodic refresh — re-check tier from DB
+      // This ensures tier changes (upgrade/downgrade) are reflected without re-login
+      if (trigger === 'update' && token.id) {
         const dbUser = await prisma.user.findUnique({
-          where: { email: token.email },
+          where: { id: token.id },
+          select: { subscriptionTier: true, name: true, avatar: true },
         });
         if (dbUser) {
-          token.id = dbUser.id;
           token.tier = dbUser.subscriptionTier as SubscriptionTier;
+          token.name = dbUser.name || token.name;
+          token.picture = dbUser.avatar || token.picture;
         }
       }
 
