@@ -7,8 +7,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { hashPassword, generateSecureToken } from '@/lib/auth/security';
+import { registerRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 3 registrations per hour per IP
+  const rl = registerRateLimit(req);
+  if (!rl.allowed) return tooManyRequests(rl);
+
   try {
     const body = await req.json();
     const { email, password, name } = body;

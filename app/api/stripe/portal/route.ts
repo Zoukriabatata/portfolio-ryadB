@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { createPortalSession } from '@/lib/stripe';
+import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },

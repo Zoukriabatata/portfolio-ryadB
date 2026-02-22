@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
+import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 // GET - List user's data feed configs
 export async function GET() {
@@ -10,6 +11,9 @@ export async function GET() {
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     const configs = await prisma.dataFeedConfig.findMany({
       where: { userId: session.user.id },
@@ -30,6 +34,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     const body = await req.json();
     const { provider, host, port, username, apiKey } = body;
@@ -78,6 +85,9 @@ export async function DELETE(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     const { searchParams } = new URL(req.url);
     const provider = searchParams.get('provider');

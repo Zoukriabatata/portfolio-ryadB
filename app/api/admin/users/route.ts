@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 // Admin emails qui peuvent accéder à cette API
 const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
@@ -24,6 +25,10 @@ async function isAdmin(request: NextRequest): Promise<boolean> {
 
 // GET - Liste tous les utilisateurs
 export async function GET(request: NextRequest) {
+  // Rate limit: 30 admin requests per minute per IP
+  const rl = rateLimitByIP(request, 30, 60_000);
+  if (!rl.allowed) return tooManyRequests(rl);
+
   if (!await isAdmin(request)) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
   }
@@ -53,6 +58,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Activer/Désactiver l'accès d'un utilisateur
 export async function POST(request: NextRequest) {
+  const rl2 = rateLimitByIP(request, 30, 60_000);
+  if (!rl2.allowed) return tooManyRequests(rl2);
+
   if (!await isAdmin(request)) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
   }

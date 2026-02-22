@@ -8,12 +8,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/db';
+import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export async function GET(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   if (!token?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rl = apiRateLimit(token.id as string);
+  if (!rl.allowed) return tooManyRequests(rl);
 
   const url = new URL(req.url);
 
@@ -134,6 +138,9 @@ export async function POST(req: NextRequest) {
   if (!token?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rl = apiRateLimit(token.id as string);
+  if (!rl.allowed) return tooManyRequests(rl);
 
   const body = await req.json();
   const {

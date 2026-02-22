@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { runBacktest, type BacktestConfig, type Candle } from '@/lib/backtest';
+import { checkRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 // Binance kline intervals mapping
 const TIMEFRAME_MAP: Record<string, string> = {
@@ -121,6 +122,9 @@ export async function POST(request: NextRequest) {
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rl = checkRateLimit(`user:backtest:${token.id}`, 10, 60_000); // 10 backtests per minute
+  if (!rl.allowed) return tooManyRequests(rl);
 
   const tier = token.tier as string;
   if (tier !== 'ULTRA') {

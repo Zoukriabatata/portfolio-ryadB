@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { apiRateLimit, tooManyRequests, withRateLimitHeaders } from '@/lib/auth/rate-limiter';
 
 const profileUpdateSchema = z.object({
   name: z.string().max(100).optional(),
@@ -23,12 +24,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const rl = apiRateLimit(session.user.id);
+  if (!rl.allowed) return tooManyRequests(rl);
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { name: true, displayName: true, email: true },
   });
 
-  return NextResponse.json({ user });
+  return withRateLimitHeaders(NextResponse.json({ user }), rl);
 }
 
 export async function PUT(req: NextRequest) {
@@ -36,6 +40,9 @@ export async function PUT(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rl = apiRateLimit(session.user.id);
+  if (!rl.allowed) return tooManyRequests(rl);
 
   let body: unknown;
   try {

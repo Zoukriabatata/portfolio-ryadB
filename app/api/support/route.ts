@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'ryad.bouderga78@gmail.com';
 
@@ -33,6 +34,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     let body: unknown;
     try {
@@ -93,6 +97,9 @@ export async function GET() {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     const tickets = await prisma.supportTicket.findMany({
       where: { userId: session.user.id },

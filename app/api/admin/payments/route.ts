@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
+import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 const ADMIN_EMAILS = ['ryad.bouderga78@gmail.com'];
 
@@ -19,6 +20,9 @@ export async function GET() {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     if (!ADMIN_EMAILS.includes(session.user.email!)) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
@@ -58,6 +62,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     if (!ADMIN_EMAILS.includes(session.user.email!)) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });

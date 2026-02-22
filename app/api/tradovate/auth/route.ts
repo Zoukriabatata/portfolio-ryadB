@@ -1,9 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/api-middleware';
 
 const TRADOVATE_DEMO_API = 'https://demo.tradovateapi.com/v1';
 const TRADOVATE_LIVE_API = 'https://live.tradovateapi.com/v1';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Require authentication + rate limit
+  const auth = await requireAuth(req);
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status, headers: auth.headers });
+  }
   // Get credentials from environment variables
   const username = process.env.TRADOVATE_USERNAME;
   const password = process.env.TRADOVATE_PASSWORD;

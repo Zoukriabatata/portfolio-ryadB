@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
+import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 // GET - List user's payment proofs
 export async function GET() {
@@ -18,6 +19,9 @@ export async function GET() {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     const proofs = await prisma.payment.findMany({
       where: {
@@ -59,6 +63,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+
+    const rl = apiRateLimit(session.user.id);
+    if (!rl.allowed) return tooManyRequests(rl);
 
     const body = await req.json();
     const { paymentMethod, transactionRef, notes, amount } = body;

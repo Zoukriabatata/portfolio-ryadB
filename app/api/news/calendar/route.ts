@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { EconomicEvent, MarketImpact } from '@/types/news';
+import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 /**
  * Economic Calendar API
@@ -505,6 +506,10 @@ function applyFilters(
 
 export async function GET(req: NextRequest) {
   try {
+    // ---- Rate limiting (IP-based, works for public/dev access) ----
+    const rl = rateLimitByIP(req, 30, 60_000); // 30 req/min
+    if (!rl.allowed) return tooManyRequests(rl);
+
     // ---- Authentication (skip in dev for local testing) ----
     if (!IS_DEV) {
       const token = await getToken({ req });

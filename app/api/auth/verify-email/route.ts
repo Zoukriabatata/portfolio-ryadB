@@ -9,8 +9,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export async function GET(req: NextRequest) {
+  // Rate limit: 10 verification attempts per minute per IP
+  const rl = rateLimitByIP(req, 10, 60_000);
+  if (!rl.allowed) return tooManyRequests(rl);
+
   try {
     const token = req.nextUrl.searchParams.get('token');
 
