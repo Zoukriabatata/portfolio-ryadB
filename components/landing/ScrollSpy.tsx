@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const SECTIONS = [
   { id: 'hero', label: 'Hero' },
@@ -16,29 +16,37 @@ const SECTIONS = [
 export default function ScrollSpy() {
   const [activeId, setActiveId] = useState('hero');
   const [visible, setVisible] = useState(false);
+  const rafRef = useRef(0);
 
   useEffect(() => {
     const scrollEl = document.querySelector('[data-scroll-root]');
     if (!scrollEl) return;
 
     const handleScroll = () => {
-      const st = scrollEl.scrollTop;
-      // Show after scrolling past hero
-      setVisible(st > 400);
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        const st = scrollEl.scrollTop;
+        // Show after scrolling past hero
+        setVisible(st > 400);
 
-      // Determine active section
-      let current = 'hero';
-      for (const section of SECTIONS) {
-        const el = document.getElementById(section.id);
-        if (el && el.offsetTop - 200 <= st) {
-          current = section.id;
+        // Determine active section
+        let current = 'hero';
+        for (const section of SECTIONS) {
+          const el = document.getElementById(section.id);
+          if (el && el.offsetTop - 200 <= st) {
+            current = section.id;
+          }
         }
-      }
-      setActiveId(current);
+        setActiveId(current);
+        rafRef.current = 0;
+      });
     };
 
     scrollEl.addEventListener('scroll', handleScroll, { passive: true });
-    return () => scrollEl.removeEventListener('scroll', handleScroll);
+    return () => {
+      scrollEl.removeEventListener('scroll', handleScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   const scrollTo = (id: string) => {

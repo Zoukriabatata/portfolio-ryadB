@@ -1,22 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function ScrollProgress() {
   const [progress, setProgress] = useState(0);
+  const rafRef = useRef(0);
 
   useEffect(() => {
     const scrollEl = document.querySelector('[data-scroll-root]');
     if (!scrollEl) return;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollEl;
-      const max = scrollHeight - clientHeight;
-      setProgress(max > 0 ? scrollTop / max : 0);
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        const { scrollTop, scrollHeight, clientHeight } = scrollEl;
+        const max = scrollHeight - clientHeight;
+        setProgress(max > 0 ? scrollTop / max : 0);
+        rafRef.current = 0;
+      });
     };
 
     scrollEl.addEventListener('scroll', handleScroll, { passive: true });
-    return () => scrollEl.removeEventListener('scroll', handleScroll);
+    return () => {
+      scrollEl.removeEventListener('scroll', handleScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   return (

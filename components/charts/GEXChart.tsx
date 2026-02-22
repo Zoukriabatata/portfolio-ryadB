@@ -20,7 +20,9 @@ export default function GEXChart({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { gexData, gexSummary, underlyingPrice } = useEquityOptionsStore();
+  const gexData = useEquityOptionsStore((s) => s.gexData);
+  const gexSummary = useEquityOptionsStore((s) => s.gexSummary);
+  const underlyingPrice = useEquityOptionsStore((s) => s.underlyingPrice);
 
   // Zoom state for Y-axis (price)
   const [zoomLevel, setZoomLevel] = useState(1);

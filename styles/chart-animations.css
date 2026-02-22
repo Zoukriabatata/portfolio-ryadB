@@ -101,10 +101,11 @@
   z-index: -1;
 }
 
-/* Panel slide transitions */
+/* Panel slide transitions — use flex-basis instead of width for cheaper layout */
 .panel-slide {
-  transition: width 0.35s var(--ease-out-expo),
+  transition: flex-basis 0.35s var(--ease-out-expo),
               opacity 0.25s ease-out;
+  will-change: flex-basis, opacity;
 }
 
 .panel-content-fade {
@@ -215,26 +216,26 @@
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* Symbol change transition */
+/* Symbol change transition (opacity-only for GPU efficiency) */
 @keyframes symbolFadeOut {
   from {
     opacity: 1;
-    filter: blur(0px);
+    transform: scale(1);
   }
   to {
     opacity: 0;
-    filter: blur(4px);
+    transform: scale(0.98);
   }
 }
 
 @keyframes symbolFadeIn {
   from {
     opacity: 0;
-    filter: blur(4px);
+    transform: scale(0.98);
   }
   to {
     opacity: 1;
-    filter: blur(0px);
+    transform: scale(1);
   }
 }
 

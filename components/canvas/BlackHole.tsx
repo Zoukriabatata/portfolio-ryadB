@@ -12,7 +12,8 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let prefersReducedMotion = motionQuery.matches;
     const isMobile = window.innerWidth < 768;
 
     let w: number, viewH: number, fullH: number, cx: number, cy: number, R: number;
@@ -514,6 +515,17 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
 
     draw();
 
+    // Pause/resume RAF when reduced motion preference changes
+    const onMotionChange = (e: MediaQueryListEvent) => {
+      prefersReducedMotion = e.matches;
+      if (prefersReducedMotion) {
+        cancelAnimationFrame(raf);
+      } else {
+        raf = requestAnimationFrame(draw);
+      }
+    };
+    motionQuery.addEventListener('change', onMotionChange);
+
     const fullResize = () => {
       resize();
       updateSecondaryBHPositions();
@@ -523,6 +535,7 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
     window.addEventListener('resize', fullResize);
 
     return () => {
+      motionQuery.removeEventListener('change', onMotionChange);
       resizeObs.disconnect();
       window.removeEventListener('resize', fullResize);
       cancelAnimationFrame(raf);

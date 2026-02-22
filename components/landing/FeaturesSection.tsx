@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import {
   LiveIcon,
   FootprintIcon,
@@ -57,7 +57,7 @@ const FEATURES = [
   },
 ];
 
-function FeatureCard({ f, i }: { f: typeof FEATURES[number]; i: number }) {
+const FeatureCard = memo(function FeatureCard({ f, i }: { f: typeof FEATURES[number]; i: number }) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -124,7 +124,7 @@ function FeatureCard({ f, i }: { f: typeof FEATURES[number]; i: number }) {
       </div>
     </div>
   );
-}
+});
 
 export default function FeaturesSection() {
   return (

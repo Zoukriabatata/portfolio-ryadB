@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
-function AnimatedStat({ value, label, delay }: { value: string; label: string; delay: number }) {
+const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value: string; label: string; delay: number }) {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -13,12 +13,16 @@ function AnimatedStat({ value, label, delay }: { value: string; label: string; d
     return () => clearTimeout(timer);
   }, [delay]);
 
-  // Extract numeric part for counting animation
-  const numMatch = value.match(/(\d+)/);
+  // Extract numeric part for counting animation — memoized to avoid regex on every render
+  const { target, prefix, suffix } = useMemo(() => {
+    const numMatch = value.match(/(\d+)/);
+    return {
+      target: numMatch ? parseInt(numMatch[1], 10) : 0,
+      prefix: value.match(/^([<>]?)/)?.[1] || '',
+      suffix: value.replace(/^[<>]?\d+/, ''),
+    };
+  }, [value]);
   const [count, setCount] = useState(0);
-  const target = numMatch ? parseInt(numMatch[1]) : 0;
-  const prefix = value.match(/^([<>]?)/)?.[1] || '';
-  const suffix = value.replace(/^[<>]?\d+/, '');
 
   useEffect(() => {
     if (!visible || !target) return;
@@ -58,7 +62,7 @@ function AnimatedStat({ value, label, delay }: { value: string; label: string; d
       </div>
     </div>
   );
-}
+});
 
 // Deterministic heatmap data to avoid hydration mismatch
 const HEATMAP_DATA = [
