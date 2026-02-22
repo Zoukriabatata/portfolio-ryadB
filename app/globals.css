@@ -444,4 +444,54 @@ a:focus-visible {
   border-bottom-color: transparent;
 }
 
+/* ============================================================
+   NAVIGATION PILL GLOW
+   ============================================================ */
+
+.nav-pill-glow {
+  background: var(--nav-glow-bg, rgba(16, 185, 129, 0.08));
+  box-shadow:
+    0 0 12px var(--nav-glow-color, rgba(16, 185, 129, 0.15)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--nav-glow-border, rgba(16, 185, 129, 0.2));
+}
+
+/* ============================================================
+   DROPDOWN POLISH
+   ============================================================ */
+
+.dropdown-menu {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================================
+   BUTTON HOVER ELEVATION
+   ============================================================ */
+
+.btn-elevate {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.btn-elevate:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.btn-elevate:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* ============================================================
+   SCROLLBAR PRIMARY ACCENT
+   ============================================================ */
+
+.scrollbar-accent::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
 /* All animations, micro-interactions, and utility classes are in styles/animations.css */

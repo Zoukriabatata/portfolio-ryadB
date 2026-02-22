@@ -265,8 +265,8 @@ export default function GEXPageContent() {
       {/* ─── Disclaimer ─── */}
       <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] animate-fadeIn ${
         priceSource === 'yahoo-finance'
-          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+          ? 'bg-[var(--success-bg)] border-[var(--success)]/20 text-[var(--success)]'
+          : 'bg-[var(--warning-bg)] border-[var(--warning)]/20 text-[var(--warning)]'
       }`}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
         <span>
@@ -350,10 +350,10 @@ export default function GEXPageContent() {
           {/* LIVE / SIM badge */}
           <div className={`px-3 py-1 text-sm rounded-lg border flex items-center gap-2 ${
             priceSource === 'yahoo-finance'
-              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-              : 'bg-[var(--accent)] text-[var(--text-primary)] border-[var(--accent-dark)]'
+              ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/30'
+              : 'bg-[var(--accent)]/15 text-[var(--accent-light)] border-[var(--accent-dark)]'
           }`}>
-            <SimulationIcon size={16} color={priceSource === 'yahoo-finance' ? '#34d399' : '#fff'} />
+            <SimulationIcon size={16} color={priceSource === 'yahoo-finance' ? 'var(--success)' : 'var(--accent-light)'} />
             <span>{priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}</span>
           </div>
 
@@ -453,9 +453,9 @@ export default function GEXPageContent() {
         {spotPrice > 0 && (
           <>
             <div className="h-5 w-px bg-[var(--border)]" />
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-              <span className="text-[10px] font-mono text-blue-400 font-medium">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[var(--info-bg)] border border-[var(--info)]/20 rounded-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--info)] animate-pulse" />
+              <span className="text-[10px] font-mono text-[var(--info)] font-medium">
                 {symbol} ${spotPrice.toFixed(2)}
               </span>
             </div>

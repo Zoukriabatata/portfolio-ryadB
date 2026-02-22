@@ -749,7 +749,230 @@ html { scroll-behavior: smooth; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
 /* =============================================
-   16. REDUCED MOTION
+   16. NAVIGATION PILL INDICATOR
+   ============================================= */
+
+/* --- Sliding pill background that transitions between nav items --- */
+.nav-sliding-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 36px;
+  border-radius: 8px;
+  pointer-events: none;
+  transition: left 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.2s ease,
+              box-shadow 0.3s ease;
+  will-change: left, width;
+}
+
+/* --- Nav item hover glow --- */
+.nav-pill:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+.nav-pill:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* =============================================
+   17. DRAWER STAGGER ANIMATIONS
+   ============================================= */
+
+@keyframes drawerItemEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.drawer-item-enter {
+  opacity: 0;
+  animation: drawerItemEnter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.drawer-item-enter:nth-child(1)  { animation-delay: 0.03s; }
+.drawer-item-enter:nth-child(2)  { animation-delay: 0.06s; }
+.drawer-item-enter:nth-child(3)  { animation-delay: 0.09s; }
+.drawer-item-enter:nth-child(4)  { animation-delay: 0.12s; }
+.drawer-item-enter:nth-child(5)  { animation-delay: 0.15s; }
+.drawer-item-enter:nth-child(6)  { animation-delay: 0.18s; }
+.drawer-item-enter:nth-child(7)  { animation-delay: 0.21s; }
+.drawer-item-enter:nth-child(8)  { animation-delay: 0.24s; }
+.drawer-item-enter:nth-child(9)  { animation-delay: 0.27s; }
+.drawer-item-enter:nth-child(10) { animation-delay: 0.30s; }
+
+/* =============================================
+   18. SKELETON LOADING SCREEN
+   ============================================= */
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.7; }
+}
+
+.skeleton-chart {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-chart::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.03) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+.skeleton-bar {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* =============================================
+   19. LIVE STATUS PULSE
+   ============================================= */
+
+@keyframes liveDot {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+  }
+}
+.live-dot {
+  animation: liveDot 2s ease-in-out infinite;
+}
+
+/* =============================================
+   20. ACCORDION / EXPAND-COLLAPSE
+   ============================================= */
+
+@keyframes expandHeight {
+  from { max-height: 0; opacity: 0; }
+  to   { max-height: var(--expand-height, 500px); opacity: 1; }
+}
+@keyframes collapseHeight {
+  from { max-height: var(--expand-height, 500px); opacity: 1; }
+  to   { max-height: 0; opacity: 0; }
+}
+.animate-expand {
+  overflow: hidden;
+  animation: expandHeight 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-collapse {
+  overflow: hidden;
+  animation: collapseHeight 0.2s ease-in forwards;
+}
+
+/* =============================================
+   21. TAB CONTENT TRANSITION
+   ============================================= */
+
+@keyframes tabContentEnter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-tab-enter {
+  animation: tabContentEnter 0.2s ease-out forwards;
+}
+
+/* =============================================
+   22. BADGE PULSE (ATTENTION)
+   ============================================= */
+
+@keyframes badgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--badge-color, rgba(16, 185, 129, 0.5));
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--badge-color, rgba(16, 185, 129, 0));
+  }
+}
+.badge-pulse {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgeBounce {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.15); }
+  80%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.badge-bounce {
+  animation: badgeBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* =============================================
+   23. ERROR BOUNDARY ANIMATION
+   ============================================= */
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+.animate-error-shake {
+  animation: errorShake 0.5s ease-in-out;
+}
+
+@keyframes errorFadeIn {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-error-enter {
+  animation: errorFadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* =============================================
+   24. SORT INDICATOR ROTATION
+   ============================================= */
+
+@keyframes sortRotateUp {
+  from { transform: rotate(180deg); }
+  to   { transform: rotate(0deg); }
+}
+@keyframes sortRotateDown {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(180deg); }
+}
+.sort-asc  { animation: sortRotateUp 0.2s ease-out forwards; }
+.sort-desc { animation: sortRotateDown 0.2s ease-out forwards; }
+
+/* =============================================
+   25. NUMBER VALUE FLASH
+   ============================================= */
+
+@keyframes valueFlashUp {
+  0%   { color: var(--bull, #22c55e); background: rgba(34, 197, 94, 0.1); }
+  100% { background: transparent; }
+}
+@keyframes valueFlashDown {
+  0%   { color: var(--bear, #ef4444); background: rgba(239, 68, 68, 0.1); }
+  100% { background: transparent; }
+}
+.value-flash-up   { animation: valueFlashUp 0.6s ease-out; }
+.value-flash-down { animation: valueFlashDown 0.6s ease-out; }
+
+/* =============================================
+   26. ROW HOVER HIGHLIGHT
+   ============================================= */
+
+.row-hover {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.row-hover:hover {
+  background-color: var(--surface-hover, rgba(255, 255, 255, 0.03));
+}
+
+/* =============================================
+   27. REDUCED MOTION
    ============================================= */
 
 @media (prefers-reduced-motion: reduce) {

@@ -9,14 +9,25 @@ import { formatPrice, formatQty as fmtQtyUtil, formatTime as fmtTimeUtil, format
 type TabId = 'trades' | 'delta' | 'orderbook' | 'positions';
 
 // Shared empty state component for consistency
-function EmptyState({ message }: { message: string }) {
+function EmptyState({ message, icon }: { message: string; icon?: 'chart' | 'connection' | 'info' }) {
   return (
-    <div className="flex items-center justify-center h-full gap-2" style={{ color: 'var(--text-dimmed)' }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity={0.5}>
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 8v4M12 16h.01" />
-      </svg>
-      <span className="text-xs">{message}</span>
+    <div className="flex flex-col items-center justify-center h-full gap-2 animate-fadeIn" style={{ color: 'var(--text-dimmed)' }}>
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface-elevated)]">
+        {icon === 'chart' ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity={0.5}>
+            <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" />
+          </svg>
+        ) : icon === 'connection' ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity={0.5}>
+            <path d="M12 2a10 10 0 0110 10" /><path d="M12 6a6 6 0 016 6" /><path d="M12 10a2 2 0 012 2" />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity={0.5}>
+            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+          </svg>
+        )}
+      </div>
+      <span className="text-[10px] font-medium">{message}</span>
     </div>
   );
 }
@@ -107,14 +118,19 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
         borderColor: 'var(--border)',
       }}
     >
-      {/* Resize handle */}
+      {/* Resize handle with dot indicator */}
       {!collapsed && (
         <div
           onMouseDown={handleResizeStart}
-          className="absolute top-0 left-0 right-0 h-1.5 cursor-row-resize z-10 group resize-handle"
+          className="absolute top-0 left-0 right-0 h-2 cursor-row-resize z-10 group"
         >
-          <div className="absolute inset-x-0 top-0 h-full bg-[var(--primary)] opacity-0 group-hover:opacity-40 transition-opacity" />
-          <div className="absolute inset-x-1/3 top-[2px] h-[2px] rounded-full bg-[var(--text-dimmed)] opacity-0 group-hover:opacity-60 transition-opacity" />
+          <div className="absolute inset-x-0 top-0 h-full bg-[var(--primary)] opacity-0 group-hover:opacity-30 transition-opacity duration-200" />
+          {/* Center dots — always visible at low opacity */}
+          <div className="absolute top-[3px] left-1/2 -translate-x-1/2 flex gap-1">
+            <div className="w-1 h-1 rounded-full bg-[var(--text-dimmed)] opacity-30 group-hover:opacity-80 group-hover:bg-[var(--primary)] transition-all duration-200" />
+            <div className="w-1 h-1 rounded-full bg-[var(--text-dimmed)] opacity-30 group-hover:opacity-80 group-hover:bg-[var(--primary)] transition-all duration-200" />
+            <div className="w-1 h-1 rounded-full bg-[var(--text-dimmed)] opacity-30 group-hover:opacity-80 group-hover:bg-[var(--primary)] transition-all duration-200" />
+          </div>
         </div>
       )}
       {/* Tab bar / Collapsed bar */}
@@ -166,7 +182,7 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
 
       {/* Content — unmount when collapsed to save resources */}
       {!collapsed && (
-        <div className="flex-1 overflow-hidden">
+        <div key={activeTab} className="flex-1 overflow-hidden animate-tab-enter">
           {activeTab === 'trades' && <TimeSalesTab symbol={symbol} />}
           {activeTab === 'delta' && <DeltaTab symbol={symbol} />}
           {activeTab === 'orderbook' && <OrderBookTab />}
@@ -235,7 +251,7 @@ function TimeSalesTab({ symbol }: { symbol: string }) {
             </div>
           );
         })}
-        {trades.length === 0 && <EmptyState message="Waiting for trades..." />}
+        {trades.length === 0 && <EmptyState message="Waiting for trades..." icon="chart" />}
       </div>
     </div>
   );
@@ -320,7 +336,7 @@ function DeltaTab({ symbol }: { symbol: string }) {
             />
           </svg>
         ) : (
-          <EmptyState message="Waiting for data..." />
+          <EmptyState message="Waiting for data..." icon="chart" />
         )}
       </div>
 
@@ -374,7 +390,7 @@ function OrderBookTab() {
   }, [topBids, topAsks]);
 
   if (midPrice === 0) {
-    return <EmptyState message="Waiting for orderbook..." />;
+    return <EmptyState message="Waiting for orderbook..." icon="connection" />;
   }
 
   return (
@@ -444,7 +460,7 @@ function PositionsTab() {
   const fmtPnl = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(2)}`;
 
   if (!isConnected) {
-    return <EmptyState message="Connect a broker to view positions" />;
+    return <EmptyState message="Connect a broker to view positions" icon="connection" />;
   }
 
   return (

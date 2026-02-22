@@ -168,8 +168,8 @@ export default function VolatilityPageContent() {
       {/* ─── Disclaimer ─── */}
       <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] animate-fadeIn ${
         priceSource === 'yahoo-finance'
-          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+          ? 'bg-[var(--success-bg)] border-[var(--success)]/20 text-[var(--success)]'
+          : 'bg-[var(--warning-bg)] border-[var(--warning)]/20 text-[var(--warning)]'
       }`}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
         <span>
@@ -182,7 +182,7 @@ export default function VolatilityPageContent() {
       {/* ─── Header Row ─── */}
       <div className="flex items-center justify-between flex-wrap gap-3 animate-slideUp stagger-1">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, var(--accent), var(--info))', boxShadow: '0 4px 12px var(--accent-glow)' }}>
             <ChartSmileIcon size={20} color="#fff" />
           </div>
           <div>
@@ -212,8 +212,8 @@ export default function VolatilityPageContent() {
           {/* LIVE / SIM badge */}
           <div className={`px-3 py-1 text-sm rounded-lg border flex items-center gap-1.5 ${
             priceSource === 'yahoo-finance'
-              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-              : 'bg-[var(--accent)] text-[var(--text-primary)] border-[var(--accent-dark)]'
+              ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/30'
+              : 'bg-[var(--accent)]/15 text-[var(--accent-light)] border-[var(--accent-dark)]'
           }`}>
             <SimulationIcon size={14} color={priceSource === 'yahoo-finance' ? '#34d399' : '#fff'} />
             <span>{priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}</span>
@@ -236,27 +236,27 @@ export default function VolatilityPageContent() {
 
       {/* ─── Metrics Strip ─── */}
       <div className="flex items-center gap-0 bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden text-xs animate-slideUp stagger-2">
-        <Metric label="Spot" value={`$${effectiveSpotPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="text-blue-400" />
+        <Metric label="Spot" value={`$${effectiveSpotPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="text-[var(--info)]" />
         <Sep />
         <Metric label="ATM" value={atmStrike ? `$${atmStrike.toLocaleString()}` : '---'} />
         <Sep />
-        <Metric label="Call IV" value={`${atmCallIV}%`} color="text-emerald-400" />
+        <Metric label="Call IV" value={`${atmCallIV}%`} color="text-[var(--success)]" />
         <Sep />
-        <Metric label="Put IV" value={`${atmPutIV}%`} color="text-rose-400" />
+        <Metric label="Put IV" value={`${atmPutIV}%`} color="text-[var(--error)]" />
         <Sep />
         <Metric
           label="P/C Skew"
           value={skewRatio}
-          color={skewRatio !== '---' && parseFloat(skewRatio) > 1.05 ? 'text-rose-400' : skewRatio !== '---' && parseFloat(skewRatio) < 0.95 ? 'text-emerald-400' : 'text-[var(--text-primary)]'}
+          color={skewRatio !== '---' && parseFloat(skewRatio) > 1.05 ? 'text-[var(--error)]' : skewRatio !== '---' && parseFloat(skewRatio) < 0.95 ? 'text-[var(--success)]' : 'text-[var(--text-primary)]'}
         />
         <Sep />
-        <Metric label="DTE" value={dte ? `${dte}d` : '---'} color="text-amber-400" />
+        <Metric label="DTE" value={dte ? `${dte}d` : '---'} color="text-[var(--warning)]" />
         {effectiveSpotPrice > 0 && (
           <>
             <Sep />
             <div className="flex items-center gap-1.5 px-4 py-2.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-              <span className="font-mono font-medium text-blue-400">{symbol}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--info)] animate-pulse" />
+              <span className="font-mono font-medium text-[var(--info)]">{symbol}</span>
             </div>
           </>
         )}

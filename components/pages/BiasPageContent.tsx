@@ -118,8 +118,8 @@ export default function BiasPageContent() {
       {/* ─── Disclaimer ─── */}
       <div className={`flex-shrink-0 flex items-center gap-2 px-4 py-1.5 border-b text-[10px] animate-fadeIn ${
         priceSource === 'yahoo-finance'
-          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+          ? 'bg-[var(--success-bg)] border-[var(--success)]/20 text-[var(--success)]'
+          : 'bg-[var(--warning-bg)] border-[var(--warning)]/20 text-[var(--warning)]'
       }`}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
         <span>
@@ -169,8 +169,8 @@ export default function BiasPageContent() {
           {/* LIVE / SIM badge */}
           <div className={`px-2 py-1 rounded text-[10px] font-bold ${
             priceSource === 'yahoo-finance'
-              ? 'bg-emerald-500/15 text-emerald-400'
-              : 'bg-amber-500/15 text-amber-400'
+              ? 'bg-[var(--success-bg)] text-[var(--success)]'
+              : 'bg-[var(--warning-bg)] text-[var(--warning)]'
           }`}>
             {priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}
           </div>
