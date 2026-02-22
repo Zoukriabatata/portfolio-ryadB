@@ -27,6 +27,7 @@ import {
   DeribitIcon,
 } from '@/components/ui/Icons';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { useAccountPrefsStore, type SupportedLanguage } from '@/stores/useAccountPrefsStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
@@ -221,8 +222,9 @@ function AccountContent() {
   // Load profile from API on mount
   useEffect(() => {
     if (session?.user && !profileLoaded) {
+      const controller = new AbortController();
       setProfileName(session.user.name || '');
-      fetch('/api/auth/profile')
+      throttledFetch('/api/auth/profile', { signal: controller.signal })
         .then(r => {
           if (!r.ok) throw new Error(`Profile fetch failed: ${r.status}`);
           return r.json();
@@ -234,7 +236,10 @@ function AccountContent() {
           }
           setProfileLoaded(true);
         })
-        .catch(() => setProfileLoaded(true));
+        .catch((err) => {
+          if (err.name !== 'AbortError') setProfileLoaded(true);
+        });
+      return () => controller.abort();
     }
   }, [session, profileLoaded]);
 
@@ -285,7 +290,7 @@ function AccountContent() {
 
   const fetchTickets = async () => {
     try {
-      const res = await fetch('/api/support');
+      const res = await throttledFetch('/api/support');
       if (!res.ok) return;
       const data = await res.json();
       setTickets(data.tickets || []);
@@ -296,7 +301,7 @@ function AccountContent() {
     setProfileSaving(true);
     setProfileSaved(false);
     try {
-      const res = await fetch('/api/auth/profile', {
+      const res = await throttledFetch('/api/auth/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: profileName, displayName: profileDisplayName }),
@@ -312,7 +317,7 @@ function AccountContent() {
   const handleManageSubscription = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' });
+      const res = await throttledFetch('/api/stripe/portal', { method: 'POST' });
       if (!res.ok) return;
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -323,7 +328,7 @@ function AccountContent() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await fetch('/api/support', {
+      const res = await throttledFetch('/api/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject, message, category }),

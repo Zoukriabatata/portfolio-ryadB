@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { throttledFetch } from '@/lib/api/throttledFetch';
 
 interface User {
   id: string;
@@ -62,7 +63,7 @@ export default function AdminPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/admin/users');
+      const res = await throttledFetch('/api/admin/users');
       if (!res.ok) {
         setError(`Erreur serveur (${res.status})`);
         return;
@@ -83,7 +84,7 @@ export default function AdminPage() {
 
   const fetchProofs = async () => {
     try {
-      const res = await fetch('/api/admin/payments');
+      const res = await throttledFetch('/api/admin/payments');
       if (!res.ok) return;
       const data = await res.json();
 
@@ -101,7 +102,7 @@ export default function AdminPage() {
     setActionLoading(proofId);
 
     try {
-      const res = await fetch('/api/admin/payments', {
+      const res = await throttledFetch('/api/admin/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proofId, action }),
@@ -131,7 +132,7 @@ export default function AdminPage() {
     setActionLoading(email);
 
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await throttledFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, action, duration: selectedDuration }),
@@ -162,7 +163,7 @@ export default function AdminPage() {
     setActionLoading('quick');
 
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await throttledFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

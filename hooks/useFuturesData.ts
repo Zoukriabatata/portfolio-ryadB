@@ -25,6 +25,7 @@ function isCryptoSymbol(sym: string): boolean {
 
 export function useFuturesData(symbol: string) {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const failCountRef = useRef(0);
   const store = useFuturesStore;
   const isCrypto = isCryptoSymbol(symbol);
   const isActive = usePageActive();
@@ -118,8 +119,27 @@ export function useFuturesData(symbol: string) {
           });
         }
       }
+      // Track consecutive failures for error state
+      const allFailed = [oiRes, oiHistRes, lsRes, topLsRes].every(
+        r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)
+      );
+      if (allFailed) {
+        failCountRef.current++;
+        if (failCountRef.current >= 2) {
+          store.getState().setMetricsError(true);
+        }
+      } else {
+        failCountRef.current = 0;
+        if (store.getState().metricsError) {
+          store.getState().setMetricsError(false);
+        }
+      }
     } catch (error) {
       console.error('[FuturesData] Poll error:', error);
+      failCountRef.current++;
+      if (failCountRef.current >= 2) {
+        store.getState().setMetricsError(true);
+      }
     } finally {
       store.getState().setPolling(false);
     }
@@ -128,6 +148,7 @@ export function useFuturesData(symbol: string) {
   // Start/stop polling + reset on symbol change — only when page is active
   useEffect(() => {
     if (!isCrypto || !isActive) return;
+    failCountRef.current = 0;
     store.getState().reset();
     fetchFuturesMetrics();
 

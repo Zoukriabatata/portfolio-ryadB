@@ -51,6 +51,7 @@ interface FuturesState {
   // Polling status
   isPolling: boolean;
   lastPollTime: number;
+  metricsError: boolean;
 
   // Actions
   updateMarkPrice: (update: MarkPriceUpdate) => void;
@@ -61,6 +62,7 @@ interface FuturesState {
   setTopTraderLongShort: (ratio: TopTraderLongShortRatio) => void;
   addLongShortHistoryPoint: (point: { time: number; ratio: number }) => void;
   setPolling: (polling: boolean) => void;
+  setMetricsError: (error: boolean) => void;
   reset: () => void;
 }
 
@@ -85,6 +87,7 @@ const INITIAL_STATE = {
   longShortHistory: [] as Array<{ time: number; ratio: number }>,
   isPolling: false,
   lastPollTime: 0,
+  metricsError: false,
 };
 
 export const useFuturesStore = create<FuturesState>((set) => ({
@@ -136,6 +139,8 @@ export const useFuturesStore = create<FuturesState>((set) => ({
   })),
 
   setPolling: (polling) => set({ isPolling: polling }),
+
+  setMetricsError: (error) => set({ metricsError: error }),
 
   reset: () => set(INITIAL_STATE),
 }));

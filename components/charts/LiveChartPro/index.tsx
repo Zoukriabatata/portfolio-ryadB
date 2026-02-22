@@ -699,6 +699,21 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           />
 
           <LoadingOverlay loadingPhase={symbolData.loadingPhase} backgroundColor={engine.effectiveColors.background} theme={theme} />
+          {symbolData.noData && (
+            <div
+              className="absolute inset-0 flex items-center justify-center z-10"
+              style={{ backgroundColor: `${engine.effectiveColors.background}e0`, backdropFilter: 'blur(4px)' }}
+            >
+              <div className="flex flex-col items-center gap-2 text-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={theme.colors.textMuted} strokeWidth="1.5" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span className="text-xs" style={{ color: theme.colors.textMuted }}>No data available for this symbol</span>
+              </div>
+            </div>
+          )}
           <AlertNotifications notifications={symbolData.notifications} onDismiss={symbolData.dismissNotification} theme={theme} />
           <ZoomControls onZoomIn={() => engine.smartZoom(true)} onZoomOut={() => engine.smartZoom(false)} onResetView={engine.resetView} onScreenshot={engine.handleScreenshot} theme={theme} />
 

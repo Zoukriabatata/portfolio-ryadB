@@ -29,6 +29,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
   const [timeframe, setTimeframe] = useState<TimeframeSeconds>(60);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [loadingPhase, setLoadingPhase] = useState<'fetching' | 'rendering' | 'connecting' | null>('fetching');
+  const [noData, setNoData] = useState(false);
   const [assetCategory, setAssetCategory] = useState<AssetCategory>('crypto');
   const [showSymbolSearch, setShowSymbolSearch] = useState(false);
   const [symbolSearchQuery, setSymbolSearchQuery] = useState('');
@@ -67,7 +68,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       // Call via proxy (klines is a public endpoint, no auth required)
       const response = await fetch(
         `/api/binance/api/v3/klines?symbol=${sym.toUpperCase()}&interval=${binanceInterval}&limit=${limit}`,
-        { headers: { 'x-market': 'spot' } }
+        { headers: { 'x-market': 'spot' }, signal: AbortSignal.timeout(15_000) }
       );
 
       console.log('[useSymbolData] Response status:', response.status, response.ok);
@@ -216,6 +217,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       // Reset aggregator for fresh start
       resetAggregator();
       refs.lastHistoryTime.current = 0;
+      setNoData(false);
 
       // Load history
       const history = await loadHistory(symbol, timeframe);
@@ -223,6 +225,14 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
 
       if (history.length > 0) {
         updateChartData(history);
+      } else {
+        // No history — wait 10s for live data before showing "no data"
+        const noDataTimer = setTimeout(() => {
+          if (isMounted && refs.candles.current.length === 0) {
+            setNoData(true);
+          }
+        }, 10_000);
+        refs.unsubscribers.current.push(() => clearTimeout(noDataTimer));
       }
 
       // Connect WebSocket (IB for CME, Binance for crypto)
@@ -245,6 +255,11 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       // Update price and chart without React re-renders
       const unsubCandle = aggregator.on('candle:update', (candle, tf) => {
         if (tf !== timeframe || !isMounted) return;
+
+        // Clear "no data" state on first live candle
+        if (refs.candles.current.length === 0) {
+          setNoData(false);
+        }
 
         // Update price directly in DOM
         if (refs.price.current) {
@@ -372,6 +387,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     timeframe,
     status,
     loadingPhase,
+    noData,
     assetCategory,
     setAssetCategory,
     showSymbolSearch,
