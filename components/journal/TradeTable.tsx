@@ -103,15 +103,34 @@ export default function TradeTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={10} className="text-center py-12 text-[var(--text-muted)] text-sm">
-                  Loading...
-                </td>
-              </tr>
+              <>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-t border-[var(--border)]">
+                    {Array.from({ length: 10 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div
+                          className="h-3 rounded animate-shimmer"
+                          style={{
+                            backgroundColor: 'var(--surface-elevated)',
+                            width: `${50 + ((i + j) * 13) % 40}%`,
+                            animationDelay: `${(i * 10 + j * 5) * 10}ms`,
+                          }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </>
             ) : entries.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-12 text-[var(--text-muted)] text-sm">
-                  No trades found
+                <td colSpan={10} className="text-center py-12">
+                  <div className="flex flex-col items-center gap-2">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-dimmed)" strokeWidth="1.5" strokeLinecap="round" opacity="0.35">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>No trades found</span>
+                  </div>
                 </td>
               </tr>
             ) : entries.map((entry) => (

@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useState, useMemo } from 'react';
 import IVTermStructure from '@/components/charts/IVTermStructure';
 import dynamic from 'next/dynamic';
+import { ChartSkeleton, EmptyState } from '@/components/ui/Skeleton';
 
 const IVSurface3D = dynamic(() => import('@/components/charts/IVSurface3D'), { ssr: false });
 const IVSmileChart = dynamic(() => import('@/components/charts/IVSmileChart'), { ssr: false });
@@ -311,28 +312,26 @@ export default function VolatilityPageContent() {
         onWheel={(e) => { if (viewMode === 'smile' && skewData.length > 0) e.stopPropagation(); }}
       >
         {isLoading ? (
-          <div className="w-full h-full flex items-center justify-center min-h-[350px]">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-              <span className="text-[var(--text-muted)] text-sm">Loading {symbol} options...</span>
-            </div>
-          </div>
+          <ChartSkeleton />
         ) : error ? (
-          <div className="w-full h-full flex items-center justify-center min-h-[350px]">
-            <div className="text-center">
-              <p className="text-[var(--error)] mb-3">{error}</p>
+          <EmptyState
+            icon="error"
+            title={error}
+            action={
               <button
                 onClick={handleRefresh}
                 className="px-4 py-2 bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
               >
                 Retry
               </button>
-            </div>
-          </div>
+            }
+          />
         ) : skewData.length === 0 ? (
-          <div className="w-full h-full flex items-center justify-center min-h-[350px]">
-            <span className="text-[var(--text-muted)]">Select an expiration to view data</span>
-          </div>
+          <EmptyState
+            icon="chart"
+            title="No data yet"
+            description="Select an expiration to view data"
+          />
         ) : viewMode === 'smile' ? (
           <IVSmileChart
             data={skewData}

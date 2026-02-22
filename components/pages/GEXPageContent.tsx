@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { usePageActive } from '@/hooks/usePageActive';
+import { ChartSkeleton, EmptyState } from '@/components/ui/Skeleton';
 import {
   generateSimulatedGEX,
   generateSimulatedExpirations,
@@ -466,28 +467,26 @@ export default function GEXPageContent() {
       {/* ─── Chart Area ─── */}
       <div className="flex-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] min-h-[350px] overflow-hidden flex flex-col animate-scaleIn stagger-4">
         {isLoading ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-              <span className="text-[var(--text-muted)]">Calculating {greekMeta.fullName}...</span>
-            </div>
-          </div>
+          <ChartSkeleton />
         ) : error ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-[var(--error)] mb-4">{error}</p>
+          <EmptyState
+            icon="error"
+            title={error}
+            action={
               <button
                 onClick={loadSimulatedData}
-                className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)]"
+                className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
               >
                 Retry
               </button>
-            </div>
-          </div>
+            }
+          />
         ) : adaptedLegacyData.length === 0 ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <p className="text-[var(--text-muted)]">Select an expiration to view data</p>
-          </div>
+          <EmptyState
+            icon="chart"
+            title="No data yet"
+            description="Select an expiration to view data"
+          />
         ) : viewMode === 'bars' ? (
           <div className="flex-1 min-h-0">
             <GEXDashboard

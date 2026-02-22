@@ -61,8 +61,16 @@ export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProp
 
   if (!isLive) {
     return (
-      <div className="h-full flex items-center justify-center text-sm" style={{ color: 'var(--text-dimmed)' }}>
-        Real-time delta only available for Bybit symbols
+      <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-dimmed)" strokeWidth="1.5" strokeLinecap="round" opacity="0.4">
+          <path d="M1 1l22 22" />
+          <path d="M16.72 11.06A10.94 10.94 0 0119 12.55" />
+          <path d="M5 12.55a10.94 10.94 0 015.17-2.39" />
+          <path d="M10.71 5.05A16 16 0 0122.56 9" />
+          <path d="M1.42 9a15.91 15.91 0 014.7-2.88" />
+          <line x1="12" y1="20" x2="12.01" y2="20" />
+        </svg>
+        <span className="text-xs" style={{ color: 'var(--text-dimmed)' }}>Real-time delta only available for Bybit symbols</span>
       </div>
     );
   }
@@ -138,8 +146,12 @@ export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProp
             />
           </svg>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs" style={{ color: 'var(--text-dimmed)' }}>
-            Waiting for data...
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-dimmed)" strokeWidth="1.5" strokeLinecap="round" opacity="0.4">
+              <path d="M3 3v18h18" />
+              <path d="M7 16l4-8 4 4 4-6" />
+            </svg>
+            <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Waiting for data...</span>
           </div>
         )}
       </div>

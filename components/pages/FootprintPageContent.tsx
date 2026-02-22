@@ -8,19 +8,13 @@ import ConnectionBanner from '@/components/ui/ConnectionBanner';
 import BottomWidgetsPanel from '@/components/widgets/BottomWidgetsPanel';
 import WatchlistPanel from '@/components/widgets/WatchlistPanel';
 import QuickTradeBar from '@/components/trading/QuickTradeBar';
+import { ChartSkeleton } from '@/components/ui/Skeleton';
 
 const FootprintChartPro = dynamic(
   () => import('@/components/charts/FootprintChartPro'),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-full bg-[var(--background)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-          <span className="text-[var(--text-muted)] text-sm">Loading footprint...</span>
-        </div>
-      </div>
-    ),
+    loading: () => <ChartSkeleton />,
   }
 );
 
