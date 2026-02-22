@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { TikTokIcon, YouTubeIcon } from '@/components/ui/Icons';
 
 const FAQS = [
   {
@@ -125,7 +124,7 @@ export default function FAQSection() {
                 <div
                   className="overflow-hidden transition-all duration-300 ease-in-out"
                   style={{
-                    maxHeight: isOpen ? '200px' : '0px',
+                    maxHeight: isOpen ? '500px' : '0px',
                     opacity: isOpen ? 1 : 0,
                   }}
                 >
@@ -138,38 +137,21 @@ export default function FAQSection() {
           })}
         </div>
 
-        {/* Community CTA */}
+        {/* Contact CTA */}
         <div
           data-animate="up"
           data-animate-delay="3"
-          className="mt-12 text-center p-6 rounded-xl border border-white/[0.06] bg-white/[0.02]"
+          className="mt-12 text-center"
         >
-          <p className="text-[14px] text-white/60 font-medium">
-            Still have questions?
-          </p>
-          <p className="mt-1 text-[12px] text-white/35">
-            Join our community for live support and trading discussions
-          </p>
-          <div className="mt-4 flex items-center justify-center gap-3">
+          <p className="text-[13px] text-white/40">
+            Still have questions?{' '}
             <a
-              href="https://tiktok.com/@zkb.trade"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium text-white/50 border border-white/[0.08] bg-white/[0.03] hover:border-[#FF0050]/30 hover:text-white/70 transition-all duration-200"
+              href="mailto:ryad.bouderga78@gmail.com"
+              className="text-amber-400/70 hover:text-amber-300 transition-colors underline underline-offset-2"
             >
-              <TikTokIcon size={14} color="rgba(255,255,255,0.5)" />
-              TikTok
+              Contact us
             </a>
-            <a
-              href="https://youtube.com/@Zoukriabatata"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium text-white/50 border border-white/[0.08] bg-white/[0.03] hover:border-[#FF0000]/30 hover:text-white/70 transition-all duration-200"
-            >
-              <YouTubeIcon size={14} color="rgba(255,255,255,0.5)" />
-              YouTube
-            </a>
-          </div>
+          </p>
         </div>
       </div>
     </section>

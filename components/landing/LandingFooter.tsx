@@ -13,7 +13,8 @@ const FOOTER_COLUMNS = [
       { label: 'Liquidity Heatmap', href: '/liquidity' },
       { label: 'GEX Dashboard', href: '/gex' },
       { label: 'IV Surface', href: '/volatility' },
-      { label: 'Market Replay', href: '/replay' },
+      { label: 'Session Replay', href: '/replay' },
+      { label: 'Pricing', href: '/pricing' },
     ],
   },
   {
@@ -116,9 +117,9 @@ export default function LandingFooter() {
         </div>
 
         {/* Risk disclaimer */}
-        <div className="py-4 border-t border-white/[0.04]">
-          <p className="text-[10px] text-white/15 leading-relaxed text-center max-w-2xl mx-auto">
-            Trading futures and derivatives involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. This platform provides analytical tools only and does not constitute financial advice.
+        <div className="py-5 border-t border-white/[0.06]">
+          <p className="text-[11px] text-white/30 leading-relaxed text-center max-w-2xl mx-auto">
+            <strong className="text-white/40">Risk Disclaimer:</strong> Trading futures and derivatives involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. This platform provides analytical tools only and does not constitute financial advice.
           </p>
         </div>
 

@@ -96,7 +96,7 @@ export default function HeroSection() {
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          Institutional-Grade Order Flow Platform
+          Launch Offer — $29/mo locked for life
         </div>
 
         {/* Title */}
@@ -126,8 +126,8 @@ export default function HeroSection() {
           className="mt-6 text-sm md:text-base text-white/40 max-w-md mx-auto leading-relaxed"
           style={{ animation: 'fadeInUp 0.7s ease-out 0.3s forwards', opacity: 0 }}
         >
-          Decode the orderbook in real time. Heatmaps, footprint charts, delta profiles
-          &amp; gamma exposure — the edge that separates retail from institutional.
+          See what market makers see. Real-time heatmaps, footprint charts,
+          delta profiles &amp; gamma exposure — built for traders who want the full picture.
         </p>
 
         {/* CTA Buttons */}
@@ -158,8 +158,8 @@ export default function HeroSection() {
         >
           {[
             { v: '<5ms', l: 'Latency' },
-            { v: '4+', l: 'Brokers' },
-            { v: '6', l: 'Tools' },
+            { v: '8', l: 'Data Feeds' },
+            { v: '6', l: 'Pro Tools' },
             { v: '24/7', l: 'Markets' },
           ].map((s, i) => (
             <AnimatedStat key={i} value={s.v} label={s.l} delay={800 + i * 200} />

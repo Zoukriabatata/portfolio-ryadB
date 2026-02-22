@@ -22,37 +22,37 @@ const FEATURES = [
   {
     Icon: LiveIcon,
     title: 'Live Trading Dashboard',
-    desc: 'Real-time WebSocket feeds from Binance, Bybit & Deribit with sub-5ms latency orderbook and trades.',
+    desc: 'See every trade and orderbook update the moment it happens. Real-time feeds from Binance, Bybit & Deribit.',
     status: 'live' as FeatureStatus,
   },
   {
     Icon: FootprintIcon,
     title: 'Footprint Charts',
-    desc: 'Bid/ask volume analysis with delta, cumulative delta, and imbalance detection at every price level.',
+    desc: 'Spot aggressive buyers and sellers at every price level. Delta, cumulative delta, and imbalance detection.',
     status: 'beta' as FeatureStatus,
   },
   {
     Icon: HeatmapIcon,
     title: 'Liquidity Heatmap',
-    desc: 'WebGL-accelerated orderbook depth visualization with passive order detection and spoofing alerts.',
+    desc: 'Visualize where the big orders sit. WebGL-rendered orderbook depth with passive order and spoof detection.',
     status: 'live' as FeatureStatus,
   },
   {
     Icon: GexIcon,
     title: 'GEX Dashboard',
-    desc: 'Gamma exposure tracking across strikes and expirations. Identify dealer hedging flows and key levels.',
+    desc: 'Know where dealers are hedging. Track gamma exposure across strikes to anticipate key support and resistance.',
     status: 'beta' as FeatureStatus,
   },
   {
     Icon: VolatilityIcon,
     title: 'IV Surface',
-    desc: 'Volatility smile, term structure & skew analysis with real-time Greeks from Deribit options chain.',
+    desc: 'Read the options market like a quant. Volatility smile, term structure & real-time Greeks from Deribit.',
     status: 'beta' as FeatureStatus,
   },
   {
     Icon: ReplayIcon,
-    title: 'Market Replay',
-    desc: 'Frame-by-frame historical session playback. Study past setups and backtest strategies with precision.',
+    title: 'Session Replay',
+    desc: 'Review any session frame-by-frame. Study past setups and sharpen your edge with full order flow playback.',
     status: 'soon' as FeatureStatus,
   },
 ];
@@ -86,7 +86,7 @@ const FeatureCard = memo(function FeatureCard({ f, i }: { f: typeof FEATURES[num
       data-animate="up"
       data-animate-delay={String(i + 1)}
       className="feature-card group relative p-6 rounded-xl border border-white/[0.08] bg-white/[0.04]"
-      style={{ transition: 'transform 0.3s ease, border-color 0.35s ease, box-shadow 0.35s ease, background 0.35s ease', willChange: 'transform' }}
+      style={{ transition: 'transform 0.3s ease, border-color 0.35s ease, box-shadow 0.35s ease, background 0.35s ease', willChange: 'transform', opacity: f.status === 'soon' ? 0.6 : undefined }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >

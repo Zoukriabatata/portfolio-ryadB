@@ -6,12 +6,9 @@ import MagneticButton from '@/components/landing/MagneticButton';
 
 // Deterministic particles around CTA button
 const CTA_PARTICLES = [
-  { size: '4px', opacity: 0.5, duration: 4, delay: 0, fx: '40px', fy: '-30px' },
-  { size: '3px', opacity: 0.4, duration: 5, delay: 0.8, fx: '-35px', fy: '-25px' },
-  { size: '5px', opacity: 0.35, duration: 4.5, delay: 1.5, fx: '30px', fy: '20px' },
-  { size: '3px', opacity: 0.45, duration: 3.5, delay: 0.3, fx: '-45px', fy: '15px' },
-  { size: '4px', opacity: 0.3, duration: 5.5, delay: 2, fx: '50px', fy: '-10px' },
-  { size: '3px', opacity: 0.5, duration: 4.2, delay: 1.2, fx: '-25px', fy: '-35px' },
+  { size: '4px', opacity: 0.45, duration: 4, delay: 0, fx: '35px', fy: '-25px' },
+  { size: '3px', opacity: 0.35, duration: 5, delay: 1, fx: '-30px', fy: '-20px' },
+  { size: '4px', opacity: 0.3, duration: 4.5, delay: 2, fx: '25px', fy: '18px' },
 ];
 
 export default function CTASection() {
@@ -74,9 +71,9 @@ export default function CTASection() {
           className="mt-8 flex items-center justify-center gap-4 flex-wrap"
         >
           {[
-            { label: 'Low Latency', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg> },
-            { label: 'Secure Platform', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg> },
-            { label: 'Global Markets', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg> },
+            { label: '<5ms Latency', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg> },
+            { label: 'TLS Encrypted', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg> },
+            { label: '8 Data Feeds', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg> },
           ].map((badge) => (
             <span
               key={badge.label}
