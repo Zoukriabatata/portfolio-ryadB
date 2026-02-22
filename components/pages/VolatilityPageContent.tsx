@@ -39,8 +39,35 @@ export default function VolatilityPageContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('smile');
   const [simulatedData, setSimulatedData] = useState<ReturnType<typeof generateVolatilitySkew> | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [realSpotPrice, setRealSpotPrice] = useState<number | undefined>();
+  const [priceSource, setPriceSource] = useState<'yahoo-finance' | 'fallback' | null>(null);
 
-  // ─── Data Fetching (unchanged) ───
+  // ─── Fetch real ETF price ───
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch(`/api/market/etf-price?symbol=${symbol}`);
+        if (!res.ok) throw new Error('fetch failed');
+        const data = await res.json();
+        if (!cancelled) {
+          setRealSpotPrice(data.price);
+          setPriceSource(data.source);
+        }
+      } catch {
+        if (!cancelled) {
+          setRealSpotPrice(undefined);
+          setPriceSource('fallback');
+        }
+      }
+    };
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [symbol]);
+
+  // ─── Data Fetching ───
 
   const loadSimulatedData = useCallback(() => {
     setLoading(true);
@@ -50,17 +77,17 @@ export default function VolatilityPageContent() {
       if (!selectedExpiration && simExpirations.length > 0) setSelectedExpiration(simExpirations[0]);
       const expDate = selectedExpiration || simExpirations[0];
       const daysToExp = expDate ? Math.max(1, Math.ceil((expDate * 1000 - Date.now()) / (1000 * 60 * 60 * 24))) : 30;
-      const simData = generateVolatilitySkew(symbol, 30, daysToExp);
+      const simData = generateVolatilitySkew(symbol, 30, daysToExp, realSpotPrice);
       setSimulatedData(simData);
       setLastUpdate(new Date());
       setLoading(false);
     }, 300);
-  }, [symbol, selectedExpiration, setExpirations, setSelectedExpiration, setLoading]);
+  }, [symbol, selectedExpiration, realSpotPrice, setExpirations, setSelectedExpiration, setLoading]);
 
   useEffect(() => {
     loadSimulatedData();
     return () => { reset(); };
-  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol, realSpotPrice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (selectedExpiration) loadSimulatedData();
@@ -111,22 +138,23 @@ export default function VolatilityPageContent() {
   }, [tableData]);
 
   const termStructureData = useMemo(() => {
-    if (!expirations.length || !skewData.length) return [];
-    const baseIV = atmIV?.callIV || 0.25;
-    return expirations.map((exp) => {
-      const daysToExpiry = Math.max(1, Math.ceil((exp * 1000 - Date.now()) / (1000 * 60 * 60 * 24)));
-      const expDate = new Date(exp * 1000);
-      const expirationLabel = expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const timeAdjustment = 1 + (daysToExpiry / 365) * 0.1;
-      const noise = (Math.random() - 0.5) * 0.02;
-      const atmIVForExp = baseIV * timeAdjustment + noise;
-      return {
-        expiration: exp, expirationLabel, daysToExpiry, atmIV: atmIVForExp,
-        callIV: atmIVForExp * (1 + (Math.random() - 0.5) * 0.05),
-        putIV: atmIVForExp * (1 + (Math.random() - 0.5) * 0.05),
-      };
-    });
-  }, [expirations, skewData, atmIV]);
+    // Use simulator's term structure data when available
+    if (simulatedData?.termStructure) {
+      return simulatedData.termStructure.map((ts) => {
+        const expTimestamp = Math.floor(Date.now() / 1000) + ts.expDays * 86400;
+        const expDate = new Date(expTimestamp * 1000);
+        return {
+          expiration: expTimestamp,
+          expirationLabel: expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          daysToExpiry: ts.expDays,
+          atmIV: ts.atmIV,
+          callIV: ts.atmIV * 0.98,
+          putIV: ts.atmIV * 1.02,
+        };
+      });
+    }
+    return [];
+  }, [simulatedData]);
 
   const formatExp = (ts: number) =>
     new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -138,9 +166,17 @@ export default function VolatilityPageContent() {
   return (
     <div className="h-full flex flex-col bg-[var(--background)] p-4 gap-3 overflow-auto">
       {/* ─── Disclaimer ─── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 animate-fadeIn">
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] animate-fadeIn ${
+        priceSource === 'yahoo-finance'
+          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+      }`}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
-        <span>Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.</span>
+        <span>
+          {priceSource === 'yahoo-finance'
+            ? `Live ${symbol} price anchored. IV skew data is simulated. Not financial advice.`
+            : 'Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.'}
+        </span>
       </div>
 
       {/* ─── Header Row ─── */}
@@ -173,9 +209,14 @@ export default function VolatilityPageContent() {
             ))}
           </div>
 
-          {/* SIM badge */}
-          <div className="px-3 py-1 text-sm rounded-lg border flex items-center gap-1.5 bg-[var(--accent)] text-[var(--text-primary)] border-[var(--accent-dark)]">
-            <SimulationIcon size={14} color="#fff" /><span>SIM</span>
+          {/* LIVE / SIM badge */}
+          <div className={`px-3 py-1 text-sm rounded-lg border flex items-center gap-1.5 ${
+            priceSource === 'yahoo-finance'
+              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+              : 'bg-[var(--accent)] text-[var(--text-primary)] border-[var(--accent-dark)]'
+          }`}>
+            <SimulationIcon size={14} color={priceSource === 'yahoo-finance' ? '#34d399' : '#fff'} />
+            <span>{priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}</span>
           </div>
 
           {/* Refresh */}
