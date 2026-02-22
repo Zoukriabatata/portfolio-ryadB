@@ -31,8 +31,8 @@ export default function JournalPage() {
     <div className="h-full flex flex-col bg-[var(--background)] animate-fadeIn">
       <JournalHeader onNewTrade={handleNewTrade} />
 
-      <div className="flex-1 overflow-auto" key={`${refreshKey}-${activeTab}`}>
-        <div className="animate-tab-enter h-full">
+      <div className="flex-1 overflow-auto" key={refreshKey}>
+        <div className="animate-tab-enter h-full" key={activeTab}>
           {activeTab === 'dashboard' && <DashboardTab />}
           {activeTab === 'trades' && <TradesTab />}
           {activeTab === 'calendar' && <CalendarTab />}

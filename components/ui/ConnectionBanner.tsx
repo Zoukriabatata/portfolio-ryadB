@@ -7,7 +7,11 @@ export default function ConnectionBanner() {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [visible, setVisible] = useState(false);
   const wasConnected = useRef(false);
+  const visibleRef = useRef(false);
   const hideTimer = useRef<NodeJS.Timeout>(undefined);
+
+  // Keep ref in sync with state
+  visibleRef.current = visible;
 
   useEffect(() => {
     const ws = getBinanceLiveWS();
@@ -16,7 +20,7 @@ export default function ConnectionBanner() {
 
       if (newStatus === 'connected') {
         // Only show "Reconnected" if we lost connection before
-        if (wasConnected.current && visible) {
+        if (wasConnected.current && visibleRef.current) {
           clearTimeout(hideTimer.current);
           hideTimer.current = setTimeout(() => setVisible(false), 2000);
         }
@@ -32,7 +36,7 @@ export default function ConnectionBanner() {
       unsubscribe();
       clearTimeout(hideTimer.current);
     };
-  }, [visible]);
+  }, []);
 
   if (!visible) return null;
 
