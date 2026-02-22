@@ -6,8 +6,8 @@ import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
 /**
  * Economic Calendar API
  *
- * - DEV mode: fetches real data from Forex Factory (via faireconomy.media)
- * - PROD mode: returns simulated events (no external dependency on Vercel)
+ * - Fetches real data from Forex Factory (via faireconomy.media)
+ * - Falls back to simulated events if Forex Factory is unavailable
  *
  * Query params:
  *   - from: ISO date string (inclusive lower bound)
@@ -47,7 +47,7 @@ function setCachedEvents(entry: CacheEntry): void {
 }
 
 // ---------------------------------------------------------------------------
-// Forex Factory — real data (dev only)
+// Forex Factory — real data (dev + prod, with fallback to simulation)
 // ---------------------------------------------------------------------------
 
 interface FFEvent {
@@ -525,16 +525,14 @@ export async function GET(req: NextRequest) {
     let entry = getCachedEvents();
 
     if (!entry) {
-      // DEV: fetch real Forex Factory data
-      if (IS_DEV) {
-        const ffEvents = await fetchForexFactory();
-        if (ffEvents && ffEvents.length > 0) {
-          entry = { events: ffEvents, source: 'forex-factory', fetchedAt: Date.now() };
-          setCachedEvents(entry);
-          console.log(`[News] Loaded ${ffEvents.length} real events from Forex Factory`);
-        }
+      // Fetch real data from Forex Factory (dev + prod)
+      const ffEvents = await fetchForexFactory();
+      if (ffEvents && ffEvents.length > 0) {
+        entry = { events: ffEvents, source: 'forex-factory', fetchedAt: Date.now() };
+        setCachedEvents(entry);
+        console.log(`[News] Loaded ${ffEvents.length} real events from Forex Factory`);
       }
-      // PROD fallback (or FF fetch failed)
+      // Fallback to simulation if FF fetch failed
       if (!entry) {
         const events = generateSimulatedEvents();
         events.sort(
