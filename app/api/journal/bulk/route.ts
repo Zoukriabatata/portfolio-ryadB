@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rl = apiRateLimit(token.id as string);
+  const rl = await apiRateLimit(token.id as string);
   if (!rl.allowed) return tooManyRequests(rl);
 
   const body = await req.json();

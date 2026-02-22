@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rl = apiRateLimit(session.user.id);
+    const rl = await apiRateLimit(session.user.id);
     if (!rl.allowed) return tooManyRequests(rl);
 
     let body: unknown;
@@ -98,7 +98,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rl = apiRateLimit(session.user.id);
+    const rl = await apiRateLimit(session.user.id);
     if (!rl.allowed) return tooManyRequests(rl);
 
     const tickets = await prisma.supportTicket.findMany({

@@ -18,7 +18,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const rl = apiRateLimit(session.user.id);
+  const rl = await apiRateLimit(session.user.id);
   if (!rl.allowed) return tooManyRequests(rl);
 
   const secret = process.env.NEXTAUTH_SECRET;

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const rl = apiRateLimit(session.user.id);
+    const rl = await apiRateLimit(session.user.id);
     if (!rl.allowed) return tooManyRequests(rl);
 
     const user = await prisma.user.findUnique({

@@ -507,7 +507,7 @@ function applyFilters(
 export async function GET(req: NextRequest) {
   try {
     // ---- Rate limiting (IP-based, works for public/dev access) ----
-    const rl = rateLimitByIP(req, 30, 60_000); // 30 req/min
+    const rl = await rateLimitByIP(req, 30, 60_000); // 30 req/min
     if (!rl.allowed) return tooManyRequests(rl);
 
     // ---- Authentication (skip in dev for local testing) ----

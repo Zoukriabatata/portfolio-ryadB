@@ -11,7 +11,7 @@ import { registerRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export async function POST(req: NextRequest) {
   // Rate limit: 3 registrations per hour per IP
-  const rl = registerRateLimit(req);
+  const rl = await registerRateLimit(req);
   if (!rl.allowed) return tooManyRequests(rl);
 
   try {

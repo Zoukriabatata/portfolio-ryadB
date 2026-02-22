@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rl = checkRateLimit(`user:backtest:${token.id}`, 10, 60_000); // 10 backtests per minute
+  const rl = await checkRateLimit(`user:backtest:${token.id}`, 10, 60_000); // 10 backtests per minute
   if (!rl.allowed) return tooManyRequests(rl);
 
   const tier = token.tier as string;

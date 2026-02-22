@@ -13,40 +13,76 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { detectConcurrentSession, sendSecurityAlert } from '@/lib/auth/session-validator';
 import { detectImpossibleTravel } from '@/lib/auth/geo-validator';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 // ─── Security check cache (skip DB calls for recently validated sessions) ─────
 const securityCheckCache = new Map<string, number>();
 const SECURITY_CHECK_TTL = 5 * 60 * 1000; // 5 minutes
 
-// ─── Rate Limiter (edge-compatible, in-memory) ─────────
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+// ─── Rate Limiter (Upstash Redis, edge-compatible) ─────────
 const RATE_LIMITS: Record<string, number> = {
   '/api/auth/': 20,           // 20 auth requests per minute
   '/api/stripe/checkout': 5,   // 5 checkout attempts per minute
   '/api/support': 5,           // 5 support tickets per minute
 };
 
-function checkRateLimit(ip: string, pathname: string): boolean {
+const isRedisConfigured = !!(
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+);
+
+// Upstash limiters (one per config)
+const edgeLimiters = new Map<number, Ratelimit>();
+
+function getEdgeLimiter(maxRequests: number): Ratelimit | null {
+  if (!isRedisConfigured) return null;
+  let limiter = edgeLimiters.get(maxRequests);
+  if (!limiter) {
+    limiter = new Ratelimit({
+      redis: new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL!,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+      }),
+      limiter: Ratelimit.slidingWindow(maxRequests, '60 s'),
+      prefix: 'mw',
+    });
+    edgeLimiters.set(maxRequests, limiter);
+  }
+  return limiter;
+}
+
+// In-memory fallback (dev / no Redis)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+async function checkRateLimit(ip: string, pathname: string): Promise<boolean> {
   for (const [prefix, maxRequests] of Object.entries(RATE_LIMITS)) {
     if (!pathname.startsWith(prefix)) continue;
-
     const key = `${ip}:${prefix}`;
-    const now = Date.now();
-    const entry = rateLimitMap.get(key);
 
-    if (!entry || now > entry.resetAt) {
-      rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
-      return false;
+    const limiter = getEdgeLimiter(maxRequests);
+    if (limiter) {
+      try {
+        const result = await limiter.limit(key);
+        return !result.success;
+      } catch {
+        return false; // Fail open
+      }
     }
 
+    // In-memory fallback
+    const now = Date.now();
+    const entry = rateLimitMap.get(key);
+    if (!entry || now > entry.resetAt) {
+      rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 });
+      return false;
+    }
     entry.count++;
-    if (entry.count > maxRequests) return true; // Rate limited
+    if (entry.count > maxRequests) return true;
   }
   return false;
 }
 
-// Clean up stale entries periodically (avoid memory leak in long-running edge)
+// Clean up stale entries periodically
 if (typeof globalThis !== 'undefined') {
   const cleanup = () => {
     const now = Date.now();
@@ -147,7 +183,7 @@ export async function middleware(request: NextRequest) {
     // Rate limiting
     const forwardedFor = request.headers.get('x-forwarded-for');
     const ip = forwardedFor?.split(',')[0].trim() || request.headers.get('x-real-ip') || '127.0.0.1';
-    if (checkRateLimit(ip, pathname)) {
+    if (await checkRateLimit(ip, pathname)) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
         { status: 429, headers: { 'Retry-After': '60' } }

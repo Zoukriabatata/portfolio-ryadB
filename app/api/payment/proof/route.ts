@@ -20,7 +20,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const rl = apiRateLimit(session.user.id);
+    const rl = await apiRateLimit(session.user.id);
     if (!rl.allowed) return tooManyRequests(rl);
 
     const proofs = await prisma.payment.findMany({
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const rl = apiRateLimit(session.user.id);
+    const rl = await apiRateLimit(session.user.id);
     if (!rl.allowed) return tooManyRequests(rl);
 
     const body = await req.json();

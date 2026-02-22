@@ -4,7 +4,7 @@ import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export async function GET(req: NextRequest) {
   // Rate limit: 5 promo code validations per minute per IP
-  const rl = rateLimitByIP(req, 5, 60_000);
+  const rl = await rateLimitByIP(req, 5, 60_000);
   if (!rl.allowed) return tooManyRequests(rl);
   const code = req.nextUrl.searchParams.get('code')?.toUpperCase().trim();
 

@@ -126,18 +126,6 @@ model Device {
   @@index([userId])
 }
 
-// ============ RATE LIMIT MODEL ============
-model RateLimit {
-  id          String   @id @default(cuid())
-  key         String   @unique // Format: "user:{userId}" or "ip:{ipAddress}"
-  count       Int      @default(1)
-  windowStart DateTime
-  expiresAt   DateTime
-
-  @@index([expiresAt])
-  @@index([key])
-}
-
 // ============ PAYMENT MODEL ============
 model Payment {
   id              String  @id @default(cuid())
