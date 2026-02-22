@@ -114,13 +114,14 @@ export default function BoutiquePage() {
         {/* Provider Cards Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-12 sm:mb-20">
           {filtered.map(provider => (
-            <ProviderCard
-              key={provider.id}
-              provider={provider}
-              status={configs[provider.id]?.status || 'not_configured'}
-              userTier={userTier}
-              onConfigure={setConfigureProvider}
-            />
+            <div key={provider.id} className="stagger-fade-up">
+              <ProviderCard
+                provider={provider}
+                status={configs[provider.id]?.status || 'not_configured'}
+                userTier={userTier}
+                onConfigure={setConfigureProvider}
+              />
+            </div>
           ))}
         </div>
 
@@ -141,7 +142,7 @@ export default function BoutiquePage() {
             {FAQ_ITEMS.map((item, i) => (
               <details
                 key={i}
-                className="group rounded-xl"
+                className="stagger-fade-up group rounded-xl"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
                 <summary

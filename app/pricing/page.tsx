@@ -283,7 +283,7 @@ function PricingContent() {
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-20">
           {/* FREE Card */}
           <div
-            className="rounded-2xl p-8 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            className="stagger-fade-up rounded-2xl p-8 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
@@ -344,7 +344,7 @@ function PricingContent() {
 
           {/* SENULTRA Card */}
           <div
-            className="rounded-2xl p-8 flex flex-col relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_40px_var(--primary-glow)]"
+            className="stagger-fade-up rounded-2xl p-8 flex flex-col relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_40px_var(--primary-glow)]"
             style={{
               background: 'linear-gradient(170deg, var(--success-bg) 0%, var(--surface) 40%)',
               border: '2px solid var(--primary)',
@@ -472,7 +472,7 @@ function PricingContent() {
             <div className="grid sm:grid-cols-2 gap-5">
               {/* Stripe (automatic) */}
               <div
-                className="rounded-xl p-6"
+                className="stagger-fade-up rounded-xl p-6"
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',
@@ -604,7 +604,7 @@ function PricingContent() {
 
               {/* PayPal (manual) */}
               <div
-                className="rounded-xl p-6"
+                className="stagger-fade-up rounded-xl p-6"
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',
@@ -647,7 +647,7 @@ function PricingContent() {
 
               {/* Revolut (manual) */}
               <div
-                className="rounded-xl p-6"
+                className="stagger-fade-up rounded-xl p-6"
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',
@@ -690,7 +690,7 @@ function PricingContent() {
 
               {/* Binance Pay (manual) */}
               <div
-                className="rounded-xl p-6"
+                className="stagger-fade-up rounded-xl p-6"
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',
@@ -1032,7 +1032,7 @@ function PricingContent() {
                 a: 'SENBETA5 gives 100% off for the first month — limited to our first 5 beta testers. Enter it during checkout.',
               },
             ].map(({ q, a }, i) => (
-              <details key={i} className="group rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <details key={i} className="stagger-fade-up group rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none select-none">
                   <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{q}</span>
                   <span className="ml-4 flex-shrink-0 transition-transform group-open:rotate-45 text-lg" style={{ color: 'var(--text-muted)' }}>+</span>

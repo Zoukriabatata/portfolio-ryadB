@@ -176,6 +176,25 @@ export function DashboardClientLayout({
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
+  // Route progress bar — tracks pathname changes + scroll to top
+  const [progressState, setProgressState] = useState<'idle' | 'loading' | 'done'>('idle');
+  const prevPathnameRef = useRef(pathname);
+  useEffect(() => {
+    if (pathname !== prevPathnameRef.current) {
+      prevPathnameRef.current = pathname;
+      setProgressState('loading');
+      // Scroll non-chart pages to top on route change
+      const mainEl = document.getElementById('main-content');
+      if (mainEl) mainEl.scrollTop = 0;
+      const timer = setTimeout(() => {
+        setProgressState('done');
+        const hideTimer = setTimeout(() => setProgressState('idle'), 350);
+        return () => clearTimeout(hideTimer);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [pathname]);
+
   // Track which chart routes have been visited (lazy mount)
   const [mounted, setMounted] = useState<Set<ChartRoute>>(new Set());
 
@@ -189,6 +208,16 @@ export function DashboardClientLayout({
   // Determine if current route is a keep-alive chart route
   const activeChart = CHART_ROUTES.find(r => pathname === r || pathname.startsWith(r + '/'));
   const isChartRoute = !!activeChart;
+
+  // Track chart route key for fade animation
+  const [chartKey, setChartKey] = useState(0);
+  const prevChartRef = useRef(activeChart);
+  useEffect(() => {
+    if (activeChart && activeChart !== prevChartRef.current) {
+      setChartKey(k => k + 1);
+    }
+    prevChartRef.current = activeChart;
+  }, [activeChart]);
 
   // ============================================================
   // SLIDING PILL INDICATOR — measure active nav item position
@@ -263,6 +292,11 @@ export function DashboardClientLayout({
       <div className="h-screen w-screen overflow-hidden flex flex-col bg-[var(--background)] text-[var(--text-primary)]">
       {/* Skip Link for keyboard navigation */}
       <a href="#main-content" className="skip-link">Skip to main content</a>
+
+      {/* Route Progress Bar */}
+      {progressState !== 'idle' && (
+        <div className={`route-progress ${progressState}`} />
+      )}
 
       {/* ============================================================
           TOPBAR NAVIGATION (hidden on landing page)
@@ -564,6 +598,7 @@ export function DashboardClientLayout({
       <main id="main-content" className="flex-1 overflow-hidden bg-[var(--background)]">
         {/* Non-chart pages (normal Next.js routing) */}
         <div
+          key={isChartRoute ? 'hidden' : pathname}
           className="h-full overflow-auto animate-page-enter"
           style={{ display: isChartRoute ? 'none' : 'block' }}
         >
@@ -579,8 +614,8 @@ export function DashboardClientLayout({
           const isActive = activeChart === route;
           return (
             <div
-              key={route}
-              className="h-full"
+              key={`${route}-${chartKey}`}
+              className={`h-full ${isActive ? 'chart-route-enter' : ''}`}
               style={{ display: isActive ? 'block' : 'none' }}
             >
               <PageActiveProvider value={isActive && !tabHidden}>
