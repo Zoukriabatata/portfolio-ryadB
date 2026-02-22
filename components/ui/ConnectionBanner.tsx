@@ -40,27 +40,23 @@ export default function ConnectionBanner() {
   const isError = status === 'error';
   const isConnected = status === 'connected';
 
+  const bannerColor = isConnected ? 'success' : isError ? 'error' : 'warning';
+  const colorMap = {
+    success: { bg: 'var(--success-bg)', border: 'var(--success)', text: 'var(--success)' },
+    error: { bg: 'var(--error-bg)', border: 'var(--error)', text: 'var(--error)' },
+    warning: { bg: 'var(--warning-bg)', border: 'var(--warning)', text: 'var(--warning)' },
+  };
+  const colors = colorMap[bannerColor];
+
   return (
     <div
+      role="status"
+      aria-live="polite"
       className="absolute top-0 left-0 right-0 z-30 flex items-center justify-center gap-2 py-1.5 px-4 text-xs font-medium transition-all duration-300 animate-slideDown"
       style={{
-        background: isConnected
-          ? 'rgba(16,185,129,0.12)'
-          : isError
-          ? 'rgba(239,68,68,0.12)'
-          : 'rgba(245,158,11,0.12)',
-        borderBottom: `1px solid ${
-          isConnected
-            ? 'rgba(16,185,129,0.2)'
-            : isError
-            ? 'rgba(239,68,68,0.2)'
-            : 'rgba(245,158,11,0.2)'
-        }`,
-        color: isConnected
-          ? '#10b981'
-          : isError
-          ? '#ef4444'
-          : '#f59e0b',
+        background: colors.bg,
+        borderBottom: `1px solid ${colors.border}`,
+        color: colors.text,
         backdropFilter: 'blur(8px)',
       }}
     >

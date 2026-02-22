@@ -36,14 +36,14 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           {/* Background glow */}
           <defs>
             <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#fbbf24" />
-              <stop offset="50%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#d97706" />
+              <stop offset="0%" stopColor="var(--logo-bright, #fbbf24)" />
+              <stop offset="50%" stopColor="var(--logo-mid, #f59e0b)" />
+              <stop offset="100%" stopColor="var(--logo-dark, #d97706)" />
             </linearGradient>
             <linearGradient id="energyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#fbbf24" stopOpacity="0" />
-              <stop offset="50%" stopColor="#fbbf24" stopOpacity="1" />
-              <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--logo-bright, #fbbf24)" stopOpacity="0" />
+              <stop offset="50%" stopColor="var(--logo-bright, #fbbf24)" stopOpacity="1" />
+              <stop offset="100%" stopColor="var(--logo-bright, #fbbf24)" stopOpacity="0" />
             </linearGradient>
             <filter id="glow">
               <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -80,35 +80,35 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           <path
             d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32"
             fill="none"
-            stroke="#f59e0b"
+            stroke="var(--logo-mid, #f59e0b)"
             strokeWidth="3"
             strokeLinecap="round"
             filter="url(#glow)"
           />
 
           {/* Energy sparks */}
-          <circle cx="8" cy="24" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s' }} />
-          <circle cx="40" cy="24" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
-          <circle cx="24" cy="8" r="2" fill="#fbbf24" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '1s' }} />
+          <circle cx="8" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s' }} />
+          <circle cx="40" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+          <circle cx="24" cy="8" r="2" fill="var(--logo-bright, #fbbf24)" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '1s' }} />
 
           {/* Bottom accent dot */}
-          <circle cx="24" cy="40" r="1.5" fill="#f59e0b" opacity="0.5" />
+          <circle cx="24" cy="40" r="1.5" fill="var(--logo-mid, #f59e0b)" opacity="0.5" />
         </svg>
 
         {/* Glow effect behind */}
         {animated && (
-          <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'var(--logo-mid, #f59e0b)', opacity: 'inherit' }} />
         )}
       </div>
 
       {/* Text */}
       {showText && (
         <div className="flex flex-col">
-          <span className={`font-bold ${textSize} tracking-tight bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent`}>
-            SENZOU<span className="text-white">KRIA</span>
+          <span className={`font-bold ${textSize} tracking-tight`} style={{ background: 'linear-gradient(to right, var(--logo-bright, #fbbf24), var(--logo-mid, #f59e0b), var(--logo-dark, #d97706))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            SENZOU<span style={{ WebkitTextFillColor: 'var(--text-primary)' }}>KRIA</span>
           </span>
           {size !== 'sm' && (
-            <span className="text-[10px] text-zinc-500 tracking-widest uppercase -mt-1">
+            <span className="text-[10px] text-[var(--text-muted)] tracking-widest uppercase -mt-1">
               Trading Intelligence
             </span>
           )}
@@ -132,8 +132,8 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="logoGradientIcon" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fbbf24" />
-          <stop offset="100%" stopColor="#d97706" />
+          <stop offset="0%" stopColor="var(--logo-bright, #fbbf24)" />
+          <stop offset="100%" stopColor="var(--logo-dark, #d97706)" />
         </linearGradient>
       </defs>
       <path
@@ -146,7 +146,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
       <path
         d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32"
         fill="none"
-        stroke="#f59e0b"
+        stroke="var(--logo-mid, #f59e0b)"
         strokeWidth="3"
         strokeLinecap="round"
       />

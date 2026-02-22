@@ -196,6 +196,8 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
         </h3>
         <button
           onClick={() => setShowAdd(!showAdd)}
+          aria-label={showAdd ? 'Close add symbol' : 'Add symbol'}
+          aria-expanded={showAdd}
           className="w-5 h-5 rounded flex items-center justify-center hover:bg-white/5 transition-colors"
           style={{ color: showAdd ? 'var(--primary)' : 'var(--text-muted)' }}
         >
@@ -207,12 +209,13 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
 
       {/* Add symbol dropdown */}
       {showAdd && (
-        <div className="border-b px-2 py-1.5 space-y-1" style={{ borderColor: 'var(--border)', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+        <div className="border-b px-2 py-1.5 space-y-1" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-elevated)' }}>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search symbol..."
+            aria-label="Search symbol to add"
             className="w-full px-2 py-1 rounded text-[11px] focus:outline-none"
             style={{ backgroundColor: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
             autoFocus
@@ -245,7 +248,7 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
           const data = prices[item.symbol];
           const isActive = item.symbol === activeSymbol;
           const isUp = data ? data.changePercent24h >= 0 : true;
-          const color = isUp ? 'var(--trade-buy, #34d399)' : 'var(--trade-sell, #f87171)';
+          const color = isUp ? 'var(--bull)' : 'var(--bear)';
 
           return (
             <div
@@ -271,7 +274,7 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
               <div className="flex items-center gap-1.5">
                 {/* Sparkline */}
                 {data && data.sparkline.length > 2 && (
-                  <Sparkline data={data.sparkline} color={isUp ? '#34d399' : '#f87171'} />
+                  <Sparkline data={data.sparkline} color={isUp ? 'var(--bull)' : 'var(--bear)'} />
                 )}
 
                 <div className="flex flex-col items-end">
@@ -292,6 +295,7 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
                 {/* Remove button */}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeItem(item.symbol); }}
+                  aria-label={`Remove ${item.label}`}
                   className="w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                   style={{ color: 'var(--text-muted)' }}
                 >

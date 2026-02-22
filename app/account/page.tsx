@@ -160,14 +160,16 @@ function SettingRow({ label, description, children }: { label: string; descripti
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="relative w-10 h-5 rounded-full transition-colors"
+      className="relative w-10 h-5 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/50"
       style={{ background: checked ? 'var(--primary)' : 'var(--surface-elevated)' }}
     >
       <div
-        className="absolute top-0.5 w-4 h-4 rounded-full transition-transform"
+        className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
         style={{
-          background: checked ? '#fff' : 'var(--text-muted)',
+          background: checked ? 'var(--primary-foreground, #fff)' : 'var(--text-muted)',
           left: checked ? '22px' : '2px',
         }}
       />
@@ -484,7 +486,7 @@ function AccountContent() {
 
   const tierStyles: Record<string, React.CSSProperties> = {
     FREE: { color: 'var(--text-muted)', background: 'var(--surface-elevated)' },
-    ULTRA: { color: '#c084fc', background: 'rgba(168, 85, 247, 0.2)' },
+    ULTRA: { color: 'var(--accent, #c084fc)', background: 'var(--accent-bg, rgba(168, 85, 247, 0.2))' },
   };
 
   const inputStyle: React.CSSProperties = {
@@ -518,7 +520,7 @@ function AccountContent() {
         </div>
 
         {success && (
-          <div className="mb-6 p-4 rounded-lg" style={{ background: 'var(--success-bg)', border: '1px solid rgba(34, 197, 94, 0.2)', color: 'var(--success)' }}>
+          <div className="mb-6 p-4 rounded-lg" style={{ background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)' }}>
             Payment successful! Your subscription is now active.
           </div>
         )}
@@ -558,7 +560,7 @@ function AccountContent() {
                   <div className="space-y-0">
                     <SettingRow label={t('account.avatar')}>
                       <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
-                        style={{ background: 'var(--primary-dark)', color: '#fff' }}>
+                        style={{ background: 'var(--primary-dark)', color: 'var(--primary-foreground, #fff)' }}>
                         {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
                       </div>
                     </SettingRow>
@@ -591,12 +593,12 @@ function AccountContent() {
                       onClick={handleSaveProfile}
                       disabled={profileSaving}
                       className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-                      style={{ background: 'var(--primary)', color: '#000' }}
+                      style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #000)' }}
                     >
                       {profileSaving ? t('common.loading') : t('account.saveProfile')}
                     </button>
                     {profileSaved && (
-                      <span className="text-xs font-medium" style={{ color: '#22c55e' }}>
+                      <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>
                         &#10003; {t('account.savedSuccess')}
                       </span>
                     )}
@@ -618,7 +620,7 @@ function AccountContent() {
                   {session.user.tier === 'FREE' ? (
                     <Link href="/pricing"
                       className="block w-full py-3 text-center font-semibold rounded-lg transition-colors"
-                      style={{ background: 'var(--primary)', color: '#fff' }}>
+                      style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #fff)' }}>
                       {t('account.upgradeTo')}
                     </Link>
                   ) : (
@@ -774,7 +776,7 @@ function AccountContent() {
                                 connectionStatus[broker.id] === 'connected'
                                   ? { background: 'var(--success-bg)', color: 'var(--success)' }
                                   : connectionStatus[broker.id] === 'configured'
-                                  ? { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }
+                                  ? { background: 'var(--info-bg)', color: 'var(--info)' }
                                   : { background: 'var(--surface-elevated)', color: 'var(--text-muted)' }
                               }>
                               {connectionStatus[broker.id] === 'connected' ? 'Connected'
@@ -807,7 +809,7 @@ function AccountContent() {
                                   onClick={() => handleConnect(broker.id)}
                                   disabled={connectionStatus[broker.id] === 'connecting'}
                                   className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                                  style={{ background: 'var(--primary)', color: '#fff' }}>
+                                  style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #fff)' }}>
                                   {connectionStatus[broker.id] === 'connecting' ? 'Connecting...' : 'Connect'}
                                 </button>
                                 <button
@@ -822,17 +824,17 @@ function AccountContent() {
                                 <div className="mt-2 px-3 py-2 rounded-lg text-xs"
                                   style={{
                                     backgroundColor:
-                                      connectionStatus[broker.id] === 'connected' ? 'rgba(34, 197, 94, 0.1)' :
-                                      connectionStatus[broker.id] === 'configured' ? 'rgba(59, 130, 246, 0.1)' :
-                                      'rgba(239, 68, 68, 0.1)',
+                                      connectionStatus[broker.id] === 'connected' ? 'var(--success-bg)' :
+                                      connectionStatus[broker.id] === 'configured' ? 'var(--info-bg)' :
+                                      'var(--error-bg)',
                                     color:
-                                      connectionStatus[broker.id] === 'connected' ? '#22c55e' :
-                                      connectionStatus[broker.id] === 'configured' ? '#3b82f6' :
-                                      '#ef4444',
+                                      connectionStatus[broker.id] === 'connected' ? 'var(--success)' :
+                                      connectionStatus[broker.id] === 'configured' ? 'var(--info)' :
+                                      'var(--error)',
                                     border: `1px solid ${
-                                      connectionStatus[broker.id] === 'connected' ? 'rgba(34, 197, 94, 0.3)' :
-                                      connectionStatus[broker.id] === 'configured' ? 'rgba(59, 130, 246, 0.3)' :
-                                      'rgba(239, 68, 68, 0.3)'}`,
+                                      connectionStatus[broker.id] === 'connected' ? 'var(--success)' :
+                                      connectionStatus[broker.id] === 'configured' ? 'var(--info)' :
+                                      'var(--error)'}`,
                                   }}>
                                   {connectionMessage[broker.id]}
                                 </div>
@@ -1011,23 +1013,23 @@ function AccountContent() {
 
                 <SectionCard title="Danger Zone">
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                    <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--error-bg)', border: '1px solid var(--error)' }}>
                       <div>
                         <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Reset Everything</div>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Deletes all local settings</div>
                       </div>
                       <button className="text-xs px-3 py-1.5 rounded-lg font-medium"
-                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                        style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid var(--error)' }}>
                         Reset
                       </button>
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                    <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--error-bg)', border: '1px solid var(--error)' }}>
                       <div>
                         <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Delete Account</div>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Irreversible action</div>
                       </div>
                       <button className="text-xs px-3 py-1.5 rounded-lg font-medium"
-                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                        style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid var(--error)' }}>
                         Delete
                       </button>
                     </div>
@@ -1076,7 +1078,7 @@ function AccountContent() {
                     </div>
                     <button type="submit" disabled={isLoading}
                       className="w-full py-3 font-semibold rounded-lg transition-colors disabled:opacity-50 text-sm"
-                      style={{ background: 'var(--primary)', color: '#fff' }}>
+                      style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #fff)' }}>
                       {isLoading ? 'Sending...' : 'Submit'}
                     </button>
                   </form>

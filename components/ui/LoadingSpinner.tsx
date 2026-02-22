@@ -18,11 +18,11 @@ export default function LoadingSpinner({
   className = '',
 }: LoadingSpinnerProps) {
   return (
-    <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
+    <div className={`flex flex-col items-center justify-center gap-3 ${className}`} role="status" aria-label={message || 'Loading'}>
       <div
-        className={`${sizeClasses[size]} border-blue-500 border-t-transparent rounded-full animate-spin`}
+        className={`${sizeClasses[size]} border-[var(--primary)] border-t-transparent rounded-full animate-spin`}
       />
-      {message && <span className="text-zinc-400 text-sm">{message}</span>}
+      {message && <span className="text-[var(--text-muted)] text-sm">{message}</span>}
     </div>
   );
 }
