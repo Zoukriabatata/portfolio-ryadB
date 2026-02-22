@@ -8,6 +8,13 @@ interface ConnectionStatusProps {
   label?: string;
 }
 
+const statusConfig = {
+  connecting: { bg: 'var(--warning)', text: 'Connecting...', pulse: true },
+  connected: { bg: 'var(--success)', text: 'Connected', pulse: false },
+  disconnected: { bg: 'var(--text-muted)', text: 'Disconnected', pulse: false },
+  error: { bg: 'var(--error)', text: 'Error', pulse: true },
+} as const;
+
 export default function ConnectionStatus({ exchangeId, label }: ConnectionStatusProps) {
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
@@ -19,19 +26,19 @@ export default function ConnectionStatus({ exchangeId, label }: ConnectionStatus
     return unsubscribe;
   }, [exchangeId]);
 
-  const statusConfig = {
-    connecting: { color: 'bg-yellow-500', text: 'Connecting...' },
-    connected: { color: 'bg-green-500', text: 'Connected' },
-    disconnected: { color: 'bg-zinc-500', text: 'Disconnected' },
-    error: { color: 'bg-red-500', text: 'Error' },
-  };
-
   const config = statusConfig[status];
 
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <div className={`w-2 h-2 rounded-full ${config.color} ${status === 'connecting' ? 'animate-pulse' : ''}`} />
-      <span className="text-zinc-400">
+    <div
+      className="flex items-center gap-2 text-xs"
+      role="status"
+      aria-label={`${label || exchangeId}: ${config.text}`}
+    >
+      <div
+        className={`w-2 h-2 rounded-full ${config.pulse ? 'live-dot' : ''}`}
+        style={{ backgroundColor: config.bg }}
+      />
+      <span className="text-[var(--text-secondary)]">
         {label || exchangeId}: {config.text}
       </span>
     </div>

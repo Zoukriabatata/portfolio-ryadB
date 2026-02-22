@@ -14,10 +14,10 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
 };
 
 const STATUS_COLORS: Record<DataFeedStatus, { bg: string; text: string; label: string }> = {
-  connected: { bg: 'rgba(34,197,94,0.15)', text: '#22c55e', label: 'boutique.connected' },
-  configured: { bg: 'rgba(59,130,246,0.15)', text: '#3b82f6', label: 'boutique.configured' },
-  not_configured: { bg: 'rgba(100,116,139,0.15)', text: '#64748b', label: 'boutique.notConfigured' },
-  error: { bg: 'rgba(239,68,68,0.15)', text: '#ef4444', label: 'boutique.error' },
+  connected: { bg: 'var(--success-bg)', text: 'var(--success)', label: 'boutique.connected' },
+  configured: { bg: 'var(--info-bg)', text: 'var(--info)', label: 'boutique.configured' },
+  not_configured: { bg: 'var(--surface-elevated)', text: 'var(--text-muted)', label: 'boutique.notConfigured' },
+  error: { bg: 'var(--error-bg)', text: 'var(--error)', label: 'boutique.error' },
 };
 
 interface ProviderCardProps {
@@ -69,8 +69,8 @@ export default function ProviderCard({ provider, status, userTier, onConfigure }
           <span
             className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
             style={{
-              background: provider.tier === 'FREE' ? 'rgba(34,197,94,0.15)' : 'rgba(168,85,247,0.15)',
-              color: provider.tier === 'FREE' ? '#22c55e' : '#a855f7',
+              background: provider.tier === 'FREE' ? 'var(--success-bg)' : 'var(--accent-bg, rgba(168,85,247,0.15))',
+              color: provider.tier === 'FREE' ? 'var(--success)' : 'var(--accent, #a855f7)',
             }}
           >
             {provider.tier === 'FREE' ? t('boutique.free') : 'ULTRA'}
@@ -128,7 +128,7 @@ export default function ProviderCard({ provider, status, userTier, onConfigure }
         <a
           href="/pricing?upgrade=true"
           className="w-full py-2.5 rounded-lg text-sm font-medium text-center transition-opacity hover:opacity-90"
-          style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7', display: 'block' }}
+          style={{ background: 'var(--accent-bg, rgba(168,85,247,0.15))', color: 'var(--accent, #a855f7)', display: 'block' }}
         >
           {t('boutique.upgrade')}
         </a>
@@ -138,7 +138,7 @@ export default function ProviderCard({ provider, status, userTier, onConfigure }
           className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
           style={{
             background: status === 'connected' ? `${provider.color}20` : provider.color,
-            color: status === 'connected' ? provider.color : '#000',
+            color: status === 'connected' ? provider.color : 'var(--primary-foreground, #000)',
           }}
         >
           {status === 'connected'

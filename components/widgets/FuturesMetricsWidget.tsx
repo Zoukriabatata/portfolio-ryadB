@@ -54,10 +54,10 @@ export default function FuturesMetricsWidget() {
   }, [nextFundingTime]);
 
   const fundingColor = fundingRate > 0.0001
-    ? 'text-emerald-400'
+    ? 'text-[var(--bull)]'
     : fundingRate < -0.0001
-    ? 'text-red-400'
-    : 'text-zinc-400';
+    ? 'text-[var(--bear)]'
+    : 'text-[var(--text-muted)]';
 
   const longPct = globalLongAccount * 100;
   const shortPct = globalShortAccount * 100;
@@ -107,8 +107,8 @@ export default function FuturesMetricsWidget() {
 
   if (markPrice === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-zinc-500 text-sm">
-        <div className="flex flex-col items-center gap-2">
+      <div className="h-full flex items-center justify-center text-[var(--text-muted)] text-sm">
+        <div className="flex flex-col items-center gap-2 animate-fadeIn">
           {metricsError ? (
             <>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -117,11 +117,11 @@ export default function FuturesMetricsWidget() {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
               <span>Futures data unavailable</span>
-              <span className="text-[10px] text-zinc-600">Retrying automatically...</span>
+              <span className="text-[10px] text-[var(--text-dimmed)]">Retrying automatically...</span>
             </>
           ) : (
             <>
-              <div className="w-6 h-6 border-2 border-zinc-600 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-[var(--border-light)] border-t-transparent rounded-full animate-spin" />
               <span>Connexion futures...</span>
             </>
           )}
@@ -131,72 +131,73 @@ export default function FuturesMetricsWidget() {
   }
 
   return (
-    <div className="h-full flex flex-col gap-2.5 text-xs overflow-y-auto">
+    <div className="h-full flex flex-col gap-2.5 text-xs overflow-y-auto custom-scrollbar">
       {/* Mark Price */}
       <div className="text-center py-1">
-        <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Mark Price</p>
-        <p className="text-lg font-mono font-bold text-white leading-tight">
+        <p className="text-[10px] text-[var(--text-dimmed)] uppercase tracking-wider">Mark Price</p>
+        <p className="text-lg font-mono font-bold text-[var(--text-primary)] leading-tight">
           {formatPrice(markPrice)}
         </p>
-        <p className="text-[10px] text-zinc-600">
+        <p className="text-[10px] text-[var(--text-dimmed)]">
           Index: {formatPrice(indexPrice)}
         </p>
       </div>
 
       {/* Funding Rate */}
-      <div className="bg-zinc-800/50 rounded-lg p-2.5">
+      <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-zinc-500">Funding Rate</span>
+          <span className="text-[var(--text-muted)]">Funding Rate</span>
           <span className={`font-mono font-semibold ${fundingColor}`}>
             {formatFundingRate(fundingRate)}
           </span>
         </div>
         {/* Funding rate visual bar */}
         {fundingRate !== 0 && (
-          <div className="mt-1.5 h-1 bg-zinc-900 rounded-full overflow-hidden relative">
-            <div className="absolute inset-y-0 left-1/2 w-px bg-zinc-700" />
+          <div className="mt-1.5 h-1 bg-[var(--background)] rounded-full overflow-hidden relative">
+            <div className="absolute inset-y-0 left-1/2 w-px bg-[var(--border)]" />
             <div
               className="absolute inset-y-0 rounded-full transition-all duration-500"
               style={{
                 left: fundingRate >= 0 ? '50%' : undefined,
                 right: fundingRate < 0 ? '50%' : undefined,
                 width: `${Math.min(Math.abs(fundingRate) * 10000, 50)}%`,
-                backgroundColor: fundingRate >= 0 ? '#34d399' : '#f87171',
+                backgroundColor: fundingRate >= 0 ? 'var(--bull)' : 'var(--bear)',
               }}
             />
           </div>
         )}
         <div className="flex items-center justify-between mt-1">
-          <span className="text-zinc-600 text-[10px]">Next Funding</span>
-          <span className="font-mono text-zinc-400 text-[10px]">{fundingCountdown}</span>
+          <span className="text-[var(--text-dimmed)] text-[10px]">Next Funding</span>
+          <span className="font-mono text-[var(--text-secondary)] text-[10px]">{fundingCountdown}</span>
         </div>
       </div>
 
       {/* Open Interest */}
-      <div className="bg-zinc-800/50 rounded-lg p-2.5">
+      <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-zinc-500">Open Interest</span>
+          <span className="text-[var(--text-muted)]">Open Interest</span>
           <div className="flex items-center gap-1.5">
             {oiChange !== null && (
-              <span className={`font-mono text-[10px] ${oiChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <span className={`font-mono text-[10px] ${oiChange >= 0 ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}`}>
                 {oiChange >= 0 ? '+' : ''}{oiChange.toFixed(1)}%
               </span>
             )}
-            <span className="font-mono text-white font-medium">
+            <span className="font-mono text-[var(--text-primary)] font-medium">
               {formatLargeNumber(openInterestValue)}
             </span>
           </div>
         </div>
         {openInterestHistory.length > 1 && (
-          <div className="h-[40px] bg-zinc-900/50 rounded overflow-hidden">
+          <div className="h-[40px] bg-[var(--background)]/50 rounded overflow-hidden">
             <svg
               viewBox={`0 0 100 ${oiChartHeight}`}
               preserveAspectRatio="none"
               className="w-full h-full"
+              aria-label="Open Interest chart"
             >
               <polyline
                 fill="none"
-                stroke="#60a5fa"
+                stroke="var(--info)"
                 strokeWidth="1.5"
                 points={oiPoints}
               />
@@ -206,40 +207,40 @@ export default function FuturesMetricsWidget() {
       </div>
 
       {/* Long/Short Ratio */}
-      <div className="bg-zinc-800/50 rounded-lg p-2.5">
+      <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-zinc-500">Long/Short</span>
-          <span className="font-mono text-white font-medium">
+          <span className="text-[var(--text-muted)]">Long/Short</span>
+          <span className="font-mono text-[var(--text-primary)] font-medium">
             {globalLongShortRatio > 0 ? globalLongShortRatio.toFixed(2) : '--'}
           </span>
         </div>
-        <div className="h-1.5 bg-zinc-900 rounded-full overflow-hidden flex">
+        <div className="h-1.5 bg-[var(--background)] rounded-full overflow-hidden flex">
           <div
-            className="h-full bg-emerald-500 transition-all duration-500"
-            style={{ width: `${longPct || 50}%` }}
+            className="h-full transition-all duration-500"
+            style={{ width: `${longPct || 50}%`, backgroundColor: 'var(--bull)' }}
           />
           <div
-            className="h-full bg-red-500 transition-all duration-500"
-            style={{ width: `${shortPct || 50}%` }}
+            className="h-full transition-all duration-500"
+            style={{ width: `${shortPct || 50}%`, backgroundColor: 'var(--bear)' }}
           />
         </div>
         <div className="flex items-center justify-between mt-1">
-          <span className="text-emerald-400 text-[10px]">{longPct.toFixed(1)}% L</span>
-          <span className="text-red-400 text-[10px]">{shortPct.toFixed(1)}% S</span>
+          <span className="text-[var(--bull)] text-[10px]">{longPct.toFixed(1)}% L</span>
+          <span className="text-[var(--bear)] text-[10px]">{shortPct.toFixed(1)}% S</span>
         </div>
         {/* L/S Ratio history sparkline */}
         {longShortHistory.length > 1 && (
-          <div className="h-[32px] mt-1.5 bg-zinc-900/50 rounded overflow-hidden">
+          <div className="h-[32px] mt-1.5 bg-[var(--background)]/50 rounded overflow-hidden">
             <svg
               viewBox={`0 0 100 ${lsChartHeight}`}
               preserveAspectRatio="none"
               className="w-full h-full"
+              aria-label="Long/Short ratio chart"
             >
-              {/* 1.0 reference line (neutral) */}
-              <line x1="0" y1={lsChartHeight / 2} x2="100" y2={lsChartHeight / 2} stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="2,2" />
+              <line x1="0" y1={lsChartHeight / 2} x2="100" y2={lsChartHeight / 2} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2,2" />
               <polyline
                 fill="none"
-                stroke={globalLongShortRatio >= 1 ? '#34d399' : '#f87171'}
+                stroke={globalLongShortRatio >= 1 ? 'var(--bull)' : 'var(--bear)'}
                 strokeWidth="1.5"
                 points={lsPoints}
               />
@@ -249,33 +250,33 @@ export default function FuturesMetricsWidget() {
       </div>
 
       {/* Top Traders */}
-      <div className="bg-zinc-800/50 rounded-lg p-2.5">
+      <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-zinc-500">Top Traders L/S</span>
-          <span className="font-mono text-white font-medium">
+          <span className="text-[var(--text-muted)]">Top Traders L/S</span>
+          <span className="font-mono text-[var(--text-primary)] font-medium">
             {topTraderLongShortRatio > 0 ? topTraderLongShortRatio.toFixed(2) : '--'}
           </span>
         </div>
       </div>
 
       {/* Liquidations */}
-      <div className="bg-zinc-800/50 rounded-lg p-2.5">
+      <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-zinc-500">Liquidations</span>
-          <span className={`font-mono text-[10px] ${recentLiqCount > 0 ? 'text-yellow-400' : 'text-zinc-600'}`}>
+          <span className="text-[var(--text-muted)]">Liquidations</span>
+          <span className={`font-mono text-[10px] ${recentLiqCount > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-dimmed)]'}`}>
             {recentLiqCount > 0 ? `${recentLiqCount} (1m)` : 'aucune'}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <p className="text-zinc-600 text-[10px]">Shorts liq.</p>
-            <p className="text-emerald-400 font-mono font-medium">
+            <p className="text-[var(--text-dimmed)] text-[10px]">Shorts liq.</p>
+            <p className="text-[var(--bull)] font-mono font-medium">
               {formatLargeNumber(recentLiqBuyVolume)}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-zinc-600 text-[10px]">Longs liq.</p>
-            <p className="text-red-400 font-mono font-medium">
+            <p className="text-[var(--text-dimmed)] text-[10px]">Longs liq.</p>
+            <p className="text-[var(--bear)] font-mono font-medium">
               {formatLargeNumber(recentLiqSellVolume)}
             </p>
           </div>

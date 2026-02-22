@@ -52,21 +52,21 @@ export default function BoutiquePage() {
       className="h-full overflow-y-auto"
       style={{ background: 'var(--background)', color: 'var(--text-primary)' }}
     >
-      {/* Animated gradient orbs */}
+      {/* Animated gradient orbs — use CSS variables for theme compatibility */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.04) 0%, transparent 70%)', animation: 'pulse 8s ease-in-out infinite' }} />
+          style={{ background: 'radial-gradient(circle, var(--success-bg) 0%, transparent 70%)', animation: 'pulse 8s ease-in-out infinite' }} />
         <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.03) 0%, transparent 70%)', animation: 'pulse 10s ease-in-out infinite 2s' }} />
+          style={{ background: 'radial-gradient(circle, var(--info-bg) 0%, transparent 70%)', animation: 'pulse 10s ease-in-out infinite 2s' }} />
         <div className="absolute top-[30%] right-[10%] w-[40vw] h-[40vw] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.03) 0%, transparent 70%)', animation: 'pulse 12s ease-in-out infinite 4s' }} />
+          style={{ background: 'radial-gradient(circle, var(--warning-bg) 0%, transparent 70%)', animation: 'pulse 12s ease-in-out infinite 4s' }} />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         {/* Hero Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[var(--success)] to-[var(--primary)] bg-clip-text text-transparent">
               {t('boutique.title')}
             </span>
           </h1>
@@ -79,13 +79,13 @@ export default function BoutiquePage() {
             <div className="flex items-center justify-center gap-6 mt-6">
               {connectedCount > 0 && (
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
                   <span style={{ color: 'var(--text-secondary)' }}>{connectedCount} connected</span>
                 </div>
               )}
               {configuredCount > 0 && (
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full" style={{ background: '#3b82f6' }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: 'var(--info)' }} />
                   <span style={{ color: 'var(--text-secondary)' }}>{configuredCount} configured</span>
                 </div>
               )}
@@ -102,7 +102,7 @@ export default function BoutiquePage() {
               className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
               style={{
                 background: category === tab.key ? 'var(--primary)' : 'var(--surface)',
-                color: category === tab.key ? '#000' : 'var(--text-secondary)',
+                color: category === tab.key ? 'var(--primary-foreground, #000)' : 'var(--text-secondary)',
                 border: category === tab.key ? 'none' : '1px solid var(--border)',
               }}
             >

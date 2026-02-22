@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, HTMLAttributes } from 'react';
+import { useEffect, useCallback, useRef, HTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -24,6 +24,8 @@ const sizeStyles: Record<ModalSize, string> = {
   full: 'max-w-[90vw] max-h-[90vh]',
 };
 
+let modalTitleId = 0;
+
 export default function Modal({
   open,
   onClose,
@@ -34,6 +36,10 @@ export default function Modal({
   closeOnBackdrop = true,
   closeOnEsc = true,
 }: ModalProps) {
+  const titleIdRef = useRef(`modal-title-${++modalTitleId}`);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   const handleEsc = useCallback(
     (e: KeyboardEvent) => {
       if (closeOnEsc && e.key === 'Escape') onClose();
@@ -43,11 +49,20 @@ export default function Modal({
 
   useEffect(() => {
     if (open) {
+      previousFocusRef.current = document.activeElement as HTMLElement;
       document.addEventListener('keydown', handleEsc);
       document.body.style.overflow = 'hidden';
+
+      // Focus trap: focus the panel on open
+      requestAnimationFrame(() => {
+        panelRef.current?.focus();
+      });
+
       return () => {
         document.removeEventListener('keydown', handleEsc);
         document.body.style.overflow = '';
+        // Restore focus to previously focused element
+        previousFocusRef.current?.focus();
       };
     }
   }, [open, handleEsc]);
@@ -58,32 +73,39 @@ export default function Modal({
     <div
       className="fixed inset-0 flex items-center justify-center p-4"
       style={{ zIndex: 'var(--z-modal, 400)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? titleIdRef.current : undefined}
     >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
         onClick={closeOnBackdrop ? onClose : undefined}
+        aria-hidden="true"
       />
 
       {/* Panel */}
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={`
           relative w-full ${sizeStyles[size]}
           bg-[var(--surface-elevated)] border border-[var(--border-light)]
           rounded-[var(--radius-xl,16px)] shadow-xl
-          animate-scaleIn
+          animate-scaleIn outline-none
           flex flex-col max-h-[85vh]
         `}
       >
         {/* Header */}
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h3>
+            <h3 id={titleIdRef.current} className="text-lg font-semibold text-[var(--text-primary)]">{title}</h3>
             <button
               onClick={onClose}
+              aria-label="Close dialog"
               className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>

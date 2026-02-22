@@ -77,6 +77,12 @@ html { scroll-behavior: smooth; }
 .animate-slideOutUp    { animation: slideOutUp 0.2s ease-in forwards; }
 .animate-slideOutDown  { animation: slideOutDown 0.2s ease-in forwards; }
 
+/* Toast progress bar countdown */
+@keyframes toast-progress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
 /* --- Scale --- */
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.92); }
