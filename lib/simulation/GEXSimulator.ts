@@ -16,6 +16,7 @@ import {
 } from '@/lib/calculations/greeks';
 import { GEXHistoryBuffer } from '@/lib/calculations/gexHistory';
 import type { MultiGreekData, MultiGreekSummary } from '@/types/options';
+import { BASE_PRICES, BASE_IV, createSeededRNG, getTimeSeed } from '@/lib/simulation/constants';
 
 // ─── Legacy types (kept for backward compatibility with existing charts) ───
 
@@ -56,17 +57,9 @@ export interface SimulatedMultiGreekResult {
   totalPutOI: number;
 }
 
-// Base prices for different symbols
-const SYMBOL_BASE_PRICES: Record<string, number> = {
-  SPY: 595, QQQ: 520, IWM: 230, DIA: 435,
-  AAPL: 190, TSLA: 260, NVDA: 920, MSFT: 430, AMZN: 195, META: 520,
-};
-
-// Base IV per symbol (annualized)
-const SYMBOL_BASE_IV: Record<string, number> = {
-  SPY: 0.16, QQQ: 0.20, IWM: 0.22, DIA: 0.15,
-  AAPL: 0.28, TSLA: 0.55, NVDA: 0.45, MSFT: 0.25, AMZN: 0.30, META: 0.35,
-};
+// Re-export from shared constants for backward compat
+const SYMBOL_BASE_PRICES = BASE_PRICES;
+const SYMBOL_BASE_IV = BASE_IV;
 
 /**
  * Generate simulated options chain with full Greeks
@@ -142,13 +135,19 @@ function generateOptionsChain(
 
 /**
  * Generate multi-expiration simulated GEX data with full Greeks
+ *
+ * @param symbol - ETF symbol (SPY, QQQ, etc.)
+ * @param numExpirations - Number of expirations to generate
+ * @param realSpotPrice - Real spot price from API (optional, uses seeded simulation if not provided)
  */
 export function generateSimulatedMultiGreek(
   symbol: string,
   numExpirations: number = 5,
+  realSpotPrice?: number,
 ): SimulatedMultiGreekResult {
   const basePrice = SYMBOL_BASE_PRICES[symbol] || 100;
-  const spotPrice = basePrice * (0.98 + Math.random() * 0.04);
+  const rng = createSeededRNG(getTimeSeed(symbol));
+  const spotPrice = realSpotPrice || basePrice * (0.98 + rng() * 0.04);
 
   // Generate 5 expirations (weekly, 2w, monthly, 2m, quarterly)
   const today = Date.now() / 1000;
@@ -213,20 +212,21 @@ function generateSimulatedHistory(
 ): GEXHistoryBuffer {
   const history = new GEXHistoryBuffer();
   const now = Date.now();
+  const rng = createSeededRNG(getTimeSeed(symbol) + 9999);
 
-  // Walk backwards from current state with random drift
-  let spot = currentSpot * (0.97 + Math.random() * 0.03);
+  // Walk backwards from current state with seeded drift
+  let spot = currentSpot * (0.97 + rng() * 0.03);
 
   for (let i = 0; i < numSnapshots; i++) {
     const t = now - (numSnapshots - i) * 5 * 60 * 1000; // 5 min intervals
 
     // Evolve spot price with mean reversion
-    const drift = (currentSpot - spot) * 0.1 + (Math.random() - 0.5) * currentSpot * 0.002;
+    const drift = (currentSpot - spot) * 0.1 + (rng() - 0.5) * currentSpot * 0.002;
     spot += drift;
 
     // Scale greeks proportionally to spot distance from current
     const spotRatio = spot / currentSpot;
-    const noise = () => 0.85 + Math.random() * 0.3;
+    const noise = () => 0.85 + rng() * 0.3;
 
     const snapshotData: MultiGreekData[] = currentData.map(d => ({
       ...d,
@@ -241,13 +241,13 @@ function generateSimulatedHistory(
       netVEX: currentSummary.netVEX * spotRatio * noise(),
       netCEX: currentSummary.netCEX * noise(),
       netDEX: currentSummary.netDEX * spotRatio * noise(),
-      zeroGammaLevel: currentSummary.zeroGammaLevel * (0.998 + Math.random() * 0.004),
+      zeroGammaLevel: currentSummary.zeroGammaLevel * (0.998 + rng() * 0.004),
       callWall: currentSummary.callWall,
       putWall: currentSummary.putWall,
       maxPain: currentSummary.maxPain,
       impliedMove: currentSummary.impliedMove * noise(),
       regime: spot >= currentSummary.zeroGammaLevel ? 'positive' : 'negative',
-      gammaIntensity: Math.max(0, Math.min(100, currentSummary.gammaIntensity + (Math.random() - 0.5) * 20)),
+      gammaIntensity: Math.max(0, Math.min(100, currentSummary.gammaIntensity + (rng() - 0.5) * 20)),
     };
 
     history.push({
@@ -279,7 +279,8 @@ export function generateSimulatedGEX(
   expirationDays: number = 7
 ): { gexData: SimulatedGEXLevel[]; summary: SimulatedGEXSummary; spotPrice: number } {
   const basePrice = SYMBOL_BASE_PRICES[symbol] || 100;
-  const spotPrice = basePrice * (0.98 + Math.random() * 0.04);
+  const rng = createSeededRNG(getTimeSeed(symbol) + 7777);
+  const spotPrice = basePrice * (0.98 + rng() * 0.04);
 
   const strikeSpacing = basePrice < 100 ? 1 : basePrice < 200 ? 2.5 : basePrice < 500 ? 5 : 10;
   const numStrikes = 40;
@@ -296,9 +297,9 @@ export function generateSimulatedGEX(
     const strike = startStrike + i * strikeSpacing;
     const moneyness = (strike - spotPrice) / spotPrice;
     const atmDistance = Math.abs(moneyness);
-    const oiMultiplier = Math.exp(-atmDistance * 10) * (0.5 + Math.random() * 0.5);
+    const oiMultiplier = Math.exp(-atmDistance * 10) * (0.5 + rng() * 0.5);
     const isRoundNumber = strike % (strikeSpacing * 5) === 0;
-    const baseOI = (5000 + Math.random() * 15000) * (isRoundNumber ? 2 : 1);
+    const baseOI = (5000 + rng() * 15000) * (isRoundNumber ? 2 : 1);
 
     const callOI = Math.floor(baseOI * oiMultiplier * (moneyness > 0 ? 0.8 : 1.2));
     const putOI = Math.floor(baseOI * oiMultiplier * (moneyness < 0 ? 0.8 : 1.2));
@@ -316,8 +317,8 @@ export function generateSimulatedGEX(
 
     gexData.push({
       strike, callGEX, putGEX, netGEX, callOI, putOI,
-      callVolume: Math.floor(callOI * (0.05 + Math.random() * 0.15)),
-      putVolume: Math.floor(putOI * (0.05 + Math.random() * 0.15)),
+      callVolume: Math.floor(callOI * (0.05 + rng() * 0.15)),
+      putVolume: Math.floor(putOI * (0.05 + rng() * 0.15)),
     });
   }
 

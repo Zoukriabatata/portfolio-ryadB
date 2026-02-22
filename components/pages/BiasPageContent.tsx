@@ -28,20 +28,46 @@ const CONTRACTS: { id: FuturesContract; label: string; etf: string }[] = [
 export default function BiasPageContent() {
   const [contract, setContract] = useState<FuturesContract>('MES');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [realSpotPrice, setRealSpotPrice] = useState<number | undefined>();
+  const [priceSource, setPriceSource] = useState<'yahoo-finance' | 'fallback' | null>(null);
 
   const etfSymbol = CONTRACTS.find(c => c.id === contract)?.etf || 'SPY';
 
-  // Generate data
+  // Fetch real ETF price
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch(`/api/market/etf-price?symbol=${etfSymbol}`);
+        if (!res.ok) throw new Error('fetch failed');
+        const data = await res.json();
+        if (!cancelled) {
+          setRealSpotPrice(data.price);
+          setPriceSource(data.source);
+        }
+      } catch {
+        if (!cancelled) {
+          setRealSpotPrice(undefined);
+          setPriceSource('fallback');
+        }
+      }
+    };
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [etfSymbol]);
+
+  // Generate data (anchored on real price when available)
   const simResult = useMemo(() => {
-    return generateSimulatedMultiGreek(etfSymbol);
+    return generateSimulatedMultiGreek(etfSymbol, 5, realSpotPrice);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [etfSymbol, refreshKey]);
+  }, [etfSymbol, refreshKey, realSpotPrice]);
 
   // Generate volatility skew data for term structure
   const volData = useMemo(() => {
-    return generateVolatilitySkew(etfSymbol, 25, 30);
+    return generateVolatilitySkew(etfSymbol, 25, 30, realSpotPrice);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [etfSymbol, refreshKey]);
+  }, [etfSymbol, refreshKey, realSpotPrice]);
 
   // Calculate bias
   const biasResult: BiasResult | null = useMemo(() => {
@@ -90,9 +116,17 @@ export default function BiasPageContent() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[var(--background)]">
       {/* ─── Disclaimer ─── */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-[10px] text-amber-400 animate-fadeIn">
+      <div className={`flex-shrink-0 flex items-center gap-2 px-4 py-1.5 border-b text-[10px] animate-fadeIn ${
+        priceSource === 'yahoo-finance'
+          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+      }`}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
-        <span>Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.</span>
+        <span>
+          {priceSource === 'yahoo-finance'
+            ? `Live ${etfSymbol} price anchored. GEX/skew data is simulated. Not financial advice.`
+            : 'Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.'}
+        </span>
       </div>
 
       {/* ── Header Bar ── */}
@@ -132,9 +166,13 @@ export default function BiasPageContent() {
             {contract} {biasResult.esSpot.toFixed(0)}
           </div>
 
-          {/* SIM badge */}
-          <div className="px-2 py-1 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400">
-            SIM
+          {/* LIVE / SIM badge */}
+          <div className={`px-2 py-1 rounded text-[10px] font-bold ${
+            priceSource === 'yahoo-finance'
+              ? 'bg-emerald-500/15 text-emerald-400'
+              : 'bg-amber-500/15 text-amber-400'
+          }`}>
+            {priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}
           </div>
 
           {/* Refresh */}

@@ -5,6 +5,8 @@
  * Used when API data is unavailable
  */
 
+import { BASE_PRICES, BASE_IV as SHARED_BASE_IV, createSeededRNG, getTimeSeed } from '@/lib/simulation/constants';
+
 export interface SimulatedIVPoint {
   strike: number;
   callIV: number;
@@ -20,46 +22,30 @@ export interface SimulatedVolatilityData {
   termStructure: { expDays: number; atmIV: number }[];
 }
 
-// Typical IV levels for different assets
-const BASE_IV: Record<string, number> = {
-  SPY: 0.18,
-  QQQ: 0.22,
-  IWM: 0.24,
-  AAPL: 0.28,
-  TSLA: 0.55,
-  NVDA: 0.45,
-  MSFT: 0.25,
-  AMZN: 0.32,
-  META: 0.38,
-  DEFAULT: 0.25,
-};
-
-// Typical spot prices
-const SPOT_PRICES: Record<string, number> = {
-  SPY: 580,
-  QQQ: 495,
-  IWM: 225,
-  AAPL: 195,
-  TSLA: 285,
-  NVDA: 875,
-  MSFT: 425,
-  AMZN: 185,
-  META: 525,
-};
+// Use shared constants
+const SYMBOL_BASE_IV = SHARED_BASE_IV;
+const SPOT_PRICES = BASE_PRICES;
 
 /**
  * Generate a realistic volatility smile/skew
+ *
+ * @param symbol - ETF symbol
+ * @param numStrikes - Number of strikes to generate
+ * @param daysToExpiration - Days to expiration for the smile
+ * @param realSpotPrice - Real spot price from API (optional)
  */
 export function generateVolatilitySkew(
   symbol: string,
   numStrikes: number = 25,
-  daysToExpiration: number = 30
+  daysToExpiration: number = 30,
+  realSpotPrice?: number,
 ): SimulatedVolatilityData {
-  const spotPrice = SPOT_PRICES[symbol] || 100 + Math.random() * 400;
-  const baseIV = BASE_IV[symbol] || BASE_IV.DEFAULT;
+  const rng = createSeededRNG(getTimeSeed(symbol) + 5555);
+  const spotPrice = realSpotPrice || SPOT_PRICES[symbol] || 100 + rng() * 400;
+  const baseIV = SYMBOL_BASE_IV[symbol] || SYMBOL_BASE_IV.DEFAULT;
 
-  // Add some randomness to base IV
-  const atmIV = baseIV * (0.9 + Math.random() * 0.2);
+  // Seeded randomness for base IV
+  const atmIV = baseIV * (0.9 + rng() * 0.2);
 
   // Calculate strike range (typically ±20% from spot)
   const strikeMin = spotPrice * 0.8;
@@ -69,29 +55,26 @@ export function generateVolatilitySkew(
   const skewData: SimulatedIVPoint[] = [];
 
   // Skew parameters (puts typically have higher IV - "volatility smirk")
-  const skewSteepness = 0.1 + Math.random() * 0.1; // How steep the put side is
-  const smileConvexity = 0.02 + Math.random() * 0.03; // Smile curvature
-  const termFactor = Math.sqrt(daysToExpiration / 30); // IV term adjustment
+  const skewSteepness = 0.1 + rng() * 0.1;
+  const smileConvexity = 0.02 + rng() * 0.03;
+  const termFactor = Math.sqrt(daysToExpiration / 30);
 
   for (let i = 0; i <= numStrikes; i++) {
     const strike = strikeMin + i * strikeStep;
     const moneyness = strike / spotPrice;
     const logMoneyness = Math.log(moneyness);
 
-    // Volatility smile formula:
-    // IV = ATM_IV * (1 + skew * ln(K/S) + convexity * ln(K/S)²)
-    const skewTerm = -skewSteepness * logMoneyness; // Negative for put skew
+    const skewTerm = -skewSteepness * logMoneyness;
     const convexityTerm = smileConvexity * logMoneyness * logMoneyness;
 
     const baseStrikeIV = atmIV * (1 + skewTerm + convexityTerm) * termFactor;
 
-    // Calls and puts have slightly different IVs (put-call parity isn't perfect)
-    const callIV = baseStrikeIV * (moneyness > 1 ? 1 : 0.98 + Math.random() * 0.04);
-    const putIV = baseStrikeIV * (moneyness < 1 ? 1 : 0.98 + Math.random() * 0.04);
+    const callIV = baseStrikeIV * (moneyness > 1 ? 1 : 0.98 + rng() * 0.04);
+    const putIV = baseStrikeIV * (moneyness < 1 ? 1 : 0.98 + rng() * 0.04);
 
     skewData.push({
-      strike: Math.round(strike * 2) / 2, // Round to nearest 0.5
-      callIV: Math.max(0.05, callIV), // IV floor at 5%
+      strike: Math.round(strike * 2) / 2,
+      callIV: Math.max(0.05, callIV),
       putIV: Math.max(0.05, putIV),
       moneyness: Math.round(moneyness * 1000) / 1000,
     });
@@ -100,7 +83,7 @@ export function generateVolatilitySkew(
   // Generate term structure (IV for different expirations)
   const termStructure = [7, 14, 21, 30, 45, 60, 90, 120, 180, 365].map(expDays => ({
     expDays,
-    atmIV: atmIV * Math.sqrt(30 / expDays) * (0.85 + Math.random() * 0.3),
+    atmIV: atmIV * Math.sqrt(30 / expDays) * (0.85 + rng() * 0.3),
   }));
 
   return {
