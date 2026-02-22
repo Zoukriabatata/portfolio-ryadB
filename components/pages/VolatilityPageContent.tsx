@@ -313,14 +313,14 @@ export default function VolatilityPageContent() {
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center min-h-[350px]">
             <div className="flex items-center gap-3">
-              <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
               <span className="text-[var(--text-muted)] text-sm">Loading {symbol} options...</span>
             </div>
           </div>
         ) : error ? (
           <div className="w-full h-full flex items-center justify-center min-h-[350px]">
             <div className="text-center">
-              <p className="text-red-400 mb-3">{error}</p>
+              <p className="text-[var(--error)] mb-3">{error}</p>
               <button
                 onClick={handleRefresh}
                 className="px-4 py-2 bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
@@ -389,42 +389,42 @@ export default function VolatilityPageContent() {
                     <tr
                       key={point.strike}
                       className={`border-t border-[var(--border)] transition-colors hover:bg-[var(--surface-hover)] ${
-                        isATM ? 'bg-blue-500/5' : ''
+                        isATM ? 'bg-[var(--primary-glow)]' : ''
                       }`}
                     >
                       <td className="py-1.5 px-3 font-mono font-medium">
-                        <span className={isATM ? 'text-blue-400' : 'text-[var(--text-primary)]'}>
+                        <span className={isATM ? 'text-[var(--primary-light)]' : 'text-[var(--text-primary)]'}>
                           ${point.strike.toLocaleString()}
                         </span>
                         {isATM && (
-                          <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 font-sans font-medium">ATM</span>
+                          <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-[var(--primary-bg,rgba(59,130,246,0.15))] text-[var(--primary-light)] font-sans font-medium">ATM</span>
                         )}
                       </td>
-                      <td className="text-right py-1.5 px-3 font-mono text-emerald-400">
+                      <td className="text-right py-1.5 px-3 font-mono text-[var(--bull)]">
                         {point.callIV ? `${(point.callIV * 100).toFixed(1)}%` : '---'}
                       </td>
                       <td className="py-1.5 px-1">
                         <div className="w-full bg-[var(--surface-elevated)] rounded-full h-1.5 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-emerald-500/60"
-                            style={{ width: `${callPct * 100}%` }}
+                            className="h-full rounded-full"
+                            style={{ background: 'var(--bull)', opacity: 0.6, width: `${callPct * 100}%` }}
                           />
                         </div>
                       </td>
-                      <td className="text-right py-1.5 px-3 font-mono text-rose-400">
+                      <td className="text-right py-1.5 px-3 font-mono text-[var(--bear)]">
                         {point.putIV ? `${(point.putIV * 100).toFixed(1)}%` : '---'}
                       </td>
                       <td className="py-1.5 px-1">
                         <div className="w-full bg-[var(--surface-elevated)] rounded-full h-1.5 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-rose-500/60"
-                            style={{ width: `${putPct * 100}%` }}
+                            className="h-full rounded-full"
+                            style={{ background: 'var(--bear)', opacity: 0.6, width: `${putPct * 100}%` }}
                           />
                         </div>
                       </td>
                       <td className={`text-right py-1.5 px-3 font-mono ${
-                        spread !== null && parseFloat(spread) > 0 ? 'text-rose-400/70' : 'text-emerald-400/70'
-                      }`}>
+                        spread !== null && parseFloat(spread) > 0 ? 'text-[var(--bear)]' : 'text-[var(--bull)]'
+                      }`} style={{ opacity: 0.7 }}>
                         {spread !== null ? `${parseFloat(spread) > 0 ? '+' : ''}${spread}` : '---'}
                       </td>
                       <td className="text-right py-1.5 px-3 font-mono text-[var(--text-muted)]">

@@ -27,15 +27,15 @@ export const TapeSpeedMeter = memo(function TapeSpeedMeter({ stats, compact = fa
   const velocityColor = useMemo(() => {
     switch (stats.velocity) {
       case 'slow':
-        return '#22c55e';     // Green
+        return 'var(--bull)';
       case 'normal':
-        return '#eab308';     // Yellow
+        return 'var(--warning)';
       case 'fast':
-        return '#f97316';     // Orange
+        return 'var(--warning-dark, #f97316)';
       case 'aggressive':
-        return '#ef4444';     // Red
+        return 'var(--bear)';
       default:
-        return '#6b7280';
+        return 'var(--text-dimmed)';
     }
   }, [stats.velocity]);
 
@@ -49,7 +49,7 @@ export const TapeSpeedMeter = memo(function TapeSpeedMeter({ stats, compact = fa
           className="w-2 h-2 rounded-full animate-pulse"
           style={{ backgroundColor: velocityColor }}
         />
-        <span className="text-gray-400">
+        <span style={{ color: 'var(--text-muted)' }}>
           {stats.tradesPerSecond.toFixed(0)}/s
         </span>
       </div>
@@ -57,19 +57,19 @@ export const TapeSpeedMeter = memo(function TapeSpeedMeter({ stats, compact = fa
   }
 
   return (
-    <div className="bg-[#0a0e14] border border-[#1e2430] rounded p-2 text-xs min-w-[140px]">
+    <div className="rounded p-2 text-xs min-w-[140px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-gray-400 font-medium">TAPE SPEED</span>
+        <span className="font-medium" style={{ color: 'var(--text-muted)' }}>TAPE SPEED</span>
         {stats.stopRunDetected && (
-          <span className="text-red-500 font-bold animate-pulse">
+          <span className="font-bold animate-pulse" style={{ color: 'var(--bear)' }}>
             STOP RUN {stats.stopRunSide === 'buy' ? '↑' : '↓'}
           </span>
         )}
       </div>
 
       {/* Velocity bar */}
-      <div className="relative h-4 bg-[#1a1f2e] rounded overflow-hidden mb-2">
+      <div className="relative h-4 rounded overflow-hidden mb-2" style={{ background: 'var(--surface-elevated)' }}>
         <div
           className="absolute inset-y-0 left-0 transition-all duration-200"
           style={{
@@ -78,7 +78,7 @@ export const TapeSpeedMeter = memo(function TapeSpeedMeter({ stats, compact = fa
           }}
         />
         <div className="absolute inset-0 flex items-center justify-end pr-2">
-          <span className="text-white font-mono text-xs">
+          <span className="font-mono text-xs" style={{ color: 'var(--text-primary)' }}>
             {stats.tradesPerSecond.toFixed(0)}/s
           </span>
         </div>
@@ -88,28 +88,28 @@ export const TapeSpeedMeter = memo(function TapeSpeedMeter({ stats, compact = fa
       <div className="space-y-1">
         {/* Buy pressure */}
         <div className="flex items-center gap-1">
-          <span className="text-cyan-400 w-8">BUY</span>
-          <div className="flex-1 h-2 bg-[#1a1f2e] rounded overflow-hidden">
+          <span className="w-8" style={{ color: 'var(--bull)' }}>BUY</span>
+          <div className="flex-1 h-2 rounded overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
             <div
-              className="h-full bg-cyan-500 transition-all duration-200"
-              style={{ width: `${buyPressurePercent}%` }}
+              className="h-full transition-all duration-200"
+              style={{ background: 'var(--bull)', width: `${buyPressurePercent}%` }}
             />
           </div>
-          <span className="text-gray-400 w-8 text-right">
+          <span className="w-8 text-right" style={{ color: 'var(--text-muted)' }}>
             {buyPressurePercent.toFixed(0)}%
           </span>
         </div>
 
         {/* Sell pressure */}
         <div className="flex items-center gap-1">
-          <span className="text-red-400 w-8">SELL</span>
-          <div className="flex-1 h-2 bg-[#1a1f2e] rounded overflow-hidden">
+          <span className="w-8" style={{ color: 'var(--bear)' }}>SELL</span>
+          <div className="flex-1 h-2 rounded overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
             <div
-              className="h-full bg-red-500 transition-all duration-200"
-              style={{ width: `${sellPressurePercent}%` }}
+              className="h-full transition-all duration-200"
+              style={{ background: 'var(--bear)', width: `${sellPressurePercent}%` }}
             />
           </div>
-          <span className="text-gray-400 w-8 text-right">
+          <span className="w-8 text-right" style={{ color: 'var(--text-muted)' }}>
             {sellPressurePercent.toFixed(0)}%
           </span>
         </div>
@@ -117,27 +117,22 @@ export const TapeSpeedMeter = memo(function TapeSpeedMeter({ stats, compact = fa
 
       {/* Momentum indicator */}
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-gray-500">Momentum</span>
+        <span style={{ color: 'var(--text-dimmed)' }}>Momentum</span>
         <span
-          className={`font-medium ${
-            stats.momentum === 'bullish'
-              ? 'text-green-400'
-              : stats.momentum === 'bearish'
-              ? 'text-red-400'
-              : 'text-gray-400'
-          }`}
+          className="font-medium"
+          style={{ color: stats.momentum === 'bullish' ? 'var(--bull)' : stats.momentum === 'bearish' ? 'var(--bear)' : 'var(--text-muted)' }}
         >
           {stats.momentum.toUpperCase()}
         </span>
       </div>
 
       {/* Volume info */}
-      <div className="mt-1 flex items-center justify-between text-gray-500">
+      <div className="mt-1 flex items-center justify-between" style={{ color: 'var(--text-dimmed)' }}>
         <span>Vol</span>
         <span>
-          <span className="text-cyan-400">{formatVolume(stats.recentBuyVolume)}</span>
+          <span style={{ color: 'var(--bull)' }}>{formatVolume(stats.recentBuyVolume)}</span>
           {' / '}
-          <span className="text-red-400">{formatVolume(stats.recentSellVolume)}</span>
+          <span style={{ color: 'var(--bear)' }}>{formatVolume(stats.recentSellVolume)}</span>
         </span>
       </div>
     </div>
@@ -160,9 +155,8 @@ export function StopRunAlert({ detected, side }: StopRunAlertProps) {
       className={`
         fixed top-4 right-4 z-50
         px-4 py-2 rounded
-        font-bold text-white
-        animate-pulse
-        ${side === 'buy' ? 'bg-green-600' : 'bg-red-600'}
+        font-bold animate-pulse
+        ${side === 'buy' ? 'bg-[var(--bull)]' : 'bg-[var(--bear)]'}
       `}
     >
       🚨 STOP RUN {side === 'buy' ? '↑ LONGS' : '↓ SHORTS'}

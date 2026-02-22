@@ -17,11 +17,11 @@ const CURRENCY_FLAGS: Record<string, string> = {
   CHF: '\u{1F1E8}\u{1F1ED}', NZD: '\u{1F1F3}\u{1F1FF}', CNY: '\u{1F1E8}\u{1F1F3}',
 };
 
-const IMPACT_COLORS = { high: 'bg-red-500', medium: 'bg-orange-500', low: 'bg-yellow-500' };
+const IMPACT_COLORS = { high: 'bg-[var(--bear)]', medium: 'bg-[var(--warning)]', low: 'bg-[var(--warning-light,#eab308)]' };
 const IMPACT_BADGE = {
-  high: 'bg-red-500/15 text-red-400',
-  medium: 'bg-orange-500/15 text-orange-400',
-  low: 'bg-yellow-500/15 text-yellow-400',
+  high: 'bg-[var(--bear-bg)] text-[var(--bear)]',
+  medium: 'bg-[var(--warning-bg)] text-[var(--warning)]',
+  low: 'bg-[var(--warning-bg)] text-[var(--warning-light,#eab308)]',
 };
 
 const DEVIATION_STYLES = {
@@ -134,11 +134,11 @@ export function EventCard({
     <div
       className={`
         glass rounded-xl border-l-4 p-4 transition-all duration-200
-        ${isHigh ? 'border-l-red-500' : event.impact === 'medium' ? 'border-l-orange-500' : 'border-l-yellow-500'}
+        ${isHigh ? 'border-l-[var(--bear)]' : event.impact === 'medium' ? 'border-l-[var(--warning)]' : 'border-l-[var(--warning-light,#eab308)]'}
         animate-slideUp stagger-${stagger}
         ${isPast && !expanded ? 'opacity-50 hover:opacity-75' : isPast && expanded ? 'opacity-80' : 'card-hover'}
         ${isSoon ? 'ring-1 ring-[var(--warning)]/30 shadow-lg shadow-[var(--warning)]/10' : ''}
-        ${isHigh && !isPast ? 'bg-gradient-to-r from-red-500/[0.03] to-transparent' : ''}
+        ${isHigh && !isPast ? 'bg-gradient-to-r from-[var(--bear-bg)] to-transparent' : ''}
         ${expanded ? 'ring-1 ring-[var(--primary)]/20' : ''}
       `}
     >

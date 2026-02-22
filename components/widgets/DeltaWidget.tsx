@@ -61,7 +61,7 @@ export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProp
 
   if (!isLive) {
     return (
-      <div className="h-full flex items-center justify-center text-zinc-500 text-sm">
+      <div className="h-full flex items-center justify-center text-sm" style={{ color: 'var(--text-dimmed)' }}>
         Real-time delta only available for Bybit symbols
       </div>
     );
@@ -98,18 +98,14 @@ export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProp
     <div className="h-full flex flex-col">
       {/* Cumulative Delta */}
       <div className="text-center mb-3">
-        <p className="text-xs text-zinc-500 uppercase tracking-wide">Cumulative Delta</p>
-        <p className={`text-2xl font-mono font-bold ${
-          currentDelta > 0 ? 'text-emerald-400' :
-          currentDelta < 0 ? 'text-red-400' :
-          'text-zinc-400'
-        }`}>
+        <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-dimmed)' }}>Cumulative Delta</p>
+        <p className="text-2xl font-mono font-bold" style={{ color: currentDelta > 0 ? 'var(--bull)' : currentDelta < 0 ? 'var(--bear)' : 'var(--text-muted)' }}>
           {currentDelta >= 0 ? '+' : ''}{currentDelta.toFixed(3)}
         </p>
       </div>
 
       {/* Mini Chart */}
-      <div className="flex-1 min-h-[80px] relative bg-zinc-800/30 rounded-lg overflow-hidden">
+      <div className="flex-1 min-h-[80px] relative rounded-lg overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
         {deltaHistory.length > 1 ? (
           <svg
             viewBox={`0 0 100 ${chartHeight}`}
@@ -122,7 +118,7 @@ export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProp
               y1={zeroY}
               x2="100"
               y2={zeroY}
-              stroke="#52525b"
+              stroke="var(--border)"
               strokeWidth="0.5"
               strokeDasharray="2,2"
             />
@@ -130,19 +126,19 @@ export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProp
             {/* Delta line */}
             <polyline
               fill="none"
-              stroke={currentDelta >= 0 ? '#34d399' : '#f87171'}
+              stroke={currentDelta >= 0 ? 'var(--bull)' : 'var(--bear)'}
               strokeWidth="1.5"
               points={points}
             />
 
             {/* Area fill */}
             <polygon
-              fill={currentDelta >= 0 ? 'rgba(52, 211, 153, 0.1)' : 'rgba(248, 113, 113, 0.1)'}
+              fill={currentDelta >= 0 ? 'var(--bull-bg)' : 'var(--bear-bg)'}
               points={`0,${zeroY} ${points} 100,${zeroY}`}
             />
           </svg>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-zinc-600 text-xs">
+          <div className="absolute inset-0 flex items-center justify-center text-xs" style={{ color: 'var(--text-dimmed)' }}>
             Waiting for data...
           </div>
         )}
@@ -150,39 +146,35 @@ export default memo(function DeltaWidget({ historyLength = 60 }: DeltaWidgetProp
 
       {/* Stats Grid */}
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="bg-zinc-800/50 rounded-lg p-2">
-          <p className="text-xs text-zinc-500">Recent (10)</p>
-          <p className={`text-sm font-mono font-semibold ${
-            recentDelta > 0 ? 'text-emerald-400' :
-            recentDelta < 0 ? 'text-red-400' :
-            'text-zinc-400'
-          }`}>
+        <div className="rounded-lg p-2" style={{ background: 'var(--surface-elevated)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-dimmed)' }}>Recent (10)</p>
+          <p className="text-sm font-mono font-semibold" style={{ color: recentDelta > 0 ? 'var(--bull)' : recentDelta < 0 ? 'var(--bear)' : 'var(--text-muted)' }}>
             {recentDelta >= 0 ? '+' : ''}{recentDelta.toFixed(3)}
           </p>
         </div>
-        <div className="bg-zinc-800/50 rounded-lg p-2">
-          <p className="text-xs text-zinc-500">Range</p>
-          <p className="text-sm font-mono text-zinc-400">
+        <div className="rounded-lg p-2" style={{ background: 'var(--surface-elevated)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-dimmed)' }}>Range</p>
+          <p className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>
             {minDelta.toFixed(2)} / {maxDelta.toFixed(2)}
           </p>
         </div>
       </div>
 
       {/* Flow indicator */}
-      <div className="mt-3 pt-2 border-t border-zinc-800">
+      <div className="mt-3 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-red-400">Selling</span>
-          <span className="text-zinc-500">Flow</span>
-          <span className="text-emerald-400">Buying</span>
+          <span style={{ color: 'var(--bear)' }}>Selling</span>
+          <span style={{ color: 'var(--text-dimmed)' }}>Flow</span>
+          <span style={{ color: 'var(--bull)' }}>Buying</span>
         </div>
-        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden flex">
+        <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'var(--surface-elevated)' }}>
           <div
-            className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all"
-            style={{ width: `${Math.max(0, 50 - (recentDelta / (range || 1)) * 25)}%` }}
+            className="h-full transition-all"
+            style={{ background: 'var(--bear)', width: `${Math.max(0, 50 - (recentDelta / (range || 1)) * 25)}%` }}
           />
           <div
-            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all"
-            style={{ width: `${Math.max(0, 50 + (recentDelta / (range || 1)) * 25)}%` }}
+            className="h-full transition-all"
+            style={{ background: 'var(--bull)', width: `${Math.max(0, 50 + (recentDelta / (range || 1)) * 25)}%` }}
           />
         </div>
       </div>

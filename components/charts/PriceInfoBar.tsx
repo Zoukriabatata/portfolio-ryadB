@@ -53,28 +53,28 @@ export const PriceInfoBar = memo(function PriceInfoBar({
   const positionColor = useMemo(() => {
     if (pricePositionColor) return pricePositionColor;
     // Auto-color: red at bottom (0%), green at top (100%), yellow in middle
-    if (pricePosition >= 66) return '#22c55e'; // Green (upper third)
-    if (pricePosition >= 33) return '#eab308'; // Yellow (middle third)
-    return '#ef4444'; // Red (lower third)
+    if (pricePosition >= 66) return 'var(--bull)';
+    if (pricePosition >= 33) return 'var(--warning)';
+    return 'var(--bear)';
   }, [pricePosition, pricePositionColor]);
 
   const formatPrice = fmtPrice;
   const formatVolume = fmtVolume;
 
   return (
-    <div className={`flex items-center gap-4 px-3 py-1.5 bg-[#0a0f0a]/80 backdrop-blur-sm rounded-lg border border-green-900/20 text-xs font-mono ${className}`}>
+    <div className={`flex items-center gap-4 px-3 py-1.5 backdrop-blur-sm rounded-lg border text-xs font-mono ${className}`} style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       {/* Symbol */}
-      <span className="font-bold text-green-100">{symbol}</span>
+      <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{symbol}</span>
 
       {/* Price Position Indicator */}
       {showPricePosition && (
         <>
-          <div className="w-px h-4 bg-green-900/30" />
+          <div className="w-px h-4 bg-[var(--border)]" />
           <div className="flex items-center gap-2" title={`Price at ${pricePosition.toFixed(0)}% of range (High-Low)`}>
             {/* Position Square */}
             <div
-              className="relative w-6 h-6 rounded border border-zinc-600/50 overflow-hidden"
-              style={{ backgroundColor: '#1a1a1a' }}
+              className="relative w-6 h-6 rounded border border-[var(--border)] overflow-hidden"
+              style={{ backgroundColor: 'var(--surface-elevated)' }}
             >
               {/* Range bar (vertical) */}
               <div className="absolute inset-x-0 bottom-0 w-full transition-all duration-300" style={{
@@ -100,42 +100,42 @@ export const PriceInfoBar = memo(function PriceInfoBar({
 
       {/* OHLC */}
       <div className="flex items-center gap-2">
-        <span className="text-green-500/60">O</span>
-        <span className="text-green-200">{formatPrice(open)}</span>
+        <span className="text-[var(--text-dimmed)]">O</span>
+        <span className="text-[var(--text-primary)]">{formatPrice(open)}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-green-500/60">H</span>
-        <span className="text-green-400">{formatPrice(high)}</span>
+        <span className="text-[var(--text-dimmed)]">H</span>
+        <span className="text-[var(--bull)]">{formatPrice(high)}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-green-500/60">L</span>
-        <span className="text-red-400">{formatPrice(low)}</span>
+        <span className="text-[var(--text-dimmed)]">L</span>
+        <span className="text-[var(--bear)]">{formatPrice(low)}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-green-500/60">C</span>
-        <span className={priceChange.isPositive ? 'text-green-400' : 'text-red-400'}>
+        <span className="text-[var(--text-dimmed)]">C</span>
+        <span className={priceChange.isPositive ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}>
           {formatPrice(close)}
         </span>
       </div>
 
       {/* Separator */}
-      <div className="w-px h-4 bg-green-900/30" />
+      <div className="w-px h-4 bg-[var(--border)]" />
 
       {/* Change */}
-      <div className={`flex items-center gap-1 ${priceChange.isPositive ? 'text-green-400' : 'text-red-400'}`}>
+      <div className={`flex items-center gap-1 ${priceChange.isPositive ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}`}>
         <span>{priceChange.isPositive ? '+' : ''}{priceChange.change.toFixed(2)}</span>
-        <span className="text-green-500/60">(</span>
+        <span className="text-[var(--text-dimmed)]">(</span>
         <span>{priceChange.isPositive ? '+' : ''}{priceChange.changePercent.toFixed(2)}%</span>
-        <span className="text-green-500/60">)</span>
+        <span className="text-[var(--text-dimmed)]">)</span>
       </div>
 
       {/* Volume */}
       {volume !== undefined && (
         <>
-          <div className="w-px h-4 bg-green-900/30" />
+          <div className="w-px h-4 bg-[var(--border)]" />
           <div className="flex items-center gap-2">
-            <span className="text-green-500/60">Vol</span>
-            <span className="text-green-200">{formatVolume(volume)}</span>
+            <span className="text-[var(--text-dimmed)]">Vol</span>
+            <span className="text-[var(--text-primary)]">{formatVolume(volume)}</span>
           </div>
         </>
       )}
@@ -143,10 +143,10 @@ export const PriceInfoBar = memo(function PriceInfoBar({
       {/* Tick Count */}
       {tickCount !== undefined && (
         <>
-          <div className="w-px h-4 bg-green-900/30" />
+          <div className="w-px h-4 bg-[var(--border)]" />
           <div className="flex items-center gap-2">
-            <span className="text-green-500/60">Ticks</span>
-            <span className="text-green-200">{tickCount}</span>
+            <span className="text-[var(--text-dimmed)]">Ticks</span>
+            <span className="text-[var(--text-primary)]">{tickCount}</span>
           </div>
         </>
       )}
@@ -154,10 +154,10 @@ export const PriceInfoBar = memo(function PriceInfoBar({
       {/* POC */}
       {poc !== undefined && (
         <>
-          <div className="w-px h-4 bg-green-900/30" />
+          <div className="w-px h-4 bg-[var(--border)]" />
           <div className="flex items-center gap-2">
-            <span className="text-amber-500/80">POC</span>
-            <span className="text-amber-400">{formatPrice(poc)}</span>
+            <span className="text-[var(--warning)]">POC</span>
+            <span className="text-[var(--warning)]">{formatPrice(poc)}</span>
           </div>
         </>
       )}
@@ -165,10 +165,10 @@ export const PriceInfoBar = memo(function PriceInfoBar({
       {/* Delta */}
       {delta !== undefined && (
         <>
-          <div className="w-px h-4 bg-green-900/30" />
+          <div className="w-px h-4 bg-[var(--border)]" />
           <div className="flex items-center gap-2">
-            <span className="text-green-500/60">Delta</span>
-            <span className={delta >= 0 ? 'text-green-400' : 'text-red-400'}>
+            <span className="text-[var(--text-dimmed)]">Delta</span>
+            <span className={delta >= 0 ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}>
               {delta >= 0 ? '+' : ''}{formatVolume(delta)}
             </span>
           </div>

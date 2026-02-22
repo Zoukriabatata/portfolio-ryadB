@@ -81,8 +81,8 @@ export default function ClusterPanel({ maxLevels = 15 }: ClusterPanelProps) {
   if (isCME) {
     return (
       <div className="h-full flex flex-col">
-        <div className="text-xs text-zinc-500 mb-2">Cluster (Bid/Ask/Delta)</div>
-        <div className="flex-1 flex items-center justify-center text-zinc-600 text-sm">
+        <div className="text-xs mb-2" style={{ color: 'var(--text-dimmed)' }}>Cluster (Bid/Ask/Delta)</div>
+        <div className="flex-1 flex items-center justify-center text-sm" style={{ color: 'var(--text-dimmed)' }}>
           Real-time data not available for CME
         </div>
       </div>
@@ -92,19 +92,19 @@ export default function ClusterPanel({ maxLevels = 15 }: ClusterPanelProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Header with totals */}
-      <div className="flex items-center justify-between mb-2 pb-2 border-b border-zinc-800">
-        <span className="text-xs text-zinc-500">Cluster</span>
+      <div className="flex items-center justify-between mb-2 pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+        <span className="text-xs" style={{ color: 'var(--text-dimmed)' }}>Cluster</span>
         <div className="flex gap-3 text-xs">
-          <span className="text-teal-400">B: {totals.bid.toFixed(2)}</span>
-          <span className="text-red-400">A: {totals.ask.toFixed(2)}</span>
-          <span className={totals.delta >= 0 ? 'text-teal-400' : 'text-red-400'}>
+          <span style={{ color: 'var(--bull)' }}>B: {totals.bid.toFixed(2)}</span>
+          <span style={{ color: 'var(--bear)' }}>A: {totals.ask.toFixed(2)}</span>
+          <span style={{ color: totals.delta >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
             D: {totals.delta >= 0 ? '+' : ''}{totals.delta.toFixed(2)}
           </span>
         </div>
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-5 gap-1 text-xs text-zinc-500 mb-1 px-1">
+      <div className="grid grid-cols-5 gap-1 text-xs mb-1 px-1" style={{ color: 'var(--text-dimmed)' }}>
         <span>Bid</span>
         <span className="text-center">Price</span>
         <span className="text-right">Ask</span>
@@ -115,7 +115,7 @@ export default function ClusterPanel({ maxLevels = 15 }: ClusterPanelProps) {
       {/* Cluster levels */}
       <div className="flex-1 overflow-y-auto space-y-0.5">
         {visibleClusters.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-zinc-600 text-sm">
+          <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--text-dimmed)' }}>
             Collecting trades...
           </div>
         ) : (
@@ -126,42 +126,41 @@ export default function ClusterPanel({ maxLevels = 15 }: ClusterPanelProps) {
             return (
               <div
                 key={cluster.price}
-                className={`grid grid-cols-5 gap-1 text-xs py-0.5 px-1 relative ${
-                  isAtPrice ? 'bg-zinc-800/50' : ''
-                }`}
+                className="grid grid-cols-5 gap-1 text-xs py-0.5 px-1 relative"
+                style={{ background: isAtPrice ? 'var(--surface-elevated)' : undefined }}
               >
                 {/* Volume bar background */}
                 <div
                   className="absolute inset-0 opacity-20"
                   style={{
                     background: cluster.delta >= 0
-                      ? `linear-gradient(90deg, transparent ${100 - volumePercent}%, rgba(38, 166, 154, 0.5) ${100 - volumePercent}%)`
-                      : `linear-gradient(90deg, transparent ${100 - volumePercent}%, rgba(239, 68, 68, 0.5) ${100 - volumePercent}%)`,
+                      ? `linear-gradient(90deg, transparent ${100 - volumePercent}%, var(--bull-bg) ${100 - volumePercent}%)`
+                      : `linear-gradient(90deg, transparent ${100 - volumePercent}%, var(--bear-bg) ${100 - volumePercent}%)`,
                   }}
                 />
 
                 {/* Bid */}
-                <span className="text-teal-400 relative z-10">
+                <span className="relative z-10" style={{ color: 'var(--bull)' }}>
                   {cluster.bid > 0 ? cluster.bid.toFixed(2) : '-'}
                 </span>
 
                 {/* Price */}
-                <span className={`text-center relative z-10 ${isAtPrice ? 'text-yellow-400 font-medium' : 'text-zinc-400'}`}>
+                <span className="text-center relative z-10 font-medium" style={{ color: isAtPrice ? 'var(--warning)' : 'var(--text-muted)' }}>
                   {cluster.price.toLocaleString()}
                 </span>
 
                 {/* Ask */}
-                <span className="text-red-400 text-right relative z-10">
+                <span className="text-right relative z-10" style={{ color: 'var(--bear)' }}>
                   {cluster.ask > 0 ? cluster.ask.toFixed(2) : '-'}
                 </span>
 
                 {/* Volume */}
-                <span className="text-zinc-400 text-right relative z-10">
+                <span className="text-right relative z-10" style={{ color: 'var(--text-muted)' }}>
                   {cluster.volume.toFixed(2)}
                 </span>
 
                 {/* Delta */}
-                <span className={`text-right relative z-10 ${cluster.delta >= 0 ? 'text-teal-400' : 'text-red-400'}`}>
+                <span className="text-right relative z-10" style={{ color: cluster.delta >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                   {cluster.delta >= 0 ? '+' : ''}{cluster.delta.toFixed(2)}
                 </span>
               </div>
@@ -171,21 +170,23 @@ export default function ClusterPanel({ maxLevels = 15 }: ClusterPanelProps) {
       </div>
 
       {/* Delta bar */}
-      <div className="mt-2 pt-2 border-t border-zinc-800">
+      <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex justify-between text-xs mb-1">
-          <span className="text-teal-400">Buyers</span>
-          <span className="text-red-400">Sellers</span>
+          <span style={{ color: 'var(--bull)' }}>Buyers</span>
+          <span style={{ color: 'var(--bear)' }}>Sellers</span>
         </div>
-        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden flex">
+        <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'var(--surface-elevated)' }}>
           <div
-            className="bg-teal-500 transition-all duration-300"
+            className="transition-all duration-300"
             style={{
+              background: 'var(--bull)',
               width: `${totals.bid + totals.ask > 0 ? (totals.bid / (totals.bid + totals.ask)) * 100 : 50}%`,
             }}
           />
           <div
-            className="bg-red-500 transition-all duration-300"
+            className="transition-all duration-300"
             style={{
+              background: 'var(--bear)',
               width: `${totals.bid + totals.ask > 0 ? (totals.ask / (totals.bid + totals.ask)) * 100 : 50}%`,
             }}
           />

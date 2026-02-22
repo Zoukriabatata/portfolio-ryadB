@@ -475,7 +475,7 @@ export default function GEXPageContent() {
         ) : error ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="text-center">
-              <p className="text-red-400 mb-4">{error}</p>
+              <p className="text-[var(--error)] mb-4">{error}</p>
               <button
                 onClick={loadSimulatedData}
                 className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)]"
@@ -547,19 +547,19 @@ export default function GEXPageContent() {
       {/* ─── Legend ─── */}
       <div className="flex items-center justify-center gap-4 text-[10px] text-[var(--text-muted)] bg-[var(--surface)] rounded-xl py-2 px-4 border border-[var(--border)] animate-fadeIn stagger-6">
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-gradient-to-r from-green-500 to-emerald-400 rounded shadow-sm shadow-green-500/50" />
+          <div className="w-2.5 h-2.5 rounded shadow-sm" style={{ background: 'var(--bull)', boxShadow: '0 1px 3px var(--bull-bg)' }} />
           <span>Positive {greekMeta.label}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 bg-gradient-to-r from-red-500 to-rose-400 rounded shadow-sm shadow-red-500/50" />
+          <div className="w-2.5 h-2.5 rounded shadow-sm" style={{ background: 'var(--bear)', boxShadow: '0 1px 3px var(--bear-bg)' }} />
           <span>Negative {greekMeta.label}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-0.5 bg-gradient-to-r from-yellow-400 to-amber-400 rounded-full" />
+          <div className="w-3 h-0.5 rounded-full" style={{ background: 'var(--warning)' }} />
           <span>Zero Gamma</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-0.5 bg-gradient-to-r from-blue-400 to-blue-300 rounded-full" />
+          <div className="w-3 h-0.5 rounded-full" style={{ background: 'var(--info)' }} />
           <span>Spot</span>
         </div>
         <span className="text-[var(--border-light)]">|</span>
@@ -567,7 +567,7 @@ export default function GEXPageContent() {
           Shortcuts: 1-4 switch Greek, R refresh
         </span>
         <span className="text-[var(--border-light)]">|</span>
-        <span className={priceSource === 'yahoo-finance' ? 'text-emerald-400' : 'text-[var(--primary-light)]'}>
+        <span style={{ color: priceSource === 'yahoo-finance' ? 'var(--bull)' : 'var(--primary-light)' }}>
           {priceSource === 'yahoo-finance' ? 'Live Price' : 'Simulated'}
         </span>
       </div>
