@@ -193,7 +193,7 @@ export function ContextMenu({ x, y, items, onClose, theme = 'senzoukria' }: Cont
             {/* Submenu */}
             {hasChildren && submenuId === item.id && (
               <div
-                className={`absolute left-full top-0 ml-1 min-w-[180px] ${colors.bg} border ${colors.border} rounded-lg shadow-xl py-1`}
+                className={`absolute left-full top-0 ml-1 min-w-[180px] ${colors.bg} border ${colors.border} rounded-lg shadow-xl py-1 animate-context-menu`}
                 onMouseEnter={handleSubmenuMouseEnter}
                 onMouseLeave={handleSubmenuLeave}
               >

@@ -226,7 +226,7 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--background)' }}>
+    <div className="min-h-screen p-6 animate-fadeIn" style={{ background: 'var(--background)' }}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -271,6 +271,7 @@ export default function AdminPage() {
           ))}
         </div>
 
+        <div className="animate-fadeIn" key={activeTab}>
         {activeTab === 'payments' && (
           <div className="rounded-xl overflow-hidden mb-8" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="p-4" style={{ background: 'var(--surface-elevated)', borderBottom: '1px solid var(--border)' }}>
@@ -487,6 +488,7 @@ export default function AdminPage() {
           )}
         </div>
         </>}
+        </div>
       </div>
     </div>
   );

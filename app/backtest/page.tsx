@@ -144,7 +144,7 @@ function BacktestPageContent() {
   ];
 
   return (
-    <div className="h-full flex flex-col p-4 gap-4 overflow-auto" style={{ background: 'var(--background)' }}>
+    <div className="h-full flex flex-col p-4 gap-4 overflow-auto animate-fadeIn" style={{ background: 'var(--background)' }}>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
@@ -181,6 +181,7 @@ function BacktestPageContent() {
       </div>
 
       {/* Content */}
+      <div className="animate-fadeIn" key={activeTab}>
       {activeTab === 'backtest' && (
         <BacktestTab
           symbol={symbol}
@@ -228,6 +229,7 @@ function BacktestPageContent() {
           onDeleteEntry={deleteJournalEntry}
         />
       )}
+      </div>
 
       {/* Modals */}
       {showNewSession && (

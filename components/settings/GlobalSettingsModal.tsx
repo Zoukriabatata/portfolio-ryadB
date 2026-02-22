@@ -59,20 +59,19 @@ export default function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsM
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" />
       <div
-        className="relative w-[520px] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl flex"
+        className="relative w-[520px] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl flex animate-scaleIn"
         style={{
-          backgroundColor: 'rgba(20, 20, 28, 0.98)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          animation: 'settingsIn 0.2s ease-out',
+          backgroundColor: 'var(--surface-elevated)',
+          border: '1px solid var(--border-light)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sidebar */}
-        <div className="w-[140px] flex flex-col border-r" style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+        <div className="w-[140px] flex flex-col border-r" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
           <div className="px-3 py-3">
-            <h2 className="text-xs font-semibold text-white/70 flex items-center gap-1.5">
+            <h2 className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
@@ -87,8 +86,8 @@ export default function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsM
                 onClick={() => setTab(t.id)}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors text-left"
                 style={{
-                  backgroundColor: tab === t.id ? 'rgba(255,255,255,0.06)' : 'transparent',
-                  color: tab === t.id ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
+                  backgroundColor: tab === t.id ? 'var(--surface-elevated)' : 'transparent',
+                  color: tab === t.id ? 'var(--text-primary)' : 'var(--text-muted)',
                 }}
               >
                 {t.icon}
@@ -103,7 +102,8 @@ export default function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsM
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-2.5 right-2.5 w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors z-10"
+            className="absolute top-2.5 right-2.5 w-6 h-6 rounded flex items-center justify-center transition-colors z-10"
+            style={{ color: 'var(--text-dimmed)' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -131,7 +131,7 @@ export default function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsM
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-5">
-      <h3 className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2.5 px-4">{title}</h3>
+      <h3 className="text-[10px] font-semibold text-[var(--text-dimmed)] uppercase tracking-wider mb-2.5 px-4">{title}</h3>
       <div className="space-y-2 px-4">{children}</div>
     </div>
   );
@@ -141,8 +141,8 @@ function SettingRow({ label, description, children }: { label: string; descripti
   return (
     <div className="flex items-center justify-between py-1">
       <div>
-        <div className="text-xs text-white/70">{label}</div>
-        {description && <div className="text-[10px] text-white/30 mt-0.5">{description}</div>}
+        <div className="text-xs text-[var(--text-secondary)]">{label}</div>
+        {description && <div className="text-[10px] text-[var(--text-dimmed)] mt-0.5">{description}</div>}
       </div>
       {children}
     </div>
@@ -154,7 +154,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     <button
       onClick={() => onChange(!checked)}
       className="w-8 h-[18px] rounded-full relative transition-colors"
-      style={{ backgroundColor: checked ? 'var(--primary)' : 'rgba(255,255,255,0.1)' }}
+      style={{ backgroundColor: checked ? 'var(--primary)' : 'var(--border)' }}
     >
       <div
         className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-transform"
@@ -180,19 +180,19 @@ function AppearanceTab() {
               onClick={() => setTheme(theme.id)}
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-left"
               style={{
-                backgroundColor: activeTheme === theme.id ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${activeTheme === theme.id ? 'var(--primary)' : 'rgba(255,255,255,0.06)'}`,
+                backgroundColor: activeTheme === theme.id ? 'var(--surface-elevated)' : 'var(--surface)',
+                border: `1px solid ${activeTheme === theme.id ? 'var(--primary)' : 'var(--surface-elevated)'}`,
               }}
             >
               {/* Color preview dots */}
               <div className="flex gap-1">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.preview.bg, border: '1px solid rgba(255,255,255,0.15)' }} />
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.preview.bg, border: '1px solid var(--border-light)' }} />
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.preview.primary }} />
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.preview.accent }} />
               </div>
               <div>
-                <div className="text-[11px] font-medium text-white/80">{theme.name}</div>
-                <div className="text-[9px] text-white/30">{theme.description}</div>
+                <div className="text-[11px] font-medium text-[var(--text-primary)]">{theme.name}</div>
+                <div className="text-[9px] text-[var(--text-dimmed)]">{theme.description}</div>
               </div>
             </button>
           ))}
@@ -207,9 +207,9 @@ function AppearanceTab() {
               onClick={() => setDensity(d)}
               className="flex-1 px-3 py-1.5 rounded text-[11px] font-medium capitalize transition-colors"
               style={{
-                backgroundColor: density === d ? 'var(--primary)' : 'rgba(255,255,255,0.04)',
-                color: density === d ? '#fff' : 'rgba(255,255,255,0.5)',
-                border: `1px solid ${density === d ? 'var(--primary)' : 'rgba(255,255,255,0.06)'}`,
+                backgroundColor: density === d ? 'var(--primary)' : 'var(--surface)',
+                color: density === d ? '#fff' : 'var(--text-muted)',
+                border: `1px solid ${density === d ? 'var(--primary)' : 'var(--surface-elevated)'}`,
               }}
             >
               {d}
@@ -222,7 +222,7 @@ function AppearanceTab() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setFontSize(fontSize - 1)}
-            className="w-7 h-7 rounded flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors text-sm"
+            className="w-7 h-7 rounded flex items-center justify-center text-[var(--text-dimmed)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors text-sm"
             disabled={fontSize <= 10}
           >
             A
@@ -240,12 +240,12 @@ function AppearanceTab() {
           </div>
           <button
             onClick={() => setFontSize(fontSize + 1)}
-            className="w-7 h-7 rounded flex items-center justify-center text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors text-base font-bold"
+            className="w-7 h-7 rounded flex items-center justify-center text-[var(--text-dimmed)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors text-base font-bold"
             disabled={fontSize >= 16}
           >
             A
           </button>
-          <span className="text-[11px] font-mono text-white/40 w-8 text-center">{fontSize}px</span>
+          <span className="text-[11px] font-mono text-[var(--text-dimmed)] w-8 text-center">{fontSize}px</span>
         </div>
       </Section>
     </div>
@@ -280,15 +280,15 @@ function ChartTab() {
               onClick={() => setTradeColorPreset(key)}
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-left"
               style={{
-                backgroundColor: tradeColorPreset === key ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${tradeColorPreset === key ? 'var(--primary)' : 'rgba(255,255,255,0.06)'}`,
+                backgroundColor: tradeColorPreset === key ? 'var(--surface-elevated)' : 'var(--surface)',
+                border: `1px solid ${tradeColorPreset === key ? 'var(--primary)' : 'var(--surface-elevated)'}`,
               }}
             >
               <div className="flex gap-1">
                 <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.buy }} />
                 <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.sell }} />
               </div>
-              <span className="text-[11px] text-white/60 capitalize">{key.replace('_', ' / ')}</span>
+              <span className="text-[11px] text-[var(--text-muted)] capitalize">{key.replace('_', ' / ')}</span>
             </button>
           ))}
         </div>
@@ -316,8 +316,8 @@ function TradingTab() {
                 onClick={() => setDefaultOrderType(t)}
                 className="px-2.5 py-1 rounded text-[10px] font-medium capitalize transition-colors"
                 style={{
-                  backgroundColor: defaultOrderType === t ? 'var(--primary)' : 'rgba(255,255,255,0.04)',
-                  color: defaultOrderType === t ? '#fff' : 'rgba(255,255,255,0.5)',
+                  backgroundColor: defaultOrderType === t ? 'var(--primary)' : 'var(--surface)',
+                  color: defaultOrderType === t ? '#fff' : 'var(--text-muted)',
                 }}
               >
                 {t}
@@ -336,14 +336,14 @@ function TradingTab() {
             ['F', 'Flatten all'],
           ].map(([key, desc]) => (
             <div key={key} className="flex items-center justify-between py-1">
-              <span className="text-white/50">{desc}</span>
-              <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono" style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+              <span className="text-[var(--text-dimmed)]">{desc}</span>
+              <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
                 {key}
               </kbd>
             </div>
           ))}
         </div>
-        <div className="text-[10px] text-white/25 mt-2">
+        <div className="text-[10px] text-[var(--text-dimmed)] mt-2">
           Trading shortcuts only work when the trade bar is open.
         </div>
       </Section>

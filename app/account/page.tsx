@@ -496,7 +496,7 @@ function AccountContent() {
   };
 
   return (
-    <div className="min-h-screen overflow-y-auto" style={{ background: 'var(--background)' }}>
+    <div className="min-h-screen overflow-y-auto animate-fadeIn" style={{ background: 'var(--background)' }}>
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -552,6 +552,7 @@ function AccountContent() {
 
           {/* Main Content */}
           <div className="flex-1 space-y-6 min-w-0">
+            <div className="animate-fadeIn" key={activeTab}>
 
             {/* ===== PROFILE TAB ===== */}
             {activeTab === 'profile' && (
@@ -1118,6 +1119,7 @@ function AccountContent() {
               </>
             )}
 
+            </div>
           </div>
         </div>
       </div>
