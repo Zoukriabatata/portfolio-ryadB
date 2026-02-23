@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { SessionProvider } from 'next-auth/react';
 import Logo from '@/components/ui/Logo';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
+import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import type { TranslationKey } from '@/lib/i18n/translations';
 import {
@@ -165,9 +166,10 @@ export function DashboardClientLayout({
     color: string;
   } | null>(null);
 
-  // Apply UI theme on mount and changes
+  // Apply UI theme on mount and changes — sync footprint canvas colors too
   useEffect(() => {
     applyUITheme(activeTheme);
+    syncFootprintWithUITheme(activeTheme);
   }, [activeTheme]);
 
   // Pause everything when browser tab is hidden (minimized, switched tab)
@@ -488,7 +490,7 @@ export function DashboardClientLayout({
                     {UI_THEMES.map((theme) => (
                       <button
                         key={theme.id}
-                        onClick={() => { setTheme(theme.id); setShowThemePicker(false); }}
+                        onClick={() => { setTheme(theme.id); syncFootprintWithUITheme(theme.id); setShowThemePicker(false); }}
                         className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left transition-all duration-150 ${
                           activeTheme === theme.id
                             ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)]'

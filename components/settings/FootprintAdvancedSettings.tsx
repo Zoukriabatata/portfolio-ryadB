@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import {
   useFootprintSettingsStore,
   COLOR_PRESETS,
+  THEME_LABELS,
   type FootprintColors,
 } from '@/stores/useFootprintSettingsStore';
 import { useCrosshairStore, type CrosshairLineStyle, type MagnetMode } from '@/stores/useCrosshairStore';
@@ -261,19 +262,28 @@ export default function FootprintAdvancedSettings({
               <div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">Theme Presets</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {Object.keys(COLOR_PRESETS).map(preset => (
-                    <button
-                      key={preset}
-                      onClick={() => settings.setColors(COLOR_PRESETS[preset as keyof typeof COLOR_PRESETS])}
-                      className="px-3 py-1.5 rounded-lg text-xs capitalize border border-[var(--border)] hover:border-[var(--primary)] transition-colors"
-                      style={{
-                        backgroundColor: 'rgba(20, 20, 20, 0.8)',
-                        color: '#a1a1aa',
-                      }}
-                    >
-                      {preset}
-                    </button>
-                  ))}
+                  {Object.keys(COLOR_PRESETS).map(preset => {
+                    const colors = COLOR_PRESETS[preset as keyof typeof COLOR_PRESETS];
+                    return (
+                      <button
+                        key={preset}
+                        onClick={() => settings.setColors(colors)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border hover:border-[var(--primary)] transition-colors"
+                        style={{
+                          backgroundColor: settings.colors.background === colors.background ? 'var(--surface-elevated)' : 'var(--surface)',
+                          border: `1px solid ${settings.colors.background === colors.background ? 'var(--primary)' : 'var(--border)'}`,
+                          color: settings.colors.background === colors.background ? 'var(--text-primary)' : 'var(--text-muted)',
+                        }}
+                      >
+                        <div className="flex gap-0.5">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.background, border: '1px solid var(--border-light)' }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.candleUpBody }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.askColor }} />
+                        </div>
+                        {THEME_LABELS[preset] || preset}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
