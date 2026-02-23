@@ -69,19 +69,19 @@ export default function BoutiquePage() {
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--primary)' }} />
             {totalProviders} data sources available
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-3 tracking-tight">
             <span className="bg-gradient-to-r from-[var(--primary-light)] via-[var(--primary)] to-[var(--accent)] bg-clip-text text-transparent">
               {t('boutique.title')}
             </span>
           </h1>
-          <p className="text-sm sm:text-base max-w-lg mx-auto" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-base sm:text-lg max-w-lg mx-auto" style={{ color: 'var(--text-muted)' }}>
             {t('boutique.subtitle')}
           </p>
 
           {/* Connection status */}
           {connectedCount > 0 && (
             <div className="inline-flex items-center gap-2 mt-5 px-4 py-2 rounded-full text-xs font-medium"
-              style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', color: 'var(--success)' }}>
+              style={{ background: 'var(--success-bg)', border: '1px solid color-mix(in srgb, var(--success) 20%, transparent)', color: 'var(--success)' }}>
               <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--success)' }} />
               {connectedCount} {connectedCount === 1 ? 'feed connected' : 'feeds connected'}
             </div>
@@ -127,8 +127,46 @@ export default function BoutiquePage() {
           ))}
         </div>
 
+        {/* How it works */}
+        <div className="mb-16">
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
+            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              {t('boutique.howItWorks' as any)}
+            </h2>
+            <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
+          </div>
+          <div className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+            {[
+              { step: '1', titleKey: 'boutique.step1Title', descKey: 'boutique.step1Desc', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
+              { step: '2', titleKey: 'boutique.step2Title', descKey: 'boutique.step2Desc', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+              { step: '3', titleKey: 'boutique.step3Title', descKey: 'boutique.step3Desc', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+            ].map((item, i) => (
+              <div key={i} className="text-center group">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-transform duration-300 group-hover:scale-110"
+                  style={{ background: 'var(--primary-glow)', border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)' }}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={item.icon} />
+                  </svg>
+                </div>
+                <div className="text-[11px] font-bold mb-1" style={{ color: 'var(--primary)' }}>
+                  STEP {item.step}
+                </div>
+                <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                  {t(item.titleKey as any)}
+                </h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  {t(item.descKey as any)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Quick connect banner */}
-        {connectedCount === 0 && (
+        {connectedCount < 2 && (
           <div className="rounded-2xl p-6 mb-16 text-center"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-center gap-3 mb-3">
@@ -147,7 +185,7 @@ export default function BoutiquePage() {
             <button
               onClick={() => setConfigureProvider('binance')}
               className="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold transition-all hover:brightness-110 active:scale-[0.98]"
-              style={{ background: '#F0B90B', color: '#000' }}
+              style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #000)' }}
             >
               Connect Binance
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -161,7 +199,7 @@ export default function BoutiquePage() {
         <div className="mb-16">
           <div className="flex items-center justify-center gap-2 mb-6">
             <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
-            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {t('boutique.comparison')}
             </h2>
             <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
@@ -173,7 +211,7 @@ export default function BoutiquePage() {
         <div className="max-w-2xl mx-auto mb-16">
           <div className="flex items-center justify-center gap-2 mb-6">
             <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
-            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {t('boutique.faq')}
             </h2>
             <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
@@ -189,7 +227,7 @@ export default function BoutiquePage() {
                   className="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  <span className="text-xs font-medium pr-4">{t(item.qKey as any)}</span>
+                  <span className="text-sm font-medium pr-4">{t(item.qKey as any)}</span>
                   <span
                     className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-xs transition-all group-open:rotate-45"
                     style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
@@ -197,7 +235,7 @@ export default function BoutiquePage() {
                     +
                   </span>
                 </summary>
-                <div className="px-4 pb-3 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                <div className="px-4 pb-3 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                   {t(item.aKey as any)}
                 </div>
               </details>

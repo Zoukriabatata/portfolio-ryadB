@@ -33,10 +33,18 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
         background: 'var(--surface)',
         border: `1px solid ${isConnected ? 'var(--success)' : 'var(--border)'}`,
         boxShadow: isConnected
-          ? '0 0 20px rgba(34,197,94,0.08)'
+          ? '0 0 20px var(--success-bg)'
           : 'none',
       }}
     >
+      {/* Hover glow overlay */}
+      <div
+        className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{
+          boxShadow: `inset 0 0 40px ${provider.color}08, 0 0 30px ${provider.color}10`,
+          border: `1px solid ${provider.color}20`,
+        }}
+      />
       {/* Top accent bar */}
       <div className="h-[2px] w-full" style={{ background: isConnected ? 'var(--success)' : provider.color }} />
 
@@ -67,8 +75,8 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
           <span
             className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0"
             style={{
-              background: provider.tier === 'FREE' ? 'rgba(34,197,94,0.1)' : 'rgba(168,85,247,0.12)',
-              color: provider.tier === 'FREE' ? 'var(--success)' : 'var(--accent, #a855f7)',
+              background: provider.tier === 'FREE' ? 'var(--success-bg)' : 'rgba(168,85,247,0.12)',
+              color: provider.tier === 'FREE' ? 'var(--success)' : 'var(--accent)',
             }}
           >
             {provider.tier === 'FREE' ? t('boutique.free') : 'ULTRA'}
@@ -117,19 +125,19 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
           className="w-full py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
           style={{
             background: isConnected
-              ? 'rgba(34,197,94,0.12)'
+              ? 'var(--success-bg)'
               : isError
-                ? 'rgba(239,68,68,0.12)'
+                ? 'var(--error-bg)'
                 : provider.color,
             color: isConnected
               ? 'var(--success)'
               : isError
-                ? '#ef4444'
+                ? 'var(--error)'
                 : '#000',
             border: isConnected
-              ? '1px solid rgba(34,197,94,0.25)'
+              ? '1px solid color-mix(in srgb, var(--success) 25%, transparent)'
               : isError
-                ? '1px solid rgba(239,68,68,0.25)'
+                ? '1px solid color-mix(in srgb, var(--error) 25%, transparent)'
                 : 'none',
           }}
         >
