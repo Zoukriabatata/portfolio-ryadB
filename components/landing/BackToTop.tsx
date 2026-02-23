@@ -30,7 +30,7 @@ export default function BackToTop() {
         fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full
         bg-white/[0.06] border border-white/[0.1] backdrop-blur-xl
         flex items-center justify-center
-        hover:bg-[rgba(var(--primary-rgb),0.15)] hover:border-[rgba(var(--primary-rgb),0.3)]
+        hover:bg-[rgb(var(--primary-rgb)_/_0.15)] hover:border-[rgb(var(--primary-rgb)_/_0.3)]
         transition-all duration-300
         ${visible
           ? 'opacity-100 translate-y-0 pointer-events-auto'

@@ -37,7 +37,7 @@ export default function ScrollProgress() {
         style={{
           transform: `scaleX(${progress})`,
           background: 'linear-gradient(90deg, var(--primary), var(--primary-light), var(--primary-dark))',
-          boxShadow: '0 0 8px rgba(var(--primary-rgb), 0.4)',
+          boxShadow: '0 0 8px rgb(var(--primary-rgb) / 0.4)',
           transition: 'transform 0.1s linear',
         }}
       />

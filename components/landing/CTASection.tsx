@@ -24,13 +24,13 @@ export default function CTASection() {
 
       {/* Purple accent orb */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none" style={{
-        background: 'radial-gradient(circle, rgba(var(--accent-rgb), 0.08), transparent 55%)',
+        background: 'radial-gradient(circle, rgb(var(--accent-rgb) / 0.08), transparent 55%)',
         zIndex: 2,
       }} />
 
       {/* Orange accent orb */}
       <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] pointer-events-none" style={{
-        background: 'radial-gradient(circle, rgba(var(--primary-rgb), 0.05), transparent 55%)',
+        background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.05), transparent 55%)',
         zIndex: 2,
       }} />
 
@@ -79,7 +79,7 @@ export default function CTASection() {
               key={badge.label}
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[11px] font-medium text-white/55 border border-white/[0.1] bg-white/[0.04]"
             >
-              <span style={{ color: 'rgba(var(--primary-rgb), 0.7)' }}>{badge.icon}</span>
+              <span style={{ color: 'rgb(var(--primary-rgb) / 0.7)' }}>{badge.icon}</span>
               {badge.label}
             </span>
           ))}
@@ -102,7 +102,7 @@ export default function CTASection() {
                     style={{
                       width: p.size,
                       height: p.size,
-                      background: `radial-gradient(circle, rgba(var(--primary-light-rgb),${p.opacity}), transparent)`,
+                      background: `radial-gradient(circle, rgb(var(--primary-light-rgb) / ${p.opacity}), transparent)`,
                       top: '50%',
                       left: '50%',
                       animation: `particleFloat ${p.duration}s ease-in-out ${p.delay}s infinite`,
@@ -117,10 +117,10 @@ export default function CTASection() {
                   className="relative z-10 inline-flex items-center gap-2 px-8 py-4 text-base font-bold text-black rounded-xl hover:-translate-y-0.5 transition-all duration-300"
                   style={{
                     background: 'linear-gradient(to right, var(--primary-light), var(--primary))',
-                    boxShadow: '0 0 30px rgba(var(--primary-rgb), 0.3)',
+                    boxShadow: '0 0 30px rgb(var(--primary-rgb) / 0.3)',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 50px rgba(var(--primary-rgb), 0.5)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgba(var(--primary-rgb), 0.3)'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 50px rgb(var(--primary-rgb) / 0.5)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgb(var(--primary-rgb) / 0.3)'; }}
                 >
                   Open Dashboard
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -141,7 +141,7 @@ export default function CTASection() {
                     style={{
                       width: p.size,
                       height: p.size,
-                      background: `radial-gradient(circle, rgba(var(--primary-light-rgb),${p.opacity}), transparent)`,
+                      background: `radial-gradient(circle, rgb(var(--primary-light-rgb) / ${p.opacity}), transparent)`,
                       top: '50%',
                       left: '50%',
                       animation: `particleFloat ${p.duration}s ease-in-out ${p.delay}s infinite`,
@@ -156,10 +156,10 @@ export default function CTASection() {
                   className="relative z-10 inline-flex items-center gap-2 px-8 py-4 text-base font-bold text-black rounded-xl hover:-translate-y-0.5 transition-all duration-300"
                   style={{
                     background: 'linear-gradient(to right, var(--primary-light), var(--primary))',
-                    boxShadow: '0 0 30px rgba(var(--primary-rgb), 0.3)',
+                    boxShadow: '0 0 30px rgb(var(--primary-rgb) / 0.3)',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 50px rgba(var(--primary-rgb), 0.5)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgba(var(--primary-rgb), 0.3)'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 50px rgb(var(--primary-rgb) / 0.5)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgb(var(--primary-rgb) / 0.3)'; }}
                 >
                   Start Free Trial
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

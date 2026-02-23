@@ -76,18 +76,18 @@ function CapabilityCard({ cap, i }: { cap: typeof CAPABILITIES[number]; i: numbe
       ref={cardRef}
       data-animate="up"
       data-animate-delay={String((i % 2) + 1)}
-      className="group relative p-7 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:border-[rgba(var(--accent-rgb),0.25)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgba(var(--accent-rgb),0.06)]"
+      className="group relative p-7 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:border-[rgb(var(--accent-rgb)_/_0.25)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgb(var(--accent-rgb)_/_0.06)]"
       style={{ transition: 'transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease', willChange: 'transform' }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       {/* Hover glow */}
       <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 30% 30%, rgba(var(--accent-rgb), 0.06), transparent 60%)' }}
+        style={{ background: 'radial-gradient(circle at 30% 30%, rgb(var(--accent-rgb) / 0.06), transparent 60%)' }}
       />
 
       <div className="relative z-10">
-        <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110" style={{ background: 'linear-gradient(to bottom right, rgba(var(--accent-rgb), 0.15), rgba(var(--primary-rgb), 0.08))', border: '1px solid rgba(var(--accent-rgb), 0.15)', color: 'var(--primary-light)' }}>
+        <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110" style={{ background: 'linear-gradient(to bottom right, rgb(var(--accent-rgb) / 0.15), rgb(var(--primary-rgb) / 0.08))', border: '1px solid rgb(var(--accent-rgb) / 0.15)', color: 'var(--primary-light)' }}>
           {cap.icon}
         </div>
         <h3 className="text-[16px] font-semibold text-white group-hover:text-[var(--accent-light)] transition-colors">
@@ -122,7 +122,7 @@ export default function CapabilitiesSection() {
 
       {/* Subtle ambient glow */}
       <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] pointer-events-none" style={{
-        background: 'radial-gradient(circle, rgba(var(--accent-rgb), 0.04), transparent 65%)',
+        background: 'radial-gradient(circle, rgb(var(--accent-rgb) / 0.04), transparent 65%)',
         zIndex: 2,
       }} />
 
@@ -155,9 +155,9 @@ export default function CapabilitiesSection() {
           {['WebGL 2.0', 'WebSocket', 'React 19', 'Next.js', 'TypeScript', 'GPU Compute'].map((tech) => (
             <span
               key={tech}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium text-white/40 border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm hover:border-[rgba(var(--primary-rgb),0.2)] hover:text-[rgba(var(--primary-light-rgb),0.6)] transition-all duration-300"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium text-white/40 border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm hover:border-[rgb(var(--primary-rgb)_/_0.2)] hover:text-[rgb(var(--primary-light-rgb)_/_0.6)] transition-all duration-300"
             >
-              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'rgba(var(--primary-rgb), 0.4)' }} />
+              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.4)' }} />
               {tech}
             </span>
           ))}
