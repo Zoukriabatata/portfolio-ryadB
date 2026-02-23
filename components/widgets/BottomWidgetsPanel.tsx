@@ -156,14 +156,15 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded text-xs sm:text-[10px] font-medium transition-all button-press hover:bg-[var(--surface-hover)]"
+                  className="relative px-3 py-1.5 sm:px-2.5 sm:py-1 text-xs sm:text-[10px] font-medium transition-all button-press"
                   style={{
-                    backgroundColor: activeTab === tab.id ? 'var(--background)' : undefined,
                     color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
-                    boxShadow: activeTab === tab.id ? 'inset 0 -2px 0 var(--primary)' : undefined,
                   }}
                 >
                   {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full" style={{ backgroundColor: 'var(--primary)' }} />
+                  )}
                 </button>
               ))}
             </div>
@@ -197,6 +198,7 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
 
 function TimeSalesTab({ symbol }: { symbol: string }) {
   const [trades, setTrades] = useState<TradeEntry[]>([]);
+  const [minFilter, setMinFilter] = useState(0);
   const idCounter = useRef(0);
 
   useEffect(() => {
@@ -217,18 +219,40 @@ function TimeSalesTab({ symbol }: { symbol: string }) {
     return unsub;
   }, [symbol]);
 
-  // Avg qty for highlighting large trades
   const avgQty = trades.length > 0 ? trades.reduce((s, t) => s + t.qty, 0) / trades.length : 0;
+  const filtered = minFilter > 0 ? trades.filter(t => t.qty >= minFilter) : trades;
 
   return (
     <div className="h-full flex flex-col text-[11px] font-mono">
+      {/* Size filter pills */}
+      <div className="flex items-center gap-1 px-2 py-0.5 border-b" style={{ borderColor: 'var(--border)' }}>
+        <span className="text-[9px] mr-0.5" style={{ color: 'var(--text-dimmed)' }}>Size:</span>
+        {[
+          { label: 'All', value: 0 },
+          { label: '>0.1', value: 0.1 },
+          { label: '>1', value: 1 },
+          { label: '>5', value: 5 },
+        ].map(f => (
+          <button
+            key={f.value}
+            onClick={() => setMinFilter(f.value)}
+            className="px-1.5 py-px rounded text-[9px] font-medium transition-colors"
+            style={{
+              backgroundColor: minFilter === f.value ? 'var(--primary)' : 'var(--surface-elevated)',
+              color: minFilter === f.value ? '#fff' : 'var(--text-muted)',
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
       <div className="flex items-center justify-between px-2 py-0.5 text-[10px]" style={{ color: 'var(--text-dimmed)' }}>
         <span className="w-16">Time</span>
         <span>Price</span>
         <span className="w-16 text-right">Size</span>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {trades.map(t => {
+        {filtered.map(t => {
           const isLarge = t.qty > avgQty * 2.5;
           return (
             <div
@@ -251,7 +275,7 @@ function TimeSalesTab({ symbol }: { symbol: string }) {
             </div>
           );
         })}
-        {trades.length === 0 && <EmptyState message="Waiting for trades..." icon="chart" />}
+        {filtered.length === 0 && <EmptyState message={minFilter > 0 ? 'No trades match filter' : 'Waiting for trades...'} icon="chart" />}
       </div>
     </div>
   );
@@ -323,9 +347,19 @@ function DeltaTab({ symbol }: { symbol: string }) {
       <div className="flex-1 relative">
         {deltaHistory.length > 1 ? (
           <svg viewBox={`0 0 100 ${chartH}`} preserveAspectRatio="none" className="w-full h-full">
+            <defs>
+              <linearGradient id="deltaGradUp" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(52,211,153,0.25)" />
+                <stop offset="100%" stopColor="rgba(52,211,153,0)" />
+              </linearGradient>
+              <linearGradient id="deltaGradDown" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="rgba(248,113,113,0.25)" />
+                <stop offset="100%" stopColor="rgba(248,113,113,0)" />
+              </linearGradient>
+            </defs>
             <line x1="0" y1={zeroY} x2="100" y2={zeroY} stroke="var(--border, #3f3f46)" strokeWidth="0.5" strokeDasharray="2,2" />
             <polygon
-              fill={cumDelta >= 0 ? TRADE_COLORS.buyFill : TRADE_COLORS.sellFill}
+              fill={cumDelta >= 0 ? 'url(#deltaGradUp)' : 'url(#deltaGradDown)'}
               points={`0,${zeroY} ${points} 100,${zeroY}`}
             />
             <polyline
@@ -375,13 +409,13 @@ function OrderBookTab() {
   const topBids = useMemo(() => {
     return Array.from(bids.entries())
       .sort(([a], [b]) => b - a)
-      .slice(0, 8);
+      .slice(0, 12);
   }, [bids]);
 
   const topAsks = useMemo(() => {
     return Array.from(asks.entries())
       .sort(([a], [b]) => a - b)
-      .slice(0, 8);
+      .slice(0, 12);
   }, [asks]);
 
   const maxQty = useMemo(() => {
@@ -401,16 +435,19 @@ function OrderBookTab() {
           <span>Size</span><span>Bid</span>
         </div>
         <div className="flex-1 flex flex-col-reverse overflow-hidden">
-          {topBids.map(([price, qty]) => (
-            <div key={price} className="flex items-center justify-between px-2 py-[1px] relative">
-              <div
-                className="absolute inset-y-0 right-0 opacity-15"
-                style={{ width: `${(qty / maxQty) * 100}%`, backgroundColor: TRADE_COLORS.bidBar }}
-              />
-              <span className="relative" style={{ color: 'var(--text-muted)' }}>{fmtQtyUtil(qty)}</span>
-              <span className="relative" style={{ color: TRADE_COLORS.buy }}>{formatPrice(price)}</span>
-            </div>
-          ))}
+          {topBids.map(([price, qty]) => {
+            const intensity = qty / maxQty;
+            return (
+              <div key={price} className="flex items-center justify-between px-2 py-[1px] relative">
+                <div
+                  className="absolute inset-y-0 right-0"
+                  style={{ width: `${intensity * 100}%`, backgroundColor: TRADE_COLORS.bidBar, opacity: 0.08 + intensity * 0.15 }}
+                />
+                <span className="relative" style={{ color: 'var(--text-muted)' }}>{fmtQtyUtil(qty)}</span>
+                <span className="relative" style={{ color: TRADE_COLORS.buy }}>{formatPrice(price)}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -428,16 +465,19 @@ function OrderBookTab() {
           <span>Ask</span><span>Size</span>
         </div>
         <div className="flex-1 flex flex-col overflow-hidden">
-          {topAsks.map(([price, qty]) => (
-            <div key={price} className="flex items-center justify-between px-2 py-[1px] relative">
-              <div
-                className="absolute inset-y-0 left-0 opacity-15"
-                style={{ width: `${(qty / maxQty) * 100}%`, backgroundColor: TRADE_COLORS.askBar }}
-              />
-              <span className="relative" style={{ color: TRADE_COLORS.sell }}>{formatPrice(price)}</span>
-              <span className="relative" style={{ color: 'var(--text-muted)' }}>{fmtQtyUtil(qty)}</span>
-            </div>
-          ))}
+          {topAsks.map(([price, qty]) => {
+            const intensity = qty / maxQty;
+            return (
+              <div key={price} className="flex items-center justify-between px-2 py-[1px] relative">
+                <div
+                  className="absolute inset-y-0 left-0"
+                  style={{ width: `${intensity * 100}%`, backgroundColor: TRADE_COLORS.askBar, opacity: 0.08 + intensity * 0.15 }}
+                />
+                <span className="relative" style={{ color: TRADE_COLORS.sell }}>{formatPrice(price)}</span>
+                <span className="relative" style={{ color: 'var(--text-muted)' }}>{fmtQtyUtil(qty)}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

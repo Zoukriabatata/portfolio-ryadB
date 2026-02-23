@@ -34,14 +34,14 @@ export default function MagnetToggle({ theme }: MagnetToggleProps) {
       <button
         onClick={() => setShowMenu(!showMenu)}
         data-tooltip={`Magnet: ${magnetMode === 'none' ? 'Off' : magnetMode.toUpperCase()}`}
-        className="w-9 h-9 flex items-center justify-center rounded text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+        className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95"
         style={{
           backgroundColor: isActive ? theme.colors.toolActive : 'transparent',
           color: isActive ? '#fff' : theme.colors.textSecondary,
           boxShadow: isActive ? `0 0 15px ${theme.colors.toolActive}60` : 'none',
         }}
       >
-        <MagnetIcon size={18} color={isActive ? '#fff' : theme.colors.textSecondary} />
+        <MagnetIcon size={14} color={isActive ? '#fff' : theme.colors.textSecondary} />
       </button>
 
       {showMenu && (

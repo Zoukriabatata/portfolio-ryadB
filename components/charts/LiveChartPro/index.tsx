@@ -194,6 +194,11 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   const sessionLowRef = useRef(Infinity);
   const pricePositionRef = useRef(null);
   const pricePositionBarRef = useRef(null);
+  const ohlcOpenRef = useRef<HTMLSpanElement>(null);
+  const ohlcHighRef = useRef<HTMLSpanElement>(null);
+  const ohlcLowRef = useRef<HTMLSpanElement>(null);
+  const ohlcCloseRef = useRef<HTMLSpanElement>(null);
+  const footerVolumeRef = useRef<HTMLSpanElement>(null);
 
   // Stable refs object (doesn't change between renders)
   const refs = useMemo<SharedRefs>(() => ({
@@ -218,6 +223,11 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
     sessionLow: sessionLowRef,
     pricePosition: pricePositionRef,
     pricePositionBar: pricePositionBarRef,
+    ohlcOpen: ohlcOpenRef,
+    ohlcHigh: ohlcHighRef,
+    ohlcLow: ohlcLowRef,
+    ohlcClose: ohlcCloseRef,
+    footerVolume: footerVolumeRef,
   }), []);
 
   // === UI TOGGLE STATE ===
@@ -547,9 +557,21 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
               <div className="position-line absolute left-0 right-0 h-0.5 transition-all duration-300" style={{ bottom: '50%', backgroundColor: '#eab308', boxShadow: '0 0 4px #eab308' }} />
             </div>
 
+            {/* OHLC Display — live DOM refs, no re-render */}
+            <div className="hidden md:flex items-center gap-1.5 text-[10px] font-mono tabular-nums" style={{ color: theme.colors.textSecondary }}>
+              <span style={{ color: theme.colors.textMuted }}>O</span>
+              <span ref={refs.ohlcOpen}>--</span>
+              <span style={{ color: theme.colors.textMuted }}>H</span>
+              <span ref={refs.ohlcHigh} style={{ color: theme.colors.success }}>--</span>
+              <span style={{ color: theme.colors.textMuted }}>L</span>
+              <span ref={refs.ohlcLow} style={{ color: theme.colors.error }}>--</span>
+              <span style={{ color: theme.colors.textMuted }}>C</span>
+              <span ref={refs.ohlcClose}>--</span>
+            </div>
+
             {/* Active Indicators Pills */}
             {indicatorConfigs.filter(i => i.enabled).length > 0 && (
-              <div className="flex items-center gap-0.5">
+              <div className="hidden lg:flex items-center gap-0.5">
                 {indicatorConfigs.filter(i => i.enabled).map(ind => (
                   <span key={ind.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: ind.style.color + '22', color: ind.style.color }}>
                     {ind.type}{ind.params.period ? `(${ind.params.period})` : ''}
@@ -643,8 +665,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
 
             {/* Theme Selector */}
             <div className="relative">
-              <button onClick={() => setShowThemePanel(!showThemePanel)} className="px-1.5 py-0.5 rounded text-[11px] border transition-colors" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textSecondary }}>
-                {THEMES.find(t => t.id === themeId)?.name}
+              <button onClick={() => setShowThemePanel(!showThemePanel)} data-tooltip={THEMES.find(t => t.id === themeId)?.name} className="w-7 h-7 flex items-center justify-center rounded transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: theme.colors.background, border: `1px solid ${theme.colors.border}` }}>
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.colors.candleUp, boxShadow: `0 0 6px ${theme.colors.candleUp}40` }} />
               </button>
               {showThemePanel && (
                 <div className="absolute top-full right-0 mt-1 rounded-lg shadow-2xl z-50 p-1.5 min-w-[160px] animate-slideDown" style={{ backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}>
@@ -796,7 +818,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           )}
         </div>
 
-        <ChartFooter timeframe={symbolData.timeframe} activeTool={drawing.activeTool} selectedTool={drawing.selectedTool} status={symbolData.status} theme={theme} />
+        <ChartFooter timeframe={symbolData.timeframe} activeTool={drawing.activeTool} selectedTool={drawing.selectedTool} status={symbolData.status} symbol={symbolData.symbol} volumeRef={refs.footerVolume} theme={theme} />
       </div>
 
       {/* Click outside to close modals */}

@@ -48,10 +48,13 @@ function Sparkline({ data, color, width = 48, height = 18 }: { data: number[]; c
   return <canvas ref={canvasRef} style={{ width, height }} />;
 }
 
+type SortBy = 'default' | 'change' | 'volume' | 'name';
+
 export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: WatchlistPanelProps) {
   const { items, prices, removeItem, addItem, updatePrice } = useWatchlistStore();
   const [showAdd, setShowAdd] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortBy>('default');
   const isActive = usePageActive();
 
   // Stable symbol list key to avoid reconnecting on every reorder
@@ -153,6 +156,22 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
     };
   }, [isActive, connectWatchlistWS]);
 
+  const sortedItems = useMemo(() => {
+    if (sortBy === 'default') return items;
+    return [...items].sort((a, b) => {
+      const da = prices[a.symbol];
+      const db = prices[b.symbol];
+      if (sortBy === 'change') {
+        return (db?.changePercent24h || 0) - (da?.changePercent24h || 0);
+      }
+      if (sortBy === 'volume') {
+        return (db?.volume24h || 0) - (da?.volume24h || 0);
+      }
+      // name
+      return a.label.localeCompare(b.label);
+    });
+  }, [items, prices, sortBy]);
+
   const fmtPrice = formatPrice;
   const fmtVol = formatVolume;
 
@@ -177,6 +196,14 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
     { symbol: 'aaveusdt', label: 'AAVE/USDT', category: 'crypto' },
     { symbol: 'uniusdt', label: 'UNI/USDT', category: 'crypto' },
     { symbol: 'pepeusdt', label: 'PEPE/USDT', category: 'crypto' },
+    { symbol: 'tonusdt', label: 'TON/USDT', category: 'crypto' },
+    { symbol: 'trxusdt', label: 'TRX/USDT', category: 'crypto' },
+    { symbol: 'atomusdt', label: 'ATOM/USDT', category: 'crypto' },
+    { symbol: 'ftmusdt', label: 'FTM/USDT', category: 'crypto' },
+    { symbol: 'injusdt', label: 'INJ/USDT', category: 'crypto' },
+    { symbol: 'runeusdt', label: 'RUNE/USDT', category: 'crypto' },
+    { symbol: 'tiausdt', label: 'TIA/USDT', category: 'crypto' },
+    { symbol: 'jupusdt', label: 'JUP/USDT', category: 'crypto' },
   ];
 
   const filteredAddable = ADDABLE_SYMBOLS.filter(
@@ -194,17 +221,30 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
         <h3 className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           Watchlist
         </h3>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          aria-label={showAdd ? 'Close add symbol' : 'Add symbol'}
-          aria-expanded={showAdd}
-          className="w-5 h-5 rounded flex items-center justify-center hover:bg-white/5 transition-colors"
-          style={{ color: showAdd ? 'var(--primary)' : 'var(--text-muted)' }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="text-[9px] bg-transparent border rounded px-1 py-0.5 focus:outline-none cursor-pointer"
+            style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}
+          >
+            <option value="default">Default</option>
+            <option value="change">% Change</option>
+            <option value="volume">Volume</option>
+            <option value="name">Name</option>
+          </select>
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            aria-label={showAdd ? 'Close add symbol' : 'Add symbol'}
+            aria-expanded={showAdd}
+            className="w-5 h-5 rounded flex items-center justify-center hover:bg-white/5 transition-colors"
+            style={{ color: showAdd ? 'var(--primary)' : 'var(--text-muted)' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Add symbol dropdown */}
@@ -221,7 +261,7 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
             autoFocus
           />
           <div className="max-h-32 overflow-y-auto space-y-0.5">
-            {filteredAddable.slice(0, 8).map((s) => (
+            {filteredAddable.slice(0, 12).map((s) => (
               <button
                 key={s.symbol}
                 onClick={() => {
@@ -244,7 +284,7 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
 
       {/* Symbols list */}
       <div className="flex-1 overflow-y-auto">
-        {items.map((item) => {
+        {sortedItems.map((item) => {
           const data = prices[item.symbol];
           const isActive = item.symbol === activeSymbol;
           const isUp = data ? data.changePercent24h >= 0 : true;

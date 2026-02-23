@@ -23,6 +23,13 @@ const priceFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
+function formatVolumeCompact(v: number): string {
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  return v.toFixed(1);
+}
+
 interface UseSymbolDataParams {
   refs: SharedRefs;
   theme: ChartTheme;
@@ -259,6 +266,13 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           refs.currentPrice.current = candle.close;
           refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
         }
+
+        // Update OHLC + volume directly in DOM (no re-render)
+        if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(candle.open);
+        if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(candle.high);
+        if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = priceFormatter.format(candle.low);
+        if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(candle.close);
+        if (refs.footerVolume?.current) refs.footerVolume.current.textContent = formatVolumeCompact(candle.volume);
 
         // Check price alerts + update positions + viewport (throttled)
         const now = Date.now();
