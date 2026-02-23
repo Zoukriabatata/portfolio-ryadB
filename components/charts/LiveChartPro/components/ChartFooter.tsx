@@ -25,27 +25,28 @@ interface ChartFooterProps {
 export default function ChartFooter({ timeframe, activeTool, selectedTool, status, theme }: ChartFooterProps) {
   return (
     <div
-      className="flex items-center justify-between px-3 py-1 text-xs border-t"
-      style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.textMuted }}
+      className="flex items-center justify-between px-2 text-[10px] border-t"
+      style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.textMuted, height: 24 }}
     >
-      <div className="flex items-center gap-4">
-        <span>Binance Spot</span>
+      <div className="flex items-center gap-3">
+        <span className="font-medium">Binance</span>
         <span>{TIMEFRAME_LABELS[timeframe]}</span>
         {activeTool !== 'cursor' && activeTool !== 'crosshair' && (
           <span style={{ color: theme.colors.toolActive }}>
-            Drawing: {activeTool}
+            {activeTool}
           </span>
         )}
         {selectedTool && (
           <span style={{ color: theme.colors.success }}>
-            Selected: {selectedTool.type}
+            {selectedTool.type}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <FooterImbalance />
-        <span style={{ color: status === 'connected' ? theme.colors.success : theme.colors.textMuted }}>
-          {status === 'connected' ? '● Live' : '○ Offline'}
+        <span className="flex items-center gap-1" style={{ color: status === 'connected' ? theme.colors.success : theme.colors.textMuted }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: status === 'connected' ? theme.colors.success : theme.colors.textMuted }} />
+          {status === 'connected' ? 'Live' : 'Offline'}
         </span>
       </div>
     </div>

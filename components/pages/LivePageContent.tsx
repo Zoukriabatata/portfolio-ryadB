@@ -26,18 +26,18 @@ type LayoutMode = '1x1' | '2x1' | '2x2';
 
 const LAYOUT_ICONS: Record<LayoutMode, React.ReactNode> = {
   '1x1': (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <rect x="1" y="1" width="12" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+      <rect x="1" y="1" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
   '2x1': (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
       <rect x="1" y="1" width="5" height="12" rx="1" stroke="currentColor" strokeWidth="1.2" />
       <rect x="8" y="1" width="5" height="12" rx="1" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   ),
   '2x2': (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
       <rect x="1" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.2" />
       <rect x="8" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.2" />
       <rect x="1" y="8" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.2" />
@@ -52,7 +52,7 @@ export default function LivePageContent() {
   const [futuresWidth, setFuturesWidth] = useState(240);
   const [layout, setLayout] = useState<LayoutMode>('1x1');
   const [showWatchlist, setShowWatchlist] = useState(true);
-  const [layoutKey, setLayoutKey] = useState(0); // Key to trigger re-animations
+  const [layoutKey, setLayoutKey] = useState(0);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(240);
@@ -98,12 +98,12 @@ export default function LivePageContent() {
   useFuturesData(symbol);
 
   return (
-    <div className="h-[calc(100svh-56px)] flex">
+    <div className="h-[calc(100svh-56px)] flex" style={{ backgroundColor: 'var(--background)' }}>
       {/* Watchlist Panel — hidden on mobile */}
       <div
         className={`flex-shrink-0 border-r overflow-hidden relative panel-slide hidden sm:block ${!showWatchlist ? 'panel-collapsed' : ''}`}
         style={{
-          width: showWatchlist ? 180 : 24,
+          width: showWatchlist ? 180 : 20,
           borderColor: 'var(--border)',
           backgroundColor: showWatchlist ? 'var(--surface)' : 'var(--background)',
         }}
@@ -114,9 +114,12 @@ export default function LivePageContent() {
             <button
               data-testid="watchlist-hide"
               onClick={() => setShowWatchlist(false)}
-              className="px-2 py-1 border-t text-[10px] hover:bg-white/5 transition-colors button-press"
+              className="px-2 py-1 border-t text-[10px] hover:bg-white/5 transition-colors button-press flex items-center justify-center gap-1"
               style={{ borderColor: 'var(--border)', color: 'var(--text-dimmed)' }}
             >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
               Hide
             </button>
           </div>
@@ -127,7 +130,7 @@ export default function LivePageContent() {
             className="w-full h-full flex items-center justify-center hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer group button-press"
           >
             <span
-              className="text-[10px] font-semibold tracking-wider uppercase group-hover:text-[var(--text-secondary)] transition-colors"
+              className="text-[9px] font-semibold tracking-wider uppercase group-hover:text-[var(--text-secondary)] transition-colors"
               style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', color: 'var(--text-dimmed)' }}
             >
               Watch
@@ -140,21 +143,27 @@ export default function LivePageContent() {
       <div className="flex-1 flex flex-col min-w-0 relative">
         <ConnectionBanner />
 
-        {/* Layout Selector */}
+        {/* Layout Selector — floating pill */}
         <div
           data-testid="layout-selector"
-          className="flex items-center gap-0.5 absolute top-1 left-1/2 -translate-x-1/2 z-30 px-1.5 py-0.5 rounded-lg fade-in"
-          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+          className="flex items-center gap-px absolute top-1.5 left-1/2 -translate-x-1/2 z-30 px-1 py-0.5 rounded-md fade-in"
+          style={{
+            backgroundColor: 'var(--surface)',
+            border: '1px solid var(--border)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          }}
         >
           {(['1x1', '2x1', '2x2'] as LayoutMode[]).map(mode => (
             <button
               key={mode}
               data-testid={`layout-${mode}`}
               onClick={() => setLayout(mode)}
-              className={`layout-button button-press w-6 h-6 flex items-center justify-center rounded ${layout === mode ? 'active' : ''}`}
+              className="layout-button button-press w-5.5 h-5.5 flex items-center justify-center rounded transition-all duration-150"
               style={{
                 backgroundColor: layout === mode ? 'var(--primary)' : 'transparent',
-                color: layout === mode ? '#fff' : 'var(--text-muted)',
+                color: layout === mode ? '#fff' : 'var(--text-dimmed)',
+                width: 22,
+                height: 22,
               }}
               title={mode === '1x1' ? 'Single chart' : mode === '2x1' ? 'Side by side' : '2x2 grid'}
             >
@@ -215,7 +224,7 @@ export default function LivePageContent() {
       <div
         className={`flex-shrink-0 border-l border-[var(--border)] overflow-hidden relative panel-slide hidden sm:block ${!showFutures ? 'panel-collapsed' : ''}`}
         style={{
-          width: showFutures ? futuresWidth : 24,
+          width: showFutures ? futuresWidth : 20,
           transition: isDraggingRef.current ? 'none' : undefined,
           backgroundColor: showFutures ? 'var(--background)' : 'var(--surface)',
         }}
@@ -233,14 +242,19 @@ export default function LivePageContent() {
         {showFutures ? (
           <div className="h-full overflow-y-auto p-2.5 panel-content-fade" style={{ width: futuresWidth }}>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                Futures Data
+              <h3 className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" />
+                </svg>
+                Futures
               </h3>
               <button
                 onClick={() => setShowFutures(false)}
-                className="text-[var(--text-dimmed)] hover:text-[var(--text-secondary)] text-[10px] transition-colors button-press"
+                className="text-[var(--text-dimmed)] hover:text-[var(--text-secondary)] transition-colors button-press p-0.5 rounded hover:bg-white/5"
               >
-                Hide
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
               </button>
             </div>
             <FuturesMetricsWidget />
@@ -251,7 +265,7 @@ export default function LivePageContent() {
             className="w-full h-full flex items-center justify-center hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer group button-press"
           >
             <span
-              className="text-[10px] font-semibold tracking-wider uppercase text-[var(--text-dimmed)] group-hover:text-[var(--text-secondary)] transition-colors"
+              className="text-[9px] font-semibold tracking-wider uppercase text-[var(--text-dimmed)] group-hover:text-[var(--text-secondary)] transition-colors"
               style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
             >
               Futures
