@@ -43,8 +43,9 @@ const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value
   return (
     <div ref={ref} className="text-center">
       <div
-        className="text-lg md:text-xl font-bold text-amber-400/90 transition-all duration-500"
+        className="text-lg md:text-xl font-bold transition-all duration-500"
         style={{
+          color: 'var(--primary-light)',
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateY(0)' : 'translateY(8px)',
         }}
@@ -87,15 +88,15 @@ export default function HeroSection() {
         <div
           className="inline-flex items-center gap-2.5 mb-10 px-4 py-1.5 rounded-full text-[11px] tracking-widest uppercase"
           style={{
-            color: 'rgba(255,190,100,0.8)',
-            border: '1px solid rgba(255,170,60,0.15)',
-            background: 'rgba(255,170,60,0.04)',
+            color: 'rgba(var(--primary-light-rgb), 0.8)',
+            border: '1px solid rgba(var(--primary-rgb), 0.15)',
+            background: 'rgba(var(--primary-rgb), 0.04)',
             backdropFilter: 'blur(8px)',
             animation: 'fadeInDown 0.7s ease-out forwards',
             opacity: 0,
           }}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary-light)' }} />
           Launch Offer — $29/mo locked for life
         </div>
 
@@ -108,12 +109,12 @@ export default function HeroSection() {
             <span
               className="block text-5xl md:text-7xl lg:text-8xl mt-1"
               style={{
-                background: 'linear-gradient(135deg, #fbbf24, #f59e0b, #d97706, #fbbf24)',
+                background: 'linear-gradient(135deg, var(--primary-light), var(--primary), var(--primary-dark), var(--primary-light))',
                 backgroundSize: '200% 100%',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 animation: 'gradientShift 4s ease infinite',
-                filter: 'drop-shadow(0 0 30px rgba(245, 158, 11, 0.25))',
+                filter: 'drop-shadow(0 0 30px rgba(var(--primary-rgb), 0.25))',
               }}
             >
               Order Flow
@@ -171,10 +172,10 @@ export default function HeroSection() {
           className="mt-16 max-w-2xl mx-auto"
           style={{ animation: 'fadeInUp 0.8s ease-out 0.8s forwards', opacity: 0 }}
         >
-          <div className="mockup-border relative rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_80px_rgba(245,158,11,0.05)]">
+          <div className="mockup-border relative rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 80px rgba(var(--primary-rgb), 0.05)' }}>
             {/* Shimmer sweep */}
             <div className="absolute inset-0 z-20 pointer-events-none" style={{
-              background: 'linear-gradient(90deg, transparent, rgba(255,190,100,0.04), transparent)',
+              background: 'linear-gradient(90deg, transparent, rgba(var(--primary-light-rgb), 0.04), transparent)',
               backgroundSize: '200% 100%',
               animation: 'shimmer 3s infinite',
             }} />
@@ -194,9 +195,9 @@ export default function HeroSection() {
             {/* Fake UI content */}
             <div className="p-3 sm:p-4 flex gap-3" style={{ height: 'auto', maxHeight: 180 }}>
               {/* Heatmap mockup */}
-              <div className="flex-1 rounded-lg bg-gradient-to-b from-amber-500/5 to-transparent border border-white/[0.05] p-3 relative overflow-hidden">
+              <div className="flex-1 rounded-lg border border-white/[0.05] p-3 relative overflow-hidden" style={{ background: 'linear-gradient(to bottom, rgba(var(--primary-rgb), 0.05), transparent)' }}>
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[9px] text-amber-500/50 uppercase tracking-wider">Liquidity Heatmap</div>
+                  <div className="text-[9px] uppercase tracking-wider" style={{ color: 'rgba(var(--primary-rgb), 0.5)' }}>Liquidity Heatmap</div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-mono text-emerald-400/60">67,284.50</span>
                     <span className="text-[8px] text-emerald-400/40">+1.2%</span>
@@ -215,9 +216,9 @@ export default function HeroSection() {
                           className="flex-1 h-2.5 rounded-[2px]"
                           style={{
                             background: intensity > 0.7
-                              ? `rgba(245,158,11,${intensity * 0.4})`
+                              ? `rgba(var(--primary-rgb),${intensity * 0.4})`
                               : intensity > 0.4
-                              ? `rgba(124,58,237,${intensity * 0.3})`
+                              ? `rgba(var(--accent-rgb),${intensity * 0.3})`
                               : `rgba(255,255,255,${intensity * 0.05})`,
                             animation: `heatmapPulse ${duration}s ease-in-out ${delay}s infinite`,
                           }}
@@ -249,7 +250,7 @@ export default function HeroSection() {
             </div>
           </div>
           {/* Glow under mockup */}
-          <div className="w-2/3 h-20 mx-auto -mt-10 bg-amber-500/10 blur-3xl rounded-full pointer-events-none" />
+          <div className="w-2/3 h-20 mx-auto -mt-10 blur-3xl rounded-full pointer-events-none" style={{ backgroundColor: 'rgba(var(--primary-rgb), 0.1)' }} />
         </div>
 
         {/* Scroll Indicator */}

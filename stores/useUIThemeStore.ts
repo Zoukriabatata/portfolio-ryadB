@@ -296,6 +296,13 @@ export const useUIThemeStore = create<UIThemeState>()(
 
 // ============ APPLY THEME TO DOM ============
 
+function hexToRgb(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
 export function applyUITheme(themeId: UIThemeId): void {
   const theme = UI_THEMES.find(t => t.id === themeId);
   if (!theme) return;
@@ -330,4 +337,10 @@ export function applyUITheme(themeId: UIThemeId): void {
   root.style.setProperty('--wick-down', c.wickDown);
   root.style.setProperty('--chart-bg', c.chartBg);
   root.style.setProperty('--chart-grid', c.chartGrid);
+  // RGB decomposed (for rgba() usage in landing components)
+  root.style.setProperty('--primary-rgb', hexToRgb(c.primary));
+  root.style.setProperty('--primary-light-rgb', hexToRgb(c.primaryLight));
+  root.style.setProperty('--primary-dark-rgb', hexToRgb(c.primaryDark));
+  root.style.setProperty('--accent-rgb', hexToRgb(c.accent));
+  root.style.setProperty('--accent-light-rgb', hexToRgb(c.accentLight));
 }

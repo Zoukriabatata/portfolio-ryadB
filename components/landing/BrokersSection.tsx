@@ -62,7 +62,7 @@ export default function BrokersSection() {
 
       {/* Subtle ambient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] pointer-events-none" style={{
-        background: 'radial-gradient(circle, rgba(124,58,237,0.05), transparent 65%)',
+        background: 'radial-gradient(circle, rgba(var(--accent-rgb), 0.05), transparent 65%)',
         zIndex: 2,
       }} />
 
@@ -95,7 +95,7 @@ export default function BrokersSection() {
               className={`
                 broker-card group relative p-6 rounded-xl border transition-all duration-300
                 ${broker.highlighted
-                  ? 'border-amber-500/20 bg-white/[0.04]'
+                  ? 'border-[rgba(var(--primary-rgb),0.2)] bg-white/[0.04]'
                   : 'border-white/[0.08] bg-white/[0.03]'
                 }
                 hover:transform hover:-translate-y-1
@@ -135,7 +135,7 @@ export default function BrokersSection() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-[15px] font-semibold text-white group-hover:text-amber-200 transition-colors">
+                  <h3 className="text-[15px] font-semibold text-white group-hover:text-[var(--primary-light)] transition-colors">
                     {broker.name}
                   </h3>
                   <p className="mt-1 text-[12px] text-white/45 leading-relaxed group-hover:text-white/60 transition-colors">

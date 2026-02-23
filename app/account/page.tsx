@@ -27,6 +27,7 @@ import {
   DeribitIcon,
 } from '@/components/ui/Icons';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
+import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
 import { throttledFetch } from '@/lib/api/throttledFetch';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { useAccountPrefsStore, type SupportedLanguage } from '@/stores/useAccountPrefsStore';
@@ -734,7 +735,7 @@ function AccountContent() {
                       return (
                         <button
                           key={theme.id}
-                          onClick={() => { setTheme(theme.id); applyUITheme(theme.id); }}
+                          onClick={() => { setTheme(theme.id); applyUITheme(theme.id); syncFootprintWithUITheme(theme.id); }}
                           className="relative p-3 rounded-xl transition-all text-left group"
                           style={{
                             background: c.surface,

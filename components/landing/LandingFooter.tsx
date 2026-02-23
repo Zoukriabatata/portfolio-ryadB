@@ -71,7 +71,7 @@ export default function LandingFooter() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.06] border border-white/[0.08] hover:border-amber-500/40 hover:bg-amber-500/15 transition-all duration-200"
+                  className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.06] border border-white/[0.08] hover:border-[rgba(var(--primary-rgb),0.4)] hover:bg-[rgba(var(--primary-rgb),0.15)] transition-all duration-200"
                   aria-label={social.label}
                 >
                   <social.Icon size={15} color="rgba(255,255,255,0.5)" />
@@ -83,7 +83,7 @@ export default function LandingFooter() {
           {/* Link columns */}
           {FOOTER_COLUMNS.map((col) => (
             <div key={col.title}>
-              <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-amber-500/70 mb-4">
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] mb-4" style={{ color: 'rgba(var(--primary-rgb), 0.7)' }}>
                 {col.title}
               </h4>
               <ul className="space-y-2.5">

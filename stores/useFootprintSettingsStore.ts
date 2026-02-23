@@ -546,146 +546,77 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
   )
 );
 
-// ============ PRESETS ============
+// ============ PRESETS (derived from global UI themes) ============
 
-export const COLOR_PRESETS = {
-  // SENZOUKRIA - Senku Green / Kingdom of Science (Default)
-  senzoukria: {
-    ...DEFAULT_COLORS,
-    background: '#060a08',
-    surface: '#0c1410',
-    gridColor: '#0f1e12',
-    gridOpacity: 0.25,
-    candleUpBody: '#7ed321',
-    candleDownBody: '#e04040',
-    candleUpBorder: '#7ed321',
-    candleDownBorder: '#e04040',
-    candleUpWick: '#5fa31a',
-    candleDownWick: '#b91c1c',
-    bidColor: '#e04040',
-    askColor: '#7ed321',
-    bidTextColor: '#f87171',
-    askTextColor: '#a3e635',
-    footprintContainerOpacity: 0.02,
-    deltaPositive: '#7ed321',
-    deltaNegative: '#e04040',
-    imbalanceBuyBg: '#7ed321',
-    imbalanceSellBg: '#e04040',
-    pocColor: '#e2b93b',
-    currentPriceColor: '#7ed321',
+import { UI_THEMES, type UIThemeColors, type UIThemeId } from '@/stores/useUIThemeStore';
+
+/**
+ * Build FootprintColors from a global UIThemeColors definition.
+ * This keeps the footprint canvas visually consistent with the rest of the app.
+ */
+export function buildFootprintColorsFromUITheme(c: UIThemeColors): FootprintColors {
+  return {
+    background: c.background,
+    surface: c.surface,
+    gridColor: c.chartGrid,
+    gridOpacity: 0.3,
+
+    candleUpBody: c.candleUp,
+    candleDownBody: c.candleDown,
+    candleUpBorder: c.candleUp,
+    candleDownBorder: c.candleDown,
+    candleUpWick: c.wickUp,
+    candleDownWick: c.wickDown,
+
+    bidColor: c.candleDown,
+    askColor: c.candleUp,
+    bidTextColor: c.candleDown,
+    askTextColor: c.candleUp,
+    footprintContainerOpacity: 0.03,
+
+    deltaPositive: c.candleUp,
+    deltaNegative: c.candleDown,
+
+    clusterDeltaPositive: c.candleUp,
+    clusterDeltaNegative: c.candleDown,
+    clusterDeltaOpacity: 0.35,
+
+    imbalanceBuyBg: c.candleUp,
+    imbalanceSellBg: c.candleDown,
+    imbalanceOpacity: 0.35,
+
+    pocColor: c.accent,
+    pocOpacity: 0.15,
+
+    currentPriceColor: c.primary,
     currentPriceLineWidth: 1,
     currentPriceLineStyle: 'dashed' as const,
     currentPriceShowLabel: true,
-    currentPriceLabelBg: '#7ed321',
-    textPrimary: '#e8f5e8',
-    textSecondary: '#8aab8a',
-    textMuted: '#5a7a5a',
-  },
+    currentPriceLabelBg: c.primary,
 
-  dark: DEFAULT_COLORS,
+    textPrimary: c.textPrimary,
+    textSecondary: c.textSecondary,
+    textMuted: c.textMuted,
+  };
+}
 
-  // Orderflow Pro - Deep Blue Theme
-  orderflow: {
-    ...DEFAULT_COLORS,
-    background: '#0a0e14',
-    surface: '#0f1419',
-    gridColor: '#1a2332',
-    gridOpacity: 0.3,
-    candleUpBody: '#00bfa5',
-    candleDownBody: '#ff5252',
-    candleUpBorder: '#00bfa5',
-    candleDownBorder: '#ff5252',
-    candleUpWick: '#00bfa5',
-    candleDownWick: '#ff5252',
-    bidColor: '#ff5252',
-    askColor: '#00bfa5',
-    bidTextColor: '#ff8a80',
-    askTextColor: '#64ffda',
-    deltaPositive: '#00bfa5',
-    deltaNegative: '#ff5252',
-    pocColor: '#ffab00',
-    currentPriceColor: '#448aff',
-    textPrimary: '#eceff4',
-    textSecondary: '#8892a8',
-    textMuted: '#4e5668',
-  },
+// Build COLOR_PRESETS from all global UI themes
+export const COLOR_PRESETS: Record<string, FootprintColors> = Object.fromEntries(
+  UI_THEMES.map(theme => [theme.id, buildFootprintColorsFromUITheme(theme.colors)])
+);
 
-  // Shadow - Pure Black Theme
-  shadow: {
-    ...DEFAULT_COLORS,
-    background: '#000000',
-    surface: '#0a0a0a',
-    gridColor: '#1a1a1a',
-    gridOpacity: 0.3,
-    candleUpBody: '#00c853',
-    candleDownBody: '#ff1744',
-    candleUpBorder: '#00c853',
-    candleDownBorder: '#ff1744',
-    bidColor: '#ff1744',
-    askColor: '#00c853',
-    bidTextColor: '#ff8a80',
-    askTextColor: '#69f0ae',
-    pocColor: '#ffd600',
-    textPrimary: '#ffffff',
-    textSecondary: '#b0b0b0',
-    textMuted: '#606060',
-  },
+// Theme labels for UI (derived from global themes)
+export const THEME_LABELS: Record<string, string> = Object.fromEntries(
+  UI_THEMES.map(theme => [theme.id, theme.name])
+);
 
-  // Matrix - Developer Dark Theme
-  matrix: {
-    ...DEFAULT_COLORS,
-    background: '#0d1117',
-    surface: '#161b22',
-    gridColor: '#21262d',
-    gridOpacity: 0.4,
-    candleUpBody: '#3fb950',
-    candleDownBody: '#f85149',
-    candleUpBorder: '#3fb950',
-    candleDownBorder: '#f85149',
-    bidColor: '#f85149',
-    askColor: '#3fb950',
-    bidTextColor: '#ffa198',
-    askTextColor: '#7ee787',
-    pocColor: '#d29922',
-    currentPriceColor: '#58a6ff',
-    textPrimary: '#c9d1d9',
-    textSecondary: '#8b949e',
-    textMuted: '#484f58',
-  },
-
-  // Light - Clean Light Theme
-  light: {
-    ...DEFAULT_COLORS,
-    background: '#ffffff',
-    surface: '#f8f9fa',
-    gridColor: '#e9ecef',
-    gridOpacity: 0.8,
-    candleUpBody: '#198754',
-    candleDownBody: '#dc3545',
-    candleUpBorder: '#198754',
-    candleDownBorder: '#dc3545',
-    candleUpWick: '#198754',
-    candleDownWick: '#dc3545',
-    bidColor: '#dc3545',
-    askColor: '#198754',
-    bidTextColor: '#dc3545',
-    askTextColor: '#198754',
-    deltaPositive: '#198754',
-    deltaNegative: '#dc3545',
-    textPrimary: '#212529',
-    textSecondary: '#6c757d',
-    textMuted: '#adb5bd',
-    pocColor: '#fd7e14',
-    currentPriceColor: '#0d6efd',
-  },
-};
-
-// Theme labels for UI
-export const THEME_LABELS: Record<string, string> = {
-  senzoukria: 'Senzoukria',
-  dark: 'Dark Classic',
-  orderflow: 'Orderflow Pro',
-  shadow: 'Shadow',
-  matrix: 'Matrix',
-  light: 'Light',
-};
+/**
+ * Sync footprint colors when the global UI theme changes.
+ * Call this from any component that mounts the footprint chart.
+ */
+export function syncFootprintWithUITheme(themeId: UIThemeId): void {
+  const theme = UI_THEMES.find(t => t.id === themeId);
+  if (!theme) return;
+  const colors = buildFootprintColorsFromUITheme(theme.colors);
+  useFootprintSettingsStore.getState().setColors(colors);
+}

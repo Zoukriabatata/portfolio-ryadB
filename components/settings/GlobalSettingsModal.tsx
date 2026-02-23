@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePreferencesStore, TRADE_COLOR_PRESETS, type UIDensity } from '@/stores/usePreferencesStore';
 import { useUIThemeStore, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
+import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
 
 interface GlobalSettingsModalProps {
   isOpen: boolean;
@@ -177,7 +178,7 @@ function AppearanceTab() {
           {UI_THEMES.map((theme) => (
             <button
               key={theme.id}
-              onClick={() => setTheme(theme.id)}
+              onClick={() => { setTheme(theme.id); syncFootprintWithUITheme(theme.id); }}
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-left"
               style={{
                 backgroundColor: activeTheme === theme.id ? 'var(--surface-elevated)' : 'var(--surface)',
