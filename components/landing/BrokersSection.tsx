@@ -62,7 +62,7 @@ export default function BrokersSection() {
 
       {/* Subtle ambient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] pointer-events-none" style={{
-        background: 'radial-gradient(circle, rgba(var(--accent-rgb), 0.05), transparent 65%)',
+        background: 'radial-gradient(circle, rgb(var(--accent-rgb) / 0.05), transparent 65%)',
         zIndex: 2,
       }} />
 
@@ -95,7 +95,7 @@ export default function BrokersSection() {
               className={`
                 broker-card group relative p-6 rounded-xl border transition-all duration-300
                 ${broker.highlighted
-                  ? 'border-[rgba(var(--primary-rgb),0.2)] bg-white/[0.04]'
+                  ? 'border-[rgb(var(--primary-rgb)_/_0.2)] bg-white/[0.04]'
                   : 'border-white/[0.08] bg-white/[0.03]'
                 }
                 hover:transform hover:-translate-y-1

@@ -79,7 +79,7 @@ export default function FAQSection() {
                 className={`
                   rounded-lg px-4 -mx-4 transition-all duration-300
                   ${isOpen
-                    ? 'bg-white/[0.02] border border-[rgba(var(--primary-rgb),0.15)] shadow-[0_0_15px_rgba(var(--primary-rgb),0.05)]'
+                    ? 'bg-white/[0.02] border border-[rgb(var(--primary-rgb)_/_0.15)] shadow-[0_0_15px_rgb(var(--primary-rgb)_/_0.05)]'
                     : 'border border-transparent border-b-white/[0.06]'
                   }
                 `}
@@ -150,7 +150,7 @@ export default function FAQSection() {
             <a
               href="mailto:ryad.bouderga78@gmail.com"
               className="hover:text-[var(--primary-light)] transition-colors underline underline-offset-2"
-              style={{ color: 'rgba(var(--primary-light-rgb), 0.7)' }}
+              style={{ color: 'rgb(var(--primary-light-rgb) / 0.7)' }}
             >
               Contact us
             </a>

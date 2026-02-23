@@ -50,7 +50,7 @@ export default function CursorGlow() {
       className="fixed top-0 left-0 w-[400px] h-[400px] pointer-events-none will-change-transform"
       style={{
         zIndex: 1,
-        background: 'radial-gradient(circle, rgba(var(--primary-rgb), 0.04) 0%, rgba(var(--primary-rgb), 0.015) 30%, transparent 65%)',
+        background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.04) 0%, rgb(var(--primary-rgb) / 0.015) 30%, transparent 65%)',
         borderRadius: '50%',
       }}
     />

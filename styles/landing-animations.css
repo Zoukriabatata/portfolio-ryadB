@@ -35,12 +35,12 @@
   border-radius: 8px;
   text-decoration: none;
   transition: all 0.25s ease;
-  box-shadow: 0 0 20px rgba(var(--primary-rgb, 245, 158, 11), 0.15);
+  box-shadow: 0 0 20px rgb(var(--primary-rgb) / 0.15);
 }
 
 .landing-btn-primary:hover {
   background: linear-gradient(135deg, var(--primary-light, #fcd34d), var(--primary-light, #fbbf24));
-  box-shadow: 0 0 30px rgba(var(--primary-rgb, 245, 158, 11), 0.3);
+  box-shadow: 0 0 30px rgb(var(--primary-rgb) / 0.3);
   transform: translateY(-1px);
 }
 
@@ -106,11 +106,11 @@
 }
 
 .feature-card:hover {
-  border-color: rgba(var(--primary-rgb, 245, 158, 11), 0.25) !important;
+  border-color: rgb(var(--primary-rgb) / 0.25) !important;
   background: rgba(255, 255, 255, 0.03) !important;
   box-shadow:
-    0 0 20px rgba(var(--primary-rgb, 245, 158, 11), 0.08),
-    0 0 60px rgba(var(--primary-rgb, 245, 158, 11), 0.04),
+    0 0 20px rgb(var(--primary-rgb) / 0.08),
+    0 0 60px rgb(var(--primary-rgb) / 0.04),
     0 8px 32px rgba(0, 0, 0, 0.3);
   transform: translateY(-3px);
 }
@@ -126,9 +126,9 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(var(--primary-light-rgb, 255, 190, 100), 0.03),
-    rgba(var(--primary-light-rgb, 255, 190, 100), 0.07),
-    rgba(var(--primary-light-rgb, 255, 190, 100), 0.03),
+    rgb(var(--primary-light-rgb) / 0.03),
+    rgb(var(--primary-light-rgb) / 0.07),
+    rgb(var(--primary-light-rgb) / 0.03),
     transparent
   );
   transform: translateX(-150%) skewX(-15deg);
@@ -143,8 +143,8 @@
 
 /* Icon glow on card hover */
 .feature-card:hover .feature-icon {
-  box-shadow: 0 0 12px rgba(var(--primary-rgb, 245, 158, 11), 0.2);
-  background: rgba(var(--primary-rgb, 245, 158, 11), 0.12) !important;
+  box-shadow: 0 0 12px rgb(var(--primary-rgb) / 0.2);
+  background: rgb(var(--primary-rgb) / 0.12) !important;
 }
 
 /* ─── Ambient Particles ─── */
@@ -173,7 +173,7 @@
   width: var(--particle-size, 3px);
   height: var(--particle-size, 3px);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--primary-rgb, 255, 180, 80), var(--particle-a, 0.06)), transparent);
+  background: radial-gradient(circle, rgb(var(--primary-rgb) / var(--particle-a, 0.06)), transparent);
   animation: float-particle var(--particle-duration, 12s) ease-in-out infinite;
   animation-delay: var(--particle-delay, 0s);
   pointer-events: none;
@@ -208,7 +208,7 @@
   left: 10%;
   right: 10%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(var(--primary-rgb, 245, 158, 11), 0.12), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--primary-rgb) / 0.12), transparent);
 }
 
 @keyframes dividerShimmer {
@@ -240,7 +240,7 @@
   left: 0;
   width: 40%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(var(--primary-rgb, 245,158,11),0.25), rgba(var(--primary-rgb, 245,158,11),0.4), rgba(var(--primary-rgb, 245,158,11),0.25), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--primary-rgb) / 0.25), rgb(var(--primary-rgb) / 0.4), rgb(var(--primary-rgb) / 0.25), transparent);
   animation: dividerShimmer 4s ease-in-out infinite;
 }
 
@@ -267,7 +267,7 @@
   inset: -1px;
   border-radius: 13px;
   padding: 1px;
-  background: conic-gradient(from var(--border-angle), transparent 40%, rgba(var(--primary-rgb, 245,158,11),0.3) 50%, rgba(var(--accent-rgb, 124,58,237),0.2) 60%, transparent 70%);
+  background: conic-gradient(from var(--border-angle), transparent 40%, rgb(var(--primary-rgb) / 0.3) 50%, rgb(var(--accent-rgb) / 0.2) 60%, transparent 70%);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;

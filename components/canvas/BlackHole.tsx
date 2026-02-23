@@ -4,7 +4,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { useUIThemeStore } from '@/stores/useUIThemeStore';
 
 function parseRgb(cssValue: string): [number, number, number] {
-  const parts = cssValue.split(',').map(s => parseInt(s.trim(), 10));
+  const parts = cssValue.trim().split(/[\s,]+/).map(s => parseInt(s, 10));
   return [parts[0] || 245, parts[1] || 158, parts[2] || 11];
 }
 

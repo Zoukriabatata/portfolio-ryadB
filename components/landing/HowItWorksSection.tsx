@@ -91,10 +91,10 @@ export default function HowItWorksSection() {
             <div
               className="h-full origin-left"
               style={{
-                background: 'linear-gradient(90deg, rgba(var(--primary-rgb),0.3), rgba(var(--accent-rgb),0.25), rgba(var(--primary-rgb),0.3))',
+                background: 'linear-gradient(90deg, rgb(var(--primary-rgb) / 0.3), rgb(var(--accent-rgb) / 0.25), rgb(var(--primary-rgb) / 0.3))',
                 transform: lineVisible ? 'scaleX(1)' : 'scaleX(0)',
                 transition: 'transform 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s',
-                boxShadow: lineVisible ? '0 0 6px rgba(var(--primary-rgb),0.15)' : 'none',
+                boxShadow: lineVisible ? '0 0 6px rgb(var(--primary-rgb) / 0.15)' : 'none',
               }}
             />
           </div>
@@ -108,11 +108,11 @@ export default function HowItWorksSection() {
             >
               {/* Step circle */}
               <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-full border border-white/[0.08] bg-white/[0.04] mb-5">
-                <div style={{ color: 'rgba(var(--primary-rgb), 0.7)' }}>
+                <div style={{ color: 'rgb(var(--primary-rgb) / 0.7)' }}>
                   {step.icon}
                 </div>
                 {/* Step number badge */}
-                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(var(--primary-rgb), 0.2)', border: '1px solid rgba(var(--primary-rgb), 0.3)' }}>
+                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.2)', border: '1px solid rgb(var(--primary-rgb) / 0.3)' }}>
                   <span className="text-[10px] font-bold" style={{ color: 'var(--primary-light)' }}>{step.step}</span>
                 </div>
               </div>

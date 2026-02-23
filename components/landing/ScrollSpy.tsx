@@ -91,7 +91,7 @@ export default function ScrollSpy() {
                 background: isActive
                   ? 'linear-gradient(135deg, var(--primary-light), var(--primary))'
                   : 'rgba(255,255,255,0.2)',
-                boxShadow: isActive ? '0 0 8px rgba(var(--primary-rgb), 0.4)' : 'none',
+                boxShadow: isActive ? '0 0 8px rgb(var(--primary-rgb) / 0.4)' : 'none',
               }}
             />
           </button>
