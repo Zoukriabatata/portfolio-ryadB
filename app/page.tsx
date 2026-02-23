@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useScrollAnimations } from '@/hooks/useScrollAnimations';
+import { useUIThemeStore, applyUITheme } from '@/stores/useUIThemeStore';
 import BlackHole from '@/components/canvas/BlackHole';
 import LandingNav from '@/components/landing/LandingNav';
 import HeroSection from '@/components/landing/HeroSection';
@@ -22,6 +23,11 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [entered, setEntered] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const activeTheme = useUIThemeStore((s) => s.activeTheme);
+
+  useEffect(() => {
+    applyUITheme(activeTheme);
+  }, [activeTheme]);
 
   useEffect(() => {
     setMounted(true);
@@ -40,12 +46,12 @@ export default function HomePage() {
         <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-pulse">
           <defs>
             <linearGradient id="loadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#fbbf24" />
-              <stop offset="100%" stopColor="#d97706" />
+              <stop offset="0%" stopColor="var(--primary-light, #fbbf24)" />
+              <stop offset="100%" stopColor="var(--primary-dark, #d97706)" />
             </linearGradient>
           </defs>
           <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" fill="url(#loadGrad)" fillOpacity="0.15" stroke="url(#loadGrad)" strokeWidth="1.5" />
-          <path d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" />
+          <path d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32" fill="none" stroke="var(--primary, #f59e0b)" strokeWidth="3" strokeLinecap="round" />
         </svg>
         <span className="text-[11px] text-white/20 tracking-widest uppercase">Loading</span>
       </div>

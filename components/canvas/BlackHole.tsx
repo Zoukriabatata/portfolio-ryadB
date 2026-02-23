@@ -1,9 +1,28 @@
 'use client';
 
 import { useEffect, useRef, type RefObject } from 'react';
+import { useUIThemeStore } from '@/stores/useUIThemeStore';
+
+function parseRgb(cssValue: string): [number, number, number] {
+  const parts = cssValue.split(',').map(s => parseInt(s.trim(), 10));
+  return [parts[0] || 245, parts[1] || 158, parts[2] || 11];
+}
+
+function rgbToHue(r: number, g: number, b: number): number {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max === min) return 30;
+  const d = max - min;
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return Math.round(h * 360);
+}
 
 export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLDivElement | null> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const activeTheme = useUIThemeStore((s) => s.activeTheme);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -11,6 +30,23 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
     if (!canvas || !scrollEl) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // Read theme colors from CSS variables
+    const cs = getComputedStyle(document.documentElement);
+    const pRgb = parseRgb(cs.getPropertyValue('--primary-rgb'));
+    const plRgb = parseRgb(cs.getPropertyValue('--primary-light-rgb'));
+    const pdRgb = parseRgb(cs.getPropertyValue('--primary-dark-rgb'));
+    const aRgb = parseRgb(cs.getPropertyValue('--accent-rgb'));
+    const alRgb = parseRgb(cs.getPropertyValue('--accent-light-rgb'));
+    const pHue = rgbToHue(...pRgb);
+
+    // Shorthand for rgba strings from theme
+    const pr = (a: number) => `rgba(${pRgb[0]},${pRgb[1]},${pRgb[2]},${a})`;
+    const pl = (a: number) => `rgba(${plRgb[0]},${plRgb[1]},${plRgb[2]},${a})`;
+    const pd = (a: number) => `rgba(${pdRgb[0]},${pdRgb[1]},${pdRgb[2]},${a})`;
+    const ac = (a: number) => `rgba(${aRgb[0]},${aRgb[1]},${aRgb[2]},${a})`;
+    const al = (a: number) => `rgba(${alRgb[0]},${alRgb[1]},${alRgb[2]},${a})`;
+
 
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let prefersReducedMotion = motionQuery.matches;
@@ -64,7 +100,7 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
       vy: (Math.random() - 0.5) * 0.02,
       r: 0.5 + Math.random() * 1.5,
       a: 0.03 + Math.random() * 0.07,
-      hue: 20 + Math.random() * 30,
+      hue: pHue - 10 + Math.random() * 30,
     }));
 
     // Secondary gravitational distortions
@@ -98,7 +134,7 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         speed: (0.004 + Math.random() * 0.007) / Math.pow(orbitR, 0.65),
         drift: 0.00003 + Math.random() * 0.00005,
         size: isInner ? (0.4 + Math.random() * 1.8) : (0.3 + Math.random() * 1.0),
-        baseHue: isInner ? (25 + Math.random() * 20) : (15 + Math.random() * 25),
+        baseHue: isInner ? (pHue - 5 + Math.random() * 20) : (pHue - 15 + Math.random() * 25),
         br: isInner ? (0.5 + Math.random() * 0.5) : (0.25 + Math.random() * 0.55),
         isInner,
       };
@@ -113,7 +149,7 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         orbitR,
         speed: (0.004 + Math.random() * 0.006) / Math.pow(orbitR, 0.5),
         size: 0.3 + Math.random() * 1.2,
-        baseHue: 25 + Math.random() * 30,
+        baseHue: pHue - 5 + Math.random() * 30,
         br: 0.3 + Math.random() * 0.7,
       };
     });
@@ -204,10 +240,10 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         const intens = bh.intensity * pulse;
 
         const lg = ctx.createRadialGradient(bhX, bhY, bhR * 1.3, bhX, bhY, bhR * 6);
-        lg.addColorStop(0, `rgba(255,190,110,${0.05 * intens})`);
-        lg.addColorStop(0.25, `rgba(255,160,80,${0.03 * intens})`);
-        lg.addColorStop(0.5, `rgba(255,140,60,${0.015 * intens})`);
-        lg.addColorStop(0.75, `rgba(255,120,50,${0.008 * intens})`);
+        lg.addColorStop(0, pl(0.05 * intens));
+        lg.addColorStop(0.25, pr(0.03 * intens));
+        lg.addColorStop(0.5, pr(0.015 * intens));
+        lg.addColorStop(0.75, pd(0.008 * intens));
         lg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = lg;
         ctx.beginPath();
@@ -236,9 +272,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
 
         if (bhR > 8) {
           ctx.save();
-          ctx.shadowColor = `rgba(255,180,80,${0.3 * intens})`;
+          ctx.shadowColor = pr(0.3 * intens);
           ctx.shadowBlur = Math.min(bhR * 0.4, 12);
-          ctx.strokeStyle = `rgba(255,195,100,${0.22 * intens})`;
+          ctx.strokeStyle = pl(0.22 * intens);
           ctx.lineWidth = Math.max(0.5, bhR * 0.03);
           ctx.beginPath();
           ctx.ellipse(bhX, bhY, bhR * 1.02, bhR * TILT * 1.02, 0, 0, Math.PI * 2);
@@ -253,19 +289,19 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
       if (bhVisible) {
         // Nebula glow — orange core
         const ng = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 7);
-        ng.addColorStop(0, 'rgba(255,150,50,0.15)');
-        ng.addColorStop(0.12, 'rgba(255,120,35,0.10)');
-        ng.addColorStop(0.25, 'rgba(255,100,20,0.06)');
-        ng.addColorStop(0.4, 'rgba(200,70,15,0.035)');
-        ng.addColorStop(0.6, 'rgba(150,50,10,0.015)');
+        ng.addColorStop(0, pr(0.15));
+        ng.addColorStop(0.12, pr(0.10));
+        ng.addColorStop(0.25, pd(0.06));
+        ng.addColorStop(0.4, pd(0.035));
+        ng.addColorStop(0.6, pd(0.015));
         ng.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = ng;
         ctx.fillRect(0, 0, w, viewH);
 
         // Secondary nebula — violet haze for depth
         const vn = ctx.createRadialGradient(cx + R * 0.5, cy - R * 0.3, R * 0.5, cx + R * 0.5, cy - R * 0.3, R * 5);
-        vn.addColorStop(0, 'rgba(120,60,220,0.05)');
-        vn.addColorStop(0.3, 'rgba(100,40,200,0.025)');
+        vn.addColorStop(0, ac(0.05));
+        vn.addColorStop(0.3, ac(0.025));
         vn.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = vn;
         ctx.fillRect(0, 0, w, viewH);
@@ -322,8 +358,8 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
           const x2 = cx + Math.cos(s.angle - s.len / s.dist) * (s.dist + s.len) * R;
           const y2 = cy + Math.sin(s.angle - s.len / s.dist) * (s.dist + s.len) * R * TILT;
           const g = ctx.createLinearGradient(x2, y2, x1, y1);
-          g.addColorStop(0, 'rgba(255,140,50,0)');
-          g.addColorStop(1, `rgba(255,180,80,${s.alpha})`);
+          g.addColorStop(0, pd(0));
+          g.addColorStop(1, pr(s.alpha));
           ctx.strokeStyle = g;
           ctx.lineWidth = 1.2;
           ctx.beginPath();
@@ -352,9 +388,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
           const blur = 8 + i * 12;
           const alpha = 0.3 - i * 0.08;
           const lw = 2.5 - i * 0.6;
-          ctx.shadowColor = `rgba(255,170,60,${alpha})`;
+          ctx.shadowColor = pr(alpha);
           ctx.shadowBlur = blur;
-          ctx.strokeStyle = `rgba(255,190,80,${alpha * 0.7})`;
+          ctx.strokeStyle = pl(alpha * 0.7);
           ctx.lineWidth = lw;
           ctx.beginPath();
           ctx.ellipse(cx, cy, rad, rad * TILT, 0, 0, Math.PI * 2);
@@ -364,9 +400,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
 
         // Bright photon ring
         ctx.save();
-        ctx.shadowColor = 'rgba(255,200,100,0.8)';
+        ctx.shadowColor = pl(0.8);
         ctx.shadowBlur = 6;
-        ctx.strokeStyle = 'rgba(255,210,130,0.45)';
+        ctx.strokeStyle = pl(0.45);
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.ellipse(cx, cy, R * 1.01, R * TILT * 1.01, 0, 0, Math.PI * 2);
@@ -411,16 +447,16 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
 
         // Top lensing arc
         ctx.save();
-        ctx.shadowColor = 'rgba(255,180,70,0.5)';
+        ctx.shadowColor = pr(0.5);
         ctx.shadowBlur = 25;
         const arcGrad = ctx.createLinearGradient(cx - R * 1.8, cy, cx + R * 1.8, cy);
-        arcGrad.addColorStop(0, 'rgba(255,180,70,0)');
-        arcGrad.addColorStop(0.2, 'rgba(255,180,70,0.08)');
-        arcGrad.addColorStop(0.4, 'rgba(255,200,100,0.15)');
-        arcGrad.addColorStop(0.5, 'rgba(255,220,140,0.2)');
-        arcGrad.addColorStop(0.6, 'rgba(255,200,100,0.15)');
-        arcGrad.addColorStop(0.8, 'rgba(255,180,70,0.08)');
-        arcGrad.addColorStop(1, 'rgba(255,180,70,0)');
+        arcGrad.addColorStop(0, pr(0));
+        arcGrad.addColorStop(0.2, pr(0.08));
+        arcGrad.addColorStop(0.4, pl(0.15));
+        arcGrad.addColorStop(0.5, pl(0.2));
+        arcGrad.addColorStop(0.6, pl(0.15));
+        arcGrad.addColorStop(0.8, pr(0.08));
+        arcGrad.addColorStop(1, pr(0));
         ctx.strokeStyle = arcGrad;
         ctx.lineWidth = 4;
         ctx.beginPath();
@@ -435,9 +471,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
 
         // Bottom lensing arc
         ctx.save();
-        ctx.shadowColor = 'rgba(255,150,50,0.2)';
+        ctx.shadowColor = pr(0.2);
         ctx.shadowBlur = 15;
-        ctx.strokeStyle = 'rgba(255,160,60,0.07)';
+        ctx.strokeStyle = pr(0.07);
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.ellipse(cx, cy, R * 1.1, R * 0.75, 0, 0.2, Math.PI - 0.2);
@@ -448,9 +484,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         const jetPulse = 0.7 + 0.3 * Math.sin(t * 0.008);
         // Top jet
         const topJet = ctx.createLinearGradient(cx, cy - R, cx, cy - R * 4);
-        topJet.addColorStop(0, `rgba(180,140,255,${0.06 * jetPulse})`);
-        topJet.addColorStop(0.3, `rgba(140,100,255,${0.03 * jetPulse})`);
-        topJet.addColorStop(1, 'rgba(100,60,255,0)');
+        topJet.addColorStop(0, al(0.06 * jetPulse));
+        topJet.addColorStop(0.3, ac(0.03 * jetPulse));
+        topJet.addColorStop(1, ac(0));
         ctx.fillStyle = topJet;
         ctx.beginPath();
         ctx.moveTo(cx - R * 0.08, cy - R);
@@ -461,9 +497,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         ctx.fill();
         // Bottom jet
         const botJet = ctx.createLinearGradient(cx, cy + R * TILT, cx, cy + R * 3);
-        botJet.addColorStop(0, `rgba(180,140,255,${0.04 * jetPulse})`);
-        botJet.addColorStop(0.3, `rgba(140,100,255,${0.02 * jetPulse})`);
-        botJet.addColorStop(1, 'rgba(100,60,255,0)');
+        botJet.addColorStop(0, al(0.04 * jetPulse));
+        botJet.addColorStop(0.3, ac(0.02 * jetPulse));
+        botJet.addColorStop(1, ac(0));
         ctx.fillStyle = botJet;
         ctx.beginPath();
         ctx.moveTo(cx - R * 0.06, cy + R * TILT);
@@ -475,9 +511,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
 
         // Inner glow ring (hot gas just outside event horizon)
         ctx.save();
-        ctx.shadowColor = 'rgba(255,220,150,0.6)';
+        ctx.shadowColor = pl(0.6);
         ctx.shadowBlur = 20;
-        ctx.strokeStyle = 'rgba(255,230,170,0.12)';
+        ctx.strokeStyle = pl(0.12);
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.ellipse(cx, cy, R * 0.95, R * TILT * 0.95, 0, 0, Math.PI * 2);
@@ -540,7 +576,7 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
       window.removeEventListener('resize', fullResize);
       cancelAnimationFrame(raf);
     };
-  }, [scrollContainerRef]);
+  }, [scrollContainerRef, activeTheme]);
 
   return (
     <canvas

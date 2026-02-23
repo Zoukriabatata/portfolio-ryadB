@@ -92,19 +92,21 @@ export default function LandingNav() {
               className={`
                 relative text-sm font-medium transition-colors duration-200 py-1
                 ${isActive(link.href)
-                  ? 'text-amber-400'
+                  ? ''
                   : 'text-white/50 hover:text-white/90'
                 }
               `}
+              style={isActive(link.href) ? { color: 'var(--primary-light)' } : undefined}
             >
               {link.label}
               {/* Active indicator dot */}
               <span
                 className={`
-                  absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-400
+                  absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full
                   transition-all duration-300
                   ${isActive(link.href) ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
                 `}
+                style={{ backgroundColor: 'var(--primary-light)' }}
               />
             </a>
           ))}
@@ -175,12 +177,13 @@ export default function LandingNav() {
             onClick={(e) => handleLinkClick(e, link.href)}
             className={`
               text-sm font-medium transition-all py-2.5 px-3 rounded-lg hover:bg-white/[0.04]
-              ${isActive(link.href) ? 'text-amber-400' : 'text-white/60 hover:text-white/90'}
+              ${isActive(link.href) ? '' : 'text-white/60 hover:text-white/90'}
             `}
             style={{
               transitionDelay: mobileOpen ? `${i * 50}ms` : '0ms',
               transform: mobileOpen ? 'translateX(0)' : 'translateX(-12px)',
               opacity: mobileOpen ? 1 : 0,
+              ...(isActive(link.href) ? { color: 'var(--primary-light)' } : {}),
             }}
           >
             {link.label}

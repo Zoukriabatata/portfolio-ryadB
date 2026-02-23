@@ -14,7 +14,7 @@ type FeatureStatus = 'live' | 'beta' | 'soon';
 
 const STATUS_STYLES: Record<FeatureStatus, { label: string; color: string; bg: string; border: string }> = {
   live: { label: 'Live', color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)' },
-  beta: { label: 'Beta', color: '#fbbf24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.2)' },
+  beta: { label: 'Beta', color: 'var(--primary-light)', bg: 'rgba(var(--primary-light-rgb), 0.08)', border: 'rgba(var(--primary-light-rgb), 0.2)' },
   soon: { label: 'Soon', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)' },
 };
 
@@ -93,16 +93,16 @@ const FeatureCard = memo(function FeatureCard({ f, i }: { f: typeof FEATURES[num
       <div
         className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
         style={{
-          background: 'radial-gradient(400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(245,158,11,0.08), transparent 70%)',
+          background: 'radial-gradient(400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(var(--primary-rgb), 0.08), transparent 70%)',
         }}
       />
       <div className="relative z-10 flex items-start gap-4">
-        <div className="feature-icon w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-amber-500/15 to-orange-600/8 border border-amber-500/15 transition-all duration-300">
-          <f.Icon size={20} color="#f59e0b" />
+        <div className="feature-icon w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300" style={{ background: 'linear-gradient(to bottom right, rgba(var(--primary-rgb), 0.15), rgba(var(--primary-dark-rgb), 0.08))', border: '1px solid rgba(var(--primary-rgb), 0.15)' }}>
+          <f.Icon size={20} color="var(--primary)" />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-[14px] font-semibold text-white group-hover:text-amber-200 transition-colors duration-300">
+            <h3 className="text-[14px] font-semibold text-white group-hover:text-[var(--primary-light)] transition-colors duration-300">
               {f.title}
             </h3>
             {(() => {
@@ -137,7 +137,7 @@ export default function FeaturesSection() {
 
       {/* Subtle ambient glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none" style={{
-        background: 'radial-gradient(ellipse, rgba(245,158,11,0.04), transparent 70%)',
+        background: 'radial-gradient(ellipse, rgba(var(--primary-rgb), 0.04), transparent 70%)',
         zIndex: 2,
       }} />
 

@@ -79,7 +79,7 @@ export default function FAQSection() {
                 className={`
                   rounded-lg px-4 -mx-4 transition-all duration-300
                   ${isOpen
-                    ? 'bg-white/[0.02] border border-amber-500/15 shadow-[0_0_15px_rgba(245,158,11,0.05)]'
+                    ? 'bg-white/[0.02] border border-[rgba(var(--primary-rgb),0.15)] shadow-[0_0_15px_rgba(var(--primary-rgb),0.05)]'
                     : 'border border-transparent border-b-white/[0.06]'
                   }
                 `}
@@ -92,18 +92,20 @@ export default function FAQSection() {
                   <span
                     className={`text-[14px] font-medium transition-colors duration-200 ${
                       isOpen
-                        ? 'text-amber-200'
-                        : 'text-white group-hover:text-amber-200'
+                        ? ''
+                        : 'text-white group-hover:text-[var(--primary-light)]'
                     }`}
+                    style={isOpen ? { color: 'var(--primary-light)' } : undefined}
                   >
                     {faq.question}
                   </span>
 
                   {/* Chevron icon */}
                   <span
-                    className={`flex-shrink-0 ml-4 text-amber-500 transition-transform duration-300 ${
+                    className={`flex-shrink-0 ml-4 transition-transform duration-300 ${
                       isOpen ? 'rotate-180' : 'rotate-0'
                     }`}
+                    style={{ color: 'var(--primary)' }}
                   >
                     <svg
                       width="16"
@@ -147,7 +149,8 @@ export default function FAQSection() {
             Still have questions?{' '}
             <a
               href="mailto:ryad.bouderga78@gmail.com"
-              className="text-amber-400/70 hover:text-amber-300 transition-colors underline underline-offset-2"
+              className="hover:text-[var(--primary-light)] transition-colors underline underline-offset-2"
+              style={{ color: 'rgba(var(--primary-light-rgb), 0.7)' }}
             >
               Contact us
             </a>

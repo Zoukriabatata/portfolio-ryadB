@@ -31,12 +31,17 @@
   --primary-light: #34d399;
   --primary-dark: #059669;
   --primary-glow: rgba(16, 185, 129, 0.15);
+  --primary-rgb: 16, 185, 129;
+  --primary-light-rgb: 52, 211, 153;
+  --primary-dark-rgb: 5, 150, 105;
 
   /* === ACCENT (Cyan) === */
   --accent: #06b6d4;
   --accent-light: #22d3ee;
   --accent-dark: #0891b2;
   --accent-glow: rgba(6, 182, 212, 0.15);
+  --accent-rgb: 6, 182, 212;
+  --accent-light-rgb: 34, 211, 238;
 
   /* === SEMANTIC COLORS === */
   --success: #22c55e;
