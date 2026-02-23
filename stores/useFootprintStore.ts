@@ -10,6 +10,7 @@ import type {
 import { DEFAULT_FOOTPRINT_SETTINGS, DEFAULT_STYLE_CONFIG } from '@/types/footprint';
 import { detectCandleImbalances, detectStackedImbalances } from '@/lib/calculations/imbalance';
 import { AbsorptionTracker } from '@/lib/calculations/absorption';
+import { useMicrostructureStore } from '@/stores/useMicrostructureStore';
 
 export interface FootprintLevel {
   price: number;
@@ -133,9 +134,11 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
     // Track if this is a new candle - O(1) Map lookup instead of O(n) find()
     const isNewCandle = !candleMap.has(candleTime);
 
-    // If new candle, add previous candle's POC to naked POCs
+    // If new candle, finalize previous candle's microstructure signals
     if (isNewCandle && candles.length > 0) {
       const prevCandle = candles[candles.length - 1];
+      // Kalman filter + NormalizedDelta update on candle close
+      useMicrostructureStore.getState().onCandleClose(prevCandle.totalDelta);
       if (prevCandle.poc > 0) {
         const pocVolume = prevCandle.levels.get(prevCandle.poc);
         const newNakedPOC: NakedPOC = {
@@ -268,6 +271,13 @@ export const useFootprintStore = create<FootprintState>((set, get) => ({
         newCandleMap.set(c.time, c);
       }
     }
+
+    // Feed tick to microstructure engine (VPIN volume bucketing)
+    useMicrostructureStore.getState().processTick({
+      quantity: trade.quantity,
+      isBuyerMaker: trade.isBuyerMaker,
+      timestamp: trade.time,
+    });
 
     // Single batched set() - previously 3 separate set() calls per trade
     set({
