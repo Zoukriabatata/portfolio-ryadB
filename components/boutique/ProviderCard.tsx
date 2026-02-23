@@ -15,7 +15,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
 
 const STATUS_COLORS: Record<DataFeedStatus, { bg: string; text: string; label: string }> = {
   connected: { bg: 'var(--success-bg)', text: 'var(--success)', label: 'boutique.connected' },
-  configured: { bg: 'var(--info-bg)', text: 'var(--info)', label: 'boutique.configured' },
+  configured: { bg: 'var(--surface-elevated)', text: 'var(--text-muted)', label: 'boutique.notConfigured' }, // treat as not_configured
   not_configured: { bg: 'var(--surface-elevated)', text: 'var(--text-muted)', label: 'boutique.notConfigured' },
   error: { bg: 'var(--error-bg)', text: 'var(--error)', label: 'boutique.error' },
 };
@@ -127,15 +127,15 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
         onClick={() => onConfigure(provider.id)}
         className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
         style={{
-          background: status === 'connected' ? `${provider.color}20` : provider.color,
-          color: status === 'connected' ? provider.color : 'var(--primary-foreground, #000)',
+          background: status === 'connected' ? `${provider.color}20` : status === 'error' ? 'rgba(239,68,68,0.15)' : provider.color,
+          color: status === 'connected' ? provider.color : status === 'error' ? '#ef4444' : 'var(--primary-foreground, #000)',
         }}
       >
         {status === 'connected'
-          ? t('boutique.connected')
-          : status === 'configured'
-            ? t('boutique.connect')
-            : t('boutique.configure')}
+          ? `${t('boutique.connected')} \u2713`
+          : status === 'error'
+            ? 'Retry'
+            : 'Connect'}
       </button>
     </div>
   );

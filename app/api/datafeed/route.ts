@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         port: port ? parseInt(port, 10) : null,
         username: username || null,
         apiKey: apiKey || null,
-        status: 'CONFIGURED',
+        status: 'CONNECTED',
       },
       create: {
         userId: session.user.id,
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         port: port ? parseInt(port, 10) : null,
         username: username || null,
         apiKey: apiKey || null,
-        status: 'CONFIGURED',
+        status: 'CONNECTED',
       },
     });
 
