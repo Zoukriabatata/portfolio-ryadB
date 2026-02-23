@@ -152,14 +152,14 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
         role="dialog"
         aria-modal="true"
         aria-label={`${provider.name} connection`}
-        className="w-full max-w-md rounded-2xl p-6"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        className="w-full max-w-md rounded-2xl p-6 animate-fadeIn"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' }}
       >
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: `${provider.color}18` }}
+            className="w-11 h-11 rounded-xl flex items-center justify-center"
+            style={{ background: `${provider.color}15`, border: `1px solid ${provider.color}25` }}
           >
             {Icon && <Icon size={22} />}
           </div>

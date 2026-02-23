@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
@@ -11,11 +11,11 @@ import ComparisonTable from '@/components/boutique/ComparisonTable';
 
 type FilterCategory = ProviderCategory | 'all';
 
-const CATEGORY_TABS: { key: FilterCategory; labelKey: string }[] = [
-  { key: 'all', labelKey: 'boutique.allProviders' },
-  { key: 'crypto', labelKey: 'boutique.crypto' },
-  { key: 'futures', labelKey: 'boutique.futures' },
-  { key: 'multi-asset', labelKey: 'boutique.multiAsset' },
+const CATEGORY_TABS: { key: FilterCategory; labelKey: string; icon: string }[] = [
+  { key: 'all', labelKey: 'boutique.allProviders', icon: '' },
+  { key: 'crypto', labelKey: 'boutique.crypto', icon: '' },
+  { key: 'futures', labelKey: 'boutique.futures', icon: '' },
+  { key: 'multi-asset', labelKey: 'boutique.multiAsset', icon: '' },
 ];
 
 const FAQ_ITEMS: { qKey: string; aKey: string }[] = [
@@ -36,78 +36,87 @@ export default function BoutiquePage() {
 
   const userTier = (session?.user as any)?.tier || 'FREE';
 
-  const filtered = category === 'all'
-    ? DATA_FEED_PROVIDERS
-    : DATA_FEED_PROVIDERS.filter(p => p.category === category);
+  const filtered = useMemo(() =>
+    category === 'all'
+      ? DATA_FEED_PROVIDERS
+      : DATA_FEED_PROVIDERS.filter(p => p.category === category),
+    [category]
+  );
 
   const activeProvider = configureProvider
     ? DATA_FEED_PROVIDERS.find(p => p.id === configureProvider)
     : null;
 
   const connectedCount = Object.values(configs).filter(c => c.status === 'connected').length;
+  const totalProviders = DATA_FEED_PROVIDERS.length;
 
   return (
     <div
       className="h-full overflow-y-auto"
       style={{ background: 'var(--background)', color: 'var(--text-primary)' }}
     >
-      {/* Animated gradient orbs — use CSS variables for theme compatibility */}
+      {/* Subtle gradient background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full"
-          style={{ background: 'radial-gradient(circle, var(--success-bg) 0%, transparent 70%)', animation: 'pulse 8s ease-in-out infinite' }} />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full"
-          style={{ background: 'radial-gradient(circle, var(--info-bg) 0%, transparent 70%)', animation: 'pulse 10s ease-in-out infinite 2s' }} />
-        <div className="absolute top-[30%] right-[10%] w-[40vw] h-[40vw] rounded-full"
-          style={{ background: 'radial-gradient(circle, var(--warning-bg) 0%, transparent 70%)', animation: 'pulse 12s ease-in-out infinite 4s' }} />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120vw] h-[50vh] opacity-30"
+          style={{ background: 'radial-gradient(ellipse at center top, var(--primary-glow) 0%, transparent 70%)' }} />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Hero Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-[var(--success)] to-[var(--primary)] bg-clip-text text-transparent">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium mb-4"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--primary)' }} />
+            {totalProviders} data sources available
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight">
+            <span className="bg-gradient-to-r from-[var(--primary-light)] via-[var(--primary)] to-[var(--accent)] bg-clip-text text-transparent">
               {t('boutique.title')}
             </span>
           </h1>
-          <p className="text-base sm:text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm sm:text-base max-w-lg mx-auto" style={{ color: 'var(--text-muted)' }}>
             {t('boutique.subtitle')}
           </p>
 
-          {/* Stats bar */}
+          {/* Connection status */}
           {connectedCount > 0 && (
-            <div className="flex items-center justify-center gap-6 mt-6">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  {connectedCount} {connectedCount === 1 ? 'feed connected' : 'feeds connected'}
-                </span>
-              </div>
+            <div className="inline-flex items-center gap-2 mt-5 px-4 py-2 rounded-full text-xs font-medium"
+              style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', color: 'var(--success)' }}>
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--success)' }} />
+              {connectedCount} {connectedCount === 1 ? 'feed connected' : 'feeds connected'}
             </div>
           )}
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex items-center justify-center gap-2 mb-10">
-          {CATEGORY_TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setCategory(tab.key)}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-              style={{
-                background: category === tab.key ? 'var(--primary)' : 'var(--surface)',
-                color: category === tab.key ? 'var(--primary-foreground, #000)' : 'var(--text-secondary)',
-                border: category === tab.key ? 'none' : '1px solid var(--border)',
-              }}
-            >
-              {t(tab.labelKey as any)}
-            </button>
-          ))}
+        {/* Category filter */}
+        <div className="flex items-center justify-center mb-8">
+          <div className="inline-flex rounded-xl p-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            {CATEGORY_TABS.map(tab => {
+              const isActive = category === tab.key;
+              const count = tab.key === 'all'
+                ? DATA_FEED_PROVIDERS.length
+                : DATA_FEED_PROVIDERS.filter(p => p.category === tab.key).length;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setCategory(tab.key)}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: isActive ? 'var(--primary)' : 'transparent',
+                    color: isActive ? 'var(--primary-foreground, #000)' : 'var(--text-muted)',
+                  }}
+                >
+                  {t(tab.labelKey as any)} <span className="opacity-60">({count})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Provider Cards Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-12 sm:mb-20">
-          {filtered.map(provider => (
-            <div key={provider.id} className="stagger-fade-up">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
+          {filtered.map((provider, i) => (
+            <div key={provider.id} className="animate-fadeIn" style={{ animationDelay: `${i * 50}ms` }}>
               <ProviderCard
                 provider={provider}
                 status={configs[provider.id]?.status || 'not_configured'}
@@ -118,39 +127,77 @@ export default function BoutiquePage() {
           ))}
         </div>
 
+        {/* Quick connect banner */}
+        {connectedCount === 0 && (
+          <div className="rounded-2xl p-6 mb-16 text-center"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Get started in seconds
+              </h3>
+            </div>
+            <p className="text-xs max-w-md mx-auto mb-4" style={{ color: 'var(--text-muted)' }}>
+              Crypto feeds (Binance, Bybit, Deribit) connect instantly with no credentials.
+              Click Connect on any crypto provider to start streaming real-time data.
+            </p>
+            <button
+              onClick={() => setConfigureProvider('binance')}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold transition-all hover:brightness-110 active:scale-[0.98]"
+              style={{ background: '#F0B90B', color: '#000' }}
+            >
+              Connect Binance
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Comparison Table */}
-        <div className="mb-20">
-          <h2 className="text-2xl font-bold text-center mb-8" style={{ color: 'var(--text-primary)' }}>
-            {t('boutique.comparison')}
-          </h2>
+        <div className="mb-16">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
+            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+              {t('boutique.comparison')}
+            </h2>
+            <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
+          </div>
           <ComparisonTable />
         </div>
 
         {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto mb-20">
-          <h2 className="text-2xl font-bold text-center mb-8" style={{ color: 'var(--text-primary)' }}>
-            {t('boutique.faq')}
-          </h2>
-          <div className="space-y-3">
+        <div className="max-w-2xl mx-auto mb-16">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
+            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+              {t('boutique.faq')}
+            </h2>
+            <div className="h-px flex-1 max-w-[60px]" style={{ background: 'var(--border)' }} />
+          </div>
+          <div className="space-y-2">
             {FAQ_ITEMS.map((item, i) => (
               <details
                 key={i}
-                className="stagger-fade-up group rounded-xl"
+                className="group rounded-xl"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
                 <summary
-                  className="flex items-center justify-between px-5 py-4 cursor-pointer list-none"
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  <span className="text-sm font-medium pr-4">{t(item.qKey as any)}</span>
+                  <span className="text-xs font-medium pr-4">{t(item.qKey as any)}</span>
                   <span
-                    className="shrink-0 text-lg transition-transform group-open:rotate-45"
-                    style={{ color: 'var(--text-muted)' }}
+                    className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-xs transition-all group-open:rotate-45"
+                    style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
                   >
                     +
                   </span>
                 </summary>
-                <div className="px-5 pb-4 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                <div className="px-4 pb-3 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                   {t(item.aKey as any)}
                 </div>
               </details>
@@ -158,27 +205,21 @@ export default function BoutiquePage() {
           </div>
         </div>
 
-        {/* Info section */}
-        <div className="max-w-2xl mx-auto text-center pb-12">
-          <div
-            className="rounded-2xl p-8"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <div className="text-3xl mb-4">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" className="mx-auto">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        {/* Footer info */}
+        <div className="max-w-lg mx-auto text-center pb-8">
+          <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" className="mx-auto mb-3">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               What are data feeds?
             </h3>
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Data feeds provide real-time market data streams directly from exchanges and data providers.
-              They power the order flow analysis, footprint charts, liquidity heatmaps, and all trading features
-              on this platform. Free crypto feeds connect instantly. Professional futures feeds require an account
-              with the data provider and may involve additional exchange subscription fees.
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Data feeds provide real-time market data from exchanges. They power order flow analysis,
+              footprint charts, heatmaps, and all trading features on this platform.
+              Free crypto feeds connect instantly. Futures feeds require a broker account.
             </p>
           </div>
         </div>
