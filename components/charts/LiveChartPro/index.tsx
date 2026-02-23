@@ -427,19 +427,21 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div
-          className="flex items-center px-3 py-1.5 border-b gap-0"
-          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
+          className="flex items-center px-2 py-1 border-b gap-0"
+          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36 }}
         >
           {/* Group 1: Symbol & Price */}
-          <div className="flex items-center gap-3 pr-3" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
+          <div className="flex items-center gap-2.5 pr-2.5" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
             <div className="relative">
               <button
                 onClick={() => symbolData.setShowSymbolSearch(!symbolData.showSymbolSearch)}
-                className="flex items-center gap-2 text-sm font-bold rounded px-3 py-1.5 border focus:outline-none hover:bg-opacity-80 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-bold rounded px-2 py-1 border focus:outline-none hover:bg-opacity-80 transition-colors"
                 style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.text }}
               >
                 <span>{symbolData.selectedSymbolLabel}</span>
-                <span style={{ color: theme.colors.textMuted }}>▼</span>
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={theme.colors.textMuted} strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
               </button>
 
               {/* Symbol Search Modal */}
@@ -537,19 +539,19 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
               )}
             </div>
 
-            <span ref={refs.price} className="text-xl font-mono font-bold" style={{ color: theme.colors.text }}>$0.00</span>
+            <span ref={refs.price} className="text-base font-mono font-bold tabular-nums" style={{ color: theme.colors.text }}>$0.00</span>
 
             {/* Price Position Indicator */}
-            <div ref={refs.pricePosition} className="relative w-5 h-7 rounded border overflow-hidden" style={{ backgroundColor: '#1a1a1a', borderColor: theme.colors.border }} data-tooltip="Session Range" data-tooltip-pos="top">
+            <div ref={refs.pricePosition} className="relative w-4 h-6 rounded border overflow-hidden" style={{ backgroundColor: '#1a1a1a', borderColor: theme.colors.border }} data-tooltip="Session Range" data-tooltip-pos="top">
               <div ref={refs.pricePositionBar} className="absolute inset-x-0 bottom-0 w-full transition-all duration-300" style={{ height: '50%', background: 'linear-gradient(to top, #eab30860, #eab30820)' }} />
               <div className="position-line absolute left-0 right-0 h-0.5 transition-all duration-300" style={{ bottom: '50%', backgroundColor: '#eab308', boxShadow: '0 0 4px #eab308' }} />
             </div>
 
             {/* Active Indicators Pills */}
             {indicatorConfigs.filter(i => i.enabled).length > 0 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 {indicatorConfigs.filter(i => i.enabled).map(ind => (
-                  <span key={ind.id} className="px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: ind.style.color + '33', color: ind.style.color }}>
+                  <span key={ind.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: ind.style.color + '22', color: ind.style.color }}>
                     {ind.type}{ind.params.period ? `(${ind.params.period})` : ''}
                   </span>
                 ))}
@@ -558,14 +560,14 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           </div>
 
           {/* Group 2: Timeframes */}
-          <div className="flex items-center gap-1 px-3" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
+          <div className="flex items-center gap-0.5 px-2.5" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
             {Object.entries(TF_GROUPS).map(([group, tfs]) => (
-              <div key={group} className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: theme.colors.background }}>
+              <div key={group} className="flex items-center rounded p-px mr-0.5" style={{ backgroundColor: theme.colors.background }}>
                 {tfs.map((tf) => (
                   <button
                     key={tf}
                     onClick={() => symbolData.handleTimeframeChange(tf)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${symbolData.timeframe === tf ? '' : 'hover:scale-105 active:scale-95 hover:bg-white/5'}`}
+                    className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-all duration-150 ${symbolData.timeframe === tf ? '' : 'hover:bg-white/5'}`}
                     style={{
                       backgroundColor: symbolData.timeframe === tf ? theme.colors.toolActive : 'transparent',
                       color: symbolData.timeframe === tf ? '#fff' : theme.colors.textSecondary,
@@ -580,16 +582,16 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           </div>
 
           {/* Group 3: Controls */}
-          <div className="flex items-center gap-2 pl-3 ml-auto">
+          <div className="flex items-center gap-1 pl-2.5 ml-auto">
             <MagnetToggle theme={theme} />
 
             <button
               onClick={() => settings.setShowCustomizePanel(!settings.showCustomizePanel)}
               data-tooltip="Customize Colors"
-              className="w-8 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+              className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95"
               style={{ backgroundColor: settings.showCustomizePanel ? theme.colors.toolActive : 'transparent', color: settings.showCustomizePanel ? '#fff' : theme.colors.textSecondary }}
             >
-              <SettingsIcon size={16} color={settings.showCustomizePanel ? '#fff' : theme.colors.textSecondary} />
+              <SettingsIcon size={14} color={settings.showCustomizePanel ? '#fff' : theme.colors.textSecondary} />
             </button>
 
             {/* Indicators Toggle */}
@@ -597,10 +599,10 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
               <button
                 onClick={() => setShowIndicatorMenu(!showIndicatorMenu)}
                 data-tooltip="Indicators"
-                className="w-8 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+                className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95"
                 style={{ backgroundColor: indicatorConfigs.some(i => i.enabled) ? '#8b5cf6' : 'transparent', color: indicatorConfigs.some(i => i.enabled) ? '#fff' : theme.colors.textSecondary }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
               </button>
               {showIndicatorMenu && (
                 <>
@@ -623,26 +625,26 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
             </div>
 
             {/* Depth Heatmap Toggle */}
-            <button onClick={() => setShowDepthMap(!showDepthMap)} data-tooltip="Depth Map" className="w-8 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 hover:scale-105 active:scale-95" style={{ backgroundColor: showDepthMap ? '#06b6d4' : 'transparent', color: showDepthMap ? '#fff' : theme.colors.textSecondary }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
+            <button onClick={() => setShowDepthMap(!showDepthMap)} data-tooltip="Depth Map" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showDepthMap ? '#06b6d4' : 'transparent', color: showDepthMap ? '#fff' : theme.colors.textSecondary }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
             </button>
 
             {/* Trade Toggle */}
-            <button onClick={() => setShowTradeBar(!showTradeBar)} data-tooltip="Quick Trade" className="w-8 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 hover:scale-105 active:scale-95" style={{ backgroundColor: showTradeBar ? '#7c3aed' : 'transparent', color: showTradeBar ? '#fff' : theme.colors.textSecondary }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+            <button onClick={() => setShowTradeBar(!showTradeBar)} data-tooltip="Quick Trade" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showTradeBar ? '#7c3aed' : 'transparent', color: showTradeBar ? '#fff' : theme.colors.textSecondary }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
             </button>
 
             {/* Global Settings */}
-            <button onClick={() => settings.setShowGlobalSettings(true)} data-tooltip="Settings" className="w-8 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 hover:scale-105 active:scale-95" style={{ color: theme.colors.textSecondary }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
+            <button onClick={() => settings.setShowGlobalSettings(true)} data-tooltip="Settings" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ color: theme.colors.textSecondary }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
             </button>
 
-            <div className="w-px h-5" style={{ backgroundColor: theme.colors.border }} />
+            <div className="w-px h-4" style={{ backgroundColor: theme.colors.border }} />
 
             {/* Theme Selector */}
             <div className="relative">
-              <button onClick={() => setShowThemePanel(!showThemePanel)} className="px-2 py-1 rounded text-xs border transition-colors" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textSecondary }}>
-                🎨 {THEMES.find(t => t.id === themeId)?.name}
+              <button onClick={() => setShowThemePanel(!showThemePanel)} className="px-1.5 py-0.5 rounded text-[11px] border transition-colors" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textSecondary }}>
+                {THEMES.find(t => t.id === themeId)?.name}
               </button>
               {showThemePanel && (
                 <div className="absolute top-full right-0 mt-1 rounded-lg shadow-2xl z-50 p-1.5 min-w-[160px] animate-slideDown" style={{ backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}>
@@ -661,9 +663,9 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
               )}
             </div>
 
-            <div className="flex items-center gap-2 text-xs" style={{ color: theme.colors.textMuted }}>
-              <span ref={refs.tickCount}>0</span>
-              <div ref={refs.statusDot} className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.colors.textMuted }} />
+            <div className="flex items-center gap-1.5 text-[10px]" style={{ color: theme.colors.textMuted }}>
+              <span ref={refs.tickCount} className="font-mono tabular-nums">0</span>
+              <div ref={refs.statusDot} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.colors.textMuted }} />
             </div>
           </div>
         </div>
