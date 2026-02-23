@@ -34,6 +34,11 @@ export interface SharedRefs {
   sessionLow: MutableRefObject<number>;
   pricePosition: MutableRefObject<HTMLDivElement | null>;
   pricePositionBar: MutableRefObject<HTMLDivElement | null>;
+  ohlcOpen: MutableRefObject<HTMLSpanElement | null>;
+  ohlcHigh: MutableRefObject<HTMLSpanElement | null>;
+  ohlcLow: MutableRefObject<HTMLSpanElement | null>;
+  ohlcClose: MutableRefObject<HTMLSpanElement | null>;
+  footerVolume: MutableRefObject<HTMLSpanElement | null>;
 }
 
 export interface CustomColors {

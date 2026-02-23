@@ -1,13 +1,13 @@
 /**
  * FUTURES METRICS WIDGET
  *
- * Panneau latéral affichant les données futures en temps réel :
+ * Sidebar panel showing real-time futures data:
  * - Mark Price / Index Price
  * - Funding Rate + countdown
  * - Open Interest + mini chart
- * - Long/Short Ratio + barre visuelle
+ * - Long/Short Ratio + visual bar
  * - Top Traders L/S
- * - Liquidations récentes
+ * - Recent Liquidations
  */
 
 'use client';
@@ -63,7 +63,7 @@ export default function FuturesMetricsWidget() {
   const shortPct = globalShortAccount * 100;
 
   // OI mini chart
-  const oiChartHeight = 40;
+  const oiChartHeight = 52;
   const oiPoints = useMemo(() => {
     if (openInterestHistory.length < 2) return '';
     const values = openInterestHistory.map(p => p.value);
@@ -78,7 +78,7 @@ export default function FuturesMetricsWidget() {
   }, [openInterestHistory]);
 
   // Long/Short history sparkline
-  const lsChartHeight = 32;
+  const lsChartHeight = 40;
   const lsPoints = useMemo(() => {
     if (longShortHistory.length < 2) return '';
     const values = longShortHistory.map(p => p.ratio);
@@ -122,7 +122,7 @@ export default function FuturesMetricsWidget() {
           ) : (
             <>
               <div className="w-6 h-6 border-2 border-[var(--border-light)] border-t-transparent rounded-full animate-spin" />
-              <span>Connexion futures...</span>
+              <span>Loading futures data...</span>
             </>
           )}
         </div>
@@ -188,13 +188,23 @@ export default function FuturesMetricsWidget() {
           </div>
         </div>
         {openInterestHistory.length > 1 && (
-          <div className="h-[40px] bg-[var(--background)]/50 rounded overflow-hidden">
+          <div className="h-[52px] bg-[var(--background)]/50 rounded overflow-hidden">
             <svg
               viewBox={`0 0 100 ${oiChartHeight}`}
               preserveAspectRatio="none"
               className="w-full h-full"
               aria-label="Open Interest chart"
             >
+              <defs>
+                <linearGradient id="oiAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--info)" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="var(--info)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <polygon
+                fill="url(#oiAreaGrad)"
+                points={`0,${oiChartHeight} ${oiPoints} 100,${oiChartHeight}`}
+              />
               <polyline
                 fill="none"
                 stroke="var(--info)"
@@ -230,7 +240,7 @@ export default function FuturesMetricsWidget() {
         </div>
         {/* L/S Ratio history sparkline */}
         {longShortHistory.length > 1 && (
-          <div className="h-[32px] mt-1.5 bg-[var(--background)]/50 rounded overflow-hidden">
+          <div className="h-[40px] mt-1.5 bg-[var(--background)]/50 rounded overflow-hidden">
             <svg
               viewBox={`0 0 100 ${lsChartHeight}`}
               preserveAspectRatio="none"
@@ -260,11 +270,23 @@ export default function FuturesMetricsWidget() {
       </div>
 
       {/* Liquidations */}
-      <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
+      <div
+        className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5 transition-shadow duration-500"
+        style={{
+          boxShadow: recentLiqCount > 3
+            ? '0 0 12px rgba(234,179,8,0.2), inset 0 0 12px rgba(234,179,8,0.05)'
+            : 'none',
+        }}
+      >
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[var(--text-muted)]">Liquidations</span>
-          <span className={`font-mono text-[10px] ${recentLiqCount > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-dimmed)]'}`}>
-            {recentLiqCount > 0 ? `${recentLiqCount} (1m)` : 'aucune'}
+          <span
+            className={`font-mono text-[10px] ${recentLiqCount > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-dimmed)]'}`}
+            style={{
+              animation: recentLiqCount > 3 ? 'pulse 1.5s ease-in-out infinite' : 'none',
+            }}
+          >
+            {recentLiqCount > 0 ? `${recentLiqCount} (1m)` : 'none'}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-2">
