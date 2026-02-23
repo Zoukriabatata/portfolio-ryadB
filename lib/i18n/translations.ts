@@ -160,6 +160,13 @@ const en = {
   'boutique.faqMultipleAnswer': 'Yes! You can connect multiple providers at the same time. For example, use Binance for crypto and Rithmic for futures simultaneously.',
   'boutique.faqDifference': 'What is the difference between free and paid data?',
   'boutique.faqDifferenceAnswer': 'Free crypto feeds provide Level 1 and Level 2 orderbook data via public APIs. Paid futures feeds (Rithmic, CQG, dxFeed) offer deeper market depth, faster tick data, and access to CME/ICE/NYMEX exchanges.',
+  'boutique.howItWorks': 'How It Works',
+  'boutique.step1Title': 'Choose',
+  'boutique.step1Desc': 'Pick a data feed from crypto exchanges or futures providers.',
+  'boutique.step2Title': 'Configure',
+  'boutique.step2Desc': 'Enter credentials if needed — crypto feeds connect instantly.',
+  'boutique.step3Title': 'Stream',
+  'boutique.step3Desc': 'Real-time orderbook, trades, and options data flow into your charts.',
 };
 
 const fr: Record<TranslationKey, string> = {
@@ -301,6 +308,13 @@ const fr: Record<TranslationKey, string> = {
   'boutique.faqMultipleAnswer': 'Oui ! Vous pouvez connecter plusieurs fournisseurs en même temps. Par exemple, Binance pour le crypto et Rithmic pour les futures.',
   'boutique.faqDifference': 'Quelle différence entre données gratuites et payantes ?',
   'boutique.faqDifferenceAnswer': 'Les flux crypto gratuits fournissent le carnet d\'ordres Level 1 et 2. Les flux futures payants offrent une profondeur de marché supérieure et un accès aux bourses CME/ICE/NYMEX.',
+  'boutique.howItWorks': 'Comment ça marche',
+  'boutique.step1Title': 'Choisir',
+  'boutique.step1Desc': 'Sélectionnez un flux parmi les exchanges crypto ou fournisseurs futures.',
+  'boutique.step2Title': 'Configurer',
+  'boutique.step2Desc': 'Entrez vos identifiants si nécessaire — les flux crypto se connectent instantanément.',
+  'boutique.step3Title': 'Streamer',
+  'boutique.step3Desc': 'Le carnet d\'ordres, les trades et les options affluent en temps réel dans vos graphiques.',
 };
 
 const es: Record<TranslationKey, string> = {
@@ -370,6 +384,13 @@ const es: Record<TranslationKey, string> = {
   'boutique.faqMultipleAnswer': 'Sí, puedes conectar varios proveedores al mismo tiempo.',
   'boutique.faqDifference': '¿Diferencia entre datos gratuitos y pagos?',
   'boutique.faqDifferenceAnswer': 'Los feeds crypto gratuitos ofrecen orderbook L1/L2. Los feeds pagos ofrecen mayor profundidad y acceso a CME/ICE.',
+  'boutique.howItWorks': 'Cómo funciona',
+  'boutique.step1Title': 'Elegir',
+  'boutique.step1Desc': 'Elige un feed de exchanges crypto o proveedores de futuros.',
+  'boutique.step2Title': 'Configurar',
+  'boutique.step2Desc': 'Ingresa credenciales si es necesario — los feeds crypto se conectan al instante.',
+  'boutique.step3Title': 'Transmitir',
+  'boutique.step3Desc': 'Datos de orderbook, trades y opciones fluyen en tiempo real a tus gráficos.',
 };
 
 const de: Record<TranslationKey, string> = {
@@ -439,6 +460,13 @@ const de: Record<TranslationKey, string> = {
   'boutique.faqMultipleAnswer': 'Ja, mehrere Anbieter können gleichzeitig verbunden werden.',
   'boutique.faqDifference': 'Unterschied zwischen kostenlosen und bezahlten Daten?',
   'boutique.faqDifferenceAnswer': 'Kostenlose Krypto-Feeds bieten L1/L2 Orderbuch. Bezahlte Futures-Feeds bieten tiefere Markttiefe.',
+  'boutique.howItWorks': 'So funktioniert es',
+  'boutique.step1Title': 'Wählen',
+  'boutique.step1Desc': 'Wähle einen Feed von Krypto-Börsen oder Futures-Anbietern.',
+  'boutique.step2Title': 'Konfigurieren',
+  'boutique.step2Desc': 'Anmeldedaten eingeben falls nötig — Krypto-Feeds verbinden sofort.',
+  'boutique.step3Title': 'Streamen',
+  'boutique.step3Desc': 'Echtzeit-Orderbuch, Trades und Optionsdaten fließen in deine Charts.',
 };
 
 const ar: Record<TranslationKey, string> = {
@@ -508,6 +536,13 @@ const ar: Record<TranslationKey, string> = {
   'boutique.faqMultipleAnswer': 'نعم، يمكنك توصيل عدة مزودين في نفس الوقت.',
   'boutique.faqDifference': 'ما الفرق بين البيانات المجانية والمدفوعة؟',
   'boutique.faqDifferenceAnswer': 'البيانات المجانية توفر دفتر أوامر L1/L2. البيانات المدفوعة توفر عمقاً أكبر في السوق.',
+  'boutique.howItWorks': 'كيف يعمل',
+  'boutique.step1Title': 'اختر',
+  'boutique.step1Desc': 'اختر مصدر بيانات من بورصات الكريبتو أو مزودي العقود الآجلة.',
+  'boutique.step2Title': 'إعداد',
+  'boutique.step2Desc': 'أدخل بيانات الاعتماد إذا لزم الأمر — بيانات الكريبتو تتصل فوراً.',
+  'boutique.step3Title': 'بث',
+  'boutique.step3Desc': 'بيانات دفتر الأوامر والصفقات والخيارات تتدفق في الوقت الفعلي.',
 };
 
 const translations: Record<SupportedLanguage, Record<TranslationKey, string>> = {

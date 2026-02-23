@@ -36,13 +36,14 @@ export default function ComparisonTable() {
         style={{ background: 'linear-gradient(to left, var(--surface), transparent)' }} />
       <div className="min-w-[700px]">
         {/* Header row */}
-        <div className="flex" style={{ background: 'var(--surface-elevated)' }}>
-          <div className="w-32 shrink-0 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider"
+        <div className="flex sticky top-0 z-10" style={{ background: 'var(--surface-elevated)' }}>
+          <div className="w-36 shrink-0 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-muted)' }}>
             Feature
           </div>
           {DATA_FEED_PROVIDERS.map(p => (
-            <div key={p.id} className="flex-1 min-w-[65px] px-1 py-2.5 text-center">
+            <div key={p.id} className="flex-1 min-w-[78px] px-1 py-2.5 flex flex-col items-center gap-1">
+              <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
               <span className="text-[10px] font-bold" style={{ color: p.color }}>
                 {p.name.split(' ')[0]}
               </span>
@@ -60,13 +61,13 @@ export default function ComparisonTable() {
               borderTop: '1px solid var(--border)',
             }}
           >
-            <div className="w-32 shrink-0 px-3 py-2 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <div className="w-36 shrink-0 px-3 py-2 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
               {feature.label}
             </div>
             {DATA_FEED_PROVIDERS.map(p => {
               const val = hasFeature(p.name, feature.key);
               return (
-                <div key={p.id} className="flex-1 min-w-[65px] px-1 py-2 text-center">
+                <div key={p.id} className="flex-1 min-w-[78px] px-1 py-2 text-center">
                   {val === true ? (
                     <span className="inline-flex w-4 h-4 rounded-full items-center justify-center text-[9px]"
                       style={{ background: `${p.color}15`, color: p.color }}>

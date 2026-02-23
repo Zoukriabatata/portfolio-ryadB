@@ -144,15 +144,15 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-overlay"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`${provider.name} connection`}
-        className="w-full max-w-md rounded-2xl p-6 animate-fadeIn"
+        className="w-full max-w-md rounded-2xl p-6 animate-modal-content"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' }}
       >
         {/* Header */}
@@ -174,7 +174,7 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
           {/* Status pill */}
           {isConnected && mode === 'info' && (
             <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>
+              style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
               Connected
             </span>
           )}
@@ -197,7 +197,7 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
             <div className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface-elevated)' }}>
               <div className="flex items-center justify-between">
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Status</span>
-                <span className="text-xs font-medium" style={{ color: '#22c55e' }}>Active</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>Active</span>
               </div>
               {lastConnected && (
                 <div className="flex items-center justify-between">
@@ -229,7 +229,7 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
               <button
                 onClick={handleDisconnect}
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid color-mix(in srgb, var(--error) 30%, transparent)' }}
               >
                 Disconnect
               </button>
@@ -268,15 +268,15 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
                       value={fields[field.key] || ''}
                       onChange={e => updateField(field.key, e.target.value)}
                       placeholder={field.placeholder}
-                      className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1"
-                      style={{ ...inputStyle, '--tw-ring-color': provider.color } as React.CSSProperties}
+                      className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus-glow"
+                      style={inputStyle}
                     />
                   </div>
                 ))}
 
                 {/* Gateway notice */}
                 {(provider.connectionType === 'Local Gateway' || provider.connectionType === 'TWS Gateway' || provider.connectionType === 'Gateway') && (
-                  <div className="rounded-lg p-3 text-xs" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+                  <div className="rounded-lg p-3 text-xs" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
                     {t('boutique.requiresGateway')} — Make sure your local gateway is running before connecting.
                   </div>
                 )}
@@ -311,8 +311,8 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
           <div
             className="mt-3 rounded-lg px-3 py-2 text-xs"
             style={{
-              background: state === 'success' ? 'rgba(34,197,94,0.1)' : state === 'error' ? 'rgba(239,68,68,0.1)' : 'var(--surface-elevated)',
-              color: state === 'success' ? '#22c55e' : state === 'error' ? '#ef4444' : 'var(--text-secondary)',
+              background: state === 'success' ? 'var(--success-bg)' : state === 'error' ? 'var(--error-bg)' : 'var(--surface-elevated)',
+              color: state === 'success' ? 'var(--success)' : state === 'error' ? 'var(--error)' : 'var(--text-secondary)',
             }}
           >
             {message}
