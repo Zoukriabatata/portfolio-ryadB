@@ -45,7 +45,6 @@ export default function BoutiquePage() {
     : null;
 
   const connectedCount = Object.values(configs).filter(c => c.status === 'connected').length;
-  const configuredCount = Object.values(configs).filter(c => c.status === 'configured').length;
 
   return (
     <div
@@ -75,20 +74,14 @@ export default function BoutiquePage() {
           </p>
 
           {/* Stats bar */}
-          {(connectedCount > 0 || configuredCount > 0) && (
+          {connectedCount > 0 && (
             <div className="flex items-center justify-center gap-6 mt-6">
-              {connectedCount > 0 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
-                  <span style={{ color: 'var(--text-secondary)' }}>{connectedCount} connected</span>
-                </div>
-              )}
-              {configuredCount > 0 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full" style={{ background: 'var(--info)' }} />
-                  <span style={{ color: 'var(--text-secondary)' }}>{configuredCount} configured</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {connectedCount} {connectedCount === 1 ? 'feed connected' : 'feeds connected'}
+                </span>
+              </div>
             </div>
           )}
         </div>
