@@ -89,6 +89,8 @@ export class Heatmap3DRenderer {
     this.width = width;
     this.height = height;
     this.ctx.resize(width, height, this.dpr);
+    // Tell regl to re-read the canvas dimensions for its internal viewport
+    this.ctx.regl.poll();
     this.camera.setDirty();
   }
 
@@ -101,6 +103,9 @@ export class Heatmap3DRenderer {
     const aspect = this.width / this.height;
     const vp = this.camera.getViewProjectionMatrix(aspect);
     const time = (Date.now() - this.startTime) / 1000;
+
+    // Sync regl viewport with current canvas size
+    this.ctx.regl.poll();
 
     // Clear color + depth
     this.ctx.regl.clear({
