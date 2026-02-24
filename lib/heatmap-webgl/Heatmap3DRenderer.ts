@@ -60,7 +60,9 @@ export class Heatmap3DRenderer {
 
     this.ctx = new RenderContext(config.canvas);
     this.textureManager = new TextureManager(this.ctx);
-    this.textureManager.setTheme('senzoukria');
+    // Explicitly create gradient textures (setTheme short-circuits when default matches)
+    this.textureManager.createBidGradient();
+    this.textureManager.createAskGradient();
 
     this.camera = new CameraController();
     this.surfaceCommand = new SurfaceMeshCommand(this.ctx, this.textureManager);
