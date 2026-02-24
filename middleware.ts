@@ -157,6 +157,7 @@ export async function middleware(request: NextRequest) {
       process.env.NEXT_PUBLIC_APP_URL,
       'https://senzoukria.com',
       'https://www.senzoukria.com',
+      'https://orderflow-v2.vercel.app',
     ].filter(Boolean) as string[];
 
     // Block CORS preflight from unauthorized origins
@@ -366,6 +367,7 @@ export async function middleware(request: NextRequest) {
       process.env.NEXT_PUBLIC_APP_URL,
       'https://senzoukria.com',
       'https://www.senzoukria.com',
+      'https://orderflow-v2.vercel.app',
     ].filter(Boolean) as string[];
     if (allowedOrigins.some(o => origin.startsWith(o))) {
       response.headers.set('Access-Control-Allow-Origin', origin);
