@@ -29,6 +29,13 @@ const REGULAR_PRICE = 39;
 const ANNUAL_PRICE = 279;
 const LAUNCH_SPOTS = 50;
 
+const PAYMENT_BRANDS = {
+  stripe: { bg: '#635bff', text: '#fff', label: 'S' },
+  paypal: { bg: '#0070ba', text: '#fff', label: 'PP' },
+  revolut: { bg: '#191C1F', text: '#fff', label: 'R' },
+  binance: { bg: '#F0B90B', text: '#000', label: 'B' },
+} as const;
+
 const FREE_FEATURES = [
   'Live crypto charts (Binance)',
   'Basic candlestick charts',
@@ -283,12 +290,14 @@ function PricingContent() {
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-20">
           {/* FREE Card */}
           <div
-            className="stagger-fade-up rounded-2xl p-8 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            className="group stagger-fade-up rounded-2xl flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl overflow-hidden"
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
             }}
           >
+            <div className="h-[2px] w-full" style={{ background: 'var(--border)' }} />
+            <div className="p-8 flex flex-col flex-1">
             <div className="mb-8">
               <h3
                 className="text-xl font-semibold mb-1"
@@ -326,31 +335,33 @@ function PricingContent() {
 
             <Link
               href="/auth/register"
-              className="block w-full py-3 text-center rounded-lg font-semibold transition-colors"
+              className="block w-full py-3 text-center rounded-lg font-semibold transition-all hover:brightness-110"
               style={{
                 background: 'var(--border)',
                 color: 'var(--text-primary)',
               }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover, #1e1e2e)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'var(--border)';
-              }}
             >
               {t('pricing.getStartedFree')}
             </Link>
+            </div>
           </div>
 
           {/* SENULTRA Card */}
           <div
-            className="stagger-fade-up rounded-2xl p-8 flex flex-col relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_40px_var(--primary-glow)]"
+            className="group stagger-fade-up rounded-2xl flex flex-col relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_40px_var(--primary-glow)] overflow-hidden"
             style={{
               background: 'linear-gradient(170deg, var(--success-bg) 0%, var(--surface) 40%)',
               border: '2px solid var(--primary)',
               boxShadow: '0 0 40px rgba(16, 185, 129, 0.08)',
             }}
           >
+            <div className="h-[2px] w-full" style={{ background: 'var(--primary)' }} />
+            {/* Hover glow overlay */}
+            <div
+              className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+              style={{ boxShadow: 'inset 0 0 60px rgba(16,185,129,0.05)' }}
+            />
+            <div className="p-8 flex flex-col flex-1 relative">
             {/* Recommended badge */}
             <div
               className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-5 py-1 text-sm font-semibold rounded-full animate-glowPulse"
@@ -391,7 +402,7 @@ function PricingContent() {
                 </span>
               </div>
               <span className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-bold"
-                style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--primary-light)' }}>
+                style={{ background: 'var(--success-bg)', color: 'var(--primary-light)' }}>
                 LAUNCH PRICE &mdash; {LAUNCH_SPOTS} spots
               </span>
             </div>
@@ -455,6 +466,7 @@ function PricingContent() {
                 Sign Up &amp; Subscribe
               </Link>
             )}
+            </div>
           </div>
         </div>
 
