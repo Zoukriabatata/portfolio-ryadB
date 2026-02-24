@@ -31,20 +31,13 @@ export async function POST(req: NextRequest) {
 
     let avatarUrl: string;
 
-    try {
-      const { put } = await import('@vercel/blob');
-      const blob = await put(
-        `avatars/${session.user.id}/${Date.now()}-avatar`,
-        file,
-        { access: 'public', addRandomSuffix: true }
-      );
-      avatarUrl = blob.url;
-    } catch {
-      // Fallback: base64 data URL
-      const bytes = await file.arrayBuffer();
-      const base64 = Buffer.from(bytes).toString('base64');
-      avatarUrl = `data:${file.type};base64,${base64}`;
-    }
+    const { put } = await import('@vercel/blob');
+    const blob = await put(
+      `avatars/${session.user.id}/${Date.now()}-avatar`,
+      file,
+      { access: 'public', addRandomSuffix: true }
+    );
+    avatarUrl = blob.url;
 
     await prisma.user.update({
       where: { id: session.user.id },
