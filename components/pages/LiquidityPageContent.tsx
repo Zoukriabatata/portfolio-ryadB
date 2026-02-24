@@ -10,7 +10,13 @@ const IBLiquidityView = dynamic(
   { ssr: false }
 );
 
+const Heatmap3D = dynamic(
+  () => import('@/components/charts/Heatmap3D').then(m => ({ default: m.Heatmap3D })),
+  { ssr: false }
+);
+
 type DataSourceType = 'crypto' | 'cme';
+type ViewMode = '2d' | '3d';
 
 // Crypto symbols with approximate base prices and heatmap tick sizes
 const CRYPTO_SYMBOLS = [
@@ -35,6 +41,7 @@ export default function LiquidityPageContent() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [heatmapHeight, setHeatmapHeight] = useState(650);
   const [dataSource, setDataSource] = useState<DataSourceType>('crypto');
+  const [viewMode, setViewMode] = useState<ViewMode>('2d');
   const [symbol, setSymbol] = useState('btcusdt');
   const [ibSymbol, setIBSymbol] = useState('ES');
   const [dataMode, setDataMode] = useState<DataMode>('live');
@@ -92,15 +99,43 @@ export default function LiquidityPageContent() {
         <div>
           <h1 className="text-base font-semibold text-[var(--text-primary)]">Liquidity Heatmap</h1>
           <p className="text-[var(--text-muted)] text-[11px]">
-            Staircase chart + Trade bubbles + Passive orders
+            {viewMode === '2d'
+              ? 'Staircase chart + Trade bubbles + Passive orders'
+              : '3D surface terrain — Orderbook depth visualization'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* 2D / 3D View Toggle */}
+          {dataSource === 'crypto' && (
+            <div className="flex items-center bg-[var(--surface-elevated)] rounded-lg p-0.5 border border-[var(--border-light)]">
+              <button
+                onClick={() => setViewMode('2d')}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  viewMode === '2d'
+                    ? 'bg-[var(--primary-glow)] text-[var(--primary-light)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                2D
+              </button>
+              <button
+                onClick={() => setViewMode('3d')}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  viewMode === '3d'
+                    ? 'bg-cyan-500/20 text-cyan-400'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                3D
+              </button>
+            </div>
+          )}
+
           {/* Data Source Toggle */}
           <div className="flex items-center bg-[var(--surface-elevated)] rounded-lg p-0.5 border border-[var(--border-light)]">
             <button
-              onClick={() => setDataSource('crypto')}
+              onClick={() => { setDataSource('crypto'); }}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                 dataSource === 'crypto'
                   ? 'bg-[var(--primary-glow)] text-[var(--primary-light)]'
@@ -110,7 +145,7 @@ export default function LiquidityPageContent() {
               Crypto
             </button>
             <button
-              onClick={() => setDataSource('cme')}
+              onClick={() => { setDataSource('cme'); setViewMode('2d'); }}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                 dataSource === 'cme'
                   ? 'bg-[var(--accent-glow)] text-[var(--accent-light)]'
@@ -153,14 +188,22 @@ export default function LiquidityPageContent() {
         </div>
       </div>
 
-      {/* Heatmap */}
+      {/* Chart Area */}
       <div
         ref={containerRef}
         className="flex-1 rounded-xl border border-[var(--border)] overflow-hidden min-h-[500px] animate-scaleIn stagger-2"
       >
-        {dataSource === 'crypto' ? (
+        {dataSource === 'crypto' && viewMode === '3d' ? (
+          <Heatmap3D
+            key={`3d-${dataMode}-${symbol}`}
+            height={heatmapHeight}
+            config={config}
+            symbol={symbol}
+            initialMode={dataMode}
+          />
+        ) : dataSource === 'crypto' ? (
           <StaircaseHeatmap
-            key={`${dataMode}-${symbol}`}
+            key={`2d-${dataMode}-${symbol}`}
             height={heatmapHeight}
             config={config}
             symbol={symbol}
