@@ -149,6 +149,11 @@ const PUBLIC_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ─── Fast bypass for auth API routes (no CORS/rate-limit needed) ─────
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
   // ─── CORS + Rate limiting for API routes ─────────
   if (pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin') || '';
