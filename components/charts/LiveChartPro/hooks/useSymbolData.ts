@@ -13,7 +13,7 @@ import { useAlertsStore } from '@/stores/useAlertsStore';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { type AssetCategory, SYMBOL_CATEGORIES_BY_ASSET } from '../constants/symbols';
 import { TF_TO_BINANCE } from '../constants/timeframes';
-import { subdivideCandles } from '../utils/candles';
+import { fetchRealSubCandles } from '../utils/candles';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
 
@@ -69,15 +69,17 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     setLoadingPhase('fetching');
     try {
       if (isCMESymbol(sym)) {
-        // CME historical data requires IB Gateway connection
-        // IB live WS will provide real-time candles once connected
         return [];
+      }
+
+      // Sub-minute: fetch real 1s klines and aggregate into 15s/30s
+      if (tf < 60) {
+        return await fetchRealSubCandles(sym, tf, 300, AbortSignal.timeout(30_000));
       }
 
       const binanceInterval = TF_TO_BINANCE[tf] || '1m';
       const limit = 500;
 
-      // Call via proxy (klines is a public endpoint, no auth required)
       const response = await fetch(
         `/api/binance/api/v3/klines?symbol=${sym.toUpperCase()}&interval=${binanceInterval}&limit=${limit}`,
         { headers: { 'x-market': 'spot' }, signal: AbortSignal.timeout(15_000) }
@@ -89,7 +91,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         return [];
       }
 
-      const candles: LiveCandle[] = data.map((k: (string | number)[]) => ({
+      return data.map((k: (string | number)[]) => ({
         time: Math.floor(Number(k[0]) / 1000),
         open: parseFloat(k[1] as string),
         high: parseFloat(k[2] as string),
@@ -99,13 +101,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         buyVolume: 0,
         sellVolume: 0,
         trades: Number(k[8]),
-      }));
-
-      if (tf < 60) {
-        return subdivideCandles(candles, tf);
-      }
-
-      return candles;
+      })) as LiveCandle[];
     } catch {
       return [];
     } finally {
