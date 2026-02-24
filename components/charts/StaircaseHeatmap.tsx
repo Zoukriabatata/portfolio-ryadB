@@ -379,17 +379,27 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   }, [isActive]);
 
   // PERF: Cache container size (updated on resize only, not every frame)
+  // Uses ResizeObserver to detect container size changes (layout shifts, height prop changes)
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
     const updateSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        containerSizeRef.current = { width: rect.width, height: rect.height };
+      const rect = el.getBoundingClientRect();
+      containerSizeRef.current = { width: rect.width, height: rect.height };
+      // Also resize the WebGL renderer when container size changes
+      if (actuallyUsingWebGL && webglRendererRef.current) {
+        webglRendererRef.current.resize(rect.width, rect.height);
       }
     };
+
     updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, []);
+
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(el);
+
+    return () => ro.disconnect();
+  }, [actuallyUsingWebGL]);
 
   // Render loop (decoupled from React state via stateRef)
   useEffect(() => {
@@ -749,20 +759,26 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, getPriceRange, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
 
-  // Resize
+  // Resize — on window resize AND when height prop changes
   useEffect(() => {
     const handleResize = () => {
-      if (actuallyUsingWebGL && webglRendererRef.current && containerRef.current) {
+      if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        webglRendererRef.current.resize(rect.width, rect.height);
-      } else {
-        rendererRef.current?.resize();
+        if (actuallyUsingWebGL && webglRendererRef.current) {
+          webglRendererRef.current.resize(rect.width, rect.height);
+        } else {
+          rendererRef.current?.resize();
+        }
+        containerSizeRef.current = { width: rect.width, height: rect.height };
       }
     };
 
+    // Resize immediately when height prop changes
+    handleResize();
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [actuallyUsingWebGL]);
+  }, [actuallyUsingWebGL, height]);
 
   // Update passive thickness in renderer
   useEffect(() => {
