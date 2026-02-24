@@ -46,11 +46,8 @@ export const Heatmap3D = React.memo(function Heatmap3D({
   const [showGrid, setShowGrid] = useState(true);
   const [dataMode] = useState<DataMode>(initialMode);
 
-  const { colorScheme, contrast, upperCutoffPercent } = useHeatmapSettingsStore((s) => ({
-    colorScheme: s.colorScheme,
-    contrast: s.contrast,
-    upperCutoffPercent: s.upperCutoffPercent,
-  }));
+  const contrast = useHeatmapSettingsStore((s) => s.contrast);
+  const upperCutoffPercent = useHeatmapSettingsStore((s) => s.upperCutoffPercent);
 
   const tickSize = config?.tickSize || 0.5;
 
