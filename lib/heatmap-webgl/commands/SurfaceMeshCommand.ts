@@ -49,7 +49,7 @@ export class SurfaceMeshCommand {
   private normals: Float32Array | null = null;
   private vertexIntensities: Float32Array | null = null;
   private vertexSides: Float32Array | null = null;
-  private indices: Uint32Array | null = null;
+  private indices: Uint16Array | null = null;
 
   // Current grid dimensions for draw call
   private elementCount: number = 0;
@@ -90,7 +90,7 @@ export class SurfaceMeshCommand {
     }
 
     if (!this.indices || this.indices.length < idxCount) {
-      this.indices = new Uint32Array(idxCount);
+      this.indices = new Uint16Array(idxCount);
     }
 
     const positions = this.positions;
@@ -265,7 +265,7 @@ export class SurfaceMeshCommand {
       this.elementsBuf = regl.elements({
         data: idxData,
         primitive: 'triangles',
-        type: 'uint32',
+        type: 'uint16',
         usage: 'dynamic',
       });
     }
