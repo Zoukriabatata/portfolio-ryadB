@@ -234,7 +234,7 @@ export class Canvas2DOverlay {
     for (const label of labels) {
       if (label.isSessionMarker) {
         // Session marker - vertical dashed line with label
-        ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)'; // Amber
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)'; // Amber accent
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
 
@@ -248,7 +248,7 @@ export class Canvas2DOverlay {
         // Session name label
         if (label.sessionName) {
           ctx.font = `bold ${fontSize - 2}px ${font}`;
-          ctx.fillStyle = '#fbbf24'; // Amber
+          ctx.fillStyle = '#fbbf24'; // Amber accent
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
           ctx.fillText(label.sessionName, label.x, config.height - 22);
@@ -259,7 +259,7 @@ export class Canvas2DOverlay {
       ctx.font = `${fontSize - 1}px ${font}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = label.isSessionMarker ? '#fbbf24' : '#6b7280';
+      ctx.fillStyle = label.isSessionMarker ? '#fbbf24' : '#52525b';
       ctx.fillText(label.time, label.x, y + 2);
     }
   }
@@ -319,9 +319,9 @@ export class Canvas2DOverlay {
   ): void {
     const { ctx, config } = this;
 
-    // Crosshair lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1;
+    // Crosshair lines — subtle
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 0.5;
     ctx.setLineDash([4, 4]);
 
     // Horizontal line
@@ -345,12 +345,12 @@ export class Canvas2DOverlay {
     const labelHeight = config.fontSize + 6;
 
     // Rounded rectangle for price label
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = 'rgba(5, 5, 16, 0.92)';
     this.roundedRect(priceAxisX, y - labelHeight / 2, priceWidth, labelHeight, 3);
     ctx.fill();
 
     // Price label text
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#f4f4f5';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(priceText, priceAxisX + 4, y);
@@ -359,11 +359,11 @@ export class Canvas2DOverlay {
     ctx.font = `${config.fontSize - 1}px ${config.font}`;
     const timeWidth = ctx.measureText(time).width + 8;
 
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = 'rgba(5, 5, 16, 0.92)';
     this.roundedRect(x - timeWidth / 2, config.height - labelHeight, timeWidth, labelHeight, 3);
     ctx.fill();
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#f4f4f5';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(time, x, config.height - labelHeight / 2);
@@ -427,7 +427,7 @@ export class Canvas2DOverlay {
     // Arrow pointer on the left
     const arrowSize = 6;
 
-    ctx.fillStyle = '#22c55e';
+    ctx.fillStyle = 'rgba(244, 244, 245, 0.9)';
     ctx.beginPath();
     // Arrow point
     ctx.moveTo(x - arrowSize, y);
@@ -442,7 +442,7 @@ export class Canvas2DOverlay {
     ctx.fill();
 
     // Text
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = '#050510';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x + 5, y);
@@ -652,12 +652,12 @@ export class Canvas2DOverlay {
 
     for (const label of labels) {
       // Bid volume (left)
-      ctx.fillStyle = '#22c55e';
+      ctx.fillStyle = '#22d3ee';
       ctx.textAlign = 'right';
       ctx.fillText(label.bid.toFixed(0), config.deltaProfileWidth / 2 - 2, label.y);
 
       // Ask volume (right)
-      ctx.fillStyle = '#ef4444';
+      ctx.fillStyle = '#f472b6';
       ctx.textAlign = 'left';
       ctx.fillText(label.ask.toFixed(0), config.deltaProfileWidth / 2 + 2, label.y);
     }
@@ -689,8 +689,8 @@ export class Canvas2DOverlay {
     if (tooltipY + height > config.height) tooltipY = config.height - height;
 
     // Background
-    ctx.fillStyle = 'rgba(24, 24, 27, 0.95)';
-    ctx.strokeStyle = '#3f3f46';
+    ctx.fillStyle = 'rgba(5, 5, 16, 0.92)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
 
     ctx.beginPath();
@@ -725,8 +725,8 @@ export class Canvas2DOverlay {
       const opacity = Math.min(0.9, 0.4 + (marker.ratio / 10) * 0.5);
 
       if (marker.direction === 'bullish') {
-        // Green up-triangle (buyers dominate)
-        ctx.fillStyle = `rgba(34, 197, 94, ${opacity})`;
+        // Cyan up-triangle (buyers dominate)
+        ctx.fillStyle = `rgba(34, 211, 238, ${opacity})`;
         ctx.beginPath();
         ctx.moveTo(x, marker.y - size / 2);
         ctx.lineTo(x + size, marker.y);
@@ -734,8 +734,8 @@ export class Canvas2DOverlay {
         ctx.closePath();
         ctx.fill();
       } else {
-        // Red down-triangle (sellers dominate)
-        ctx.fillStyle = `rgba(239, 68, 68, ${opacity})`;
+        // Magenta down-triangle (sellers dominate)
+        ctx.fillStyle = `rgba(244, 114, 182, ${opacity})`;
         ctx.beginPath();
         ctx.moveTo(x + size, marker.y - size / 2);
         ctx.lineTo(x, marker.y);
@@ -747,7 +747,7 @@ export class Canvas2DOverlay {
       // Ratio text
       if (marker.ratio >= 5) {
         ctx.font = `bold ${config.fontSize - 3}px ${config.font}`;
-        ctx.fillStyle = marker.direction === 'bullish' ? '#22c55e' : '#ef4444';
+        ctx.fillStyle = marker.direction === 'bullish' ? '#22d3ee' : '#f472b6';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${marker.ratio.toFixed(1)}x`, x + size + 3, marker.y);
@@ -769,12 +769,12 @@ export class Canvas2DOverlay {
 
     const { ctx, config } = this;
 
-    // Panel background
-    ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
+    // Panel background — deep navy
+    ctx.fillStyle = 'rgba(5, 5, 16, 0.92)';
     ctx.fillRect(leftMargin, panelY, panelWidth, panelHeight);
 
     // Panel border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
     ctx.strokeRect(leftMargin, panelY, panelWidth, panelHeight);
 
@@ -816,14 +816,14 @@ export class Canvas2DOverlay {
 
     // Color based on last delta direction
     const lastDelta = points[points.length - 1].delta;
-    ctx.strokeStyle = lastDelta >= 0 ? '#22c55e' : '#ef4444';
+    ctx.strokeStyle = lastDelta >= 0 ? '#22d3ee' : '#f472b6';
     ctx.stroke();
 
     // Fill under the line
     ctx.lineTo(leftMargin + panelWidth, zeroY);
     ctx.lineTo(leftMargin, zeroY);
     ctx.closePath();
-    ctx.fillStyle = lastDelta >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+    ctx.fillStyle = lastDelta >= 0 ? 'rgba(34, 211, 238, 0.1)' : 'rgba(244, 114, 182, 0.1)';
     ctx.fill();
 
     // CVD label
@@ -834,7 +834,7 @@ export class Canvas2DOverlay {
     ctx.fillText('CVD', leftMargin + 4, panelY + 3);
 
     // Current value
-    ctx.fillStyle = lastDelta >= 0 ? '#22c55e' : '#ef4444';
+    ctx.fillStyle = lastDelta >= 0 ? '#22d3ee' : '#f472b6';
     ctx.textAlign = 'right';
     ctx.fillText(
       lastDelta >= 0 ? `+${lastDelta.toFixed(2)}` : lastDelta.toFixed(2),

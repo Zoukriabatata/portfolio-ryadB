@@ -41,6 +41,9 @@ export class SimulationEngine {
   private heatmapTickCounter = 0;
   private lastPriceHistoryUpdate = 0;
   private priceHistoryInterval = 200;   // Add price history point every 200ms
+  private momentum = 0;                 // Price momentum (-1 to 1)
+  private tradeBurstRemaining = 0;      // Remaining burst trades
+  private tradeBurstSide: 'buy' | 'sell' = 'buy';
   private intervalId: NodeJS.Timeout | null = null;
   private onUpdate: ((state: MarketState) => void) | null = null;
 
@@ -206,19 +209,45 @@ export class SimulationEngine {
   }
 
   private initializeOrderBook(state: MarketState, now: number): void {
-    const { baseLiquidity, wallProbability } = this.config;
+    const { baseLiquidity, wallProbability, tickSize, orderBookDepth, nearBookFillPct } = this.config;
+    const nearThreshold = Math.floor(orderBookDepth * nearBookFillPct);
 
-    // Create orders ONLY in interest zones
+    // 1. Fill ALL levels near the current price (dense near, realistic thin→thick)
+    for (let i = 1; i <= nearThreshold; i++) {
+      const distanceFactor = i / nearThreshold; // 0→1 as distance increases
+      const bidPrice = this.roundToTick(state.currentBid - i * tickSize);
+      const askPrice = this.roundToTick(state.currentAsk + i * tickSize);
+
+      // Size: thin near price, thicker further away
+      let bidSize = baseLiquidity * (0.3 + distanceFactor * 0.7) * (0.7 + Math.random() * 0.6);
+      let askSize = baseLiquidity * (0.3 + distanceFactor * 0.7) * (0.7 + Math.random() * 0.6);
+
+      // Wall probability increases with distance
+      if (Math.random() < wallProbability * (1 + distanceFactor * 2)) {
+        bidSize *= 3 + Math.random() * 2;
+      }
+      if (Math.random() < wallProbability * (1 + distanceFactor * 2)) {
+        askSize *= 3 + Math.random() * 2;
+      }
+
+      state.bids.set(bidPrice, this.createOrder(bidPrice, 'bid', bidSize, now, true, distanceFactor > 0.5));
+      state.asks.set(askPrice, this.createOrder(askPrice, 'ask', askSize, now, true, distanceFactor > 0.5));
+    }
+
+    // 2. Far levels: use interest zones (sparse, same as before)
     for (const [price, zone] of state.interestZones) {
-      let size = zone.totalVolume;
+      // Skip if already covered by near-price fill
+      const distBid = Math.abs(price - state.currentBid) / tickSize;
+      const distAsk = Math.abs(price - state.currentAsk) / tickSize;
+      if (zone.side === 'bid' && distBid <= nearThreshold) continue;
+      if (zone.side === 'ask' && distAsk <= nearThreshold) continue;
 
-      // Chance de mur dans les zones fortes
+      let size = zone.totalVolume;
       if (zone.strength > 0.7 && Math.random() < wallProbability * 2) {
         size *= 3 + Math.random() * 2;
       }
 
       const order = this.createOrder(price, zone.side, size, now, true, zone.strength > 0.5);
-
       if (zone.side === 'bid') {
         state.bids.set(price, order);
       } else {
@@ -316,26 +345,55 @@ export class SimulationEngine {
   // PRICE
   // ══════════════════════════════════════════════════════════════════════════
   private updatePrice(now: number): void {
-    const { tickSize, volatility } = this.config;
+    const { tickSize, priceMoveProb, momentumDecay } = this.config;
 
-    // Simple random walk
-    const change = (Math.random() - 0.5) * volatility * this.state.midPrice;
+    // Decay momentum each tick
+    this.momentum *= momentumDecay;
 
-    // Decide if price moves (not every tick)
-    if (Math.random() < 0.15) {
-      const direction = Math.sign(change);
+    // Biased random walk: momentum shifts probability
+    const moveProb = priceMoveProb + Math.abs(this.momentum) * 0.1;
+
+    if (Math.random() < moveProb) {
+      // Direction: biased by momentum
+      const rawDir = (Math.random() - 0.5) + this.momentum * 0.4;
+      const direction = Math.sign(rawDir);
+
+      // Multi-tick move when momentum is strong
+      const ticks = Math.abs(this.momentum) > 0.6 ? 2 : 1;
 
       if (direction > 0) {
-        // Price moves up
-        this.state.currentAsk = this.roundToTick(this.state.currentAsk + tickSize);
-        this.state.currentBid = this.roundToTick(this.state.currentBid + tickSize);
+        this.state.currentAsk = this.roundToTick(this.state.currentAsk + tickSize * ticks);
+        this.state.currentBid = this.roundToTick(this.state.currentBid + tickSize * ticks);
       } else if (direction < 0) {
-        // Price moves down
-        this.state.currentAsk = this.roundToTick(this.state.currentAsk - tickSize);
-        this.state.currentBid = this.roundToTick(this.state.currentBid - tickSize);
+        this.state.currentAsk = this.roundToTick(this.state.currentAsk - tickSize * ticks);
+        this.state.currentBid = this.roundToTick(this.state.currentBid - tickSize * ticks);
       }
 
+      // Set momentum after move (carries into next ticks)
+      this.momentum = direction * (0.3 + Math.random() * 0.4);
+
       this.state.midPrice = (this.state.currentBid + this.state.currentAsk) / 2;
+
+      // Occasional spread widening (5% chance)
+      if (Math.random() < 0.05) {
+        if (Math.random() < 0.5) {
+          this.state.currentAsk = this.roundToTick(this.state.currentAsk + tickSize);
+        } else {
+          this.state.currentBid = this.roundToTick(this.state.currentBid - tickSize);
+        }
+        this.state.midPrice = (this.state.currentBid + this.state.currentAsk) / 2;
+      }
+
+      // Spread normalization: if spread > 3 ticks, tighten
+      const spread = this.state.currentAsk - this.state.currentBid;
+      if (spread > tickSize * 3) {
+        if (Math.random() < 0.5) {
+          this.state.currentAsk = this.roundToTick(this.state.currentAsk - tickSize);
+        } else {
+          this.state.currentBid = this.roundToTick(this.state.currentBid + tickSize);
+        }
+        this.state.midPrice = (this.state.currentBid + this.state.currentAsk) / 2;
+      }
 
       // Update order book (add/remove levels)
       this.adjustOrderBook(now);
@@ -350,8 +408,9 @@ export class SimulationEngine {
       });
       this.lastPriceHistoryUpdate = now;
 
-      // Limit history (with throttled updates, we can keep fewer points)
-      if (this.state.priceHistory.length > 150) {  // ~30 seconds at 200ms interval
+      // Limit history
+      const limit = this.config.priceHistoryLimit;
+      if (this.state.priceHistory.length > limit) {
         this.state.priceHistory.shift();
       }
     }
@@ -388,7 +447,24 @@ export class SimulationEngine {
     // Dynamically create new interest zones
     this.maybeCreateNewInterestZone(now);
 
-    // Add orders in existing interest zones
+    // Fill near levels densely (not just interest zones)
+    const nearThreshold = Math.floor(orderBookDepth * (this.config.nearBookFillPct));
+    for (let i = 1; i <= nearThreshold; i++) {
+      const distanceFactor = i / nearThreshold;
+      const bidPrice = this.roundToTick(this.state.currentBid - i * tickSize);
+      const askPrice = this.roundToTick(this.state.currentAsk + i * tickSize);
+
+      if (!this.state.bids.has(bidPrice)) {
+        const size = baseLiquidity * (0.3 + distanceFactor * 0.7) * (0.7 + Math.random() * 0.6);
+        this.state.bids.set(bidPrice, this.createOrder(bidPrice, 'bid', size, now, false, distanceFactor > 0.5));
+      }
+      if (!this.state.asks.has(askPrice)) {
+        const size = baseLiquidity * (0.3 + distanceFactor * 0.7) * (0.7 + Math.random() * 0.6);
+        this.state.asks.set(askPrice, this.createOrder(askPrice, 'ask', size, now, false, distanceFactor > 0.5));
+      }
+    }
+
+    // Add orders in existing interest zones (far levels)
     for (const [price, zone] of this.state.interestZones) {
       // Skip if too far
       if (zone.side === 'bid' && price < this.state.currentBid - orderBookDepth * tickSize) continue;
@@ -405,7 +481,7 @@ export class SimulationEngine {
         orders.set(price, order);
       } else {
         // Sometimes reinforce existing order (continuation)
-        if (Math.random() < 0.002 && zone.strength > 0.5) {
+        if (Math.random() < 0.004 && zone.strength > 0.5) {
           const order = orders.get(price)!;
           const addSize = baseLiquidity * (0.3 + Math.random() * 0.5);
           order.size += addSize;
@@ -434,8 +510,8 @@ export class SimulationEngine {
   private maybeCreateNewInterestZone(now: number): void {
     const { tickSize, orderBookDepth, baseLiquidity } = this.config;
 
-    // Low chance of creating a new interest zone
-    if (Math.random() > 0.01) return;
+    // Chance of creating a new interest zone (3% per tick for far levels)
+    if (Math.random() > 0.03) return;
 
     const side = Math.random() < 0.5 ? 'bid' : 'ask';
     const distance = Math.floor(Math.random() * orderBookDepth) + 2;
@@ -480,33 +556,55 @@ export class SimulationEngine {
   private maybeGenerateTrade(now: number): void {
     const { tradeFrequency, avgTradeSize } = this.config;
 
+    // Handle trade bursts (rapid same-direction trades)
+    if (this.tradeBurstRemaining > 0) {
+      this.tradeBurstRemaining--;
+      this.emitTrade(now, this.tradeBurstSide, avgTradeSize);
+      return;
+    }
+
     // Trade probability based on frequency
     const prob = tradeFrequency / 20; // 20 ticks/seconde
 
     if (Math.random() < prob) {
-      const side = Math.random() < 0.5 ? 'buy' : 'sell';
-      const price = side === 'buy' ? this.state.currentAsk : this.state.currentBid;
-      const size = avgTradeSize * (0.3 + Math.random() * 1.4);
+      // Direction biased by momentum
+      const buyProb = Math.max(0.2, Math.min(0.8, 0.5 + this.momentum * 0.3));
+      const side: 'buy' | 'sell' = Math.random() < buyProb ? 'buy' : 'sell';
 
-      const trade: Trade = {
-        id: `trade_${++this.tradeCounter}`,
-        timestamp: now,
-        price,
-        size: Math.round(size * 10) / 10,
-        side,
-        historyIndex: this.state.priceHistory.length - 1,
-        opacity: 0,
-        scale: 0,
-      };
+      // Occasional burst (10% chance: 2-3 rapid trades same direction)
+      if (Math.random() < 0.10) {
+        this.tradeBurstRemaining = 1 + Math.floor(Math.random() * 2); // 1-2 more after this
+        this.tradeBurstSide = side;
+      }
 
-      this.state.trades.push(trade);
-
-      // Update clusters
-      this.updateTradeClusters();
-
-      // Update cumulative levels
-      this.updateCumulativeLevel(price, side, trade.size);
+      this.emitTrade(now, side, avgTradeSize);
     }
+  }
+
+  private emitTrade(now: number, side: 'buy' | 'sell', avgTradeSize: number): void {
+    const price = side === 'buy' ? this.state.currentAsk : this.state.currentBid;
+    // Exponential size distribution: mostly small, occasionally large
+    const rawSize = avgTradeSize * Math.min(5, -Math.log(Math.max(0.01, Math.random())));
+    const size = Math.round(rawSize * 10) / 10;
+
+    const trade: Trade = {
+      id: `trade_${++this.tradeCounter}`,
+      timestamp: now,
+      price,
+      size: Math.max(0.1, size),
+      side,
+      historyIndex: this.state.priceHistory.length - 1,
+      opacity: 0,
+      scale: 0,
+    };
+
+    this.state.trades.push(trade);
+
+    // Update clusters
+    this.updateTradeClusters();
+
+    // Update cumulative levels
+    this.updateCumulativeLevel(price, side, trade.size);
   }
 
   private updateCumulativeLevel(price: number, side: 'buy' | 'sell', size: number): void {
@@ -737,7 +835,7 @@ export class SimulationEngine {
   // ══════════════════════════════════════════════════════════════════════════
   private recordHeatmapSnapshot(now: number): void {
     const timeIndex = this.state.priceHistory.length - 1;
-    const maxHistory = 300; // Keep ~60 seconds of history
+    const maxHistory = this.config.heatmapHistoryLimit;
 
     // Record current state of each price level
     for (const [price, order] of this.state.bids) {

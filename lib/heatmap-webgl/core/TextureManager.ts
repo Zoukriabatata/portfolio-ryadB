@@ -18,7 +18,7 @@ export class TextureManager {
   private textures: Map<string, REGL.Texture2D> = new Map();
   private gradientCanvas: HTMLCanvasElement;
   private gradientCtx: CanvasRenderingContext2D;
-  private currentTheme: ThemeName = 'senzoukria';
+  private currentTheme: ThemeName = 'magma';
 
   constructor(ctx: RenderContext) {
     this.ctx = ctx;

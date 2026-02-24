@@ -37,4 +37,4 @@ export function formatDate(timestamp: number): string {
   });
 }
 
-export const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4, 10] as const;
+export const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4, 10, 30, 60, 120, 360] as const;

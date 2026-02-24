@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, Fragment } from 'react';
 import dynamic from 'next/dynamic';
 import { usePageActive } from '@/hooks/usePageActive';
 import { ChartSkeleton, EmptyState } from '@/components/ui/Skeleton';
@@ -59,7 +59,9 @@ interface LegacyGEXSummary {
   regime: 'positive' | 'negative';
 }
 
-const SYMBOLS = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'META'];
+const ETF_SYMBOLS = ['SPY', 'QQQ', 'IWM', 'DIA'];
+const STOCK_SYMBOLS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'META'];
+const SYMBOLS = [...ETF_SYMBOLS, ...STOCK_SYMBOLS];
 
 export default function GEXPageContent() {
   const [symbol, setSymbol] = useState('SPY');
@@ -71,6 +73,9 @@ export default function GEXPageContent() {
   const [isSimulation, setIsSimulation] = useState(true);
   const [realSpotPrice, setRealSpotPrice] = useState<number | undefined>();
   const [priceSource, setPriceSource] = useState<'yahoo-finance' | 'fallback' | null>(null);
+  const [symbolPopoverOpen, setSymbolPopoverOpen] = useState(false);
+  const [symbolSearch, setSymbolSearch] = useState('');
+  const symbolPopoverRef = useRef<HTMLDivElement>(null);
 
   // View controls
   const [viewMode, setViewMode] = useState<ViewMode>('bars');
@@ -215,6 +220,7 @@ export default function GEXPageContent() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === 'Escape') { setSymbolPopoverOpen(false); return; }
       const greeks: GreekType[] = ['gex', 'vex', 'cex', 'dex'];
       if (e.key >= '1' && e.key <= '4') {
         setSelectedGreek(greeks[parseInt(e.key) - 1]);
@@ -225,6 +231,16 @@ export default function GEXPageContent() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [loadSimulatedData]);
+
+  // Close symbol popover on outside click
+  useEffect(() => {
+    if (!symbolPopoverOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (symbolPopoverRef.current && !symbolPopoverRef.current.contains(e.target as Node)) setSymbolPopoverOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [symbolPopoverOpen]);
 
   // ─── Zoom ───
 
@@ -294,30 +310,71 @@ export default function GEXPageContent() {
             </div>
           </div>
 
-          {/* Symbol selector */}
-          <div className="flex items-center gap-1 bg-[var(--surface)] rounded-lg p-1 border border-[var(--border)]">
-            {SYMBOLS.slice(0, 5).map(s => (
-              <button
-                key={s}
-                onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); }}
-                className={`px-3 py-1 text-sm rounded transition-colors ${
-                  symbol === s
-                    ? 'bg-[var(--primary-dark)] text-[var(--text-primary)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-            <select
-              value={symbol}
-              onChange={(e) => { setSymbol(e.target.value); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); }}
-              className="bg-transparent text-[var(--text-muted)] text-sm px-2 py-1 border-none focus:outline-none"
+          {/* Symbol selector — popover */}
+          <div className="relative" ref={symbolPopoverRef}>
+            <button
+              onClick={() => setSymbolPopoverOpen(!symbolPopoverOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface)] rounded-lg border border-[var(--border)] transition-all hover:border-[var(--primary)] group"
             >
-              {SYMBOLS.slice(5).map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+              <span className="text-sm font-semibold text-[var(--text-primary)]">{symbol}</span>
+              <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform duration-200 ${symbolPopoverOpen ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {symbolPopoverOpen && (
+              <div className="absolute top-full left-0 mt-1.5 w-64 z-50 animate-dropdown-in rounded-xl overflow-hidden"
+                style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}>
+                {/* Search */}
+                <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                  <input
+                    type="text"
+                    value={symbolSearch}
+                    onChange={(e) => setSymbolSearch(e.target.value)}
+                    placeholder="Search symbol..."
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-60 overflow-y-auto p-1.5" style={{ scrollbarWidth: 'thin' }}>
+                  {/* ETFs */}
+                  <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">ETF Indices</div>
+                  <div className="grid grid-cols-2 gap-1 mb-2">
+                    {ETF_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
+                        className={`px-2.5 py-1.5 text-xs rounded-lg text-left transition-all ${
+                          symbol === s
+                            ? 'bg-[var(--primary-dark)] text-[var(--text-primary)] font-semibold'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Stocks */}
+                  <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Individual Stocks</div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {STOCK_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
+                        className={`px-2.5 py-1.5 text-xs rounded-lg text-left transition-all ${
+                          symbol === s
+                            ? 'bg-[var(--primary-dark)] text-[var(--text-primary)] font-semibold'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

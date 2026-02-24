@@ -6,6 +6,9 @@ import { useReplayUIStore } from '@/stores/useReplayUIStore';
 import ReplayControlBar from './ReplayControlBar';
 import ReplayStatsOverlay from './ReplayStatsOverlay';
 import ReplayIdleState from './ReplayIdleState';
+import ReplayDashboard from './ReplayDashboard';
+import ReplayAnalyticsPanel from './ReplayAnalyticsPanel';
+import ReplayChartContainer from './ReplayChartContainer';
 import ReplayFinishedOverlay from './ReplayFinishedOverlay';
 
 const IBLiquidityView = dynamic(
@@ -16,6 +19,8 @@ const IBLiquidityView = dynamic(
 export default function ReplayViewer() {
   const {
     state,
+    sessions,
+    loadSession,
     play,
     pause,
     stop,
@@ -87,13 +92,19 @@ export default function ReplayViewer() {
         </button>
       </div>
 
-      {/* Chart area */}
+      {/* Chart area with toolbar */}
       {isActive ? (
-        <IBLiquidityView height={9999} ibSymbol={state.symbol || 'ES'} />
+        <ReplayChartContainer symbol={state.symbol || 'ES'}>
+          <IBLiquidityView height={9999} ibSymbol={state.symbol || 'ES'} />
+        </ReplayChartContainer>
       ) : null}
 
-      {/* Idle state */}
-      {state.status === 'idle' && <ReplayIdleState />}
+      {/* Idle state — show dashboard if sessions exist, else idle prompt */}
+      {state.status === 'idle' && (
+        sessions.length > 0
+          ? <ReplayDashboard sessions={sessions} onSelectSession={async (id) => { await loadSession(id); play(); }} />
+          : <ReplayIdleState />
+      )}
 
       {/* Paused overlay */}
       {state.status === 'paused' && (
@@ -110,6 +121,11 @@ export default function ReplayViewer() {
       {/* Stats overlay */}
       {isActive && state.status !== 'finished' && (
         <ReplayStatsOverlay state={state} />
+      )}
+
+      {/* Analytics panel */}
+      {isActive && state.status !== 'finished' && (
+        <ReplayAnalyticsPanel state={state} />
       )}
 
       {/* Control bar */}

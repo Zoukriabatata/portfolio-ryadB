@@ -204,6 +204,17 @@ export interface SimulationConfig {
   tradeLifetimeMs: number;
   orderFadeInMs: number;
   orderFadeOutMs: number;
+
+  // History limits
+  priceHistoryLimit: number;    // Max price history points
+  heatmapHistoryLimit: number;  // Max heatmap time indices
+
+  // Price dynamics
+  priceMoveProb: number;        // Probability of price moving each tick
+  momentumDecay: number;        // Momentum decay factor (0-1)
+
+  // Orderbook density
+  nearBookFillPct: number;      // Percentage of near levels to fill (0-1)
 }
 
 export const DEFAULT_CONFIG: SimulationConfig = {
@@ -221,6 +232,12 @@ export const DEFAULT_CONFIG: SimulationConfig = {
   tradeLifetimeMs: 2500,
   orderFadeInMs: 300,
   orderFadeOutMs: 500,
+
+  priceHistoryLimit: 500,
+  heatmapHistoryLimit: 600,
+  priceMoveProb: 0.30,
+  momentumDecay: 0.85,
+  nearBookFillPct: 0.6,
 };
 
 // ============================================================================

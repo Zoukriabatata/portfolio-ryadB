@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useUIThemeStore, UI_THEMES } from '@/stores/useUIThemeStore';
 
 interface SkewPoint {
   strike: number;
@@ -17,6 +18,32 @@ interface IVSmileChartProps {
   height?: number;
 }
 
+/** Derive chart colors from the active UI theme */
+function useSmileColors() {
+  const activeTheme = useUIThemeStore((s) => s.activeTheme);
+  const theme = UI_THEMES.find(t => t.id === activeTheme) || UI_THEMES[0];
+  const c = theme.colors;
+  return {
+    bg: c.chartBg,
+    gridLine: `${c.chartGrid}30`,
+    gridBand: `${c.chartGrid}10`,
+    text: c.textMuted,
+    textMid: c.textSecondary,
+    textBright: c.textPrimary,
+    callIV: c.candleUp,
+    callGlow: `${c.candleUp}40`,
+    putIV: c.candleDown,
+    putGlow: `${c.candleDown}40`,
+    spot: c.primary,
+    spotGlow: `${c.primary}25`,
+    atmZone: `${c.primary}0a`,
+    atmBorder: `${c.primary}25`,
+    skewFill: `${c.accent}14`,
+    crosshair: `${c.textPrimary}25`,
+  };
+}
+
+// Fallback static colors (unused but kept for reference)
 const COLORS = {
   bg: '#08090a',
   gridLine: 'rgba(255,255,255,0.04)',
@@ -87,6 +114,7 @@ export default function IVSmileChart({
 }: IVSmileChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const themeColors = useSmileColors();
   const [dimensions, setDimensions] = useState({ width: 800, height });
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<SkewPoint | null>(null);
@@ -148,7 +176,7 @@ export default function IVSmileChart({
     canvas.style.height = `${h}px`;
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = COLORS.bg;
+    ctx.fillStyle = themeColors.bg;
     ctx.fillRect(0, 0, width, h);
 
     const cw = width - PADDING.left - PADDING.right;
@@ -186,7 +214,7 @@ export default function IVSmileChart({
       if (i % 2 === 0) {
         const y1 = toY(minIV + (ivRange * (i + 1)) / numHLines);
         const y2 = toY(minIV + (ivRange * i) / numHLines);
-        ctx.fillStyle = COLORS.gridBand;
+        ctx.fillStyle = themeColors.gridBand;
         ctx.fillRect(PADDING.left, y1, cw, y2 - y1);
       }
     }
@@ -196,13 +224,13 @@ export default function IVSmileChart({
     for (let i = 0; i <= numHLines; i++) {
       const iv = minIV + (ivRange * i) / numHLines;
       const y = toY(iv);
-      ctx.strokeStyle = COLORS.gridLine;
+      ctx.strokeStyle = themeColors.gridLine;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(PADDING.left, y);
       ctx.lineTo(PADDING.left + cw, y);
       ctx.stroke();
-      ctx.fillStyle = COLORS.text;
+      ctx.fillStyle = themeColors.text;
       ctx.textAlign = 'right';
       ctx.fillText(`${(iv * 100).toFixed(1)}%`, PADDING.left - 10, y + 3.5);
     }
@@ -213,13 +241,13 @@ export default function IVSmileChart({
     ctx.textAlign = 'center';
     for (let i = 0; i < visible.length; i += vStep) {
       const x = toX(visible[i].strike);
-      ctx.strokeStyle = COLORS.gridLine;
+      ctx.strokeStyle = themeColors.gridLine;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, PADDING.top);
       ctx.lineTo(x, PADDING.top + ch);
       ctx.stroke();
-      ctx.fillStyle = COLORS.text;
+      ctx.fillStyle = themeColors.text;
       ctx.fillText(`$${visible[i].strike.toFixed(0)}`, x, h - PADDING.bottom + 16);
       if (spotPrice > 0) {
         ctx.fillStyle = 'rgba(255,255,255,0.2)';
@@ -238,9 +266,9 @@ export default function IVSmileChart({
       const zoneWidth = strikeRange * 0.04;
       const zoneLeft = toX(Math.max(minStrike, spotPrice - zoneWidth));
       const zoneRight = toX(Math.min(maxStrike, spotPrice + zoneWidth));
-      ctx.fillStyle = COLORS.atmZone;
+      ctx.fillStyle = themeColors.atmZone;
       ctx.fillRect(zoneLeft, PADDING.top, zoneRight - zoneLeft, ch);
-      ctx.strokeStyle = COLORS.atmBorder;
+      ctx.strokeStyle = themeColors.atmBorder;
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 3]);
       ctx.beginPath();
@@ -257,11 +285,11 @@ export default function IVSmileChart({
       const spotX = toX(spotPrice);
       const spotGrad = ctx.createLinearGradient(spotX - 8, 0, spotX + 8, 0);
       spotGrad.addColorStop(0, 'transparent');
-      spotGrad.addColorStop(0.5, COLORS.spotGlow);
+      spotGrad.addColorStop(0.5, themeColors.spotGlow);
       spotGrad.addColorStop(1, 'transparent');
       ctx.fillStyle = spotGrad;
       ctx.fillRect(spotX - 8, PADDING.top, 16, ch);
-      ctx.strokeStyle = COLORS.spot;
+      ctx.strokeStyle = themeColors.spot;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
@@ -274,7 +302,7 @@ export default function IVSmileChart({
       const tw = ctx.measureText(labelText).width + 12;
       const lx = spotX - tw / 2;
       const ly = PADDING.top + ch + 2;
-      ctx.fillStyle = COLORS.spot;
+      ctx.fillStyle = themeColors.spot;
       ctx.beginPath();
       ctx.roundRect(lx, ly, tw, 16, 4);
       ctx.fill();
@@ -320,18 +348,18 @@ export default function IVSmileChart({
       ctx.fillStyle = callGrad;
       ctx.fill();
       ctx.save();
-      ctx.shadowColor = COLORS.callGlow;
+      ctx.shadowColor = themeColors.callGlow;
       ctx.shadowBlur = 8;
       ctx.beginPath();
       drawSmoothLine(ctx, pts);
-      ctx.strokeStyle = COLORS.callIV;
+      ctx.strokeStyle = themeColors.callIV;
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
       callPoints.forEach(d => {
         ctx.beginPath();
         ctx.arc(toX(d.strike), toY(d.callIV!), 2, 0, Math.PI * 2);
-        ctx.fillStyle = COLORS.callIV;
+        ctx.fillStyle = themeColors.callIV;
         ctx.fill();
       });
     }
@@ -352,18 +380,18 @@ export default function IVSmileChart({
       ctx.fillStyle = putGrad;
       ctx.fill();
       ctx.save();
-      ctx.shadowColor = COLORS.putGlow;
+      ctx.shadowColor = themeColors.putGlow;
       ctx.shadowBlur = 8;
       ctx.beginPath();
       drawSmoothLine(ctx, pts);
-      ctx.strokeStyle = COLORS.putIV;
+      ctx.strokeStyle = themeColors.putIV;
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
       putPoints.forEach(d => {
         ctx.beginPath();
         ctx.arc(toX(d.strike), toY(d.putIV!), 2, 0, Math.PI * 2);
-        ctx.fillStyle = COLORS.putIV;
+        ctx.fillStyle = themeColors.putIV;
         ctx.fill();
       });
     }
@@ -377,9 +405,9 @@ export default function IVSmileChart({
       const avgSkew = (leftSkew + rightSkew) / 2;
       let skewLabel = '';
       let skewColor = '';
-      if (leftSkew > rightSkew + 0.005) { skewLabel = 'PUT SKEW'; skewColor = COLORS.putIV; }
-      else if (rightSkew > leftSkew + 0.005) { skewLabel = 'CALL SKEW'; skewColor = COLORS.callIV; }
-      else if (Math.abs(avgSkew) < 0.005) { skewLabel = 'FLAT SKEW'; skewColor = COLORS.textMid; }
+      if (leftSkew > rightSkew + 0.005) { skewLabel = 'PUT SKEW'; skewColor = themeColors.putIV; }
+      else if (rightSkew > leftSkew + 0.005) { skewLabel = 'CALL SKEW'; skewColor = themeColors.callIV; }
+      else if (Math.abs(avgSkew) < 0.005) { skewLabel = 'FLAT SKEW'; skewColor = themeColors.textMid; }
       if (skewLabel) {
         ctx.font = 'bold 9px system-ui, sans-serif';
         ctx.textAlign = 'right';
@@ -394,7 +422,7 @@ export default function IVSmileChart({
     const mouse = mouseRef.current;
     if (mouse && hoveredPoint && hoveredPoint.strike >= minStrike && hoveredPoint.strike <= maxStrike) {
       const hx = toX(hoveredPoint.strike);
-      ctx.strokeStyle = COLORS.crosshair;
+      ctx.strokeStyle = themeColors.crosshair;
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -415,14 +443,14 @@ export default function IVSmileChart({
       if (hoveredPoint.callIV && hoveredPoint.callIV > 0) {
         const cy = toY(hoveredPoint.callIV);
         ctx.beginPath(); ctx.arc(hx, cy, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(52,211,153,0.15)'; ctx.fill();
-        ctx.beginPath(); ctx.arc(hx, cy, 5, 0, Math.PI * 2); ctx.strokeStyle = COLORS.callIV; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.beginPath(); ctx.arc(hx, cy, 2.5, 0, Math.PI * 2); ctx.fillStyle = COLORS.callIV; ctx.fill();
+        ctx.beginPath(); ctx.arc(hx, cy, 5, 0, Math.PI * 2); ctx.strokeStyle = themeColors.callIV; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(hx, cy, 2.5, 0, Math.PI * 2); ctx.fillStyle = themeColors.callIV; ctx.fill();
       }
       if (hoveredPoint.putIV && hoveredPoint.putIV > 0) {
         const py = toY(hoveredPoint.putIV);
         ctx.beginPath(); ctx.arc(hx, py, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(248,113,113,0.15)'; ctx.fill();
-        ctx.beginPath(); ctx.arc(hx, py, 5, 0, Math.PI * 2); ctx.strokeStyle = COLORS.putIV; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.beginPath(); ctx.arc(hx, py, 2.5, 0, Math.PI * 2); ctx.fillStyle = COLORS.putIV; ctx.fill();
+        ctx.beginPath(); ctx.arc(hx, py, 5, 0, Math.PI * 2); ctx.strokeStyle = themeColors.putIV; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(hx, py, 2.5, 0, Math.PI * 2); ctx.fillStyle = themeColors.putIV; ctx.fill();
       }
     }
 
@@ -439,7 +467,7 @@ export default function IVSmileChart({
         const lt = `${(hoveredPoint.callIV * 100).toFixed(1)}%`;
         ctx.font = 'bold 9px "SF Mono", Menlo, monospace';
         const tw2 = ctx.measureText(lt).width + 8;
-        ctx.fillStyle = COLORS.callIV;
+        ctx.fillStyle = themeColors.callIV;
         ctx.beginPath(); ctx.roundRect(PADDING.left - tw2 - 4, cy - 8, tw2, 16, 3); ctx.fill();
         ctx.fillStyle = '#000'; ctx.textAlign = 'center';
         ctx.fillText(lt, PADDING.left - tw2 / 2 - 4, cy + 3.5);
@@ -449,7 +477,7 @@ export default function IVSmileChart({
         const lt = `${(hoveredPoint.putIV * 100).toFixed(1)}%`;
         ctx.font = 'bold 9px "SF Mono", Menlo, monospace';
         const tw2 = ctx.measureText(lt).width + 8;
-        ctx.fillStyle = COLORS.putIV;
+        ctx.fillStyle = themeColors.putIV;
         ctx.beginPath(); ctx.roundRect(PADDING.left - tw2 - 4, py - 8, tw2, 16, 3); ctx.fill();
         ctx.fillStyle = '#000'; ctx.textAlign = 'center';
         ctx.fillText(lt, PADDING.left - tw2 / 2 - 4, py + 3.5);
@@ -466,7 +494,7 @@ export default function IVSmileChart({
     }
 
     // ─── Title + Legend ───
-    ctx.fillStyle = COLORS.textBright;
+    ctx.fillStyle = themeColors.textBright;
     ctx.font = 'bold 13px system-ui, sans-serif';
     ctx.textAlign = 'left';
     const dteLabel = dte ? ` · ${dte}d` : '';
@@ -474,20 +502,20 @@ export default function IVSmileChart({
     const titleW = ctx.measureText(`${symbol} IV Smile${dteLabel}`).width;
     let legX = PADDING.left + titleW + 20;
     ctx.font = '10px system-ui, sans-serif';
-    ctx.fillStyle = COLORS.callIV;
+    ctx.fillStyle = themeColors.callIV;
     ctx.beginPath(); ctx.arc(legX, 24, 3.5, 0, Math.PI * 2); ctx.fill();
     legX += 8; ctx.fillText('Call IV', legX, 28);
     legX += ctx.measureText('Call IV').width + 14;
-    ctx.fillStyle = COLORS.putIV;
+    ctx.fillStyle = themeColors.putIV;
     ctx.beginPath(); ctx.arc(legX, 24, 3.5, 0, Math.PI * 2); ctx.fill();
     legX += 8; ctx.fillText('Put IV', legX, 28);
     legX += ctx.measureText('Put IV').width + 14;
     ctx.fillStyle = 'rgba(139, 92, 246, 0.5)';
     ctx.fillRect(legX, 20, 14, 8);
-    legX += 18; ctx.fillStyle = COLORS.textMid; ctx.fillText('Skew', legX, 28);
+    legX += 18; ctx.fillStyle = themeColors.textMid; ctx.fillText('Skew', legX, 28);
 
     // Axis labels
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = themeColors.text;
     ctx.font = '10px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Strike Price', PADDING.left + cw / 2, h - 6);
@@ -507,7 +535,7 @@ export default function IVSmileChart({
     } else {
       ctx.fillText('scroll=X zoom · ctrl+scroll=Y zoom', PADDING.left + cw, h - 6);
     }
-  }, [validData, dimensions, spotPrice, hoveredPoint, symbol, dte, xZoom, yZoom]);
+  }, [validData, dimensions, spotPrice, hoveredPoint, symbol, dte, xZoom, yZoom, themeColors]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -694,44 +722,45 @@ export default function IVSmileChart({
             top: Math.max(PADDING.top, Math.min(tooltipPos.y - 40, dimensions.height - 160)),
           }}
         >
-          <div className="bg-[#12131a]/95 backdrop-blur-md border border-white/10 rounded-xl px-3.5 py-2.5 text-[11px] shadow-2xl shadow-black/40 min-w-[175px]">
+          <div className="backdrop-blur-md rounded-xl px-3.5 py-2.5 text-[11px] shadow-2xl shadow-black/40 min-w-[185px] animate-fadeIn"
+            style={{ background: `${themeColors.bg}f2`, border: `1px solid ${themeColors.crosshair}` }}>
             <div className="flex items-center justify-between gap-4 mb-2">
-              <span className="font-bold text-white">${hoveredPoint.strike.toFixed(0)}</span>
-              <span className="text-[9px] text-white/30 font-mono">
+              <span className="font-bold" style={{ color: themeColors.textBright }}>${hoveredPoint.strike.toFixed(0)}</span>
+              <span className="text-[9px] font-mono" style={{ color: themeColors.text }}>
                 {spotPrice > 0 ? `${((hoveredPoint.strike - spotPrice) / spotPrice * 100).toFixed(1)}% from spot` : ''}
               </span>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="text-white/50">Call IV</span>
+                  <span className="w-2 h-2 rounded-full" style={{ background: themeColors.callIV }} />
+                  <span style={{ color: themeColors.textMid }}>Call IV</span>
                 </span>
-                <span className="font-mono font-medium text-emerald-400">
+                <span className="font-mono font-semibold" style={{ color: themeColors.callIV }}>
                   {hoveredPoint.callIV ? `${(hoveredPoint.callIV * 100).toFixed(2)}%` : '---'}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                  <span className="text-white/50">Put IV</span>
+                  <span className="w-2 h-2 rounded-full" style={{ background: themeColors.putIV }} />
+                  <span style={{ color: themeColors.textMid }}>Put IV</span>
                 </span>
-                <span className="font-mono font-medium text-rose-400">
+                <span className="font-mono font-semibold" style={{ color: themeColors.putIV }}>
                   {hoveredPoint.putIV ? `${(hoveredPoint.putIV * 100).toFixed(2)}%` : '---'}
                 </span>
               </div>
             </div>
             {spread !== null && (
-              <div className="flex items-center justify-between gap-3 mt-1.5 pt-1.5 border-t border-white/5">
-                <span className="text-white/40">Spread</span>
-                <span className={`font-mono font-medium ${parseFloat(spread) > 0 ? 'text-rose-400/80' : 'text-emerald-400/80'}`}>
+              <div className="flex items-center justify-between gap-3 mt-1.5 pt-1.5" style={{ borderTop: `1px solid ${themeColors.crosshair}` }}>
+                <span style={{ color: themeColors.text }}>Spread</span>
+                <span className="font-mono font-semibold" style={{ color: parseFloat(spread) > 0 ? themeColors.putIV : themeColors.callIV }}>
                   {parseFloat(spread) > 0 ? '+' : ''}{spread}%
                 </span>
               </div>
             )}
             <div className="flex items-center justify-between gap-3 mt-0.5">
-              <span className="text-white/40">Moneyness</span>
-              <span className="font-mono text-white/60">{hoveredPoint.moneyness.toFixed(3)}</span>
+              <span style={{ color: themeColors.text }}>Moneyness</span>
+              <span className="font-mono" style={{ color: themeColors.textMid }}>{hoveredPoint.moneyness.toFixed(3)}</span>
             </div>
           </div>
         </div>

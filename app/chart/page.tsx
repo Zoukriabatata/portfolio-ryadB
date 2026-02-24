@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { CanvasChartEngine, type ChartCandle, type ChartTheme } from '@/lib/rendering/CanvasChartEngine';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
-import { tradovateWS, timeframeToMinutes } from '@/lib/websocket/TradovateWS';
+import { tradovateWS, timeframeToMinutes, getSubMinuteSeconds } from '@/lib/websocket/TradovateWS';
 import { useUIThemeStore, UI_THEMES } from '@/stores/useUIThemeStore';
 import { SYMBOLS, type Symbol, type Timeframe } from '@/types/market';
+import { SubMinuteAggregator } from '@/lib/candle/SubMinuteAggregator';
 
 // Granular selectors to avoid re-renders on every price tick
 const useSymbol = () => useMarketStore((s) => s.symbol);
@@ -29,6 +30,8 @@ const CRYPTO_SYMBOLS: Symbol[] = [
 const CME_SYMBOLS: Symbol[] = ['NQ', 'MNQ', 'ES', 'MES', 'GC', 'MGC'];
 
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [
+  { value: '15s', label: '15s' },
+  { value: '30s', label: '30s' },
   { value: '1m', label: '1m' },
   { value: '5m', label: '5m' },
   { value: '15m', label: '15m' },
@@ -129,10 +132,13 @@ export default function ChartPage() {
 
   const exchange = SYMBOLS[symbol]?.exchange || 'bybit';
 
+  const subMinuteSec = getSubMinuteSeconds(timeframe);
+
   const fetchBybitHistory = useCallback(async () => {
     setLoading(true);
     try {
       const intervalMap: Record<string, string> = {
+        '15s': '1', '30s': '1', // fetch 1m and split client-side
         '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
         '1h': '60', '2h': '120', '4h': '240', '1d': 'D',
       };
@@ -144,7 +150,7 @@ export default function ChartPage() {
       const data = await response.json();
 
       if (data.retCode === 0 && data.result?.list) {
-        const fetchedCandles: ChartCandle[] = data.result.list
+        let fetchedCandles: ChartCandle[] = data.result.list
           .map((k: string[]) => ({
             time: Math.floor(Number(k[0]) / 1000),
             open: parseFloat(k[1]),
@@ -155,6 +161,11 @@ export default function ChartPage() {
           }))
           .reverse();
 
+        // Split 1m candles into sub-minute if needed
+        if (subMinuteSec) {
+          fetchedCandles = SubMinuteAggregator.splitHistoricalCandles(fetchedCandles, subMinuteSec);
+        }
+
         setCandles(fetchedCandles);
         if (engineRef.current) engineRef.current.setCandles(fetchedCandles);
         if (fetchedCandles.length > 0) setCurrentPrice(fetchedCandles[fetchedCandles.length - 1].close);
@@ -164,12 +175,13 @@ export default function ChartPage() {
     } finally {
       setLoading(false);
     }
-  }, [symbol, timeframe, setCandles, setCurrentPrice]);
+  }, [symbol, timeframe, subMinuteSec, setCandles, setCurrentPrice]);
 
   // Main data subscription effect
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
+    let aggregator: SubMinuteAggregator | null = null;
 
     const liveHandler = (candle: ChartCandle) => {
       if (cancelled) return;
@@ -190,7 +202,13 @@ export default function ChartPage() {
             },
             (historicalCandles) => {
               if (cancelled) return;
-              const chartCandles: ChartCandle[] = historicalCandles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume }));
+              let chartCandles: ChartCandle[] = historicalCandles.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume }));
+
+              // Split into sub-minute if needed
+              if (subMinuteSec) {
+                chartCandles = SubMinuteAggregator.splitHistoricalCandles(chartCandles, subMinuteSec);
+              }
+
               setCandles(chartCandles);
               if (engineRef.current) engineRef.current.setCandles(chartCandles);
               if (chartCandles.length > 0) setCurrentPrice(chartCandles[chartCandles.length - 1].close);
@@ -207,18 +225,43 @@ export default function ChartPage() {
     } else {
       fetchBybitHistory();
       bybitWS.connect('linear');
-      const unsubscribe = bybitWS.subscribeKline(
-        symbol, timeframe,
-        (candle, _isClosed) => {
+
+      if (subMinuteSec) {
+        // Sub-minute: subscribe to trades and aggregate into candles
+        aggregator = new SubMinuteAggregator(subMinuteSec, (candle, _isClosed) => {
           liveHandler({ time: candle.time, open: candle.open, high: candle.high, low: candle.low, close: candle.close, volume: candle.volume });
-        },
-        'linear'
-      );
-      cleanup = unsubscribe;
+        });
+
+        const unsubTrades = bybitWS.subscribeTrades(
+          symbol,
+          (trade) => {
+            if (cancelled) return;
+            aggregator?.addTrade({ price: trade.price, volume: trade.quantity, time: trade.time });
+          },
+          'linear'
+        );
+        // Also subscribe to 1m klines as fallback for candle close events
+        const unsubKline = bybitWS.subscribeKline(
+          symbol, '1m',
+          () => {}, // no-op: trades drive the aggregation
+          'linear'
+        );
+        cleanup = () => { unsubTrades(); unsubKline(); aggregator?.reset(); };
+      } else {
+        // Standard: subscribe to klines directly
+        const unsubscribe = bybitWS.subscribeKline(
+          symbol, timeframe,
+          (candle, _isClosed) => {
+            liveHandler({ time: candle.time, open: candle.open, high: candle.high, low: candle.low, close: candle.close, volume: candle.volume });
+          },
+          'linear'
+        );
+        cleanup = unsubscribe;
+      }
     }
 
     return () => { cancelled = true; cleanup?.(); };
-  }, [symbol, timeframe, exchange, fetchBybitHistory, setCurrentPrice, updateCurrentCandle, setCandles]);
+  }, [symbol, timeframe, exchange, subMinuteSec, fetchBybitHistory, setCurrentPrice, updateCurrentCandle, setCandles]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -280,12 +323,12 @@ export default function ChartPage() {
 
   return (
     <div
-      className="h-[calc(100svh-80px)] flex flex-col"
+      className="h-[calc(100svh-80px)] flex flex-col animate-fadeIn"
       style={{ backgroundColor: theme.background } as React.CSSProperties}
     >
       {/* ─── Top Bar ─── */}
       <div
-        className="flex items-center justify-between px-2 sm:px-3 h-11 border-b shrink-0"
+        className="flex items-center justify-between px-2 sm:px-3 h-11 border-b shrink-0 animate-slideUp stagger-1"
         style={{ backgroundColor: theme.background, borderColor: theme.gridLines }}
       >
         {/* Left: Symbol + Price + Change */}
@@ -314,7 +357,7 @@ export default function ChartPage() {
             {/* Dropdown */}
             {symbolDropdownOpen && (
               <div
-                className="absolute top-full left-0 mt-1 w-52 rounded-lg overflow-hidden z-50"
+                className="absolute top-full left-0 mt-1 w-52 rounded-lg overflow-hidden z-50 animate-dropdown-in"
                 style={{
                   backgroundColor: theme.background,
                   border: `1px solid ${theme.gridLines}`,
@@ -501,7 +544,7 @@ export default function ChartPage() {
       </div>
 
       {/* ─── Chart Area ─── */}
-      <div ref={containerRef} className="flex-1 relative">
+      <div ref={containerRef} className="flex-1 relative animate-scaleIn stagger-2">
         {/* Loading */}
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10" style={{ backgroundColor: `${theme.background}ee` }}>
@@ -581,7 +624,7 @@ export default function ChartPage() {
 
       {/* ─── Status Bar ─── */}
       <div
-        className="flex items-center justify-between px-2 sm:px-3 h-6 border-t text-[10px] shrink-0"
+        className="flex items-center justify-between px-2 sm:px-3 h-6 border-t text-[10px] shrink-0 animate-fadeIn stagger-3"
         style={{ backgroundColor: theme.background, borderColor: theme.gridLines, color: theme.textMuted }}
       >
         <div className="flex items-center gap-3">

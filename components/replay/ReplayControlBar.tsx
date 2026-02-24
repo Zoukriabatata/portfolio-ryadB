@@ -164,22 +164,25 @@ export default function ReplayControlBar({
       {/* Divider */}
       <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
-      {/* Speed selector */}
-      <div className="flex items-center gap-0.5">
-        {SPEED_OPTIONS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setSpeed(s)}
-            className="px-2 py-1 rounded-md text-[10px] font-mono font-semibold transition-all"
-            style={{
-              background: state.speed === s ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-              color: state.speed === s ? 'var(--primary)' : 'rgba(255,255,255,0.35)',
-              border: state.speed === s ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid transparent',
-            }}
-          >
-            {s}x
-          </button>
-        ))}
+      {/* Speed selector (scrollable) */}
+      <div className="flex items-center gap-0.5 max-w-[200px] overflow-x-auto no-scrollbar">
+        {SPEED_OPTIONS.map((s) => {
+          const label = s >= 60 ? `${s / 60}m` : s >= 1 ? `${s}x` : `${s}x`;
+          return (
+            <button
+              key={s}
+              onClick={() => setSpeed(s)}
+              className="px-1.5 py-1 rounded-md text-[10px] font-mono font-semibold transition-all shrink-0"
+              style={{
+                background: state.speed === s ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                color: state.speed === s ? 'var(--primary)' : 'rgba(255,255,255,0.35)',
+                border: state.speed === s ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid transparent',
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Divider */}

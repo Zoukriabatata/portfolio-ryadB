@@ -43,8 +43,11 @@ export const CME_SYMBOLS: Record<string, { name: string; exchange: string; tickS
 };
 
 // Convert Timeframe string to minutes for Tradovate API
+// Sub-minute timeframes (15s, 30s) return 1 — we fetch 1m and split client-side
 export function timeframeToMinutes(tf: Timeframe): number {
   const map: Record<Timeframe, number> = {
+    '15s': 1,
+    '30s': 1,
     '1m': 1,
     '5m': 5,
     '15m': 15,
@@ -53,6 +56,18 @@ export function timeframeToMinutes(tf: Timeframe): number {
     '1d': 1440,
   };
   return map[tf] || 1;
+}
+
+/** Returns true if the timeframe is sub-minute */
+export function isSubMinuteTimeframe(tf: Timeframe): boolean {
+  return tf === '15s' || tf === '30s';
+}
+
+/** Returns the sub-minute interval in seconds, or null if not sub-minute */
+export function getSubMinuteSeconds(tf: Timeframe): 15 | 30 | null {
+  if (tf === '15s') return 15;
+  if (tf === '30s') return 30;
+  return null;
 }
 
 class TradovateWebSocket {

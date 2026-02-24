@@ -29,6 +29,7 @@ import {
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
 import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
 import { throttledFetch } from '@/lib/api/throttledFetch';
+import ThemePreviewCard from '@/components/ui/ThemePreviewCard';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { useAccountPrefsStore, type SupportedLanguage } from '@/stores/useAccountPrefsStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
@@ -527,7 +528,7 @@ function AccountContent() {
     <div className="min-h-screen overflow-y-auto animate-fadeIn" style={{ background: 'var(--background)' }}>
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 sm:mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-8 animate-slideUp stagger-1">
           <div className="flex items-center gap-4">
             <Link href="/live" className="text-xl font-bold" style={{ color: 'var(--primary-light)' }}>
               SENZOUKRIA
@@ -553,7 +554,7 @@ function AccountContent() {
           </div>
         )}
 
-        <div className="flex flex-col md:flex-row gap-4 md:gap-8">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-8 animate-slideUp stagger-2">
           {/* Tab Navigation — horizontal scroll on mobile, sidebar on desktop */}
           <nav className="md:w-48 flex-shrink-0">
             <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 custom-scrollbar">
@@ -590,12 +591,29 @@ function AccountContent() {
                   <div className="space-y-0">
                     <SettingRow label={t('account.avatar')}>
                       <div className="flex items-center gap-3">
-                        <label className="relative group cursor-pointer">
+                        {/* Avatar with drag-and-drop */}
+                        <label
+                          className="relative group cursor-pointer"
+                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add('ring-2', 'ring-[var(--primary)]', 'ring-offset-2'); }}
+                          onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('ring-2', 'ring-[var(--primary)]', 'ring-offset-2'); }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.remove('ring-2', 'ring-[var(--primary)]', 'ring-offset-2');
+                            const file = e.dataTransfer.files?.[0];
+                            if (file && file.type.startsWith('image/')) {
+                              const input = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
+                              const dt = new DataTransfer();
+                              dt.items.add(file);
+                              input.files = dt.files;
+                              input.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                          }}
+                        >
                           <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarUpload} className="hidden" disabled={avatarUploading} />
                           {avatarUrl ? (
-                            <img src={avatarUrl} alt="Avatar" className="w-12 h-12 rounded-full object-cover" />
+                            <img src={avatarUrl} alt="Avatar" className="w-14 h-14 rounded-full object-cover transition-transform group-hover:scale-105" />
                           ) : (
-                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold"
+                            <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold transition-transform group-hover:scale-105"
                               style={{ background: 'var(--primary-dark)', color: 'var(--primary-foreground, #fff)' }}>
                               {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
                             </div>
@@ -608,19 +626,39 @@ function AccountContent() {
                               </svg>
                             ) : (
                               <svg className="w-5 h-5" style={{ color: '#fff' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13" />
                               </svg>
                             )}
                           </div>
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => document.querySelector<HTMLInputElement>('input[accept*="image"]')?.click()}
-                          className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
-                          style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                        >
-                          {avatarUploading ? 'Uploading...' : 'Change'}
-                        </button>
+                        <div className="flex flex-col gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => document.querySelector<HTMLInputElement>('input[accept*="image"]')?.click()}
+                            className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
+                            style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                          >
+                            {avatarUploading ? 'Uploading...' : 'Change photo'}
+                          </button>
+                          {avatarUrl && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/auth/profile/avatar', { method: 'DELETE' });
+                                  if (res.ok) { setAvatarUrl(''); if (sessionData.update) sessionData.update(); }
+                                } catch (err) { console.error('Avatar delete error:', err); }
+                              }}
+                              className="text-xs px-3 py-1 rounded-lg transition-colors hover:opacity-80"
+                              style={{ color: 'var(--danger, #ef4444)' }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                            PNG, JPG, WebP &middot; Drag &amp; drop
+                          </span>
+                        </div>
                       </div>
                     </SettingRow>
                     <SettingRow label={t('account.email')}>
@@ -781,63 +819,17 @@ function AccountContent() {
                     Applies globally — UI, charts, logo, and all pages.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {UI_THEMES.map((theme) => {
-                      const isActive = activeTheme === theme.id;
-                      const c = theme.colors;
-                      return (
-                        <button
-                          key={theme.id}
-                          onClick={() => { setTheme(theme.id); applyUITheme(theme.id); syncFootprintWithUITheme(theme.id); }}
-                          className="relative p-3 rounded-xl transition-all text-left group"
-                          style={{
-                            background: c.surface,
-                            border: `2px solid ${isActive ? c.primary : c.border}`,
-                            boxShadow: isActive ? `0 0 12px ${c.primaryGlow}` : 'none',
-                          }}
-                        >
-                          {/* Active indicator */}
-                          {isActive && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                              style={{ background: c.primary, color: c.background }}>
-                              &#10003;
-                            </div>
-                          )}
-
-                          {/* Mini chart preview */}
-                          <div className="h-12 rounded-lg mb-2 flex items-end gap-[3px] px-2 pb-1 overflow-hidden"
-                            style={{ background: c.chartBg, border: `1px solid ${c.chartGrid}` }}>
-                            {/* Simulated candles */}
-                            {[
-                              { h: 24, up: true }, { h: 18, up: false }, { h: 30, up: true },
-                              { h: 14, up: false }, { h: 22, up: true }, { h: 28, up: true },
-                              { h: 16, up: false }, { h: 26, up: true }, { h: 20, up: false },
-                              { h: 32, up: true }, { h: 12, up: false }, { h: 24, up: true },
-                            ].map((bar, i) => (
-                              <div key={i} className="flex-1 rounded-[1px] min-w-[3px]"
-                                style={{
-                                  height: `${bar.h}px`,
-                                  background: bar.up ? c.candleUp : c.candleDown,
-                                  opacity: 0.85,
-                                }} />
-                            ))}
-                          </div>
-
-                          {/* Theme info */}
-                          <div className="flex items-center gap-2">
-                            {/* Color dots: logo + primary + accent */}
-                            <div className="flex gap-1">
-                              <div className="w-3 h-3 rounded-full" style={{ background: c.logoBright }} />
-                              <div className="w-3 h-3 rounded-full" style={{ background: c.primary }} />
-                              <div className="w-3 h-3 rounded-full" style={{ background: c.accent }} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-semibold truncate" style={{ color: c.textPrimary }}>{theme.name}</div>
-                              <div className="text-[10px] truncate" style={{ color: c.textMuted }}>{theme.description}</div>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {UI_THEMES.map((theme) => (
+                      <ThemePreviewCard
+                        key={theme.id}
+                        themeId={theme.id}
+                        name={theme.name}
+                        description={theme.description}
+                        colors={theme.colors}
+                        isActive={activeTheme === theme.id}
+                        onClick={() => { setTheme(theme.id); applyUITheme(theme.id); syncFootprintWithUITheme(theme.id); }}
+                      />
+                    ))}
                   </div>
                 </SectionCard>
               </>

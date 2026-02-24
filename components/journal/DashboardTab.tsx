@@ -1,8 +1,10 @@
 'use client';
 
 import { useJournalAnalytics } from '@/hooks/useJournalAnalytics';
+import { useJournal } from '@/hooks/useJournal';
 import DateRangeFilter from './DateRangeFilter';
 import MetricsGrid from './MetricsGrid';
+import TrackScoreCard from './TrackScoreCard';
 import EquityCurveChart from './EquityCurveChart';
 import DrawdownChart from './DrawdownChart';
 import PnlHeatmapMini from './PnlHeatmapMini';
@@ -15,6 +17,7 @@ import StreakAnalysis from './StreakAnalysis';
 
 export default function DashboardTab() {
   const { analytics, loading } = useJournalAnalytics();
+  const { entries, loading: entriesLoading } = useJournal();
 
   return (
     <div className="p-6 space-y-5 max-w-7xl mx-auto">
@@ -24,12 +27,21 @@ export default function DashboardTab() {
         <DateRangeFilter />
       </div>
 
-      {/* Key Metrics */}
-      <MetricsGrid
-        metrics={analytics.metrics}
-        streaks={analytics.streaks}
-        loading={loading}
-      />
+      {/* Key Metrics + Track Score */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="lg:col-span-3">
+          <MetricsGrid
+            metrics={analytics.metrics}
+            streaks={analytics.streaks}
+            loading={loading}
+          />
+        </div>
+        <TrackScoreCard
+          analytics={analytics}
+          entries={entries}
+          loading={loading || entriesLoading}
+        />
+      </div>
 
       {/* Charts - Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

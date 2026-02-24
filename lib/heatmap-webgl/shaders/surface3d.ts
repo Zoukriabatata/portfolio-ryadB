@@ -73,29 +73,29 @@ void main() {
     baseColor = texture2D(askGradient, vec2(adjusted, 0.5));
   }
 
-  // Lambert diffuse + ambient lighting
+  // Lambert diffuse + ambient lighting (more dramatic)
   vec3 norm = normalize(vNormal);
   float diff = max(dot(norm, normalize(lightDir)), 0.0);
   float lighting = ambientStrength + (1.0 - ambientStrength) * diff;
 
   vec3 color = baseColor.rgb * lighting;
 
-  // Edge highlight for depth perception
+  // Rim light — warm orange tint on edges for thermal glow
   float rimFactor = 1.0 - max(dot(norm, vec3(0.0, 0.0, 1.0)), 0.0);
-  color += vec3(0.15, 0.2, 0.25) * pow(rimFactor, 2.0) * 0.3;
+  color += vec3(0.30, 0.15, 0.05) * pow(rimFactor, 2.0) * 0.4;
 
-  // Grid lines on surface
+  // Subtle surface grid (very faint, wider spacing)
   if (gridEnabled > 0.5) {
     float gx = abs(fract(vUV.x / gridSpacingX + 0.5) - 0.5);
     float gy = abs(fract(vUV.y / gridSpacingY + 0.5) - 0.5);
-    float lineX = smoothstep(0.0, 0.015, gx);
-    float lineY = smoothstep(0.0, 0.015, gy);
+    float lineX = smoothstep(0.0, 0.012, gx);
+    float lineY = smoothstep(0.0, 0.012, gy);
     float gridLine = 1.0 - min(lineX, lineY);
-    color = mix(color, vec3(1.0), gridLine * 0.12);
+    color = mix(color, vec3(0.8, 0.7, 0.5), gridLine * 0.03);
   }
 
-  // Boost low-intensity areas so the floor is visible
-  float floorAlpha = max(adjusted * 0.8 + 0.2, 0.25);
+  // Floor visibility — keep low areas slightly visible
+  float floorAlpha = max(adjusted * 0.85 + 0.15, 0.20);
 
   gl_FragColor = vec4(color, opacity * floorAlpha);
 }

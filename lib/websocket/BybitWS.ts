@@ -143,9 +143,16 @@ class BybitWebSocket {
     this.subscribedTopics.get(exchangeId)?.delete(topic);
   }
 
+  /** Returns true if the timeframe is sub-minute (15s or 30s) */
+  isSubMinute(interval: string): boolean {
+    return interval === '15s' || interval === '30s';
+  }
+
   // Convert Binance-style interval to Bybit interval
   private convertInterval(interval: string): string {
     const map: Record<string, string> = {
+      '15s': '1', // sub-minute: subscribe to 1m, aggregate client-side
+      '30s': '1', // sub-minute: subscribe to 1m, aggregate client-side
       '1m': '1',
       '3m': '3',
       '5m': '5',

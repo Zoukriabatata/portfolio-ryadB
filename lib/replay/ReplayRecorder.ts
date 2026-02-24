@@ -15,9 +15,12 @@ import type { IBTrade, IBDepthUpdate, IBQuote } from '@/types/ib-protocol';
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
+export type RecordingExchange = 'ib' | 'binance' | 'bybit' | 'deribit';
+
 export interface RecordingSession {
   id: string;
   symbol: string;
+  exchange: RecordingExchange;
   startTime: number;
   endTime: number;
   tradeCount: number;
@@ -27,6 +30,8 @@ export interface RecordingSession {
   metadata?: {
     description?: string;
     tags?: string[];
+    initialBalance?: number;
+    timeInvested?: number; // ms of active playback time
   };
 }
 
@@ -129,7 +134,7 @@ export class ReplayRecorder {
   // RECORDING LIFECYCLE
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async startRecording(symbol: string, description?: string): Promise<string> {
+  async startRecording(symbol: string, description?: string, exchange: RecordingExchange = 'ib'): Promise<string> {
     if (!this.db) await this.init();
     if (this.currentSession?.status === 'recording') {
       throw new Error('Already recording. Stop current session first.');
@@ -140,6 +145,7 @@ export class ReplayRecorder {
     this.currentSession = {
       id: sessionId,
       symbol: symbol.toUpperCase(),
+      exchange,
       startTime: Date.now(),
       endTime: 0,
       tradeCount: 0,

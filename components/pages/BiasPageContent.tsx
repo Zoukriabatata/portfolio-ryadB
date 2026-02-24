@@ -130,18 +130,18 @@ export default function BiasPageContent() {
       </div>
 
       {/* ── Header Bar ── */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)] animate-slideUp stagger-1">
-        <div className="flex items-center gap-3">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface)] animate-slideUp stagger-1">
+        <div className="flex items-center gap-4">
           {/* Contract selector */}
-          <div className="flex items-center gap-1 bg-[var(--background)] rounded-lg p-0.5">
+          <div className="flex items-center gap-1 bg-[var(--background)] rounded-xl p-1">
             {CONTRACTS.map(c => (
               <button
                 key={c.id}
                 onClick={() => setContract(c.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
                   contract === c.id
-                    ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                    ? 'bg-[var(--primary-dark)] text-[var(--text-primary)] shadow-md'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
                 }`}
               >
                 {c.label}
@@ -149,10 +149,17 @@ export default function BiasPageContent() {
             ))}
           </div>
 
-          {/* Title */}
-          <div className="hidden sm:flex items-center gap-2">
+          {/* Title + Direction badge */}
+          <div className="hidden sm:flex items-center gap-3">
             <span className="text-sm font-bold text-[var(--text-primary)]">
               GVS Bias
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{
+                backgroundColor: biasResult.direction === 'long' ? '#22c55e15' : biasResult.direction === 'short' ? '#ef444415' : '#6b728015',
+                color: biasResult.direction === 'long' ? '#22c55e' : biasResult.direction === 'short' ? '#ef4444' : '#6b7280',
+              }}>
+              {biasResult.direction.toUpperCase()} {biasResult.strength}
             </span>
             <span className="text-[10px] text-[var(--text-muted)]">
               {etfSymbol} GEX → {contract}
@@ -160,10 +167,10 @@ export default function BiasPageContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* Spot price */}
-          <div className="text-xs font-mono text-[var(--text-secondary)]">
-            {contract} {biasResult.esSpot.toFixed(0)}
+          <div className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+            {contract} <span className="text-[var(--text-secondary)]">{biasResult.esSpot.toFixed(0)}</span>
           </div>
 
           {/* LIVE / SIM badge */}
@@ -307,18 +314,29 @@ function LevelCard({ label, value, color, spot }: {
 }) {
   const diff = value - spot;
   const pctDiff = (diff / spot) * 100;
+  const isAbove = diff > 0;
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
-      <div className="flex items-center gap-1.5 mb-1">
-        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
-        <span className="text-[10px] text-[var(--text-muted)]">{label}</span>
+    <div
+      className="rounded-xl border bg-[var(--surface)] px-3 py-2.5 transition-all hover:scale-[1.02] group"
+      style={{ borderColor: `${color}25`, boxShadow: `0 0 0 0 ${color}00` }}
+      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 16px ${color}15`; e.currentTarget.style.borderColor = `${color}40`; }}
+      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 0 0 0 ${color}00`; e.currentTarget.style.borderColor = `${color}25`; }}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}50` }} />
+          <span className="text-[10px] font-medium text-[var(--text-muted)]">{label}</span>
+        </div>
+        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: `${color}12`, color }}>
+          {isAbove ? 'Above' : 'Below'}
+        </span>
       </div>
-      <div className="text-sm font-bold font-mono" style={{ color }}>
+      <div className="text-base font-bold font-mono tracking-tight" style={{ color }}>
         {value.toFixed(0)}
       </div>
-      <div className="text-[9px] font-mono text-[var(--text-muted)]">
-        {diff > 0 ? '+' : ''}{diff.toFixed(0)} ({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(2)}%)
+      <div className="text-[10px] font-mono mt-0.5" style={{ color: isAbove ? '#22c55e' : '#ef4444' }}>
+        {diff > 0 ? '+' : ''}{diff.toFixed(0)} pts ({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(2)}%)
       </div>
     </div>
   );

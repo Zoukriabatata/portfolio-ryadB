@@ -510,12 +510,159 @@ export const THEME_SENZOUKRIA: OrderflowTheme = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// MAGMA THEME (Thermal Heat Vision — same gradient for bid & ask)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const MAGMA_GRADIENT: HeatmapGradient = {
+  name: 'Magma Thermal',
+  stops: [
+    { position: 0.00, color: '#050510' },
+    { position: 0.04, color: '#0a0a2e' },
+    { position: 0.10, color: '#1a0a3a' },
+    { position: 0.20, color: '#0a2a5a' },
+    { position: 0.30, color: '#0a4a6a' },
+    { position: 0.40, color: '#0a7a6a' },
+    { position: 0.50, color: '#2a9a3a' },
+    { position: 0.60, color: '#6aba1a' },
+    { position: 0.70, color: '#baba0a' },
+    { position: 0.80, color: '#da7a0a' },
+    { position: 0.90, color: '#ea3a1a' },
+    { position: 1.00, color: '#ffffff' },
+  ],
+};
+
+export const THEME_MAGMA: OrderflowTheme = {
+  name: 'Magma',
+  colors: {
+    background: '#050510',
+    backgroundSecondary: '#0a0a14',
+    bidGradient: MAGMA_GRADIENT,
+    askGradient: MAGMA_GRADIENT,
+    bestBidLine: '#22d3ee',
+    bestAskLine: '#f472b6',
+    spreadFill: 'rgba(255, 255, 255, 0.03)',
+    buyTrade: '#22d3ee',
+    sellTrade: '#f472b6',
+    mixedTrade: '#fbbf24',
+    poc: '#fbbf24',
+    vah: '#a78bfa',
+    val: '#a78bfa',
+    vwap: '#38bdf8',
+    sessionHigh: '#34d399',
+    sessionLow: '#fb7185',
+    roundNumber: '#fbbf24',
+    majorGrid: 'rgba(255, 255, 255, 0.06)',
+    minorGrid: 'rgba(255, 255, 255, 0.02)',
+    textPrimary: '#d4d4d8',
+    textSecondary: '#71717a',
+    textMuted: '#52525b',
+    textHighlight: '#fbbf24',
+    alertPositive: '#22d3ee',
+    alertNegative: '#f472b6',
+    alertWarning: '#fbbf24',
+  },
+  bidOpacity: 0.90,
+  askOpacity: 0.90,
+  gridOpacity: 0.3,
+  fontFamily: 'JetBrains Mono, Consolas, Monaco, monospace',
+  fontSize: {
+    price: 10,
+    label: 9,
+    stat: 8,
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEEP OCEAN THEME (Premium Bookmap-inspired)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const DEEPOCEAN_GRADIENT_BID: HeatmapGradient = {
+  name: 'Deep Ocean Bid',
+  stops: [
+    { position: 0.0, color: '#000814' },    // Black void
+    { position: 0.04, color: '#001025' },   // Barely visible
+    { position: 0.10, color: '#001d3d' },   // Dark navy
+    { position: 0.22, color: '#003566' },   // Deep blue
+    { position: 0.38, color: '#0077b6' },   // Ocean blue
+    { position: 0.55, color: '#0096c7' },   // Medium cyan
+    { position: 0.72, color: '#00b4d8' },   // Bright cyan
+    { position: 0.88, color: '#48cae4' },   // Light cyan
+    { position: 1.0, color: '#ade8f4' },    // Pale cyan
+  ],
+};
+
+export const DEEPOCEAN_GRADIENT_ASK: HeatmapGradient = {
+  name: 'Deep Ocean Ask',
+  stops: [
+    { position: 0.0, color: '#000814' },    // Black void
+    { position: 0.04, color: '#0d0015' },   // Barely visible
+    { position: 0.10, color: '#1a0030' },   // Dark purple
+    { position: 0.22, color: '#3c096c' },   // Deep violet
+    { position: 0.38, color: '#5a189a' },   // Purple
+    { position: 0.55, color: '#7b2cbf' },   // Medium magenta
+    { position: 0.72, color: '#9d4edd' },   // Bright magenta
+    { position: 0.88, color: '#c77dff' },   // Light magenta
+    { position: 1.0, color: '#e0aaff' },    // Pale lavender
+  ],
+};
+
+export const THEME_DEEPOCEAN: OrderflowTheme = {
+  name: 'Deep Ocean',
+  colors: {
+    background: '#000814',
+    backgroundSecondary: '#001025',
+
+    bidGradient: DEEPOCEAN_GRADIENT_BID,
+    askGradient: DEEPOCEAN_GRADIENT_ASK,
+
+    bestBidLine: '#00b4d8',
+    bestAskLine: '#c77dff',
+    spreadFill: '#0a1628',
+
+    buyTrade: '#00b4d8',
+    sellTrade: '#ff6b9d',
+    mixedTrade: '#ffd60a',
+
+    poc: '#ffd60a',
+    vah: '#9d4edd',
+    val: '#9d4edd',
+    vwap: '#48cae4',
+    sessionHigh: '#90e0ef',
+    sessionLow: '#ff85a1',
+    roundNumber: '#ffc300',
+
+    majorGrid: '#0a1e3d',
+    minorGrid: '#061428',
+
+    textPrimary: '#e0e8f0',
+    textSecondary: '#7a8fa8',
+    textMuted: '#3d5068',
+    textHighlight: '#ffd60a',
+
+    alertPositive: '#00b4d8',
+    alertNegative: '#ff6b9d',
+    alertWarning: '#ffd60a',
+  },
+  bidOpacity: 0.90,
+  askOpacity: 0.90,
+  gridOpacity: 0.4,
+  fontFamily: 'Consolas, Monaco, monospace',
+  fontSize: {
+    price: 10,
+    label: 9,
+    stat: 8,
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // THEME REGISTRY
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type ThemeName = 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast';
+export type ThemeName = 'magma' | 'deepocean' | 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast';
 
 export const THEMES: Record<ThemeName, OrderflowTheme> = {
+  magma: THEME_MAGMA,
+  deepocean: THEME_DEEPOCEAN,
   senzoukria: THEME_SENZOUKRIA,
   atas: THEME_ATAS,
   bookmap: THEME_BOOKMAP,
@@ -524,7 +671,7 @@ export const THEMES: Record<ThemeName, OrderflowTheme> = {
 };
 
 export function getTheme(name: ThemeName): OrderflowTheme {
-  return THEMES[name] || THEME_SENZOUKRIA;
+  return THEMES[name] || THEME_MAGMA;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -574,6 +721,7 @@ const OrderflowTheme = {
   THEMES,
   getTheme,
   generateGradientData,
+  THEME_DEEPOCEAN,
   THEME_SENZOUKRIA,
   THEME_ATAS,
   THEME_BOOKMAP,

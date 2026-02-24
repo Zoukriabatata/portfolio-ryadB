@@ -98,7 +98,7 @@ export default function LivePageContent() {
   useFuturesData(symbol);
 
   return (
-    <div className="h-[calc(100svh-56px)] flex" style={{ backgroundColor: 'var(--background)' }}>
+    <div className="h-[calc(100svh-56px)] flex animate-fadeIn" style={{ backgroundColor: 'var(--background)' }}>
       {/* Watchlist Panel — hidden on mobile */}
       <div
         className={`flex-shrink-0 border-r overflow-hidden relative panel-slide hidden sm:block ${!showWatchlist ? 'panel-collapsed' : ''}`}

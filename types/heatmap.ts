@@ -124,7 +124,7 @@ export const DEFAULT_HEATMAP_SETTINGS: HeatmapSettings = {
 
 // ============ LIQUIDITY HEATMAP PRO TYPES ============
 
-export type ColorScheme = 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast';
+export type ColorScheme = 'magma' | 'deepocean' | 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast';
 export type SmoothingMode = 'auto' | 'manual' | 'none';
 export type BubbleShape = 'circle' | 'pie';
 export type FootprintStyle = 'bid_ask' | 'delta' | 'volume';
@@ -495,7 +495,7 @@ export interface HeatmapProSettings {
 export const DEFAULT_HEATMAP_PRO_SETTINGS: HeatmapProSettings = {
   // General
   autoCenter: true,
-  colorScheme: 'senzoukria',
+  colorScheme: 'magma',
 
   // Display
   upperCutoffPercent: 95,
@@ -506,23 +506,23 @@ export const DEFAULT_HEATMAP_PRO_SETTINGS: HeatmapProSettings = {
 
   // Best Bid/Ask
   bestBidAskPixelSize: 50,
-  bestBidColor: '#22c55e',
-  bestAskColor: '#ef4444',
+  bestBidColor: '#22d3ee',
+  bestAskColor: '#f472b6',
 
   // DOM
   domColors: {
-    askBackground: 'rgba(239, 68, 68, 0.3)',
-    bidBackground: 'rgba(34, 197, 94, 0.3)',
-    bestBidTextColor: '#22c55e',
-    bestAskTextColor: '#ef4444',
+    askBackground: 'rgba(244, 114, 182, 0.3)',
+    bidBackground: 'rgba(34, 211, 238, 0.3)',
+    bestBidTextColor: '#22d3ee',
+    bestAskTextColor: '#f472b6',
   },
   maxVolumePixelSize: 50,
 
   // Trade Flow
   tradeFlow: {
     enabled: true,
-    buyColor: 'rgba(34, 197, 94, 0.7)',
-    sellColor: 'rgba(239, 68, 68, 0.7)',
+    buyColor: 'rgba(34, 211, 238, 0.7)',
+    sellColor: 'rgba(244, 114, 182, 0.7)',
     bubbleShape: 'circle',
     cumulativeMode: true,
     filterThreshold: 0.3,

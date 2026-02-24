@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { usePageActive } from '@/hooks/usePageActive';
-import { useWatchlistStore, type WatchlistItem } from '@/stores/useWatchlistStore';
+import {
+  useWatchlistStore,
+  type WatchlistItem,
+  type CryptoSubCategory,
+  CRYPTO_CATEGORIES,
+} from '@/stores/useWatchlistStore';
 import { formatPrice, formatVolume } from '@/lib/utils/formatters';
 
 interface WatchlistPanelProps {
@@ -49,19 +54,66 @@ function Sparkline({ data, color, width = 48, height = 18 }: { data: number[]; c
 }
 
 type SortBy = 'default' | 'change' | 'volume' | 'name';
+type FilterCategory = 'all' | CryptoSubCategory;
+
+const CATEGORY_COLORS: Record<CryptoSubCategory, string> = {
+  top10: '#3b82f6',
+  defi: '#8b5cf6',
+  layer1: '#f59e0b',
+  layer2: '#06b6d4',
+  meme: '#ec4899',
+};
+
+const ADDABLE_SYMBOLS: WatchlistItem[] = [
+  // Top 10
+  { symbol: 'btcusdt', label: 'BTC/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'ethusdt', label: 'ETH/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'solusdt', label: 'SOL/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'xrpusdt', label: 'XRP/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'bnbusdt', label: 'BNB/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'adausdt', label: 'ADA/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'tonusdt', label: 'TON/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'trxusdt', label: 'TRX/USDT', category: 'crypto', subCategory: 'top10' },
+  // Layer 1
+  { symbol: 'avaxusdt', label: 'AVAX/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'suiusdt', label: 'SUI/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'aptusdt', label: 'APT/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'nearusdt', label: 'NEAR/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'atomusdt', label: 'ATOM/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'dotusdt', label: 'DOT/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'ftmusdt', label: 'FTM/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'injusdt', label: 'INJ/USDT', category: 'crypto', subCategory: 'layer1' },
+  // Layer 2
+  { symbol: 'arbusdt', label: 'ARB/USDT', category: 'crypto', subCategory: 'layer2' },
+  { symbol: 'opusdt', label: 'OP/USDT', category: 'crypto', subCategory: 'layer2' },
+  { symbol: 'maticusdt', label: 'MATIC/USDT', category: 'crypto', subCategory: 'layer2' },
+  // DeFi
+  { symbol: 'linkusdt', label: 'LINK/USDT', category: 'crypto', subCategory: 'defi' },
+  { symbol: 'aaveusdt', label: 'AAVE/USDT', category: 'crypto', subCategory: 'defi' },
+  { symbol: 'uniusdt', label: 'UNI/USDT', category: 'crypto', subCategory: 'defi' },
+  { symbol: 'runeusdt', label: 'RUNE/USDT', category: 'crypto', subCategory: 'defi' },
+  { symbol: 'jupusdt', label: 'JUP/USDT', category: 'crypto', subCategory: 'defi' },
+  // Meme
+  { symbol: 'dogeusdt', label: 'DOGE/USDT', category: 'crypto', subCategory: 'meme' },
+  { symbol: 'shibusdt', label: 'SHIB/USDT', category: 'crypto', subCategory: 'meme' },
+  { symbol: 'pepeusdt', label: 'PEPE/USDT', category: 'crypto', subCategory: 'meme' },
+  { symbol: 'tiausdt', label: 'TIA/USDT', category: 'crypto', subCategory: 'meme' },
+  { symbol: 'ltcusdt', label: 'LTC/USDT', category: 'crypto', subCategory: 'top10' },
+];
 
 export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: WatchlistPanelProps) {
   const { items, prices, removeItem, addItem, updatePrice } = useWatchlistStore();
   const [showAdd, setShowAdd] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('default');
+  const [filterCategory, setFilterCategory] = useState<FilterCategory>('all');
+  const [addCategory, setAddCategory] = useState<FilterCategory>('all');
   const isActive = usePageActive();
 
   // Stable symbol list key to avoid reconnecting on every reorder
   const symbolsKey = useMemo(() => items.map((i) => i.symbol).sort().join(','), [items]);
 
   // Connect mini-ticker WebSocket for all watchlist symbols — paused when page hidden
-  // Uses managed WebSocket with reconnect logic instead of raw WebSocket
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSparklineUpdateRef = useRef<Record<string, number>>({});
@@ -156,9 +208,18 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
     };
   }, [isActive, connectWatchlistWS]);
 
-  const sortedItems = useMemo(() => {
-    if (sortBy === 'default') return items;
-    return [...items].sort((a, b) => {
+  // Filter + sort items
+  const filteredSortedItems = useMemo(() => {
+    let result = items;
+
+    // Apply category filter
+    if (filterCategory !== 'all') {
+      result = result.filter((i) => i.subCategory === filterCategory);
+    }
+
+    // Apply sort
+    if (sortBy === 'default') return result;
+    return [...result].sort((a, b) => {
       const da = prices[a.symbol];
       const db = prices[b.symbol];
       if (sortBy === 'change') {
@@ -170,49 +231,39 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
       // name
       return a.label.localeCompare(b.label);
     });
-  }, [items, prices, sortBy]);
+  }, [items, prices, sortBy, filterCategory]);
 
   const fmtPrice = formatPrice;
   const fmtVol = formatVolume;
 
-  const ADDABLE_SYMBOLS: WatchlistItem[] = [
-    { symbol: 'btcusdt', label: 'BTC/USDT', category: 'crypto' },
-    { symbol: 'ethusdt', label: 'ETH/USDT', category: 'crypto' },
-    { symbol: 'solusdt', label: 'SOL/USDT', category: 'crypto' },
-    { symbol: 'xrpusdt', label: 'XRP/USDT', category: 'crypto' },
-    { symbol: 'dogeusdt', label: 'DOGE/USDT', category: 'crypto' },
-    { symbol: 'adausdt', label: 'ADA/USDT', category: 'crypto' },
-    { symbol: 'avaxusdt', label: 'AVAX/USDT', category: 'crypto' },
-    { symbol: 'dotusdt', label: 'DOT/USDT', category: 'crypto' },
-    { symbol: 'linkusdt', label: 'LINK/USDT', category: 'crypto' },
-    { symbol: 'maticusdt', label: 'MATIC/USDT', category: 'crypto' },
-    { symbol: 'bnbusdt', label: 'BNB/USDT', category: 'crypto' },
-    { symbol: 'ltcusdt', label: 'LTC/USDT', category: 'crypto' },
-    { symbol: 'arbusdt', label: 'ARB/USDT', category: 'crypto' },
-    { symbol: 'opusdt', label: 'OP/USDT', category: 'crypto' },
-    { symbol: 'suiusdt', label: 'SUI/USDT', category: 'crypto' },
-    { symbol: 'aptusdt', label: 'APT/USDT', category: 'crypto' },
-    { symbol: 'nearusdt', label: 'NEAR/USDT', category: 'crypto' },
-    { symbol: 'aaveusdt', label: 'AAVE/USDT', category: 'crypto' },
-    { symbol: 'uniusdt', label: 'UNI/USDT', category: 'crypto' },
-    { symbol: 'pepeusdt', label: 'PEPE/USDT', category: 'crypto' },
-    { symbol: 'tonusdt', label: 'TON/USDT', category: 'crypto' },
-    { symbol: 'trxusdt', label: 'TRX/USDT', category: 'crypto' },
-    { symbol: 'atomusdt', label: 'ATOM/USDT', category: 'crypto' },
-    { symbol: 'ftmusdt', label: 'FTM/USDT', category: 'crypto' },
-    { symbol: 'injusdt', label: 'INJ/USDT', category: 'crypto' },
-    { symbol: 'runeusdt', label: 'RUNE/USDT', category: 'crypto' },
-    { symbol: 'tiausdt', label: 'TIA/USDT', category: 'crypto' },
-    { symbol: 'jupusdt', label: 'JUP/USDT', category: 'crypto' },
-  ];
+  // Filter addable symbols by category and search
+  const filteredAddable = useMemo(() => {
+    return ADDABLE_SYMBOLS.filter(
+      (s) =>
+        !items.some((i) => i.symbol === s.symbol) &&
+        (addCategory === 'all' || s.subCategory === addCategory) &&
+        (searchQuery === '' ||
+          s.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          s.symbol.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [items, addCategory, searchQuery]);
 
-  const filteredAddable = ADDABLE_SYMBOLS.filter(
-    (s) => !items.some((i) => i.symbol === s.symbol) && (
-      searchQuery === '' ||
-      s.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
+  // Group addable by subcategory for display
+  const groupedAddable = useMemo(() => {
+    if (addCategory !== 'all') return null; // flat list when filtered
+    const groups: Partial<Record<CryptoSubCategory, WatchlistItem[]>> = {};
+    for (const s of filteredAddable) {
+      const cat = s.subCategory || 'top10';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat]!.push(s);
+    }
+    return groups;
+  }, [filteredAddable, addCategory]);
+
+  const categoryFilterTabs: { key: FilterCategory; label: string }[] = [
+    { key: 'all', label: 'All' },
+    ...Object.entries(CRYPTO_CATEGORIES).map(([k, v]) => ({ key: k as FilterCategory, label: v })),
+  ];
 
   return (
     <div className="h-full flex flex-col text-[11px]" style={{ backgroundColor: 'var(--surface)' }}>
@@ -234,22 +285,45 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
             <option value="name">Name</option>
           </select>
           <button
-            onClick={() => setShowAdd(!showAdd)}
+            onClick={() => { setShowAdd(!showAdd); setSearchQuery(''); setAddCategory('all'); }}
             aria-label={showAdd ? 'Close add symbol' : 'Add symbol'}
             aria-expanded={showAdd}
             className="w-5 h-5 rounded flex items-center justify-center hover:bg-white/5 transition-colors"
             style={{ color: showAdd ? 'var(--primary)' : 'var(--text-muted)' }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              {showAdd ? (
+                <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
+              ) : (
+                <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>
+              )}
             </svg>
           </button>
         </div>
       </div>
 
+      {/* Category filter tabs */}
+      <div className="flex items-center gap-0.5 px-1.5 py-1 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
+        {categoryFilterTabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilterCategory(tab.key)}
+            className="px-1.5 py-0.5 rounded text-[9px] font-medium whitespace-nowrap transition-colors"
+            style={{
+              backgroundColor: filterCategory === tab.key ? 'rgba(255,255,255,0.08)' : 'transparent',
+              color: filterCategory === tab.key
+                ? (tab.key === 'all' ? 'var(--primary)' : CATEGORY_COLORS[tab.key as CryptoSubCategory] || 'var(--primary)')
+                : 'var(--text-dimmed)',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Add symbol dropdown */}
       {showAdd && (
-        <div className="border-b px-2 py-1.5 space-y-1" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-elevated)' }}>
+        <div className="border-b px-2 py-1.5 space-y-1.5" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-elevated)' }}>
           <input
             type="text"
             value={searchQuery}
@@ -260,35 +334,58 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
             style={{ backgroundColor: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
             autoFocus
           />
-          <div className="max-h-32 overflow-y-auto space-y-0.5">
-            {filteredAddable.slice(0, 12).map((s) => (
+          {/* Category tabs for add panel */}
+          <div className="flex items-center gap-0.5 overflow-x-auto">
+            {categoryFilterTabs.map((tab) => (
               <button
-                key={s.symbol}
-                onClick={() => {
-                  addItem(s);
-                  setSearchQuery('');
-                  setShowAdd(false);
+                key={tab.key}
+                onClick={() => setAddCategory(tab.key)}
+                className="px-1.5 py-0.5 rounded text-[8px] font-medium whitespace-nowrap transition-colors"
+                style={{
+                  backgroundColor: addCategory === tab.key ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  color: addCategory === tab.key
+                    ? (tab.key === 'all' ? 'var(--primary)' : CATEGORY_COLORS[tab.key as CryptoSubCategory] || 'var(--primary)')
+                    : 'var(--text-dimmed)',
                 }}
-                className="w-full text-left px-2 py-1 rounded hover:bg-white/5 transition-colors flex items-center justify-between"
-                style={{ color: 'var(--text-secondary)' }}
               >
-                <span className="font-medium">{s.label}</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+                {tab.label}
               </button>
             ))}
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-0.5">
+            {addCategory === 'all' && groupedAddable ? (
+              // Grouped view
+              Object.entries(groupedAddable).map(([cat, symbols]) => (
+                <div key={cat}>
+                  <div className="text-[8px] font-semibold uppercase tracking-wider px-1 py-0.5 mt-1" style={{ color: CATEGORY_COLORS[cat as CryptoSubCategory] || 'var(--text-dimmed)' }}>
+                    {CRYPTO_CATEGORIES[cat as CryptoSubCategory] || cat}
+                  </div>
+                  {symbols.map((s) => (
+                    <AddSymbolRow key={s.symbol} item={s} onAdd={(item) => { addItem(item); setSearchQuery(''); setShowAdd(false); }} />
+                  ))}
+                </div>
+              ))
+            ) : (
+              // Flat filtered list
+              filteredAddable.slice(0, 15).map((s) => (
+                <AddSymbolRow key={s.symbol} item={s} onAdd={(item) => { addItem(item); setSearchQuery(''); setShowAdd(false); }} />
+              ))
+            )}
+            {filteredAddable.length === 0 && (
+              <div className="text-center py-2 text-[9px]" style={{ color: 'var(--text-dimmed)' }}>No symbols found</div>
+            )}
           </div>
         </div>
       )}
 
       {/* Symbols list */}
       <div className="flex-1 overflow-y-auto">
-        {sortedItems.map((item) => {
+        {filteredSortedItems.map((item) => {
           const data = prices[item.symbol];
-          const isActive = item.symbol === activeSymbol;
+          const isItemActive = item.symbol === activeSymbol;
           const isUp = data ? data.changePercent24h >= 0 : true;
           const color = isUp ? 'var(--bull)' : 'var(--bear)';
+          const catColor = item.subCategory ? CATEGORY_COLORS[item.subCategory] : undefined;
 
           return (
             <div
@@ -296,14 +393,23 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
               onClick={() => onSymbolSelect(item.symbol)}
               className="flex items-center justify-between px-2 py-1.5 cursor-pointer transition-colors group"
               style={{
-                backgroundColor: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
-                borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                backgroundColor: isItemActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                borderLeft: isItemActive ? '2px solid var(--primary)' : '2px solid transparent',
               }}
             >
               <div className="flex flex-col min-w-0">
-                <span className="font-semibold truncate" style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 11 }}>
-                  {item.label}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="font-semibold truncate" style={{ color: isItemActive ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 11 }}>
+                    {item.label}
+                  </span>
+                  {catColor && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: catColor }}
+                      title={item.subCategory ? CRYPTO_CATEGORIES[item.subCategory] : ''}
+                    />
+                  )}
+                </div>
                 {data && (
                   <span className="text-[9px] font-mono" style={{ color: 'var(--text-dimmed)' }}>
                     Vol {fmtVol(data.volume24h)}
@@ -347,7 +453,39 @@ export default function WatchlistPanel({ activeSymbol, onSymbolSelect }: Watchli
             </div>
           );
         })}
+        {filteredSortedItems.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-4 gap-1">
+            <span className="text-[9px]" style={{ color: 'var(--text-dimmed)' }}>No symbols in this category</span>
+            <button
+              onClick={() => setFilterCategory('all')}
+              className="text-[9px] font-medium"
+              style={{ color: 'var(--primary)' }}
+            >
+              Show all
+            </button>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+/** Small row component for add-symbol list */
+function AddSymbolRow({ item, onAdd }: { item: WatchlistItem; onAdd: (item: WatchlistItem) => void }) {
+  const catColor = item.subCategory ? CATEGORY_COLORS[item.subCategory] : undefined;
+  return (
+    <button
+      onClick={() => onAdd(item)}
+      className="w-full text-left px-2 py-1 rounded hover:bg-white/5 transition-colors flex items-center justify-between"
+      style={{ color: 'var(--text-secondary)' }}
+    >
+      <div className="flex items-center gap-1.5">
+        {catColor && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />}
+        <span className="font-medium text-[11px]">{item.label}</span>
+      </div>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
   );
 }

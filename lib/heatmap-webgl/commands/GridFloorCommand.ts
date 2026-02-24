@@ -18,12 +18,12 @@ import { grid3dVert, grid3dFrag } from '../shaders/surface3d';
 // COLORS (vec3 RGB)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const GRID_MINOR: [number, number, number] = [0.15, 0.18, 0.22];
-const GRID_MAJOR: [number, number, number] = [0.25, 0.30, 0.35];
-const AXIS_COLOR: [number, number, number] = [0.4, 0.5, 0.6];
-const Z_AXIS_COLOR: [number, number, number] = [0.5, 0.7, 0.5];
-const BORDER_COLOR: [number, number, number] = [0.3, 0.35, 0.4];
-const MID_PRICE_COLOR: [number, number, number] = [0.1, 0.85, 0.75];
+const GRID_MINOR: [number, number, number] = [0.03, 0.03, 0.06];
+const GRID_MAJOR: [number, number, number] = [0.06, 0.06, 0.12];
+const AXIS_COLOR: [number, number, number] = [0.08, 0.08, 0.14];
+const Z_AXIS_COLOR: [number, number, number] = [0.10, 0.10, 0.18];
+const BORDER_COLOR: [number, number, number] = [0.04, 0.04, 0.08];
+const MID_PRICE_COLOR: [number, number, number] = [1.0, 1.0, 1.0];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // COMMAND

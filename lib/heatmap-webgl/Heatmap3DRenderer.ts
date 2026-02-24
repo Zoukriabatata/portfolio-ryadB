@@ -31,13 +31,13 @@ export interface Heatmap3DRenderSettings {
 }
 
 const DEFAULT_SETTINGS: Heatmap3DRenderSettings = {
-  contrast: 1.2,
+  contrast: 1.4,
   upperCutoff: 0.85,
-  heightScale: 0.8,
+  heightScale: 0.55,
   showGridLines: true,
-  lightDirection: [0.3, 0.8, 0.5],
-  ambientStrength: 0.35,
-  opacity: 0.95,
+  lightDirection: [0.2, 0.9, 0.4],
+  ambientStrength: 0.18,
+  opacity: 0.90,
 };
 
 export class Heatmap3DRenderer {
@@ -166,7 +166,7 @@ export class Heatmap3DRenderer {
 
     // Clear color + depth
     this.ctx.regl.clear({
-      color: [0.039, 0.047, 0.063, 1],
+      color: [0.02, 0.02, 0.063, 1],
       depth: 1,
     });
 
@@ -183,8 +183,8 @@ export class Heatmap3DRenderer {
       lightDir: s.lightDirection,
       ambientStrength: s.ambientStrength,
       gridEnabled: s.showGridLines,
-      gridSpacingX: 0.05,
-      gridSpacingY: 0.05,
+      gridSpacingX: 0.10,
+      gridSpacingY: 0.10,
       time,
     });
   }

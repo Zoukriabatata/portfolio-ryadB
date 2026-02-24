@@ -49,3 +49,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
+
+export async function DELETE() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const rl = await apiRateLimit(session.user.id);
+  if (!rl.allowed) return tooManyRequests(rl);
+
+  try {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { avatar: null },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
+  }
+}

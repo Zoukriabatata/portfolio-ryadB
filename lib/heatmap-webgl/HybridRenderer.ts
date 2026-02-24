@@ -21,9 +21,9 @@ const DEFAULT_GRID_SETTINGS = {
   showMinorGrid: true,
   majorGridInterval: 10,
   majorGridColor: '#ffffff',
-  majorGridOpacity: 0.15,
+  majorGridOpacity: 0.06,
   minorGridColor: '#ffffff',
-  minorGridOpacity: 0.05,
+  minorGridOpacity: 0.02,
   gridStyle: 'solid' as const,
   showTickMarks: true,
   tickSize: 5,
@@ -35,8 +35,8 @@ const DEFAULT_GRID_SETTINGS = {
 
 const DEFAULT_PASSIVE_SETTINGS = {
   glowEnabled: true,
-  glowIntensity: 0.8,
-  pulseEnabled: true,
+  glowIntensity: 0.4,
+  pulseEnabled: false,
   pulseSpeed: 2.0,
   showStates: true,
   icebergDetection: true,
@@ -44,18 +44,18 @@ const DEFAULT_PASSIVE_SETTINGS = {
 
 const DEFAULT_BUBBLE_SETTINGS = {
   showBorder: true,
-  borderWidth: 0.08,
-  borderColor: 'rgba(255, 255, 255, 0.5)',
+  borderWidth: 0.04,
+  borderColor: 'rgba(255, 255, 255, 0.3)',
   glowEnabled: true,
-  glowIntensity: 0.6,
+  glowIntensity: 0.2,
   showGradient: true,
-  rippleEnabled: true,
-  largeTradeThreshold: 50,  // Normalized: top 50% of max trade = "large"
+  rippleEnabled: false,
+  largeTradeThreshold: 50,
   sizeScaling: 'sqrt' as const,
   popInAnimation: true,
-  bubbleOpacity: 0.75,
-  maxSize: 60,   // Plan spec: 5px-60px range
-  minSize: 5,
+  bubbleOpacity: 0.6,
+  maxSize: 40,
+  minSize: 4,
 };
 
 export interface HybridRendererConfig {
@@ -430,7 +430,7 @@ export class HybridRenderer {
   /**
    * Set the color theme
    */
-  setTheme(themeName: 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast'): void {
+  setTheme(themeName: 'magma' | 'deepocean' | 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast'): void {
     if (this.textureManager) {
       this.textureManager.setTheme(themeName);
     }
@@ -583,7 +583,7 @@ export class HybridRenderer {
     const pixelHeight = height! * dpr!;
 
     // Always clear (required for transparency)
-    this.ctx.clear([0.039, 0.047, 0.063, 1]); // #0a0c10
+    this.ctx.clear([0.02, 0.02, 0.063, 1]); // #050510
 
     const colors = data.colors || {};
     const heatmapLeft = (deltaProfileWidth || 0) * dpr!;
@@ -774,8 +774,8 @@ export class HybridRenderer {
           {
             bidPoints: this.cachedBidScreenPoints,
             askPoints: this.cachedAskScreenPoints,
-            bidColor: colors.bidColor || '#10b981', // Emerald green
-            askColor: colors.askColor || '#f43f5e', // Rose red
+            bidColor: colors.bidColor || '#22d3ee', // Cyan
+            askColor: colors.askColor || '#f472b6', // Pink
             lineWidth: staircaseSettings.lineWidth * dpr!, // Line width with DPR scaling
             opacity: 0.95,
             glowIntensity: staircaseSettings.showGlow ? staircaseSettings.glowIntensity : 0,
@@ -811,8 +811,8 @@ export class HybridRenderer {
             trades: this.cachedTransformedTrades,
             priceMin: data.priceMin,
             priceMax: data.priceMax,
-            buyColor: colors.buyColor || '#22c55e',
-            sellColor: colors.sellColor || '#ef4444',
+            buyColor: colors.buyColor || '#22d3ee',
+            sellColor: colors.sellColor || '#f472b6',
             opacity: bubbleSettings.bubbleOpacity,
             maxSize: bubbleSettings.maxSize * dpr!,
             minSize: bubbleSettings.minSize * dpr!,
@@ -911,15 +911,15 @@ export class HybridRenderer {
           leftMargin: heatmapLeft,
           rightMargin: (priceAxisWidth || 60) * dpr!,
           opacity: levelSettings.opacity ?? 0.8,
-          pocColor: levelSettings.pocColor || '#f59e0b',
-          vahColor: levelSettings.vahColor || '#8b5cf6',
-          valColor: levelSettings.valColor || '#8b5cf6',
-          vwapColor: levelSettings.vwapColor || '#06b6d4',
-          sessionHighColor: levelSettings.sessionHighColor || '#22d3ee',
+          pocColor: levelSettings.pocColor || '#fbbf24',
+          vahColor: levelSettings.vahColor || '#a78bfa',
+          valColor: levelSettings.valColor || '#a78bfa',
+          vwapColor: levelSettings.vwapColor || '#38bdf8',
+          sessionHighColor: levelSettings.sessionHighColor || '#34d399',
           sessionLowColor: levelSettings.sessionLowColor || '#fb7185',
           roundNumberColor: levelSettings.roundNumberColor || '#fbbf24',
-          vwapBand1Color: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#06b6d4',
-          vwapBand2Color: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#06b6d4',
+          vwapBand1Color: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#38bdf8',
+          vwapBand2Color: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#38bdf8',
           dashPhase: this.animationTime * 20, // Animated dash for certain lines
         },
         this.projection
@@ -1017,15 +1017,15 @@ export class HybridRenderer {
         this.lastOverlayPriceMax = data.priceMax;
         const levelSettings = data.keyLevels.settings || {};
         const levelColorMap: Record<string, string> = {
-          poc: levelSettings.pocColor || '#f59e0b',
-          vah: levelSettings.vahColor || '#8b5cf6',
-          val: levelSettings.valColor || '#8b5cf6',
-          vwap: levelSettings.vwapColor || '#06b6d4',
-          sessionHigh: levelSettings.sessionHighColor || '#22d3ee',
+          poc: levelSettings.pocColor || '#fbbf24',
+          vah: levelSettings.vahColor || '#a78bfa',
+          val: levelSettings.valColor || '#a78bfa',
+          vwap: levelSettings.vwapColor || '#38bdf8',
+          sessionHigh: levelSettings.sessionHighColor || '#34d399',
           sessionLow: levelSettings.sessionLowColor || '#fb7185',
           roundNumber: levelSettings.roundNumberColor || '#fbbf24',
-          vwapBand1: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#06b6d4',
-          vwapBand2: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#06b6d4',
+          vwapBand1: levelSettings.vwapBand1Color || levelSettings.vwapColor || '#38bdf8',
+          vwapBand2: levelSettings.vwapBand2Color || levelSettings.vwapColor || '#38bdf8',
         };
         this.cachedOverlayLevels = data.keyLevels.levels
           .filter(l => l.price >= data.priceMin && l.price <= data.priceMax)
@@ -1047,15 +1047,15 @@ export class HybridRenderer {
     const lastAskPrice = data.bestAskPoints?.length ? data.bestAskPoints[data.bestAskPoints.length - 1].price : 0;
     const spread = lastAskPrice > 0 && lastBidPrice > 0 ? lastAskPrice - lastBidPrice : 0;
     const statsItems: { label: string; value: string; color?: string }[] = [];
-    statsItems.push({ label: 'FPS', value: this.lastFps.toString(), color: this.lastFps >= 50 ? '#22c55e' : this.lastFps >= 30 ? '#f59e0b' : '#ef4444' });
-    if (lastBidPrice > 0) statsItems.push({ label: 'Bid', value: this.overlay.formatPrice(lastBidPrice), color: '#22c55e' });
-    if (lastAskPrice > 0) statsItems.push({ label: 'Ask', value: this.overlay.formatPrice(lastAskPrice), color: '#ef4444' });
+    statsItems.push({ label: 'FPS', value: this.lastFps.toString(), color: this.lastFps >= 50 ? '#22d3ee' : this.lastFps >= 30 ? '#fbbf24' : '#f472b6' });
+    if (lastBidPrice > 0) statsItems.push({ label: 'Bid', value: this.overlay.formatPrice(lastBidPrice), color: '#22d3ee' });
+    if (lastAskPrice > 0) statsItems.push({ label: 'Ask', value: this.overlay.formatPrice(lastAskPrice), color: '#f472b6' });
     if (spread > 0) statsItems.push({ label: 'Spread', value: this.overlay.formatPrice(spread) });
     // Delta (buy - sell volume)
     if (data.sessionStats) {
       const delta = data.sessionStats.delta;
       const deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(1);
-      statsItems.push({ label: 'Delta', value: deltaStr, color: delta >= 0 ? '#22c55e' : '#ef4444' });
+      statsItems.push({ label: 'Delta', value: deltaStr, color: delta >= 0 ? '#22d3ee' : '#f472b6' });
       if (data.sessionStats.tradesPerSecond > 0) {
         statsItems.push({ label: 'T/s', value: data.sessionStats.tradesPerSecond.toFixed(1) });
       }

@@ -774,7 +774,7 @@ export const useHeatmapSettingsStore = create<HeatmapSettingsState>()(
     }),
     {
       name: 'heatmap-settings-storage',
-      version: 3,
+      version: 4,
       migrate: (persistedState: unknown, version: number) => {
         // Simply return the persisted state - the merge function handles defaults
         // This avoids type conflicts while ensuring old data is preserved

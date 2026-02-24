@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { useUIThemeStore, UI_THEMES } from '@/stores/useUIThemeStore';
 
 interface GEXLevel {
   strike: number;
@@ -34,22 +35,27 @@ interface GEXDashboardProps {
   height?: number | 'auto';
 }
 
-const COLORS = {
-  bg: '#0a0a0a',
-  bgCard: '#111111',
-  border: '#1f1f1f',
-  text: '#888888',
-  textBright: '#ffffff',
-  callGEX: '#22c55e',
-  putGEX: '#ef4444',
-  netPositive: '#22c55e',
-  netNegative: '#ef4444',
-  callWall: '#22c55e',
-  putWall: '#ef4444',
-  zeroGamma: '#fbbf24',
-  spotPrice: '#3b82f6',
-  hvl: '#a855f7',
-};
+function useGEXColors() {
+  const activeTheme = useUIThemeStore((s) => s.activeTheme);
+  const theme = UI_THEMES.find(t => t.id === activeTheme) || UI_THEMES[0];
+  const c = theme.colors;
+  return {
+    bg: c.chartBg,
+    border: c.chartGrid,
+    text: c.textMuted,
+    textMid: c.textSecondary,
+    textBright: c.textPrimary,
+    callGEX: c.candleUp,
+    putGEX: c.candleDown,
+    callWall: c.candleUp,
+    putWall: c.candleDown,
+    zeroGamma: '#fbbf24',
+    spotPrice: c.primary,
+    hvl: c.accent,
+    gridLine: `${c.chartGrid}40`,
+    gridBand: `${c.chartGrid}15`,
+  };
+}
 
 const PADDING = { top: 40, right: 80, bottom: 60, left: 80 };
 
@@ -88,6 +94,8 @@ export default function GEXDashboard({
     return () => window.removeEventListener('resize', handleResize);
   }, [height]);
 
+  const themeColors = useGEXColors();
+
   // Draw
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -103,7 +111,7 @@ export default function GEXDashboard({
     canvas.style.height = `${height}px`;
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = COLORS.bg;
+    ctx.fillStyle = themeColors.bg;
     ctx.fillRect(0, 0, width, height);
 
     const chartWidth = width - PADDING.left - PADDING.right;
@@ -129,21 +137,35 @@ export default function GEXDashboard({
     const strikeToY = (strike: number) =>
       PADDING.top + chartHeight - ((strike - minStrike) / strikeRange) * chartHeight;
 
-    // Grid
-    ctx.strokeStyle = '#1a1a1a';
+    // Alternating horizontal bands
+    const numGridLines = 10;
+    const strikeStep = strikeRange / numGridLines;
+    for (let i = 0; i < numGridLines; i++) {
+      if (i % 2 === 0) {
+        const y1 = strikeToY(minStrike + (i + 1) * strikeStep);
+        const y2 = strikeToY(minStrike + i * strikeStep);
+        ctx.fillStyle = themeColors.gridBand;
+        ctx.fillRect(PADDING.left, y1, chartWidth, y2 - y1);
+      }
+    }
+
+    // Grid lines
+    ctx.strokeStyle = themeColors.gridLine;
     ctx.lineWidth = 1;
 
     // Center line (zero GEX)
+    ctx.strokeStyle = themeColors.border;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(PADDING.left + chartWidth / 2, PADDING.top);
     ctx.lineTo(PADDING.left + chartWidth / 2, PADDING.top + chartHeight);
     ctx.stroke();
 
     // Grid lines + strike labels
-    const numGridLines = 10;
-    const strikeStep = strikeRange / numGridLines;
+    ctx.strokeStyle = themeColors.gridLine;
+    ctx.lineWidth = 1;
     ctx.font = '10px monospace';
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = themeColors.text;
 
     for (let i = 0; i <= numGridLines; i++) {
       const strike = minStrike + i * strikeStep;
@@ -156,36 +178,88 @@ export default function GEXDashboard({
       ctx.fillText(`$${strike.toFixed(0)}`, PADDING.left - 10, y + 4);
     }
 
-    // Bars
+    // Bars with rounded ends and gradient fills
     const barHeight = Math.max(2, (chartHeight / visibleData.length) * 0.7);
+    const barRadius = Math.min(barHeight / 2, 3);
 
     visibleData.forEach((level) => {
       const y = strikeToY(level.strike);
       const isHovered = hoveredStrike === level.strike;
 
+      // Call GEX (right side, positive)
       if (level.callGEX > 0) {
         const barWidth = (level.callGEX / maxGEX) * (chartWidth / 2);
-        ctx.fillStyle = isHovered ? '#34d399' : COLORS.callGEX;
-        ctx.globalAlpha = isHovered ? 1 : 0.7;
-        ctx.fillRect(PADDING.left + chartWidth / 2, y - barHeight / 2, barWidth, barHeight);
-        ctx.globalAlpha = 1;
+        const bx = PADDING.left + chartWidth / 2;
+        const by = y - barHeight / 2;
+
+        // Gradient fill
+        const grad = ctx.createLinearGradient(bx, 0, bx + barWidth, 0);
+        grad.addColorStop(0, themeColors.callGEX + (isHovered ? 'ff' : 'b3'));
+        grad.addColorStop(1, themeColors.callGEX + (isHovered ? 'dd' : '66'));
+        ctx.fillStyle = grad;
+
+        // Rounded rect
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + barWidth - barRadius, by);
+        ctx.arcTo(bx + barWidth, by, bx + barWidth, by + barRadius, barRadius);
+        ctx.lineTo(bx + barWidth, by + barHeight - barRadius);
+        ctx.arcTo(bx + barWidth, by + barHeight, bx + barWidth - barRadius, by + barHeight, barRadius);
+        ctx.lineTo(bx, by + barHeight);
+        ctx.closePath();
+        ctx.fill();
+
+        // Value label on significant bars
+        if (barWidth > 40) {
+          ctx.fillStyle = themeColors.textBright;
+          ctx.font = '9px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(formatGEX(level.callGEX), bx + barWidth + 4, y + 3);
+        }
       }
 
+      // Put GEX (left side, negative)
       if (level.putGEX < 0) {
         const barWidth = (Math.abs(level.putGEX) / maxGEX) * (chartWidth / 2);
-        ctx.fillStyle = isHovered ? '#f87171' : COLORS.putGEX;
-        ctx.globalAlpha = isHovered ? 1 : 0.7;
-        ctx.fillRect(PADDING.left + chartWidth / 2 - barWidth, y - barHeight / 2, barWidth, barHeight);
-        ctx.globalAlpha = 1;
+        const bx = PADDING.left + chartWidth / 2 - barWidth;
+        const by = y - barHeight / 2;
+
+        // Gradient fill
+        const grad = ctx.createLinearGradient(bx, 0, bx + barWidth, 0);
+        grad.addColorStop(0, themeColors.putGEX + (isHovered ? 'dd' : '66'));
+        grad.addColorStop(1, themeColors.putGEX + (isHovered ? 'ff' : 'b3'));
+        ctx.fillStyle = grad;
+
+        // Rounded rect
+        ctx.beginPath();
+        ctx.moveTo(bx + barRadius, by);
+        ctx.lineTo(bx + barWidth, by);
+        ctx.lineTo(bx + barWidth, by + barHeight);
+        ctx.lineTo(bx + barRadius, by + barHeight);
+        ctx.arcTo(bx, by + barHeight, bx, by + barHeight - barRadius, barRadius);
+        ctx.lineTo(bx, by + barRadius);
+        ctx.arcTo(bx, by, bx + barRadius, by, barRadius);
+        ctx.closePath();
+        ctx.fill();
+
+        // Value label on significant bars
+        if (barWidth > 40) {
+          ctx.fillStyle = themeColors.textBright;
+          ctx.font = '9px monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText(formatGEX(level.putGEX), bx - 4, y + 3);
+        }
       }
     });
 
-    // Key levels
+    // Key levels with pill-style labels
     const drawLevel = (price: number, color: string, label: string, side: 'left' | 'right') => {
       if (price < minStrike || price > maxStrike) return;
       const y = strikeToY(price);
+
+      // Dashed line
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
       ctx.moveTo(PADDING.left, y);
@@ -193,57 +267,90 @@ export default function GEXDashboard({
       ctx.stroke();
       ctx.setLineDash([]);
 
+      // Pill label
+      const text = `${label}: $${price.toFixed(0)}`;
+      ctx.font = 'bold 10px system-ui';
+      const textWidth = ctx.measureText(text).width;
+      const pillPad = 6;
+      const pillH = 16;
+      const pillW = textWidth + pillPad * 2;
+      const pillX = side === 'left' ? PADDING.left + 8 : PADDING.left + chartWidth - pillW - 8;
+      const pillY = y - pillH - 3;
+
+      // Pill background
+      ctx.fillStyle = color + '22';
+      ctx.strokeStyle = color + '88';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(pillX, pillY, pillW, pillH, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pill text
       ctx.fillStyle = color;
-      ctx.font = 'bold 11px system-ui';
-      ctx.textAlign = side === 'left' ? 'left' : 'right';
-      const labelX = side === 'left' ? PADDING.left + 5 : PADDING.left + chartWidth - 5;
-      ctx.fillText(`${label}: $${price.toFixed(0)}`, labelX, y - 6);
+      ctx.textAlign = 'left';
+      ctx.fillText(text, pillX + pillPad, pillY + 11);
     };
 
     if (summary) {
-      drawLevel(summary.callWall, COLORS.callWall, 'Call Wall', 'right');
-      drawLevel(summary.putWall, COLORS.putWall, 'Put Wall', 'left');
-      drawLevel(summary.zeroGamma, COLORS.zeroGamma, 'Zero Gamma', 'right');
+      drawLevel(summary.callWall, themeColors.callWall, 'Call Wall', 'right');
+      drawLevel(summary.putWall, themeColors.putWall, 'Put Wall', 'left');
+      drawLevel(summary.zeroGamma, themeColors.zeroGamma, 'Zero Gamma', 'right');
     }
 
-    // Spot price
+    // Spot price with pill label
     if (spotPrice >= minStrike && spotPrice <= maxStrike) {
       const y = strikeToY(spotPrice);
-      ctx.strokeStyle = COLORS.spotPrice;
+      ctx.strokeStyle = themeColors.spotPrice;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(PADDING.left, y);
       ctx.lineTo(PADDING.left + chartWidth, y);
       ctx.stroke();
 
-      ctx.fillStyle = COLORS.spotPrice;
-      ctx.font = 'bold 12px system-ui';
+      // Spot pill centered
+      const spotText = `SPOT $${spotPrice.toFixed(2)}`;
+      ctx.font = 'bold 11px system-ui';
+      const spotTextW = ctx.measureText(spotText).width;
+      const spotPillW = spotTextW + 14;
+      const spotPillX = PADDING.left + chartWidth / 2 - spotPillW / 2;
+      const spotPillY = y - 20;
+
+      ctx.fillStyle = themeColors.spotPrice + '33';
+      ctx.strokeStyle = themeColors.spotPrice;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(spotPillX, spotPillY, spotPillW, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = themeColors.spotPrice;
       ctx.textAlign = 'center';
-      ctx.fillText(`SPOT: $${spotPrice.toFixed(2)}`, PADDING.left + chartWidth / 2, y - 8);
+      ctx.fillText(spotText, PADDING.left + chartWidth / 2, spotPillY + 13);
     }
 
     // Axis labels
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = themeColors.text;
     ctx.font = '11px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText('\u2190 Put GEX (Negative)', PADDING.left + chartWidth / 4, height - 15);
     ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, height - 15);
 
     // Title
-    ctx.fillStyle = COLORS.textBright;
+    ctx.fillStyle = themeColors.textBright;
     ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'left';
     ctx.fillText(`${symbol} Gamma Exposure by Strike`, PADDING.left, 25);
 
     // Zoom indicator
     if (zoomRange) {
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillStyle = themeColors.textMid;
       ctx.font = '10px system-ui';
       ctx.textAlign = 'right';
       const pct = ((strikeRange / (dataMax - dataMin)) * 100).toFixed(0);
       ctx.fillText(`${pct}% \u00b7 scroll to zoom \u00b7 double-click to reset`, width - PADDING.right, height - 5);
     }
-  }, [gexData, dimensions, spotPrice, summary, hoveredStrike, zoomRange, symbol]);
+  }, [gexData, dimensions, spotPrice, summary, hoveredStrike, zoomRange, symbol, themeColors]);
 
   useEffect(() => { draw(); }, [draw]);
 

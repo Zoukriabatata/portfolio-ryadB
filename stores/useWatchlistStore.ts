@@ -6,10 +6,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type WatchlistCategory = 'crypto' | 'stocks' | 'futures' | 'forex';
+export type CryptoSubCategory = 'top10' | 'defi' | 'layer1' | 'layer2' | 'meme';
+
 export interface WatchlistItem {
   symbol: string;
   label: string;  // Display name (e.g., "BTC/USDT")
-  category: 'crypto' | 'stocks' | 'futures' | 'forex';
+  category: WatchlistCategory;
+  subCategory?: CryptoSubCategory;
 }
 
 export interface WatchlistPriceData {
@@ -34,12 +38,37 @@ interface WatchlistState {
 }
 
 const DEFAULT_ITEMS: WatchlistItem[] = [
-  { symbol: 'btcusdt', label: 'BTC/USDT', category: 'crypto' },
-  { symbol: 'ethusdt', label: 'ETH/USDT', category: 'crypto' },
-  { symbol: 'solusdt', label: 'SOL/USDT', category: 'crypto' },
-  { symbol: 'xrpusdt', label: 'XRP/USDT', category: 'crypto' },
-  { symbol: 'dogeusdt', label: 'DOGE/USDT', category: 'crypto' },
+  // Top 10
+  { symbol: 'btcusdt', label: 'BTC/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'ethusdt', label: 'ETH/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'solusdt', label: 'SOL/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'xrpusdt', label: 'XRP/USDT', category: 'crypto', subCategory: 'top10' },
+  { symbol: 'bnbusdt', label: 'BNB/USDT', category: 'crypto', subCategory: 'top10' },
+  // Layer 1
+  { symbol: 'avaxusdt', label: 'AVAX/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'suiusdt', label: 'SUI/USDT', category: 'crypto', subCategory: 'layer1' },
+  { symbol: 'aptusdt', label: 'APT/USDT', category: 'crypto', subCategory: 'layer1' },
+  // Layer 2
+  { symbol: 'arbusdt', label: 'ARB/USDT', category: 'crypto', subCategory: 'layer2' },
+  { symbol: 'opusdt', label: 'OP/USDT', category: 'crypto', subCategory: 'layer2' },
+  // DeFi
+  { symbol: 'linkusdt', label: 'LINK/USDT', category: 'crypto', subCategory: 'defi' },
+  { symbol: 'aaveusdt', label: 'AAVE/USDT', category: 'crypto', subCategory: 'defi' },
+  { symbol: 'uniusdt', label: 'UNI/USDT', category: 'crypto', subCategory: 'defi' },
+  // Meme
+  { symbol: 'dogeusdt', label: 'DOGE/USDT', category: 'crypto', subCategory: 'meme' },
+  { symbol: 'shibusdt', label: 'SHIB/USDT', category: 'crypto', subCategory: 'meme' },
+  { symbol: 'pepeusdt', label: 'PEPE/USDT', category: 'crypto', subCategory: 'meme' },
 ];
+
+/** All available symbols grouped by sub-category */
+export const CRYPTO_CATEGORIES: Record<CryptoSubCategory, string> = {
+  top10: 'Top 10',
+  defi: 'DeFi',
+  layer1: 'Layer 1',
+  layer2: 'Layer 2',
+  meme: 'Meme',
+};
 
 export const useWatchlistStore = create<WatchlistState>()(
   persist(

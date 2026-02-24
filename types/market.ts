@@ -35,7 +35,7 @@ export interface FootprintCandle extends Candle {
   poc: number; // Point of Control (price with most volume)
 }
 
-export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
+export type Timeframe = '15s' | '30s' | '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 
 // Futures symbols
 export type Symbol =

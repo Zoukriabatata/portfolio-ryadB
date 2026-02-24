@@ -72,28 +72,35 @@ export default function LiquidityPageContent() {
         volatility: 0.0001,
         tradeFrequency: 15,
         avgTradeSize: 0.5,
-        orderBookDepth: 20,
+        orderBookDepth: 30,
         baseLiquidity: adaptiveBaseLiquidity,
         wallProbability: 0.05,
         tradeLifetimeMs: 4000,
+        priceHistoryLimit: 500,
+        heatmapHistoryLimit: 600,
       };
     } else {
       return {
         basePrice: 5000,
         tickSize: 0.5,
         volatility: 0.00015,
-        tradeFrequency: 10,
+        tradeFrequency: 14,
         avgTradeSize: 5,
-        orderBookDepth: 35,
-        baseLiquidity: 25,
-        wallProbability: 0.04,
+        orderBookDepth: 50,
+        baseLiquidity: 30,
+        wallProbability: 0.06,
         tradeLifetimeMs: 3000,
+        priceMoveProb: 0.30,
+        momentumDecay: 0.85,
+        nearBookFillPct: 0.6,
+        priceHistoryLimit: 500,
+        heatmapHistoryLimit: 600,
       };
     }
   }, [dataMode, selectedSymbol]);
 
   return (
-    <div className="h-full flex flex-col p-4 gap-3">
+    <div className="h-full flex flex-col p-4 gap-3 animate-fadeIn">
       {/* Header */}
       <div className="flex items-center justify-between bg-[var(--surface)] rounded-xl border border-[var(--border)] px-4 py-3 animate-slideUp stagger-1">
         <div>
@@ -123,7 +130,7 @@ export default function LiquidityPageContent() {
                 onClick={() => setViewMode('3d')}
                 className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                   viewMode === '3d'
-                    ? 'bg-cyan-500/20 text-cyan-400'
+                    ? 'bg-amber-500/20 text-amber-400'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
               >

@@ -225,8 +225,8 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
   const getPriceRange = useCallback(() => {
     const tickSize = config?.tickSize || 0.5;
     const depth = config?.orderBookDepth || 30;
-    // Default range shows 2x the orderbook depth (reasonable for most assets)
-    const defaultRange = depth * tickSize * 2;
+    // Default range shows 3x the orderbook depth for wider view
+    const defaultRange = depth * tickSize * 3;
     const range = defaultRange / nav.zoomY;
 
     if (!state) {
@@ -1247,7 +1247,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     <div
       ref={containerRef}
       className="relative w-full select-none"
-      style={{ height, background: '#0a0c10' }}
+      style={{ height, background: '#050510' }}
     >
       {/* Canvas 2D (visible when not using WebGL) */}
       <canvas
