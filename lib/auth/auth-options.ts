@@ -403,7 +403,10 @@ export const authOptions: NextAuthOptions = {
         if (dbUser) {
           token.tier = dbUser.subscriptionTier as SubscriptionTier;
           token.name = dbUser.name || token.name;
-          token.picture = dbUser.avatar || token.picture;
+          // Never store data URLs in the JWT — they bloat the cookie and cause 494 errors
+          token.picture = (dbUser.avatar && !dbUser.avatar.startsWith('data:'))
+            ? dbUser.avatar
+            : token.picture;
         }
       }
 
