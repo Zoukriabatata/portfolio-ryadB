@@ -149,6 +149,54 @@ const PUBLIC_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ─── EMERGENCY: Strip bloated session cookies that cause 494 ─────
+  // NextAuth chunks large JWTs into .0, .1, .2 etc. If the cookie header
+  // is too large, strip all session cookies and force re-login.
+  const cookieHeader = request.headers.get('cookie') || '';
+  if (cookieHeader.length > 8000) {
+    const cleanedCookies = cookieHeader
+      .split(';')
+      .filter(c => {
+        const name = c.trim().split('=')[0];
+        return !name.startsWith('__Secure-next-auth.session-token') &&
+               !name.startsWith('next-auth.session-token');
+      })
+      .join(';');
+
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('cookie', cleanedCookies);
+
+    const response = NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+
+    // Expire ALL session token cookies (including chunks)
+    const sessionCookieNames = ['__Secure-next-auth.session-token', 'next-auth.session-token'];
+    for (const name of sessionCookieNames) {
+      response.cookies.set(name, '', { expires: new Date(0), path: '/' });
+      // Also expire chunked cookies (.0 through .9)
+      for (let i = 0; i < 10; i++) {
+        response.cookies.set(`${name}.${i}`, '', { expires: new Date(0), path: '/' });
+      }
+    }
+
+    // Redirect to login so user gets a fresh session
+    if (!pathname.startsWith('/api/auth') && !pathname.startsWith('/auth/')) {
+      const loginUrl = new URL('/auth/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      const redirectResponse = NextResponse.redirect(loginUrl);
+      for (const name of sessionCookieNames) {
+        redirectResponse.cookies.set(name, '', { expires: new Date(0), path: '/' });
+        for (let i = 0; i < 10; i++) {
+          redirectResponse.cookies.set(`${name}.${i}`, '', { expires: new Date(0), path: '/' });
+        }
+      }
+      return redirectResponse;
+    }
+
+    return response;
+  }
+
   // ─── Fast bypass for auth API routes (no CORS/rate-limit needed) ─────
   if (pathname.startsWith('/api/auth')) {
     return NextResponse.next();
