@@ -4,8 +4,9 @@
  * Renders 3D grid lines and axes on the floor plane (z=0).
  * Used as a spatial reference for the 3D surface heatmap.
  *
- * Geometry:
- *  - 11x11 grid lines on the XY plane (z=0)
+ * Features:
+ *  - Configurable grid density with major/minor line distinction
+ *  - Mid-price highlight line (cyan)
  *  - X, Y, Z axis lines with distinct colors
  *  - Border outline around the grid
  */
@@ -14,32 +15,15 @@ import type { RenderContext } from '../core/RenderContext';
 import { grid3dVert, grid3dFrag } from '../shaders/surface3d';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GEOMETRY CONSTANTS
-// ═══════════════════════════════════════════════════════════════════════════
-
-/** Number of grid divisions along each axis (0.0, 0.1, ..., 1.0). */
-const GRID_DIVISIONS = 11;
-
-/** Grid lines: 11 along X + 11 along Y = 22 lines = 44 vertices. */
-const GRID_VERTEX_COUNT = GRID_DIVISIONS * 2 * 2;
-
-/** Axis lines: X, Y, Z = 3 lines = 6 vertices. */
-const AXIS_VERTEX_COUNT = 3 * 2;
-
-/** Border outline: 4 edges = 4 lines = 8 vertices. */
-const BORDER_VERTEX_COUNT = 4 * 2;
-
-/** Total vertex count across all line groups. */
-const TOTAL_VERTEX_COUNT = GRID_VERTEX_COUNT + AXIS_VERTEX_COUNT + BORDER_VERTEX_COUNT;
-
-// ═══════════════════════════════════════════════════════════════════════════
 // COLORS (vec3 RGB)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const GRID_COLOR: [number, number, number] = [0.2, 0.25, 0.3];
+const GRID_MINOR: [number, number, number] = [0.15, 0.18, 0.22];
+const GRID_MAJOR: [number, number, number] = [0.25, 0.30, 0.35];
 const AXIS_COLOR: [number, number, number] = [0.4, 0.5, 0.6];
-const Z_AXIS_COLOR: [number, number, number] = [0.5, 0.7, 0.5]; // Green tint for height
+const Z_AXIS_COLOR: [number, number, number] = [0.5, 0.7, 0.5];
 const BORDER_COLOR: [number, number, number] = [0.3, 0.35, 0.4];
+const MID_PRICE_COLOR: [number, number, number] = [0.1, 0.85, 0.75];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // COMMAND
@@ -49,60 +33,88 @@ export class GridFloorCommand {
   private ctx: RenderContext;
   private drawCommand: ReturnType<RenderContext['regl']> | null = null;
 
-  private positionData: Float32Array;
-  private colorData: Float32Array;
+  private positionData!: Float32Array;
+  private colorData!: Float32Array;
+  private totalVertexCount = 0;
 
   private positionBuffer: ReturnType<RenderContext['regl']['buffer']> | null = null;
   private colorBuffer: ReturnType<RenderContext['regl']['buffer']> | null = null;
 
+  private divisions = 11;
+  private majorEvery = 5; // Every 5th line is major
+  private midPriceY = -1; // Normalized [0,1], -1 = hidden
+
   constructor(ctx: RenderContext) {
     this.ctx = ctx;
-
-    // Allocate geometry arrays: 3 floats per vertex (vec3)
-    this.positionData = new Float32Array(TOTAL_VERTEX_COUNT * 3);
-    this.colorData = new Float32Array(TOTAL_VERTEX_COUNT * 3);
-
-    this.buildGeometry();
+    this.rebuildGeometry();
   }
 
-  // ─── Geometry Construction ──────────────────────────────────────────────
+  // ─── Configuration ────────────────────────────────────────────────────
 
-  private buildGeometry(): void {
+  setDivisions(n: number): void {
+    n = Math.max(5, Math.min(50, n));
+    if (n === this.divisions) return;
+    this.divisions = n;
+    this.rebuildGeometry();
+    this.uploadBuffers();
+  }
+
+  setMidPriceLine(normalizedY: number): void {
+    if (Math.abs(normalizedY - this.midPriceY) < 0.001) return;
+    this.midPriceY = normalizedY;
+    this.rebuildGeometry();
+    this.uploadBuffers();
+  }
+
+  // ─── Geometry Construction ────────────────────────────────────────────
+
+  private rebuildGeometry(): void {
+    const n = this.divisions;
+    const gridVertCount = n * 2 * 2; // n lines along X + n lines along Y, 2 vertices each
+    const axisVertCount = 3 * 2;
+    const borderVertCount = 4 * 2;
+    const midPriceVertCount = this.midPriceY >= 0 && this.midPriceY <= 1 ? 2 : 0;
+    const total = gridVertCount + axisVertCount + borderVertCount + midPriceVertCount;
+
+    this.positionData = new Float32Array(total * 3);
+    this.colorData = new Float32Array(total * 3);
+    this.totalVertexCount = total;
+
     let offset = 0;
 
     // 1. Grid lines on XY plane (z=0)
-    // ── Lines along X (constant y) ──
-    for (let i = 0; i < GRID_DIVISIONS; i++) {
-      const y = i / (GRID_DIVISIONS - 1); // 0.0, 0.1, ..., 1.0
-      offset = this.addLine(offset, [0, y, 0], [1, y, 0], GRID_COLOR);
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const isMajor = i % this.majorEvery === 0 || i === n - 1;
+      const color = isMajor ? GRID_MAJOR : GRID_MINOR;
+      // Lines along X (constant y)
+      offset = this.addLine(offset, [0, t, 0], [1, t, 0], color);
     }
-
-    // ── Lines along Y (constant x) ──
-    for (let i = 0; i < GRID_DIVISIONS; i++) {
-      const x = i / (GRID_DIVISIONS - 1); // 0.0, 0.1, ..., 1.0
-      offset = this.addLine(offset, [x, 0, 0], [x, 1, 0], GRID_COLOR);
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const isMajor = i % this.majorEvery === 0 || i === n - 1;
+      const color = isMajor ? GRID_MAJOR : GRID_MINOR;
+      // Lines along Y (constant x)
+      offset = this.addLine(offset, [t, 0, 0], [t, 1, 0], color);
     }
 
     // 2. Axis lines
-    // X-axis: (0,0,0) → (1,0,0)
     offset = this.addLine(offset, [0, 0, 0], [1, 0, 0], AXIS_COLOR);
-    // Y-axis: (0,0,0) → (0,1,0)
     offset = this.addLine(offset, [0, 0, 0], [0, 1, 0], AXIS_COLOR);
-    // Z-axis: (0,0,0) → (0,0,1) — green tint for height
     offset = this.addLine(offset, [0, 0, 0], [0, 0, 1], Z_AXIS_COLOR);
 
-    // 3. Border outline on floor plane
-    // (0,0,0) → (1,0,0) → (1,1,0) → (0,1,0) → (0,0,0)
+    // 3. Border outline
     offset = this.addLine(offset, [0, 0, 0], [1, 0, 0], BORDER_COLOR);
     offset = this.addLine(offset, [1, 0, 0], [1, 1, 0], BORDER_COLOR);
     offset = this.addLine(offset, [1, 1, 0], [0, 1, 0], BORDER_COLOR);
     offset = this.addLine(offset, [0, 1, 0], [0, 0, 0], BORDER_COLOR);
+
+    // 4. Mid-price highlight line
+    if (this.midPriceY >= 0 && this.midPriceY <= 1) {
+      offset = this.addLine(offset, [0, this.midPriceY, 0], [1, this.midPriceY, 0], MID_PRICE_COLOR);
+    }
   }
 
-  /**
-   * Append a single line segment (2 vertices) into the position and color arrays.
-   * Returns the new vertex offset.
-   */
   private addLine(
     vertexOffset: number,
     from: [number, number, number],
@@ -111,20 +123,16 @@ export class GridFloorCommand {
   ): number {
     const pi = vertexOffset * 3;
 
-    // Vertex A
     this.positionData[pi] = from[0];
     this.positionData[pi + 1] = from[1];
     this.positionData[pi + 2] = from[2];
-
     this.colorData[pi] = color[0];
     this.colorData[pi + 1] = color[1];
     this.colorData[pi + 2] = color[2];
 
-    // Vertex B
     this.positionData[pi + 3] = to[0];
     this.positionData[pi + 4] = to[1];
     this.positionData[pi + 5] = to[2];
-
     this.colorData[pi + 3] = color[0];
     this.colorData[pi + 4] = color[1];
     this.colorData[pi + 5] = color[2];
@@ -132,16 +140,26 @@ export class GridFloorCommand {
     return vertexOffset + 2;
   }
 
-  // ─── Rendering ──────────────────────────────────────────────────────────
+  private uploadBuffers(): void {
+    if (this.positionBuffer) {
+      this.positionBuffer(this.positionData);
+    }
+    if (this.colorBuffer) {
+      this.colorBuffer(this.colorData);
+    }
+    // Force draw command recreation if vertex count changed
+    if (this.drawCommand) {
+      this.drawCommand = null;
+      this.positionBuffer?.destroy();
+      this.colorBuffer?.destroy();
+      this.positionBuffer = null;
+      this.colorBuffer = null;
+    }
+  }
 
-  /**
-   * Draw the grid floor.
-   *
-   * @param viewProjection  Combined view*projection matrix (mat4 as Float32Array).
-   * @param opacity         Overall opacity for the grid (default 0.5).
-   */
+  // ─── Rendering ────────────────────────────────────────────────────────
+
   render(viewProjection: Float32Array, opacity: number = 0.5): void {
-    // Lazy-init the regl draw command and GPU buffers on first render.
     if (!this.drawCommand) {
       this.createDrawCommand();
     }
@@ -157,12 +175,12 @@ export class GridFloorCommand {
 
     this.positionBuffer = regl.buffer({
       data: this.positionData,
-      usage: 'static',
+      usage: 'dynamic',
     });
 
     this.colorBuffer = regl.buffer({
       data: this.colorData,
-      usage: 'static',
+      usage: 'dynamic',
     });
 
     this.drawCommand = regl({
@@ -179,7 +197,7 @@ export class GridFloorCommand {
         opacity: regl.prop<{ opacity: number }, 'opacity'>('opacity'),
       },
 
-      count: TOTAL_VERTEX_COUNT,
+      count: this.totalVertexCount,
       primitive: 'lines',
 
       depth: { enable: true },
@@ -196,11 +214,8 @@ export class GridFloorCommand {
     });
   }
 
-  // ─── Cleanup ────────────────────────────────────────────────────────────
+  // ─── Cleanup ──────────────────────────────────────────────────────────
 
-  /**
-   * Release GPU buffers and the draw command.
-   */
   destroy(): void {
     this.positionBuffer?.destroy();
     this.colorBuffer?.destroy();
