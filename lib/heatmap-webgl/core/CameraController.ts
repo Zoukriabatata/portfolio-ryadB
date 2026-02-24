@@ -181,9 +181,9 @@ export class CameraController {
       lastY = e.clientY;
 
       if (isDragging) {
-        this.orbit(-dx * 0.005, -dy * 0.005);
+        this.orbit(-dx * 0.005, dy * 0.005);
       } else if (isPanning) {
-        this.pan(dx, dy);
+        this.pan(dx, -dy);
       }
     };
 
@@ -227,7 +227,7 @@ export class CameraController {
         const dy = e.touches[0].clientY - lastTouchY;
         lastTouchX = e.touches[0].clientX;
         lastTouchY = e.touches[0].clientY;
-        this.orbit(-dx * 0.005, -dy * 0.005);
+        this.orbit(-dx * 0.005, dy * 0.005);
       } else if (e.touches.length === 2) {
         const dx = e.touches[1].clientX - e.touches[0].clientX;
         const dy = e.touches[1].clientY - e.touches[0].clientY;
@@ -239,7 +239,7 @@ export class CameraController {
 
         const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        this.pan(mx - lastTouchX, my - lastTouchY);
+        this.pan(mx - lastTouchX, -(my - lastTouchY));
         lastTouchX = mx;
         lastTouchY = my;
       }
