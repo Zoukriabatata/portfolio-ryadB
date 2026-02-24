@@ -387,7 +387,9 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.email = user.email!;
         token.name = user.name || null;
-        token.picture = user.image || null;
+        token.picture = (user.image && !user.image.startsWith('data:'))
+          ? user.image
+          : null;
         token.tier = user.tier || 'FREE';
         token.deviceId = user.deviceId || '';
         token.sessionId = user.sessionId || '';
