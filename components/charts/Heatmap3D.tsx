@@ -16,8 +16,16 @@ import { LiveDataEngine, resetLiveDataEngine } from '@/lib/heatmap-v2/LiveDataEn
 import type { MarketState, SimulationConfig } from '@/lib/heatmap-v2/types';
 import { Heatmap3DRenderer } from '@/lib/heatmap-webgl/Heatmap3DRenderer';
 import { adaptMarketStateToSurface, type SurfaceGridData } from '@/lib/heatmap-webgl/adapters/SurfaceDataAdapter';
-import { CAMERA_PRESETS } from '@/lib/heatmap-webgl/core/CameraController';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
+
+// Camera preset definitions (matches CameraController.CAMERA_PRESETS)
+const CAMERA_PRESETS = [
+  { name: 'isometric', label: 'Iso',   shortcut: '1' },
+  { name: 'top',       label: 'Top',   shortcut: '2' },
+  { name: 'front',     label: 'Front', shortcut: '3' },
+  { name: 'side',      label: 'Side',  shortcut: '4' },
+  { name: 'overview',  label: '3/4',   shortcut: '5' },
+] as const;
 
 export type DataMode = 'simulation' | 'live';
 
