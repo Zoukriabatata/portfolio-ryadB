@@ -188,9 +188,9 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // Webhook routes skip CORS (server-to-server)
-    const isWebhook = pathname.includes('/webhook');
-    if (!isWebhook && origin) {
+    // Auth & webhook routes skip CORS origin check
+    const skipCors = pathname.includes('/webhook') || pathname.startsWith('/api/auth');
+    if (!skipCors && origin) {
       const isAllowed = allowedOrigins.some(o => origin.startsWith(o));
       if (!isAllowed) {
         return NextResponse.json(
