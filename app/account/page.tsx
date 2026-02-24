@@ -331,13 +331,13 @@ function AccountContent() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await throttledFetch('/api/auth/profile/avatar', { method: 'POST', body: formData });
+      const res = await fetch('/api/auth/profile/avatar', { method: 'POST', body: formData });
       if (res.ok) {
         const data = await res.json();
         setAvatarUrl(data.url);
         if (sessionData.update) sessionData.update();
       }
-    } catch {} finally {
+    } catch (err) { console.error('Avatar upload error:', err); } finally {
       setAvatarUploading(false);
       e.target.value = '';
     }
@@ -589,29 +589,39 @@ function AccountContent() {
                 <SectionCard title={t('account.personalInfo')}>
                   <div className="space-y-0">
                     <SettingRow label={t('account.avatar')}>
-                      <label className="relative group cursor-pointer">
-                        <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={avatarUploading} />
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
-                            style={{ background: 'var(--primary-dark)', color: 'var(--primary-foreground, #fff)' }}>
-                            {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
-                          </div>
-                        )}
-                        <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {avatarUploading ? (
-                            <svg className="w-4 h-4 animate-spin" style={{ color: '#fff' }} fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
+                      <div className="flex items-center gap-3">
+                        <label className="relative group cursor-pointer">
+                          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarUpload} className="hidden" disabled={avatarUploading} />
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt="Avatar" className="w-12 h-12 rounded-full object-cover" />
                           ) : (
-                            <svg className="w-4 h-4" style={{ color: '#fff' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold"
+                              style={{ background: 'var(--primary-dark)', color: 'var(--primary-foreground, #fff)' }}>
+                              {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
+                            </div>
                           )}
-                        </div>
-                      </label>
+                          <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {avatarUploading ? (
+                              <svg className="w-5 h-5 animate-spin" style={{ color: '#fff' }} fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5" style={{ color: '#fff' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            )}
+                          </div>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => document.querySelector<HTMLInputElement>('input[accept*="image"]')?.click()}
+                          className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
+                          style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                        >
+                          {avatarUploading ? 'Uploading...' : 'Change'}
+                        </button>
+                      </div>
                     </SettingRow>
                     <SettingRow label={t('account.email')}>
                       <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{session.user.email}</span>
