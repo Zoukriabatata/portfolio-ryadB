@@ -228,60 +228,50 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
       ctx.restore();
     }
 
-    // Draw position lines
+    // Draw position lines — solid gray 2px with single centered P&L badge
     const symbolUpper = symbol.toUpperCase();
     const openPositions = positionsRef.current.filter(p => p.symbol === symbolUpper);
     for (const pos of openPositions) {
       const y = renderContext.priceToY(pos.entryPrice);
       if (y < -50 || y > chartHeight + 50) continue;
 
-      const isLong = pos.side === 'buy';
-      const color = isLong ? '#10b981' : '#ef4444';
       const pnlColor = pos.pnl >= 0 ? '#10b981' : '#ef4444';
 
       ctx.save();
 
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([8, 4]);
-      ctx.globalAlpha = 0.9;
+      // Solid gray line, 2px
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(chartWidth, y);
       ctx.stroke();
 
-      ctx.setLineDash([]);
-      ctx.font = 'bold 10px monospace';
-      const sideLabel = isLong ? 'LONG' : 'SHORT';
-      const entryLabel = `${sideLabel} ${pos.quantity} @ ${pos.entryPrice.toFixed(2)}`;
-      const entryWidth = ctx.measureText(entryLabel).width;
-      ctx.fillStyle = color + '20';
-      ctx.fillRect(4, y - 18, entryWidth + 12, 16);
-      ctx.fillStyle = color;
-      ctx.textAlign = 'left';
+      // Single centered P&L badge on the line
+      const pnlStr = pos.currentPrice > 0
+        ? `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}`
+        : '$0.00';
+      ctx.font = 'bold 11px monospace';
+      const pnlWidth = ctx.measureText(pnlStr).width;
+      const badgeW = pnlWidth + 14;
+      const badgeH = 18;
+      const badgeX = (chartWidth - badgeW) / 2;
+      const badgeY = y - badgeH / 2;
+
+      ctx.fillStyle = '#1a1a2e';
+      ctx.strokeStyle = pnlColor + '90';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = pnlColor;
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(entryLabel, 10, y - 10);
-
-      if (pos.currentPrice > 0) {
-        const currentY = renderContext.priceToY(pos.currentPrice);
-        if (currentY >= 0 && currentY <= chartHeight) {
-          const pnlStr = `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)} (${pos.pnlPercent >= 0 ? '+' : ''}${pos.pnlPercent.toFixed(2)}%)`;
-          ctx.font = 'bold 11px monospace';
-          const pnlWidth = ctx.measureText(pnlStr).width;
-
-          ctx.fillStyle = pnlColor + '08';
-          const zoneTop = Math.min(y, currentY);
-          const zoneHeight = Math.abs(y - currentY);
-          ctx.fillRect(0, zoneTop, chartWidth, zoneHeight);
-
-          ctx.fillStyle = pnlColor + '25';
-          ctx.fillRect(4, currentY - 8, pnlWidth + 12, 16);
-          ctx.fillStyle = pnlColor;
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(pnlStr, 10, currentY);
-        }
-      }
+      ctx.fillText(pnlStr, chartWidth / 2, y);
 
       ctx.restore();
     }

@@ -324,8 +324,10 @@ export const useTradingStore = create<TradingState>()(
 
         // Simulate order fill for demo
         if (state.activeBroker === 'demo') {
-          // For market orders, use the provided marketPrice fallback
-          const fillPrice = orderData.price || orderData.marketPrice || 0;
+          // For market orders, use marketPrice (latest real-time price) first
+          const fillPrice = orderData.type === 'market'
+            ? (orderData.marketPrice || orderData.price || 0)
+            : (orderData.price || orderData.marketPrice || 0);
 
           setTimeout(() => {
             // Play sound if enabled
@@ -360,132 +362,129 @@ export const useTradingStore = create<TradingState>()(
                   : o
               );
 
-              // Create or update position
-              const existing = state.positions.find(
-                (p) => p.symbol === orderData.symbol && p.side === orderData.side
-              );
+              const now = Date.now();
+              const currentBalance = state.connections.demo?.balance || 100000;
+              const newClosedTrades = [...state.closedTrades];
+
+              // --- Net position system ---
+              // Find ANY existing position for this symbol (regardless of side)
+              const existing = state.positions.find((p) => p.symbol === orderData.symbol);
               let positions: Position[];
-              if (existing) {
-                // Average into existing position
+              let balanceChange = 0;
+
+              if (!existing) {
+                // No position — open new
+                positions = [
+                  ...state.positions,
+                  {
+                    symbol: orderData.symbol,
+                    side: orderData.side,
+                    quantity: orderData.quantity,
+                    entryPrice: fillPrice,
+                    currentPrice: fillPrice,
+                    pnl: 0,
+                    pnlPercent: 0,
+                    openedAt: now,
+                  },
+                ];
+              } else if (existing.side === orderData.side) {
+                // Same side — average into position
                 const totalQty = existing.quantity + orderData.quantity;
                 const avgEntry = (existing.entryPrice * existing.quantity + fillPrice * orderData.quantity) / totalQty;
                 positions = state.positions.map((p) =>
                   p === existing ? { ...p, quantity: totalQty, entryPrice: avgEntry } : p
                 );
               } else {
-                // Check if opposite side position exists (close/reduce)
-                const opposite = state.positions.find(
-                  (p) => p.symbol === orderData.symbol && p.side !== orderData.side
-                );
-                if (opposite) {
-                  const now = Date.now();
-                  if (orderData.quantity >= opposite.quantity) {
-                    // Close position, open remainder on new side
-                    const pnl = opposite.side === 'buy'
-                      ? (fillPrice - opposite.entryPrice) * opposite.quantity
-                      : (opposite.entryPrice - fillPrice) * opposite.quantity;
-                    const newBalance = (state.connections.demo?.balance || 100000) + pnl;
-                    const remainder = orderData.quantity - opposite.quantity;
-                    positions = state.positions.filter((p) => p !== opposite);
-                    // Record closed trade for journal
-                    const closedTrade: ClosedTrade = {
-                      id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
-                      symbol: opposite.symbol,
-                      side: opposite.side,
-                      quantity: opposite.quantity,
-                      entryPrice: opposite.entryPrice,
-                      exitPrice: fillPrice,
-                      pnl,
-                      entryTime: opposite.openedAt || now,
-                      exitTime: now,
-                      broker: state.activeBroker || 'demo',
-                      synced: false,
-                    };
-                    if (remainder > 0) {
-                      positions.push({
-                        symbol: orderData.symbol,
-                        side: orderData.side,
-                        quantity: remainder,
-                        entryPrice: fillPrice,
-                        currentPrice: fillPrice,
-                        pnl: 0,
-                        pnlPercent: 0,
-                        openedAt: now,
-                      });
-                    }
-                    // Update balance
-                    return {
-                      orders: updatedOrders,
-                      positions,
-                      closedTrades: [...state.closedTrades, closedTrade],
-                      connections: {
-                        ...state.connections,
-                        demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
-                      },
-                    };
-                  } else {
-                    // Reduce opposite position (partial close)
-                    const pnl = opposite.side === 'buy'
-                      ? (fillPrice - opposite.entryPrice) * orderData.quantity
-                      : (opposite.entryPrice - fillPrice) * orderData.quantity;
-                    const newBalance = (state.connections.demo?.balance || 100000) + pnl;
-                    positions = state.positions.map((p) =>
-                      p === opposite ? { ...p, quantity: p.quantity - orderData.quantity } : p
-                    );
-                    // Record partial close for journal
-                    const closedTrade: ClosedTrade = {
-                      id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
-                      symbol: opposite.symbol,
-                      side: opposite.side,
-                      quantity: orderData.quantity,
-                      entryPrice: opposite.entryPrice,
-                      exitPrice: fillPrice,
-                      pnl,
-                      entryTime: opposite.openedAt || now,
-                      exitTime: now,
-                      broker: state.activeBroker || 'demo',
-                      synced: false,
-                    };
-                    return {
-                      orders: updatedOrders,
-                      positions,
-                      closedTrades: [...state.closedTrades, closedTrade],
-                      connections: {
-                        ...state.connections,
-                        demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
-                      },
-                    };
-                  }
+                // Opposite side — reduce or close or flip
+                if (orderData.quantity === existing.quantity) {
+                  // Exact close
+                  const pnl = existing.side === 'buy'
+                    ? (fillPrice - existing.entryPrice) * existing.quantity
+                    : (existing.entryPrice - fillPrice) * existing.quantity;
+                  balanceChange = pnl;
+                  positions = state.positions.filter((p) => p !== existing);
+                  newClosedTrades.push({
+                    id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                    symbol: existing.symbol,
+                    side: existing.side,
+                    quantity: existing.quantity,
+                    entryPrice: existing.entryPrice,
+                    exitPrice: fillPrice,
+                    pnl,
+                    entryTime: existing.openedAt || now,
+                    exitTime: now,
+                    broker: state.activeBroker || 'demo',
+                    synced: false,
+                  });
+                } else if (orderData.quantity < existing.quantity) {
+                  // Partial close — reduce position size
+                  const pnl = existing.side === 'buy'
+                    ? (fillPrice - existing.entryPrice) * orderData.quantity
+                    : (existing.entryPrice - fillPrice) * orderData.quantity;
+                  balanceChange = pnl;
+                  positions = state.positions.map((p) =>
+                    p === existing ? { ...p, quantity: p.quantity - orderData.quantity } : p
+                  );
+                  newClosedTrades.push({
+                    id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                    symbol: existing.symbol,
+                    side: existing.side,
+                    quantity: orderData.quantity,
+                    entryPrice: existing.entryPrice,
+                    exitPrice: fillPrice,
+                    pnl,
+                    entryTime: existing.openedAt || now,
+                    exitTime: now,
+                    broker: state.activeBroker || 'demo',
+                    synced: false,
+                  });
                 } else {
-                  // New position
-                  positions = [
-                    ...state.positions,
-                    {
+                  // Flip — close existing + open remainder on new side
+                  const pnl = existing.side === 'buy'
+                    ? (fillPrice - existing.entryPrice) * existing.quantity
+                    : (existing.entryPrice - fillPrice) * existing.quantity;
+                  balanceChange = pnl;
+                  const remainder = orderData.quantity - existing.quantity;
+                  positions = state.positions.filter((p) => p !== existing);
+                  newClosedTrades.push({
+                    id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                    symbol: existing.symbol,
+                    side: existing.side,
+                    quantity: existing.quantity,
+                    entryPrice: existing.entryPrice,
+                    exitPrice: fillPrice,
+                    pnl,
+                    entryTime: existing.openedAt || now,
+                    exitTime: now,
+                    broker: state.activeBroker || 'demo',
+                    synced: false,
+                  });
+                  if (remainder > 0) {
+                    positions.push({
                       symbol: orderData.symbol,
                       side: orderData.side,
-                      quantity: orderData.quantity,
+                      quantity: remainder,
                       entryPrice: fillPrice,
                       currentPrice: fillPrice,
                       pnl: 0,
                       pnlPercent: 0,
-                      openedAt: Date.now(),
-                    },
-                  ];
+                      openedAt: now,
+                    });
+                  }
                 }
               }
-
-              // Deduct margin (notional / leverage) from demo balance
-              const currentBalance = state.connections.demo?.balance || 100000;
-              const notional = fillPrice * orderData.quantity;
-              const margin = notional / (state.leverage || 10);
-              const newBalance = currentBalance - margin;
 
               return {
                 orders: updatedOrders,
                 positions,
+                closedTrades: newClosedTrades,
                 connections: {
                   ...state.connections,
-                  demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
+                  demo: {
+                    ...state.connections.demo,
+                    balance: currentBalance + balanceChange,
+                    lastUpdate: now,
+                  },
                 },
               };
             });

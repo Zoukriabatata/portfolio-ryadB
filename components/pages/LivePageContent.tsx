@@ -146,8 +146,8 @@ export default function LivePageContent() {
       <div className="flex-1 flex flex-col min-w-0 relative">
         <ConnectionBanner />
 
-        {/* Quick Trade Toggle + Bar */}
-        <div className="flex items-center" style={{ borderBottom: '1px solid var(--border)' }}>
+        {/* Toolbar: Trade toggle + Layout selector */}
+        <div className="flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
           <button
             onClick={() => setShowTradeBar(!showTradeBar)}
             className="px-2 py-1 text-[10px] font-medium transition-colors"
@@ -159,6 +159,34 @@ export default function LivePageContent() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-1"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
             Trade
           </button>
+
+          {/* Layout Selector */}
+          <div
+            data-testid="layout-selector"
+            className="flex items-center gap-0.5 px-1.5 py-0.5 mr-1.5 rounded-md"
+            style={{
+              backgroundColor: 'var(--background)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            {(['1x1', '2x1', '2x2'] as LayoutMode[]).map(mode => (
+              <button
+                key={mode}
+                data-testid={`layout-${mode}`}
+                onClick={() => setLayout(mode)}
+                className="layout-button button-press flex items-center justify-center rounded transition-all duration-150"
+                style={{
+                  backgroundColor: layout === mode ? 'var(--primary)' : 'transparent',
+                  color: layout === mode ? '#fff' : 'var(--text-secondary)',
+                  width: 24,
+                  height: 24,
+                }}
+                title={mode === '1x1' ? 'Single chart' : mode === '2x1' ? 'Side by side' : '2x2 grid'}
+              >
+                {LAYOUT_ICONS[mode]}
+              </button>
+            ))}
+          </div>
         </div>
         <div style={{ height: showTradeBar ? 38 : 0, overflow: 'hidden', transition: 'height 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           <QuickTradeBar
@@ -174,35 +202,6 @@ export default function LivePageContent() {
               background: 'var(--background)',
             }}
           />
-        </div>
-
-        {/* Layout Selector — floating pill */}
-        <div
-          data-testid="layout-selector"
-          className="flex items-center gap-px absolute top-1.5 left-1/2 -translate-x-1/2 z-30 px-1 py-0.5 rounded-md fade-in"
-          style={{
-            backgroundColor: 'var(--surface)',
-            border: '1px solid var(--border)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-          }}
-        >
-          {(['1x1', '2x1', '2x2'] as LayoutMode[]).map(mode => (
-            <button
-              key={mode}
-              data-testid={`layout-${mode}`}
-              onClick={() => setLayout(mode)}
-              className="layout-button button-press w-5.5 h-5.5 flex items-center justify-center rounded transition-all duration-150"
-              style={{
-                backgroundColor: layout === mode ? 'var(--primary)' : 'transparent',
-                color: layout === mode ? '#fff' : 'var(--text-dimmed)',
-                width: 22,
-                height: 22,
-              }}
-              title={mode === '1x1' ? 'Single chart' : mode === '2x1' ? 'Side by side' : '2x2 grid'}
-            >
-              {LAYOUT_ICONS[mode]}
-            </button>
-          ))}
         </div>
 
         {/* Chart Grid */}
