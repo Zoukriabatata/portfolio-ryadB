@@ -319,6 +319,7 @@ export default function GEXHeatmap({
   // Canvas 2D overlay for axis labels in 3D mode
   const drawOverlay = useCallback(() => {
     const canvas = overlayCanvasRef.current;
+    const renderer = rendererRef.current;
     if (!canvas) return;
 
     const { width, height } = dimensions;
@@ -343,16 +344,104 @@ export default function GEXHeatmap({
     // Instructions
     ctx.fillStyle = themeColors.text;
     ctx.font = '10px system-ui';
-    ctx.fillText('Drag: rotate · Scroll: zoom · Right-drag: pan · 1-5: presets', 16, 42);
+    ctx.fillText('Drag: rotate \u00b7 Scroll: zoom \u00b7 Right-drag: pan \u00b7 1-5: presets', 16, 42);
 
-    // Axis legend (bottom)
+    // --- Projected axis labels ---
+    if (renderer) {
+      const strikes = gexData.map(d => d.strike);
+      const S = strikes.length;
+      const T = renderer.timeSteps || timeSeriesData.length;
+
+      // Strike labels along X axis (y=0 edge, z=0)
+      ctx.font = '9px "Consolas", monospace';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'center';
+      const strikeStep = Math.max(1, Math.ceil(S / 8));
+      for (let i = 0; i < S; i += strikeStep) {
+        const nx = S > 1 ? i / (S - 1) : 0.5;
+        const pt = renderer.projectToScreen(nx, 0, 0);
+        if (pt && pt.x > 30 && pt.x < width - 30 && pt.y > 10 && pt.y < height - 5) {
+          ctx.fillText(`$${strikes[i].toFixed(0)}`, pt.x, pt.y + 14);
+        }
+      }
+
+      // Time labels along Y axis (x=0 edge, z=0)
+      ctx.textAlign = 'right';
+      const timeStep = Math.max(1, Math.ceil(T / 6));
+      for (let t = 0; t < T; t += timeStep) {
+        const ny = T > 1 ? t / (T - 1) : 0.5;
+        const pt = renderer.projectToScreen(0, ny, 0);
+        if (pt && pt.x > 5 && pt.x < width - 5 && pt.y > 10 && pt.y < height - 5) {
+          ctx.fillText(`T-${T - t}`, pt.x - 8, pt.y + 4);
+        }
+      }
+
+      // GEX scale labels along Z axis (x=0, y=0)
+      ctx.textAlign = 'right';
+      const zLabels = [0, 0.15, 0.3, 0.45, 0.6];
+      for (const z of zLabels) {
+        const pt = renderer.projectToScreen(0, 0, z);
+        if (pt && pt.x > 5 && pt.y > 10 && pt.y < height - 5) {
+          const pct = Math.round((z / 0.6) * 100);
+          ctx.fillText(`${pct}%`, pt.x - 8, pt.y + 4);
+        }
+      }
+
+      // Axis names
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+
+      const strikeName = renderer.projectToScreen(0.5, 0, 0);
+      if (strikeName) {
+        ctx.textAlign = 'center';
+        ctx.fillText('Strike', strikeName.x, strikeName.y + 28);
+      }
+
+      const timeName = renderer.projectToScreen(0, 0.5, 0);
+      if (timeName) {
+        ctx.textAlign = 'right';
+        ctx.fillText('Time', timeName.x - 16, timeName.y + 4);
+      }
+
+      const gexName = renderer.projectToScreen(0, 0, 0.3);
+      if (gexName) {
+        ctx.save();
+        ctx.translate(gexName.x - 24, gexName.y);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText(dataType === 'netGEX' ? 'GEX' : 'IV', 0, 0);
+        ctx.restore();
+      }
+    }
+
+    // Color legend (bottom)
     ctx.font = '10px system-ui';
     ctx.textAlign = 'center';
     ctx.fillStyle = themeColors.callColor;
-    ctx.fillText('■ Positive GEX (Calls)', width / 2 - 80, height - 10);
+    ctx.fillText('\u25a0 Positive GEX (Calls)', width / 2 - 80, height - 10);
     ctx.fillStyle = themeColors.putColor;
-    ctx.fillText('■ Negative GEX (Puts)', width / 2 + 80, height - 10);
-  }, [dimensions, symbol, dataType, themeColors]);
+    ctx.fillText('\u25a0 Negative GEX (Puts)', width / 2 + 80, height - 10);
+
+    // Camera preset buttons (top right)
+    ctx.font = '9px system-ui';
+    const presets = ['1:Iso', '2:Top', '3:Front', '4:Side', '5:3/4'];
+    const btnW = 40, btnH = 18, gap = 4;
+    const startX = width - (btnW + gap) * presets.length - 8;
+    const startY = 14;
+    for (let i = 0; i < presets.length; i++) {
+      const x = startX + i * (btnW + gap);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x, startY, btnW, btnH, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'center';
+      ctx.fillText(presets[i], x + btnW / 2, startY + 13);
+    }
+  }, [dimensions, symbol, dataType, themeColors, gexData, timeSeriesData]);
 
   // Draw 2D mode
   useEffect(() => {

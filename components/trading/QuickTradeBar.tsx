@@ -1,8 +1,25 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTradingStore, BROKER_INFO, type OrderType } from '@/stores/useTradingStore';
 import { useFuturesStore } from '@/stores/useFuturesStore';
+
+// Tick size auto-detection by symbol
+function getTickSize(symbol: string): { tick: number; decimals: number } {
+  const s = symbol.toUpperCase();
+  if (s.includes('BTC')) return { tick: 0.10, decimals: 2 };
+  if (s.includes('ETH')) return { tick: 0.01, decimals: 2 };
+  if (s.includes('SOL') || s.includes('AVAX') || s.includes('DOGE') || s.includes('XRP'))
+    return { tick: 0.0001, decimals: 4 };
+  if (s.includes('SHIB') || s.includes('PEPE') || s.includes('FLOKI'))
+    return { tick: 0.00000001, decimals: 8 };
+  // CME contracts
+  if (s.includes('ES') || s.includes('NQ') || s.includes('YM'))
+    return { tick: 0.25, decimals: 2 };
+  if (s.includes('CL')) return { tick: 0.01, decimals: 2 };
+  if (s.includes('GC')) return { tick: 0.10, decimals: 2 };
+  return { tick: 0.01, decimals: 2 };
+}
 
 interface QuickTradeBarProps {
   symbol: string;
@@ -32,10 +49,16 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     contractQuantity,
     setContractQuantity,
     placeOrder,
+    cancelOrder,
+    closePosition,
+    positions,
+    orders,
     connect,
   } = useTradingStore();
 
   const { markPrice } = useFuturesStore();
+
+  const { tick, decimals } = useMemo(() => getTickSize(symbol), [symbol]);
 
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [limitPrice, setLimitPrice] = useState('');
@@ -70,15 +93,15 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     // Default risk = 0.5% of current price
     const risk = currentPrice * 0.005;
     if (side === 'buy') {
-      setSlPrice((currentPrice - risk * sl).toFixed(2));
-      setTpPrice((currentPrice + risk * tp).toFixed(2));
+      setSlPrice((currentPrice - risk * sl).toFixed(decimals));
+      setTpPrice((currentPrice + risk * tp).toFixed(decimals));
     } else {
-      setSlPrice((currentPrice + risk * sl).toFixed(2));
-      setTpPrice((currentPrice - risk * tp).toFixed(2));
+      setSlPrice((currentPrice + risk * sl).toFixed(decimals));
+      setTpPrice((currentPrice - risk * tp).toFixed(decimals));
     }
     setTpEnabled(true);
     setSlEnabled(true);
-  }, [currentPrice]);
+  }, [currentPrice, decimals]);
 
   const handleTrade = useCallback(async (side: 'buy' | 'sell') => {
     if (!activeBroker || !isConnected || isSubmitting) return;
@@ -147,6 +170,82 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     }
   }, [activeBroker, isConnected, isSubmitting, orderType, limitPrice, stopPrice, currentPrice, contractQuantity, symbol, placeOrder, tpEnabled, tpPrice, slEnabled, slPrice]);
 
+  // Flatten: close all positions for current symbol
+  const handleFlatten = useCallback(async () => {
+    if (!activeBroker || !isConnected) return;
+    await closePosition(symbol.toUpperCase());
+    setLastAction({ side: 'sell', time: Date.now() });
+    if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current);
+    lastActionTimerRef.current = setTimeout(() => setLastAction(null), 1000);
+  }, [activeBroker, isConnected, closePosition, symbol]);
+
+  // Reverse: close current position and open opposite
+  const handleReverse = useCallback(async () => {
+    if (!activeBroker || !isConnected) return;
+    const sym = symbol.toUpperCase();
+    const pos = positions.find(p => p.symbol === sym);
+    if (!pos) return;
+    // Close existing
+    await closePosition(sym);
+    // Open opposite with same quantity
+    await placeOrder({
+      broker: activeBroker,
+      symbol: sym,
+      side: pos.side === 'buy' ? 'sell' : 'buy',
+      type: 'market',
+      quantity: pos.quantity,
+      marketPrice: currentPrice,
+    });
+    setLastAction({ side: pos.side === 'buy' ? 'sell' : 'buy', time: Date.now() });
+    if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current);
+    lastActionTimerRef.current = setTimeout(() => setLastAction(null), 1000);
+  }, [activeBroker, isConnected, positions, symbol, closePosition, placeOrder, currentPrice]);
+
+  // Cancel all pending orders for current symbol
+  const handleCancelAll = useCallback(async () => {
+    if (!activeBroker || !isConnected) return;
+    const sym = symbol.toUpperCase();
+    const pending = orders.filter(o => o.symbol === sym && o.status === 'pending');
+    for (const o of pending) {
+      await cancelOrder(o.id);
+    }
+  }, [activeBroker, isConnected, orders, symbol, cancelOrder]);
+
+  // Current position for this symbol
+  const currentPosition = positions.find(p => p.symbol === symbol.toUpperCase());
+  const pendingOrders = orders.filter(o => o.symbol === symbol.toUpperCase() && o.status === 'pending');
+
+  // Keyboard hotkeys (B=Buy, S=Sell, X=Flatten, F=Flip/Reverse)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (!isConnected) return;
+
+      switch (e.key.toLowerCase()) {
+        case 'b':
+          e.preventDefault();
+          handleTrade('buy');
+          break;
+        case 's':
+          e.preventDefault();
+          handleTrade('sell');
+          break;
+        case 'x':
+          e.preventDefault();
+          handleFlatten();
+          break;
+        case 'f':
+          e.preventDefault();
+          handleReverse();
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isConnected, handleTrade, handleFlatten, handleReverse]);
+
   // Not connected state
   if (!isConnected) {
     return (
@@ -213,24 +312,42 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           ))}
         </div>
 
-        {/* Price inputs */}
+        {/* Price inputs with tick precision */}
         {needsLimit && (
-          <input type="number" value={limitPrice}
-            onChange={e => setLimitPrice(e.target.value)}
-            placeholder={currentPrice.toFixed(2)}
-            className="w-20 px-1.5 py-0.5 rounded text-xs font-mono focus:outline-none"
-            style={{ backgroundColor: colors.background, color: colors.text, border: `1px solid ${colors.border}` }}
-          />
+          <div className="flex items-center rounded overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
+            <button onClick={() => setLimitPrice(((parseFloat(limitPrice) || currentPrice) - tick).toFixed(decimals))}
+              className="w-4 h-5 flex items-center justify-center hover:bg-white/5 text-[10px]"
+              style={{ color: colors.textSecondary }}>-</button>
+            <input type="number" value={limitPrice}
+              onChange={e => setLimitPrice(e.target.value)}
+              step={tick}
+              placeholder={currentPrice.toFixed(decimals)}
+              className="w-20 px-1 py-0.5 text-center text-xs font-mono focus:outline-none"
+              style={{ backgroundColor: colors.background, color: colors.text }}
+            />
+            <button onClick={() => setLimitPrice(((parseFloat(limitPrice) || currentPrice) + tick).toFixed(decimals))}
+              className="w-4 h-5 flex items-center justify-center hover:bg-white/5 text-[10px]"
+              style={{ color: colors.textSecondary }}>+</button>
+          </div>
         )}
         {needsStop && (
           <div className="flex items-center gap-1">
             <span className="text-[9px]" style={{ color: colors.textMuted }}>Stop</span>
-            <input type="number" value={stopPrice}
-              onChange={e => setStopPrice(e.target.value)}
-              placeholder={currentPrice.toFixed(2)}
-              className="w-20 px-1.5 py-0.5 rounded text-xs font-mono focus:outline-none"
-              style={{ backgroundColor: colors.background, color: colors.text, border: `1px solid ${colors.border}` }}
-            />
+            <div className="flex items-center rounded overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
+              <button onClick={() => setStopPrice(((parseFloat(stopPrice) || currentPrice) - tick).toFixed(decimals))}
+                className="w-4 h-5 flex items-center justify-center hover:bg-white/5 text-[10px]"
+                style={{ color: colors.textSecondary }}>-</button>
+              <input type="number" value={stopPrice}
+                onChange={e => setStopPrice(e.target.value)}
+                step={tick}
+                placeholder={currentPrice.toFixed(decimals)}
+                className="w-20 px-1 py-0.5 text-center text-xs font-mono focus:outline-none"
+                style={{ backgroundColor: colors.background, color: colors.text }}
+              />
+              <button onClick={() => setStopPrice(((parseFloat(stopPrice) || currentPrice) + tick).toFixed(decimals))}
+                className="w-4 h-5 flex items-center justify-center hover:bg-white/5 text-[10px]"
+                style={{ color: colors.textSecondary }}>+</button>
+            </div>
           </div>
         )}
 
@@ -275,7 +392,53 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           {showAdvanced ? '▾ Adv' : '▸ Adv'}
         </button>
 
+        {/* Position info */}
+        {currentPosition && (
+          <>
+            <div className="w-px h-4" style={{ backgroundColor: colors.border }} />
+            <div className="flex items-center gap-1.5 text-[10px] font-mono shrink-0">
+              <span style={{ color: currentPosition.side === 'buy' ? '#10b981' : '#ef4444' }}>
+                {currentPosition.side === 'buy' ? 'LONG' : 'SHORT'} {currentPosition.quantity}
+              </span>
+              <span style={{ color: currentPosition.pnl >= 0 ? '#10b981' : '#ef4444' }}>
+                {currentPosition.pnl >= 0 ? '+' : ''}{currentPosition.pnl.toFixed(2)}
+              </span>
+            </div>
+          </>
+        )}
+
         <div className="flex-1" />
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1">
+          {/* Flatten */}
+          {currentPosition && (
+            <button onClick={handleFlatten}
+              className="px-2 py-1 rounded text-[10px] font-medium transition-all button-press hover:brightness-110"
+              style={{ backgroundColor: '#6366f120', color: '#818cf8', border: '1px solid #6366f130' }}
+              title="Flatten position (X)">
+              X
+            </button>
+          )}
+          {/* Reverse */}
+          {currentPosition && (
+            <button onClick={handleReverse}
+              className="px-2 py-1 rounded text-[10px] font-medium transition-all button-press hover:brightness-110"
+              style={{ backgroundColor: '#f59e0b20', color: '#fbbf24', border: '1px solid #f59e0b30' }}
+              title="Reverse position (F)">
+              F
+            </button>
+          )}
+          {/* Cancel all */}
+          {pendingOrders.length > 0 && (
+            <button onClick={handleCancelAll}
+              className="px-2 py-1 rounded text-[10px] font-medium transition-all button-press hover:brightness-110"
+              style={{ backgroundColor: '#78716c20', color: '#a8a29e', border: '1px solid #78716c30' }}
+              title="Cancel all pending orders">
+              CXL{pendingOrders.length > 1 ? ` ${pendingOrders.length}` : ''}
+            </button>
+          )}
+        </div>
 
         {/* Buy / Sell buttons */}
         <div className="flex items-center gap-1.5">
@@ -287,6 +450,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
               boxShadow: lastAction?.side === 'buy' ? '0 0 12px rgba(5,150,105,0.5)' : undefined,
             }}>
             {isSubmitting ? <span className="spinner inline-block w-3 h-3 border border-white border-t-transparent rounded-full" /> : 'BUY'}
+            <span className="ml-1 text-[8px] opacity-60">B</span>
           </button>
           <button onClick={() => handleTrade('sell')} disabled={isSubmitting}
             className={`px-4 py-1 rounded font-semibold text-xs transition-all hover:brightness-110 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${lastAction?.side === 'sell' ? 'trade-success' : ''}`}
@@ -296,6 +460,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
               boxShadow: lastAction?.side === 'sell' ? '0 0 12px rgba(220,38,38,0.5)' : undefined,
             }}>
             {isSubmitting ? <span className="spinner inline-block w-3 h-3 border border-white border-t-transparent rounded-full" /> : 'SELL'}
+            <span className="ml-1 text-[8px] opacity-60">S</span>
           </button>
         </div>
       </div>
@@ -315,8 +480,9 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             {tpEnabled && (
               <input type="number" value={tpPrice}
                 onChange={e => setTpPrice(e.target.value)}
-                placeholder="Take Profit"
-                className="w-20 px-1.5 py-0.5 rounded text-xs font-mono focus:outline-none"
+                step={tick}
+                placeholder={currentPrice > 0 ? currentPrice.toFixed(decimals) : 'Take Profit'}
+                className="w-24 px-1.5 py-0.5 rounded text-xs font-mono focus:outline-none"
                 style={{ backgroundColor: colors.surface, color: '#10b981', border: `1px solid ${colors.border}` }}
               />
             )}
@@ -332,8 +498,9 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             {slEnabled && (
               <input type="number" value={slPrice}
                 onChange={e => setSlPrice(e.target.value)}
-                placeholder="Stop Loss"
-                className="w-20 px-1.5 py-0.5 rounded text-xs font-mono focus:outline-none"
+                step={tick}
+                placeholder={currentPrice > 0 ? currentPrice.toFixed(decimals) : 'Stop Loss'}
+                className="w-24 px-1.5 py-0.5 rounded text-xs font-mono focus:outline-none"
                 style={{ backgroundColor: colors.surface, color: '#ef4444', border: `1px solid ${colors.border}` }}
               />
             )}

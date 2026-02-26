@@ -21,7 +21,7 @@ const EMPTY_ANALYTICS: JournalAnalytics = {
 };
 
 export function useJournalAnalytics() {
-  const { dashboardDateRange } = useJournalStore();
+  const { dashboardDateRange, lastAutoTrackSync } = useJournalStore();
   const [analytics, setAnalytics] = useState<JournalAnalytics>(EMPTY_ANALYTICS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +50,12 @@ export function useJournalAnalytics() {
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
+
+  // Auto-refetch when new trades are auto-tracked
+  useEffect(() => {
+    if (lastAutoTrackSync > 0) fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastAutoTrackSync]);
 
   return { analytics, loading, error, refetch: fetchAnalytics };
 }

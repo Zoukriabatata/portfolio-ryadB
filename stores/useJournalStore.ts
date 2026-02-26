@@ -23,6 +23,9 @@ interface JournalUIState {
   // Playbook
   playbookViewMode: 'grid' | 'list';
 
+  // Auto-track sync signal — bumped when new trades are auto-synced to journal
+  lastAutoTrackSync: number;
+
   // Actions
   setActiveTab: (tab: JournalTab) => void;
   setDashboardDateRange: (range: { from: string | null; to: string | null }) => void;
@@ -32,6 +35,7 @@ interface JournalUIState {
   setTradeTablePageSize: (size: number) => void;
   setCalendarMonth: (month: string) => void;
   setPlaybookViewMode: (mode: 'grid' | 'list') => void;
+  notifyAutoTrackSync: () => void;
 }
 
 const now = new Date();
@@ -47,6 +51,7 @@ export const useJournalStore = create<JournalUIState>()(
       tradeTablePageSize: 25,
       calendarMonth: currentMonth,
       playbookViewMode: 'grid',
+      lastAutoTrackSync: 0,
 
       setActiveTab: (tab) => set({ activeTab: tab }),
       setDashboardDateRange: (range) => set({ dashboardDateRange: range }),
@@ -59,6 +64,7 @@ export const useJournalStore = create<JournalUIState>()(
       setTradeTablePageSize: (size) => set({ tradeTablePageSize: size }),
       setCalendarMonth: (month) => set({ calendarMonth: month }),
       setPlaybookViewMode: (mode) => set({ playbookViewMode: mode }),
+      notifyAutoTrackSync: () => set({ lastAutoTrackSync: Date.now() }),
     }),
     {
       name: 'journal-ui-storage',

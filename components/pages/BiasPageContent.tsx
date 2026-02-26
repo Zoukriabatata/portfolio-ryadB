@@ -130,38 +130,45 @@ export default function BiasPageContent() {
       </div>
 
       {/* ── Header Bar ── */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface)] animate-slideUp stagger-1">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)] animate-slideUp stagger-1"
+        style={{ background: 'linear-gradient(135deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 96%, var(--primary) 4%) 100%)' }}>
         <div className="flex items-center gap-4">
           {/* Contract selector */}
-          <div className="flex items-center gap-1 bg-[var(--background)] rounded-xl p-1">
-            {CONTRACTS.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setContract(c.id)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
-                  contract === c.id
-                    ? 'bg-[var(--primary-dark)] text-[var(--text-primary)] shadow-md'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-1 bg-[var(--background)] rounded-xl p-1 border border-[var(--border)]">
+            {CONTRACTS.map(c => {
+              const isActive = contract === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setContract(c.id)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[var(--primary)] text-white shadow-lg'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                  style={isActive ? { boxShadow: '0 2px 12px color-mix(in srgb, var(--primary) 40%, transparent 60%)' } : undefined}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Title + Direction badge */}
           <div className="hidden sm:flex items-center gap-3">
-            <span className="text-sm font-bold text-[var(--text-primary)]">
+            <span className="text-base font-bold text-[var(--text-primary)] tracking-tight">
               GVS Bias
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+            <span className="text-[10px] px-2.5 py-1 rounded-full font-bold tracking-wide flex items-center gap-1.5"
               style={{
                 backgroundColor: biasResult.direction === 'long' ? '#22c55e15' : biasResult.direction === 'short' ? '#ef444415' : '#6b728015',
                 color: biasResult.direction === 'long' ? '#22c55e' : biasResult.direction === 'short' ? '#ef4444' : '#6b7280',
+                boxShadow: `0 0 12px ${biasResult.direction === 'long' ? '#22c55e15' : biasResult.direction === 'short' ? '#ef444415' : 'transparent'}`,
               }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: biasResult.direction === 'long' ? '#22c55e' : biasResult.direction === 'short' ? '#ef4444' : '#6b7280' }} />
               {biasResult.direction.toUpperCase()} {biasResult.strength}
             </span>
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span className="text-[10px] text-[var(--text-muted)] font-mono">
               {etfSymbol} GEX → {contract}
             </span>
           </div>
@@ -169,23 +176,25 @@ export default function BiasPageContent() {
 
         <div className="flex items-center gap-3">
           {/* Spot price */}
-          <div className="text-sm font-mono font-semibold text-[var(--text-primary)]">
-            {contract} <span className="text-[var(--text-secondary)]">{biasResult.esSpot.toFixed(0)}</span>
+          <div className="text-sm font-mono font-bold px-3 py-1.5 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+            <span className="text-[var(--text-muted)]">{contract}</span>{' '}
+            <span className="text-[var(--text-primary)]">{biasResult.esSpot.toFixed(0)}</span>
           </div>
 
           {/* LIVE / SIM badge */}
-          <div className={`px-2 py-1 rounded text-[10px] font-bold ${
+          <div className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 ${
             priceSource === 'yahoo-finance'
               ? 'bg-[var(--success-bg)] text-[var(--success)]'
               : 'bg-[var(--warning-bg)] text-[var(--warning)]'
           }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${priceSource === 'yahoo-finance' ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--warning)]'}`} />
             {priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}
           </div>
 
           {/* Refresh */}
           <button
             onClick={handleRefresh}
-            className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            className="p-2 rounded-xl hover:bg-[var(--surface-hover)] transition-all duration-200 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95"
             title="Refresh (R)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -318,25 +327,34 @@ function LevelCard({ label, value, color, spot }: {
 
   return (
     <div
-      className="rounded-xl border bg-[var(--surface)] px-3 py-2.5 transition-all hover:scale-[1.02] group"
-      style={{ borderColor: `${color}25`, boxShadow: `0 0 0 0 ${color}00` }}
-      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 16px ${color}15`; e.currentTarget.style.borderColor = `${color}40`; }}
-      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 0 0 0 ${color}00`; e.currentTarget.style.borderColor = `${color}25`; }}
+      className="rounded-2xl border bg-[var(--surface)] px-4 py-3 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 group relative overflow-hidden"
+      style={{ borderColor: `${color}20`, boxShadow: `0 0 0 0 ${color}00` }}
+      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 24px ${color}15, 0 0 0 1px ${color}25`; e.currentTarget.style.borderColor = `${color}40`; }}
+      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 0 0 0 ${color}00`; e.currentTarget.style.borderColor = `${color}20`; }}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}50` }} />
-          <span className="text-[10px] font-medium text-[var(--text-muted)]">{label}</span>
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{ background: `linear-gradient(135deg, ${color}06 0%, transparent 60%)` }} />
+
+      <div className="relative flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full transition-shadow duration-300" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}40, 0 0 0 2px ${color}20` }} />
+          <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wide">{label}</span>
         </div>
-        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: `${color}12`, color }}>
+        <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ backgroundColor: `${color}12`, color }}>
           {isAbove ? 'Above' : 'Below'}
         </span>
       </div>
-      <div className="text-base font-bold font-mono tracking-tight" style={{ color }}>
+      <div className="relative text-lg font-bold font-mono tracking-tight" style={{ color }}>
         {value.toFixed(0)}
       </div>
-      <div className="text-[10px] font-mono mt-0.5" style={{ color: isAbove ? '#22c55e' : '#ef4444' }}>
-        {diff > 0 ? '+' : ''}{diff.toFixed(0)} pts ({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(2)}%)
+      <div className="relative flex items-center gap-1.5 mt-1">
+        <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill={isAbove ? '#22c55e' : '#ef4444'}>
+          {isAbove ? <path d="M6 2l4 6H2z" /> : <path d="M6 10L2 4h8z" />}
+        </svg>
+        <span className="text-[10px] font-mono font-medium" style={{ color: isAbove ? '#22c55e' : '#ef4444' }}>
+          {diff > 0 ? '+' : ''}{diff.toFixed(0)} pts ({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(2)}%)
+        </span>
       </div>
     </div>
   );
@@ -354,110 +372,126 @@ function SkewPanel({ skew }: { skew: SkewAnalysis }) {
   const skewBarPct = Math.max(0, Math.min(100, ((skew.skewRatio - 0.8) / 0.5) * 100));
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-[var(--text-primary)]">Volatility Skew</span>
+      <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between"
+        style={{ background: `linear-gradient(135deg, ${skewColor}06 0%, transparent 100%)` }}>
+        <div className="flex items-center gap-2.5">
+          <svg className="w-3.5 h-3.5" style={{ color: skewColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path d="M3 3v18h18" /><path d="M7 16c2-4 4-8 6-6s4-2 6-4" />
+          </svg>
+          <span className="text-[12px] font-bold text-[var(--text-primary)]">Volatility Skew</span>
           <span
-            className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase"
+            className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
             style={{ backgroundColor: `${skewColor}15`, color: skewColor }}
           >
             {skew.skewSignal}
           </span>
         </div>
-        <span className="text-[9px] font-mono" style={{ color: skewColor }}>
-          Score: {skew.totalVolScore > 0 ? '+' : ''}{skew.totalVolScore.toFixed(0)}
+        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg" style={{ color: skewColor, backgroundColor: `${skewColor}10` }}>
+          {skew.totalVolScore > 0 ? '+' : ''}{skew.totalVolScore.toFixed(0)}
         </span>
       </div>
 
-      <div className="px-3 py-2 space-y-2.5">
+      <div className="px-4 py-3 space-y-3">
         {/* Skew Ratio Bar */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] text-[var(--text-muted)]">Put/Call Skew</span>
-            <span className="text-[10px] font-mono font-bold" style={{ color: skewColor }}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-medium text-[var(--text-secondary)]">Put/Call Skew Ratio</span>
+            <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg" style={{ color: skewColor, backgroundColor: `${skewColor}10` }}>
               {skew.skewRatio.toFixed(3)}
             </span>
           </div>
-          <div className="relative h-2 bg-[var(--background)] rounded-full overflow-hidden">
+          <div className="relative h-2.5 bg-[var(--background)] rounded-full overflow-hidden border border-[var(--border)]">
+            {/* Gradient background */}
+            <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(90deg, #22c55e, #6b7280 40%, #ef4444)` }} />
             {/* Center marker at ratio 1.0 */}
-            <div className="absolute top-0 bottom-0 w-px bg-[var(--text-muted)]" style={{ left: '40%' }} />
+            <div className="absolute top-0 bottom-0 w-0.5 bg-[var(--text-muted)]/40" style={{ left: '40%' }} />
             <div
-              className="absolute top-0 bottom-0 rounded-full transition-all duration-500"
+              className="absolute top-0 bottom-0 rounded-full transition-all duration-700 ease-out"
               style={{
                 left: Math.min(skewBarPct, 40) + '%',
                 width: Math.abs(skewBarPct - 40) + '%',
                 backgroundColor: skewColor,
-                opacity: 0.7,
+                opacity: 0.6,
               }}
             />
-            {/* Needle */}
+            {/* Needle with glow */}
             <div
-              className="absolute top-[-1px] bottom-[-1px] w-1 rounded-full"
-              style={{ left: `${skewBarPct}%`, backgroundColor: skewColor }}
+              className="absolute top-[-2px] bottom-[-2px] w-1.5 rounded-full transition-all duration-700 ease-out"
+              style={{ left: `${skewBarPct}%`, backgroundColor: skewColor, boxShadow: `0 0 8px ${skewColor}60` }}
             />
           </div>
-          <div className="flex justify-between mt-0.5">
-            <span className="text-[8px] text-[#22c55e]">Bullish</span>
-            <span className="text-[8px] text-[var(--text-muted)]">1.0</span>
-            <span className="text-[8px] text-[#ef4444]">Bearish</span>
+          <div className="flex justify-between mt-1">
+            <span className="text-[9px] font-medium text-[#22c55e]">Bullish</span>
+            <span className="text-[9px] text-[var(--text-dimmed)] font-mono">1.0</span>
+            <span className="text-[9px] font-medium text-[#ef4444]">Bearish</span>
           </div>
         </div>
 
         {/* Metrics Row */}
         <div className="grid grid-cols-3 gap-2">
           {/* ATM IV */}
-          <div className="text-center">
-            <div className="text-[9px] text-[var(--text-muted)]">ATM IV</div>
-            <div className="text-[11px] font-bold font-mono" style={{ color: ivColor }}>
+          <div className="text-center p-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+            <div className="text-[9px] text-[var(--text-muted)] mb-0.5">ATM IV</div>
+            <div className="text-[13px] font-bold font-mono" style={{ color: ivColor }}>
               {(skew.atmIV * 100).toFixed(1)}%
             </div>
-            <div className="text-[8px] uppercase font-bold" style={{ color: ivColor }}>
+            <div className="text-[8px] uppercase font-bold mt-0.5 px-1.5 py-0.5 rounded-full inline-block" style={{ color: ivColor, backgroundColor: `${ivColor}12` }}>
               {skew.ivLevel}
             </div>
           </div>
 
           {/* 25D Put IV */}
-          <div className="text-center">
-            <div className="text-[9px] text-[var(--text-muted)]">25D Put IV</div>
-            <div className="text-[11px] font-bold font-mono text-[#ef4444]">
+          <div className="text-center p-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+            <div className="text-[9px] text-[var(--text-muted)] mb-0.5">25D Put IV</div>
+            <div className="text-[13px] font-bold font-mono text-[#ef4444]">
               {(skew.put25IV * 100).toFixed(1)}%
             </div>
-            <div className="text-[8px] text-[var(--text-muted)]">
+            <div className="text-[8px] text-[#ef4444]/60 font-mono mt-0.5">
               +{(skew.skew25D * 100).toFixed(1)}pp
             </div>
           </div>
 
           {/* 25D Call IV */}
-          <div className="text-center">
-            <div className="text-[9px] text-[var(--text-muted)]">25D Call IV</div>
-            <div className="text-[11px] font-bold font-mono text-[#22c55e]">
+          <div className="text-center p-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+            <div className="text-[9px] text-[var(--text-muted)] mb-0.5">25D Call IV</div>
+            <div className="text-[13px] font-bold font-mono text-[#22c55e]">
               {(skew.call25IV * 100).toFixed(1)}%
             </div>
-            <div className="text-[8px] text-[var(--text-muted)]">base</div>
+            <div className="text-[8px] text-[var(--text-dimmed)] font-mono mt-0.5">base</div>
           </div>
         </div>
 
         {/* Term Structure */}
-        <div className="flex items-center justify-between px-1 py-1 rounded bg-[var(--background)]">
-          <span className="text-[9px] text-[var(--text-muted)]">Term Structure</span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: termColor }} />
-            <span className="text-[10px] font-bold uppercase" style={{ color: termColor }}>
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+          <span className="text-[10px] font-medium text-[var(--text-secondary)]">Term Structure</span>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: termColor, boxShadow: `0 0 6px ${termColor}40` }} />
+            <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: termColor }}>
               {skew.termStructure}
             </span>
-            <span className="text-[9px] font-mono text-[var(--text-muted)]">
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-lg" style={{ color: termColor, backgroundColor: `${termColor}10` }}>
               {skew.termSpread > 0 ? '+' : ''}{(skew.termSpread * 100).toFixed(1)}pp
             </span>
           </div>
         </div>
 
         {/* Score breakdown */}
-        <div className="flex items-center gap-2 text-[8px] text-[var(--text-muted)]">
-          <span>Skew: <b style={{ color: skewColor }}>{skew.skewScore > 0 ? '+' : ''}{skew.skewScore}</b></span>
-          <span>IV: <b style={{ color: ivColor }}>{skew.ivScore > 0 ? '+' : ''}{skew.ivScore}</b></span>
-          <span>Term: <b style={{ color: termColor }}>{skew.termScore > 0 ? '+' : ''}{skew.termScore}</b></span>
+        <div className="flex items-center gap-3 px-2 py-1.5 text-[9px]">
+          <span className="text-[var(--text-muted)]">Scores:</span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: skewColor }} />
+            Skew <b style={{ color: skewColor }}>{skew.skewScore > 0 ? '+' : ''}{skew.skewScore}</b>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ivColor }} />
+            IV <b style={{ color: ivColor }}>{skew.ivScore > 0 ? '+' : ''}{skew.ivScore}</b>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: termColor }} />
+            Term <b style={{ color: termColor }}>{skew.termScore > 0 ? '+' : ''}{skew.termScore}</b>
+          </span>
         </div>
       </div>
     </div>
@@ -471,34 +505,36 @@ function LevelList({ title, levels, spot, color }: {
   color: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-      <div className="px-3 py-2 border-b border-[var(--border)]">
-        <span className="text-[11px] font-bold" style={{ color }}>{title}</span>
-        <span className="text-[9px] text-[var(--text-muted)] ml-2">({levels.length})</span>
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
+      <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center gap-2.5"
+        style={{ background: `linear-gradient(135deg, ${color}06 0%, transparent 100%)` }}>
+        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}40` }} />
+        <span className="text-[12px] font-bold" style={{ color }}>{title}</span>
+        <span className="text-[9px] text-[var(--text-dimmed)] font-mono ml-auto bg-[var(--background)] px-1.5 py-0.5 rounded-md">{levels.length}</span>
       </div>
-      <div className="divide-y divide-[var(--border)]">
+      <div className="divide-y divide-[var(--border)]/50">
         {levels.slice(0, 8).map((level, i) => {
           const dist = Math.abs(level.price - spot);
           return (
-            <div key={i} className="flex items-center justify-between px-3 py-1.5">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: level.color }} />
-                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+            <div key={i} className="flex items-center justify-between px-4 py-2 hover:bg-[var(--surface-hover)] transition-colors group">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full transition-shadow group-hover:shadow-[0_0_6px]" style={{ backgroundColor: level.color }} />
+                <span className="text-[11px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
                   {level.label}
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-[var(--text-primary)]">
+                <span className="text-[11px] font-mono font-semibold text-[var(--text-primary)]">
                   {level.price.toFixed(0)}
                 </span>
-                <span className="text-[9px] font-mono text-[var(--text-muted)] w-12 text-right">
+                <span className="text-[9px] font-mono text-[var(--text-muted)] w-14 text-right px-1.5 py-0.5 bg-[var(--background)] rounded">
                   {dist.toFixed(0)} pts
                 </span>
                 {/* Strength bar */}
-                <div className="w-12 h-1.5 bg-[var(--background)] rounded-full overflow-hidden">
+                <div className="w-14 h-2 bg-[var(--background)] rounded-full overflow-hidden border border-[var(--border)]">
                   <div
-                    className="h-full rounded-full"
-                    style={{ width: `${level.strength}%`, backgroundColor: level.color }}
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${level.strength}%`, backgroundColor: level.color, boxShadow: `0 0 4px ${level.color}40` }}
                   />
                 </div>
               </div>

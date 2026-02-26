@@ -45,8 +45,9 @@ export class GEX3DRenderer {
   private _isInitialized = false;
   private colors: GEX3DColors = DEFAULT_COLORS;
 
-  // Axis label drawing (Canvas 2D overlay)
-  private axisLabels: { text: string; screenX: number; screenY: number }[] = [];
+  // Store grid dimensions for overlay projection
+  private _strikeLevels = 0;
+  private _timeSteps = 0;
 
   constructor(config: GEX3DConfig) {
     this.width = config.width;
@@ -72,9 +73,8 @@ export class GEX3DRenderer {
     return this._isInitialized;
   }
 
-  getAxisLabels(): typeof this.axisLabels {
-    return this.axisLabels;
-  }
+  get strikeLevels(): number { return this._strikeLevels; }
+  get timeSteps(): number { return this._timeSteps; }
 
   setColors(colors: Partial<GEX3DColors>): void {
     this.colors = { ...this.colors, ...colors };
@@ -87,7 +87,32 @@ export class GEX3DRenderer {
   }
 
   updateData(grid: GEXGridData): void {
+    this._strikeLevels = grid.strikeLevels;
+    this._timeSteps = grid.timeSteps;
     this.surfaceCommand.update(grid);
+  }
+
+  /**
+   * Project a 3D world point to 2D screen coordinates.
+   * Used by the overlay to position axis labels.
+   */
+  projectToScreen(worldX: number, worldY: number, worldZ: number): { x: number; y: number } | null {
+    const aspect = this.width / this.height;
+    const vp = this.camera.getViewProjectionMatrix(aspect);
+
+    const x = worldX * vp[0] + worldY * vp[4] + worldZ * vp[8] + vp[12];
+    const y = worldX * vp[1] + worldY * vp[5] + worldZ * vp[9] + vp[13];
+    const w = worldX * vp[3] + worldY * vp[7] + worldZ * vp[11] + vp[15];
+
+    if (Math.abs(w) < 1e-6) return null;
+
+    const ndcX = x / w;
+    const ndcY = y / w;
+
+    return {
+      x: (ndcX * 0.5 + 0.5) * this.width,
+      y: (1 - (ndcY * 0.5 + 0.5)) * this.height,
+    };
   }
 
   render(): void {

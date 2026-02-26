@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 interface IVSurfaceData {
   strike: number;
@@ -19,21 +19,18 @@ interface IVSurface3DProps {
 function generateSurfaceData(spotPrice: number): IVSurfaceData[] {
   const data: IVSurfaceData[] = [];
   const strikes = [];
-  const expirations = [7, 14, 30, 60, 90, 180, 365]; // Days to expiration
+  const expirations = [7, 14, 30, 60, 90, 180, 365];
 
-  // Generate strikes around spot price
   for (let i = -10; i <= 10; i++) {
     strikes.push(spotPrice * (1 + i * 0.02));
   }
 
-  // Generate IV surface with smile effect
   for (const exp of expirations) {
     for (const strike of strikes) {
       const moneyness = Math.log(strike / spotPrice);
-      // IV smile: higher IV for OTM options, lower for ATM
-      const atmIV = 0.20 + Math.random() * 0.05; // Base ATM IV
-      const smileEffect = Math.abs(moneyness) * 0.3; // Smile curvature
-      const termStructure = Math.sqrt(exp / 365) * 0.1; // Term structure
+      const atmIV = 0.20 + Math.random() * 0.05;
+      const smileEffect = Math.abs(moneyness) * 0.3;
+      const termStructure = Math.sqrt(exp / 365) * 0.1;
       const iv = atmIV + smileEffect + termStructure * (Math.random() - 0.5);
 
       data.push({
@@ -53,16 +50,22 @@ export default function IVSurface3D({
   surfaceData,
   height = 450,
 }: IVSurface3DProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const webglCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height });
-  const [rotation, setRotation] = useState({ x: -25, y: 35 });
-  const [isDragging, setIsDragging] = useState(false);
-  const lastMouseRef = useRef({ x: 0, y: 0 });
-  const animationRef = useRef<number>(0);
+  const rendererRef = useRef<import('@/lib/heatmap-webgl/IVSurface3DRenderer').IVSurface3DRenderer | null>(null);
+  const animFrameRef = useRef<number>(0);
 
-  // Generate data if not provided
-  const data = surfaceData || generateSurfaceData(spotPrice || 450);
+  const [dimensions, setDimensions] = useState({ width: 800, height });
+
+  const data = useMemo(() => surfaceData || generateSurfaceData(spotPrice || 450), [surfaceData, spotPrice]);
+
+  // Precompute unique strikes and expirations
+  const { strikes, expirations } = useMemo(() => {
+    const s = [...new Set(data.map(d => d.strike))].sort((a, b) => a - b);
+    const e = [...new Set(data.map(d => d.expiration))].sort((a, b) => a - b);
+    return { strikes: s, expirations: e };
+  }, [data]);
 
   // Handle resize
   useEffect(() => {
@@ -79,245 +82,242 @@ export default function IVSurface3D({
     return () => window.removeEventListener('resize', handleResize);
   }, [height]);
 
-  // 3D projection
-  const project = useCallback((x: number, y: number, z: number) => {
+  // Draw overlay (axis labels, title, legend)
+  const drawOverlay = useCallback(() => {
+    const canvas = overlayCanvasRef.current;
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer) return;
+
     const { width, height: h } = dimensions;
-    const rotX = (rotation.x * Math.PI) / 180;
-    const rotY = (rotation.y * Math.PI) / 180;
-
-    // Rotate around X axis
-    const y1 = y * Math.cos(rotX) - z * Math.sin(rotX);
-    const z1 = y * Math.sin(rotX) + z * Math.cos(rotX);
-
-    // Rotate around Y axis
-    const x2 = x * Math.cos(rotY) + z1 * Math.sin(rotY);
-    const z2 = -x * Math.sin(rotY) + z1 * Math.cos(rotY);
-
-    // Perspective projection
-    const perspective = 800;
-    const scale = perspective / (perspective + z2 + 200);
-
-    return {
-      x: width / 2 + x2 * scale * 150,
-      y: h / 2 - y1 * scale * 150,
-      z: z2,
-      scale,
-    };
-  }, [dimensions, rotation]);
-
-  // Get color based on IV value
-  const getIVColor = (iv: number) => {
-    const normalized = (iv - 0.1) / 0.5; // Normalize between 0.1 and 0.6
-    const r = Math.round(255 * Math.min(1, normalized * 2));
-    const g = Math.round(255 * Math.min(1, (1 - normalized) * 2));
-    const b = Math.round(100 * (1 - normalized));
-    return `rgb(${r}, ${g}, ${b})`;
-  };
-
-  // Draw surface
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${h}px`;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    const { width, height: h } = dimensions;
+    ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, h);
-
-    // Background
-    ctx.fillStyle = '#0a0f0a';
-    ctx.fillRect(0, 0, width, h);
-
-    // Get unique strikes and expirations
-    const strikes = [...new Set(data.map(d => d.strike))].sort((a, b) => a - b);
-    const expirations = [...new Set(data.map(d => d.expiration))].sort((a, b) => a - b);
-
-    // Normalize ranges
-    const minStrike = strikes[0];
-    const maxStrike = strikes[strikes.length - 1];
-    const minExp = expirations[0];
-    const maxExp = expirations[expirations.length - 1];
-
-    // Create grid of points
-    const points: { x: number; y: number; z: number; iv: number; projX: number; projY: number; projZ: number }[] = [];
-
-    for (const d of data) {
-      const x = ((d.strike - minStrike) / (maxStrike - minStrike) - 0.5) * 2;
-      const z = ((d.expiration - minExp) / (maxExp - minExp) - 0.5) * 2;
-      const y = d.iv * 3; // Scale IV for visibility
-
-      const proj = project(x, y, z);
-      points.push({
-        x, y, z, iv: d.iv,
-        projX: proj.x, projY: proj.y, projZ: proj.z,
-      });
-    }
-
-    // Sort by z for proper rendering order
-    points.sort((a, b) => b.projZ - a.projZ);
-
-    // Draw surface as quads
-    for (let i = 0; i < strikes.length - 1; i++) {
-      for (let j = 0; j < expirations.length - 1; j++) {
-        const idx = i * expirations.length + j;
-        const p1 = points.find(p =>
-          Math.abs(p.x - ((strikes[i] - minStrike) / (maxStrike - minStrike) - 0.5) * 2) < 0.001 &&
-          Math.abs(p.z - ((expirations[j] - minExp) / (maxExp - minExp) - 0.5) * 2) < 0.001
-        );
-        const p2 = points.find(p =>
-          Math.abs(p.x - ((strikes[i + 1] - minStrike) / (maxStrike - minStrike) - 0.5) * 2) < 0.001 &&
-          Math.abs(p.z - ((expirations[j] - minExp) / (maxExp - minExp) - 0.5) * 2) < 0.001
-        );
-        const p3 = points.find(p =>
-          Math.abs(p.x - ((strikes[i + 1] - minStrike) / (maxStrike - minStrike) - 0.5) * 2) < 0.001 &&
-          Math.abs(p.z - ((expirations[j + 1] - minExp) / (maxExp - minExp) - 0.5) * 2) < 0.001
-        );
-        const p4 = points.find(p =>
-          Math.abs(p.x - ((strikes[i] - minStrike) / (maxStrike - minStrike) - 0.5) * 2) < 0.001 &&
-          Math.abs(p.z - ((expirations[j + 1] - minExp) / (maxExp - minExp) - 0.5) * 2) < 0.001
-        );
-
-        if (p1 && p2 && p3 && p4) {
-          const avgIV = (p1.iv + p2.iv + p3.iv + p4.iv) / 4;
-
-          ctx.beginPath();
-          ctx.moveTo(p1.projX, p1.projY);
-          ctx.lineTo(p2.projX, p2.projY);
-          ctx.lineTo(p3.projX, p3.projY);
-          ctx.lineTo(p4.projX, p4.projY);
-          ctx.closePath();
-
-          ctx.fillStyle = getIVColor(avgIV);
-          ctx.globalAlpha = 0.8;
-          ctx.fill();
-          ctx.globalAlpha = 1;
-
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
-      }
-    }
-
-    // Draw axes
-    ctx.strokeStyle = '#22c55e';
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.5;
-
-    // X axis (Strike)
-    const xStart = project(-1, 0, 1);
-    const xEnd = project(1, 0, 1);
-    ctx.beginPath();
-    ctx.moveTo(xStart.x, xStart.y);
-    ctx.lineTo(xEnd.x, xEnd.y);
-    ctx.stroke();
-
-    // Z axis (Expiration)
-    const zStart = project(-1, 0, -1);
-    const zEnd = project(-1, 0, 1);
-    ctx.beginPath();
-    ctx.moveTo(zStart.x, zStart.y);
-    ctx.lineTo(zEnd.x, zEnd.y);
-    ctx.stroke();
-
-    // Y axis (IV)
-    const yStart = project(-1, 0, 1);
-    const yEnd = project(-1, 1.5, 1);
-    ctx.beginPath();
-    ctx.moveTo(yStart.x, yStart.y);
-    ctx.lineTo(yEnd.x, yEnd.y);
-    ctx.stroke();
-
-    ctx.globalAlpha = 1;
-
-    // Labels
-    ctx.fillStyle = '#22c55e';
-    ctx.font = '11px "Consolas", monospace';
-    ctx.textAlign = 'center';
-
-    ctx.fillText('Strike', (xStart.x + xEnd.x) / 2, Math.max(xStart.y, xEnd.y) + 20);
-    ctx.fillText('Expiry', (zStart.x + zEnd.x) / 2 - 40, (zStart.y + zEnd.y) / 2);
-    ctx.save();
-    ctx.translate(yEnd.x - 30, yEnd.y);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText('IV', 0, 0);
-    ctx.restore();
 
     // Title
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px "Consolas", monospace';
+    ctx.font = 'bold 13px system-ui';
     ctx.textAlign = 'left';
-    ctx.fillText(`${symbol} IV Surface`, 20, 30);
+    ctx.fillText(`${symbol} IV Surface (3D WebGL)`, 16, 24);
 
-    // Legend
-    const legendX = width - 100;
-    const legendY = 30;
-    const legendHeight = 150;
+    // Instructions
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '10px system-ui';
+    ctx.fillText('Drag: rotate \u00b7 Scroll: zoom \u00b7 Right-drag: pan \u00b7 1-5: presets', 16, 42);
 
-    ctx.font = '10px "Consolas", monospace';
-    for (let i = 0; i <= 10; i++) {
-      const iv = 0.1 + (0.5 * i) / 10;
-      const y = legendY + legendHeight - (i / 10) * legendHeight;
-      ctx.fillStyle = getIVColor(iv);
-      ctx.fillRect(legendX, y, 20, legendHeight / 10 + 1);
+    // --- Axis labels projected from 3D ---
+
+    const S = strikes.length;
+    const E = expirations.length;
+
+    // Strike labels along X (y=0 edge, z=0)
+    ctx.font = '9px "Consolas", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    const strikeStep = Math.max(1, Math.ceil(S / 8));
+    for (let i = 0; i < S; i += strikeStep) {
+      const nx = i / (S - 1);
+      const pt = renderer.projectToScreen(nx, 0, 0);
+      if (pt && pt.x > 30 && pt.x < width - 30 && pt.y > 10 && pt.y < h - 5) {
+        ctx.fillText(`$${strikes[i].toFixed(0)}`, pt.x, pt.y + 14);
+      }
     }
-    ctx.fillStyle = '#888';
+
+    // Expiration labels along Y (x=0 edge, z=0)
+    ctx.textAlign = 'right';
+    for (let j = 0; j < E; j++) {
+      const ny = j / (E - 1);
+      const pt = renderer.projectToScreen(0, ny, 0);
+      if (pt && pt.x > 5 && pt.x < width - 5 && pt.y > 10 && pt.y < h - 5) {
+        ctx.fillText(`${expirations[j]}d`, pt.x - 8, pt.y + 4);
+      }
+    }
+
+    // IV scale labels along Z (x=0, y=0 edge)
+    ctx.textAlign = 'right';
+    const ivSteps = [0, 0.25, 0.5, 0.75, 1.0];
+    for (const t of ivSteps) {
+      const pt = renderer.projectToScreen(0, 0, t * 0.6); // heightScale = 0.6
+      if (pt && pt.x > 5 && pt.y > 10 && pt.y < h - 5) {
+        // Map back to actual IV range
+        let minIV = Infinity, maxIV = -Infinity;
+        for (const d of data) {
+          if (d.iv < minIV) minIV = d.iv;
+          if (d.iv > maxIV) maxIV = d.iv;
+        }
+        const ivVal = minIV + t * (maxIV - minIV);
+        ctx.fillText(`${(ivVal * 100).toFixed(0)}%`, pt.x - 8, pt.y + 4);
+      }
+    }
+
+    // Axis names
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+
+    const strikeLabel = renderer.projectToScreen(0.5, 0, 0);
+    if (strikeLabel) {
+      ctx.textAlign = 'center';
+      ctx.fillText('Strike', strikeLabel.x, strikeLabel.y + 28);
+    }
+
+    const expiryLabel = renderer.projectToScreen(0, 0.5, 0);
+    if (expiryLabel) {
+      ctx.textAlign = 'right';
+      ctx.fillText('Expiry', expiryLabel.x - 16, expiryLabel.y + 4);
+    }
+
+    const ivLabel = renderer.projectToScreen(0, 0, 0.6 * 0.5);
+    if (ivLabel) {
+      ctx.save();
+      ctx.translate(ivLabel.x - 24, ivLabel.y);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('IV', 0, 0);
+      ctx.restore();
+    }
+
+    // Color legend (right side)
+    const legendX = width - 50;
+    const legendY = 60;
+    const legendH = 150;
+
+    const rampColors = [
+      [0.1, 0.2, 0.6],    // blue (low)
+      [0.05, 0.55, 0.55],
+      [0.13, 0.77, 0.37],  // green
+      [0.95, 0.75, 0.1],   // yellow
+      [0.95, 0.2, 0.15],   // red (high)
+    ];
+
+    for (let i = 0; i < legendH; i++) {
+      const t = 1 - i / legendH;
+      // Interpolate through ramp
+      const segIdx = Math.min(3, Math.floor(t * 4));
+      const segT = (t * 4) - segIdx;
+      const c1 = rampColors[segIdx];
+      const c2 = rampColors[segIdx + 1];
+      const r = Math.floor((c1[0] + (c2[0] - c1[0]) * segT) * 255);
+      const g = Math.floor((c1[1] + (c2[1] - c1[1]) * segT) * 255);
+      const b = Math.floor((c1[2] + (c2[2] - c1[2]) * segT) * 255);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(legendX, legendY + i, 16, 2);
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '9px "Consolas", monospace';
     ctx.textAlign = 'left';
-    ctx.fillText('60%', legendX + 25, legendY + 10);
-    ctx.fillText('10%', legendX + 25, legendY + legendHeight);
+    ctx.fillText('High IV', legendX + 20, legendY + 8);
+    ctx.fillText('Low IV', legendX + 20, legendY + legendH);
+  }, [dimensions, symbol, strikes, expirations, data]);
 
-  }, [data, dimensions, project, symbol]);
-
-  // Animate
+  // Initialize WebGL renderer
   useEffect(() => {
-    const animate = () => {
-      draw();
-      animationRef.current = requestAnimationFrame(animate);
+    const canvas = webglCanvasRef.current;
+    if (!canvas || dimensions.width < 10) return;
+
+    let cancelled = false;
+    import('@/lib/heatmap-webgl/IVSurface3DRenderer').then(({ IVSurface3DRenderer }) => {
+      if (cancelled) return;
+
+      const renderer = new IVSurface3DRenderer({
+        canvas,
+        width: dimensions.width,
+        height: dimensions.height,
+        dpr: window.devicePixelRatio,
+      });
+
+      const detach = renderer.camera.attachToCanvas(canvas);
+      rendererRef.current = renderer;
+
+      // Animation loop
+      const loop = () => {
+        if (!rendererRef.current) return;
+        rendererRef.current.tick();
+        rendererRef.current.render();
+        drawOverlay();
+        animFrameRef.current = requestAnimationFrame(loop);
+      };
+      animFrameRef.current = requestAnimationFrame(loop);
+
+      return () => {
+        detach();
+      };
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animFrameRef.current);
+      if (rendererRef.current) {
+        rendererRef.current.destroy();
+        rendererRef.current = null;
+      }
     };
-    animate();
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [draw]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dimensions.width, dimensions.height]);
 
-  // Mouse handlers for rotation
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    lastMouseRef.current = { x: e.clientX, y: e.clientY };
-  };
+  // Feed IV data to renderer
+  useEffect(() => {
+    if (!rendererRef.current || data.length === 0) return;
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    const S = strikes.length;
+    const E = expirations.length;
 
-    const dx = e.clientX - lastMouseRef.current.x;
-    const dy = e.clientY - lastMouseRef.current.y;
+    let minIV = Infinity, maxIV = -Infinity;
+    const values = new Float32Array(S * E);
 
-    setRotation(prev => ({
-      x: Math.max(-90, Math.min(90, prev.x + dy * 0.5)),
-      y: prev.y + dx * 0.5,
-    }));
+    // Build lookup
+    const ivMap = new Map<string, number>();
+    for (const d of data) {
+      ivMap.set(`${d.strike}_${d.expiration}`, d.iv);
+      if (d.iv < minIV) minIV = d.iv;
+      if (d.iv > maxIV) maxIV = d.iv;
+    }
 
-    lastMouseRef.current = { x: e.clientX, y: e.clientY };
-  };
+    for (let e = 0; e < E; e++) {
+      for (let s = 0; s < S; s++) {
+        const key = `${strikes[s]}_${expirations[e]}`;
+        values[e * S + s] = ivMap.get(key) || 0;
+      }
+    }
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+    rendererRef.current.updateData({
+      strikeLevels: S,
+      expirySteps: E,
+      values,
+      minIV,
+      maxIV,
+    });
+  }, [data, strikes, expirations]);
+
+  // Keyboard presets
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (!rendererRef.current) return;
+      const presets: Record<string, string> = { '1': 'isometric', '2': 'top', '3': 'front', '4': 'side', '5': 'overview' };
+      const preset = presets[e.key];
+      if (preset) rendererRef.current.camera.goToPreset(preset);
+      if (e.key.toLowerCase() === 'r') rendererRef.current.camera.reset();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   return (
     <div ref={containerRef} className="relative w-full" style={{ height }}>
       <canvas
-        ref={canvasRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        className="w-full h-full cursor-grab active:cursor-grabbing"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        ref={webglCanvasRef}
+        className="w-full h-full"
       />
-      <div className="absolute bottom-4 left-4 text-xs text-green-500/60">
-        Drag to rotate
-      </div>
+      <canvas
+        ref={overlayCanvasRef}
+        className="absolute inset-0 w-full h-full pointer-events-none"
+      />
     </div>
   );
 }

@@ -310,6 +310,9 @@ export function applyUITheme(themeId: UIThemeId): void {
   const root = document.documentElement;
   const c = theme.colors;
 
+  // Enable smooth color morphing during theme switch
+  root.classList.add('theme-transition');
+
   root.style.setProperty('--background', c.background);
   root.style.setProperty('--surface', c.surface);
   root.style.setProperty('--surface-elevated', c.surfaceElevated);
@@ -343,4 +346,7 @@ export function applyUITheme(themeId: UIThemeId): void {
   root.style.setProperty('--primary-dark-rgb', hexToRgb(c.primaryDark));
   root.style.setProperty('--accent-rgb', hexToRgb(c.accent));
   root.style.setProperty('--accent-light-rgb', hexToRgb(c.accentLight));
+
+  // Remove transition class after morph completes to avoid impacting chart perf
+  setTimeout(() => root.classList.remove('theme-transition'), 500);
 }

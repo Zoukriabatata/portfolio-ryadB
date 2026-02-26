@@ -27,6 +27,7 @@ import {
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import FeatureTour from '@/components/ui/FeatureTour';
 import { PageActiveProvider } from '@/hooks/usePageActive';
+import { useAutoTrackTrades } from '@/hooks/useAutoTrackTrades';
 
 // ============================================================
 // KEEP-ALIVE CHART COMPONENTS
@@ -165,6 +166,9 @@ export function DashboardClientLayout({
     width: number;
     color: string;
   } | null>(null);
+
+  // Auto-track closed trades to journal
+  useAutoTrackTrades();
 
   // Apply UI theme on mount and changes — sync footprint canvas colors too
   useEffect(() => {

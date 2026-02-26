@@ -56,6 +56,22 @@ export interface Position {
   currentPrice: number;
   pnl: number;
   pnlPercent: number;
+  openedAt: number; // timestamp for journal tracking
+}
+
+// Closed trade record for auto-journaling
+export interface ClosedTrade {
+  id: string;
+  symbol: string;
+  side: OrderSide;
+  quantity: number;
+  entryPrice: number;
+  exitPrice: number;
+  pnl: number;
+  entryTime: number;
+  exitTime: number;
+  broker: BrokerType;
+  synced: boolean; // true once posted to journal API
 }
 
 interface TradingState {
@@ -74,8 +90,12 @@ interface TradingState {
   orders: Order[];
   positions: Position[];
 
+  // Auto-journal: closed trades pending sync
+  closedTrades: ClosedTrade[];
+
   // UI State
   showBrokerSelector: boolean;
+  showTradeBar: boolean;
 
   // Actions
   setActiveBroker: (broker: BrokerType | null) => void;
@@ -88,6 +108,7 @@ interface TradingState {
   setQuickOrderEnabled: (enabled: boolean) => void;
   setConfirmOrders: (confirm: boolean) => void;
   setShowBrokerSelector: (show: boolean) => void;
+  setShowTradeBar: (show: boolean) => void;
 
   // Order actions
   placeOrder: (order: Omit<Order, 'id' | 'status' | 'filledQuantity' | 'createdAt' | 'updatedAt'>) => Promise<Order | null>;
@@ -96,6 +117,9 @@ interface TradingState {
   // Position actions
   closePosition: (symbol: string) => Promise<boolean>;
   updatePositionPrices: (symbol: string, currentPrice: number) => void;
+
+  // Auto-journal actions
+  markTradesSynced: (ids: string[]) => void;
 }
 
 // Broker display info (Futures, Crypto, Options only)
@@ -174,8 +198,10 @@ export const useTradingStore = create<TradingState>()(
 
       orders: [],
       positions: [],
+      closedTrades: [],
 
       showBrokerSelector: false,
+      showTradeBar: false,
 
       setActiveBroker: (broker) => set({ activeBroker: broker }),
 
@@ -268,6 +294,7 @@ export const useTradingStore = create<TradingState>()(
       setQuickOrderEnabled: (enabled) => set({ quickOrderEnabled: enabled }),
       setConfirmOrders: (confirm) => set({ confirmOrders: confirm }),
       setShowBrokerSelector: (show) => set({ showBrokerSelector: show }),
+      setShowTradeBar: (show) => set({ showTradeBar: show }),
 
       placeOrder: async (orderData) => {
         const state = get();
@@ -351,6 +378,7 @@ export const useTradingStore = create<TradingState>()(
                   (p) => p.symbol === orderData.symbol && p.side !== orderData.side
                 );
                 if (opposite) {
+                  const now = Date.now();
                   if (orderData.quantity >= opposite.quantity) {
                     // Close position, open remainder on new side
                     const pnl = opposite.side === 'buy'
@@ -359,6 +387,20 @@ export const useTradingStore = create<TradingState>()(
                     const newBalance = (state.connections.demo?.balance || 100000) + pnl;
                     const remainder = orderData.quantity - opposite.quantity;
                     positions = state.positions.filter((p) => p !== opposite);
+                    // Record closed trade for journal
+                    const closedTrade: ClosedTrade = {
+                      id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                      symbol: opposite.symbol,
+                      side: opposite.side,
+                      quantity: opposite.quantity,
+                      entryPrice: opposite.entryPrice,
+                      exitPrice: fillPrice,
+                      pnl,
+                      entryTime: opposite.openedAt || now,
+                      exitTime: now,
+                      broker: state.activeBroker || 'demo',
+                      synced: false,
+                    };
                     if (remainder > 0) {
                       positions.push({
                         symbol: orderData.symbol,
@@ -368,19 +410,21 @@ export const useTradingStore = create<TradingState>()(
                         currentPrice: fillPrice,
                         pnl: 0,
                         pnlPercent: 0,
+                        openedAt: now,
                       });
                     }
                     // Update balance
                     return {
                       orders: updatedOrders,
                       positions,
+                      closedTrades: [...state.closedTrades, closedTrade],
                       connections: {
                         ...state.connections,
                         demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
                       },
                     };
                   } else {
-                    // Reduce opposite position
+                    // Reduce opposite position (partial close)
                     const pnl = opposite.side === 'buy'
                       ? (fillPrice - opposite.entryPrice) * orderData.quantity
                       : (opposite.entryPrice - fillPrice) * orderData.quantity;
@@ -388,9 +432,24 @@ export const useTradingStore = create<TradingState>()(
                     positions = state.positions.map((p) =>
                       p === opposite ? { ...p, quantity: p.quantity - orderData.quantity } : p
                     );
+                    // Record partial close for journal
+                    const closedTrade: ClosedTrade = {
+                      id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                      symbol: opposite.symbol,
+                      side: opposite.side,
+                      quantity: orderData.quantity,
+                      entryPrice: opposite.entryPrice,
+                      exitPrice: fillPrice,
+                      pnl,
+                      entryTime: opposite.openedAt || now,
+                      exitTime: now,
+                      broker: state.activeBroker || 'demo',
+                      synced: false,
+                    };
                     return {
                       orders: updatedOrders,
                       positions,
+                      closedTrades: [...state.closedTrades, closedTrade],
                       connections: {
                         ...state.connections,
                         demo: { ...state.connections.demo, balance: newBalance, lastUpdate: Date.now() },
@@ -409,6 +468,7 @@ export const useTradingStore = create<TradingState>()(
                       currentPrice: fillPrice,
                       pnl: 0,
                       pnlPercent: 0,
+                      openedAt: Date.now(),
                     },
                   ];
                 }
@@ -449,6 +509,23 @@ export const useTradingStore = create<TradingState>()(
           const closingPositions = state.positions.filter((p) => p.symbol === symbol);
           const remainingPositions = state.positions.filter((p) => p.symbol !== symbol);
 
+          // Record closed trades for auto-journal
+          const now = Date.now();
+          const activeBroker = state.activeBroker;
+          const newClosedTrades: ClosedTrade[] = closingPositions.map((pos) => ({
+            id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+            symbol: pos.symbol,
+            side: pos.side,
+            quantity: pos.quantity,
+            entryPrice: pos.entryPrice,
+            exitPrice: pos.currentPrice,
+            pnl: pos.pnl,
+            entryTime: pos.openedAt || now,
+            exitTime: now,
+            broker: activeBroker || 'demo',
+            synced: false,
+          }));
+
           // Calculate realized PnL and return margin to balance
           const leverage = state.leverage || 10;
           let balanceAdjustment = 0;
@@ -458,11 +535,11 @@ export const useTradingStore = create<TradingState>()(
             balanceAdjustment += margin + pos.pnl;
           }
 
-          const activeBroker = state.activeBroker;
           if (activeBroker === 'demo' && closingPositions.length > 0) {
             const currentBalance = state.connections.demo?.balance || 100000;
             return {
               positions: remainingPositions,
+              closedTrades: [...state.closedTrades, ...newClosedTrades],
               connections: {
                 ...state.connections,
                 demo: { ...state.connections.demo, balance: currentBalance + balanceAdjustment, lastUpdate: Date.now() },
@@ -470,7 +547,7 @@ export const useTradingStore = create<TradingState>()(
             };
           }
 
-          return { positions: remainingPositions };
+          return { positions: remainingPositions, closedTrades: [...state.closedTrades, ...newClosedTrades] };
         });
         return true;
       },
@@ -491,6 +568,14 @@ export const useTradingStore = create<TradingState>()(
           };
         });
       },
+
+      markTradesSynced: (ids) => {
+        set((state) => ({
+          closedTrades: state.closedTrades.map((t) =>
+            ids.includes(t.id) ? { ...t, synced: true } : t
+          ).filter((t) => t.synced), // Remove synced trades to keep the array small
+        }));
+      },
     }),
     {
       name: 'trading-store',
@@ -501,7 +586,9 @@ export const useTradingStore = create<TradingState>()(
         leverage: state.leverage,
         quickOrderEnabled: state.quickOrderEnabled,
         confirmOrders: state.confirmOrders,
+        showTradeBar: state.showTradeBar,
         positions: state.positions,
+        closedTrades: state.closedTrades.filter(t => !t.synced), // Only persist unsynced trades
         orders: state.orders.filter(o => o.status === 'filled' || o.status === 'pending').slice(0, 50),
         connections: state.activeBroker === 'demo' ? { demo: state.connections.demo } : undefined,
       }),

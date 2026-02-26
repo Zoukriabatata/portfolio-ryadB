@@ -164,7 +164,7 @@ export default function GEXDashboard({
     // Grid lines + strike labels
     ctx.strokeStyle = themeColors.gridLine;
     ctx.lineWidth = 1;
-    ctx.font = '10px monospace';
+    ctx.font = '11px monospace';
     ctx.fillStyle = themeColors.text;
 
     for (let i = 0; i <= numGridLines; i++) {
@@ -178,9 +178,9 @@ export default function GEXDashboard({
       ctx.fillText(`$${strike.toFixed(0)}`, PADDING.left - 10, y + 4);
     }
 
-    // Bars with rounded ends and gradient fills
-    const barHeight = Math.max(2, (chartHeight / visibleData.length) * 0.7);
-    const barRadius = Math.min(barHeight / 2, 3);
+    // Bars with rounded ends and gradient fills — increase spacing for readability
+    const barHeight = Math.max(3, (chartHeight / visibleData.length) * 0.65);
+    const barRadius = Math.min(barHeight / 2, 4);
 
     visibleData.forEach((level) => {
       const y = strikeToY(level.strike);
@@ -329,16 +329,19 @@ export default function GEXDashboard({
       ctx.fillText(spotText, PADDING.left + chartWidth / 2, spotPillY + 13);
     }
 
-    // Axis labels
-    ctx.fillStyle = themeColors.text;
-    ctx.font = '11px system-ui';
+    // Axis labels with better contrast
+    ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText('\u2190 Put GEX (Negative)', PADDING.left + chartWidth / 4, height - 15);
-    ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, height - 15);
+    // Put side label
+    ctx.fillStyle = themeColors.putGEX + 'aa';
+    ctx.fillText('\u2190 Put GEX (Negative)', PADDING.left + chartWidth / 4, height - 12);
+    // Call side label
+    ctx.fillStyle = themeColors.callGEX + 'aa';
+    ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, height - 12);
 
     // Title
     ctx.fillStyle = themeColors.textBright;
-    ctx.font = 'bold 14px system-ui';
+    ctx.font = 'bold 15px system-ui';
     ctx.textAlign = 'left';
     ctx.fillText(`${symbol} Gamma Exposure by Strike`, PADDING.left, 25);
 
@@ -478,29 +481,45 @@ export default function GEXDashboard({
         const level = gexData.find(d => d.strike === hoveredStrike);
         if (!level) return null;
         return (
-          <div className="absolute top-2 right-2 rounded-lg p-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Strike: ${hoveredStrike}</div>
-            <div className="flex justify-between gap-4">
-              <span style={{ color: 'var(--text-muted)' }}>Call GEX:</span>
-              <span className="font-mono" style={{ color: 'var(--bull)' }}>{formatGEX(level.callGEX)}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span style={{ color: 'var(--text-muted)' }}>Put GEX:</span>
-              <span className="font-mono" style={{ color: 'var(--bear)' }}>{formatGEX(level.putGEX)}</span>
-            </div>
-            <div className="flex justify-between gap-4 border-t mt-2 pt-2" style={{ borderColor: 'var(--border)' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Net GEX:</span>
-              <span className="font-mono font-bold" style={{ color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
-                {formatGEX(level.netGEX)}
+          <div className="absolute top-3 right-3 rounded-2xl p-0 text-xs animate-scaleIn backdrop-blur-xl overflow-hidden shadow-2xl"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--surface-elevated) 90%, var(--primary) 10%)',
+              border: '1px solid color-mix(in srgb, var(--border-light) 70%, var(--primary) 30%)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 1px rgba(255,255,255,0.1) inset',
+              minWidth: 180,
+            }}>
+            {/* Header */}
+            <div className="px-3.5 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, var(--primary)08, transparent)' }}>
+              <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Strike ${hoveredStrike}</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold font-mono"
+                style={{ color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)', backgroundColor: level.netGEX >= 0 ? 'var(--bull-bg, rgba(34,197,94,0.1))' : 'var(--bear-bg, rgba(239,68,68,0.1))' }}>
+                {level.netGEX >= 0 ? '+' : ''}{formatGEX(level.netGEX)}
               </span>
             </div>
-            <div className="flex justify-between gap-4 mt-1">
-              <span style={{ color: 'var(--text-muted)' }}>Call OI:</span>
-              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.callOI.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span style={{ color: 'var(--text-muted)' }}>Put OI:</span>
-              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.putOI.toLocaleString()}</span>
+            {/* Body */}
+            <div className="px-3.5 py-2.5 space-y-1.5">
+              <div className="flex justify-between gap-6">
+                <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bull)' }} />Call GEX
+                </span>
+                <span className="font-mono font-semibold" style={{ color: 'var(--bull)' }}>{formatGEX(level.callGEX)}</span>
+              </div>
+              <div className="flex justify-between gap-6">
+                <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bear)' }} />Put GEX
+                </span>
+                <span className="font-mono font-semibold" style={{ color: 'var(--bear)' }}>{formatGEX(level.putGEX)}</span>
+              </div>
+              <div className="border-t pt-1.5 mt-1.5" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex justify-between gap-6">
+                  <span style={{ color: 'var(--text-muted)' }}>Call OI</span>
+                  <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.callOI.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between gap-6 mt-1">
+                  <span style={{ color: 'var(--text-muted)' }}>Put OI</span>
+                  <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.putOI.toLocaleString()}</span>
+                </div>
+              </div>
             </div>
           </div>
         );

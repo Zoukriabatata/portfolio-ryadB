@@ -11,8 +11,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getReplayEngine,
   getReplayRecorder,
+  getCryptoRecorderWS,
   type ReplayState,
   type RecordingSession,
+  type RecordingExchange,
 } from '@/lib/replay';
 
 export interface UseReplayReturn {
@@ -29,7 +31,7 @@ export interface UseReplayReturn {
   setSpeed: (speed: number) => void;
 
   // Recording controls
-  startRecording: (symbol: string, description?: string) => Promise<string>;
+  startRecording: (symbol: string, description?: string, exchange?: RecordingExchange) => Promise<string>;
   stopRecording: () => Promise<RecordingSession | null>;
   isRecording: boolean;
   recordingStats: { tradeCount: number; depthCount: number; duration: number; sizeEstimate: number };
@@ -97,13 +99,24 @@ export function useReplay(): UseReplayReturn {
   const setSpeed = useCallback((speed: number) => getReplayEngine().setSpeed(speed), []);
 
   // Recording controls
-  const startRecording = useCallback(async (symbol: string, description?: string) => {
-    const recorder = getReplayRecorder();
-    await recorder.init();
-    const sessionId = await recorder.startRecording(symbol, description);
+  const startRecording = useCallback(async (symbol: string, description?: string, exchange: RecordingExchange = 'ib') => {
+    let sessionId: string;
+
+    if (exchange === 'binance' || exchange === 'bybit') {
+      // Crypto recording via WebSocket
+      const cryptoRecorder = getCryptoRecorderWS();
+      sessionId = await cryptoRecorder.start({ symbol, exchange, description });
+    } else {
+      // IB recording
+      const recorder = getReplayRecorder();
+      await recorder.init();
+      sessionId = await recorder.startRecording(symbol, description, exchange);
+    }
+
     setIsRecording(true);
 
     // Poll recording stats
+    const recorder = getReplayRecorder();
     statsInterval.current = setInterval(() => {
       setRecordingStats(recorder.getRecordingStats());
     }, 1000);
@@ -112,8 +125,15 @@ export function useReplay(): UseReplayReturn {
   }, []);
 
   const stopRecording = useCallback(async () => {
-    const recorder = getReplayRecorder();
-    const session = await recorder.stopRecording();
+    // Stop crypto WS recorder if active
+    const cryptoRecorder = getCryptoRecorderWS();
+    if (cryptoRecorder.isRecording()) {
+      await cryptoRecorder.stop();
+    } else {
+      const recorder = getReplayRecorder();
+      await recorder.stopRecording();
+    }
+
     setIsRecording(false);
 
     if (statsInterval.current) {
@@ -121,8 +141,11 @@ export function useReplay(): UseReplayReturn {
       statsInterval.current = null;
     }
 
+    // Get session from recorder
+    const recorder = getReplayRecorder();
+    const sessions = await recorder.getSessions();
     await refreshSessions();
-    return session;
+    return sessions[0] || null;
   }, [refreshSessions]);
 
   const updateSession = useCallback(async (sessionId: string, updates: { description?: string; tags?: string[] }) => {

@@ -314,64 +314,114 @@ export default function GEXPageContent() {
           <div className="relative" ref={symbolPopoverRef}>
             <button
               onClick={() => setSymbolPopoverOpen(!symbolPopoverOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface)] rounded-lg border border-[var(--border)] transition-all hover:border-[var(--primary)] group"
+              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl transition-all duration-200 group ${
+                symbolPopoverOpen
+                  ? 'bg-[var(--primary)]/10 border-[var(--primary)]/40 ring-1 ring-[var(--primary)]/20 shadow-lg shadow-[var(--primary)]/5'
+                  : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--primary)]/40 hover:shadow-md'
+              } border`}
             >
-              <span className="text-sm font-semibold text-[var(--text-primary)]">{symbol}</span>
-              <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform duration-200 ${symbolPopoverOpen ? 'rotate-180' : ''}`}
+              <span className={`w-2 h-2 rounded-full transition-all duration-300 ${symbolPopoverOpen ? 'bg-[var(--primary)] shadow-[0_0_8px_var(--primary)]' : 'bg-[var(--text-dimmed)]'}`} />
+              <span className="text-sm font-bold text-[var(--text-primary)] tracking-wide">{symbol}</span>
+              <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform duration-300 ${symbolPopoverOpen ? 'rotate-180 text-[var(--primary)]' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
             {symbolPopoverOpen && (
-              <div className="absolute top-full left-0 mt-1.5 w-64 z-50 animate-dropdown-in rounded-xl overflow-hidden"
-                style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}>
-                {/* Search */}
-                <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
-                  <input
-                    type="text"
-                    value={symbolSearch}
-                    onChange={(e) => setSymbolSearch(e.target.value)}
-                    placeholder="Search symbol..."
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                    autoFocus
-                  />
+              <div className="absolute top-full left-0 mt-2 w-72 z-50 animate-dropdown-in rounded-2xl overflow-hidden backdrop-blur-xl"
+                style={{
+                  background: 'linear-gradient(135deg, var(--surface-elevated) 0%, color-mix(in srgb, var(--surface-elevated) 92%, var(--primary) 8%) 100%)',
+                  border: '1px solid color-mix(in srgb, var(--border-light) 60%, var(--primary) 40%)',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 1px rgba(255,255,255,0.1) inset, 0 0 40px color-mix(in srgb, var(--primary) 10%, transparent 90%)',
+                }}>
+                {/* Search with icon */}
+                <div className="p-2.5 border-b border-[var(--border)]">
+                  <div className="relative">
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                    </svg>
+                    <input
+                      type="text"
+                      value={symbolSearch}
+                      onChange={(e) => setSymbolSearch(e.target.value)}
+                      placeholder="Search symbol..."
+                      className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-[var(--background)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] border border-[var(--border)]"
+                      autoFocus
+                    />
+                  </div>
                 </div>
-                <div className="max-h-60 overflow-y-auto p-1.5" style={{ scrollbarWidth: 'thin' }}>
-                  {/* ETFs */}
-                  <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">ETF Indices</div>
-                  <div className="grid grid-cols-2 gap-1 mb-2">
+
+                <div className="max-h-72 overflow-y-auto p-2 custom-scrollbar">
+                  {/* ETF Indices Section */}
+                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+                    <svg className="w-3 h-3 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" />
+                    </svg>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--primary)]">ETF Indices</span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-[var(--primary)]/20 to-transparent" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 mb-3">
                     {ETF_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map(s => (
                       <button
                         key={s}
                         onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
-                        className={`px-2.5 py-1.5 text-xs rounded-lg text-left transition-all ${
+                        className={`group flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl text-left transition-all duration-200 ${
                           symbol === s
-                            ? 'bg-[var(--primary-dark)] text-[var(--text-primary)] font-semibold'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                            ? 'bg-[var(--primary)]/15 text-[var(--text-primary)] font-semibold ring-1 ring-[var(--primary)]/30'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5'
                         }`}
                       >
-                        {s}
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${symbol === s ? 'bg-[var(--primary)] shadow-[0_0_6px_var(--primary)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--text-muted)]'}`} />
+                        <span>{s}</span>
+                        {symbol === s && (
+                          <svg className="ml-auto w-3 h-3 text-[var(--primary)] animate-scaleIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="3 8 7 12 13 4" />
+                          </svg>
+                        )}
                       </button>
                     ))}
                   </div>
-                  {/* Stocks */}
-                  <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Individual Stocks</div>
+
+                  {/* Individual Stocks Section */}
+                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+                    <svg className="w-3 h-3 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a4 4 0 00-8 0v2" />
+                    </svg>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--accent)]">Stocks</span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-[var(--accent)]/20 to-transparent" />
+                  </div>
                   <div className="grid grid-cols-2 gap-1">
                     {STOCK_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map(s => (
                       <button
                         key={s}
                         onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
-                        className={`px-2.5 py-1.5 text-xs rounded-lg text-left transition-all ${
+                        className={`group flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl text-left transition-all duration-200 ${
                           symbol === s
-                            ? 'bg-[var(--primary-dark)] text-[var(--text-primary)] font-semibold'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                            ? 'bg-[var(--accent)]/15 text-[var(--text-primary)] font-semibold ring-1 ring-[var(--accent)]/30'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5'
                         }`}
                       >
-                        {s}
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${symbol === s ? 'bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--text-muted)]'}`} />
+                        <span>{s}</span>
+                        {symbol === s && (
+                          <svg className="ml-auto w-3 h-3 text-[var(--accent)] animate-scaleIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="3 8 7 12 13 4" />
+                          </svg>
+                        )}
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Footer hint */}
+                <div className="px-3 py-1.5 border-t border-[var(--border)] flex items-center justify-between">
+                  <span className="text-[8px] text-[var(--text-dimmed)]">
+                    {ETF_SYMBOLS.length + STOCK_SYMBOLS.length} symbols
+                  </span>
+                  <span className="text-[8px] text-[var(--text-dimmed)]">
+                    <kbd className="px-1 py-0.5 bg-[var(--background)] rounded text-[7px]">ESC</kbd> close
+                  </span>
                 </div>
               </div>
             )}

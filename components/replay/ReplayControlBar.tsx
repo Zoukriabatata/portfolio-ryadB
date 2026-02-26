@@ -3,7 +3,7 @@
 import type { ReplayState } from '@/lib/replay';
 import { useReplayUIStore } from '@/stores/useReplayUIStore';
 import ReplayProgressBar from './ReplayProgressBar';
-import { formatTime, SPEED_OPTIONS } from './utils';
+import { formatTime, SPEED_OPTIONS, getSpeedLabel } from './utils';
 
 interface ReplayControlBarProps {
   state: ReplayState;
@@ -165,9 +165,9 @@ export default function ReplayControlBar({
       <div className="w-px h-6" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
       {/* Speed selector (scrollable) */}
-      <div className="flex items-center gap-0.5 max-w-[200px] overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-0.5 max-w-[260px] overflow-x-auto no-scrollbar">
         {SPEED_OPTIONS.map((s) => {
-          const label = s >= 60 ? `${s / 60}m` : s >= 1 ? `${s}x` : `${s}x`;
+          const label = getSpeedLabel(s);
           return (
             <button
               key={s}

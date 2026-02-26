@@ -11,6 +11,20 @@
 
 import type { IBTrade, IBDepthUpdate, IBQuote } from '@/types/ib-protocol';
 
+// Generic trade/depth format for any exchange
+export interface GenericTrade {
+  price: number;
+  size: number;
+  side: 'BID' | 'ASK';
+  timestamp: number;
+}
+
+export interface GenericDepth {
+  timestamp: number;
+  bids: { price: number; size: number }[];
+  asks: { price: number; size: number }[];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -267,6 +281,46 @@ export class ReplayRecorder {
 
     this.writeBuffer.push({ store: STORE_QUOTES, data: record });
     this.sizeEstimate += 40;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GENERIC RECORDING (Crypto / any exchange)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  recordGenericTrade(trade: GenericTrade): void {
+    if (!this.currentSession || this.currentSession.status !== 'recording') return;
+
+    const record: RecordedTrade = {
+      sessionId: this.currentSession.id,
+      timestamp: trade.timestamp,
+      price: trade.price,
+      size: trade.size,
+      side: trade.side,
+    };
+
+    this.writeBuffer.push({ store: STORE_TRADES, data: record });
+    this.tradeCount++;
+    this.sizeEstimate += 60;
+  }
+
+  recordGenericDepth(depth: GenericDepth): void {
+    if (!this.currentSession || this.currentSession.status !== 'recording') return;
+
+    // Sample at interval
+    const now = depth.timestamp || Date.now();
+    if (now - this.lastDepthTime < this.depthIntervalMs) return;
+    this.lastDepthTime = now;
+
+    const record: RecordedDepthSnapshot = {
+      sessionId: this.currentSession.id,
+      timestamp: now,
+      bids: depth.bids.slice(0, 20).map(r => ({ price: r.price, size: r.size })),
+      asks: depth.asks.slice(0, 20).map(r => ({ price: r.price, size: r.size })),
+    };
+
+    this.writeBuffer.push({ store: STORE_DEPTH, data: record });
+    this.depthCount++;
+    this.sizeEstimate += depth.bids.length * 16 + depth.asks.length * 16 + 40;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

@@ -25,7 +25,7 @@ const DEFAULT_STATS: JournalStats = {
 };
 
 export function useJournal(): UseJournalReturn {
-  const { tradeFilters, tradeTableSort, tradeTablePageSize } = useJournalStore();
+  const { tradeFilters, tradeTableSort, tradeTablePageSize, lastAutoTrackSync } = useJournalStore();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [stats, setStats] = useState<JournalStats>(DEFAULT_STATS);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 25, total: 0, totalPages: 0 });
@@ -75,6 +75,12 @@ export function useJournal(): UseJournalReturn {
   useEffect(() => {
     setPage(1);
   }, [tradeFilters, tradeTableSort]);
+
+  // Auto-refetch when new trades are auto-tracked
+  useEffect(() => {
+    if (lastAutoTrackSync > 0) fetchEntries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastAutoTrackSync]);
 
   return { entries, stats, pagination, loading, error, page, setPage, refetch: fetchEntries };
 }

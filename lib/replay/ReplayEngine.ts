@@ -22,6 +22,28 @@ import {
   type RecordingSession,
 } from './ReplayRecorder';
 
+// Generic contract specs for crypto symbols (cast as CMEContractSpec for adapter compatibility)
+const CRYPTO_CONTRACTS: Record<string, CMEContractSpec> = {
+  BTCUSDT:  { symbol: 'BTCUSDT',  exchange: 'BINANCE', secType: 'FUT', description: 'Bitcoin USDT Perpetual', tickSize: 0.10,  tickValue: 0.10,  pointValue: 1, tradingHours: '24/7' },
+  ETHUSDT:  { symbol: 'ETHUSDT',  exchange: 'BINANCE', secType: 'FUT', description: 'Ethereum USDT Perpetual', tickSize: 0.01,  tickValue: 0.01,  pointValue: 1, tradingHours: '24/7' },
+  SOLUSDT:  { symbol: 'SOLUSDT',  exchange: 'BINANCE', secType: 'FUT', description: 'Solana USDT Perpetual', tickSize: 0.001, tickValue: 0.001, pointValue: 1, tradingHours: '24/7' },
+  BNBUSDT:  { symbol: 'BNBUSDT',  exchange: 'BINANCE', secType: 'FUT', description: 'BNB USDT Perpetual', tickSize: 0.01,  tickValue: 0.01,  pointValue: 1, tradingHours: '24/7' },
+  XRPUSDT:  { symbol: 'XRPUSDT',  exchange: 'BINANCE', secType: 'FUT', description: 'XRP USDT Perpetual', tickSize: 0.0001, tickValue: 0.0001, pointValue: 1, tradingHours: '24/7' },
+  DOGEUSDT: { symbol: 'DOGEUSDT', exchange: 'BINANCE', secType: 'FUT', description: 'Doge USDT Perpetual', tickSize: 0.00001, tickValue: 0.00001, pointValue: 1, tradingHours: '24/7' },
+  ARBUSDT:  { symbol: 'ARBUSDT',  exchange: 'BINANCE', secType: 'FUT', description: 'Arbitrum USDT Perpetual', tickSize: 0.0001, tickValue: 0.0001, pointValue: 1, tradingHours: '24/7' },
+  SUIUSDT:  { symbol: 'SUIUSDT',  exchange: 'BINANCE', secType: 'FUT', description: 'SUI USDT Perpetual', tickSize: 0.0001, tickValue: 0.0001, pointValue: 1, tradingHours: '24/7' },
+  AVAXUSDT: { symbol: 'AVAXUSDT', exchange: 'BINANCE', secType: 'FUT', description: 'Avalanche USDT Perpetual', tickSize: 0.01, tickValue: 0.01, pointValue: 1, tradingHours: '24/7' },
+  LINKUSDT: { symbol: 'LINKUSDT', exchange: 'BINANCE', secType: 'FUT', description: 'Chainlink USDT Perpetual', tickSize: 0.001, tickValue: 0.001, pointValue: 1, tradingHours: '24/7' },
+  'BTC-PERPETUAL': { symbol: 'BTC-PERPETUAL', exchange: 'DERIBIT', secType: 'FUT', description: 'BTC Perpetual', tickSize: 0.50, tickValue: 0.50, pointValue: 1, tradingHours: '24/7' },
+  'ETH-PERPETUAL': { symbol: 'ETH-PERPETUAL', exchange: 'DERIBIT', secType: 'FUT', description: 'ETH Perpetual', tickSize: 0.05, tickValue: 0.05, pointValue: 1, tradingHours: '24/7' },
+};
+
+function getContractForSymbol(symbol: string): CMEContractSpec {
+  return CME_CONTRACTS[symbol] || CRYPTO_CONTRACTS[symbol] || CRYPTO_CONTRACTS[symbol.toUpperCase()] || {
+    symbol, exchange: 'CRYPTO', secType: 'FUT' as const, description: symbol, tickSize: 0.01, tickValue: 0.01, pointValue: 1, tradingHours: '24/7',
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -131,8 +153,8 @@ export class ReplayEngine {
     this.trades = trades;
     this.depthSnapshots = depth;
 
-    // Configure adapters for the symbol
-    const contract = CME_CONTRACTS[session.symbol] || CME_CONTRACTS['ES'];
+    // Configure adapters for the symbol (supports CME + crypto)
+    const contract = getContractForSymbol(session.symbol);
     this.heatmapAdapter.setContract(contract);
     this.footprintAdapter.setContract(contract);
 
@@ -277,7 +299,7 @@ export class ReplayEngine {
    * Set playback speed (0.25x to 10x).
    */
   setSpeed(speed: number): void {
-    this.updateState({ speed: Math.max(0.25, Math.min(10, speed)) });
+    this.updateState({ speed: Math.max(0.25, Math.min(14400, speed)) });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

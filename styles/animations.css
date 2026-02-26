@@ -19,6 +19,21 @@ button, a, input, select, textarea,
 html { scroll-behavior: smooth; }
 
 /* =============================================
+   0b. THEME TRANSITION LAYER
+   Smooth color morphing when switching UI themes.
+   Applied only to key structural elements — avoids
+   canvas/svg/chart elements to prevent GPU overhead.
+   ============================================= */
+
+.theme-transition,
+.theme-transition *:not(canvas):not(svg):not(video):not(iframe) {
+  transition: background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* =============================================
    1. ENTRANCE / EXIT ANIMATIONS
    ============================================= */
 

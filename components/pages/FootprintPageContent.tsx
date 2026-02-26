@@ -8,6 +8,7 @@ import ConnectionBanner from '@/components/ui/ConnectionBanner';
 import BottomWidgetsPanel from '@/components/widgets/BottomWidgetsPanel';
 import WatchlistPanel from '@/components/widgets/WatchlistPanel';
 import QuickTradeBar from '@/components/trading/QuickTradeBar';
+import { useTradingStore } from '@/stores/useTradingStore';
 import { ChartSkeleton } from '@/components/ui/Skeleton';
 
 const FootprintChartPro = dynamic(
@@ -28,7 +29,7 @@ export default function FootprintPageContent() {
   const [showFutures, setShowFutures] = useState(true);
   const [futuresWidth, setFuturesWidth] = useState(240);
   const [showWatchlist, setShowWatchlist] = useState(true);
-  const [showTradeBar, setShowTradeBar] = useState(false);
+  const { showTradeBar, setShowTradeBar } = useTradingStore();
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(240);

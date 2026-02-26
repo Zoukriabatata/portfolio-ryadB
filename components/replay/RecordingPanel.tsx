@@ -2,17 +2,45 @@
 
 import { useState } from 'react';
 import { CME_CONTRACTS } from '@/types/ib-protocol';
+import type { RecordingExchange } from '@/lib/replay/ReplayRecorder';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import RecordingPulse from './RecordingPulse';
 import { formatDuration, formatSize } from './utils';
 
+const EXCHANGE_OPTIONS: { id: RecordingExchange; name: string; color: string; symbols: string[] }[] = [
+  {
+    id: 'ib',
+    name: 'CME (IB)',
+    color: '#e44d26',
+    symbols: Object.keys(CME_CONTRACTS),
+  },
+  {
+    id: 'binance',
+    name: 'Binance',
+    color: '#F0B90B',
+    symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'ARBUSDT', 'SUIUSDT'],
+  },
+  {
+    id: 'bybit',
+    name: 'Bybit',
+    color: '#FFAB00',
+    symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'AVAXUSDT', 'LINKUSDT'],
+  },
+  {
+    id: 'deribit',
+    name: 'Deribit',
+    color: '#00D084',
+    symbols: ['BTC-PERPETUAL', 'ETH-PERPETUAL'],
+  },
+];
+
 interface RecordingPanelProps {
   isConnected: boolean;
   isRecording: boolean;
   recordingStats: { tradeCount: number; depthCount: number; duration: number; sizeEstimate: number };
-  onStartRecording: (symbol: string, description?: string) => Promise<string>;
+  onStartRecording: (symbol: string, description?: string, exchange?: RecordingExchange) => Promise<string>;
   onStopRecording: () => Promise<unknown>;
 }
 
@@ -23,61 +51,89 @@ export default function RecordingPanel({
   onStartRecording,
   onStopRecording,
 }: RecordingPanelProps) {
-  const [recordSymbol, setRecordSymbol] = useState('ES');
+  const [exchange, setExchange] = useState<RecordingExchange>('binance');
+  const [recordSymbol, setRecordSymbol] = useState('BTCUSDT');
   const [recordDescription, setRecordDescription] = useState('');
 
+  const activeExchange = EXCHANGE_OPTIONS.find(e => e.id === exchange) || EXCHANGE_OPTIONS[0];
+  // Crypto exchanges don't need IB connection
+  const needsIB = exchange === 'ib';
+  const canRecord = needsIB ? isConnected : true;
+
   const handleStart = async () => {
-    if (!isConnected) return;
-    await onStartRecording(recordSymbol, recordDescription || undefined);
+    if (!canRecord) return;
+    await onStartRecording(recordSymbol, recordDescription || undefined, exchange);
     setRecordDescription('');
   };
 
   return (
     <div className="space-y-3">
-      {/* IB Connection Status */}
-      <Card variant={isConnected ? 'glass' : 'default'} padding={true}>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{ background: isConnected ? 'var(--success)' : 'var(--text-dimmed)' }}
-          />
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            IB Gateway
-          </span>
-          <Badge variant={isConnected ? 'success' : 'neutral'} dot={isConnected}>
-            {isConnected ? 'Connected' : 'Offline'}
-          </Badge>
-        </div>
-        {!isConnected && (
-          <p className="text-[10px] mt-2" style={{ color: 'var(--text-dimmed)' }}>
-            Connect to IB Gateway to record live CME data
-          </p>
-        )}
-      </Card>
+      {/* Connection Status */}
+      {needsIB && (
+        <Card variant={isConnected ? 'glass' : 'default'} padding={true}>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ background: isConnected ? 'var(--success)' : 'var(--text-dimmed)' }}
+            />
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              IB Gateway
+            </span>
+            <Badge variant={isConnected ? 'success' : 'neutral'} dot={isConnected}>
+              {isConnected ? 'Connected' : 'Offline'}
+            </Badge>
+          </div>
+          {!isConnected && (
+            <p className="text-[10px] mt-2" style={{ color: 'var(--text-dimmed)' }}>
+              Connect to IB Gateway to record live CME data
+            </p>
+          )}
+        </Card>
+      )}
 
       {!isRecording ? (
         <>
+          {/* Exchange selector */}
+          <div>
+            <label className="block text-xs mb-1.5 font-medium" style={{ color: 'var(--text-muted)' }}>
+              Exchange
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {EXCHANGE_OPTIONS.map(ex => (
+                <button key={ex.id}
+                  onClick={() => { setExchange(ex.id); setRecordSymbol(ex.symbols[0]); }}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[10px] transition-all"
+                  style={{
+                    background: exchange === ex.id ? ex.color + '15' : 'var(--background)',
+                    border: `1px solid ${exchange === ex.id ? ex.color : 'var(--border)'}`,
+                    color: exchange === ex.id ? ex.color : 'var(--text-muted)',
+                  }}>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: ex.color }} />
+                  {ex.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Symbol select */}
           <div>
             <label className="block text-xs mb-1.5 font-medium" style={{ color: 'var(--text-muted)' }}>
               Symbol
             </label>
-            <select
-              value={recordSymbol}
-              onChange={(e) => setRecordSymbol(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]"
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {Object.entries(CME_CONTRACTS).map(([sym, spec]) => (
-                <option key={sym} value={sym}>
-                  {sym} — {spec.description}
-                </option>
+            <div className="flex flex-wrap gap-1">
+              {activeExchange.symbols.map(s => (
+                <button key={s}
+                  onClick={() => setRecordSymbol(s)}
+                  className="px-2 py-0.5 rounded text-[10px] font-mono transition-all"
+                  style={{
+                    background: recordSymbol === s ? activeExchange.color + '20' : 'var(--background)',
+                    border: `1px solid ${recordSymbol === s ? activeExchange.color : 'var(--border)'}`,
+                    color: recordSymbol === s ? activeExchange.color : 'var(--text-muted)',
+                  }}>
+                  {s}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           {/* Description */}
@@ -103,7 +159,7 @@ export default function RecordingPanel({
           <Button
             variant="danger"
             size="lg"
-            disabled={!isConnected}
+            disabled={!canRecord}
             onClick={handleStart}
             className="w-full"
             icon={
@@ -112,7 +168,7 @@ export default function RecordingPanel({
               </svg>
             }
           >
-            Start Recording
+            {canRecord ? 'Start Recording' : 'Connect IB Gateway first'}
           </Button>
         </>
       ) : (
