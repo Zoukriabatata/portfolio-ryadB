@@ -330,6 +330,31 @@ export class ReplayEngine {
     return this.footprintAdapter.getCandles();
   }
 
+  getFootprintTimeframe(): number {
+    return this.footprintAdapter.getConfig().timeframeSec;
+  }
+
+  /**
+   * Change footprint candle timeframe and rebuild all candles from trade history.
+   */
+  setFootprintTimeframe(timeframeSec: number): void {
+    this.footprintAdapter.setTimeframe(timeframeSec);
+
+    // Rebuild candles from all trades already fed
+    const fedCount = this.state.tradeFedCount;
+    for (let i = 0; i < fedCount && i < this.trades.length; i++) {
+      const t = this.trades[i];
+      this.footprintAdapter.processTrade({
+        price: t.price,
+        size: t.size,
+        side: t.side,
+        timestamp: t.timestamp,
+        symbol: this.state.symbol,
+        exchange: 'REPLAY',
+      });
+    }
+  }
+
   getCurrentPrice(): number {
     return this.heatmapAdapter.getCurrentPrice();
   }
