@@ -79,7 +79,7 @@ export default function Modal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
+        className="absolute inset-0 bg-black/60 animate-modal-overlay"
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />
@@ -92,7 +92,7 @@ export default function Modal({
           relative w-full ${sizeStyles[size]}
           bg-[var(--surface-elevated)] border border-[var(--border-light)]
           rounded-[var(--radius-xl,16px)] shadow-xl
-          animate-scaleIn outline-none
+          animate-modal-content outline-none
           flex flex-col max-h-[85vh]
         `}
       >

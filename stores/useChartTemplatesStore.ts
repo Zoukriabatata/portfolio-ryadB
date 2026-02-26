@@ -20,6 +20,33 @@ export interface ChartTemplate {
     chartType?: 'candlestick' | 'line' | 'area';
     timeframe?: string;
 
+    // Crosshair settings
+    crosshair?: {
+      color?: string;
+      width?: number;
+      style?: 'solid' | 'dashed' | 'dotted';
+    };
+
+    // Background settings
+    background?: {
+      color?: string;
+      gridColor?: string;
+    };
+
+    // Candle settings
+    candles?: {
+      upColor?: string;
+      downColor?: string;
+      wickUp?: string;
+      wickDown?: string;
+      borderUp?: string;
+      borderDown?: string;
+    };
+
+    // Display preferences
+    showVolume?: boolean;
+    showCrosshairTooltip?: boolean;
+
     // Footprint settings (matches FootprintSettings from store)
     footprintSettings?: {
       features?: {

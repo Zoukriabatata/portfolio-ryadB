@@ -63,6 +63,8 @@ export class CryptoRecorderWS {
       this.connectBinance(config.symbol.toLowerCase());
     } else if (config.exchange === 'bybit') {
       this.connectBybit(config.symbol);
+    } else if (config.exchange === 'deribit') {
+      this.connectDeribit(config.symbol);
     }
 
     this.connected = true;
@@ -202,6 +204,65 @@ export class CryptoRecorderWS {
     };
 
     console.log(`[CryptoRecorderWS] Connected to Bybit: ${symbol}`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DERIBIT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private connectDeribit(symbol: string) {
+    const recorder = getReplayRecorder();
+
+    const wsUrl = 'wss://www.deribit.com/ws/api/v2';
+    this.tradeWs = new WebSocket(wsUrl);
+
+    this.tradeWs.onopen = () => {
+      // Subscribe to trades and orderbook
+      this.tradeWs?.send(JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'public/subscribe',
+        params: {
+          channels: [`trades.${symbol}.raw`, `book.${symbol}.none.20.100ms`],
+        },
+      }));
+    };
+
+    this.tradeWs.onmessage = (event) => {
+      if (!this.connected) return;
+      try {
+        const msg = JSON.parse(event.data);
+        if (!msg.params?.channel) return;
+
+        if (msg.params.channel.startsWith('trades.')) {
+          for (const t of (msg.params.data || [])) {
+            const trade: GenericTrade = {
+              price: t.price,
+              size: t.amount,
+              side: t.direction === 'sell' ? 'ASK' : 'BID',
+              timestamp: t.timestamp,
+            };
+            recorder.recordGenericTrade(trade);
+          }
+        } else if (msg.params.channel.startsWith('book.')) {
+          const data = msg.params.data;
+          const depth: GenericDepth = {
+            timestamp: data.timestamp || Date.now(),
+            bids: (data.bids || []).map(([, price, size]: [string, number, number]) => ({
+              price,
+              size,
+            })),
+            asks: (data.asks || []).map(([, price, size]: [string, number, number]) => ({
+              price,
+              size,
+            })),
+          };
+          recorder.recordGenericDepth(depth);
+        }
+      } catch { /* ignore */ }
+    };
+
+    console.log(`[CryptoRecorderWS] Connected to Deribit: ${symbol}`);
   }
 }
 

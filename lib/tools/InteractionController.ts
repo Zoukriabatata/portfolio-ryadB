@@ -522,6 +522,9 @@ export class InteractionController {
   // ============ KEYBOARD HANDLERS ============
 
   handleKeyDown(e: KeyboardEvent): boolean {
+    // Guard against undefined e.key (IME composition, dead keys, etc.)
+    if (!e.key) return false;
+
     const engine = getToolsEngine();
 
     // Update modifiers

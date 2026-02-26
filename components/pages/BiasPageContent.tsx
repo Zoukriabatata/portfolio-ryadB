@@ -130,23 +130,23 @@ export default function BiasPageContent() {
       </div>
 
       {/* ── Header Bar ── */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)] animate-slideUp stagger-1"
-        style={{ background: 'linear-gradient(135deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 96%, var(--primary) 4%) 100%)' }}>
-        <div className="flex items-center gap-4">
+      <div className="flex-shrink-0 flex items-center justify-between px-5 py-3 border-b border-[var(--border)] animate-slideUp stagger-1"
+        style={{ background: 'linear-gradient(135deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 94%, var(--primary) 6%) 100%)' }}>
+        <div className="flex items-center gap-5">
           {/* Contract selector */}
-          <div className="flex items-center gap-1 bg-[var(--background)] rounded-xl p-1 border border-[var(--border)]">
+          <div className="flex items-center gap-0.5 bg-[var(--background)] rounded-xl p-1 border border-[var(--border)]">
             {CONTRACTS.map(c => {
               const isActive = contract === c.id;
               return (
                 <button
                   key={c.id}
                   onClick={() => setContract(c.id)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-250 ${
                     isActive
-                      ? 'bg-[var(--primary)] text-white shadow-lg'
+                      ? 'bg-[var(--primary)] text-white shadow-lg scale-[1.02]'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
                   }`}
-                  style={isActive ? { boxShadow: '0 2px 12px color-mix(in srgb, var(--primary) 40%, transparent 60%)' } : undefined}
+                  style={isActive ? { boxShadow: '0 2px 16px color-mix(in srgb, var(--primary) 40%, transparent 60%)' } : undefined}
                 >
                   {c.label}
                 </button>
@@ -156,36 +156,44 @@ export default function BiasPageContent() {
 
           {/* Title + Direction badge */}
           <div className="hidden sm:flex items-center gap-3">
-            <span className="text-base font-bold text-[var(--text-primary)] tracking-tight">
-              GVS Bias
-            </span>
-            <span className="text-[10px] px-2.5 py-1 rounded-full font-bold tracking-wide flex items-center gap-1.5"
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" style={{ color: biasResult.direction === 'long' ? '#22c55e' : biasResult.direction === 'short' ? '#ef4444' : 'var(--text-muted)' }}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" />
+              </svg>
+              <span className="text-base font-bold text-[var(--text-primary)] tracking-tight">
+                GVS Bias
+              </span>
+            </div>
+            <span className="text-[10px] px-3 py-1 rounded-full font-bold tracking-wide flex items-center gap-1.5 border"
               style={{
-                backgroundColor: biasResult.direction === 'long' ? '#22c55e15' : biasResult.direction === 'short' ? '#ef444415' : '#6b728015',
+                backgroundColor: biasResult.direction === 'long' ? '#22c55e12' : biasResult.direction === 'short' ? '#ef444412' : '#6b728012',
                 color: biasResult.direction === 'long' ? '#22c55e' : biasResult.direction === 'short' ? '#ef4444' : '#6b7280',
-                boxShadow: `0 0 12px ${biasResult.direction === 'long' ? '#22c55e15' : biasResult.direction === 'short' ? '#ef444415' : 'transparent'}`,
+                borderColor: biasResult.direction === 'long' ? '#22c55e25' : biasResult.direction === 'short' ? '#ef444425' : '#6b728025',
+                boxShadow: `0 0 16px ${biasResult.direction === 'long' ? '#22c55e10' : biasResult.direction === 'short' ? '#ef444410' : 'transparent'}`,
               }}>
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: biasResult.direction === 'long' ? '#22c55e' : biasResult.direction === 'short' ? '#ef4444' : '#6b7280' }} />
               {biasResult.direction.toUpperCase()} {biasResult.strength}
             </span>
-            <span className="text-[10px] text-[var(--text-muted)] font-mono">
-              {etfSymbol} GEX → {contract}
+            <span className="text-[10px] text-[var(--text-dimmed)] font-mono px-2 py-0.5 bg-[var(--background)] rounded-md border border-[var(--border)]">
+              {etfSymbol} GEX &rarr; {contract}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Spot price */}
-          <div className="text-sm font-mono font-bold px-3 py-1.5 rounded-xl bg-[var(--background)] border border-[var(--border)]">
-            <span className="text-[var(--text-muted)]">{contract}</span>{' '}
+          <div className="text-sm font-mono font-bold px-3.5 py-1.5 rounded-xl bg-[var(--background)] border border-[var(--border)]"
+            style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+            <span className="text-[var(--text-dimmed)] text-[10px] mr-1">{contract}</span>
             <span className="text-[var(--text-primary)]">{biasResult.esSpot.toFixed(0)}</span>
           </div>
 
           {/* LIVE / SIM badge */}
-          <div className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 ${
+          <div className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 border ${
             priceSource === 'yahoo-finance'
-              ? 'bg-[var(--success-bg)] text-[var(--success)]'
-              : 'bg-[var(--warning-bg)] text-[var(--warning)]'
+              ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/20'
+              : 'bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning)]/20'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${priceSource === 'yahoo-finance' ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--warning)]'}`} />
             {priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}
@@ -194,7 +202,7 @@ export default function BiasPageContent() {
           {/* Refresh */}
           <button
             onClick={handleRefresh}
-            className="p-2 rounded-xl hover:bg-[var(--surface-hover)] transition-all duration-200 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95"
+            className="p-2 rounded-xl hover:bg-[var(--surface-hover)] transition-all duration-200 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 border border-transparent hover:border-[var(--border)]"
             title="Refresh (R)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -208,7 +216,7 @@ export default function BiasPageContent() {
       </div>
 
       {/* ── Main Content ── */}
-      <div className="flex-1 overflow-auto p-3 space-y-3">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Top Row: Gauge + Zone Map */}
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-3 animate-scaleIn stagger-2">
           {/* Left: Bias Gauge */}
@@ -327,33 +335,40 @@ function LevelCard({ label, value, color, spot }: {
 
   return (
     <div
-      className="rounded-2xl border bg-[var(--surface)] px-4 py-3 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 group relative overflow-hidden"
-      style={{ borderColor: `${color}20`, boxShadow: `0 0 0 0 ${color}00` }}
-      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 24px ${color}15, 0 0 0 1px ${color}25`; e.currentTarget.style.borderColor = `${color}40`; }}
-      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 0 0 0 ${color}00`; e.currentTarget.style.borderColor = `${color}20`; }}
+      className="rounded-2xl border px-4 py-3.5 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 group relative overflow-hidden backdrop-blur-sm"
+      style={{
+        borderColor: `${color}18`,
+        background: `linear-gradient(135deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 97%, ${color} 3%) 100%)`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 8px 28px ${color}12, 0 0 0 1px ${color}20`; e.currentTarget.style.borderColor = `${color}35`; }}
+      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; e.currentTarget.style.borderColor = `${color}18`; }}
     >
-      {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-        style={{ background: `linear-gradient(135deg, ${color}06 0%, transparent 60%)` }} />
+      {/* Glass gradient overlay on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none"
+        style={{ background: `linear-gradient(135deg, ${color}08 0%, transparent 40%, ${color}04 100%)` }} />
 
-      <div className="relative flex items-center justify-between mb-2">
+      <div className="relative flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full transition-shadow duration-300" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}40, 0 0 0 2px ${color}20` }} />
-          <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wide">{label}</span>
+          <span className="w-2 h-2 rounded-full transition-shadow duration-300 group-hover:shadow-[0_0_10px]" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}40` }} />
+          <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wide uppercase">{label}</span>
         </div>
-        <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ backgroundColor: `${color}12`, color }}>
+        <span className="text-[8px] font-bold font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border" style={{ backgroundColor: `${color}08`, color, borderColor: `${color}15` }}>
           {isAbove ? 'Above' : 'Below'}
         </span>
       </div>
-      <div className="relative text-lg font-bold font-mono tracking-tight" style={{ color }}>
+      <div className="relative text-xl font-bold font-mono tracking-tight leading-none mb-1.5" style={{ color }}>
         {value.toFixed(0)}
       </div>
-      <div className="relative flex items-center gap-1.5 mt-1">
+      <div className="relative flex items-center gap-1.5">
         <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill={isAbove ? '#22c55e' : '#ef4444'}>
           {isAbove ? <path d="M6 2l4 6H2z" /> : <path d="M6 10L2 4h8z" />}
         </svg>
         <span className="text-[10px] font-mono font-medium" style={{ color: isAbove ? '#22c55e' : '#ef4444' }}>
-          {diff > 0 ? '+' : ''}{diff.toFixed(0)} pts ({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(2)}%)
+          {diff > 0 ? '+' : ''}{diff.toFixed(0)} pts
+        </span>
+        <span className="text-[9px] font-mono text-[var(--text-dimmed)]">
+          ({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(2)}%)
         </span>
       </div>
     </div>
@@ -372,23 +387,24 @@ function SkewPanel({ skew }: { skew: SkewAnalysis }) {
   const skewBarPct = Math.max(0, Math.min(100, ((skew.skewRatio - 0.8) / 0.5) * 100));
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
+    <div className="rounded-2xl border border-[var(--border)] overflow-hidden"
+      style={{ background: 'linear-gradient(160deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 97%, var(--primary) 3%) 100%)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
       {/* Header */}
-      <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between"
-        style={{ background: `linear-gradient(135deg, ${skewColor}06 0%, transparent 100%)` }}>
+      <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between"
+        style={{ background: `linear-gradient(135deg, ${skewColor}06 0%, transparent 70%)` }}>
         <div className="flex items-center gap-2.5">
-          <svg className="w-3.5 h-3.5" style={{ color: skewColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <svg className="w-4 h-4" style={{ color: skewColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path d="M3 3v18h18" /><path d="M7 16c2-4 4-8 6-6s4-2 6-4" />
           </svg>
-          <span className="text-[12px] font-bold text-[var(--text-primary)]">Volatility Skew</span>
+          <span className="text-[12px] font-bold text-[var(--text-primary)] tracking-tight">Volatility Skew</span>
           <span
-            className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-            style={{ backgroundColor: `${skewColor}15`, color: skewColor }}
+            className="text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border"
+            style={{ backgroundColor: `${skewColor}10`, color: skewColor, borderColor: `${skewColor}20` }}
           >
             {skew.skewSignal}
           </span>
         </div>
-        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg" style={{ color: skewColor, backgroundColor: `${skewColor}10` }}>
+        <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg border" style={{ color: skewColor, backgroundColor: `${skewColor}08`, borderColor: `${skewColor}15` }}>
           {skew.totalVolScore > 0 ? '+' : ''}{skew.totalVolScore.toFixed(0)}
         </span>
       </div>
@@ -505,36 +521,37 @@ function LevelList({ title, levels, spot, color }: {
   color: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
-      <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center gap-2.5"
-        style={{ background: `linear-gradient(135deg, ${color}06 0%, transparent 100%)` }}>
+    <div className="rounded-2xl border border-[var(--border)] overflow-hidden"
+      style={{ background: 'linear-gradient(160deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 97%, var(--primary) 3%) 100%)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+      <div className="px-4 py-3 border-b border-[var(--border)] flex items-center gap-2.5"
+        style={{ background: `linear-gradient(135deg, ${color}05 0%, transparent 70%)` }}>
         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}40` }} />
-        <span className="text-[12px] font-bold" style={{ color }}>{title}</span>
-        <span className="text-[9px] text-[var(--text-dimmed)] font-mono ml-auto bg-[var(--background)] px-1.5 py-0.5 rounded-md">{levels.length}</span>
+        <span className="text-[12px] font-bold tracking-tight" style={{ color }}>{title}</span>
+        <span className="text-[9px] text-[var(--text-dimmed)] font-mono font-medium ml-auto bg-[var(--background)] px-2 py-0.5 rounded-md border border-[var(--border)]">{levels.length}</span>
       </div>
-      <div className="divide-y divide-[var(--border)]/50">
+      <div className="divide-y divide-[var(--border)]/30">
         {levels.slice(0, 8).map((level, i) => {
           const dist = Math.abs(level.price - spot);
           return (
-            <div key={i} className="flex items-center justify-between px-4 py-2 hover:bg-[var(--surface-hover)] transition-colors group">
+            <div key={i} className="flex items-center justify-between px-4 py-2.5 hover:bg-[var(--surface-hover)] transition-all duration-200 group">
               <div className="flex items-center gap-2.5">
-                <span className="w-2 h-2 rounded-full transition-shadow group-hover:shadow-[0_0_6px]" style={{ backgroundColor: level.color }} />
+                <span className="w-2 h-2 rounded-full transition-all duration-300 group-hover:scale-125 group-hover:shadow-[0_0_8px]" style={{ backgroundColor: level.color }} />
                 <span className="text-[11px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
                   {level.label}
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[11px] font-mono font-semibold text-[var(--text-primary)]">
+                <span className="text-[11px] font-mono font-bold text-[var(--text-primary)]">
                   {level.price.toFixed(0)}
                 </span>
-                <span className="text-[9px] font-mono text-[var(--text-muted)] w-14 text-right px-1.5 py-0.5 bg-[var(--background)] rounded">
+                <span className="text-[9px] font-mono text-[var(--text-muted)] w-14 text-right px-1.5 py-0.5 bg-[var(--background)] rounded border border-[var(--border)]">
                   {dist.toFixed(0)} pts
                 </span>
                 {/* Strength bar */}
-                <div className="w-14 h-2 bg-[var(--background)] rounded-full overflow-hidden border border-[var(--border)]">
+                <div className="w-16 h-2 bg-[var(--background)] rounded-full overflow-hidden border border-[var(--border)]">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${level.strength}%`, backgroundColor: level.color, boxShadow: `0 0 4px ${level.color}40` }}
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${level.strength}%`, backgroundColor: level.color, boxShadow: `0 0 6px ${level.color}30` }}
                   />
                 </div>
               </div>

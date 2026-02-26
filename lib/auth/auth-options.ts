@@ -8,7 +8,7 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { prisma } from '@/lib/db';
+import { prisma, isPrismaAvailable } from '@/lib/db';
 import {
   verifyPassword,
   generateDeviceFingerprint,
@@ -19,6 +19,16 @@ import {
   TIER_CONFIG,
   type SubscriptionTier,
 } from './security';
+
+// Dev mode user when DB is not available
+const DEV_USER = {
+  id: 'dev-user',
+  email: 'dev@localhost',
+  name: 'Developer',
+  tier: 'ULTRA' as SubscriptionTier,
+  deviceId: 'dev-device',
+  sessionId: 'dev-session',
+};
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -40,6 +50,11 @@ export const authOptions: NextAuthOptions = {
         deviceFingerprint: { label: 'Device', type: 'text' },
       },
       async authorize(credentials, req) {
+        // DEV MODE: Return dev user when DB is not available
+        if (!isPrismaAvailable() && process.env.NODE_ENV === 'development') {
+          return DEV_USER;
+        }
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Email et mot de passe requis');
         }
@@ -193,6 +208,15 @@ export const authOptions: NextAuthOptions = {
 
       // Google OAuth — find or create user, link account, manage devices
       if (account?.provider === 'google' && profile?.email) {
+        // DEV MODE: Skip DB operations when not available
+        if (!isPrismaAvailable() && process.env.NODE_ENV === 'development') {
+          user.id = 'dev-user';
+          user.tier = 'ULTRA' as SubscriptionTier;
+          user.deviceId = 'dev-device';
+          user.sessionId = 'dev-session';
+          return true;
+        }
+
         try {
           const email = profile.email.toLowerCase().trim();
 
@@ -397,7 +421,7 @@ export const authOptions: NextAuthOptions = {
 
       // On session update or periodic refresh — re-check tier from DB
       // This ensures tier changes (upgrade/downgrade) are reflected without re-login
-      if (trigger === 'update' && token.id) {
+      if (trigger === 'update' && token.id && isPrismaAvailable()) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
           select: { subscriptionTier: true, name: true, avatar: true },

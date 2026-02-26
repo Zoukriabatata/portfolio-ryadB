@@ -236,6 +236,9 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       const ws = isCME ? getIBLiveWS() : getBinanceLiveWS();
       const aggregator = getAggregator();
 
+      // Disconnect previous WebSocket to ensure clean reconnect with new symbol
+      ws.disconnect();
+
       const unsubStatus = ws.onStatus((s) => {
         if (!isMounted) return;
         setStatus(s);
@@ -357,10 +360,17 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
    */
   const handleSymbolChange = useCallback((newSymbol: string) => {
     if (newSymbol === symbol) return;
+    // Clear chart immediately for visual feedback
+    if (refs.chartEngine.current) {
+      refs.candles.current = [];
+      refs.candleData.current.clear();
+    }
+    // State update triggers the main effect which handles:
+    // cleanup old subscriptions → load history → connect WebSocket
+    // Do NOT call getBinanceLiveWS().changeSymbol() here — it desynchs
     setSymbol(newSymbol);
-    getBinanceLiveWS().changeSymbol(newSymbol);
     onSymbolChange?.(newSymbol);
-  }, [symbol, onSymbolChange]);
+  }, [symbol, refs, onSymbolChange]);
 
   /**
    * Change timeframe

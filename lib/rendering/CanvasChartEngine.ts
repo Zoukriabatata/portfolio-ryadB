@@ -125,6 +125,7 @@ export class CanvasChartEngine {
     lineWidth: 1,
     dashPattern: [4, 4],
   };
+  private timeframeSeconds = 60; // Default 1 minute
 
   // Callbacks
   private onPriceChange?: (price: number) => void;
@@ -340,6 +341,10 @@ export class CanvasChartEngine {
   setShowGrid(show: boolean): void {
     this.showGrid = show;
     this.render();
+  }
+
+  setTimeframeSeconds(seconds: number): void {
+    this.timeframeSeconds = seconds;
   }
 
   setOnPriceChange(callback: (price: number) => void): void {
@@ -953,15 +958,52 @@ export class CanvasChartEngine {
     this.ctx.stroke();
     this.ctx.setLineDash([]);
 
-    // Price label
+    // Price label with countdown
     const isUp = this.candles.length > 1 && currentPrice >= this.candles[this.candles.length - 2].close;
-    this.ctx.fillStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
-    this.ctx.fillRect(chartWidth, y - 10, priceAxisWidth, 20);
+    const bgColor = isUp ? this.theme.candleUp : this.theme.candleDown;
 
+    // Calculate countdown
+    const now = Date.now();
+    const tfMs = this.timeframeSeconds * 1000;
+    const candleStart = Math.floor(now / tfMs) * tfMs;
+    const remaining = Math.max(0, Math.ceil((candleStart + tfMs - now) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const countdownStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
+    const progress = 1 - remaining / this.timeframeSeconds;
+
+    // Determine countdown color based on progress
+    const cdColor = progress > 0.9 ? '#ef4444' : progress > 0.75 ? '#f59e0b' : 'rgba(255,255,255,0.6)';
+
+    // Price text
+    const priceStr = this.formatPrice(currentPrice);
+    this.ctx.font = 'bold 11px monospace';
+    const priceTextW = this.ctx.measureText(priceStr).width;
+    this.ctx.font = 'bold 11px monospace';
+    const cdTextW = this.ctx.measureText(countdownStr).width;
+
+    // Badge dimensions — price on top, countdown below
+    const totalW = Math.max(priceAxisWidth, Math.max(priceTextW, cdTextW) + 16);
+    const rectH = 28;
+    const rectY = y - rectH / 2;
+
+    // Background
+    this.ctx.fillStyle = bgColor;
+    this.ctx.fillRect(chartWidth, rectY, totalW, rectH);
+
+    // Price text (top)
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = 'bold 11px monospace';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText(this.formatPrice(currentPrice), chartWidth + 8, y + 4);
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    const centerX = chartWidth + totalW / 2;
+    this.ctx.fillText(priceStr, centerX, y - 5);
+
+    // Countdown text (bottom, larger)
+    this.ctx.fillStyle = cdColor;
+    this.ctx.font = 'bold 10px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(countdownStr, centerX, y + 8);
   }
 
   private drawCrosshair(): void {

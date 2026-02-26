@@ -3022,9 +3022,21 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     if (sync.syncEnabled && sync.syncSymbol) {
       syncManagerRef.current?.broadcastSymbol(newSymbol);
     }
+
+    // Full data cleanup — clear all stale data from previous pair
     resetOrderflowEngine();
     resetFootprintDataService();
+    resetSessionFootprintService();
+    resetOptimizedFootprintService();
     candlesRef.current = [];
+    absorptionEventsRef.current = [];
+    workerIndicatorsRef.current = null;
+    workerDataVersionRef.current = '';
+    currentPriceRef.current = 0;
+    vwapDataRef.current = [];
+    twapDataRef.current = [];
+    debugTradesRef.current = [];
+    debugTradeCountRef.current = 0;
     layoutEngineRef.current?.resetScroll();
 
     if (exchange === 'binance') {

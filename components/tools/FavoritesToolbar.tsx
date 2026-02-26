@@ -29,48 +29,19 @@ import {
 // CSS for tool button animations
 const toolAnimationStyles = `
   @keyframes toolClick {
-    0% { transform: scale(1); filter: brightness(1); }
-    40% { transform: scale(0.88); filter: brightness(1.3); }
-    100% { transform: scale(1); filter: brightness(1); }
-  }
-
-  @keyframes toolActivate {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(126, 211, 33, 0.5); }
-    40% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(126, 211, 33, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(126, 211, 33, 0); }
-  }
-
-  @keyframes toolDrag {
-    0% { transform: scale(1.08) rotate(0deg); opacity: 0.7; }
-    33% { transform: scale(1.08) rotate(-3deg); }
-    66% { transform: scale(1.08) rotate(3deg); }
-    100% { transform: scale(1.08) rotate(0deg); opacity: 0.7; }
-  }
-
-  @keyframes toolHoverGlow {
-    0% { box-shadow: 0 0 0 0 rgba(126, 211, 33, 0); }
-    100% { box-shadow: 0 0 8px 2px rgba(126, 211, 33, 0.15); }
+    0% { transform: scale(1); }
+    50% { transform: scale(0.93); }
+    100% { transform: scale(1); }
   }
 
   @keyframes dropdownSlide {
-    from { opacity: 0; transform: scale(0.92) translateY(-10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
-  @keyframes dropdownItemHighlight {
-    0% { background-color: transparent; }
-    50% { background-color: rgba(126, 211, 33, 0.2); }
-    100% { background-color: transparent; }
-  }
-
-  @keyframes selectedPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(126, 211, 33, 0.3); }
-    50% { box-shadow: 0 0 0 5px rgba(126, 211, 33, 0.1); }
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes floatIn {
-    from { opacity: 0; transform: scale(0.9) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes removeX {
@@ -78,23 +49,21 @@ const toolAnimationStyles = `
     to { opacity: 1; transform: scale(1); }
   }
 
-  .tool-click { animation: toolClick 0.18s cubic-bezier(0.4, 0, 0.2, 1); }
-  .tool-activate { animation: toolActivate 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-  .tool-dragging { animation: toolDrag 0.4s ease-in-out infinite; }
-  .dropdown-enter { animation: dropdownSlide 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-  .dropdown-item-selected { animation: dropdownItemHighlight 0.6s ease-out; }
-  .tool-selected-pulse { animation: selectedPulse 2.5s ease-in-out infinite; }
-  .toolbar-float-in { animation: floatIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .tool-click { animation: toolClick 0.12s ease-out; }
+  .tool-activate { animation: toolClick 0.12s ease-out; }
+  .tool-dragging { opacity: 0.7; transform: scale(1.05); }
+  .dropdown-enter { animation: dropdownSlide 0.15s ease-out; }
+  .dropdown-item-selected { background-color: rgba(255,255,255,0.05); }
+  .tool-selected-pulse { }
+  .toolbar-float-in { animation: floatIn 0.2s ease-out; }
 
-  .tool-btn { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
-  .tool-btn:hover { transform: scale(1.08); }
-  .tool-btn:active { transform: scale(0.92); }
+  .tool-btn { transition: all 0.1s ease; }
+  .tool-btn:hover { background-color: rgba(255,255,255,0.06); }
+  .tool-btn:active { transform: scale(0.95); }
 
   .tool-remove-x {
-    animation: removeX 0.15s ease-out;
+    animation: removeX 0.1s ease-out;
   }
-
-  /* Tooltips: using global CSS from globals.css */
 `;
 
 /**

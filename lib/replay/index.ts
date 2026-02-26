@@ -6,3 +6,9 @@ export type { ReplayState, ReplayStatus } from './ReplayEngine';
 
 export { CryptoRecorderWS, getCryptoRecorderWS } from './CryptoRecorderWS';
 export type { CryptoRecorderConfig } from './CryptoRecorderWS';
+
+export { ReplayVolumeProfile } from './indicators/ReplayVolumeProfile';
+export type { VolumeProfileData, VolumeProfileLevel } from './indicators/ReplayVolumeProfile';
+
+export { ReplayClusterMap } from './indicators/ReplayClusterMap';
+export type { ClusterMapData, ClusterColumn, ClusterCell } from './indicators/ReplayClusterMap';

@@ -11,6 +11,7 @@ interface SessionCreateModalProps {
 export interface SessionConfig {
   symbol: string;
   exchange: RecordingExchange;
+  name: string;
   description: string;
   initialBalance: number;
   tags: string[];
@@ -44,8 +45,9 @@ const EXCHANGE_OPTIONS: { id: RecordingExchange; name: string; color: string; sy
 ];
 
 export default function SessionCreateModal({ onClose, onStart }: SessionCreateModalProps) {
-  const [exchange, setExchange] = useState<RecordingExchange>('ib');
-  const [symbol, setSymbol] = useState('ES');
+  const [exchange, setExchange] = useState<RecordingExchange>('binance');
+  const [symbol, setSymbol] = useState('BTCUSDT');
+  const [sessionName, setSessionName] = useState('');
   const [description, setDescription] = useState('');
   const [balance, setBalance] = useState('100000');
   const [tagInput, setTagInput] = useState('');
@@ -58,7 +60,8 @@ export default function SessionCreateModal({ onClose, onStart }: SessionCreateMo
     onStart({
       symbol: symbol.toUpperCase(),
       exchange,
-      description: description || `${symbol} session`,
+      name: sessionName || `${symbol} Session`,
+      description: description || `${symbol} recording`,
       initialBalance: parseFloat(balance) || 100000,
       tags,
     });
@@ -126,24 +129,50 @@ export default function SessionCreateModal({ onClose, onStart }: SessionCreateMo
           </div>
         </div>
 
-        {/* Description */}
+        {/* Session Name */}
         <div className="mb-4">
           <label className="text-[10px] font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
-            Description (optional)
+            Session Name
           </label>
-          <input type="text" value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder={`${symbol} recording session`}
+          <input type="text" value={sessionName}
+            onChange={e => setSessionName(e.target.value)}
+            placeholder={`${symbol} Session`}
             className="w-full px-3 py-1.5 rounded-lg text-xs focus:outline-none"
             style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
           />
         </div>
 
-        {/* Initial Balance */}
+        {/* Description */}
+        <div className="mb-4">
+          <label className="text-[10px] font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
+            Notes (optional)
+          </label>
+          <input type="text" value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Session focus, strategy, etc."
+            className="w-full px-3 py-1.5 rounded-lg text-xs focus:outline-none"
+            style={{ background: 'var(--background)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+          />
+        </div>
+
+        {/* Initial Balance with presets */}
         <div className="mb-4">
           <label className="text-[10px] font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>
             Initial Balance (paper)
           </label>
+          <div className="flex gap-1.5 mb-1.5">
+            {['10000', '25000', '50000', '100000', '250000'].map(b => (
+              <button key={b} onClick={() => setBalance(b)}
+                className="flex-1 py-1 rounded text-[9px] font-mono transition-all"
+                style={{
+                  background: balance === b ? 'var(--primary)' : 'var(--background)',
+                  color: balance === b ? '#fff' : 'var(--text-muted)',
+                  border: `1px solid ${balance === b ? 'var(--primary)' : 'var(--border)'}`,
+                }}>
+                ${(parseInt(b) / 1000)}k
+              </button>
+            ))}
+          </div>
           <input type="number" value={balance}
             onChange={e => setBalance(e.target.value)}
             className="w-full px-3 py-1.5 rounded-lg text-xs font-mono focus:outline-none"

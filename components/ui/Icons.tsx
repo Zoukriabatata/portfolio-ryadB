@@ -151,12 +151,11 @@ export function CursorIcon({ size = 18, className = '', color = 'currentColor' }
 export function CrosshairIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <circle cx="12" cy="12" r="7" stroke={color} strokeWidth="1.5" strokeOpacity="0.4" />
-      <line x1="12" y1="2" x2="12" y2="7" stroke={color} strokeWidth="1.5" />
-      <line x1="12" y1="17" x2="12" y2="22" stroke={color} strokeWidth="1.5" />
-      <line x1="2" y1="12" x2="7" y2="12" stroke={color} strokeWidth="1.5" />
-      <line x1="17" y1="12" x2="22" y2="12" stroke={color} strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="1.5" fill={color} fillOpacity="0.7" />
+      <line x1="12" y1="3" x2="12" y2="9" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="12" y1="15" x2="12" y2="21" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="3" y1="12" x2="9" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="15" y1="12" x2="21" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="2" stroke={color} strokeWidth="1.5" />
     </svg>
   );
 }
@@ -164,9 +163,9 @@ export function CrosshairIcon({ size = 18, className = '', color = 'currentColor
 export function TrendlineIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <line x1="4" y1="18" x2="20" y2="6" stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <circle cx="4" cy="18" r="2.5" fill={color} fillOpacity="0.2" stroke={color} strokeWidth="1" />
-      <circle cx="20" cy="6" r="2.5" fill={color} fillOpacity="0.2" stroke={color} strokeWidth="1" />
+      <line x1="4" y1="19" x2="20" y2="5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="4" cy="19" r="1.5" fill={color} />
+      <circle cx="20" cy="5" r="1.5" fill={color} />
     </svg>
   );
 }
@@ -184,11 +183,7 @@ export function HLineIcon({ size = 18, className = '', color = 'currentColor' }:
 export function RectangleIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <rect x="4" y="6" width="16" height="12" fill={color} fillOpacity="0.08" stroke={color} strokeWidth="1.5" rx="1" />
-      <circle cx="4" cy="6" r="2" fill={color} fillOpacity="0.25" stroke={color} strokeWidth="1" />
-      <circle cx="20" cy="6" r="2" fill={color} fillOpacity="0.25" stroke={color} strokeWidth="1" />
-      <circle cx="4" cy="18" r="2" fill={color} fillOpacity="0.25" stroke={color} strokeWidth="1" />
-      <circle cx="20" cy="18" r="2" fill={color} fillOpacity="0.25" stroke={color} strokeWidth="1" />
+      <rect x="5" y="7" width="14" height="10" stroke={color} strokeWidth="1.5" />
     </svg>
   );
 }
@@ -407,12 +402,9 @@ export function MeasureIcon({ size = 18, className = '', color = 'currentColor' 
 export function LongPositionIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <rect x="4" y="4" width="16" height="8" fill="#22c55e" fillOpacity="0.1" />
-      <rect x="4" y="16" width="16" height="4" fill="#ef4444" fillOpacity="0.1" />
-      <line x1="4" y1="12" x2="20" y2="12" stroke="#22c55e" strokeWidth="2" />
-      <path d="M12 4L8 9H10V12H14V9H16L12 4Z" fill="#22c55e" fillOpacity="0.8" />
-      <line x1="6" y1="6" x2="18" y2="6" stroke="#22c55e" strokeWidth="1" strokeDasharray="3 2" />
-      <line x1="6" y1="18" x2="18" y2="18" stroke="#ef4444" strokeWidth="1" strokeDasharray="3 2" />
+      <path d="M12 4L12 16" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 8L12 4L16 8" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="5" y1="20" x2="19" y2="20" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.4" />
     </svg>
   );
 }
@@ -420,12 +412,9 @@ export function LongPositionIcon({ size = 18, className = '', color = 'currentCo
 export function ShortPositionIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      <rect x="4" y="4" width="16" height="4" fill="#22c55e" fillOpacity="0.1" />
-      <rect x="4" y="12" width="16" height="8" fill="#ef4444" fillOpacity="0.1" />
-      <line x1="4" y1="12" x2="20" y2="12" stroke="#ef4444" strokeWidth="2" />
-      <path d="M12 20L8 15H10V12H14V15H16L12 20Z" fill="#ef4444" fillOpacity="0.8" />
-      <line x1="6" y1="6" x2="18" y2="6" stroke="#22c55e" strokeWidth="1" strokeDasharray="3 2" />
-      <line x1="6" y1="18" x2="18" y2="18" stroke="#ef4444" strokeWidth="1" strokeDasharray="3 2" />
+      <path d="M12 20L12 8" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 16L12 20L16 16" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="5" y1="4" x2="19" y2="4" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.4" />
     </svg>
   );
 }

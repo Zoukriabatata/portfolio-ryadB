@@ -57,7 +57,7 @@ function useGEXColors() {
   };
 }
 
-const PADDING = { top: 40, right: 80, bottom: 60, left: 80 };
+const PADDING = { top: 44, right: 85, bottom: 56, left: 85 };
 
 export default function GEXDashboard({
   symbol,
@@ -163,28 +163,56 @@ export default function GEXDashboard({
 
     // Grid lines + strike labels
     ctx.strokeStyle = themeColors.gridLine;
-    ctx.lineWidth = 1;
-    ctx.font = '11px monospace';
+    ctx.lineWidth = 0.5;
+    ctx.font = '10px monospace';
     ctx.fillStyle = themeColors.text;
 
     for (let i = 0; i <= numGridLines; i++) {
       const strike = minStrike + i * strikeStep;
       const y = strikeToY(strike);
+      ctx.setLineDash([2, 3]);
       ctx.beginPath();
       ctx.moveTo(PADDING.left, y);
       ctx.lineTo(PADDING.left + chartWidth, y);
       ctx.stroke();
+      ctx.setLineDash([]);
+      // Strike price on left
       ctx.textAlign = 'right';
-      ctx.fillText(`$${strike.toFixed(0)}`, PADDING.left - 10, y + 4);
+      ctx.fillStyle = themeColors.text;
+      ctx.fillText(`$${strike.toFixed(0)}`, PADDING.left - 8, y + 3.5);
     }
 
-    // Bars with rounded ends and gradient fills — increase spacing for readability
-    const barHeight = Math.max(3, (chartHeight / visibleData.length) * 0.65);
-    const barRadius = Math.min(barHeight / 2, 4);
+    // X-axis GEX value labels (bottom, equally spaced)
+    ctx.font = '9px monospace';
+    ctx.fillStyle = themeColors.text;
+    ctx.textAlign = 'center';
+    const xSteps = 4;
+    for (let i = 0; i <= xSteps; i++) {
+      // Left (put) side
+      const putVal = -maxGEX * (i / xSteps);
+      const putX = PADDING.left + chartWidth / 2 - (chartWidth / 2) * (i / xSteps);
+      if (i > 0) ctx.fillText(formatGEX(putVal), putX, PADDING.top + chartHeight + 14);
+      // Right (call) side
+      const callVal = maxGEX * (i / xSteps);
+      const callX = PADDING.left + chartWidth / 2 + (chartWidth / 2) * (i / xSteps);
+      if (i > 0) ctx.fillText(formatGEX(callVal), callX, PADDING.top + chartHeight + 14);
+    }
+    // Center zero label
+    ctx.fillText('0', PADDING.left + chartWidth / 2, PADDING.top + chartHeight + 14);
+
+    // Bars with rounded ends, gradient fills, and improved spacing
+    const barHeight = Math.max(4, (chartHeight / visibleData.length) * 0.6);
+    const barRadius = Math.min(barHeight / 2, 5);
 
     visibleData.forEach((level) => {
       const y = strikeToY(level.strike);
       const isHovered = hoveredStrike === level.strike;
+
+      // Hovered bar highlight: subtle background band
+      if (isHovered) {
+        ctx.fillStyle = themeColors.gridBand;
+        ctx.fillRect(PADDING.left, y - barHeight, chartWidth, barHeight * 2);
+      }
 
       // Call GEX (right side, positive)
       if (level.callGEX > 0) {
@@ -192,10 +220,10 @@ export default function GEXDashboard({
         const bx = PADDING.left + chartWidth / 2;
         const by = y - barHeight / 2;
 
-        // Gradient fill
+        // Gradient fill — stronger opacity for better contrast
         const grad = ctx.createLinearGradient(bx, 0, bx + barWidth, 0);
-        grad.addColorStop(0, themeColors.callGEX + (isHovered ? 'ff' : 'b3'));
-        grad.addColorStop(1, themeColors.callGEX + (isHovered ? 'dd' : '66'));
+        grad.addColorStop(0, themeColors.callGEX + (isHovered ? 'ff' : 'cc'));
+        grad.addColorStop(1, themeColors.callGEX + (isHovered ? 'ee' : '77'));
         ctx.fillStyle = grad;
 
         // Rounded rect
@@ -209,12 +237,12 @@ export default function GEXDashboard({
         ctx.closePath();
         ctx.fill();
 
-        // Value label on significant bars
-        if (barWidth > 40) {
-          ctx.fillStyle = themeColors.textBright;
-          ctx.font = '9px monospace';
+        // Value label on significant bars — improved font
+        if (barWidth > 35) {
+          ctx.fillStyle = isHovered ? themeColors.textBright : themeColors.textMid;
+          ctx.font = `${isHovered ? 'bold ' : ''}10px monospace`;
           ctx.textAlign = 'left';
-          ctx.fillText(formatGEX(level.callGEX), bx + barWidth + 4, y + 3);
+          ctx.fillText(formatGEX(level.callGEX), bx + barWidth + 6, y + 3.5);
         }
       }
 
@@ -224,10 +252,10 @@ export default function GEXDashboard({
         const bx = PADDING.left + chartWidth / 2 - barWidth;
         const by = y - barHeight / 2;
 
-        // Gradient fill
+        // Gradient fill — stronger opacity for better contrast
         const grad = ctx.createLinearGradient(bx, 0, bx + barWidth, 0);
-        grad.addColorStop(0, themeColors.putGEX + (isHovered ? 'dd' : '66'));
-        grad.addColorStop(1, themeColors.putGEX + (isHovered ? 'ff' : 'b3'));
+        grad.addColorStop(0, themeColors.putGEX + (isHovered ? 'ee' : '77'));
+        grad.addColorStop(1, themeColors.putGEX + (isHovered ? 'ff' : 'cc'));
         ctx.fillStyle = grad;
 
         // Rounded rect
@@ -242,12 +270,12 @@ export default function GEXDashboard({
         ctx.closePath();
         ctx.fill();
 
-        // Value label on significant bars
-        if (barWidth > 40) {
-          ctx.fillStyle = themeColors.textBright;
-          ctx.font = '9px monospace';
+        // Value label on significant bars — improved font
+        if (barWidth > 35) {
+          ctx.fillStyle = isHovered ? themeColors.textBright : themeColors.textMid;
+          ctx.font = `${isHovered ? 'bold ' : ''}10px monospace`;
           ctx.textAlign = 'right';
-          ctx.fillText(formatGEX(level.putGEX), bx - 4, y + 3);
+          ctx.fillText(formatGEX(level.putGEX), bx - 6, y + 3.5);
         }
       }
     });
@@ -329,29 +357,43 @@ export default function GEXDashboard({
       ctx.fillText(spotText, PADDING.left + chartWidth / 2, spotPillY + 13);
     }
 
-    // Axis labels with better contrast
-    ctx.font = '12px system-ui';
+    // Axis labels with better contrast and sizing
+    ctx.font = '11px system-ui';
     ctx.textAlign = 'center';
     // Put side label
-    ctx.fillStyle = themeColors.putGEX + 'aa';
-    ctx.fillText('\u2190 Put GEX (Negative)', PADDING.left + chartWidth / 4, height - 12);
+    ctx.fillStyle = themeColors.putGEX + '99';
+    ctx.fillText('\u2190 Put GEX (Negative)', PADDING.left + chartWidth / 4, height - 14);
     // Call side label
-    ctx.fillStyle = themeColors.callGEX + 'aa';
-    ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, height - 12);
+    ctx.fillStyle = themeColors.callGEX + '99';
+    ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, height - 14);
 
-    // Title
+    // Title — left aligned with subtle styling
     ctx.fillStyle = themeColors.textBright;
-    ctx.font = 'bold 15px system-ui';
+    ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'left';
-    ctx.fillText(`${symbol} Gamma Exposure by Strike`, PADDING.left, 25);
+    ctx.fillText(`${symbol}`, PADDING.left, 24);
+    // Subtitle
+    ctx.fillStyle = themeColors.textMid;
+    ctx.font = '11px system-ui';
+    ctx.fillText('Gamma Exposure by Strike', PADDING.left + ctx.measureText(`${symbol}`).width + 8, 24);
+
+    // Regime indicator (top right)
+    if (summary) {
+      const regime = summary.regime;
+      const regimeColor = regime === 'positive' ? themeColors.callGEX : themeColors.putGEX;
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = regimeColor + 'cc';
+      ctx.fillText(`${regime.toUpperCase()} GAMMA`, width - PADDING.right, 24);
+    }
 
     // Zoom indicator
     if (zoomRange) {
-      ctx.fillStyle = themeColors.textMid;
+      ctx.fillStyle = themeColors.text;
       ctx.font = '10px system-ui';
       ctx.textAlign = 'right';
       const pct = ((strikeRange / (dataMax - dataMin)) * 100).toFixed(0);
-      ctx.fillText(`${pct}% \u00b7 scroll to zoom \u00b7 double-click to reset`, width - PADDING.right, height - 5);
+      ctx.fillText(`${pct}% \u00b7 scroll to zoom \u00b7 double-click to reset`, width - PADDING.right, height - 4);
     }
   }, [gexData, dimensions, spotPrice, summary, hoveredStrike, zoomRange, symbol, themeColors]);
 

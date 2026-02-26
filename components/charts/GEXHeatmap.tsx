@@ -74,6 +74,7 @@ export default function GEXHeatmap({
   const animFrameRef = useRef<number>(0);
 
   const [dimensions, setDimensions] = useState({ width: 800, height });
+  const [tooltip3D, setTooltip3D] = useState<{ x: number; y: number; strike: number; time: number; value: number } | null>(null);
   const themeColors = useHeatmapColors();
 
   // Generate time series data (simulated historical GEX over time)
@@ -377,13 +378,21 @@ export default function GEXHeatmap({
       }
 
       // GEX scale labels along Z axis (x=0, y=0)
+      // Calculate max absolute GEX for value labels
+      let maxAbsGEX = 0;
+      for (let t = 0; t < T; t++) {
+        const td = timeSeriesData[t];
+        for (let s = 0; s < S; s++) {
+          maxAbsGEX = Math.max(maxAbsGEX, Math.abs(td[s]?.value || 0));
+        }
+      }
       ctx.textAlign = 'right';
       const zLabels = [0, 0.15, 0.3, 0.45, 0.6];
       for (const z of zLabels) {
         const pt = renderer.projectToScreen(0, 0, z);
         if (pt && pt.x > 5 && pt.y > 10 && pt.y < height - 5) {
-          const pct = Math.round((z / 0.6) * 100);
-          ctx.fillText(`${pct}%`, pt.x - 8, pt.y + 4);
+          const gexVal = (z / 0.6) * maxAbsGEX;
+          ctx.fillText(formatValue(gexVal), pt.x - 8, pt.y + 4);
         }
       }
 
@@ -443,13 +452,79 @@ export default function GEXHeatmap({
     }
   }, [dimensions, symbol, dataType, themeColors, gexData, timeSeriesData]);
 
+  // 3D hover tooltip — find nearest grid point
+  const handleMouseMove3D = useCallback((e: React.MouseEvent) => {
+    const renderer = rendererRef.current;
+    if (!renderer || mode !== '3D') { setTooltip3D(null); return; }
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const strikes = gexData.map(d => d.strike);
+    const S = strikes.length;
+    const T = timeSeriesData.length;
+
+    if (S === 0 || T === 0) { setTooltip3D(null); return; }
+
+    // Find max GEX for normalization
+    let maxAbs = 0;
+    for (let t = 0; t < T; t++) {
+      for (let s = 0; s < S; s++) {
+        maxAbs = Math.max(maxAbs, Math.abs(timeSeriesData[t][s]?.value || 0));
+      }
+    }
+
+    let bestDist = Infinity;
+    let bestStrike = 0;
+    let bestTime = 0;
+    let bestValue = 0;
+    let bestSx = 0;
+    let bestSy = 0;
+
+    for (let t = 0; t < T; t++) {
+      for (let s = 0; s < S; s++) {
+        const nx = S > 1 ? s / (S - 1) : 0.5;
+        const ny = T > 1 ? t / (T - 1) : 0.5;
+        const value = timeSeriesData[t][s]?.value || 0;
+        const nz = maxAbs > 0 ? (Math.abs(value) / maxAbs) * 0.6 : 0;
+
+        const pt = renderer.projectToScreen(nx, ny, nz);
+        if (!pt) continue;
+
+        const dx = pt.x - mx;
+        const dy = pt.y - my;
+        const dist = dx * dx + dy * dy;
+
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestStrike = strikes[s];
+          bestTime = T - t;
+          bestValue = value;
+          bestSx = pt.x;
+          bestSy = pt.y;
+        }
+      }
+    }
+
+    if (bestDist < 2500) {
+      setTooltip3D({ x: bestSx, y: bestSy, strike: bestStrike, time: bestTime, value: bestValue });
+    } else {
+      setTooltip3D(null);
+    }
+  }, [mode, gexData, timeSeriesData]);
+
+  const handleMouseLeave3D = useCallback(() => setTooltip3D(null), []);
+
   // Draw 2D mode
   useEffect(() => {
     if (mode === '2D') draw2D();
   }, [mode, draw2D]);
 
   return (
-    <div ref={containerRef} className="relative w-full" style={{ height }}>
+    <div ref={containerRef} className="relative w-full" style={{ height }}
+      onMouseMove={mode === '3D' ? handleMouseMove3D : undefined}
+      onMouseLeave={mode === '3D' ? handleMouseLeave3D : undefined}>
       {/* 2D Canvas (visible when mode=2D) */}
       <canvas
         ref={canvasRef}
@@ -470,6 +545,37 @@ export default function GEXHeatmap({
         className="absolute inset-0 w-full h-full pointer-events-none"
         style={{ display: mode === '3D' ? 'block' : 'none' }}
       />
+
+      {/* 3D hover tooltip */}
+      {mode === '3D' && tooltip3D && (
+        <div
+          className="absolute z-30 pointer-events-none animate-fadeIn"
+          style={{
+            left: tooltip3D.x + 14,
+            top: tooltip3D.y - 54,
+            background: 'rgba(10,10,20,0.92)',
+            border: `1px solid ${tooltip3D.value >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            borderRadius: 8,
+            padding: '6px 10px',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <div className="text-[10px] font-mono space-y-0.5">
+            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+              Strike: <span style={{ color: themeColors.spotColor }}>${tooltip3D.strike.toFixed(0)}</span>
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+              Time: <span style={{ color: '#a78bfa' }}>T-{tooltip3D.time}</span>
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+              {dataType === 'netGEX' ? 'GEX' : 'IV'}:{' '}
+              <span style={{ color: tooltip3D.value >= 0 ? themeColors.callColor : themeColors.putColor, fontWeight: 600 }}>
+                {tooltip3D.value >= 0 ? '+' : ''}{formatValue(tooltip3D.value)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

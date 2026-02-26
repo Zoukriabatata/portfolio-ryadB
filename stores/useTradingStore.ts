@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getSoundManager } from '@/lib/audio/SoundManager';
 import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
+import { useMarketStore } from '@/stores/useMarketStore';
 
 /**
  * TRADING STORE
@@ -93,11 +94,15 @@ interface TradingState {
   // Auto-journal: closed trades pending sync
   closedTrades: ClosedTrade[];
 
+  // Shared symbol — synced across /live and /footprint
+  tradingSymbol: string;
+
   // UI State
   showBrokerSelector: boolean;
   showTradeBar: boolean;
 
   // Actions
+  setTradingSymbol: (symbol: string) => void;
   setActiveBroker: (broker: BrokerType | null) => void;
   setCredentials: (broker: BrokerType, creds: BrokerCredentials | null) => void;
   connect: (broker: BrokerType) => Promise<boolean>;
@@ -191,6 +196,8 @@ export const useTradingStore = create<TradingState>()(
         demo: null,
       },
 
+      tradingSymbol: 'btcusdt',
+
       contractQuantity: 1,
       leverage: 10,
       quickOrderEnabled: true,
@@ -203,6 +210,7 @@ export const useTradingStore = create<TradingState>()(
       showBrokerSelector: false,
       showTradeBar: false,
 
+      setTradingSymbol: (symbol) => set({ tradingSymbol: symbol.toLowerCase() }),
       setActiveBroker: (broker) => set({ activeBroker: broker }),
 
       setCredentials: (broker, creds) => set((state) => ({
@@ -324,9 +332,10 @@ export const useTradingStore = create<TradingState>()(
 
         // Simulate order fill for demo
         if (state.activeBroker === 'demo') {
-          // For market orders, use marketPrice (latest real-time price) first
+          // Capture price at click time — NOT inside setTimeout which runs 50ms later
+          const clickTimePrice = orderData.marketPrice || useMarketStore.getState().currentPrice || orderData.price || 0;
           const fillPrice = orderData.type === 'market'
-            ? (orderData.marketPrice || orderData.price || 0)
+            ? clickTimePrice
             : (orderData.price || orderData.marketPrice || 0);
 
           setTimeout(() => {
@@ -488,7 +497,7 @@ export const useTradingStore = create<TradingState>()(
                 },
               };
             });
-          }, 200);
+          }, 50);
         }
 
         return order;
@@ -580,6 +589,7 @@ export const useTradingStore = create<TradingState>()(
       name: 'trading-store',
       partialize: (state) => ({
         activeBroker: state.activeBroker,
+        tradingSymbol: state.tradingSymbol,
         credentials: state.credentials,
         contractQuantity: state.contractQuantity,
         leverage: state.leverage,

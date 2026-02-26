@@ -57,6 +57,7 @@ export default function IVSurface3D({
   const animFrameRef = useRef<number>(0);
 
   const [dimensions, setDimensions] = useState({ width: 800, height });
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; strike: number; expiry: number; iv: number } | null>(null);
 
   const data = useMemo(() => surfaceData || generateSurfaceData(spotPrice || 450), [surfaceData, spotPrice]);
 
@@ -295,6 +296,75 @@ export default function IVSurface3D({
     });
   }, [data, strikes, expirations]);
 
+  // Build IV lookup for tooltip
+  const ivLookup = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const d of data) {
+      map.set(`${d.strike}_${d.expiration}`, d.iv);
+    }
+    return map;
+  }, [data]);
+
+  // Mouse hover → find nearest data point via screen projection
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const renderer = rendererRef.current;
+    if (!renderer) { setTooltip(null); return; }
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const S = strikes.length;
+    const E = expirations.length;
+
+    let bestDist = Infinity;
+    let bestStrike = 0;
+    let bestExpiry = 0;
+    let bestIV = 0;
+    let bestSx = 0;
+    let bestSy = 0;
+
+    // Precompute IV range
+    let minIV = Infinity, maxIV = -Infinity;
+    for (const d of data) { if (d.iv < minIV) minIV = d.iv; if (d.iv > maxIV) maxIV = d.iv; }
+    const ivRange = maxIV - minIV || 1;
+
+    // Check every grid point — project to screen and find closest to mouse
+    for (let si = 0; si < S; si++) {
+      for (let ei = 0; ei < E; ei++) {
+        const nx = S > 1 ? si / (S - 1) : 0.5;
+        const ny = E > 1 ? ei / (E - 1) : 0.5;
+        const iv = ivLookup.get(`${strikes[si]}_${expirations[ei]}`) || 0;
+        const nz = ((iv - minIV) / ivRange) * 0.6;
+
+        const pt = renderer.projectToScreen(nx, ny, nz);
+        if (!pt) continue;
+
+        const dx = pt.x - mx;
+        const dy = pt.y - my;
+        const dist = dx * dx + dy * dy;
+
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestStrike = strikes[si];
+          bestExpiry = expirations[ei];
+          bestIV = iv;
+          bestSx = pt.x;
+          bestSy = pt.y;
+        }
+      }
+    }
+
+    // Only show if within 40px of nearest point
+    if (bestDist < 1600) {
+      setTooltip({ x: bestSx, y: bestSy, strike: bestStrike, expiry: bestExpiry, iv: bestIV });
+    } else {
+      setTooltip(null);
+    }
+  }, [strikes, expirations, ivLookup, data]);
+
+  const handleMouseLeave = useCallback(() => setTooltip(null), []);
+
   // Keyboard presets
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -309,7 +379,8 @@ export default function IVSurface3D({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full" style={{ height }}>
+    <div ref={containerRef} className="relative w-full" style={{ height }}
+      onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       <canvas
         ref={webglCanvasRef}
         className="w-full h-full"
@@ -318,6 +389,33 @@ export default function IVSurface3D({
         ref={overlayCanvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none"
       />
+      {/* Hover tooltip */}
+      {tooltip && (
+        <div
+          className="absolute z-30 pointer-events-none animate-fadeIn"
+          style={{
+            left: tooltip.x + 12,
+            top: tooltip.y - 48,
+            background: 'rgba(10,10,20,0.92)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 8,
+            padding: '6px 10px',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <div className="text-[10px] font-mono space-y-0.5">
+            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+              Strike: <span style={{ color: 'var(--primary)' }}>${tooltip.strike.toFixed(0)}</span>
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+              Expiry: <span style={{ color: '#a78bfa' }}>{tooltip.expiry}d</span>
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+              IV: <span style={{ color: '#f59e0b', fontWeight: 600 }}>{(tooltip.iv * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

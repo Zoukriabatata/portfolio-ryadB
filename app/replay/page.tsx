@@ -45,7 +45,7 @@ export default function ReplayPage() {
       <div className="animate-slideInLeft" style={{ animationDuration: '300ms' }}>
         <SessionSidebar />
       </div>
-      <div className="flex-1 animate-slideUp" style={{ animationDuration: '400ms', animationDelay: '100ms', animationFillMode: 'both' }}>
+      <div className="flex-1 flex flex-col h-full min-h-0 animate-slideUp" style={{ animationDuration: '400ms', animationDelay: '100ms', animationFillMode: 'both' }}>
         <ReplayViewer />
       </div>
       <SessionInfoModal />

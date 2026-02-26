@@ -49,12 +49,13 @@ const LAYOUT_ICONS: Record<LayoutMode, React.ReactNode> = {
 };
 
 export default function LivePageContent() {
-  const [symbol, setSymbol] = useState('btcusdt');
+  const { showTradeBar, setShowTradeBar, tradingSymbol, setTradingSymbol } = useTradingStore();
+  const symbol = tradingSymbol;
+  const setSymbol = setTradingSymbol;
   const [showFutures, setShowFutures] = useState(true);
   const [futuresWidth, setFuturesWidth] = useState(240);
   const [layout, setLayout] = useState<LayoutMode>('1x1');
   const [showWatchlist, setShowWatchlist] = useState(true);
-  const { showTradeBar, setShowTradeBar } = useTradingStore();
   const [layoutKey, setLayoutKey] = useState(0);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);

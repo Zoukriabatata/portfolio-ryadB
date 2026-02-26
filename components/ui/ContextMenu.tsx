@@ -34,7 +34,7 @@ interface ContextMenuProps {
   theme?: 'senzoukria' | 'dark';
 }
 
-export function ContextMenu({ x, y, items, onClose, theme = 'senzoukria' }: ContextMenuProps) {
+export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [submenuId, setSubmenuId] = useState<string | null>(null);
   const [position, setPosition] = useState({ x, y });
@@ -117,30 +117,21 @@ export function ContextMenu({ x, y, items, onClose, theme = 'senzoukria' }: Cont
     };
   }, [onClose]);
 
-  const colors = theme === 'senzoukria'
-    ? {
-        bg: 'bg-[#0a0f0a]',
-        border: 'border-green-900/40',
-        hover: 'hover:bg-green-900/30',
-        text: 'text-green-100',
-        textMuted: 'text-green-400/60',
-        divider: 'border-green-900/30',
-        danger: 'text-red-400 hover:bg-red-900/30',
-      }
-    : {
-        bg: 'bg-zinc-900',
-        border: 'border-zinc-700',
-        hover: 'hover:bg-zinc-800',
-        text: 'text-zinc-100',
-        textMuted: 'text-zinc-500',
-        divider: 'border-zinc-700',
-        danger: 'text-red-400 hover:bg-red-900/30',
-      };
+  // Neutral dark theme for all modes — clean, professional
+  const colors = {
+    bg: 'bg-[#1a1d23]',
+    border: 'border-[#2a2d35]',
+    hover: 'hover:bg-[#24272f]',
+    text: 'text-[#d4d4d8]',
+    textMuted: 'text-[#71717a]',
+    divider: 'border-[#27272a]',
+    danger: 'text-red-400 hover:bg-red-900/20',
+  };
 
   return (
     <div
       ref={menuRef}
-      className={`fixed z-[100] min-w-[200px] ${colors.bg} border ${colors.border} rounded-lg shadow-2xl shadow-black/50 py-1 backdrop-blur-sm animate-context-menu`}
+      className={`fixed z-[100] min-w-[200px] ${colors.bg} border ${colors.border} rounded-lg shadow-2xl shadow-black/60 py-1 animate-context-menu`}
       style={{
         left: position.x,
         top: position.y,
@@ -169,7 +160,7 @@ export function ContextMenu({ x, y, items, onClose, theme = 'senzoukria' }: Cont
                 }
               }}
               disabled={item.disabled}
-              className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between gap-3 transition-colors
+              className={`w-full px-3 py-1.5 text-left text-[12px] flex items-center justify-between gap-3 transition-colors
                 ${item.disabled ? 'opacity-40 cursor-not-allowed' : ''}
                 ${item.danger ? colors.danger : `${colors.text} ${colors.hover}`}
               `}
@@ -193,7 +184,7 @@ export function ContextMenu({ x, y, items, onClose, theme = 'senzoukria' }: Cont
             {/* Submenu */}
             {hasChildren && submenuId === item.id && (
               <div
-                className={`absolute left-full top-0 ml-1 min-w-[180px] ${colors.bg} border ${colors.border} rounded-lg shadow-xl py-1 animate-context-menu`}
+                className={`absolute left-full top-0 ml-1 min-w-[180px] ${colors.bg} border ${colors.border} rounded-lg shadow-xl py-1`}
                 onMouseEnter={handleSubmenuMouseEnter}
                 onMouseLeave={handleSubmenuLeave}
               >
@@ -212,7 +203,7 @@ export function ContextMenu({ x, y, items, onClose, theme = 'senzoukria' }: Cont
                         }
                       }}
                       disabled={child.disabled}
-                      className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors
+                      className={`w-full px-3 py-1.5 text-left text-[12px] flex items-center gap-2 transition-colors
                         ${child.disabled ? 'opacity-40 cursor-not-allowed' : ''}
                         ${child.danger ? colors.danger : `${colors.text} ${colors.hover}`}
                       `}

@@ -256,6 +256,30 @@ html { scroll-behavior: smooth; }
 .animate-dropdown-in  { animation: dropdownIn 0.18s ease-out forwards; }
 .animate-dropdown-out { animation: dropdownOut 0.12s ease-in forwards; }
 
+/* Directional dropdown variants (contextual) */
+@keyframes dropdownInUp {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dropdownInRight {
+  from { opacity: 0; transform: translateX(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes dropdownInLeft {
+  from { opacity: 0; transform: translateX(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.animate-dropdown-up    { animation: dropdownInUp 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.animate-dropdown-right { animation: dropdownInRight 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.animate-dropdown-left  { animation: dropdownInLeft 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Context menu (appears from cursor position) */
+@keyframes contextMenuIn {
+  from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-context-menu { animation: contextMenuIn 0.15s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
 /* Slide panel (settings, drawers) */
 @keyframes panelSlideIn {
   from { transform: translateX(100%); }

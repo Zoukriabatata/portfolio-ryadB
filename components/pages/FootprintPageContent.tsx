@@ -25,11 +25,12 @@ const FuturesMetricsWidget = dynamic(
 );
 
 export default function FootprintPageContent() {
-  const [symbol, setSymbol] = useState('btcusdt');
+  const { showTradeBar, setShowTradeBar, tradingSymbol, setTradingSymbol } = useTradingStore();
+  const symbol = tradingSymbol;
+  const setSymbol = setTradingSymbol;
   const [showFutures, setShowFutures] = useState(true);
   const [futuresWidth, setFuturesWidth] = useState(240);
   const [showWatchlist, setShowWatchlist] = useState(true);
-  const { showTradeBar, setShowTradeBar } = useTradingStore();
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(240);

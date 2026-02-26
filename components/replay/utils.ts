@@ -39,12 +39,15 @@ export function formatDate(timestamp: number): string {
 
 // Speed multipliers: real-time fractions, standard multiples, and time-skip modes
 // Time-skip: e.g. 300 = 5 minutes of market time per 1 second of real time
-export const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4, 10, 15, 30, 60, 300, 900, 1800, 3600, 14400] as const;
+// Granular: 1s, 5s, 15s, 30s, 1m, 5m, 15m, 30m, 1H, 4H, 1D
+export const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4, 5, 10, 15, 30, 60, 300, 900, 1800, 3600, 14400, 86400] as const;
 
 // Human-readable labels for speed options
 export function getSpeedLabel(speed: number): string {
   if (speed < 1) return `${speed}x`;
-  if (speed <= 10) return `${speed}x`;
+  if (speed <= 4) return `${speed}x`;
+  if (speed === 5) return '5x';
+  if (speed === 10) return '10x';
   if (speed === 15) return '15s';
   if (speed === 30) return '30s';
   if (speed === 60) return '1m';
@@ -53,5 +56,13 @@ export function getSpeedLabel(speed: number): string {
   if (speed === 1800) return '30m';
   if (speed === 3600) return '1H';
   if (speed === 14400) return '4H';
+  if (speed === 86400) return '1D';
   return `${speed}x`;
 }
+
+// Speed option categories for grouped display
+export const SPEED_CATEGORIES = {
+  slowmo: [0.25, 0.5] as const,
+  realtime: [1, 2, 4, 5, 10] as const,
+  timeskip: [15, 30, 60, 300, 900, 1800, 3600, 14400, 86400] as const,
+};

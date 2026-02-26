@@ -9,7 +9,7 @@
  * Upgrade to MaxMind GeoIP2 ($50/year) for higher traffic
  */
 
-import { prisma } from '@/lib/db';
+import { prisma, isPrismaAvailable } from '@/lib/db';
 
 interface GeoLocation {
   country: string;
@@ -46,6 +46,11 @@ export async function detectImpossibleTravel(
   timeDiff?: number;
 }> {
   try {
+    // Skip DB check if prisma is unavailable (dev mode without DB)
+    if (!isPrismaAvailable()) {
+      return { suspicious: false };
+    }
+
     // Get last known location from recent session
     const lastSession = await prisma.session.findFirst({
       where: {

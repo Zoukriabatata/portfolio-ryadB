@@ -1,20 +1,35 @@
 'use client';
 
+import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useReplay } from '@/hooks/useReplay';
 import { useReplayUIStore } from '@/stores/useReplayUIStore';
+import { useTradingStore } from '@/stores/useTradingStore';
 import ReplayControlBar from './ReplayControlBar';
 import ReplayStatsOverlay from './ReplayStatsOverlay';
 import ReplayIdleState from './ReplayIdleState';
 import ReplayDashboard from './ReplayDashboard';
 import ReplayAnalyticsPanel from './ReplayAnalyticsPanel';
-import ReplayChartContainer from './ReplayChartContainer';
 import ReplayFinishedOverlay from './ReplayFinishedOverlay';
+import ReplayVolumeProfileOverlay from './ReplayVolumeProfileOverlay';
+import ReplayClusterOverlay from './ReplayClusterOverlay';
+import ReplayTradingChart from './ReplayTradingChart';
 
-const IBLiquidityView = dynamic(
-  () => import('@/components/charts/IBLiquidityView').then((m) => ({ default: m.IBLiquidityView })),
+const QuickTradeBar = dynamic(
+  () => import('@/components/trading/QuickTradeBar'),
   { ssr: false }
 );
+
+const TRADE_BAR_COLORS = {
+  surface: 'var(--surface)',
+  border: 'var(--border)',
+  text: 'var(--text-primary)',
+  textSecondary: 'var(--text-secondary)',
+  textMuted: 'var(--text-muted)',
+  success: 'var(--primary)',
+  error: '#ef4444',
+  background: 'var(--background)',
+};
 
 export default function ReplayViewer() {
   const {
@@ -33,8 +48,31 @@ export default function ReplayViewer() {
   const isActive = state.status !== 'idle';
   const duration = state.endTime - state.startTime;
 
+  // Auto-connect demo broker when replay is active for QuickTradeBar
+  useEffect(() => {
+    if (!isActive) return;
+    const store = useTradingStore.getState();
+    if (!store.connections?.demo?.connected) {
+      useTradingStore.setState({
+        activeBroker: 'demo',
+        connections: {
+          ...store.connections,
+          demo: {
+            broker: 'demo' as const,
+            connected: true,
+            connecting: false,
+            error: null,
+            balance: 100000,
+            currency: 'USD',
+            lastUpdate: Date.now(),
+          },
+        },
+      });
+    }
+  }, [isActive]);
+
   return (
-    <div className="flex-1 relative" style={{ background: 'var(--background)' }}>
+    <div className="flex-1 relative flex flex-col h-full min-h-0" style={{ background: 'var(--background)' }}>
       {/* Header bar */}
       <div
         className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 px-3 py-2"
@@ -69,6 +107,10 @@ export default function ReplayViewer() {
             <span className="text-xs font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
               {state.symbol}
             </span>
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold"
+              style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+              REPLAY
+            </span>
             <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>
               {state.status === 'playing' ? 'Playing' : state.status === 'paused' ? 'Paused' : state.status === 'loading' ? 'Loading...' : state.status === 'finished' ? 'Finished' : ''}
             </span>
@@ -92,11 +134,16 @@ export default function ReplayViewer() {
         </button>
       </div>
 
-      {/* Chart area with toolbar */}
+      {/* ═══ MAIN TRADING CHART ═══ */}
       {isActive ? (
-        <ReplayChartContainer symbol={state.symbol || 'ES'}>
-          <IBLiquidityView height={9999} ibSymbol={state.symbol || 'ES'} />
-        </ReplayChartContainer>
+        <div className="flex-1 relative min-h-0 pt-10">
+          <div className="absolute inset-0 pt-10">
+            <ReplayTradingChart
+              symbol={state.symbol || 'ES'}
+              isPlaying={state.status === 'playing'}
+            />
+          </div>
+        </div>
       ) : null}
 
       {/* Idle state — show dashboard if sessions exist, else idle prompt */}
@@ -118,6 +165,16 @@ export default function ReplayViewer() {
         </div>
       )}
 
+      {/* Volume Profile overlay */}
+      {isActive && state.status !== 'finished' && (
+        <ReplayVolumeProfileOverlay visible />
+      )}
+
+      {/* Cluster Static overlay */}
+      {isActive && state.status !== 'finished' && (
+        <ReplayClusterOverlay visible />
+      )}
+
       {/* Stats overlay */}
       {isActive && state.status !== 'finished' && (
         <ReplayStatsOverlay state={state} />
@@ -126,6 +183,16 @@ export default function ReplayViewer() {
       {/* Analytics panel */}
       {isActive && state.status !== 'finished' && (
         <ReplayAnalyticsPanel state={state} />
+      )}
+
+      {/* ═══ QUICK TRADE BAR ═══ */}
+      {isActive && state.status !== 'finished' && (
+        <div style={{ borderTop: '1px solid var(--border)' }}>
+          <QuickTradeBar
+            symbol={state.symbol || 'ES'}
+            colors={TRADE_BAR_COLORS}
+          />
+        </div>
       )}
 
       {/* Control bar */}

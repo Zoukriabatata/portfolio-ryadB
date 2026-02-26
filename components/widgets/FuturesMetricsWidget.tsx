@@ -59,6 +59,13 @@ export default function FuturesMetricsWidget() {
     ? 'text-[var(--bear)]'
     : 'text-[var(--text-muted)]';
 
+  // Basis = mark - index
+  const basis = markPrice > 0 && indexPrice > 0 ? markPrice - indexPrice : 0;
+  const basisPct = indexPrice > 0 ? (basis / indexPrice) * 100 : 0;
+
+  // Annualized funding rate (3 payments per day × 365)
+  const annualizedFunding = fundingRate * 3 * 365 * 100; // in %
+
   const longPct = globalLongAccount * 100;
   const shortPct = globalShortAccount * 100;
 
@@ -143,6 +150,23 @@ export default function FuturesMetricsWidget() {
         </p>
       </div>
 
+      {/* Basis */}
+      {basis !== 0 && (
+        <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--text-muted)]">Basis</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`font-mono text-[10px] ${basisPct >= 0 ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}`}>
+                {basisPct >= 0 ? '+' : ''}{basisPct.toFixed(4)}%
+              </span>
+              <span className={`font-mono font-medium ${basisPct >= 0 ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}`}>
+                {basis >= 0 ? '+' : ''}{fmtPrice(basis)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Funding Rate */}
       <div className="bg-[var(--surface-elevated)]/50 rounded-lg p-2.5">
         <div className="flex items-center justify-between">
@@ -170,6 +194,15 @@ export default function FuturesMetricsWidget() {
           <span className="text-[var(--text-dimmed)] text-[10px]">Next Funding</span>
           <span className="font-mono text-[var(--text-secondary)] text-[10px]">{fundingCountdown}</span>
         </div>
+        {/* Annualized rate */}
+        {fundingRate !== 0 && (
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[var(--text-dimmed)] text-[10px]">Annualized</span>
+            <span className={`font-mono text-[10px] ${annualizedFunding >= 0 ? 'text-[var(--bull)]' : 'text-[var(--bear)]'}`}>
+              {annualizedFunding >= 0 ? '+' : ''}{annualizedFunding.toFixed(1)}%
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Open Interest */}
@@ -303,6 +336,31 @@ export default function FuturesMetricsWidget() {
             </p>
           </div>
         </div>
+        {/* Recent liquidation events */}
+        {liquidations.length > 0 && (
+          <div className="mt-2 space-y-0.5 max-h-28 overflow-y-auto custom-scrollbar">
+            {liquidations.slice(-5).reverse().map((liq, i) => {
+              const isShortLiq = liq.side === 'BUY';
+              const timeStr = new Date(liq.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              return (
+                <div key={`${liq.time}-${i}`}
+                  className="flex items-center gap-1 text-[10px] py-0.5 px-1 rounded"
+                  style={{ background: i === 0 ? (isShortLiq ? 'rgba(var(--bull-rgb), 0.06)' : 'rgba(var(--bear-rgb), 0.06)') : 'transparent' }}>
+                  <span className={isShortLiq ? 'text-[var(--bull)]' : 'text-[var(--bear)]'} style={{ fontWeight: 600 }}>
+                    {isShortLiq ? 'SHORT' : 'LONG'}
+                  </span>
+                  <span className="font-mono text-[var(--text-secondary)] flex-1">
+                    {formatLargeNumber(liq.quantity * liq.averagePrice)}
+                  </span>
+                  <span className="font-mono text-[var(--text-dimmed)]">
+                    @{fmtPrice(liq.averagePrice)}
+                  </span>
+                  <span className="text-[var(--text-dimmed)]">{timeStr}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

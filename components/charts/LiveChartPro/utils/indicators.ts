@@ -1,3 +1,5 @@
+import type { IndicatorLineStyle, IndicatorSource } from '@/types/charts';
+
 export function computeSMA(values: number[], period: number): number[] {
   const result: number[] = [];
   for (let i = 0; i < values.length; i++) {
@@ -21,6 +23,34 @@ export function computeEMA(values: number[], period: number): number[] {
   return result;
 }
 
+/**
+ * Extract source prices from candles based on source type
+ */
+export function getSourceValues(
+  candles: { open: number; high: number; low: number; close: number }[],
+  source: IndicatorSource = 'close'
+): number[] {
+  switch (source) {
+    case 'open': return candles.map(c => c.open);
+    case 'high': return candles.map(c => c.high);
+    case 'low': return candles.map(c => c.low);
+    case 'hl2': return candles.map(c => (c.high + c.low) / 2);
+    case 'hlc3': return candles.map(c => (c.high + c.low + c.close) / 3);
+    case 'ohlc4': return candles.map(c => (c.open + c.high + c.low + c.close) / 4);
+    case 'close':
+    default: return candles.map(c => c.close);
+  }
+}
+
+/**
+ * Convert lineStyle string to canvas dash pattern
+ */
+export function lineStyleToDash(style?: IndicatorLineStyle): number[] {
+  if (style === 'dashed') return [6, 4];
+  if (style === 'dotted') return [2, 3];
+  return [];
+}
+
 export function drawIndicatorLine(
   ctx: CanvasRenderingContext2D,
   values: number[],
@@ -34,6 +64,7 @@ export function drawIndicatorLine(
   color: string,
   lineWidth: number,
   dash?: number[],
+  opacity?: number,
 ) {
   const priceRange = priceMax - priceMin;
   if (priceRange <= 0) return;
@@ -41,8 +72,8 @@ export function drawIndicatorLine(
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
-  ctx.globalAlpha = 0.85;
-  if (dash) ctx.setLineDash(dash);
+  ctx.globalAlpha = opacity ?? 0.85;
+  if (dash && dash.length > 0) ctx.setLineDash(dash);
   ctx.beginPath();
 
   let started = false;

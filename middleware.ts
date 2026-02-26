@@ -149,6 +149,11 @@ const PUBLIC_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // DEV MODE: Skip all auth in development when DB is not configured
+  if (process.env.NODE_ENV === 'development' && process.env.SKIP_AUTH === '1') {
+    return NextResponse.next();
+  }
+
   // ─── EMERGENCY: Strip bloated session cookies that cause 494 ─────
   // NextAuth chunks large JWTs into .0, .1, .2 etc. If the cookie header
   // is too large, strip all session cookies and force re-login.

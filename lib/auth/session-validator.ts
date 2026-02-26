@@ -9,7 +9,7 @@
  * Uses in-memory tracking (lightweight) + database persistence
  */
 
-import { prisma } from '@/lib/db';
+import { prisma, isPrismaAvailable } from '@/lib/db';
 import { sendEmail } from '@/lib/auth/email-verification';
 
 interface SessionActivity {
@@ -100,10 +100,10 @@ export async function detectConcurrentSession(
   ).size;
 
   // Get user's subscription tier to check max sessions
-  const user = await prisma.user.findUnique({
+  const user = isPrismaAvailable() ? await prisma.user.findUnique({
     where: { id: userId },
     select: { subscriptionTier: true },
-  });
+  }) : null;
 
   // Max concurrent sessions: FREE=1, ULTRA=2
   const maxSessions = user?.subscriptionTier === 'ULTRA' ? 2 : 1;
@@ -176,6 +176,10 @@ async function logSecurityEvent(
   data: any
 ): Promise<void> {
   try {
+    if (!isPrismaAvailable()) {
+      console.warn('🚨 Security event (no DB):', { userId, event, data });
+      return;
+    }
     // Try to insert security event
     // If SecurityEvent table doesn't exist yet, just log to console
     await prisma.$executeRawUnsafe(`
@@ -199,6 +203,7 @@ async function logSecurityEvent(
  * Expires the session token so it can't be used anymore.
  */
 async function invalidateSession(sessionId: string): Promise<void> {
+  if (!isPrismaAvailable()) return;
   try {
     await prisma.session.update({
       where: { token: sessionId },
@@ -220,6 +225,7 @@ async function updateSessionInDB(
   sessionId: string,
   currentIp: string
 ): Promise<void> {
+  if (!isPrismaAvailable()) return;
   await prisma.session.update({
     where: { token: sessionId },
     data: {
@@ -375,6 +381,7 @@ function getSecurityAlertEmail(data: {
  * Helper function to check how many concurrent sessions exist.
  */
 export async function getActiveSessionCount(userId: string): Promise<number> {
+  if (!isPrismaAvailable()) return 0;
   const count = await prisma.session.count({
     where: {
       userId,
@@ -391,6 +398,7 @@ export async function getActiveSessionCount(userId: string): Promise<number> {
  * Useful for security incidents or password changes.
  */
 export async function invalidateAllSessions(userId: string): Promise<void> {
+  if (!isPrismaAvailable()) return;
   await prisma.session.updateMany({
     where: { userId },
     data: {

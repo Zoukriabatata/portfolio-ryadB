@@ -13,7 +13,7 @@ import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import { useAlertsStore, type PriceAlert } from '@/stores/useAlertsStore';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
-import { computeSMA, computeEMA, drawIndicatorLine } from '../utils/indicators';
+import { computeSMA, computeEMA, drawIndicatorLine, getSourceValues, lineStyleToDash } from '../utils/indicators';
 import { TOOL_TYPE_MAPPING } from '../constants/tools';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
@@ -230,14 +230,26 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
 
     // Draw position lines — solid gray 2px with single centered P&L badge
     const symbolUpper = symbol.toUpperCase();
+    const nowMs = Date.now();
     const openPositions = positionsRef.current.filter(p => p.symbol === symbolUpper);
     for (const pos of openPositions) {
       const y = renderContext.priceToY(pos.entryPrice);
       if (y < -50 || y > chartHeight + 50) continue;
 
       const pnlColor = pos.pnl >= 0 ? '#10b981' : '#ef4444';
+      const age = nowMs - (pos.openedAt || 0);
+      const isNew = age < 1500; // Flash effect for 1.5s
+      const flashAlpha = isNew ? 0.15 * (1 - age / 1500) : 0;
 
       ctx.save();
+
+      // Flash background glow on new positions
+      if (isNew) {
+        ctx.globalAlpha = flashAlpha;
+        ctx.fillStyle = pos.side === 'buy' ? '#10b981' : '#ef4444';
+        ctx.fillRect(0, y - 12, chartWidth, 24);
+        ctx.globalAlpha = 1;
+      }
 
       // Solid gray line, 2px
       ctx.strokeStyle = '#9ca3af';
@@ -261,8 +273,8 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
       const badgeY = y - badgeH / 2;
 
       ctx.fillStyle = '#1a1a2e';
-      ctx.strokeStyle = pnlColor + '90';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = pnlColor + 'B0';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
       ctx.fill();
@@ -394,7 +406,8 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
 
         // Value Area (70% of total volume)
         const totalVol = buckets.reduce((s, b) => s + b.total, 0);
-        const targetVA = totalVol * 0.7;
+        const vaPercent = (indicator.params.vaPercent || 70) / 100;
+        const targetVA = totalVol * vaPercent;
         let vaVol = buckets[pocIdx].total;
         let vaLow = pocIdx, vaHigh = pocIdx;
         while (vaVol < targetVA && (vaLow > 0 || vaHigh < buckets.length - 1)) {
@@ -405,9 +418,11 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           else break;
         }
 
-        // Draw bars from right side
-        const maxBarWidth = chartWidth * 0.25; // max 25% of chart width
+        // Draw bars (left or right side based on position setting)
+        const vpPosition = indicator.style.position || 'right';
+        const maxBarWidth = chartWidth * 0.25;
         const barH = Math.max(1, (bucketSize / (priceMax - priceMin)) * chartHeight - 1);
+        const vpOpacity = indicator.style.fillOpacity ?? 1;
 
         ctx.save();
         for (let i = 0; i < buckets.length; i++) {
@@ -419,22 +434,24 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           const isPOC = i === pocIdx;
 
           if (isPOC) {
-            ctx.globalAlpha = 0.7;
+            ctx.globalAlpha = 0.7 * vpOpacity;
             ctx.fillStyle = 'rgba(245, 158, 11, 0.6)';
           } else if (inVA) {
-            ctx.globalAlpha = 0.5;
+            ctx.globalAlpha = 0.5 * vpOpacity;
             ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
           } else {
-            ctx.globalAlpha = 0.35;
+            ctx.globalAlpha = 0.35 * vpOpacity;
             ctx.fillStyle = 'rgba(156, 163, 175, 0.3)';
           }
-          ctx.fillRect(chartWidth - barW, y, barW, barH);
+          const barX = vpPosition === 'left' ? 0 : chartWidth - barW;
+          ctx.fillRect(barX, y, barW, barH);
 
-          // Delta color on left edge
+          // Delta color on edge
           const deltaW = Math.min(3, barW * 0.15);
-          ctx.globalAlpha = 0.8;
+          ctx.globalAlpha = 0.8 * vpOpacity;
           ctx.fillStyle = b.buyVol >= b.sellVol ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)';
-          ctx.fillRect(chartWidth - barW, y, deltaW, barH);
+          const deltaX = vpPosition === 'left' ? barW - deltaW : chartWidth - barW;
+          ctx.fillRect(deltaX, y, deltaW, barH);
         }
 
         // POC dashed line
@@ -475,42 +492,94 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
       }
 
       // --- Line indicators (SMA, EMA, Bollinger, VWAP, TWAP) ---
-      const closes = candles.map(c => c.close);
+      const source = indicator.style.source || 'close';
+      const srcValues = getSourceValues(candles as { open: number; high: number; low: number; close: number }[], source);
       let values: number[] = [];
       let upperBand: number[] | null = null;
       let lowerBand: number[] | null = null;
 
       const period = indicator.params.period || 20;
+      const dash = lineStyleToDash(indicator.style.lineStyle);
+      const opacity = indicator.style.opacity ?? 0.85;
 
       if (indicator.type === 'SMA') {
-        values = computeSMA(closes, period);
+        values = computeSMA(srcValues, period);
       } else if (indicator.type === 'EMA') {
-        values = computeEMA(closes, period);
+        values = computeEMA(srcValues, period);
       } else if (indicator.type === 'BollingerBands') {
         const stdDev = indicator.params.stdDev || 2;
-        const sma = computeSMA(closes, period);
+        const sma = computeSMA(srcValues, period);
         values = sma;
         upperBand = sma.map((v, i) => {
           if (v === 0) return 0;
-          const slice = closes.slice(Math.max(0, i - period + 1), i + 1);
+          const slice = srcValues.slice(Math.max(0, i - period + 1), i + 1);
           const std = Math.sqrt(slice.reduce((s, x) => s + (x - v) ** 2, 0) / slice.length);
           return v + std * stdDev;
         });
         lowerBand = sma.map((v, i) => {
           if (v === 0) return 0;
-          const slice = closes.slice(Math.max(0, i - period + 1), i + 1);
+          const slice = srcValues.slice(Math.max(0, i - period + 1), i + 1);
           const std = Math.sqrt(slice.reduce((s, x) => s + (x - v) ** 2, 0) / slice.length);
           return v - std * stdDev;
         });
       } else if (indicator.type === 'VWAP') {
-        let cumTPV = 0, cumVol = 0;
-        values = candles.map(c => {
+        // VWAP + optional standard deviation bands
+        let cumTPV = 0, cumVol = 0, cumTP2V = 0;
+        const vwapValues: number[] = [];
+        const stdDevValues: number[] = [];
+        for (let i = 0; i < candles.length; i++) {
+          const c = candles[i];
           const tp = (c.high + c.low + c.close) / 3;
           const vol = c.volume || 1;
           cumTPV += tp * vol;
           cumVol += vol;
-          return cumVol > 0 ? cumTPV / cumVol : 0;
-        });
+          cumTP2V += tp * tp * vol;
+          const vwap = cumVol > 0 ? cumTPV / cumVol : 0;
+          vwapValues.push(vwap);
+          const variance = cumVol > 0 ? (cumTP2V / cumVol) - (vwap * vwap) : 0;
+          stdDevValues.push(Math.sqrt(Math.max(0, variance)));
+        }
+        values = vwapValues;
+
+        // Draw VWAP deviation bands if enabled
+        const showBands1 = indicator.params.showBand1 === 1;
+        const showBands2 = indicator.params.showBand2 === 1;
+        const showBands3 = indicator.params.showBand3 === 1;
+        if (showBands1 || showBands2 || showBands3) {
+          const bandSets = [
+            { show: showBands1, mult: 1, alpha: 0.12 },
+            { show: showBands2, mult: 2, alpha: 0.08 },
+            { show: showBands3, mult: 3, alpha: 0.05 },
+          ];
+          for (const band of bandSets) {
+            if (!band.show) continue;
+            const upper = vwapValues.map((v, i) => v > 0 ? v + stdDevValues[i] * band.mult : 0);
+            const lower = vwapValues.map((v, i) => v > 0 ? v - stdDevValues[i] * band.mult : 0);
+            drawIndicatorLine(ctx, upper, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 0.5, [3, 3], opacity * 0.5);
+            drawIndicatorLine(ctx, lower, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 0.5, [3, 3], opacity * 0.5);
+            // Fill between bands
+            ctx.save();
+            ctx.globalAlpha = band.alpha;
+            ctx.fillStyle = indicator.style.color;
+            ctx.beginPath();
+            let s = false;
+            for (let i = startIndex; i < Math.min(endIndex, upper.length); i++) {
+              if (upper[i] === 0) continue;
+              const x = ((i - startIndex) / (endIndex - startIndex)) * chartWidth;
+              const y = ((priceMax - upper[i]) / (priceMax - priceMin)) * chartHeight;
+              if (!s) { ctx.moveTo(x, y); s = true; } else ctx.lineTo(x, y);
+            }
+            for (let i = Math.min(endIndex, lower.length) - 1; i >= startIndex; i--) {
+              if (lower[i] === 0) continue;
+              const x = ((i - startIndex) / (endIndex - startIndex)) * chartWidth;
+              const y = ((priceMax - lower[i]) / (priceMax - priceMin)) * chartHeight;
+              ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+        }
       } else if (indicator.type === 'TWAP') {
         let cumTP = 0;
         values = candles.map((c, i) => {
@@ -524,11 +593,38 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
 
       if (values.length === 0) continue;
 
-      drawIndicatorLine(ctx, values, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, indicator.style.lineWidth);
+      drawIndicatorLine(ctx, values, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, indicator.style.lineWidth, dash, opacity);
+
+      // Show label at the last visible value
+      if (indicator.style.showLabel !== false && values.length > 0) {
+        const lastIdx = Math.min(endIndex - 1, values.length - 1);
+        if (lastIdx >= 0 && values[lastIdx] > 0) {
+          const lx = ((lastIdx - startIndex) / (endIndex - startIndex)) * chartWidth;
+          const ly = ((priceMax - values[lastIdx]) / (priceMax - priceMin)) * chartHeight;
+          if (lx > 0 && lx < chartWidth && ly > 0 && ly < chartHeight) {
+            const labelText = indicator.type === 'SMA' || indicator.type === 'EMA'
+              ? `${indicator.type}${indicator.params.period || 20}`
+              : indicator.type;
+            ctx.save();
+            ctx.font = 'bold 9px sans-serif';
+            const tw = ctx.measureText(labelText).width;
+            ctx.globalAlpha = 0.75;
+            ctx.fillStyle = '#0d0f13';
+            ctx.fillRect(lx + 4, ly - 6, tw + 6, 12);
+            ctx.globalAlpha = opacity;
+            ctx.fillStyle = indicator.style.color;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(labelText, lx + 7, ly);
+            ctx.restore();
+          }
+        }
+      }
 
       if (upperBand && lowerBand) {
+        const bbFill = indicator.style.fillOpacity ?? 0.05;
         ctx.save();
-        ctx.globalAlpha = 0.05;
+        ctx.globalAlpha = bbFill;
         ctx.fillStyle = indicator.style.color;
         ctx.beginPath();
         let started = false;
@@ -548,8 +644,8 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
         ctx.fill();
         ctx.restore();
 
-        drawIndicatorLine(ctx, upperBand, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 1, [4, 3]);
-        drawIndicatorLine(ctx, lowerBand, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 1, [4, 3]);
+        drawIndicatorLine(ctx, upperBand, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 1, [4, 3], opacity * 0.6);
+        drawIndicatorLine(ctx, lowerBand, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 1, [4, 3], opacity * 0.6);
       }
     }
 

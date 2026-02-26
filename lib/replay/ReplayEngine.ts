@@ -21,6 +21,8 @@ import {
   type RecordedDepthSnapshot,
   type RecordingSession,
 } from './ReplayRecorder';
+import { ReplayVolumeProfile, type VolumeProfileData } from './indicators/ReplayVolumeProfile';
+import { ReplayClusterMap, type ClusterMapData } from './indicators/ReplayClusterMap';
 
 // Generic contract specs for crypto symbols (cast as CMEContractSpec for adapter compatibility)
 const CRYPTO_CONTRACTS: Record<string, CMEContractSpec> = {
@@ -78,6 +80,8 @@ export class ReplayEngine {
   // Adapters (same ones used for live IB data)
   private heatmapAdapter: IBHeatmapAdapter;
   private footprintAdapter: IBFootprintAdapter;
+  private volumeProfile: ReplayVolumeProfile;
+  private clusterMap: ReplayClusterMap;
 
   // Recorded data
   private trades: RecordedTrade[] = [];
@@ -110,6 +114,8 @@ export class ReplayEngine {
   private constructor() {
     this.heatmapAdapter = new IBHeatmapAdapter({ maxSnapshots: 500 });
     this.footprintAdapter = new IBFootprintAdapter();
+    this.volumeProfile = new ReplayVolumeProfile();
+    this.clusterMap = new ReplayClusterMap();
   }
 
   static getInstance(): ReplayEngine {
@@ -157,6 +163,10 @@ export class ReplayEngine {
     const contract = getContractForSymbol(session.symbol);
     this.heatmapAdapter.setContract(contract);
     this.footprintAdapter.setContract(contract);
+    this.volumeProfile.reset();
+    this.volumeProfile = new ReplayVolumeProfile(contract.tickSize);
+    this.clusterMap.reset();
+    this.clusterMap = new ReplayClusterMap(60_000, contract.tickSize);
 
     const startTime = Math.min(
       trades[0]?.timestamp || Infinity,
@@ -217,6 +227,8 @@ export class ReplayEngine {
     this.depthSnapshots = [];
     this.heatmapAdapter.reset();
     this.footprintAdapter.reset();
+    this.volumeProfile.reset();
+    this.clusterMap.reset();
     this.updateState({
       status: 'idle',
       sessionId: null,
@@ -243,6 +255,8 @@ export class ReplayEngine {
     // Reset adapters
     this.heatmapAdapter.reset();
     this.footprintAdapter.reset();
+    this.volumeProfile.reset();
+    this.clusterMap.reset();
 
     // Find new indices
     let tradeIdx = 0;
@@ -252,6 +266,8 @@ export class ReplayEngine {
     // For trades, feed them all to build the footprint state
     while (tradeIdx < this.trades.length && this.trades[tradeIdx].timestamp <= targetTime) {
       const t = this.trades[tradeIdx];
+      this.volumeProfile.addTrade(t.price, t.size, t.side);
+      this.clusterMap.addTrade(t.price, t.size, t.side, t.timestamp);
       this.heatmapAdapter.feedTrade({
         price: t.price,
         size: t.size,
@@ -299,7 +315,7 @@ export class ReplayEngine {
    * Set playback speed (0.25x to 10x).
    */
   setSpeed(speed: number): void {
-    this.updateState({ speed: Math.max(0.25, Math.min(14400, speed)) });
+    this.updateState({ speed: Math.max(0.25, Math.min(86400, speed)) });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -316,6 +332,14 @@ export class ReplayEngine {
 
   getCurrentPrice(): number {
     return this.heatmapAdapter.getCurrentPrice();
+  }
+
+  getVolumeProfile(): VolumeProfileData {
+    return this.volumeProfile.getProfile();
+  }
+
+  getClusterMap(maxColumns?: number): ClusterMapData {
+    return this.clusterMap.getData(maxColumns);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -352,6 +376,8 @@ export class ReplayEngine {
     let tradeFed = this.state.tradeFedCount;
     while (tradeIdx < this.trades.length && this.trades[tradeIdx].timestamp <= newTime) {
       const t = this.trades[tradeIdx];
+      this.volumeProfile.addTrade(t.price, t.size, t.side);
+      this.clusterMap.addTrade(t.price, t.size, t.side, t.timestamp);
       this.heatmapAdapter.feedTrade({
         price: t.price,
         size: t.size,

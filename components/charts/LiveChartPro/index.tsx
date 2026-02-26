@@ -34,6 +34,7 @@ import ZoomControls from './components/ZoomControls';
 import AlertNotifications from './components/AlertNotifications';
 import ChartFooter from './components/ChartFooter';
 import MagnetToggle from './components/MagnetToggle';
+import IndicatorSettingsPanel from '@/components/settings/IndicatorSettingsPanel';
 import { useChartEngine, useSymbolData, useChartSettings, useDrawingTools, useContextMenu } from './hooks';
 import { DEFAULT_CUSTOM_COLORS, type SharedRefs, type CustomColors } from './hooks/types';
 import { BroadcastChannelManager } from '@/lib/sync/BroadcastChannelManager';
@@ -238,6 +239,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showToolProperties, setShowToolProperties] = useState(false);
   const [customColors, setCustomColors] = useState<CustomColors>(DEFAULT_CUSTOM_COLORS);
+  const [editingIndicatorId, setEditingIndicatorId] = useState<string | null>(null);
 
   // === STORE HOOKS ===
   const { themeId, setTheme, getTheme } = useThemeStore();
@@ -292,6 +294,13 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
     setShowAdvancedSettings: settings.setShowAdvancedSettings,
     setShowSaveTemplateModal: settings.setShowSaveTemplateModal,
   });
+
+  // Sync timeframe to chart engine for countdown rendering
+  useEffect(() => {
+    if (refs.chartEngine.current) {
+      refs.chartEngine.current.setTimeframeSeconds(symbolData.timeframe);
+    }
+  }, [refs, symbolData.timeframe]);
 
   // Keep trading ref in sync
   tradingRef.current = { activeBroker, connections, placeOrder, closePosition, contractQuantity, symbol: symbolData.symbol, showTradeBar };
@@ -573,9 +582,14 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
             {indicatorConfigs.filter(i => i.enabled).length > 0 && (
               <div className="hidden lg:flex items-center gap-0.5">
                 {indicatorConfigs.filter(i => i.enabled).map(ind => (
-                  <span key={ind.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: ind.style.color + '22', color: ind.style.color }}>
+                  <button
+                    key={ind.id}
+                    onClick={() => setEditingIndicatorId(editingIndicatorId === ind.id ? null : ind.id)}
+                    className="px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-all hover:brightness-125"
+                    style={{ backgroundColor: ind.style.color + '22', color: ind.style.color }}
+                  >
                     {ind.type}{ind.params.period ? `(${ind.params.period})` : ''}
-                  </span>
+                  </button>
                 ))}
               </div>
             )}
@@ -607,13 +621,17 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           <div className="flex items-center gap-1 pl-2.5 ml-auto">
             <MagnetToggle theme={theme} />
 
+            {/* Chart Settings — opens AdvancedChartSettings */}
             <button
-              onClick={() => settings.setShowCustomizePanel(!settings.showCustomizePanel)}
-              data-tooltip="Customize Colors"
-              className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95"
-              style={{ backgroundColor: settings.showCustomizePanel ? theme.colors.toolActive : 'transparent', color: settings.showCustomizePanel ? '#fff' : theme.colors.textSecondary }}
+              onClick={settings.openAdvancedSettings}
+              data-tooltip="Chart Settings"
+              className="w-7 h-7 flex items-center justify-center rounded transition-colors"
+              style={{ backgroundColor: settings.showAdvancedSettings ? theme.colors.toolActive : 'transparent', color: settings.showAdvancedSettings ? '#fff' : theme.colors.textSecondary }}
             >
-              <SettingsIcon size={14} color={settings.showCustomizePanel ? '#fff' : theme.colors.textSecondary} />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+              </svg>
             </button>
 
             {/* Indicators Toggle */}
@@ -634,11 +652,23 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                     {indicatorConfigs.map(ind => {
                       const label = ind.type === 'SMA' || ind.type === 'EMA' ? `${ind.type} ${ind.params.period}` : ind.type === 'BollingerBands' ? 'Bollinger Bands' : ind.type;
                       return (
-                        <button key={ind.id} onClick={() => toggleIndicatorConfig(ind.id)} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-white/5" style={{ color: ind.enabled ? theme.colors.text : theme.colors.textMuted }}>
-                          <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: ind.enabled ? ind.style.color : 'transparent', borderColor: ind.style.color }} />
-                          <span className="font-medium">{label}</span>
-                          {ind.enabled && <span className="ml-auto text-[10px]" style={{ color: theme.colors.textMuted }}>ON</span>}
-                        </button>
+                        <div key={ind.id} className="flex items-center hover:bg-white/5 transition-colors">
+                          <button onClick={() => toggleIndicatorConfig(ind.id)} className="flex-1 flex items-center gap-2 px-3 py-1.5 text-xs" style={{ color: ind.enabled ? theme.colors.text : theme.colors.textMuted }}>
+                            <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: ind.enabled ? ind.style.color : 'transparent', borderColor: ind.style.color }} />
+                            <span className="font-medium">{label}</span>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowIndicatorMenu(false); setEditingIndicatorId(ind.id); }}
+                            className="w-6 h-6 flex items-center justify-center rounded transition-colors hover:bg-white/10 mr-1"
+                            style={{ color: theme.colors.textMuted }}
+                            title="Settings"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <circle cx="12" cy="12" r="3" />
+                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -889,6 +919,14 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
         onCandleChange={settings.handleCandleChange}
         onBackgroundChange={settings.handleBackgroundChange}
       />
+
+      {editingIndicatorId && (
+        <IndicatorSettingsPanel
+          indicatorId={editingIndicatorId}
+          onClose={() => setEditingIndicatorId(null)}
+          position={{ x: 300, y: 200 }}
+        />
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes alertIn {

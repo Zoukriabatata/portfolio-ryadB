@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTradingStore, BROKER_INFO, type OrderType } from '@/stores/useTradingStore';
 import { useFuturesStore } from '@/stores/useFuturesStore';
 import { useMarketStore } from '@/stores/useMarketStore';
+import DemoAccountPanel from './DemoAccountPanel';
 
 function getTickSize(symbol: string): { tick: number; decimals: number } {
   const s = symbol.toUpperCase();
@@ -19,6 +20,8 @@ function getTickSize(symbol: string): { tick: number; decimals: number } {
   if (s.includes('GC')) return { tick: 0.10, decimals: 2 };
   return { tick: 0.01, decimals: 2 };
 }
+
+type RRPreset = '1:1' | '1:2' | '1:3' | 'off';
 
 interface QuickTradeBarProps {
   symbol: string;
@@ -58,12 +61,28 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   const [stopPrice, setStopPrice] = useState('');
   const [lastAction, setLastAction] = useState<{ side: 'buy' | 'sell'; time: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDemoPanel, setShowDemoPanel] = useState(false);
+
+  // Bracket order state (TP + SL)
+  const [bracketEnabled, setBracketEnabled] = useState(false);
+  const [rrPreset, setRrPreset] = useState<RRPreset>('off');
+  const [tpOffset, setTpOffset] = useState(''); // offset from entry in price units
+  const [slOffset, setSlOffset] = useState(''); // offset from entry in price units
 
   const lastActionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => { if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current); };
   }, []);
+
+  // Auto-calculate TP/SL when R:R preset changes
+  useEffect(() => {
+    if (rrPreset === 'off') return;
+    const sl = parseFloat(slOffset);
+    if (!sl || sl <= 0) return;
+    const ratio = rrPreset === '1:1' ? 1 : rrPreset === '1:2' ? 2 : 3;
+    setTpOffset((sl * ratio).toFixed(decimals));
+  }, [rrPreset, slOffset, decimals]);
 
   const isConnected = activeBroker && connections[activeBroker]?.connected;
   const currentPrice = marketPrice || markPrice || 0;
@@ -81,6 +100,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
     setIsSubmitting(true);
     try {
+      // Place main order
       await placeOrder({
         broker: activeBroker,
         symbol: symbol.toUpperCase(),
@@ -92,6 +112,42 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         marketPrice: currentPrice,
       });
 
+      // Place bracket orders (TP + SL) if enabled
+      if (bracketEnabled) {
+        const tp = parseFloat(tpOffset);
+        const sl = parseFloat(slOffset);
+        const entryPrice = (orderType === 'limit' || orderType === 'stop_limit') ? price : currentPrice;
+        const oppositeSide = side === 'buy' ? 'sell' : 'buy';
+
+        // TP order (limit on opposite side)
+        if (tp > 0) {
+          const tpPrice = side === 'buy' ? entryPrice + tp : entryPrice - tp;
+          await placeOrder({
+            broker: activeBroker,
+            symbol: symbol.toUpperCase(),
+            side: oppositeSide,
+            type: 'limit',
+            quantity: contractQuantity,
+            price: parseFloat(tpPrice.toFixed(decimals)),
+            marketPrice: currentPrice,
+          });
+        }
+
+        // SL order (stop on opposite side)
+        if (sl > 0) {
+          const slPrice = side === 'buy' ? entryPrice - sl : entryPrice + sl;
+          await placeOrder({
+            broker: activeBroker,
+            symbol: symbol.toUpperCase(),
+            side: oppositeSide,
+            type: 'stop',
+            quantity: contractQuantity,
+            stopPrice: parseFloat(slPrice.toFixed(decimals)),
+            marketPrice: currentPrice,
+          });
+        }
+      }
+
       setLastAction({ side, time: Date.now() });
       if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current);
       lastActionTimerRef.current = setTimeout(() => setLastAction(null), 800);
@@ -100,7 +156,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [activeBroker, isConnected, isSubmitting, orderType, limitPrice, stopPrice, currentPrice, contractQuantity, symbol, placeOrder]);
+  }, [activeBroker, isConnected, isSubmitting, orderType, limitPrice, stopPrice, currentPrice, contractQuantity, symbol, placeOrder, bracketEnabled, tpOffset, slOffset, decimals]);
 
   const handleFlatten = useCallback(async () => {
     if (!activeBroker || !isConnected) return;
@@ -146,24 +202,37 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         case 's': e.preventDefault(); handleTrade('sell'); break;
         case 'x': e.preventDefault(); handleFlatten(); break;
         case 'f': e.preventDefault(); handleReverse(); break;
+        case 'escape': e.preventDefault(); handleCancelAll(); break;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isConnected, handleTrade, handleFlatten, handleReverse]);
+  }, [isConnected, handleTrade, handleFlatten, handleReverse, handleCancelAll]);
 
   // Not connected
   if (!isConnected) {
     return (
-      <div className="flex items-center justify-between px-3 h-[38px] text-xs"
-        style={{ backgroundColor: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
-        <span className="text-[11px]" style={{ color: colors.textMuted }}>Connect to trade</span>
-        <button onClick={() => activeBroker ? connect(activeBroker) : connect('demo')}
-          className="px-3 py-1 rounded text-[11px] font-medium"
-          style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
-          {activeBroker ? `Connect ${BROKER_INFO[activeBroker].name}` : 'Demo'}
-        </button>
-      </div>
+      <>
+        <div className="flex items-center justify-between px-3 h-[38px] text-xs"
+          style={{ backgroundColor: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
+          <span className="text-[11px]" style={{ color: colors.textMuted }}>Connect to trade</span>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setShowDemoPanel(true)}
+              className="px-3 py-1 rounded text-[11px] font-medium transition-colors hover:brightness-110"
+              style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+              Demo Account
+            </button>
+            {activeBroker && activeBroker !== 'demo' && (
+              <button onClick={() => connect(activeBroker)}
+                className="px-3 py-1 rounded text-[11px] font-medium"
+                style={{ backgroundColor: BROKER_INFO[activeBroker].color, color: '#fff' }}>
+                {BROKER_INFO[activeBroker].name}
+              </button>
+            )}
+          </div>
+        </div>
+        <DemoAccountPanel isOpen={showDemoPanel} onClose={() => setShowDemoPanel(false)} />
+      </>
     );
   }
 
@@ -175,27 +244,31 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     <div className="flex items-center h-[38px] px-2 gap-2 text-[11px]"
       style={{ backgroundColor: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
 
-      {/* Balance */}
+      {/* Balance — clickable for demo settings */}
       {balance !== undefined && (
-        <span className="font-mono text-[10px] shrink-0 tabular-nums" style={{ color: colors.textMuted }}>
+        <button
+          onClick={() => activeBroker === 'demo' && setShowDemoPanel(true)}
+          className="font-mono text-[10px] shrink-0 tabular-nums transition-colors hover:brightness-125"
+          style={{ color: colors.textMuted, cursor: activeBroker === 'demo' ? 'pointer' : 'default' }}
+        >
           ${balance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-        </span>
+        </button>
       )}
 
       <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
 
-      {/* Order type */}
+      {/* Order type — includes stop_limit */}
       <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
         style={{ border: `1px solid ${colors.border}` }}>
-        {(['market', 'limit', 'stop'] as OrderType[]).map(t => (
+        {(['market', 'limit', 'stop', 'stop_limit'] as OrderType[]).map(t => (
           <button key={t}
             onClick={() => setOrderType(t)}
-            className="px-2 py-1 text-[10px] font-medium capitalize transition-colors"
+            className="px-2 py-1 text-[10px] font-medium transition-colors"
             style={{
               backgroundColor: orderType === t ? 'rgba(255,255,255,0.08)' : 'transparent',
               color: orderType === t ? colors.text : colors.textMuted,
             }}>
-            {t}
+            {t === 'stop_limit' ? 'S/L' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
@@ -265,6 +338,62 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
       <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
 
+      {/* Bracket Toggle + R:R */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => { setBracketEnabled(!bracketEnabled); if (!bracketEnabled && rrPreset === 'off') setRrPreset('1:2'); }}
+          className="h-6 px-1.5 rounded text-[9px] font-semibold tracking-wide transition-colors"
+          title="Bracket order (TP + SL)"
+          style={{
+            backgroundColor: bracketEnabled ? 'rgba(168,85,247,0.15)' : 'transparent',
+            color: bracketEnabled ? '#a855f7' : colors.textMuted,
+            border: `1px solid ${bracketEnabled ? '#a855f740' : colors.border}`,
+          }}
+        >
+          BKT
+        </button>
+        {bracketEnabled && (
+          <>
+            {/* R:R presets */}
+            {(['1:1', '1:2', '1:3'] as RRPreset[]).map(rr => (
+              <button key={rr}
+                onClick={() => setRrPreset(rr)}
+                className="h-6 px-1.5 rounded text-[9px] font-mono transition-colors"
+                style={{
+                  backgroundColor: rrPreset === rr ? 'rgba(251,191,36,0.15)' : 'transparent',
+                  color: rrPreset === rr ? '#fbbf24' : colors.textMuted,
+                }}>
+                {rr}
+              </button>
+            ))}
+            {/* SL offset input */}
+            <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
+              style={{ border: `1px solid ${colors.border}` }}>
+              <span className="px-1 text-[8px] font-bold" style={{ color: '#ef4444' }}>SL</span>
+              <input type="number" value={slOffset}
+                onChange={e => setSlOffset(e.target.value)}
+                step={tick}
+                placeholder={tick.toFixed(decimals)}
+                className="w-[52px] px-0.5 text-center text-[10px] font-mono focus:outline-none bg-transparent"
+                style={{ color: colors.text }} />
+            </div>
+            {/* TP offset input */}
+            <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
+              style={{ border: `1px solid ${colors.border}` }}>
+              <span className="px-1 text-[8px] font-bold" style={{ color: '#22c55e' }}>TP</span>
+              <input type="number" value={tpOffset}
+                onChange={e => { setTpOffset(e.target.value); setRrPreset('off'); }}
+                step={tick}
+                placeholder={tick.toFixed(decimals)}
+                className="w-[52px] px-0.5 text-center text-[10px] font-mono focus:outline-none bg-transparent"
+                style={{ color: colors.text }} />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
+
       {/* Position info */}
       {currentPosition && (
         <>
@@ -308,10 +437,10 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
               </>
             )}
             {pendingOrders.length > 0 && (
-              <button onClick={handleCancelAll} title="Cancel all"
+              <button onClick={handleCancelAll} title="Cancel all (Esc)"
                 className="h-6 px-1.5 rounded flex items-center justify-center text-[9px] font-medium transition-colors hover:bg-white/10"
                 style={{ color: '#a8a29e' }}>
-                CXL
+                CXL{pendingOrders.length > 1 && <span className="ml-0.5 text-[8px] opacity-60">{pendingOrders.length}</span>}
               </button>
             )}
           </div>
@@ -342,6 +471,8 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           BUY
         </button>
       </div>
+
+      <DemoAccountPanel isOpen={showDemoPanel} onClose={() => setShowDemoPanel(false)} />
     </div>
   );
 }

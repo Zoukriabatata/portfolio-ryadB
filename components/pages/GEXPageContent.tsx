@@ -329,16 +329,16 @@ export default function GEXPageContent() {
             </button>
 
             {symbolPopoverOpen && (
-              <div className="absolute top-full left-0 mt-2 w-72 z-50 animate-dropdown-in rounded-2xl overflow-hidden backdrop-blur-xl"
+              <div className="absolute top-full left-0 mt-2 w-80 z-50 animate-dropdown-in rounded-2xl overflow-hidden backdrop-blur-xl"
                 style={{
-                  background: 'linear-gradient(135deg, var(--surface-elevated) 0%, color-mix(in srgb, var(--surface-elevated) 92%, var(--primary) 8%) 100%)',
-                  border: '1px solid color-mix(in srgb, var(--border-light) 60%, var(--primary) 40%)',
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 1px rgba(255,255,255,0.1) inset, 0 0 40px color-mix(in srgb, var(--primary) 10%, transparent 90%)',
+                  background: 'linear-gradient(160deg, var(--surface-elevated) 0%, color-mix(in srgb, var(--surface-elevated) 90%, var(--primary) 10%) 100%)',
+                  border: '1px solid color-mix(in srgb, var(--border-light) 50%, var(--primary) 50%)',
+                  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 1px rgba(255,255,255,0.08) inset, 0 0 48px color-mix(in srgb, var(--primary) 8%, transparent 92%)',
                 }}>
                 {/* Search with icon */}
-                <div className="p-2.5 border-b border-[var(--border)]">
+                <div className="p-3 border-b border-[var(--border)]">
                   <div className="relative">
-                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                     </svg>
                     <input
@@ -346,36 +346,37 @@ export default function GEXPageContent() {
                       value={symbolSearch}
                       onChange={(e) => setSymbolSearch(e.target.value)}
                       placeholder="Search symbol..."
-                      className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-[var(--background)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] border border-[var(--border)]"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[var(--background)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]/50 border border-[var(--border)] transition-shadow duration-200 focus:shadow-[0_0_12px_var(--primary-glow)]"
                       autoFocus
                     />
                   </div>
                 </div>
 
-                <div className="max-h-72 overflow-y-auto p-2 custom-scrollbar">
+                <div className="max-h-80 overflow-y-auto p-2.5 custom-scrollbar">
                   {/* ETF Indices Section */}
-                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
-                    <svg className="w-3 h-3 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1.5">
+                    <svg className="w-3.5 h-3.5 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" />
                     </svg>
                     <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--primary)]">ETF Indices</span>
                     <div className="flex-1 h-px bg-gradient-to-r from-[var(--primary)]/20 to-transparent" />
                   </div>
-                  <div className="grid grid-cols-2 gap-1 mb-3">
-                    {ETF_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map(s => (
+                  <div className="grid grid-cols-2 gap-1.5 mb-3">
+                    {ETF_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map((s, i) => (
                       <button
                         key={s}
                         onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
-                        className={`group flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl text-left transition-all duration-200 ${
+                        className={`stagger-fade-up group flex items-center gap-2.5 px-3.5 py-2.5 text-xs rounded-xl text-left transition-all duration-200 ${
                           symbol === s
-                            ? 'bg-[var(--primary)]/15 text-[var(--text-primary)] font-semibold ring-1 ring-[var(--primary)]/30'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5'
+                            ? 'bg-[var(--primary)]/15 text-[var(--text-primary)] font-bold ring-1 ring-[var(--primary)]/30 shadow-sm'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5 hover:shadow-sm'
                         }`}
+                        style={{ animationDelay: `${i * 0.04}s` }}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${symbol === s ? 'bg-[var(--primary)] shadow-[0_0_6px_var(--primary)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--text-muted)]'}`} />
-                        <span>{s}</span>
+                        <span className={`w-2 h-2 rounded-full transition-all duration-300 ${symbol === s ? 'bg-[var(--primary)] shadow-[0_0_8px_var(--primary)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--primary)] group-hover:shadow-[0_0_4px_var(--primary)]'}`} />
+                        <span className="font-semibold tracking-wide">{s}</span>
                         {symbol === s && (
-                          <svg className="ml-auto w-3 h-3 text-[var(--primary)] animate-scaleIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <svg className="ml-auto w-3.5 h-3.5 text-[var(--primary)] animate-popIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="3 8 7 12 13 4" />
                           </svg>
                         )}
@@ -384,28 +385,29 @@ export default function GEXPageContent() {
                   </div>
 
                   {/* Individual Stocks Section */}
-                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
-                    <svg className="w-3 h-3 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1.5">
+                    <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a4 4 0 00-8 0v2" />
                     </svg>
                     <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--accent)]">Stocks</span>
                     <div className="flex-1 h-px bg-gradient-to-r from-[var(--accent)]/20 to-transparent" />
                   </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    {STOCK_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map(s => (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {STOCK_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map((s, i) => (
                       <button
                         key={s}
                         onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
-                        className={`group flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl text-left transition-all duration-200 ${
+                        className={`stagger-fade-up group flex items-center gap-2.5 px-3.5 py-2.5 text-xs rounded-xl text-left transition-all duration-200 ${
                           symbol === s
-                            ? 'bg-[var(--accent)]/15 text-[var(--text-primary)] font-semibold ring-1 ring-[var(--accent)]/30'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5'
+                            ? 'bg-[var(--accent)]/15 text-[var(--text-primary)] font-bold ring-1 ring-[var(--accent)]/30 shadow-sm'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5 hover:shadow-sm'
                         }`}
+                        style={{ animationDelay: `${(i + ETF_SYMBOLS.length) * 0.04}s` }}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${symbol === s ? 'bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--text-muted)]'}`} />
-                        <span>{s}</span>
+                        <span className={`w-2 h-2 rounded-full transition-all duration-300 ${symbol === s ? 'bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_4px_var(--accent)]'}`} />
+                        <span className="font-semibold tracking-wide">{s}</span>
                         {symbol === s && (
-                          <svg className="ml-auto w-3 h-3 text-[var(--accent)] animate-scaleIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <svg className="ml-auto w-3.5 h-3.5 text-[var(--accent)] animate-popIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="3 8 7 12 13 4" />
                           </svg>
                         )}
@@ -415,12 +417,14 @@ export default function GEXPageContent() {
                 </div>
 
                 {/* Footer hint */}
-                <div className="px-3 py-1.5 border-t border-[var(--border)] flex items-center justify-between">
-                  <span className="text-[8px] text-[var(--text-dimmed)]">
-                    {ETF_SYMBOLS.length + STOCK_SYMBOLS.length} symbols
+                <div className="px-3 py-2 border-t border-[var(--border)] flex items-center justify-between"
+                  style={{ background: 'linear-gradient(to right, var(--background), transparent)' }}>
+                  <span className="text-[9px] text-[var(--text-dimmed)] font-medium">
+                    {ETF_SYMBOLS.length + STOCK_SYMBOLS.length} symbols available
                   </span>
-                  <span className="text-[8px] text-[var(--text-dimmed)]">
-                    <kbd className="px-1 py-0.5 bg-[var(--background)] rounded text-[7px]">ESC</kbd> close
+                  <span className="text-[9px] text-[var(--text-dimmed)] flex items-center gap-1.5">
+                    <kbd className="px-1.5 py-0.5 bg-[var(--surface)] rounded text-[8px] font-mono border border-[var(--border)]">ESC</kbd>
+                    <span>close</span>
                   </span>
                 </div>
               </div>
