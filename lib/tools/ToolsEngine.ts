@@ -879,7 +879,7 @@ export class ToolsEngine {
           showRR: true,
           showPnL: false,
           extendRight: false,  // DEFAULT: NO extension
-          compactMode: false,  // Full design by default
+          compactMode: true,   // Minimal purist mode by default
           showZoneFill: true,  // Show zone backgrounds
           accountSize: 10000,
           riskPercent: 1,

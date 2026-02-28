@@ -250,6 +250,9 @@ export default function AdvancedChartSettings({
     vpValEnabled, vpValColor, vpValWidth, vpValStyle, vpValLabel,
     vpBidColor, vpAskColor, vpBarOpacity,
     vpShowBackground, vpBackgroundColor, vpBackgroundOpacity,
+    // Position tool settings
+    posTpColor, posSlColor, posEntryColor,
+    posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
     setVPSetting,
   } = usePreferencesStore();
 
@@ -865,6 +868,64 @@ export default function AdvancedChartSettings({
                       <SliderControl label="Opacité fond" value={Math.round(vpBackgroundOpacity * 100)} min={1} max={30} step={1} unit="%" onChange={(v) => setVPSetting('vpBackgroundOpacity', v / 100)} />
                     </div>
                   )}
+                </div>
+
+                {/* ═══ LONG/SHORT POSITION TOOL ═══ */}
+                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Position (Long/Short)</h3>
+
+                  <div className="space-y-2">
+                    {/* TP Color */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur TP</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7'].map(c => (
+                          <button key={c} onClick={() => setVPSetting('posTpColor', c)}
+                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
+                            style={{ backgroundColor: c, border: `1px solid ${posTpColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posTpColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* SL Color */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur SL</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7'].map(c => (
+                          <button key={c} onClick={() => setVPSetting('posSlColor', c)}
+                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
+                            style={{ backgroundColor: c, border: `1px solid ${posSlColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posSlColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Entry Color */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur Entry</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#a3a3a3', '#e5e5e5', '#737373', '#fbbf24', '#3b82f6'].map(c => (
+                          <button key={c} onClick={() => setVPSetting('posEntryColor', c)}
+                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
+                            style={{ backgroundColor: c, border: `1px solid ${posEntryColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posEntryColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Zone Opacity */}
+                    <SliderControl label="Opacité zones" value={Math.round(posZoneOpacity * 100)} min={0} max={30} step={1} unit="%" onChange={(v) => setVPSetting('posZoneOpacity', v / 100)} />
+
+                    {/* Toggle: Zone Fill */}
+                    <ToggleSwitch label="Remplissage zones" description="Afficher les zones TP/SL colorées" value={posShowZoneFill} onChange={(v) => setVPSetting('posShowZoneFill', v)} />
+
+                    {/* Toggle: Show Labels */}
+                    <ToggleSwitch label="Afficher labels" description="Labels Entry, TP, SL avec prix et R:R" value={posShowLabels} onChange={(v) => setVPSetting('posShowLabels', v)} />
+
+                    {/* Toggle: Compact Mode */}
+                    <ToggleSwitch label="Mode minimal" description="Lignes pures sans labels ni informations" value={posDefaultCompact} onChange={(v) => setVPSetting('posDefaultCompact', v)} />
+                  </div>
                 </div>
               </div>
             )}

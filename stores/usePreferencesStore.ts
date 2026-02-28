@@ -102,6 +102,15 @@ export interface PreferencesState {
 
   setVPSetting: <K extends keyof PreferencesState>(key: K, value: PreferencesState[K]) => void;
 
+  // Long/Short position tool settings
+  posTpColor: string;
+  posSlColor: string;
+  posEntryColor: string;
+  posZoneOpacity: number;
+  posShowZoneFill: boolean;
+  posShowLabels: boolean;
+  posDefaultCompact: boolean;
+
   // Price line settings
   showCurrentPriceLine: boolean;
   priceLineStyle: 'dashed' | 'solid';
@@ -147,6 +156,15 @@ export const usePreferencesStore = create<PreferencesState>()(
       // VP Panel defaults
       vpBidColor: '#ef4444', vpAskColor: '#22c55e', vpBarOpacity: 0.6,
       vpShowBackground: false, vpBackgroundColor: '#3b82f6', vpBackgroundOpacity: 0.05,
+
+      // Long/Short position tool defaults
+      posTpColor: '#22c55e',
+      posSlColor: '#ef4444',
+      posEntryColor: '#a3a3a3',
+      posZoneOpacity: 0.08,
+      posShowZoneFill: true,
+      posShowLabels: false,
+      posDefaultCompact: true,
 
       showCurrentPriceLine: true,
       priceLineStyle: 'dashed',
@@ -197,6 +215,9 @@ export const usePreferencesStore = create<PreferencesState>()(
         vpValEnabled: s.vpValEnabled, vpValColor: s.vpValColor, vpValWidth: s.vpValWidth, vpValStyle: s.vpValStyle, vpValLabel: s.vpValLabel,
         vpBidColor: s.vpBidColor, vpAskColor: s.vpAskColor, vpBarOpacity: s.vpBarOpacity,
         vpShowBackground: s.vpShowBackground, vpBackgroundColor: s.vpBackgroundColor, vpBackgroundOpacity: s.vpBackgroundOpacity,
+        posTpColor: s.posTpColor, posSlColor: s.posSlColor, posEntryColor: s.posEntryColor,
+        posZoneOpacity: s.posZoneOpacity, posShowZoneFill: s.posShowZoneFill,
+        posShowLabels: s.posShowLabels, posDefaultCompact: s.posDefaultCompact,
         showCurrentPriceLine: s.showCurrentPriceLine,
         priceLineStyle: s.priceLineStyle,
         priceLineWidth: s.priceLineWidth,

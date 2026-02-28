@@ -10,6 +10,7 @@
  */
 
 import { Tool, PreviewTool, Handle, ToolsEngine, getToolsEngine, RectangleZone, type ParallelChannelTool, type FibExtensionTool, type MeasureTool, type EllipseTool } from './ToolsEngine';
+import { usePreferencesStore } from '@/stores/usePreferencesStore';
 
 // ============ TYPES ============
 
@@ -748,12 +749,30 @@ export class ToolsRenderer {
 
     const isLong = tool.type === 'longPosition';
 
-    // ═══ Colors ═══
-    const profitFill = isLong ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)';
-    const riskFill = isLong ? 'rgba(239, 68, 68, 0.08)' : 'rgba(34, 197, 94, 0.08)';
-    const profitLine = '#22c55e';
-    const riskLine = '#ef4444';
-    const entryColor = '#a3a3a3';
+    // ═══ Read settings from store ═══
+    const prefs = usePreferencesStore.getState();
+    const tpColor = prefs.posTpColor;
+    const slColor = prefs.posSlColor;
+    const posEntryColor = prefs.posEntryColor;
+    const zoneAlpha = prefs.posZoneOpacity;
+    const showFill = prefs.posShowZoneFill;
+    const showLabels = prefs.posShowLabels;
+    const defaultCompact = prefs.posDefaultCompact;
+
+    // ═══ Colors (from settings) ═══
+    const profitLine = tpColor;
+    const riskLine = slColor;
+    const entryColor = posEntryColor;
+
+    // Zone fills with configurable opacity
+    const hexToRgba = (hex: string, alpha: number) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+    const profitFill = hexToRgba(profitLine, zoneAlpha);
+    const riskFill = hexToRgba(riskLine, zoneAlpha);
 
     // ═══ Metrics ═══
     const risk = Math.abs(tool.entry - tool.stopLoss);
@@ -775,7 +794,7 @@ export class ToolsRenderer {
     const showDollarPnL = tool.showDollarPnL === true;
 
     // ═══ PROFIT ZONE FILL ═══
-    if (tool.showZoneFill !== false) {
+    if (showFill && tool.showZoneFill !== false) {
       ctx.fillStyle = profitFill;
       ctx.fillRect(leftX, Math.min(entryY, tpY), rightX - leftX, Math.abs(tpY - entryY));
 
@@ -795,7 +814,7 @@ export class ToolsRenderer {
     // ═══ TP LINE ═══
     ctx.strokeStyle = profitLine;
     ctx.lineWidth = 1;
-    ctx.setLineDash([6, 3]);
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(leftX, tpY + 0.5);
     ctx.lineTo(rightX, tpY + 0.5);
@@ -803,7 +822,7 @@ export class ToolsRenderer {
 
     // ═══ SL LINE ═══
     ctx.strokeStyle = riskLine;
-    ctx.setLineDash([6, 3]);
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(leftX, slY + 0.5);
     ctx.lineTo(rightX, slY + 0.5);
@@ -811,12 +830,12 @@ export class ToolsRenderer {
     ctx.setLineDash([]);
 
     // ═══ Settings flags ═══
-    const showRR = tool.showRR !== false;
-    const showPnL = tool.showPnL !== false;
-    const compact = tool.compactMode === true;
+    const showRR = showLabels && tool.showRR !== false;
+    const showPnL = showLabels && tool.showPnL !== false;
+    const compact = defaultCompact || tool.compactMode === true;
 
     // ═══ RIGHT-SIDE ENTRY LABEL ═══
-    if (!compact) {
+    if (!compact && showLabels) {
       const hasExtraRow = showRR || showPosSize;
       const labelW = hasExtraRow ? (showPosSize ? 150 : 130) : 110;
       const labelH = hasExtraRow ? (showPosSize && showRR ? 38 : 28) : 18;
@@ -828,12 +847,12 @@ export class ToolsRenderer {
       ctx.beginPath();
       ctx.roundRect(labelRightX, entryLabelY, labelW, labelH, 4);
       ctx.fill();
-      ctx.strokeStyle = isLong ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+      ctx.strokeStyle = hexToRgba(isLong ? tpColor : slColor, 0.5);
       ctx.lineWidth = 1;
       ctx.stroke();
 
       // Position type badge
-      ctx.fillStyle = isLong ? '#22c55e' : '#ef4444';
+      ctx.fillStyle = isLong ? tpColor : slColor;
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(isLong ? '▲ LONG' : '▼ SHORT', labelRightX + labelPad, entryLabelY + 12);
@@ -867,33 +886,33 @@ export class ToolsRenderer {
     }
 
     // ═══ RIGHT-SIDE TP LABEL ═══
-    if (!compact) {
+    if (!compact && showLabels) {
       const tpLabelW = (showPnL || showDollarPnL) ? 120 : 75;
       const tpLabelH = (showPnL || showDollarPnL) ? 24 : 16;
       const tpLabelX = rightX - tpLabelW - 12;
       const tpLabelY = tpY - tpLabelH / 2;
 
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.12)';
+      ctx.fillStyle = hexToRgba(profitLine, 0.12);
       ctx.beginPath();
       ctx.roundRect(tpLabelX, tpLabelY, tpLabelW, tpLabelH, 4);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.3)';
+      ctx.strokeStyle = hexToRgba(profitLine, 0.3);
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      ctx.fillStyle = '#22c55e';
+      ctx.fillStyle = profitLine;
       ctx.font = '10px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(`TP  ${tool.takeProfit.toFixed(2)}`, tpLabelX + 6, tpLabelY + 10);
 
       if (showPnL || showDollarPnL) {
-        ctx.fillStyle = '#4ade80';
+        ctx.fillStyle = profitLine;
         ctx.font = 'bold 10px system-ui';
         ctx.textAlign = 'right';
         const tpRightText = showDollarPnL ? `+$${dollarPnL.toFixed(0)}` : `+${pnlPct}%`;
         ctx.fillText(tpRightText, tpLabelX + tpLabelW - 6, tpLabelY + 10);
 
-        ctx.fillStyle = '#22c55e80';
+        ctx.fillStyle = hexToRgba(profitLine, 0.5);
         ctx.font = '9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
         const tpBottomText = showDollarPnL && showPnL ? `+${pnlPct}% | +${reward.toFixed(2)}` : `+${reward.toFixed(2)}`;
@@ -902,33 +921,33 @@ export class ToolsRenderer {
     }
 
     // ═══ RIGHT-SIDE SL LABEL ═══
-    if (!compact) {
+    if (!compact && showLabels) {
       const slLabelW = (showPnL || showDollarPnL) ? 120 : 75;
       const slLabelH = (showPnL || showDollarPnL) ? 24 : 16;
       const slLabelX = rightX - slLabelW - 12;
       const slLabelY = slY - slLabelH / 2;
 
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+      ctx.fillStyle = hexToRgba(riskLine, 0.12);
       ctx.beginPath();
       ctx.roundRect(slLabelX, slLabelY, slLabelW, slLabelH, 4);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)';
+      ctx.strokeStyle = hexToRgba(riskLine, 0.3);
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      ctx.fillStyle = '#ef4444';
+      ctx.fillStyle = riskLine;
       ctx.font = '10px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(`SL  ${tool.stopLoss.toFixed(2)}`, slLabelX + 6, slLabelY + 10);
 
       if (showPnL || showDollarPnL) {
-        ctx.fillStyle = '#f87171';
+        ctx.fillStyle = riskLine;
         ctx.font = 'bold 10px system-ui';
         ctx.textAlign = 'right';
         const slRightText = showDollarPnL ? `-$${dollarLoss.toFixed(0)}` : `-${riskPct}%`;
         ctx.fillText(slRightText, slLabelX + slLabelW - 6, slLabelY + 10);
 
-        ctx.fillStyle = '#ef444480';
+        ctx.fillStyle = hexToRgba(riskLine, 0.5);
         ctx.font = '9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
         const slBottomText = showDollarPnL && showPnL ? `-${riskPct}% | -${risk.toFixed(2)}` : `-${risk.toFixed(2)}`;
