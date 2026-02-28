@@ -61,11 +61,19 @@ export interface PreferencesState {
 
   // Chart preferences
   showVolume: boolean;
+  showVolumeBubbles: boolean;
   showGrid: boolean;
   showCrosshairTooltip: boolean;
   setShowVolume: (show: boolean) => void;
+  setShowVolumeBubbles: (show: boolean) => void;
   setShowGrid: (show: boolean) => void;
   setShowCrosshairTooltip: (show: boolean) => void;
+
+  // Volume display mode
+  volumeMode: 'classic' | 'bidask' | 'delta';
+  showVolumeProfile: boolean;
+  setVolumeMode: (mode: 'classic' | 'bidask' | 'delta') => void;
+  setShowVolumeProfile: (show: boolean) => void;
 
   // Trading preferences
   confirmOrders: boolean;
@@ -83,16 +91,22 @@ export const usePreferencesStore = create<PreferencesState>()(
       tradeColorPreset: 'classic',
       customTradeColors: TRADE_COLOR_PRESETS.classic,
       showVolume: true,
+      showVolumeBubbles: false,
       showGrid: true,
       showCrosshairTooltip: true,
+      volumeMode: 'classic',
+      showVolumeProfile: false,
       confirmOrders: true,
       defaultOrderType: 'market',
 
+      setVolumeMode: (volumeMode) => set({ volumeMode }),
+      setShowVolumeProfile: (showVolumeProfile) => set({ showVolumeProfile }),
       setDensity: (density) => set({ density }),
       setFontSize: (fontSize) => set({ fontSize: Math.max(10, Math.min(16, fontSize)) }),
       setTradeColorPreset: (preset) => set({ tradeColorPreset: preset }),
       setCustomTradeColors: (colors) => set({ customTradeColors: colors }),
       setShowVolume: (showVolume) => set({ showVolume }),
+      setShowVolumeBubbles: (showVolumeBubbles) => set({ showVolumeBubbles }),
       setShowGrid: (showGrid) => set({ showGrid }),
       setShowCrosshairTooltip: (showCrosshairTooltip) => set({ showCrosshairTooltip }),
       setConfirmOrders: (confirmOrders) => set({ confirmOrders }),
@@ -106,8 +120,11 @@ export const usePreferencesStore = create<PreferencesState>()(
         tradeColorPreset: s.tradeColorPreset,
         customTradeColors: s.customTradeColors,
         showVolume: s.showVolume,
+        showVolumeBubbles: s.showVolumeBubbles,
         showGrid: s.showGrid,
         showCrosshairTooltip: s.showCrosshairTooltip,
+        volumeMode: s.volumeMode,
+        showVolumeProfile: s.showVolumeProfile,
         confirmOrders: s.confirmOrders,
         defaultOrderType: s.defaultOrderType,
       }),

@@ -16,7 +16,7 @@
 export const LOD_CONFIG = {
   // Maximum visible bars for footprint mode
   // Above this → switch to candles
-  FOOTPRINT_MAX_BARS: 100, // Increased to allow more bars in footprint mode
+  FOOTPRINT_MAX_BARS: 20, // ≤20 bars = footprint mode, >20 = candle mode
 
   // Maximum timeframe (in seconds) for footprint mode
   // Only timeframes removed from UI would trigger this

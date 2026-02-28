@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { hashPassword, generateSecureToken } from '@/lib/auth/security';
 import { registerRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
+import { sendVerificationEmail } from '@/lib/auth/email-verification';
 
 export async function POST(req: NextRequest) {
   // Rate limit: 3 registrations per hour per IP
@@ -69,11 +70,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // TODO: Send verification email
+    // Send verification email (non-blocking — don't fail registration if email fails)
+    const baseUrl = req.nextUrl.origin;
+    sendVerificationEmail(user.email, user.verificationToken!, baseUrl).catch((err) => {
+      console.error('Failed to send verification email:', err);
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Compte créé avec succès. Vous pouvez maintenant vous connecter.',
+      message: 'Compte créé avec succès. Vérifiez votre email pour activer votre compte.',
       userId: user.id,
     });
   } catch (error) {

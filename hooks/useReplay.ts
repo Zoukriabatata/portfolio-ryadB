@@ -64,11 +64,24 @@ export function useReplay(): UseReplayReturn {
   const [recordingStats, setRecordingStats] = useState({ tradeCount: 0, depthCount: 0, duration: 0, sizeEstimate: 0 });
   const statsInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Subscribe to replay engine state changes
+  // Subscribe to replay engine state changes (throttled to avoid max-update-depth)
+  const pendingState = useRef<ReplayState | null>(null);
+  const rafRef = useRef<number>(0);
+
   useEffect(() => {
     const engine = getReplayEngine();
     const cleanup = engine.onStatus((newState) => {
-      setState(newState);
+      // Buffer the latest state; flush once per animation frame
+      pendingState.current = newState;
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = 0;
+          if (pendingState.current) {
+            setState(pendingState.current);
+            pendingState.current = null;
+          }
+        });
+      }
     });
 
     // Load sessions list
@@ -76,6 +89,7 @@ export function useReplay(): UseReplayReturn {
 
     return () => {
       cleanup();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (statsInterval.current) clearInterval(statsInterval.current);
     };
   }, []);

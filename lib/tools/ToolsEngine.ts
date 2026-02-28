@@ -734,6 +734,7 @@ export class ToolsEngine {
    */
   private validateDrawing(type: ToolType, points: Point[]): boolean {
     switch (type) {
+      case 'ray':
       case 'trendline':
       case 'rectangle':
       case 'fibRetracement':
@@ -763,6 +764,17 @@ export class ToolsEngine {
     const base = { style, visible: true, locked: false };
 
     switch (type) {
+      case 'ray':
+        if (points.length < 2) return null;
+        return {
+          ...base,
+          type: 'trendline',
+          startPoint: points[0],
+          endPoint: points[1],
+          extendLeft: false,
+          extendRight: true,
+        };
+
       case 'trendline':
         if (points.length < 2) return null;
         return {

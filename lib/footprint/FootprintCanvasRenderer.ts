@@ -942,7 +942,15 @@ export class FootprintCanvasRenderer {
   }
 
   /**
-   * Render volume profile panel (uses cached volumeByPrice + session stats)
+   * Render professional volume profile panel (bid/ask split, per-tick resolution)
+   *
+   * Features:
+   * - Bid/ask dual-colored bars (left=bid red, right=ask green)
+   * - POC highlighted with arrow marker + glow
+   * - Value area shading band
+   * - Volume text on significant levels
+   * - Gradient intensity per bar
+   * - VAH/VAL/POC extended lines with pill labels
    */
   renderVolumeProfile(
     ctx: CanvasRenderingContext2D,
@@ -972,62 +980,158 @@ export class FootprintCanvasRenderer {
     ctx.lineTo(vpX, footprintAreaY + footprintAreaHeight);
     ctx.stroke();
 
-    // Colors — use settings if available
+    // Colors — use settings
     const pocColor = features?.volumeProfilePocColor || '#e2b93b';
     const vaColor = features?.volumeProfileColor || '#5e7ce2';
     const outsideColor = features?.volumeProfileOutsideColor || '#3a3f4b';
     const vahValLineColor = features?.volumeProfileVahValColor || '#7c85f6';
     const vpOpacity = features?.volumeProfileOpacity ?? 0.7;
-    const barMaxWidth = vpWidth - 6;
+    const bidBarColor = colors.bidColor || '#ef5350';
+    const askBarColor = colors.askColor || '#26a69a';
+    const barMaxWidth = vpWidth - 8;
+    const barH = Math.max(2, Math.min(rowH * 0.75, 14));
+    const barGap = Math.max(0.5, (rowH - barH) * 0.3);
 
-    // Volume bars
-    volumeByPrice.forEach((data, price) => {
+    // ── Value Area shading band ──
+    if (sessionStats.vah !== sessionStats.val) {
+      const vahY = layout.priceToY(sessionStats.vah, metrics);
+      const valY = layout.priceToY(sessionStats.val, metrics);
+      const topY = Math.max(footprintAreaY, Math.min(vahY, valY));
+      const bottomY = Math.min(footprintAreaY + footprintAreaHeight, Math.max(vahY, valY));
+      ctx.fillStyle = vaColor;
+      ctx.globalAlpha = 0.04 * vpOpacity;
+      ctx.fillRect(vpX, topY, vpWidth, bottomY - topY);
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Per-tick bid/ask split bars ──
+    // Sort prices for ordered rendering
+    const sortedPrices = Array.from(volumeByPrice.entries())
+      .filter(([price]) => {
+        const y = layout.priceToY(price, metrics);
+        return y >= footprintAreaY - barH && y <= footprintAreaY + footprintAreaHeight + barH;
+      })
+      .sort((a, b) => b[0] - a[0]); // high to low
+
+    for (const [price, data] of sortedPrices) {
       const y = layout.priceToY(price, metrics);
-      if (y < footprintAreaY || y > footprintAreaY + footprintAreaHeight) return;
-
-      const barWidth = (data.total / maxVolume) * barMaxWidth;
-      const barH = Math.max(2, rowH * 0.6);
       const isPOC = price === sessionStats.pocPrice;
       const isValueArea = sessionStats.valueAreaPrices.has(price);
       const intensity = data.total / maxVolume;
+      const totalBarW = (data.total / maxVolume) * barMaxWidth;
 
+      // Bar Y position (centered on price level)
+      const barY = y - barH / 2;
+
+      // ── POC highlight: glow background ──
       if (isPOC) {
         ctx.save();
         ctx.fillStyle = pocColor;
-        ctx.globalAlpha = 0.15 * vpOpacity;
-        ctx.fillRect(vpX + 2, y - barH / 2 - 1, barWidth + 2, barH + 2);
+        ctx.globalAlpha = 0.12 * vpOpacity;
+        ctx.fillRect(vpX + 1, barY - 2, totalBarW + 6, barH + 4);
         ctx.restore();
-        ctx.fillStyle = pocColor;
-        ctx.globalAlpha = 0.92 * vpOpacity;
-      } else if (isValueArea) {
-        ctx.fillStyle = vaColor;
-        ctx.globalAlpha = (0.45 + intensity * 0.4) * vpOpacity;
-      } else {
-        ctx.fillStyle = outsideColor;
-        ctx.globalAlpha = (0.25 + intensity * 0.2) * vpOpacity;
       }
 
-      ctx.fillRect(vpX + 3, y - barH / 2, barWidth, barH);
-      ctx.globalAlpha = 1;
-    });
+      // Split into bid and ask portions
+      const bidW = data.total > 0 ? (data.bid / data.total) * totalBarW : 0;
+      const askW = data.total > 0 ? (data.ask / data.total) * totalBarW : 0;
+      const barLeft = vpX + 4;
 
-    // Extended VAH/VAL/POC lines
+      // ── Bid bar (left portion, red) ──
+      if (bidW > 0.5) {
+        if (isPOC) {
+          ctx.fillStyle = pocColor;
+          ctx.globalAlpha = 0.85 * vpOpacity;
+        } else if (isValueArea) {
+          ctx.fillStyle = bidBarColor;
+          ctx.globalAlpha = (0.35 + intensity * 0.5) * vpOpacity;
+        } else {
+          ctx.fillStyle = bidBarColor;
+          ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
+        }
+        ctx.fillRect(barLeft, barY, bidW, barH);
+      }
+
+      // ── Ask bar (right portion, green) ──
+      if (askW > 0.5) {
+        if (isPOC) {
+          ctx.fillStyle = pocColor;
+          ctx.globalAlpha = 0.7 * vpOpacity;
+        } else if (isValueArea) {
+          ctx.fillStyle = askBarColor;
+          ctx.globalAlpha = (0.35 + intensity * 0.5) * vpOpacity;
+        } else {
+          ctx.fillStyle = askBarColor;
+          ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
+        }
+        ctx.fillRect(barLeft + bidW, barY, askW, barH);
+      }
+
+      // ── Thin separator between bid/ask ──
+      if (bidW > 1 && askW > 1) {
+        ctx.fillStyle = colors.surface;
+        ctx.globalAlpha = 0.6;
+        ctx.fillRect(barLeft + bidW - 0.5, barY, 1, barH);
+      }
+
+      // ── Outline for POC bar ──
+      if (isPOC && totalBarW > 2) {
+        ctx.strokeStyle = pocColor;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.9 * vpOpacity;
+        ctx.strokeRect(barLeft, barY, totalBarW, barH);
+      }
+
+      // ── Volume text for significant levels ──
+      if (barH >= 8 && totalBarW > 30 && intensity > 0.15) {
+        ctx.globalAlpha = isPOC ? 0.95 : 0.7;
+        ctx.fillStyle = isPOC ? '#ffffff' : colors.textSecondary;
+        ctx.font = `${isPOC ? 'bold ' : ''}${barH >= 12 ? 8 : 7}px "Consolas", monospace`;
+        ctx.textAlign = 'left';
+        const volText = data.total >= 1000 ? `${(data.total / 1000).toFixed(1)}K` : Math.round(data.total).toString();
+        const textX = barLeft + totalBarW + 3;
+        if (textX + 30 < vpX + vpWidth) {
+          ctx.fillText(volText, textX, y + 3);
+        }
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
+    // ── POC arrow marker ──
+    const pocY = layout.priceToY(sessionStats.pocPrice, metrics);
+    if (pocY >= footprintAreaY && pocY <= footprintAreaY + footprintAreaHeight) {
+      ctx.save();
+      ctx.fillStyle = pocColor;
+      ctx.globalAlpha = 0.9;
+      // Small triangle pointing right at POC
+      const arrowX = vpX + 1;
+      ctx.beginPath();
+      ctx.moveTo(arrowX, pocY - 4);
+      ctx.lineTo(arrowX + 5, pocY);
+      ctx.lineTo(arrowX, pocY + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ── Extended VAH/VAL/POC lines ──
     if (sessionStats.vah !== sessionStats.val) {
       const vahY = layout.priceToY(sessionStats.vah, metrics);
       const valY = layout.priceToY(sessionStats.val, metrics);
       const sessPocY = layout.priceToY(sessionStats.pocPrice, metrics);
 
-      // VAH Line
+      // VAH Line (dashed)
       if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
         this.renderExtendedLine(ctx, vahValLineColor, 0, vpX + vpWidth, vahY, footprintAreaY, footprintAreaHeight, true);
       }
 
-      // VAL Line
+      // VAL Line (dashed)
       if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
         this.renderExtendedLine(ctx, vahValLineColor, 0, vpX + vpWidth, valY, footprintAreaY, footprintAreaHeight, true);
       }
 
-      // POC Line (golden, solid)
+      // POC Line (golden, solid, extends across chart)
       if (sessPocY >= footprintAreaY && sessPocY <= footprintAreaY + footprintAreaHeight) {
         this.renderExtendedLine(ctx, pocColor, 0, vpX - 5, sessPocY, footprintAreaY, footprintAreaHeight, false);
       }
@@ -1035,7 +1139,7 @@ export class FootprintCanvasRenderer {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
-      // Pill labels
+      // Pill labels (left edge)
       ctx.font = 'bold 8px "Consolas", monospace';
 
       if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
@@ -1065,14 +1169,27 @@ export class FootprintCanvasRenderer {
       }
     }
 
-    // POC label in VP area
-    const pocY = layout.priceToY(sessionStats.pocPrice, metrics);
+    // POC label in VP area with volume
     if (pocY >= footprintAreaY && pocY <= footprintAreaY + footprintAreaHeight) {
       ctx.fillStyle = pocColor;
       ctx.font = 'bold 7px "Consolas", monospace';
       ctx.textAlign = 'right';
-      ctx.fillText('POC', vpX + vpWidth - 2, pocY + 3);
+      const pocVol = sessionStats.pocVolume;
+      const pocLabel = pocVol >= 1000 ? `POC ${(pocVol / 1000).toFixed(1)}K` : `POC ${Math.round(pocVol)}`;
+      ctx.fillText(pocLabel, vpX + vpWidth - 2, pocY + 3);
     }
+
+    // ── Volume profile summary at top ──
+    ctx.save();
+    ctx.font = 'bold 7px "Consolas", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = colors.textMuted;
+    ctx.globalAlpha = 0.6;
+    const totalStr = sessionStats.totalVolume >= 1000000 ? `${(sessionStats.totalVolume / 1000000).toFixed(1)}M`
+      : sessionStats.totalVolume >= 1000 ? `${(sessionStats.totalVolume / 1000).toFixed(0)}K`
+      : Math.round(sessionStats.totalVolume).toString();
+    ctx.fillText(`VP: ${totalStr}`, vpX + vpWidth / 2, footprintAreaY + 9);
+    ctx.restore();
   }
 
   /**
@@ -2189,6 +2306,131 @@ export class FootprintCanvasRenderer {
     ctx.fillStyle = '#0a0a0f';
     ctx.textAlign = 'left';
     ctx.fillText(text, x + 3, y + 9);
+  }
+
+  /**
+   * Render volume bubbles — circles at each candle center, sized by volume,
+   * colored by delta direction, with buy/sell pie-chart split.
+   */
+  renderVolumeBubbles(
+    ctx: CanvasRenderingContext2D,
+    layout: FootprintLayoutEngine,
+    metrics: LayoutMetrics,
+    colors: FootprintColors,
+    features: FootprintFeatures,
+    fpWidth: number,
+    isFootprintMode: boolean,
+  ): void {
+    const candles = metrics.visibleCandles;
+    if (candles.length === 0) return;
+
+    const opacity = features.volumeBubbleOpacity ?? 0.6;
+    const maxRadius = features.volumeBubbleMaxSize ?? 30;
+    const scaling = features.volumeBubbleScaling ?? 'sqrt';
+    const { footprintAreaY, footprintAreaHeight } = metrics;
+
+    // Find max volume for normalization
+    let maxVol = 0;
+    for (const c of candles) {
+      if (c.totalVolume > maxVol) maxVol = c.totalVolume;
+    }
+    if (maxVol === 0) return;
+
+    ctx.save();
+
+    candles.forEach((candle, idx) => {
+      const vol = candle.totalVolume;
+      if (vol < 1) return;
+
+      const fpX = layout.getFootprintX(idx, metrics);
+      const centerX = fpX + fpWidth / 2;
+
+      // Y = midpoint between open and close
+      const midPrice = (candle.open + candle.close) / 2;
+      const centerY = layout.priceToY(midPrice, metrics);
+
+      // Clamp to chart area
+      if (centerY < footprintAreaY - maxRadius || centerY > footprintAreaY + footprintAreaHeight + maxRadius) return;
+
+      // Size calculation
+      const normalizedVol = vol / maxVol;
+      let radius: number;
+      switch (scaling) {
+        case 'linear': radius = normalizedVol * maxRadius; break;
+        case 'log': radius = (Math.log(normalizedVol * 100 + 1) / Math.log(101)) * maxRadius; break;
+        default: radius = Math.sqrt(normalizedVol) * maxRadius; break; // sqrt
+      }
+      radius = Math.max(3, Math.min(maxRadius, radius));
+
+      const bidVol = candle.totalSellVolume;
+      const askVol = candle.totalBuyVolume;
+      const buyRatio = askVol / (bidVol + askVol); // ask = buyer-initiated
+      const isBullish = candle.close >= candle.open;
+
+      // Outer glow
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius + 3, 0, Math.PI * 2);
+      ctx.fillStyle = isBullish ? colors.candleUpBody : colors.candleDownBody;
+      ctx.globalAlpha = opacity * 0.1;
+      ctx.fill();
+
+      // Pie chart: buy (ask) side on top, sell (bid) side on bottom
+      const startAngle = -Math.PI / 2;
+      const splitAngle = startAngle + buyRatio * Math.PI * 2;
+
+      // Buy (ask) slice
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, splitAngle);
+      ctx.closePath();
+      ctx.fillStyle = colors.candleUpBody;
+      ctx.globalAlpha = opacity * 0.55;
+      ctx.fill();
+
+      // Sell (bid) slice
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, splitAngle, startAngle + Math.PI * 2);
+      ctx.closePath();
+      ctx.fillStyle = colors.candleDownBody;
+      ctx.globalAlpha = opacity * 0.55;
+      ctx.fill();
+
+      // Border
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = isBullish ? colors.candleUpBody : colors.candleDownBody;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = opacity * 0.8;
+      ctx.stroke();
+
+      // Divider line between slices
+      if (buyRatio > 0.05 && buyRatio < 0.95) {
+        const dx = Math.cos(splitAngle) * radius;
+        const dy = Math.sin(splitAngle) * radius;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + dx, centerY + dy);
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = opacity;
+        ctx.stroke();
+      }
+
+      // Volume label (only for large bubbles)
+      if (radius >= 14) {
+        ctx.globalAlpha = opacity * 0.9;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${radius >= 22 ? 9 : 7}px "Consolas", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const volLabel = vol >= 1000 ? `${(vol / 1000).toFixed(1)}K` : Math.round(vol).toString();
+        ctx.fillText(volLabel, centerX, centerY);
+      }
+    });
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   /**

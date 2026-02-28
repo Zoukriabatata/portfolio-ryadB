@@ -111,6 +111,7 @@ export class CanvasChartEngine {
   private lastDragTimestamp = 0;
   private lastPinchDistance = 0;
   private showVolume = true;
+  private showVolumeBubbles = false;
   private showGrid = true;
   private animationFrameId: number | null = null;
   private smoothAnimationId: number | null = null; // For lerp animation loop
@@ -335,6 +336,11 @@ export class CanvasChartEngine {
 
   setShowVolume(show: boolean): void {
     this.showVolume = show;
+    this.render();
+  }
+
+  setShowVolumeBubbles(show: boolean): void {
+    this.showVolumeBubbles = show;
     this.render();
   }
 
@@ -625,6 +631,7 @@ export class CanvasChartEngine {
 
       if (this.showGrid) this.drawGrid();
       this.drawCandles();
+      if (this.showVolumeBubbles) this.drawVolumeBubbles();
       if (this.showVolume) this.drawVolume();
       this.drawPriceAxis();
       this.drawTimeAxis();
@@ -823,6 +830,83 @@ export class CanvasChartEngine {
       this.ctx.fillStyle = isUp ? this.theme.volumeUp : this.theme.volumeDown;
       this.ctx.fillRect(x, y, barWidth, barHeight);
     }
+  }
+
+  private drawVolumeBubbles(): void {
+    const { width, height, priceAxisWidth, timeAxisHeight, volumeHeight } = this.dimensions;
+    const { startIndex, endIndex, priceMin, priceMax } = this.viewport;
+
+    const chartWidth = width - priceAxisWidth;
+    const chartHeight = height - timeAxisHeight - (this.showVolume ? volumeHeight : 0);
+    const visibleCandles = endIndex - startIndex;
+    const candleTotalWidth = chartWidth / visibleCandles;
+    const priceRange = priceMax - priceMin;
+    if (priceRange === 0) return;
+
+    const safeStart = Math.max(0, Math.floor(startIndex));
+    const safeEnd = Math.min(Math.ceil(endIndex), this.candles.length);
+
+    // Find max volume for normalization
+    let maxVol = 0;
+    for (let i = safeStart; i < safeEnd; i++) {
+      if (this.candles[i].volume > maxVol) maxVol = this.candles[i].volume;
+    }
+    if (maxVol === 0) return;
+
+    const maxRadius = Math.min(30, candleTotalWidth * 0.8);
+    this.ctx.save();
+
+    for (let i = safeStart; i < safeEnd; i++) {
+      const candle = this.candles[i];
+      if (candle.volume < 1) continue;
+
+      const x = (i - startIndex) * candleTotalWidth + candleTotalWidth / 2;
+      const midPrice = (candle.open + candle.close) / 2;
+      const centerY = ((priceMax - midPrice) / priceRange) * chartHeight;
+      const isUp = candle.close >= candle.open;
+
+      // Sqrt scaling for perceptual accuracy
+      const normalizedVol = candle.volume / maxVol;
+      const radius = Math.max(3, Math.sqrt(normalizedVol) * maxRadius);
+
+      // Outer glow
+      this.ctx.beginPath();
+      this.ctx.arc(x, centerY, radius + 2, 0, Math.PI * 2);
+      this.ctx.fillStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
+      this.ctx.globalAlpha = 0.08;
+      this.ctx.fill();
+
+      // Main bubble
+      this.ctx.beginPath();
+      this.ctx.arc(x, centerY, radius, 0, Math.PI * 2);
+      this.ctx.fillStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
+      this.ctx.globalAlpha = 0.35;
+      this.ctx.fill();
+
+      // Border
+      this.ctx.strokeStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
+      this.ctx.lineWidth = 1.5;
+      this.ctx.globalAlpha = 0.7;
+      this.ctx.stroke();
+
+      // Volume label for large bubbles
+      if (radius >= 16) {
+        this.ctx.globalAlpha = 0.85;
+        this.ctx.fillStyle = '#ffffff';
+        const fontSize = radius >= 22 ? 9 : 7;
+        this.ctx.font = `bold ${fontSize}px "Consolas", monospace`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        const vol = candle.volume;
+        const label = vol >= 1000000 ? `${(vol / 1000000).toFixed(1)}M`
+          : vol >= 1000 ? `${(vol / 1000).toFixed(1)}K`
+          : Math.round(vol).toString();
+        this.ctx.fillText(label, x, centerY);
+      }
+    }
+
+    this.ctx.globalAlpha = 1;
+    this.ctx.restore();
   }
 
   private drawPriceAxis(): void {

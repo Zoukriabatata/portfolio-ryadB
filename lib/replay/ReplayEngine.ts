@@ -23,6 +23,8 @@ import {
 } from './ReplayRecorder';
 import { ReplayVolumeProfile, type VolumeProfileData } from './indicators/ReplayVolumeProfile';
 import { ReplayClusterMap, type ClusterMapData } from './indicators/ReplayClusterMap';
+import { ReplayVWAP, type VWAPPoint } from './indicators/ReplayVWAP';
+import { ReplayTWAP, type TWAPPoint } from './indicators/ReplayTWAP';
 
 // Generic contract specs for crypto symbols (cast as CMEContractSpec for adapter compatibility)
 const CRYPTO_CONTRACTS: Record<string, CMEContractSpec> = {
@@ -82,6 +84,9 @@ export class ReplayEngine {
   private footprintAdapter: IBFootprintAdapter;
   private volumeProfile: ReplayVolumeProfile;
   private clusterMap: ReplayClusterMap;
+  private vwapEngine: ReplayVWAP;
+  private twapEngine: ReplayTWAP;
+  private currentContract: CMEContractSpec | null = null;
 
   // Recorded data
   private trades: RecordedTrade[] = [];
@@ -116,6 +121,8 @@ export class ReplayEngine {
     this.footprintAdapter = new IBFootprintAdapter();
     this.volumeProfile = new ReplayVolumeProfile();
     this.clusterMap = new ReplayClusterMap();
+    this.vwapEngine = new ReplayVWAP();
+    this.twapEngine = new ReplayTWAP();
   }
 
   static getInstance(): ReplayEngine {
@@ -161,12 +168,15 @@ export class ReplayEngine {
 
     // Configure adapters for the symbol (supports CME + crypto)
     const contract = getContractForSymbol(session.symbol);
+    this.currentContract = contract;
     this.heatmapAdapter.setContract(contract);
     this.footprintAdapter.setContract(contract);
     this.volumeProfile.reset();
     this.volumeProfile = new ReplayVolumeProfile(contract.tickSize);
     this.clusterMap.reset();
     this.clusterMap = new ReplayClusterMap(60_000, contract.tickSize);
+    this.vwapEngine.reset();
+    this.twapEngine.reset();
 
     const startTime = Math.min(
       trades[0]?.timestamp || Infinity,
@@ -229,6 +239,9 @@ export class ReplayEngine {
     this.footprintAdapter.reset();
     this.volumeProfile.reset();
     this.clusterMap.reset();
+    this.vwapEngine.reset();
+    this.twapEngine.reset();
+    this.currentContract = null;
     this.updateState({
       status: 'idle',
       sessionId: null,
@@ -257,6 +270,8 @@ export class ReplayEngine {
     this.footprintAdapter.reset();
     this.volumeProfile.reset();
     this.clusterMap.reset();
+    this.vwapEngine.reset();
+    this.twapEngine.reset();
 
     // Find new indices
     let tradeIdx = 0;
@@ -268,6 +283,8 @@ export class ReplayEngine {
       const t = this.trades[tradeIdx];
       this.volumeProfile.addTrade(t.price, t.size, t.side);
       this.clusterMap.addTrade(t.price, t.size, t.side, t.timestamp);
+      this.vwapEngine.addTrade(t.timestamp, t.price, t.size);
+      this.twapEngine.addTrade(t.timestamp, t.price);
       this.heatmapAdapter.feedTrade({
         price: t.price,
         size: t.size,
@@ -367,6 +384,26 @@ export class ReplayEngine {
     return this.clusterMap.getData(maxColumns);
   }
 
+  getVWAPPoints(): VWAPPoint[] {
+    return this.vwapEngine.getPoints();
+  }
+
+  getTWAPPoints(): TWAPPoint[] {
+    return this.twapEngine.getPoints();
+  }
+
+  getCurrentVWAP(): number {
+    return this.vwapEngine.getCurrentVWAP();
+  }
+
+  getCurrentTWAP(): number {
+    return this.twapEngine.getCurrentTWAP();
+  }
+
+  getTickSize(): number {
+    return this.currentContract?.tickSize || 0.01;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // STATUS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -403,6 +440,8 @@ export class ReplayEngine {
       const t = this.trades[tradeIdx];
       this.volumeProfile.addTrade(t.price, t.size, t.side);
       this.clusterMap.addTrade(t.price, t.size, t.side, t.timestamp);
+      this.vwapEngine.addTrade(t.timestamp, t.price, t.size);
+      this.twapEngine.addTrade(t.timestamp, t.price);
       this.heatmapAdapter.feedTrade({
         price: t.price,
         size: t.size,

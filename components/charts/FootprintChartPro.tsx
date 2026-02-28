@@ -96,10 +96,9 @@ import InlineTextEditor from '@/components/tools/InlineTextEditor';
 import { SaveTemplateModal } from '@/components/modals/SaveTemplateModal';
 import dynamic from 'next/dynamic';
 const FootprintAdvancedSettings = dynamic(() => import('@/components/settings/FootprintAdvancedSettings'), { ssr: false });
-import ToolSettingsBar from '@/components/tools/ToolSettingsBar';
-import { UnifiedToolPropertiesPanel } from '@/components/tools/UnifiedToolPropertiesPanel';
+import InlineToolSettings from '@/components/tools/InlineToolSettings';
 import { PriceCountdownCompact } from '@/components/trading/PriceCountdown';
-import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
+import VerticalToolbar from '@/components/tools/VerticalToolbar';
 import FootprintReplayControls, { type ReplayState } from '@/components/charts/FootprintReplayControls';
 
 /**
@@ -1547,6 +1546,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     // ═══════════════════════════════════════════════════════════════
     // MODULAR RENDERING — Uses cached profile data (single pass)
     // ═══════════════════════════════════════════════════════════════
+
+    // Volume Bubbles (rendered behind indicators)
+    if (features.showVolumeBubbles && metrics.visibleCandles.length > 0) {
+      fpRenderer.renderVolumeBubbles(ctx, layout, metrics, colors, features, fpWidth, isFootprintMode);
+    }
 
     // VWAP/TWAP lines
     fpRenderer.renderVWAPTWAP(ctx, layout, metrics, features, ohlcWidth, fpWidth);
@@ -3661,8 +3665,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
       {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Favorites Toolbar - Left side */}
-        <FavoritesToolbar
+        {/* Vertical Toolbar — TradingView-style */}
+        <VerticalToolbar
           activeTool={activeTool}
           onToolSelect={handleToolSelect}
           onDeleteSelected={() => {
@@ -3671,22 +3675,28 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
             setSelectedTool(null);
           }}
           hasSelectedTool={selectedTool !== null}
-          colors={{
-            surface: settings.colors.surface,
-            background: settings.colors.background,
-            gridColor: settings.colors.gridColor,
-            textPrimary: settings.colors.textPrimary,
-            textMuted: settings.colors.textMuted,
-            deltaPositive: settings.colors.deltaPositive,
-            deltaNegative: settings.colors.deltaNegative,
-          }}
-          preset="footprint"
         />
 
-        {/* Chart */}
-        <div
-          ref={containerRef}
-          className="flex-1 relative overflow-hidden"
+        {/* Chart column: InlineToolSettings + Canvas */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Inline settings bar — visible when a tool is selected on chart */}
+          <InlineToolSettings
+            selectedTool={selectedTool}
+            onOpenAdvanced={(tool) => {
+              if (toolPosition) {
+                setToolSettingsModalPosition({
+                  x: Math.max(50, Math.min(window.innerWidth - 400, toolPosition.x + 20)),
+                  y: Math.max(50, Math.min(window.innerHeight - 400, toolPosition.y + 20)),
+                });
+              }
+              setShowToolSettings(true);
+            }}
+          />
+
+          {/* Chart */}
+          <div
+            ref={containerRef}
+            className="flex-1 relative overflow-hidden"
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -4084,6 +4094,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
             </button>
           </div>
         )}
+        </div>{/* close chart column */}
       </div>
 
       {/* Footer */}
@@ -4163,51 +4174,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         initialPosition={advancedSettingsPosition}
       />
 
-      {/* Unified Tool Properties Panel */}
-      {(showToolProperties || selectedTool) && (
-        <UnifiedToolPropertiesPanel
-          selectedTool={selectedTool}
-          activeTool={activeTool}
-          colors={{
-            surface: settings.colors.surface,
-            background: settings.colors.background,
-            textPrimary: settings.colors.textPrimary,
-            textSecondary: settings.colors.textSecondary,
-            textMuted: settings.colors.textMuted,
-            gridColor: settings.colors.gridColor,
-          }}
-          onUpdate={() => { /* re-render handled by animation loop */ }}
-          onClose={() => {
-            setShowToolProperties(false);
-            if (selectedTool) {
-              getToolsEngine().deselectAll();
-              setSelectedTool(null);
-            }
-          }}
-        />
-      )}
-
-      {/* Floating Tool Settings Bar */}
-      {selectedTool && !showToolSettings && (
-        <ToolSettingsBar
-          selectedTool={selectedTool}
-          toolPosition={toolPosition}
-          colors={settings.colors}
-          onClose={() => {
-            getToolsEngine().deselectAll();
-            setSelectedTool(null);
-          }}
-          onOpenAdvanced={() => {
-            if (toolPosition) {
-              setToolSettingsModalPosition({
-                x: Math.max(50, Math.min(window.innerWidth - 400, toolPosition.x + 20)),
-                y: Math.max(50, Math.min(window.innerHeight - 400, toolPosition.y + 20)),
-              });
-            }
-            setShowToolSettings(true);
-          }}
-        />
-      )}
+      {/* Tool settings are now handled by InlineToolSettings in the chart column */}
     </div>
   );
 });

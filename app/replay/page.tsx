@@ -28,11 +28,8 @@ export default function ReplayPage() {
 
     if (!mgr.isConnected()) return;
 
-    const connector = (mgr as any).connector;
-    if (!connector) return;
-
-    const unsub1 = connector.onTrade((trade: any) => recorder.recordTrade(trade));
-    const unsub2 = connector.onDepth((depth: any) => recorder.recordDepth(depth));
+    const unsub1 = mgr.onTrade((trade: any) => recorder.recordTrade(trade));
+    const unsub2 = mgr.onDepth((depth: any) => recorder.recordDepth(depth));
 
     return () => {
       unsub1();

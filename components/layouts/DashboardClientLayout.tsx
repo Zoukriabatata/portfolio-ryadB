@@ -11,19 +11,26 @@ import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import type { TranslationKey } from '@/lib/i18n/translations';
 import {
-  LiveIcon,
-  FootprintIcon,
-  GexIcon,
-  VolatilityIcon,
-  NewsIcon,
-  HeatmapIcon,
-  ConnectedIcon,
-  DataFeedIcon,
-  JournalIcon,
-  ReplayIcon,
-  BiasIcon,
-  DashboardIcon,
-} from '@/components/ui/Icons';
+  Activity,
+  BarChart3,
+  Droplets,
+  Gauge,
+  TrendingUp,
+  Target,
+  Newspaper,
+  BookOpen,
+  PlayCircle,
+  Database,
+  User,
+  Home,
+  Palette,
+  Check,
+  Menu,
+  X,
+  Wifi,
+  WifiOff,
+  type LucideIcon,
+} from 'lucide-react';
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import FeatureTour from '@/components/ui/FeatureTour';
 import { PageActiveProvider } from '@/hooks/usePageActive';
@@ -113,37 +120,57 @@ const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
 };
 
 // ============================================================
-// NAVIGATION CONFIG
+// NAVIGATION CONFIG — Grouped hierarchy
 // ============================================================
 
-const NAV_ITEMS: Array<{
+interface NavItem {
   href: string;
   labelKey: TranslationKey;
-  Icon: React.ComponentType<any>;
-  color: string;
+  Icon: LucideIcon;
   shortcut: string;
-}> = [
-  { href: '/live', labelKey: 'nav.live', Icon: LiveIcon, color: '#10b981', shortcut: '1' },
-  { href: '/footprint', labelKey: 'nav.footprint', Icon: FootprintIcon, color: '#14b8a6', shortcut: '2' },
-  { href: '/liquidity', labelKey: 'nav.liquidity', Icon: HeatmapIcon, color: '#06b6d4', shortcut: '3' },
-  { href: '/gex', labelKey: 'nav.gex', Icon: GexIcon, color: '#22d3ee', shortcut: '4' },
-  { href: '/volatility', labelKey: 'nav.volatility', Icon: VolatilityIcon, color: '#0ea5e9', shortcut: '5' },
-  { href: '/bias', labelKey: 'nav.bias', Icon: BiasIcon, color: '#f59e0b', shortcut: '6' },
-  { href: '/news', labelKey: 'nav.news', Icon: NewsIcon, color: '#84cc16', shortcut: '7' },
-  { href: '/journal', labelKey: 'nav.journal', Icon: JournalIcon, color: '#f59e0b', shortcut: '8' },
-  { href: '/replay', labelKey: 'nav.replay', Icon: ReplayIcon, color: '#8b5cf6', shortcut: '9' },
-  { href: '/boutique', labelKey: 'nav.dataFeeds', Icon: DataFeedIcon, color: '#fbbf24', shortcut: '0' },
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Charts',
+    items: [
+      { href: '/live', labelKey: 'nav.live', Icon: Activity, shortcut: '1' },
+      { href: '/footprint', labelKey: 'nav.footprint', Icon: BarChart3, shortcut: '2' },
+      { href: '/liquidity', labelKey: 'nav.liquidity', Icon: Droplets, shortcut: '3' },
+    ],
+  },
+  {
+    label: 'Analytics',
+    items: [
+      { href: '/gex', labelKey: 'nav.gex', Icon: Gauge, shortcut: '4' },
+      { href: '/volatility', labelKey: 'nav.volatility', Icon: TrendingUp, shortcut: '5' },
+      { href: '/bias', labelKey: 'nav.bias', Icon: Target, shortcut: '6' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { href: '/replay', labelKey: 'nav.replay', Icon: PlayCircle, shortcut: '9' },
+      { href: '/journal', labelKey: 'nav.journal', Icon: BookOpen, shortcut: '8' },
+      { href: '/news', labelKey: 'nav.news', Icon: Newspaper, shortcut: '7' },
+    ],
+  },
+  {
+    label: 'Market',
+    items: [
+      { href: '/boutique', labelKey: 'nav.dataFeeds', Icon: Database, shortcut: '0' },
+    ],
+  },
 ];
 
-// ============================================================
-// HELPER: hex to rgba
-// ============================================================
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
+// Flat list for keyboard shortcuts and route matching
+const ALL_NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
+
 
 export function DashboardClientLayout({
   children,
@@ -157,15 +184,6 @@ export function DashboardClientLayout({
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { t } = useTranslation();
-
-  // Refs for sliding pill indicator
-  const navContainerRef = useRef<HTMLDivElement>(null);
-  const navItemRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
-  const [indicatorStyle, setIndicatorStyle] = useState<{
-    left: number;
-    width: number;
-    color: string;
-  } | null>(null);
 
   // Auto-track closed trades to journal
   useAutoTrackTrades();
@@ -243,38 +261,11 @@ export function DashboardClientLayout({
   }, [activeChart]);
 
   // ============================================================
-  // SLIDING PILL INDICATOR — measure active nav item position
+  // ACTIVE NAV ITEM CHECK
   // ============================================================
-  const updateIndicator = useCallback(() => {
-    const container = navContainerRef.current;
-    if (!container) return;
-
-    const activeItem = NAV_ITEMS.find(
-      item => pathname === item.href || pathname.startsWith(item.href + '/')
-    );
-    if (!activeItem) {
-      setIndicatorStyle(null);
-      return;
-    }
-
-    const el = navItemRefs.current.get(activeItem.href);
-    if (!el) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const itemRect = el.getBoundingClientRect();
-
-    setIndicatorStyle({
-      left: itemRect.left - containerRect.left + container.scrollLeft,
-      width: itemRect.width,
-      color: activeItem.color,
-    });
+  const isNavActive = useCallback((href: string) => {
+    return pathname === href || pathname.startsWith(href + '/');
   }, [pathname]);
-
-  useEffect(() => {
-    updateIndicator();
-    window.addEventListener('resize', updateIndicator);
-    return () => window.removeEventListener('resize', updateIndicator);
-  }, [updateIndicator]);
 
   // ============================================================
   // KEYBOARD SHORTCUTS — Alt+1 to Alt+0
@@ -287,7 +278,7 @@ export function DashboardClientLayout({
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
-      const item = NAV_ITEMS.find(n => n.shortcut === e.key);
+      const item = ALL_NAV_ITEMS.find(n => n.shortcut === e.key);
       if (item) {
         e.preventDefault();
         router.push(item.href);
@@ -324,22 +315,14 @@ export function DashboardClientLayout({
       {/* Offline Banner */}
       {isOffline && !isLandingPage && (
         <div
-          className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium animate-slideDown"
+          className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium"
           style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            borderBottom: '1px solid rgba(239, 68, 68, 0.25)',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
             color: '#f87171',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="1" y1="1" x2="23" y2="23" />
-            <path d="M16.72 11.06A10.94 10.94 0 0119 12.55" />
-            <path d="M5 12.55a10.94 10.94 0 015.17-2.39" />
-            <path d="M10.71 5.05A16 16 0 0122.56 9" />
-            <path d="M1.42 9a15.91 15.91 0 014.7-2.88" />
-            <path d="M8.53 16.11a6 6 0 016.95 0" />
-            <line x1="12" y1="20" x2="12.01" y2="20" />
-          </svg>
+          <WifiOff size={13} strokeWidth={1.5} />
           You&apos;re offline — some features may not work
         </div>
       )}
@@ -349,171 +332,121 @@ export function DashboardClientLayout({
           ============================================================ */}
       {!isLandingPage && (
       <nav
-        className="h-14 flex-shrink-0 glass border-b border-[var(--border)] relative z-50"
+        className="h-12 flex-shrink-0 border-b border-[var(--border)] bg-[var(--background)] relative z-50"
         role="navigation"
         aria-label="Main navigation"
       >
-        <div className="h-full px-3 md:px-4 flex items-center gap-3 md:gap-6">
+        <div className="h-full px-3 flex items-center">
           {/* Hamburger - mobile only */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[var(--surface)] transition-colors sm:hidden btn-elevate"
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--surface)] transition-colors sm:hidden mr-2"
             aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
             aria-expanded={showMobileMenu}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              {showMobileMenu ? (
-                <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
-              ) : (
-                <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>
-              )}
-            </svg>
+            {showMobileMenu ? <X size={16} /> : <Menu size={16} />}
           </button>
 
-          {/* Logo */}
-          <Link href="/" className="flex-shrink-0" aria-label="Home">
-            <Logo size="md" showText={true} animated={true} />
+          {/* Logo — compact */}
+          <Link href="/" className="flex-shrink-0 mr-4" aria-label="Home">
+            <Logo size="sm" showText={false} animated={false} />
           </Link>
 
-          {/* Navigation Pills — hidden on mobile (drawer instead), icon-only on tablet, full on desktop */}
-          <div
-            ref={navContainerRef}
-            className="hidden sm:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-none relative"
-          >
-            {/* Sliding pill indicator */}
-            {indicatorStyle && (
-              <div
-                className="nav-sliding-indicator nav-pill-glow"
-                style={{
-                  left: indicatorStyle.left,
-                  width: indicatorStyle.width,
-                  opacity: 1,
-                  '--nav-glow-bg': hexToRgba(indicatorStyle.color, 0.1),
-                  '--nav-glow-color': hexToRgba(indicatorStyle.color, 0.2),
-                  '--nav-glow-border': hexToRgba(indicatorStyle.color, 0.25),
-                } as React.CSSProperties}
-              />
-            )}
+          {/* Grouped Navigation — hidden on mobile */}
+          <div className="hidden sm:flex items-center flex-1 h-full">
+            {NAV_GROUPS.map((group, gi) => (
+              <div key={group.label} className="flex items-center h-full">
+                {/* Group divider */}
+                {gi > 0 && (
+                  <div className="w-px h-5 bg-[var(--border)] mx-1.5" />
+                )}
 
-            {NAV_ITEMS.map((item, index) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-              const IconComponent = item.Icon;
-              const label = t(item.labelKey);
+                {/* Group items */}
+                {group.items.map((item) => {
+                  const active = isNavActive(item.href);
+                  const IconComp = item.Icon;
+                  const label = t(item.labelKey);
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  ref={(el) => {
-                    if (el) navItemRefs.current.set(item.href, el);
-                  }}
-                  className={`
-                    nav-pill group relative px-2.5 lg:px-3 py-2 rounded-lg flex items-center gap-2
-                    flex-shrink-0 z-10
-                    ${isActive
-                      ? 'text-[var(--text-primary)]'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                    }
-                  `}
-                  data-tooltip={`${label} (Alt+${item.shortcut})`}
-                  data-tooltip-pos="bottom"
-                  aria-label={`${label} — Alt+${item.shortcut}`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <span
-                    className={`transition-all duration-200 ${isActive ? 'scale-110 drop-shadow-sm' : 'group-hover:scale-105'}`}
-                    style={{
-                      color: isActive ? item.color : 'currentColor',
-                      filter: isActive ? `drop-shadow(0 0 4px ${hexToRgba(item.color, 0.4)})` : 'none',
-                      transition: 'color 0.2s ease, filter 0.3s ease, transform 0.2s ease',
-                    }}
-                  >
-                    <IconComponent size={16} />
-                  </span>
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`
+                        relative flex items-center gap-1.5 px-2.5 h-full text-xs font-medium transition-colors duration-150
+                        ${active
+                          ? 'text-[var(--text-primary)]'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]/50'
+                        }
+                      `}
+                      title={`${label} (Alt+${item.shortcut})`}
+                      aria-label={`${label} — Alt+${item.shortcut}`}
+                      aria-current={active ? 'page' : undefined}
+                    >
+                      <IconComp
+                        size={16}
+                        strokeWidth={1.5}
+                        className={`flex-shrink-0 transition-colors duration-150 ${active ? 'text-[var(--primary)]' : ''}`}
+                      />
+                      <span className="hidden lg:inline">{label}</span>
 
-                  <span className={`text-xs font-medium hidden lg:inline transition-colors duration-200 ${isActive ? 'text-[var(--text-primary)]' : ''}`}>
-                    {label}
-                  </span>
-
-                  {/* Active underline bar */}
-                  {isActive && (
-                    <span
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 rounded-full animate-scaleIn"
-                      style={{
-                        backgroundColor: item.color,
-                        width: '60%',
-                        boxShadow: `0 0 8px ${hexToRgba(item.color, 0.5)}`,
-                      }}
-                    />
-                  )}
-                </Link>
-              );
-            })}
+                      {/* Active indicator — bottom accent line */}
+                      {active && (
+                        <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[var(--primary)]" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </div>
 
-          {/* Right Side - Status & Account */}
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 ml-auto sm:ml-0">
-            <Link
-              href="/"
-              className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors hidden md:block btn-elevate px-2 py-1 rounded-md"
-              aria-label="Go to homepage"
-            >
-              Home
-            </Link>
-
-            {/* Live Status — Animated pulse */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[var(--surface)] rounded-lg border border-[var(--border)] btn-elevate">
-              <div className="relative">
-                <div className="w-2 h-2 rounded-full bg-[#10b981] live-dot" />
+          {/* Right Side — Status, Theme, Account */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            {/* Live Status */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--surface)]/60 border border-[var(--border)]">
+              <div className="relative flex items-center justify-center w-2 h-2">
+                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-40" />
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               </div>
-              <span className="text-[11px] font-semibold text-[var(--primary)] tracking-wide">Live</span>
+              <span className="text-[10px] font-semibold text-emerald-500 tracking-wide hidden md:inline">Live</span>
             </div>
 
             {/* Theme Picker */}
             <div className="relative">
               <button
                 onClick={() => setShowThemePicker(!showThemePicker)}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-light)] hover:bg-[var(--surface)] btn-elevate"
-                title="Change theme (Ctrl+T)"
+                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[var(--surface)] transition-colors"
+                title="Change theme"
                 aria-label="Change theme"
                 aria-expanded={showThemePicker}
               >
-                <div
-                  className="w-4 h-4 rounded-full border border-[var(--border-light)]"
-                  style={{ background: `linear-gradient(135deg, var(--primary), var(--accent))` }}
-                />
-                <span className="text-[10px] text-[var(--text-muted)] hidden xl:block">Theme</span>
+                <Palette size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </button>
               {showThemePicker && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
-                  <div className="dropdown-menu animate-dropdown-in absolute right-0 top-full mt-2 w-56 z-50 p-2">
-                    <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-2 py-1.5 mb-1">
-                      Interface Theme
+                  <div className="absolute right-0 top-full mt-1 w-52 z-50 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-xl">
+                    <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-2 py-1 mb-0.5">
+                      Theme
                     </div>
                     {UI_THEMES.map((theme) => (
                       <button
                         key={theme.id}
                         onClick={() => { setTheme(theme.id); syncFootprintWithUITheme(theme.id); setShowThemePicker(false); }}
-                        className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left transition-all duration-150 ${
+                        className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left transition-colors duration-100 ${
                           activeTheme === theme.id
                             ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)]'
                             : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
                         }`}
                       >
                         <div className="flex gap-0.5">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.preview.bg, border: '1px solid rgba(255,255,255,0.1)' }} />
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.preview.primary }} />
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.preview.accent }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.preview.bg, border: '1px solid rgba(255,255,255,0.1)' }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.preview.primary }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.preview.accent }} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium">{theme.name}</div>
-                          <div className="text-[10px] text-[var(--text-muted)] truncate">{theme.description}</div>
-                        </div>
+                        <span className="text-[11px] font-medium flex-1">{theme.name}</span>
                         {activeTheme === theme.id && (
-                          <svg className="ml-auto w-3.5 h-3.5 text-[var(--primary)] flex-shrink-0 animate-scaleIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 8 7 12 13 4" />
-                          </svg>
+                          <Check size={12} className="text-[var(--primary)] flex-shrink-0" />
                         )}
                       </button>
                     ))}
@@ -522,21 +455,13 @@ export function DashboardClientLayout({
               )}
             </div>
 
-            {/* Account Button — Gradient avatar */}
+            {/* Account */}
             <Link
               href="/account"
-              className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-light)] btn-elevate"
+              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[var(--surface)] transition-colors"
               aria-label="Account settings"
             >
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center transition-shadow duration-300 group-hover:shadow-[0_0_12px_rgba(16,185,129,0.3)]"
-                style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))' }}
-              >
-                <span className="text-[10px] font-bold text-white">S</span>
-              </div>
-              <span className="text-xs text-[var(--text-secondary)] hidden xl:block group-hover:text-[var(--text-primary)] transition-colors">
-                {t('nav.account')}
-              </span>
+              <User size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
             </Link>
           </div>
         </div>
@@ -546,7 +471,7 @@ export function DashboardClientLayout({
       {/* Mobile Navigation Drawer */}
       {!isLandingPage && (
         <>
-          {/* Backdrop — blur + fade */}
+          {/* Backdrop */}
           <div
             aria-hidden="true"
             className="fixed inset-0 z-40 sm:hidden"
@@ -556,82 +481,81 @@ export function DashboardClientLayout({
               WebkitBackdropFilter: showMobileMenu ? 'blur(4px)' : 'blur(0px)',
               opacity: showMobileMenu ? 1 : 0,
               pointerEvents: showMobileMenu ? 'auto' : 'none',
-              transition: 'opacity 0.25s ease, backdrop-filter 0.3s ease',
+              transition: 'opacity 0.2s ease, backdrop-filter 0.2s ease',
             }}
             onClick={() => setShowMobileMenu(false)}
           />
-          {/* Drawer */}
+          {/* Drawer — grouped */}
           <div
-            className="fixed top-14 left-0 bottom-0 w-[220px] z-40 border-r border-[var(--border)] overflow-y-auto sm:hidden custom-scrollbar"
+            className="fixed top-12 left-0 bottom-0 w-[220px] z-40 border-r border-[var(--border)] overflow-y-auto sm:hidden custom-scrollbar"
             style={{
-              backgroundColor: 'var(--surface)',
+              backgroundColor: 'var(--background)',
               transform: showMobileMenu ? 'translateX(0)' : 'translateX(-100%)',
-              transition: 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+              transition: 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
             role="menu"
             aria-label="Mobile navigation"
           >
-            <div className="p-3 space-y-0.5">
-              {NAV_ITEMS.map((item, index) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                const IconComponent = item.Icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setShowMobileMenu(false)}
-                    className={`
-                      flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-150
-                      ${showMobileMenu ? 'drawer-item-enter' : ''}
-                      ${isActive
-                        ? 'text-[var(--text-primary)]'
-                        : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
-                      }
-                    `}
-                    style={isActive ? {
-                      backgroundColor: hexToRgba(item.color, 0.1),
-                      borderLeft: `3px solid ${item.color}`,
-                    } : undefined}
-                    role="menuitem"
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <span style={{ color: isActive ? item.color : 'currentColor' }}>
-                      <IconComponent size={18} />
-                    </span>
-                    <span className="text-sm font-medium flex-1">{t(item.labelKey)}</span>
-                    <span className="text-[9px] text-[var(--text-dimmed)] font-mono">
-                      Alt+{item.shortcut}
-                    </span>
-                  </Link>
-                );
-              })}
+            <div className="p-2">
+              {NAV_GROUPS.map((group, gi) => (
+                <div key={group.label}>
+                  {/* Group label */}
+                  <div className="text-[10px] font-semibold text-[var(--text-dimmed)] uppercase tracking-wider px-3 pt-3 pb-1">
+                    {group.label}
+                  </div>
+                  {group.items.map((item) => {
+                    const active = isNavActive(item.href);
+                    const IconComp = item.Icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setShowMobileMenu(false)}
+                        className={`
+                          flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors duration-100
+                          ${active
+                            ? 'bg-[var(--surface)] text-[var(--text-primary)]'
+                            : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
+                          }
+                        `}
+                        role="menuitem"
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        <IconComp
+                          size={16}
+                          strokeWidth={1.5}
+                          className={active ? 'text-[var(--primary)]' : ''}
+                        />
+                        <span className="text-[13px] font-medium flex-1">{t(item.labelKey)}</span>
+                        <span className="text-[9px] text-[var(--text-dimmed)] font-mono">
+                          Alt+{item.shortcut}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-            <div className="border-t border-[var(--border)] p-3 mt-2">
+
+            {/* Bottom — Home & Account */}
+            <div className="border-t border-[var(--border)] p-2 mt-1">
               <Link
                 href="/"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] transition-colors ${showMobileMenu ? 'drawer-item-enter' : ''}`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] transition-colors"
                 role="menuitem"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-                <span className="text-sm font-medium">Home</span>
+                <Home size={16} strokeWidth={1.5} />
+                <span className="text-[13px] font-medium">Home</span>
               </Link>
               <Link
                 href="/account"
                 onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] transition-colors ${showMobileMenu ? 'drawer-item-enter' : ''}`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] transition-colors"
                 role="menuitem"
               >
-                <div
-                  className="w-[18px] h-[18px] rounded-full flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))' }}
-                >
-                  <span className="text-[8px] font-bold text-white">S</span>
-                </div>
-                <span className="text-sm font-medium">{t('nav.account')}</span>
+                <User size={16} strokeWidth={1.5} />
+                <span className="text-[13px] font-medium">{t('nav.account')}</span>
               </Link>
             </div>
           </div>

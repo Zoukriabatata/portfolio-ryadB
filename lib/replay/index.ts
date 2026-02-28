@@ -12,3 +12,9 @@ export type { VolumeProfileData, VolumeProfileLevel } from './indicators/ReplayV
 
 export { ReplayClusterMap } from './indicators/ReplayClusterMap';
 export type { ClusterMapData, ClusterColumn, ClusterCell } from './indicators/ReplayClusterMap';
+
+export { ReplayVWAP } from './indicators/ReplayVWAP';
+export type { VWAPPoint } from './indicators/ReplayVWAP';
+
+export { ReplayTWAP } from './indicators/ReplayTWAP';
+export type { TWAPPoint } from './indicators/ReplayTWAP';

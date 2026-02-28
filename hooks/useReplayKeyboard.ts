@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import type { ReplayState } from '@/lib/replay';
+import { getReplayEngine } from '@/lib/replay';
 import { SPEED_OPTIONS } from '@/components/replay/utils';
 import { useReplayUIStore } from '@/stores/useReplayUIStore';
 
@@ -42,9 +43,22 @@ export function useReplayKeyboard(controls: ReplayControls) {
           if (state.status === 'idle') return;
           const duration = state.endTime - state.startTime;
           if (duration <= 0) return;
-          const stepMs = e.shiftKey ? 30000 : 5000;
-          const delta = stepMs / duration;
-          seek(Math.max(0, state.progress - delta));
+
+          if (e.ctrlKey || e.metaKey) {
+            // Ctrl+Left: step back 1 candle (timeframe-aware)
+            try {
+              const engine = getReplayEngine();
+              const tfMs = engine.getFootprintTimeframe() * 1000;
+              const delta = tfMs / duration;
+              seek(Math.max(0, state.progress - delta));
+            } catch {
+              seek(Math.max(0, state.progress - 1000 / duration));
+            }
+          } else {
+            const stepMs = e.shiftKey ? 30000 : 5000;
+            const delta = stepMs / duration;
+            seek(Math.max(0, state.progress - delta));
+          }
           break;
         }
 
@@ -53,11 +67,66 @@ export function useReplayKeyboard(controls: ReplayControls) {
           if (state.status === 'idle') return;
           const dur = state.endTime - state.startTime;
           if (dur <= 0) return;
-          const step = e.shiftKey ? 30000 : 5000;
-          const d = step / dur;
-          seek(Math.min(1, state.progress + d));
+
+          if (e.ctrlKey || e.metaKey) {
+            // Ctrl+Right: step forward 1 candle
+            try {
+              const engine = getReplayEngine();
+              const tfMs = engine.getFootprintTimeframe() * 1000;
+              const d = tfMs / dur;
+              seek(Math.min(1, state.progress + d));
+            } catch {
+              seek(Math.min(1, state.progress + 1000 / dur));
+            }
+          } else {
+            const step = e.shiftKey ? 30000 : 5000;
+            const d = step / dur;
+            seek(Math.min(1, state.progress + d));
+          }
           break;
         }
+
+        // ArrowUp/Down: navigate between bookmarks
+        case 'ArrowUp': {
+          e.preventDefault();
+          if (state.status === 'idle' || !state.sessionId) return;
+          const sessionBM = bookmarks[state.sessionId] || [];
+          if (sessionBM.length === 0) return;
+          // Find previous bookmark (closest with progress < current)
+          const prevBMs = sessionBM
+            .filter(bm => bm.progress < state.progress - 0.001)
+            .sort((a, b) => b.progress - a.progress);
+          if (prevBMs.length > 0) {
+            seek(prevBMs[0].progress);
+          }
+          break;
+        }
+
+        case 'ArrowDown': {
+          e.preventDefault();
+          if (state.status === 'idle' || !state.sessionId) return;
+          const sessionBMs = bookmarks[state.sessionId] || [];
+          if (sessionBMs.length === 0) return;
+          // Find next bookmark (closest with progress > current)
+          const nextBMs = sessionBMs
+            .filter(bm => bm.progress > state.progress + 0.001)
+            .sort((a, b) => a.progress - b.progress);
+          if (nextBMs.length > 0) {
+            seek(nextBMs[0].progress);
+          }
+          break;
+        }
+
+        // Home/End: jump to start/end
+        case 'Home':
+          e.preventDefault();
+          if (state.status !== 'idle') seek(0);
+          break;
+
+        case 'End':
+          e.preventDefault();
+          if (state.status !== 'idle') seek(1);
+          break;
 
         case '+':
         case '=': {

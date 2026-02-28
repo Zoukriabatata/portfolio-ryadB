@@ -1,6 +1,8 @@
 'use client';
 
+import { useCallback } from 'react';
 import type { ReplayState } from '@/lib/replay';
+import { getReplayEngine } from '@/lib/replay';
 import { useReplayUIStore } from '@/stores/useReplayUIStore';
 import ReplayProgressBar from './ReplayProgressBar';
 import { formatTime, SPEED_OPTIONS, getSpeedLabel } from './utils';
@@ -36,6 +38,38 @@ export default function ReplayControlBar({
   const handlePrev = () => seek(Math.max(0, state.progress - stepProgress));
   const handleNext = () => seek(Math.min(1, state.progress + stepProgress));
   const handleStepForward = () => seek(Math.min(1, state.progress + bigStepProgress));
+
+  // Candle-by-candle step (1 timeframe unit)
+  const handleCandleStep = useCallback((direction: 1 | -1) => {
+    if (duration <= 0) return;
+    try {
+      const engine = getReplayEngine();
+      const tfMs = engine.getFootprintTimeframe() * 1000;
+      const delta = tfMs / duration;
+      const newP = state.progress + delta * direction;
+      seek(Math.max(0, Math.min(1, newP)));
+    } catch {
+      // Fallback: 1s step
+      const delta = 1000 / duration;
+      seek(Math.max(0, Math.min(1, state.progress + delta * direction)));
+    }
+  }, [duration, state.progress, seek]);
+
+  // Jump to next/prev bookmark
+  const handleBookmarkNav = useCallback((direction: 1 | -1) => {
+    if (sessionBookmarks.length === 0) return;
+    if (direction === -1) {
+      const prev = sessionBookmarks
+        .filter(bm => bm.progress < state.progress - 0.001)
+        .sort((a, b) => b.progress - a.progress);
+      if (prev.length > 0) seek(prev[0].progress);
+    } else {
+      const next = sessionBookmarks
+        .filter(bm => bm.progress > state.progress + 0.001)
+        .sort((a, b) => a.progress - b.progress);
+      if (next.length > 0) seek(next[0].progress);
+    }
+  }, [sessionBookmarks, state.progress, seek]);
 
   return (
     <div
@@ -145,6 +179,47 @@ export default function ReplayControlBar({
             <rect x="18" y="5" width="3" height="14" />
           </svg>
         </button>
+      </div>
+
+      {/* Candle step & bookmark nav */}
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={() => handleCandleStep(-1)}
+          className="w-6 h-6 flex items-center justify-center rounded text-[9px] font-mono transition-colors hover:bg-white/10"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
+          title="Back 1 candle (Ctrl+←)"
+        >
+          ◂
+        </button>
+        <button
+          onClick={() => handleCandleStep(1)}
+          className="w-6 h-6 flex items-center justify-center rounded text-[9px] font-mono transition-colors hover:bg-white/10"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
+          title="Forward 1 candle (Ctrl+→)"
+        >
+          ▸
+        </button>
+        {sessionBookmarks.length > 0 && (
+          <>
+            <div className="w-px h-4 mx-0.5" style={{ background: 'rgba(255,255,255,0.06)' }} />
+            <button
+              onClick={() => handleBookmarkNav(-1)}
+              className="w-6 h-6 flex items-center justify-center rounded text-[8px] transition-colors hover:bg-white/10"
+              style={{ color: '#f59e0b' }}
+              title="Previous bookmark (↑)"
+            >
+              ◆←
+            </button>
+            <button
+              onClick={() => handleBookmarkNav(1)}
+              className="w-6 h-6 flex items-center justify-center rounded text-[8px] transition-colors hover:bg-white/10"
+              style={{ color: '#f59e0b' }}
+              title="Next bookmark (↓)"
+            >
+              →◆
+            </button>
+          </>
+        )}
       </div>
 
       {/* Divider */}

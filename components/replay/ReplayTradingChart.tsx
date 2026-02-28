@@ -4,13 +4,22 @@
  * ReplayTradingChart
  *
  * Full trading chart for replay mode — fusion of /live + /footprint.
- * Canvas-based with timeframe selector and footprint toggle.
+ * Canvas-based with timeframe selector, footprint toggle, and pro indicators.
  *
  * Features:
  * - Timeframe selector (5s → 1H)
  * - Footprint mode toggle (auto at ≤20 candles, or forced on/off)
  * - Scroll zoom, drag pan, crosshair
  * - Current price line, volume bars, delta labels
+ * - VWAP/TWAP lines with std dev bands
+ * - Developing POC polyline
+ * - CVD (Cumulative Volume Delta) panel
+ * - Delta Profile bars
+ * - Stacked Imbalances highlighting
+ * - Naked POC lines
+ * - Unfinished Auction markers
+ * - Session separators / hour markers
+ * - Heatmap intensity + large trade highlighting
  * - Feeds currentPrice to useMarketStore for QuickTradeBar
  */
 
@@ -18,6 +27,24 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { getReplayEngine } from '@/lib/replay';
 import type { FootprintCandle } from '@/lib/ib/IBFootprintAdapter';
 import { useMarketStore } from '@/stores/useMarketStore';
+import { useFootprintSettingsStore } from '@/stores/useFootprintSettingsStore';
+import {
+  ReplayChartRenderer,
+  PRICE_AXIS_W,
+  TIME_AXIS_H,
+  VOL_PCT,
+  type ReplayRenderContext,
+} from '@/lib/replay/ReplayChartRenderer';
+import {
+  getToolsEngine,
+  getToolsRenderer,
+  getInteractionController,
+  type ToolType,
+  type RenderContext as ToolsRenderContext,
+  type CoordinateConverter,
+} from '@/lib/tools';
+import ReplaySettingsPanel from './ReplaySettingsPanel';
+import VerticalToolbar from '@/components/tools/VerticalToolbar';
 
 interface ReplayTradingChartProps {
   symbol: string;
@@ -42,32 +69,29 @@ const TIMEFRAMES = [
 type FootprintMode = 'auto' | 'on' | 'off';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// COLORS
+// INDICATOR TOGGLE BUTTONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const C = {
-  bg: '#0a0a0f',
-  up: '#10b981',
-  down: '#ef4444',
-  upFill: 'rgba(16,185,129,0.35)',
-  downFill: 'rgba(239,68,68,0.35)',
-  grid: 'rgba(255,255,255,0.04)',
-  gridText: 'rgba(255,255,255,0.3)',
-  priceLine: '#f59e0b',
-  volUp: 'rgba(16,185,129,0.3)',
-  volDown: 'rgba(239,68,68,0.3)',
-  fpBid: 'rgba(239,68,68,0.7)',
-  fpAsk: 'rgba(16,185,129,0.7)',
-  fpImbBuy: 'rgba(16,185,129,1)',
-  fpImbSell: 'rgba(239,68,68,1)',
-  fpPoc: 'rgba(16,185,129,0.15)',
-  fpCell: 'rgba(255,255,255,0.03)',
-  crosshair: 'rgba(255,255,255,0.15)',
-};
+interface IndicatorToggle {
+  key: string;
+  label: string;
+  featureKey: keyof ReturnType<typeof useFootprintSettingsStore.getState>['features'];
+}
 
-const PRICE_AXIS_W = 70;
-const TIME_AXIS_H = 24;
-const VOL_PCT = 0.15;
+// Drawing tools are provided by VerticalToolbar component
+
+const INDICATOR_TOGGLES: IndicatorToggle[] = [
+  { key: 'vwap',    label: 'VWAP',  featureKey: 'showVWAPTWAP' },
+  { key: 'dpoc',    label: 'dPOC',  featureKey: 'showDevelopingPOC' },
+  { key: 'cvd',     label: 'CVD',   featureKey: 'showCVDPanel' },
+  { key: 'delta',   label: 'ΔP',    featureKey: 'showDeltaProfile' },
+  { key: 'si',      label: 'SI',    featureKey: 'showStackedImbalances' },
+  { key: 'npoc',    label: 'nPOC',  featureKey: 'showNakedPOC' },
+  { key: 'ua',      label: 'UA',    featureKey: 'showUnfinishedAuctions' },
+  { key: 'session', label: 'SEP',   featureKey: 'showSessionSeparators' },
+  { key: 'heat',    label: 'Heat',  featureKey: 'showHeatmapCells' },
+  { key: 'large',   label: 'LT',    featureKey: 'showLargeTradeHighlight' },
+];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
@@ -77,11 +101,23 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef(0);
+  const rendererRef = useRef(new ReplayChartRenderer());
 
   // UI state (triggers re-render for toolbar)
   const [timeframe, setTimeframe] = useState(60);
   const [fpMode, setFpMode] = useState<FootprintMode>('auto');
   const [showTfPicker, setShowTfPicker] = useState(false);
+  const [showIndicators, setShowIndicators] = useState(false);
+  const [activeTool, setActiveTool] = useState<ToolType>('cursor');
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Drawing tools refs (initialized lazily to avoid SSR issues)
+  const toolsInitRef = useRef(false);
+  const coordConverterRef = useRef<CoordinateConverter | null>(null);
+
+  // Footprint settings (features + toggles)
+  const features = useFootprintSettingsStore(s => s.features);
+  const setFeatures = useFootprintSettingsStore(s => s.setFeatures);
 
   // Render-loop state (refs, no re-render)
   const st = useRef({
@@ -93,6 +129,10 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
     dragStartX: 0, dragStartOffset: 0,
     fpMode: 'auto' as FootprintMode,
   });
+
+  // Keep features ref in sync for draw loop
+  const featuresRef = useRef(features);
+  useEffect(() => { featuresRef.current = features; }, [features]);
 
   // Sync fpMode to ref
   useEffect(() => { st.current.fpMode = fpMode; }, [fpMode]);
@@ -135,27 +175,117 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
     return () => el.removeEventListener('wheel', handler);
   }, []);
 
+  // ── Drawing tools setup ──
+  const initTools = useCallback(() => {
+    if (toolsInitRef.current) return;
+    toolsInitRef.current = true;
+    const controller = getInteractionController();
+    controller.setCallbacks({ requestRedraw: () => {} });
+  }, []);
+
+  const handleToolSelect = useCallback((type: ToolType) => {
+    initTools();
+    setActiveTool(type);
+    const controller = getInteractionController();
+    controller.setActiveTool(type);
+  }, [initTools]);
+
   // ── Mouse ──
   const onDown = useCallback((e: React.MouseEvent) => {
     const s = st.current;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const localY = e.clientY - rect.top;
+    const localX = e.clientX - rect.left;
+
+    // Check if click is in minimap area (bottom 24px above time axis)
+    const mmY = s.h - TIME_AXIS_H - 24;
+    if (localY >= mmY && localY < s.h - TIME_AXIS_H) {
+      // Minimap click — navigate to that position
+      try {
+        const engine = getReplayEngine();
+        const allCandles = engine.getFootprintCandles();
+        const chartW = s.w - PRICE_AXIS_W;
+        const ratio = localX / chartW;
+        const targetIdx = Math.floor(ratio * allCandles.length);
+        const newOffset = Math.max(0, allCandles.length - targetIdx - Math.floor(s.visibleCount / 2));
+        s.scrollOffset = newOffset;
+      } catch { /* engine not ready */ }
+      return;
+    }
+
+    const controller = getInteractionController();
+    const isDrawing = controller.getActiveTool() !== 'cursor' && controller.getActiveTool() !== 'crosshair';
+
+    if (isDrawing && coordConverterRef.current) {
+      // Drawing mode — pass to tools controller
+      if (rect) controller.setChartBounds(rect);
+      controller.handleMouseDown(e as unknown as MouseEvent);
+      return;
+    }
+
+    // Chart pan mode
     s.isDragging = true;
     s.dragStartX = e.clientX;
     s.dragStartOffset = s.scrollOffset;
   }, []);
+
   const onMove = useCallback((e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const s = st.current;
     s.mouseX = e.clientX - rect.left;
     s.mouseY = e.clientY - rect.top;
+
+    const controller = getInteractionController();
+    const isDrawing = controller.getActiveTool() !== 'cursor' && controller.getActiveTool() !== 'crosshair';
+
+    if (isDrawing && coordConverterRef.current) {
+      controller.setChartBounds(rect);
+      controller.handleMouseMove(e as unknown as MouseEvent);
+      return;
+    }
+
+    // Also pass cursor mode events for hover detection
+    if (controller.getActiveTool() === 'cursor' && coordConverterRef.current) {
+      controller.setChartBounds(rect);
+      controller.handleMouseMove(e as unknown as MouseEvent);
+    }
+
     if (s.isDragging) {
       const chartW = s.w - PRICE_AXIS_W;
       const candleW = chartW / s.visibleCount;
       s.scrollOffset = Math.max(0, s.dragStartOffset + Math.round((e.clientX - s.dragStartX) / candleW));
     }
   }, []);
-  const onUp = useCallback(() => { st.current.isDragging = false; }, []);
-  const onLeave = useCallback(() => { st.current.isDragging = false; st.current.mouseX = -1; st.current.mouseY = -1; }, []);
+
+  const onUp = useCallback((e: React.MouseEvent) => {
+    st.current.isDragging = false;
+    const controller = getInteractionController();
+    if (coordConverterRef.current) {
+      controller.handleMouseUp(e as unknown as MouseEvent);
+    }
+  }, []);
+
+  const onLeave = useCallback(() => {
+    st.current.isDragging = false;
+    st.current.mouseX = -1;
+    st.current.mouseY = -1;
+  }, []);
+
+  // ── Keyboard: Delete tools ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const controller = getInteractionController();
+        controller.handleKeyDown(e);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DRAW LOOP
@@ -168,6 +298,7 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
     if (!ctx) { rafRef.current = requestAnimationFrame(draw); return; }
 
     const s = st.current;
+    const f = featuresRef.current;
     const { w, h, visibleCount, scrollOffset, mouseX, mouseY, fpMode: mode } = s;
     if (w < 10 || h < 10) { rafRef.current = requestAnimationFrame(draw); return; }
 
@@ -184,10 +315,13 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
     const engine = getReplayEngine();
     const allCandles = engine.getFootprintCandles() as FootprintCandle[];
     const price = engine.getCurrentPrice();
+    const tickSize = engine.getTickSize();
     if (price > 0) useMarketStore.setState({ currentPrice: price });
 
-    // Background
-    ctx.fillStyle = C.bg;
+    const renderer = rendererRef.current;
+
+    // Background (always)
+    ctx.fillStyle = '#0a0a0f';
     ctx.fillRect(0, 0, w, h);
 
     if (allCandles.length === 0) {
@@ -202,16 +336,18 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
     // Visible slice
     const total = allCandles.length;
     const end = Math.max(0, total - scrollOffset);
-    const start = Math.max(0, end - visibleCount);
-    const candles = allCandles.slice(start, end);
+    const startIdx = Math.max(0, end - visibleCount);
+    const candles = allCandles.slice(startIdx, end);
     if (candles.length === 0) { rafRef.current = requestAnimationFrame(draw); return; }
 
-    // Should we show footprint?
+    // Footprint mode
     const showFP = mode === 'on' || (mode === 'auto' && visibleCount <= 20);
 
+    // Layout
     const chartW = w - PRICE_AXIS_W;
     const volH = h * VOL_PCT;
-    const chartH = h - TIME_AXIS_H - volH;
+    const cvdH = f.showCVDPanel ? (f.cvdPanelHeight || 70) : 0;
+    const chartH = h - TIME_AXIS_H - volH - cvdH;
     const candleW = chartW / visibleCount;
     const bodyW = Math.max(1, candleW * (showFP ? 0.92 : 0.7));
 
@@ -230,114 +366,112 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
     const p2y = (p: number) => ((hi - p) / pR) * chartH;
     const y2p = (y: number) => hi - (y / chartH) * pR;
 
-    // Grid
-    ctx.strokeStyle = C.grid;
-    ctx.lineWidth = 1;
-    const steps = 8;
-    const pStep = pR / steps;
-    ctx.font = '9px monospace';
-    ctx.fillStyle = C.gridText;
-    ctx.textAlign = 'right';
-    for (let i = 0; i <= steps; i++) {
-      const p = lo + i * pStep;
-      const y = p2y(p);
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(chartW, y); ctx.stroke();
-      ctx.fillText(p.toFixed(2), w - 4, y + 3);
-    }
+    // Build render context
+    const rc: ReplayRenderContext = {
+      ctx, w, h, chartW, chartH, volH, cvdH,
+      candleW, bodyW, candles, allCandles,
+      startIdx, hi, lo, pR, maxV, showFP,
+      price, mouseX, mouseY, tickSize, p2y, y2p,
+    };
 
-    // ── Candles ──
-    for (let i = 0; i < candles.length; i++) {
-      const c = candles[i];
-      const x = i * candleW;
-      const cx = x + candleW / 2;
-      const up = c.close >= c.open;
+    // ── Render layers ──
+    renderer.renderBackground(rc);
+    renderer.renderGrid(rc);
 
-      if (showFP) {
-        drawFP(ctx, c, x, candleW, bodyW, hi, lo, pR, chartH);
-      } else {
-        const oY = p2y(c.open), cY = p2y(c.close), hY = p2y(c.high), lY = p2y(c.low);
-        const top = Math.min(oY, cY), bH = Math.max(1, Math.abs(cY - oY));
+    // Session separators (behind candles)
+    if (f.showSessionSeparators) renderer.renderSessionSeparators(rc);
 
-        ctx.strokeStyle = up ? C.up : C.down;
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(cx, hY); ctx.lineTo(cx, lY); ctx.stroke();
+    // VWAP bands (behind candles)
+    if (f.showVWAPTWAP && f.showVWAP !== false) renderer.renderVWAP(rc, f);
 
-        if (bH < 2) {
-          ctx.fillStyle = up ? C.up : C.down;
-          ctx.fillRect(cx - bodyW / 2, top, bodyW, 1);
-        } else {
-          ctx.fillStyle = up ? C.upFill : C.downFill;
-          ctx.fillRect(cx - bodyW / 2, top, bodyW, bH);
-          ctx.strokeStyle = up ? C.up : C.down;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(cx - bodyW / 2, top, bodyW, bH);
-        }
-      }
+    // TWAP (behind candles)
+    if (f.showVWAPTWAP && f.showTWAP !== false) renderer.renderTWAP(rc, f);
 
-      // Volume
-      const vH = maxV > 0 ? (c.totalVolume / maxV) * volH * 0.85 : 0;
-      ctx.fillStyle = c.close >= c.open ? C.volUp : C.volDown;
-      ctx.fillRect(x + 1, chartH + volH - vH, candleW - 2, vH);
-    }
+    // Developing POC (behind candles)
+    if (f.showDevelopingPOC) renderer.renderDevelopingPOC(rc, f);
 
-    // Current price line
-    if (price >= lo && price <= hi) {
-      const py = p2y(price);
-      ctx.strokeStyle = C.priceLine;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(chartW, py); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = C.priceLine;
-      ctx.fillRect(chartW, py - 8, PRICE_AXIS_W, 16);
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 9px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(price.toFixed(2), chartW + PRICE_AXIS_W / 2, py + 3);
-    }
+    // Candles + footprint + volume bars
+    renderer.renderCandles(rc, f);
 
-    // Time axis
-    ctx.fillStyle = C.gridText;
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'center';
-    const tStep = Math.max(1, Math.floor(candles.length / 6));
-    for (let i = 0; i < candles.length; i += tStep) {
-      const c = candles[i];
-      const x = i * candleW + candleW / 2;
-      const d = new Date(c.time * 1000);
-      ctx.fillText(`${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`, x, h - 4);
-    }
+    // Stacked imbalances (overlay on candles)
+    if (f.showStackedImbalances && showFP) renderer.renderStackedImbalances(rc, f);
 
-    // Crosshair
-    if (mouseX >= 0 && mouseX < chartW && mouseY >= 0 && mouseY < chartH) {
-      ctx.strokeStyle = C.crosshair;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.moveTo(0, mouseY); ctx.lineTo(chartW, mouseY); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(mouseX, 0); ctx.lineTo(mouseX, chartH + volH); ctx.stroke();
-      ctx.setLineDash([]);
-      const cp = y2p(mouseY);
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.fillRect(chartW, mouseY - 8, PRICE_AXIS_W, 16);
-      ctx.fillStyle = '#000';
-      ctx.font = '9px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(cp.toFixed(2), chartW + PRICE_AXIS_W / 2, mouseY + 3);
-    }
+    // Naked POCs
+    if (f.showNakedPOC) renderer.renderNakedPOCs(rc);
+
+    // Unfinished auctions
+    if (f.showUnfinishedAuctions && showFP) renderer.renderUnfinishedAuctions(rc);
+
+    // Delta Profile
+    if (f.showDeltaProfile) renderer.renderDeltaProfile(rc, f);
+
+    // CVD Panel
+    if (f.showCVDPanel) renderer.renderCVDPanel(rc, f);
+
+    // Current price line (above indicators)
+    renderer.renderCurrentPriceLine(rc);
 
     // Separators
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(0, chartH); ctx.lineTo(chartW, chartH); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(chartW, 0); ctx.lineTo(chartW, h); ctx.stroke();
+    renderer.renderSeparators(rc);
 
-    // ── HUD: candle count + mode ──
-    const modeLabel = showFP ? 'FOOTPRINT' : 'CANDLES';
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = '9px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${candles.length} candles · ${modeLabel}`, 8, chartH + volH + 14);
+    // Time axis
+    renderer.renderTimeAxis(rc);
+
+    // Crosshair (top layer)
+    renderer.renderCrosshair(rc);
+
+    // ── Drawing Tools ──
+    // Update coordinate converter for tools system
+    const startIdxCopy = startIdx;
+    const converter: CoordinateConverter = {
+      xToTime: (x: number) => {
+        const idx = Math.floor(x / candleW) + startIdxCopy;
+        const c = allCandles[Math.max(0, Math.min(idx, allCandles.length - 1))];
+        return c ? c.time : 0;
+      },
+      timeToX: (time: number) => {
+        for (let i = 0; i < allCandles.length; i++) {
+          if (allCandles[i].time >= time) {
+            return (i - startIdxCopy) * candleW + candleW / 2;
+          }
+        }
+        return chartW;
+      },
+      yToPrice: y2p,
+      priceToY: p2y,
+    };
+    coordConverterRef.current = converter;
+    const controller = getInteractionController();
+    controller.setCoordinateConverter(converter);
+
+    // Render tools
+    const toolsRenderer = getToolsRenderer();
+    const controllerState = controller.getState();
+    const toolsRC: ToolsRenderContext = {
+      ctx, width: chartW, height: chartH,
+      priceToY: p2y, yToPrice: y2p,
+      timeToX: converter.timeToX, xToTime: converter.xToTime,
+      tickSize,
+      colors: {
+        positive: '#22c55e',
+        negative: '#ef4444',
+        selection: '#2962FF',
+        handle: '#fff',
+        handleBorder: '#2962FF',
+      },
+      currentPrice: price,
+      hoveredToolId: controllerState.hoveredToolId,
+      hoveredHandle: controllerState.hoveredHandle ?? undefined,
+    };
+    toolsRenderer.render(toolsRC);
+
+    // Minimap (overview of all candles with viewport indicator)
+    if (allCandles.length > visibleCount) {
+      renderer.renderMinimap(rc);
+    }
+
+    // HUD
+    renderer.renderHUD(rc);
 
     rafRef.current = requestAnimationFrame(draw);
   }, []);
@@ -353,8 +487,18 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
 
   const currentTfLabel = TIMEFRAMES.find(t => t.sec === timeframe)?.label || '1m';
 
+  const toggleFeature = (key: keyof typeof features) => {
+    setFeatures({ [key]: !features[key] } as Partial<typeof features>);
+  };
+
   return (
-    <div className="w-full h-full flex flex-col" style={{ minHeight: 0 }}>
+    <div className="w-full h-full flex" style={{ minHeight: 0 }}>
+      {/* Vertical Toolbar — TradingView-style */}
+      <VerticalToolbar
+        activeTool={activeTool}
+        onToolSelect={handleToolSelect}
+      />
+    <div className="flex-1 flex flex-col min-w-0" style={{ minHeight: 0 }}>
       {/* ── Toolbar ── */}
       <div
         className="flex items-center gap-1.5 px-2 py-1 shrink-0"
@@ -414,19 +558,118 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
           </button>
         ))}
 
+        {/* Separator */}
+        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)' }} />
+
+        {/* Quick indicator toggles */}
+        <button
+          onClick={() => toggleFeature('showVWAPTWAP')}
+          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-colors"
+          style={{
+            background: features.showVWAPTWAP ? 'rgba(59,130,246,0.15)' : 'transparent',
+            color: features.showVWAPTWAP ? '#3b82f6' : 'rgba(255,255,255,0.35)',
+          }}
+          title="VWAP / TWAP"
+        >
+          VWAP
+        </button>
+        <button
+          onClick={() => toggleFeature('showDevelopingPOC')}
+          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-colors"
+          style={{
+            background: features.showDevelopingPOC ? 'rgba(251,191,36,0.15)' : 'transparent',
+            color: features.showDevelopingPOC ? '#fbbf24' : 'rgba(255,255,255,0.35)',
+          }}
+          title="Developing POC"
+        >
+          dPOC
+        </button>
+        <button
+          onClick={() => toggleFeature('showCVDPanel')}
+          className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-colors"
+          style={{
+            background: features.showCVDPanel ? 'rgba(16,185,129,0.15)' : 'transparent',
+            color: features.showCVDPanel ? '#10b981' : 'rgba(255,255,255,0.35)',
+          }}
+          title="Cumulative Volume Delta"
+        >
+          CVD
+        </button>
+
+        {/* More indicators dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowIndicators(p => !p)}
+            className="px-1.5 py-0.5 rounded text-[9px] font-mono transition-colors"
+            style={{
+              background: showIndicators ? 'rgba(255,255,255,0.1)' : 'transparent',
+              color: 'rgba(255,255,255,0.4)',
+            }}
+            title="More indicators"
+          >
+            +
+          </button>
+          {showIndicators && (
+            <div
+              className="absolute top-full left-0 mt-1 z-50 rounded-lg overflow-hidden py-1"
+              style={{ background: '#1a1a24', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: 140 }}
+            >
+              {INDICATOR_TOGGLES.map(t => {
+                const active = !!features[t.featureKey];
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => toggleFeature(t.featureKey)}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-[10px] font-mono transition-colors hover:bg-[rgba(255,255,255,0.06)]"
+                    style={{ color: active ? '#10b981' : 'rgba(255,255,255,0.5)' }}
+                  >
+                    <span style={{
+                      width: 8, height: 8, borderRadius: 2,
+                      background: active ? '#10b981' : 'transparent',
+                      border: `1px solid ${active ? '#10b981' : 'rgba(255,255,255,0.2)'}`,
+                    }} />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Separator */}
+        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)' }} />
+
+        {/* Drawing tools — handled by VerticalToolbar on the left */}
+
         <div className="flex-1" />
 
         {/* Symbol label */}
         <span className="text-[9px] font-mono" style={{ color: 'rgba(255,255,255,0.25)' }}>
           {symbol}
         </span>
+
+        {/* Settings button */}
+        <button
+          onClick={() => setShowSettings(p => !p)}
+          className="w-6 h-6 flex items-center justify-center rounded transition-colors hover:bg-[rgba(255,255,255,0.06)]"
+          style={{ color: showSettings ? '#10b981' : 'rgba(255,255,255,0.3)' }}
+          title="Chart settings"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
       </div>
+
+      {/* Settings Panel */}
+      <ReplaySettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       {/* ── Canvas ── */}
       <div
         ref={containerRef}
         className="flex-1 min-h-0"
-        style={{ cursor: 'crosshair' }}
+        style={{ cursor: activeTool !== 'cursor' ? 'crosshair' : 'default' }}
         onMouseDown={onDown}
         onMouseMove={onMove}
         onMouseUp={onUp}
@@ -435,114 +678,6 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
         <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
       </div>
     </div>
+    </div>
   );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// FOOTPRINT RENDERER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function drawFP(
-  ctx: CanvasRenderingContext2D,
-  candle: FootprintCandle,
-  x: number, candleW: number, bodyW: number,
-  hi: number, lo: number, pR: number, chartH: number,
-) {
-  const p2y = (p: number) => ((hi - p) / pR) * chartH;
-  const up = candle.close >= candle.open;
-  const levels = Array.from(candle.levels.values()).sort((a, b) => b.price - a.price);
-  if (levels.length === 0) {
-    // No levels yet — draw simple candle outline
-    const oY = p2y(candle.open), cY = p2y(candle.close);
-    ctx.strokeStyle = up ? C.up : C.down;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x + candleW * 0.1, Math.min(oY, cY), candleW * 0.8, Math.max(1, Math.abs(cY - oY)));
-    return;
-  }
-
-  let maxLV = 0;
-  for (const l of levels) { if (l.totalVolume > maxLV) maxLV = l.totalVolume; }
-
-  // Tick size from price gaps
-  const prices = levels.map(l => l.price);
-  let tick = 1;
-  if (prices.length > 1) {
-    const diffs: number[] = [];
-    for (let i = 1; i < prices.length; i++) diffs.push(Math.abs(prices[i] - prices[i - 1]));
-    tick = Math.min(...diffs.filter(d => d > 0)) || 1;
-  }
-
-  const cellH = Math.max(2, (tick / pR) * chartH);
-  const half = bodyW / 2;
-  const cx = x + candleW / 2;
-
-  for (const lv of levels) {
-    const y = p2y(lv.price);
-    const intensity = maxLV > 0 ? lv.totalVolume / maxLV : 0;
-
-    // Cell bg
-    ctx.fillStyle = lv.price === candle.poc ? C.fpPoc : C.fpCell;
-    ctx.fillRect(cx - half, y - cellH / 2, bodyW, cellH);
-
-    // Bid/ask bars
-    const bW = (half - 2) * (maxLV > 0 ? lv.bidVolume / maxLV : 0);
-    const aW = (half - 2) * (maxLV > 0 ? lv.askVolume / maxLV : 0);
-
-    ctx.fillStyle = lv.imbalanceSell ? C.fpImbSell : `rgba(239,68,68,${0.2 + intensity * 0.6})`;
-    ctx.fillRect(cx - 1 - bW, y - cellH / 2 + 0.5, bW, cellH - 1);
-
-    ctx.fillStyle = lv.imbalanceBuy ? C.fpImbBuy : `rgba(16,185,129,${0.2 + intensity * 0.6})`;
-    ctx.fillRect(cx + 1, y - cellH / 2 + 0.5, aW, cellH - 1);
-
-    // Volume text
-    if (cellH >= 10 && candleW > 50) {
-      ctx.font = `${Math.min(9, cellH - 2)}px monospace`;
-      if (lv.bidVolume > 0) {
-        ctx.fillStyle = C.fpBid;
-        ctx.textAlign = 'right';
-        ctx.fillText(fmtV(lv.bidVolume), cx - 3, y + 3);
-      }
-      if (lv.askVolume > 0) {
-        ctx.fillStyle = C.fpAsk;
-        ctx.textAlign = 'left';
-        ctx.fillText(fmtV(lv.askVolume), cx + 3, y + 3);
-      }
-    }
-
-    // Center divider
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    ctx.fillRect(cx - 0.5, y - cellH / 2, 1, cellH);
-  }
-
-  // Body outline
-  const oY = p2y(candle.open), cY = p2y(candle.close);
-  ctx.strokeStyle = up ? C.up : C.down;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(cx - half, Math.min(oY, cY), bodyW, Math.max(1, Math.abs(cY - oY)));
-
-  // Wicks
-  const hY = p2y(candle.high), lY = p2y(candle.low);
-  ctx.strokeStyle = up ? C.up : C.down;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(cx, hY); ctx.lineTo(cx, Math.min(oY, cY));
-  ctx.moveTo(cx, Math.max(oY, cY)); ctx.lineTo(cx, lY);
-  ctx.stroke();
-
-  // Delta label
-  if (candleW > 30) {
-    const d = candle.totalDelta;
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = d >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)';
-    ctx.fillText((d >= 0 ? '+' : '') + fmtV(d), cx, lY + 12);
-  }
-}
-
-function fmtV(v: number): string {
-  const a = Math.abs(v);
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
-  if (a >= 1) return v.toFixed(0);
-  return v.toFixed(2);
 }

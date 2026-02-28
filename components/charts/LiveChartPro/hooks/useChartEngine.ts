@@ -142,13 +142,15 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
 
   // Sync preferences store → chart engine
   const prefShowVolume = usePreferencesStore((s) => s.showVolume);
+  const prefShowVolumeBubbles = usePreferencesStore((s) => s.showVolumeBubbles);
   const prefShowGrid = usePreferencesStore((s) => s.showGrid);
 
   useEffect(() => {
     if (!refs.chartEngine.current) return;
     refs.chartEngine.current.setShowVolume(prefShowVolume);
     refs.chartEngine.current.setShowGrid(prefShowGrid);
-  }, [refs, prefShowVolume, prefShowGrid]);
+    refs.chartEngine.current.setShowVolumeBubbles(prefShowVolumeBubbles);
+  }, [refs, prefShowVolume, prefShowGrid, prefShowVolumeBubbles]);
 
   /**
    * Smart Zoom

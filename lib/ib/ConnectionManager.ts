@@ -210,6 +210,22 @@ export class IBConnectionManager {
   setFootprintTimeframe(timeframeSec: number): void {
     this.footprintAdapter.setTimeframe(timeframeSec);
   }
+
+  /**
+   * Subscribe to raw trade events from the connector.
+   * Returns unsubscribe function.
+   */
+  onTrade(callback: (trade: any) => void): () => void {
+    return this.connector.onTrade(callback);
+  }
+
+  /**
+   * Subscribe to raw depth events from the connector.
+   * Returns unsubscribe function.
+   */
+  onDepth(callback: (depth: any) => void): () => void {
+    return this.connector.onDepth(callback);
+  }
 }
 
 export function getIBConnectionManager(): IBConnectionManager {

@@ -154,6 +154,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  try {
+    return await runMiddleware(request, pathname);
+  } catch (error) {
+    console.error('[middleware] Unhandled error:', error);
+    // For API routes: return JSON so clients (e.g. NextAuth) can parse the response
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+    // For pages: fail open so the user isn't stuck on an HTML error page
+    return NextResponse.next();
+  }
+}
+
+async function runMiddleware(request: NextRequest, pathname: string) {
+
   // ─── EMERGENCY: Strip bloated session cookies that cause 494 ─────
   // NextAuth chunks large JWTs into .0, .1, .2 etc. If the cookie header
   // is too large, strip all session cookies and force re-login.
@@ -307,34 +325,39 @@ export async function middleware(request: NextRequest) {
     const skipSessionCheck = lastCheck && (Date.now() - lastCheck < SECURITY_CHECK_TTL);
 
     if (!skipSessionCheck) {
-      const sessionCheck = await detectConcurrentSession(
-        token.id as string,
-        token.sessionId as string,
-        ip,
-        fingerprint
-      );
+      try {
+        const sessionCheck = await detectConcurrentSession(
+          token.id as string,
+          token.sessionId as string,
+          ip,
+          fingerprint
+        );
 
-      if (sessionCheck.suspicious) {
-        if (sessionCheck.severity === 'high') {
-          const loginUrl = new URL('/auth/login', request.url);
-          loginUrl.searchParams.set('error', 'session_invalid');
-          loginUrl.searchParams.set('reason', encodeURIComponent(sessionCheck.reason || 'Activité suspecte détectée'));
+        if (sessionCheck.suspicious) {
+          if (sessionCheck.severity === 'high') {
+            const loginUrl = new URL('/auth/login', request.url);
+            loginUrl.searchParams.set('error', 'session_invalid');
+            loginUrl.searchParams.set('reason', encodeURIComponent(sessionCheck.reason || 'Activité suspecte détectée'));
 
-          // Fire-and-forget — don't block response
-          void sendSecurityAlert(token.email as string, {
-            type: 'concurrent_session',
-            reason: sessionCheck.reason,
-          });
+            // Fire-and-forget — don't block response
+            void sendSecurityAlert(token.email as string, {
+              type: 'concurrent_session',
+              reason: sessionCheck.reason,
+            });
 
-          return NextResponse.redirect(loginUrl);
-        } else if (sessionCheck.severity === 'medium') {
-          const response = NextResponse.next();
-          response.headers.set('X-Security-Warning', sessionCheck.reason || 'Session activity flagged');
-          return response;
+            return NextResponse.redirect(loginUrl);
+          } else if (sessionCheck.severity === 'medium') {
+            const response = NextResponse.next();
+            response.headers.set('X-Security-Warning', sessionCheck.reason || 'Session activity flagged');
+            return response;
+          }
+        } else {
+          // Cache successful check for 5 minutes
+          securityCheckCache.set(securityCacheKey, Date.now());
         }
-      } else {
-        // Cache successful check for 5 minutes
-        securityCheckCache.set(securityCacheKey, Date.now());
+      } catch (err) {
+        console.error('[middleware] Session security check failed (non-fatal):', err);
+        // Fail open — allow request through rather than returning HTML error
       }
     }
 

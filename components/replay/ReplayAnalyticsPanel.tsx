@@ -295,19 +295,17 @@ function TradesTab({ state }: { state: ReplayState }) {
   const [trades, setTrades] = useState<{ side: string; price: number; size: number; pnl: number; time: number }[]>([]);
 
   useEffect(() => {
-    // Try to get closed trades from trading store
-    try {
-      // Dynamic import to avoid SSR issues
-      const store = require('@/stores/useTradingStore').useTradingStore;
-      const state = store.getState();
-      setTrades((state.closedTrades || []).map((t: { side: string; price: number; size: number; pnl: number; closedAt: number }) => ({
+    // Dynamic import to avoid SSR issues
+    import('@/stores/useTradingStore').then(({ useTradingStore }) => {
+      const storeState = useTradingStore.getState();
+      setTrades((storeState.closedTrades || []).map((t) => ({
         side: t.side,
-        price: t.price,
-        size: t.size,
+        price: t.entryPrice,
+        size: t.quantity,
         pnl: t.pnl || 0,
-        time: t.closedAt || 0,
+        time: t.exitTime || 0,
       })));
-    } catch { /* no trades available */ }
+    }).catch(() => { /* no trades available */ });
   }, [state.tradeFedCount]); // re-check when trades are fed
 
   const summary = useMemo(() => {

@@ -422,17 +422,22 @@ export const authOptions: NextAuthOptions = {
       // On session update or periodic refresh — re-check tier from DB
       // This ensures tier changes (upgrade/downgrade) are reflected without re-login
       if (trigger === 'update' && token.id && isPrismaAvailable()) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id },
-          select: { subscriptionTier: true, name: true, avatar: true },
-        });
-        if (dbUser) {
-          token.tier = dbUser.subscriptionTier as SubscriptionTier;
-          token.name = dbUser.name || token.name;
-          // Never store data URLs in the JWT — they bloat the cookie and cause 494 errors
-          token.picture = (dbUser.avatar && !dbUser.avatar.startsWith('data:'))
-            ? dbUser.avatar
-            : token.picture;
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: { subscriptionTier: true, name: true, avatar: true },
+          });
+          if (dbUser) {
+            token.tier = dbUser.subscriptionTier as SubscriptionTier;
+            token.name = dbUser.name || token.name;
+            // Never store data URLs in the JWT — they bloat the cookie and cause 494 errors
+            token.picture = (dbUser.avatar && !dbUser.avatar.startsWith('data:'))
+              ? dbUser.avatar
+              : token.picture;
+          }
+        } catch (err) {
+          console.error('[Auth] jwt callback DB error (non-fatal):', err);
+          // Return existing token — don't break the session
         }
       }
 

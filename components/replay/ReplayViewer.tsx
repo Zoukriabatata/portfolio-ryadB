@@ -14,6 +14,7 @@ import ReplayFinishedOverlay from './ReplayFinishedOverlay';
 import ReplayVolumeProfileOverlay from './ReplayVolumeProfileOverlay';
 import ReplayClusterOverlay from './ReplayClusterOverlay';
 import ReplayTradingChart from './ReplayTradingChart';
+import ReplayHeatmapLayer from './ReplayHeatmapLayer';
 
 const QuickTradeBar = dynamic(
   () => import('@/components/trading/QuickTradeBar'),
@@ -137,6 +138,11 @@ export default function ReplayViewer() {
       {/* ═══ MAIN TRADING CHART ═══ */}
       {isActive ? (
         <div className="flex-1 relative min-h-0 pt-10">
+          {/* Depth heatmap layer (behind chart) */}
+          <div className="absolute inset-0 pt-10">
+            <ReplayHeatmapLayer visible={state.status === 'playing' || state.status === 'paused'} />
+          </div>
+          {/* Main chart (on top) */}
           <div className="absolute inset-0 pt-10">
             <ReplayTradingChart
               symbol={state.symbol || 'ES'}

@@ -147,6 +147,12 @@ export interface FootprintFeatures {
   tpoPeriod: 30 | 60;
   tpoMode: 'letters' | 'histogram';
   tpoPosition: 'left' | 'right';
+  // Volume Bubbles
+  showVolumeBubbles: boolean;
+  volumeBubbleOpacity: number;       // 0-1
+  volumeBubbleMaxSize: number;       // Max radius in px
+  volumeBubbleScaling: 'sqrt' | 'linear' | 'log';
+  volumeBubblePosition: 'overlay' | 'bottom'; // overlay candles or below in volume section
   // Aggregation mode
   aggregationMode: 'time' | 'tick' | 'volume';
   tickBarSize: number;
@@ -339,6 +345,12 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   tpoPeriod: 30 as const,
   tpoMode: 'letters' as const,
   tpoPosition: 'right' as const,
+  // Volume Bubbles
+  showVolumeBubbles: false,
+  volumeBubbleOpacity: 0.6,
+  volumeBubbleMaxSize: 30,
+  volumeBubbleScaling: 'sqrt' as const,
+  volumeBubblePosition: 'overlay' as const,
   // Aggregation Modes (tick/volume bars)
   aggregationMode: 'time' as const,
   tickBarSize: 500,
@@ -485,6 +497,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
         rowHeight: state.rowHeight,
         maxVisibleFootprints: state.maxVisibleFootprints,
         deltaProfilePosition: state.deltaProfilePosition,
+        candleGap: state.candleGap,
       }),
       // Migration function for version upgrades
       migrate: (persistedState: any, version: number) => {
