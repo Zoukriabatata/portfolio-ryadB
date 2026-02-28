@@ -233,8 +233,8 @@ export class ToolsRenderer {
       this.renderAttachedText(tool, context);
     }
 
-    // Render handles if selected
-    if (tool.selected) {
+    // Render handles if selected (skip for position tools — they have custom handles)
+    if (tool.selected && tool.type !== 'longPosition' && tool.type !== 'shortPosition') {
       this.renderHandles(tool, context);
     }
 
@@ -936,121 +936,48 @@ export class ToolsRenderer {
       }
     }
 
-    // ═══ DRAG HANDLES (always visible) ═══
-    const handleRadius = 5;
+    // ═══ DRAG HANDLES (only when selected or hovered) ═══
+    const isActive = tool.selected || context.hoveredToolId === tool.id;
 
-    // Line handles on left edge
-    const lineHandles = [
-      { x: leftX, y: entryY, color: entryColor },
-      { x: leftX, y: tpY, color: profitLine },
-      { x: leftX, y: slY, color: riskLine },
-    ];
+    if (isActive) {
+      const handleRadius = 5;
 
-    lineHandles.forEach(h => {
-      ctx.beginPath();
-      ctx.arc(h.x, h.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
-      ctx.fill();
-      ctx.strokeStyle = h.color;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    });
+      // Line handles on left edge
+      const lineHandles = [
+        { x: leftX, y: entryY, color: entryColor },
+        { x: leftX, y: tpY, color: profitLine },
+        { x: leftX, y: slY, color: riskLine },
+      ];
 
-    // 4 corner resize handles (small squares)
-    const cornerSize = 4;
-    const topY = Math.min(entryY, tpY, slY);
-    const bottomY = Math.max(entryY, tpY, slY);
-    const corners = [
-      { x: leftX, y: topY },   // top-left
-      { x: rightX, y: topY },  // top-right
-      { x: leftX, y: bottomY },  // bottom-left
-      { x: rightX, y: bottomY }, // bottom-right
-    ];
-
-    corners.forEach(c => {
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
-      ctx.fill();
-      ctx.strokeStyle = '#737373';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    });
-
-    // ═══ ENTRY TO CURRENT PRICE TRACKING ARROW (clamped to position bounds) ═══
-    if (context.currentPrice && context.currentPrice > 0) {
-      // Clamp current price to position bounds (between SL and TP)
-      const priceLow = Math.min(tool.stopLoss, tool.takeProfit);
-      const priceHigh = Math.max(tool.stopLoss, tool.takeProfit);
-      const clampedPrice = Math.max(priceLow, Math.min(priceHigh, context.currentPrice));
-      const clampedY = Math.round(priceToY(clampedPrice));
-
-      // Clamp arrow X to position time bounds
-      const arrowStartX = leftX + 10;
-      const arrowEndX = rightX - 10;
-
-      // Only draw if there's enough space
-      if (arrowEndX - arrowStartX > 20) {
-        const isProfit = isLong ? context.currentPrice > tool.entry : context.currentPrice < tool.entry;
-        const arrowColor = isProfit ? '#22c55e' : '#ef4444';
-        const pnlFromEntry = isLong
-          ? ((context.currentPrice - tool.entry) / tool.entry * 100)
-          : ((tool.entry - context.currentPrice) / tool.entry * 100);
-        const pnlText = `${pnlFromEntry >= 0 ? '+' : ''}${pnlFromEntry.toFixed(2)}%`;
-
-        ctx.save();
-
-        // Tracking line from entry to clamped current price
-        ctx.strokeStyle = arrowColor;
+      lineHandles.forEach(h => {
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
+        ctx.fill();
+        ctx.strokeStyle = h.color;
         ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.globalAlpha = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(arrowStartX, entryY);
-        ctx.lineTo(arrowEndX, clampedY);
         ctx.stroke();
-        ctx.setLineDash([]);
+      });
 
-        // Arrow head
-        const dx = arrowEndX - arrowStartX;
-        const dy = clampedY - entryY;
-        const angle = Math.atan2(dy, dx);
-        const headLen = 7;
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = arrowColor;
+      // 4 corner resize handles
+      const topY = Math.min(entryY, tpY, slY);
+      const bottomY = Math.max(entryY, tpY, slY);
+      const corners = [
+        { x: leftX, y: topY },
+        { x: rightX, y: topY },
+        { x: leftX, y: bottomY },
+        { x: rightX, y: bottomY },
+      ];
+
+      corners.forEach(c => {
         ctx.beginPath();
-        ctx.moveTo(arrowEndX, clampedY);
-        ctx.lineTo(arrowEndX - headLen * Math.cos(angle - 0.4), clampedY - headLen * Math.sin(angle - 0.4));
-        ctx.lineTo(arrowEndX - headLen * Math.cos(angle + 0.4), clampedY - headLen * Math.sin(angle + 0.4));
-        ctx.closePath();
+        ctx.arc(c.x, c.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
         ctx.fill();
-
-        // PnL badge at midpoint
-        const midX = (arrowStartX + arrowEndX) / 2;
-        const midY = (entryY + clampedY) / 2;
-        ctx.globalAlpha = 1;
-        ctx.font = 'bold 10px system-ui';
-        const badgeW = ctx.measureText(pnlText).width + 10;
-        const badgeH = 16;
-        const badgeX = midX - badgeW / 2;
-        const badgeY = midY - badgeH / 2 - 10;
-
-        ctx.fillStyle = isProfit ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
-        ctx.beginPath();
-        ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
-        ctx.fill();
-        ctx.strokeStyle = arrowColor;
-        ctx.lineWidth = 0.5;
-        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = '#737373';
+        ctx.lineWidth = 1;
         ctx.stroke();
-
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = arrowColor;
-        ctx.textAlign = 'center';
-        ctx.fillText(pnlText, midX, badgeY + 12);
-
-        ctx.restore();
-      }
+      });
     }
 
     // ═══ SELECTION INDICATOR ═══
@@ -1071,11 +998,11 @@ export class ToolsRenderer {
 
       rightHandles.forEach(h => {
         ctx.beginPath();
-        ctx.arc(h.x, h.y, handleRadius, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
+        ctx.arc(h.x, h.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
         ctx.fill();
         ctx.strokeStyle = h.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
       });
     }
