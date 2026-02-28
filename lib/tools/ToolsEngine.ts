@@ -868,14 +868,17 @@ export class ToolsEngine {
         const entry = points[0].price;
         const other = points[1].price;
         const isLong = type === 'longPosition';
+        const posStartTime = Math.min(points[0].time, points[1].time);
+        // Fixed compact width: 20 candles (~20min on 1m chart) — no right extension
+        const fixedWidth = 20 * 60000;
         return {
           ...base,
           type,
           entry,
           stopLoss: isLong ? Math.min(entry, other) : Math.max(entry, other),
           takeProfit: isLong ? Math.max(entry, other) : Math.min(entry, other),
-          startTime: Math.min(points[0].time, points[1].time),
-          endTime: Math.max(points[0].time, points[1].time),
+          startTime: posStartTime,
+          endTime: posStartTime + fixedWidth,
           showRR: true,
           showPnL: false,
           extendRight: false,  // DEFAULT: NO extension
