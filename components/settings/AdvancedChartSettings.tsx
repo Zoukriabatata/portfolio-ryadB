@@ -139,6 +139,78 @@ function SliderControl({ label, value, min, max, step, unit, onChange }: {
   );
 }
 
+function VPLineRow({ label, enabled, color, width, lineStyle, showLabel, onToggle, onColor, onWidth, onStyle, onLabel }: {
+  label: string;
+  enabled: boolean;
+  color: string;
+  width: number;
+  lineStyle: 'solid' | 'dashed';
+  showLabel: boolean;
+  onToggle: (v: boolean) => void;
+  onColor: (v: string) => void;
+  onWidth: (v: number) => void;
+  onStyle: (v: 'solid' | 'dashed') => void;
+  onLabel: (v: boolean) => void;
+}) {
+  return (
+    <div className="mb-3 pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onToggle(!enabled)}
+            className="w-7 h-4 rounded-full transition-all flex items-center"
+            style={{ backgroundColor: enabled ? 'var(--primary)' : 'var(--surface-elevated)', justifyContent: enabled ? 'flex-end' : 'flex-start' }}
+          >
+            <div className="w-3 h-3 rounded-full bg-white shadow-sm mx-0.5" />
+          </button>
+          <span className="text-[11px] font-semibold" style={{ color: enabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>{label}</span>
+        </div>
+        {enabled && (
+          <div className="flex items-center gap-1.5">
+            {/* Color dots */}
+            {['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ffffff'].map(c => (
+              <button key={c} onClick={() => onColor(c)}
+                className="w-3.5 h-3.5 rounded-full transition-transform hover:scale-125"
+                style={{ backgroundColor: c, border: `1.5px solid ${color === c ? 'var(--primary)' : 'var(--border)'}` }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      {enabled && (
+        <div className="flex items-center gap-3 pl-9">
+          {/* Width */}
+          <div className="flex items-center gap-1">
+            <input type="range" min={0.5} max={3} step={0.5} value={width}
+              onChange={(e) => onWidth(parseFloat(e.target.value))}
+              className="w-12 h-1 accent-[var(--primary)]"
+            />
+            <span className="text-[9px] font-mono w-5" style={{ color: 'var(--text-muted)' }}>{width}px</span>
+          </div>
+          {/* Style */}
+          <div className="flex gap-0.5">
+            {(['solid', 'dashed'] as const).map(s => (
+              <button key={s} onClick={() => onStyle(s)}
+                className="flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] transition-colors"
+                style={{ backgroundColor: lineStyle === s ? 'var(--primary)' : 'var(--surface)', color: lineStyle === s ? '#fff' : 'var(--text-muted)' }}
+              >
+                <svg width="16" height="4" viewBox="0 0 16 4">
+                  <line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray={s === 'dashed' ? '3 2' : 'none'} />
+                </svg>
+              </button>
+            ))}
+          </div>
+          {/* Label toggle */}
+          <button onClick={() => onLabel(!showLabel)}
+            className="text-[9px] px-1.5 py-0.5 rounded transition-colors"
+            style={{ backgroundColor: showLabel ? 'var(--primary)' : 'var(--surface)', color: showLabel ? '#fff' : 'var(--text-muted)' }}
+          >Label</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdvancedChartSettings({
   isOpen,
   onClose,
@@ -172,6 +244,13 @@ export default function AdvancedChartSettings({
     priceLabelBgColor, priceLabelTextColor, priceLabelOpacity,
     setShowCurrentPriceLine, setPriceLineStyle, setPriceLineWidth, setPriceLineColor,
     setPriceLabelBgColor, setPriceLabelTextColor, setPriceLabelOpacity,
+    // VP settings
+    vpPocEnabled, vpPocColor, vpPocWidth, vpPocStyle, vpPocLabel,
+    vpVahEnabled, vpVahColor, vpVahWidth, vpVahStyle, vpVahLabel,
+    vpValEnabled, vpValColor, vpValWidth, vpValStyle, vpValLabel,
+    vpBidColor, vpAskColor, vpBarOpacity,
+    vpShowBackground, vpBackgroundColor, vpBackgroundOpacity,
+    setVPSetting,
   } = usePreferencesStore();
 
   // Templates store
@@ -693,6 +772,99 @@ export default function AdvancedChartSettings({
                       </>
                     )}
                   </div>
+                </div>
+
+                {/* ═══ VOLUME PROFILE SECTION ═══ */}
+                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Volume Profile</h3>
+
+                  {/* POC Line */}
+                  <VPLineRow
+                    label="POC" enabled={vpPocEnabled} color={vpPocColor} width={vpPocWidth}
+                    lineStyle={vpPocStyle} showLabel={vpPocLabel}
+                    onToggle={(v) => setVPSetting('vpPocEnabled', v)}
+                    onColor={(v) => setVPSetting('vpPocColor', v)}
+                    onWidth={(v) => setVPSetting('vpPocWidth', v)}
+                    onStyle={(v) => setVPSetting('vpPocStyle', v)}
+                    onLabel={(v) => setVPSetting('vpPocLabel', v)}
+                  />
+
+                  {/* VAH Line */}
+                  <VPLineRow
+                    label="VAH" enabled={vpVahEnabled} color={vpVahColor} width={vpVahWidth}
+                    lineStyle={vpVahStyle} showLabel={vpVahLabel}
+                    onToggle={(v) => setVPSetting('vpVahEnabled', v)}
+                    onColor={(v) => setVPSetting('vpVahColor', v)}
+                    onWidth={(v) => setVPSetting('vpVahWidth', v)}
+                    onStyle={(v) => setVPSetting('vpVahStyle', v)}
+                    onLabel={(v) => setVPSetting('vpVahLabel', v)}
+                  />
+
+                  {/* VAL Line */}
+                  <VPLineRow
+                    label="VAL" enabled={vpValEnabled} color={vpValColor} width={vpValWidth}
+                    lineStyle={vpValStyle} showLabel={vpValLabel}
+                    onToggle={(v) => setVPSetting('vpValEnabled', v)}
+                    onColor={(v) => setVPSetting('vpValColor', v)}
+                    onWidth={(v) => setVPSetting('vpValWidth', v)}
+                    onStyle={(v) => setVPSetting('vpValStyle', v)}
+                    onLabel={(v) => setVPSetting('vpValLabel', v)}
+                  />
+                </div>
+
+                {/* ═══ VP BARS ═══ */}
+                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Barres VP</h3>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Ask (Buy)</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7'].map(c => (
+                          <button key={c} onClick={() => setVPSetting('vpAskColor', c)}
+                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
+                            style={{ backgroundColor: c, border: `1px solid ${vpAskColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpAskColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Bid (Sell)</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7'].map(c => (
+                          <button key={c} onClick={() => setVPSetting('vpBidColor', c)}
+                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
+                            style={{ backgroundColor: c, border: `1px solid ${vpBidColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpBidColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <SliderControl label="Opacité barres" value={Math.round(vpBarOpacity * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('vpBarOpacity', v / 100)} />
+                  </div>
+                </div>
+
+                {/* ═══ VP BACKGROUND ═══ */}
+                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <ToggleSwitch label="Background VP" description="Fond de couleur derrière le volume profile" value={vpShowBackground} onChange={(v) => setVPSetting('vpShowBackground', v)} />
+
+                  {vpShowBackground && (
+                    <div className="space-y-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur</span>
+                        <div className="flex items-center gap-1.5">
+                          {['#3b82f6', '#22c55e', '#8b5cf6', '#525252', '#171717'].map(c => (
+                            <button key={c} onClick={() => setVPSetting('vpBackgroundColor', c)}
+                              className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
+                              style={{ backgroundColor: c, border: `1px solid ${vpBackgroundColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpBackgroundColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <SliderControl label="Opacité fond" value={Math.round(vpBackgroundOpacity * 100)} min={1} max={30} step={1} unit="%" onChange={(v) => setVPSetting('vpBackgroundOpacity', v / 100)} />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

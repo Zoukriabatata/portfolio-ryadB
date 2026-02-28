@@ -27,6 +27,8 @@ interface VolumeProfilePanelProps {
     text: string;
     textMuted: string;
   };
+  vpColors?: { bid: string; ask: string; opacity: number };
+  vpBackground?: { show: boolean; color: string; opacity: number };
 }
 
 const DEFAULT_THEME = {
@@ -58,6 +60,8 @@ export default function VolumeProfilePanel({
   chartHeight,
   width = 140,
   theme = DEFAULT_THEME,
+  vpColors,
+  vpBackground,
 }: VolumeProfilePanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredBinRef = useRef<PriceBin | null>(null);
@@ -110,6 +114,19 @@ export default function VolumeProfilePanel({
 
     // Clear
     ctx.clearRect(0, 0, w, h);
+
+    // Dynamic colors from props (fallback to hardcoded defaults)
+    const bidColor = vpColors?.bid || VP_COLORS.bid;
+    const askColor = vpColors?.ask || VP_COLORS.ask;
+    const barOpacity = vpColors?.opacity ?? 0.6;
+
+    // Background
+    if (vpBackground?.show) {
+      ctx.fillStyle = vpBackground.color;
+      ctx.globalAlpha = vpBackground.opacity;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
+    }
 
     const { bins, valueArea, maxBinVolume } = data;
     if (bins.length === 0 || maxBinVolume === 0) {
@@ -164,19 +181,23 @@ export default function VolumeProfilePanel({
 
       // Bid bar (left from center, red)
       if (bidBarWidth > 0.5) {
-        ctx.fillStyle = VP_COLORS.bidAlpha;
+        ctx.fillStyle = bidColor;
+        ctx.globalAlpha = barOpacity;
         ctx.fillRect(centerX - bidBarWidth, y - barHeight / 2, bidBarWidth, Math.max(1, barHeight));
+        ctx.globalAlpha = 1;
       }
 
       // Ask bar (right from center, green)
       if (askBarWidth > 0.5) {
-        ctx.fillStyle = VP_COLORS.askAlpha;
+        ctx.fillStyle = askColor;
+        ctx.globalAlpha = barOpacity;
         ctx.fillRect(centerX, y - barHeight / 2, askBarWidth, Math.max(1, barHeight));
+        ctx.globalAlpha = 1;
       }
 
       // Delta border indicator
       if (bin.delta !== 0 && barHeight >= 2) {
-        const deltaColor = bin.delta > 0 ? VP_COLORS.deltaPositive : VP_COLORS.deltaNegative;
+        const deltaColor = bin.delta > 0 ? askColor : bidColor;
         ctx.fillStyle = deltaColor;
         ctx.globalAlpha = 0.5;
         ctx.fillRect(centerX - 0.5, y - barHeight / 2, 1, Math.max(1, barHeight));
@@ -209,11 +230,11 @@ export default function VolumeProfilePanel({
     const deltaStr = data.totalDelta >= 0
       ? `+${formatCompact(data.totalDelta)}`
       : formatCompact(data.totalDelta);
-    ctx.fillStyle = data.totalDelta >= 0 ? VP_COLORS.deltaPositive : VP_COLORS.deltaNegative;
+    ctx.fillStyle = data.totalDelta >= 0 ? askColor : bidColor;
     ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`Δ ${deltaStr}`, w / 2, 12);
-  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr]);
+  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr, vpColors, vpBackground]);
 
   // Handle mouse hover for tooltip
   useEffect(() => {

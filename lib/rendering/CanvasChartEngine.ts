@@ -43,6 +43,13 @@ export interface PriceLineConfig {
   labelOpacity: number;
 }
 
+export interface VPLevelConfig {
+  poc: number; vah: number; val: number;
+  pocEnabled: boolean; pocColor: string; pocWidth: number; pocStyle: 'solid' | 'dashed'; pocLabel: boolean;
+  vahEnabled: boolean; vahColor: string; vahWidth: number; vahStyle: 'solid' | 'dashed'; vahLabel: boolean;
+  valEnabled: boolean; valColor: string; valWidth: number; valStyle: 'solid' | 'dashed'; valLabel: boolean;
+}
+
 export interface CrosshairStyle {
   color: string;
   lineWidth: number;
@@ -146,7 +153,8 @@ export class CanvasChartEngine {
     labelTextColor: '#ffffff',
     labelOpacity: 1,
   };
-  private vpLevels: { poc: number; vah: number; val: number } | null = null;
+  private vpLevels: VPLevelConfig | null = null;
+  private showCrosshairTooltip = true;
 
   // Callbacks
   private onPriceChange?: (price: number) => void;
@@ -378,8 +386,12 @@ export class CanvasChartEngine {
     this.render();
   }
 
-  setVPLevels(levels: { poc: number; vah: number; val: number } | null): void {
-    this.vpLevels = levels;
+  setShowCrosshairTooltip(show: boolean): void {
+    this.showCrosshairTooltip = show;
+  }
+
+  setVPLevels(config: VPLevelConfig | null): void {
+    this.vpLevels = config;
     this.render();
   }
 
@@ -1073,24 +1085,32 @@ export class CanvasChartEngine {
       this.ctx.stroke();
 
       // Label
-      this.ctx.setLineDash([]);
-      this.ctx.globalAlpha = 1;
-      this.ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, sans-serif';
-      const textWidth = this.ctx.measureText(label).width;
-      this.ctx.fillStyle = color;
-      this.ctx.globalAlpha = 0.15;
-      this.ctx.fillRect(4, y - 8, textWidth + 6, 14);
-      this.ctx.globalAlpha = 1;
-      this.ctx.fillStyle = color;
-      this.ctx.textAlign = 'left';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(label, 7, y);
+      if (label) {
+        this.ctx.setLineDash([]);
+        this.ctx.globalAlpha = 1;
+        this.ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, sans-serif';
+        const textWidth = this.ctx.measureText(label).width;
+        this.ctx.fillStyle = color;
+        this.ctx.globalAlpha = 0.15;
+        this.ctx.fillRect(4, y - 8, textWidth + 6, 14);
+        this.ctx.globalAlpha = 1;
+        this.ctx.fillStyle = color;
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(label, 7, y);
+      }
       this.ctx.restore();
     };
 
-    drawLevel(this.vpLevels.poc, '#f59e0b', 1.5, [], 'POC');
-    drawLevel(this.vpLevels.vah, '#3b82f6', 1, [3, 3], 'VAH');
-    drawLevel(this.vpLevels.val, '#3b82f6', 1, [3, 3], 'VAL');
+    if (this.vpLevels.pocEnabled) {
+      drawLevel(this.vpLevels.poc, this.vpLevels.pocColor, this.vpLevels.pocWidth, this.vpLevels.pocStyle === 'dashed' ? [3, 3] : [], this.vpLevels.pocLabel ? 'POC' : '');
+    }
+    if (this.vpLevels.vahEnabled) {
+      drawLevel(this.vpLevels.vah, this.vpLevels.vahColor, this.vpLevels.vahWidth, this.vpLevels.vahStyle === 'dashed' ? [3, 3] : [], this.vpLevels.vahLabel ? 'VAH' : '');
+    }
+    if (this.vpLevels.valEnabled) {
+      drawLevel(this.vpLevels.val, this.vpLevels.valColor, this.vpLevels.valWidth, this.vpLevels.valStyle === 'dashed' ? [3, 3] : [], this.vpLevels.valLabel ? 'VAL' : '');
+    }
   }
 
   private drawCurrentPriceLine(): void {
@@ -1241,7 +1261,9 @@ export class CanvasChartEngine {
       this.ctx.fillRect(candleX, 0, candleTotalWidth, chartHeight);
 
       // Draw OHLCV info tooltip near crosshair
-      this.drawCrosshairTooltip(candle, x, y, chartWidth, chartHeight);
+      if (this.showCrosshairTooltip) {
+        this.drawCrosshairTooltip(candle, x, y, chartWidth, chartHeight);
+      }
 
       // Emit callbacks
       if (this.onCrosshairMove) {

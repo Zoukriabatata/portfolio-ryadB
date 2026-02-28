@@ -75,6 +75,33 @@ export interface PreferencesState {
   setVolumeMode: (mode: 'classic' | 'bidask' | 'delta') => void;
   setShowVolumeProfile: (show: boolean) => void;
 
+  // VP Level Lines
+  vpPocEnabled: boolean;
+  vpPocColor: string;
+  vpPocWidth: number;
+  vpPocStyle: 'solid' | 'dashed';
+  vpPocLabel: boolean;
+  vpVahEnabled: boolean;
+  vpVahColor: string;
+  vpVahWidth: number;
+  vpVahStyle: 'solid' | 'dashed';
+  vpVahLabel: boolean;
+  vpValEnabled: boolean;
+  vpValColor: string;
+  vpValWidth: number;
+  vpValStyle: 'solid' | 'dashed';
+  vpValLabel: boolean;
+
+  // VP Panel colors
+  vpBidColor: string;
+  vpAskColor: string;
+  vpBarOpacity: number;
+  vpShowBackground: boolean;
+  vpBackgroundColor: string;
+  vpBackgroundOpacity: number;
+
+  setVPSetting: <K extends keyof PreferencesState>(key: K, value: PreferencesState[K]) => void;
+
   // Price line settings
   showCurrentPriceLine: boolean;
   priceLineStyle: 'dashed' | 'solid';
@@ -112,6 +139,15 @@ export const usePreferencesStore = create<PreferencesState>()(
       showCrosshairTooltip: true,
       volumeMode: 'classic',
       showVolumeProfile: false,
+
+      // VP Level Lines defaults
+      vpPocEnabled: true, vpPocColor: '#f59e0b', vpPocWidth: 1.5, vpPocStyle: 'solid', vpPocLabel: true,
+      vpVahEnabled: true, vpVahColor: '#3b82f6', vpVahWidth: 1, vpVahStyle: 'dashed', vpVahLabel: true,
+      vpValEnabled: true, vpValColor: '#3b82f6', vpValWidth: 1, vpValStyle: 'dashed', vpValLabel: true,
+      // VP Panel defaults
+      vpBidColor: '#ef4444', vpAskColor: '#22c55e', vpBarOpacity: 0.6,
+      vpShowBackground: false, vpBackgroundColor: '#3b82f6', vpBackgroundOpacity: 0.05,
+
       showCurrentPriceLine: true,
       priceLineStyle: 'dashed',
       priceLineWidth: 1,
@@ -131,6 +167,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setPriceLabelOpacity: (priceLabelOpacity) => set({ priceLabelOpacity: Math.max(0.5, Math.min(1, priceLabelOpacity)) }),
       setVolumeMode: (volumeMode) => set({ volumeMode }),
       setShowVolumeProfile: (showVolumeProfile) => set({ showVolumeProfile }),
+      setVPSetting: (key, value) => set({ [key]: value } as any),
       setDensity: (density) => set({ density }),
       setFontSize: (fontSize) => set({ fontSize: Math.max(10, Math.min(16, fontSize)) }),
       setTradeColorPreset: (preset) => set({ tradeColorPreset: preset }),
@@ -155,6 +192,11 @@ export const usePreferencesStore = create<PreferencesState>()(
         showCrosshairTooltip: s.showCrosshairTooltip,
         volumeMode: s.volumeMode,
         showVolumeProfile: s.showVolumeProfile,
+        vpPocEnabled: s.vpPocEnabled, vpPocColor: s.vpPocColor, vpPocWidth: s.vpPocWidth, vpPocStyle: s.vpPocStyle, vpPocLabel: s.vpPocLabel,
+        vpVahEnabled: s.vpVahEnabled, vpVahColor: s.vpVahColor, vpVahWidth: s.vpVahWidth, vpVahStyle: s.vpVahStyle, vpVahLabel: s.vpVahLabel,
+        vpValEnabled: s.vpValEnabled, vpValColor: s.vpValColor, vpValWidth: s.vpValWidth, vpValStyle: s.vpValStyle, vpValLabel: s.vpValLabel,
+        vpBidColor: s.vpBidColor, vpAskColor: s.vpAskColor, vpBarOpacity: s.vpBarOpacity,
+        vpShowBackground: s.vpShowBackground, vpBackgroundColor: s.vpBackgroundColor, vpBackgroundOpacity: s.vpBackgroundOpacity,
         showCurrentPriceLine: s.showCurrentPriceLine,
         priceLineStyle: s.priceLineStyle,
         priceLineWidth: s.priceLineWidth,

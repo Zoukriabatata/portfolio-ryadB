@@ -274,7 +274,17 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   // Volume Profile — real-time orderflow from aggTrade
   const vpData = useLiveVolumeProfile(symbolData.symbol, showVolumeProfile);
 
-  // Sync VP levels to chart engine for full-width POC/VAH/VAL lines
+  // Sync VP levels + settings to chart engine for full-width POC/VAH/VAL lines
+  const vpLineSettings = usePreferencesStore((s) => ({
+    pocEnabled: s.vpPocEnabled, pocColor: s.vpPocColor, pocWidth: s.vpPocWidth, pocStyle: s.vpPocStyle, pocLabel: s.vpPocLabel,
+    vahEnabled: s.vpVahEnabled, vahColor: s.vpVahColor, vahWidth: s.vpVahWidth, vahStyle: s.vpVahStyle, vahLabel: s.vpVahLabel,
+    valEnabled: s.vpValEnabled, valColor: s.vpValColor, valWidth: s.vpValWidth, valStyle: s.vpValStyle, valLabel: s.vpValLabel,
+  }));
+  const vpPanelSettings = usePreferencesStore((s) => ({
+    vpBidColor: s.vpBidColor, vpAskColor: s.vpAskColor, vpBarOpacity: s.vpBarOpacity,
+    vpShowBackground: s.vpShowBackground, vpBackgroundColor: s.vpBackgroundColor, vpBackgroundOpacity: s.vpBackgroundOpacity,
+  }));
+
   useEffect(() => {
     if (!showVolumeProfile || !vpData.data.valueArea.poc) {
       refs.chartEngine.current?.setVPLevels(null);
@@ -284,8 +294,9 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
       poc: vpData.data.valueArea.poc,
       vah: vpData.data.valueArea.vah,
       val: vpData.data.valueArea.val,
+      ...vpLineSettings,
     });
-  }, [showVolumeProfile, vpData.data.valueArea, refs]);
+  }, [showVolumeProfile, vpData.data.valueArea, refs, vpLineSettings]);
 
   const settings = useChartSettings({
     refs,
@@ -792,6 +803,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                 chartHeight={symbolData.viewportState.chartHeight}
                 width={140}
                 theme={{ background: engine.effectiveColors.background, border: theme.colors.border, text: theme.colors.text, textMuted: theme.colors.textMuted }}
+                vpColors={{ bid: vpPanelSettings.vpBidColor, ask: vpPanelSettings.vpAskColor, opacity: vpPanelSettings.vpBarOpacity }}
+                vpBackground={{ show: vpPanelSettings.vpShowBackground, color: vpPanelSettings.vpBackgroundColor, opacity: vpPanelSettings.vpBackgroundOpacity }}
               />
             </div>
           )}

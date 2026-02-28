@@ -171,6 +171,14 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
     refs.chartEngine.current.setShowVolumeBubbles(prefShowVolumeBubbles);
   }, [refs, prefShowVolume, prefShowGrid, prefShowVolumeBubbles]);
 
+  // Sync crosshair tooltip preference → chart engine
+  const prefShowCrosshairTooltip = usePreferencesStore((s) => s.showCrosshairTooltip);
+
+  useEffect(() => {
+    if (!refs.chartEngine.current) return;
+    refs.chartEngine.current.setShowCrosshairTooltip(prefShowCrosshairTooltip);
+  }, [refs, prefShowCrosshairTooltip]);
+
   // Sync price line preferences → chart engine
   const prefShowPriceLine = usePreferencesStore((s) => s.showCurrentPriceLine);
   const prefPriceLineStyle = usePreferencesStore((s) => s.priceLineStyle);
