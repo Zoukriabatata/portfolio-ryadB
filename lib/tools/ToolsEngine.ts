@@ -1177,6 +1177,22 @@ export class ToolsEngine {
             endTime: orig.endTime + deltaTime,
           };
         }
+
+        // ═══ CONSTRAINT: Prevent TP/SL from crossing entry ═══
+        if (updates) {
+          const u = updates as Record<string, number>;
+          const newEntry = u.entry ?? orig.entry;
+          const newTP = u.takeProfit ?? orig.takeProfit;
+          const newSL = u.stopLoss ?? orig.stopLoss;
+
+          if (isLong) {
+            if ('takeProfit' in u && newTP < newEntry) u.takeProfit = newEntry;
+            if ('stopLoss' in u && newSL > newEntry) u.stopLoss = newEntry;
+          } else {
+            if ('takeProfit' in u && newTP > newEntry) u.takeProfit = newEntry;
+            if ('stopLoss' in u && newSL < newEntry) u.stopLoss = newEntry;
+          }
+        }
         break;
       }
 

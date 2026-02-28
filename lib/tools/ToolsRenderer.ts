@@ -948,17 +948,12 @@ export class ToolsRenderer {
 
     lineHandles.forEach(h => {
       ctx.beginPath();
-      ctx.arc(h.x, h.y, handleRadius + 2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(15, 15, 20, 0.8)';
+      ctx.arc(h.x, h.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
       ctx.fill();
-      ctx.beginPath();
-      ctx.arc(h.x, h.y, handleRadius, 0, Math.PI * 2);
-      ctx.fillStyle = h.color;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(h.x, h.y, 2, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
+      ctx.strokeStyle = h.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     });
 
     // 4 corner resize handles (small squares)
@@ -973,12 +968,13 @@ export class ToolsRenderer {
     ];
 
     corners.forEach(c => {
-      ctx.fillStyle = 'rgba(15, 15, 20, 0.8)';
-      ctx.fillRect(c.x - cornerSize - 1, c.y - cornerSize - 1, (cornerSize + 1) * 2, (cornerSize + 1) * 2);
-      ctx.fillStyle = '#a3a3a3';
-      ctx.fillRect(c.x - cornerSize, c.y - cornerSize, cornerSize * 2, cornerSize * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(c.x - 1, c.y - 1, 2, 2);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
+      ctx.fill();
+      ctx.strokeStyle = '#737373';
+      ctx.lineWidth = 1;
+      ctx.stroke();
     });
 
     // ═══ ENTRY TO CURRENT PRICE TRACKING ARROW (clamped to position bounds) ═══
@@ -1062,13 +1058,11 @@ export class ToolsRenderer {
       const topY = Math.min(entryY, slY, tpY);
       const bottomY = Math.max(entryY, slY, tpY);
 
-      ctx.strokeStyle = context.colors.selection;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      ctx.strokeRect(leftX - 4, topY - 4, (rightX - leftX) + 8, bottomY - topY + 8);
-      ctx.setLineDash([]);
+      // Subtle zone glow instead of blue border
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.fillRect(leftX, topY, rightX - leftX, bottomY - topY);
 
-      // Additional right-side handle when selected
+      // Additional right-side handles when selected
       const rightHandles = [
         { x: rightX, y: entryY, color: entryColor },
         { x: rightX, y: tpY, color: profitLine },

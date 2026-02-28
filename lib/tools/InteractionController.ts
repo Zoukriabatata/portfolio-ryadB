@@ -454,6 +454,28 @@ export class InteractionController {
 
     // ---- FINISH DRAWING ----
     if (this.state.mode === 'drawing') {
+      // Instant creation for position tools: single click → auto TP/SL
+      const { activeTool } = this.state;
+      if (
+        (activeTool === 'longPosition' || activeTool === 'shortPosition') &&
+        this.state.startPoint && point
+      ) {
+        const dx = Math.abs(point.time - this.state.startPoint.time);
+        const dy = Math.abs(point.price - this.state.startPoint.price);
+        const isClick = dx < 1 && dy < 0.5;
+
+        if (isClick) {
+          const entry = this.state.startPoint.price;
+          const offset = entry * 0.002; // 0.2% auto offset
+          const autoTP = activeTool === 'longPosition' ? entry + offset : entry - offset;
+          const secondPoint = {
+            time: this.state.startPoint.time + 60000, // 1 minute width
+            price: autoTP,
+          };
+          engine.updateDrawing(secondPoint);
+        }
+      }
+
       const newTool = engine.finishDrawing();
 
       if (newTool) {
