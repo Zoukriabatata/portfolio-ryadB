@@ -256,8 +256,7 @@ function AppearanceTab() {
 // ─── CHART TAB ───────────────────────────────────────────────
 
 function ChartTab() {
-  const { showVolume, setShowVolume, showGrid, setShowGrid, showCrosshairTooltip, setShowCrosshairTooltip } = usePreferencesStore();
-  const { tradeColorPreset, setTradeColorPreset } = usePreferencesStore();
+  const { showVolume, setShowVolume, showGrid, setShowGrid, showCrosshairTooltip, setShowCrosshairTooltip, tradeColorPreset, setTradeColorPreset } = usePreferencesStore();
 
   return (
     <div className="py-4">
