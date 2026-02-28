@@ -531,6 +531,11 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
     ctx.restore();
   }, [refs, theme.colors, symbol]);
 
+  // Re-draw when indicators change (toggle, color, params)
+  useEffect(() => {
+    renderDrawingTools();
+  }, [indicatorConfigs, renderDrawingTools]);
+
   /**
    * Setup drawing canvas and interaction controller
    */

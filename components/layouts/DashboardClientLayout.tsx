@@ -501,7 +501,7 @@ export function DashboardClientLayout({
             aria-hidden="true"
             className="fixed inset-0 z-40 sm:hidden"
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              backgroundColor: 'color-mix(in srgb, var(--background) 70%, transparent)',
               backdropFilter: showMobileMenu ? 'blur(4px)' : 'blur(0px)',
               WebkitBackdropFilter: showMobileMenu ? 'blur(4px)' : 'blur(0px)',
               opacity: showMobileMenu ? 1 : 0,

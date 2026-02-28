@@ -117,7 +117,7 @@ export default function LivePageContent() {
             <button
               data-testid="watchlist-hide"
               onClick={() => setShowWatchlist(false)}
-              className="px-2 py-1 border-t text-[10px] hover:bg-white/5 transition-colors button-press flex items-center justify-center gap-1"
+              className="px-2 py-1 border-t text-[10px] hover:bg-[var(--surface-hover)] transition-colors button-press flex items-center justify-center gap-1"
               style={{ borderColor: 'var(--border)', color: 'var(--text-dimmed)' }}
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -254,7 +254,7 @@ export default function LivePageContent() {
               </h3>
               <button
                 onClick={() => setShowFutures(false)}
-                className="text-[var(--text-dimmed)] hover:text-[var(--text-secondary)] transition-colors button-press p-0.5 rounded hover:bg-white/5"
+                className="text-[var(--text-dimmed)] hover:text-[var(--text-secondary)] transition-colors button-press p-0.5 rounded hover:bg-[var(--surface-hover)]"
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M9 18l6-6-6-6" />

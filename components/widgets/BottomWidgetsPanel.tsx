@@ -170,7 +170,7 @@ export default function BottomWidgetsPanel({ symbol }: BottomWidgetsPanelProps) 
             </div>
             <button
               onClick={() => setCollapsed(true)}
-              className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/5 transition-colors"
+              className="w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--text-muted)' }}
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -520,7 +520,7 @@ function PositionsTab() {
             positions.map((pos, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between px-2 py-1 hover:bg-white/[0.02]"
+                className="flex items-center justify-between px-2 py-1 hover:bg-[var(--surface-hover)]"
                 style={{
                   backgroundColor: pos.pnl >= 0 ? TRADE_COLORS.buyBgSubtle : TRADE_COLORS.sellBgSubtle,
                 }}

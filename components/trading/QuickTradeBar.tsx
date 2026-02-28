@@ -219,7 +219,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           <div className="flex items-center gap-1.5">
             <button onClick={() => setShowDemoPanel(true)}
               className="px-3 py-1 rounded text-[11px] font-medium transition-colors hover:brightness-110"
-              style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+              style={{ backgroundColor: 'var(--primary)', color: 'var(--text-primary)' }}>
               Demo Account
             </button>
             {activeBroker && activeBroker !== 'demo' && (
@@ -265,7 +265,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             onClick={() => setOrderType(t)}
             className="px-2 py-1 text-[10px] font-medium transition-colors"
             style={{
-              backgroundColor: orderType === t ? 'rgba(255,255,255,0.08)' : 'transparent',
+              backgroundColor: orderType === t ? 'var(--surface-hover)' : 'transparent',
               color: orderType === t ? colors.text : colors.textMuted,
             }}>
             {t === 'stop_limit' ? 'S/L' : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -278,7 +278,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
           style={{ border: `1px solid ${colors.border}` }}>
           <button onClick={() => setLimitPrice(((parseFloat(limitPrice) || currentPrice) - tick).toFixed(decimals))}
-            className="w-5 h-6 flex items-center justify-center hover:bg-white/5 text-[10px]"
+            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] text-[10px]"
             style={{ color: colors.textMuted }}>-</button>
           <input type="number" value={limitPrice}
             onChange={e => setLimitPrice(e.target.value)}
@@ -287,7 +287,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             className="w-[72px] px-1 text-center text-[11px] font-mono focus:outline-none bg-transparent"
             style={{ color: colors.text }} />
           <button onClick={() => setLimitPrice(((parseFloat(limitPrice) || currentPrice) + tick).toFixed(decimals))}
-            className="w-5 h-6 flex items-center justify-center hover:bg-white/5 text-[10px]"
+            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] text-[10px]"
             style={{ color: colors.textMuted }}>+</button>
         </div>
       )}
@@ -311,7 +311,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         <div className="flex items-center gap-px rounded-md overflow-hidden"
           style={{ border: `1px solid ${colors.border}` }}>
           <button onClick={() => setContractQuantity(Math.max(1, contractQuantity - 1))}
-            className="w-5 h-6 flex items-center justify-center hover:bg-white/5 transition-colors"
+            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
             style={{ color: colors.textMuted }}>
             <svg width="8" height="8" viewBox="0 0 10 10"><line x1="2" y1="5" x2="8" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
           </button>
@@ -320,7 +320,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             className="w-8 text-center text-[11px] font-mono font-semibold focus:outline-none bg-transparent tabular-nums"
             style={{ color: colors.text }} />
           <button onClick={() => setContractQuantity(contractQuantity + 1)}
-            className="w-5 h-6 flex items-center justify-center hover:bg-white/5 transition-colors"
+            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
             style={{ color: colors.textMuted }}>
             <svg width="8" height="8" viewBox="0 0 10 10"><line x1="5" y1="2" x2="5" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><line x1="2" y1="5" x2="8" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
           </button>
@@ -330,7 +330,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           <button key={q} onClick={() => setContractQuantity(q)}
             className="w-6 h-6 rounded text-[9px] font-mono transition-colors"
             style={{
-              backgroundColor: contractQuantity === q ? 'rgba(255,255,255,0.1)' : 'transparent',
+              backgroundColor: contractQuantity === q ? 'var(--surface-hover)' : 'transparent',
               color: contractQuantity === q ? colors.text : colors.textMuted,
             }}>{q}</button>
         ))}
@@ -420,14 +420,14 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             {currentPosition && (
               <>
                 <button onClick={handleFlatten} title="Flatten (X)"
-                  className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-white/10"
+                  className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
                   style={{ color: '#a78bfa' }}>
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                     <line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" />
                   </svg>
                 </button>
                 <button onClick={handleReverse} title="Reverse (F)"
-                  className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-white/10"
+                  className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
                   style={{ color: '#fbbf24' }}>
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="2,6 6,2 10,6" /><line x1="6" y1="2" x2="6" y2="11" />
@@ -438,7 +438,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             )}
             {pendingOrders.length > 0 && (
               <button onClick={handleCancelAll} title="Cancel all (Esc)"
-                className="h-6 px-1.5 rounded flex items-center justify-center text-[9px] font-medium transition-colors hover:bg-white/10"
+                className="h-6 px-1.5 rounded flex items-center justify-center text-[9px] font-medium transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: '#a8a29e' }}>
                 CXL{pendingOrders.length > 1 && <span className="ml-0.5 text-[8px] opacity-60">{pendingOrders.length}</span>}
               </button>
