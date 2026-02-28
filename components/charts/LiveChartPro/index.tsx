@@ -275,15 +275,27 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   const vpData = useLiveVolumeProfile(symbolData.symbol, showVolumeProfile);
 
   // Sync VP levels + settings to chart engine for full-width POC/VAH/VAL lines
-  const vpLineSettings = usePreferencesStore((s) => ({
-    pocEnabled: s.vpPocEnabled, pocColor: s.vpPocColor, pocWidth: s.vpPocWidth, pocStyle: s.vpPocStyle, pocLabel: s.vpPocLabel,
-    vahEnabled: s.vpVahEnabled, vahColor: s.vpVahColor, vahWidth: s.vpVahWidth, vahStyle: s.vpVahStyle, vahLabel: s.vpVahLabel,
-    valEnabled: s.vpValEnabled, valColor: s.vpValColor, valWidth: s.vpValWidth, valStyle: s.vpValStyle, valLabel: s.vpValLabel,
-  }));
-  const vpPanelSettings = usePreferencesStore((s) => ({
-    vpBidColor: s.vpBidColor, vpAskColor: s.vpAskColor, vpBarOpacity: s.vpBarOpacity,
-    vpShowBackground: s.vpShowBackground, vpBackgroundColor: s.vpBackgroundColor, vpBackgroundOpacity: s.vpBackgroundOpacity,
-  }));
+  const vpPocEnabled = usePreferencesStore((s) => s.vpPocEnabled);
+  const vpPocColor = usePreferencesStore((s) => s.vpPocColor);
+  const vpPocWidth = usePreferencesStore((s) => s.vpPocWidth);
+  const vpPocStyle = usePreferencesStore((s) => s.vpPocStyle);
+  const vpPocLabel = usePreferencesStore((s) => s.vpPocLabel);
+  const vpVahEnabled = usePreferencesStore((s) => s.vpVahEnabled);
+  const vpVahColor = usePreferencesStore((s) => s.vpVahColor);
+  const vpVahWidth = usePreferencesStore((s) => s.vpVahWidth);
+  const vpVahStyle = usePreferencesStore((s) => s.vpVahStyle);
+  const vpVahLabel = usePreferencesStore((s) => s.vpVahLabel);
+  const vpValEnabled = usePreferencesStore((s) => s.vpValEnabled);
+  const vpValColor = usePreferencesStore((s) => s.vpValColor);
+  const vpValWidth = usePreferencesStore((s) => s.vpValWidth);
+  const vpValStyle = usePreferencesStore((s) => s.vpValStyle);
+  const vpValLabel = usePreferencesStore((s) => s.vpValLabel);
+  const vpBidColor = usePreferencesStore((s) => s.vpBidColor);
+  const vpAskColor = usePreferencesStore((s) => s.vpAskColor);
+  const vpBarOpacity = usePreferencesStore((s) => s.vpBarOpacity);
+  const vpShowBackground = usePreferencesStore((s) => s.vpShowBackground);
+  const vpBackgroundColor = usePreferencesStore((s) => s.vpBackgroundColor);
+  const vpBackgroundOpacity = usePreferencesStore((s) => s.vpBackgroundOpacity);
 
   useEffect(() => {
     if (!showVolumeProfile || !vpData.data.valueArea.poc) {
@@ -294,9 +306,14 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
       poc: vpData.data.valueArea.poc,
       vah: vpData.data.valueArea.vah,
       val: vpData.data.valueArea.val,
-      ...vpLineSettings,
+      pocEnabled: vpPocEnabled, pocColor: vpPocColor, pocWidth: vpPocWidth, pocStyle: vpPocStyle, pocLabel: vpPocLabel,
+      vahEnabled: vpVahEnabled, vahColor: vpVahColor, vahWidth: vpVahWidth, vahStyle: vpVahStyle, vahLabel: vpVahLabel,
+      valEnabled: vpValEnabled, valColor: vpValColor, valWidth: vpValWidth, valStyle: vpValStyle, valLabel: vpValLabel,
     });
-  }, [showVolumeProfile, vpData.data.valueArea, refs, vpLineSettings]);
+  }, [showVolumeProfile, vpData.data.valueArea, refs,
+    vpPocEnabled, vpPocColor, vpPocWidth, vpPocStyle, vpPocLabel,
+    vpVahEnabled, vpVahColor, vpVahWidth, vpVahStyle, vpVahLabel,
+    vpValEnabled, vpValColor, vpValWidth, vpValStyle, vpValLabel]);
 
   const settings = useChartSettings({
     refs,
@@ -803,8 +820,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                 chartHeight={symbolData.viewportState.chartHeight}
                 width={140}
                 theme={{ background: engine.effectiveColors.background, border: theme.colors.border, text: theme.colors.text, textMuted: theme.colors.textMuted }}
-                vpColors={{ bid: vpPanelSettings.vpBidColor, ask: vpPanelSettings.vpAskColor, opacity: vpPanelSettings.vpBarOpacity }}
-                vpBackground={{ show: vpPanelSettings.vpShowBackground, color: vpPanelSettings.vpBackgroundColor, opacity: vpPanelSettings.vpBackgroundOpacity }}
+                vpColors={{ bid: vpBidColor, ask: vpAskColor, opacity: vpBarOpacity }}
+                vpBackground={{ show: vpShowBackground, color: vpBackgroundColor, opacity: vpBackgroundOpacity }}
               />
             </div>
           )}
