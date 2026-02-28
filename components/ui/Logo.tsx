@@ -23,6 +23,15 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
 
   return (
     <div className="flex items-center gap-2">
+      {/* Subtle animation keyframes for nav-size logo */}
+      {animated && size === 'sm' && (
+        <style>{`
+          @keyframes subtlePulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.25; } }
+          @keyframes subtleFade { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+          @keyframes subtleGlow { 0%, 100% { filter: drop-shadow(0 0 2px var(--logo-mid, #f59e0b)); } 50% { filter: drop-shadow(0 0 6px var(--logo-bright, #fbbf24)); } }
+        `}</style>
+      )}
+
       {/* Logo Icon - Scientific/Energy inspired */}
       <div className={`relative ${animated ? 'group' : ''}`}>
         <svg
@@ -32,6 +41,7 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           className={animated ? 'transition-transform duration-300 group-hover:scale-110' : ''}
+          style={animated && size === 'sm' ? { animation: 'subtleGlow 4s ease-in-out infinite' } : undefined}
         >
           {/* Background glow */}
           <defs>
@@ -61,7 +71,9 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
             fillOpacity="0.15"
             stroke="url(#logoGradient)"
             strokeWidth="1.5"
-            className={animated ? 'animate-pulse' : ''}
+            style={animated ? {
+              animation: size === 'sm' ? 'subtlePulse 4s ease-in-out infinite' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            } : undefined}
           />
 
           {/* Inner energy core */}
@@ -87,9 +99,15 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           />
 
           {/* Energy sparks */}
-          <circle cx="8" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s' }} />
-          <circle cx="40" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
-          <circle cx="24" cy="8" r="2" fill="var(--logo-bright, #fbbf24)" className={animated ? 'animate-ping' : ''} style={{ animationDuration: '2s', animationDelay: '1s' }} />
+          <circle cx="8" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" style={animated ? {
+            animation: size === 'sm' ? 'subtleFade 3s ease-in-out infinite' : 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+          } : undefined} />
+          <circle cx="40" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" style={animated ? {
+            animation: size === 'sm' ? 'subtleFade 3s ease-in-out infinite 1s' : 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite 0.5s',
+          } : undefined} />
+          <circle cx="24" cy="8" r="2" fill="var(--logo-bright, #fbbf24)" style={animated ? {
+            animation: size === 'sm' ? 'subtleFade 3s ease-in-out infinite 2s' : 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite 1s',
+          } : undefined} />
 
           {/* Bottom accent dot */}
           <circle cx="24" cy="40" r="1.5" fill="var(--logo-mid, #f59e0b)" opacity="0.5" />

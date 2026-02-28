@@ -12,15 +12,13 @@ import { useTranslation } from '@/lib/i18n/useTranslation';
 import type { TranslationKey } from '@/lib/i18n/translations';
 import {
   Activity,
-  BarChart3,
-  Droplets,
-  Gauge,
-  TrendingUp,
-  Target,
+  Grid3x3,
+  Layers,
+  Zap,
+  Compass,
   Newspaper,
-  BookOpen,
-  PlayCircle,
-  Database,
+  History,
+  Store,
   User,
   Home,
   Palette,
@@ -31,6 +29,33 @@ import {
   WifiOff,
   type LucideIcon,
 } from 'lucide-react';
+
+// Custom Candlestick icon (not available in Lucide)
+const CandlestickIcon: LucideIcon = Object.assign(
+  ({ size = 24, strokeWidth = 1.5, className, ...props }: any) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" className={className} {...props}>
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <rect x="6" y="7" width="6" height="8" rx="1" fill="currentColor" opacity="0.2" />
+      <line x1="17" y1="5" x2="17" y2="19" />
+      <rect x="14" y="9" width="6" height="5" rx="1" fill="currentColor" opacity="0.2" />
+    </svg>
+  ),
+  { displayName: 'CandlestickIcon' }
+) as unknown as LucideIcon;
+
+// Custom NotebookPen icon (journal)
+const NotebookPenIcon: LucideIcon = Object.assign(
+  ({ size = 24, strokeWidth = 1.5, className, ...props }: any) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+      <path d="M6 4h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+      <line x1="8" y1="9" x2="14" y2="9" />
+      <line x1="8" y1="13" x2="12" y2="13" />
+      <path d="M16 3v4" />
+      <path d="M19 14l-3 3-1.5-1.5" />
+    </svg>
+  ),
+  { displayName: 'NotebookPenIcon' }
+) as unknown as LucideIcon;
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import FeatureTour from '@/components/ui/FeatureTour';
 import { PageActiveProvider } from '@/hooks/usePageActive';
@@ -139,31 +164,31 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Charts',
     items: [
-      { href: '/live', labelKey: 'nav.live', Icon: Activity, shortcut: '1' },
-      { href: '/footprint', labelKey: 'nav.footprint', Icon: BarChart3, shortcut: '2' },
-      { href: '/liquidity', labelKey: 'nav.liquidity', Icon: Droplets, shortcut: '3' },
+      { href: '/live', labelKey: 'nav.live', Icon: CandlestickIcon, shortcut: '1' },
+      { href: '/footprint', labelKey: 'nav.footprint', Icon: Grid3x3, shortcut: '2' },
+      { href: '/liquidity', labelKey: 'nav.liquidity', Icon: Layers, shortcut: '3' },
     ],
   },
   {
     label: 'Analytics',
     items: [
-      { href: '/gex', labelKey: 'nav.gex', Icon: Gauge, shortcut: '4' },
-      { href: '/volatility', labelKey: 'nav.volatility', Icon: TrendingUp, shortcut: '5' },
-      { href: '/bias', labelKey: 'nav.bias', Icon: Target, shortcut: '6' },
+      { href: '/gex', labelKey: 'nav.gex', Icon: Zap, shortcut: '4' },
+      { href: '/volatility', labelKey: 'nav.volatility', Icon: Activity, shortcut: '5' },
+      { href: '/bias', labelKey: 'nav.bias', Icon: Compass, shortcut: '6' },
     ],
   },
   {
     label: 'Tools',
     items: [
-      { href: '/replay', labelKey: 'nav.replay', Icon: PlayCircle, shortcut: '9' },
-      { href: '/journal', labelKey: 'nav.journal', Icon: BookOpen, shortcut: '8' },
+      { href: '/replay', labelKey: 'nav.replay', Icon: History, shortcut: '9' },
+      { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8' },
       { href: '/news', labelKey: 'nav.news', Icon: Newspaper, shortcut: '7' },
     ],
   },
   {
     label: 'Market',
     items: [
-      { href: '/boutique', labelKey: 'nav.dataFeeds', Icon: Database, shortcut: '0' },
+      { href: '/boutique', labelKey: 'nav.dataFeeds', Icon: Store, shortcut: '0' },
     ],
   },
 ];
@@ -349,7 +374,7 @@ export function DashboardClientLayout({
 
           {/* Logo — compact */}
           <Link href="/" className="flex-shrink-0 mr-4" aria-label="Home">
-            <Logo size="sm" showText={false} animated={false} />
+            <Logo size="sm" showText={false} animated={true} />
           </Link>
 
           {/* Grouped Navigation — hidden on mobile */}

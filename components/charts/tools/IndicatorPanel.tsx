@@ -7,7 +7,6 @@ import type { IndicatorType } from '@/types/charts';
 const AVAILABLE_INDICATORS: { type: IndicatorType; label: string; defaultParams: Record<string, number>; description: string }[] = [
   { type: 'VWAP', label: 'VWAP', defaultParams: {}, description: 'Volume Weighted Average Price' },
   { type: 'TWAP', label: 'TWAP', defaultParams: {}, description: 'Time Weighted Average Price' },
-  { type: 'VolumeProfile', label: 'Volume Profile', defaultParams: { bars: 50 }, description: 'Volume by price level' },
 ];
 
 interface IndicatorPanelProps {

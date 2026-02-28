@@ -2,15 +2,18 @@
  * useLiveVolumeProfile — Tick-accurate Volume Profile for /live
  *
  * Connects to BinanceLiveWS aggTrade stream and feeds real bid/ask trades
- * into the VolumeProfileEngine singleton. Exposes bins, POC, VAH, VAL
+ * into the VolumeProfileEngine. Exposes bins, POC, VAH, VAL
  * for the VolumeProfilePanel renderer.
+ *
+ * Architecture: Engine persists across toggle on/off (keyed on symbol only).
+ * WebSocket subscription is active only when enabled. Re-enable reads
+ * existing engine data instantly.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getBinanceLiveWS } from '@/lib/live/BinanceLiveWS';
 import {
   VolumeProfileEngine,
-  PROFILE_CONFIGS,
   type PriceBin,
   type ValueArea,
   type ProfileConfig,
@@ -51,15 +54,33 @@ function getTickSizeForSymbol(symbol: string): number {
   return 0.01;                          // Small altcoins: $0.01 bins
 }
 
+function readEngineData(eng: VolumeProfileEngine): LiveVolumeProfileData {
+  const state = eng.getState();
+  if (state.tradeCount === 0) return EMPTY_DATA;
+
+  const bins = eng.getBins();
+  const valueArea = eng.calculateValueArea();
+  const maxBinVolume = bins.reduce((max, b) => Math.max(max, b.totalVolume), 0);
+
+  return {
+    bins,
+    valueArea,
+    totalVolume: state.totalVolume,
+    totalBidVolume: state.totalBidVolume,
+    totalAskVolume: state.totalAskVolume,
+    totalDelta: state.totalDelta,
+    maxBinVolume,
+    profileHigh: state.profileHigh,
+    profileLow: state.profileLow,
+  };
+}
+
 export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
   const [data, setData] = useState<LiveVolumeProfileData>(EMPTY_DATA);
   const engineRef = useRef<VolumeProfileEngine | null>(null);
-  const updateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Initialize engine when symbol changes
+  // Effect 1 — Engine lifecycle (symbol only, persists across toggle)
   useEffect(() => {
-    if (!enabled) return;
-
     const tickSize = getTickSizeForSymbol(symbol);
     const config: ProfileConfig = {
       tickSize,
@@ -68,8 +89,25 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
       maxBins: 20000,
     };
 
-    const engine = new VolumeProfileEngine(config);
-    engineRef.current = engine;
+    engineRef.current = new VolumeProfileEngine(config);
+    setData(EMPTY_DATA);
+
+    return () => {
+      engineRef.current = null;
+    };
+  }, [symbol]);
+
+  // Effect 2 — Subscription + UI updates (active only when enabled)
+  useEffect(() => {
+    if (!enabled || !engineRef.current) return;
+
+    const engine = engineRef.current;
+
+    // Instant load from existing engine data (when re-enabling)
+    const existing = readEngineData(engine);
+    if (existing.totalVolume > 0) {
+      setData(existing);
+    }
 
     // Subscribe to tick stream
     const ws = getBinanceLiveWS();
@@ -78,44 +116,20 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
         timestamp: tick.timestamp,
         price: tick.price,
         size: tick.quantity,
-        // isBuyerMaker = true means the buyer is the maker,
-        // so the sell aggressor hit the bid -> side = 'sell'
         side: tick.isBuyerMaker ? 'sell' : 'buy',
       });
     });
 
-    // Update React state periodically (throttled to 4fps to avoid excessive re-renders)
-    updateTimerRef.current = setInterval(() => {
-      const eng = engineRef.current;
-      if (!eng) return;
-
-      const state = eng.getState();
-      if (state.tradeCount === 0) return;
-
-      const bins = eng.getBins();
-      const valueArea = eng.calculateValueArea();
-      const maxBinVolume = bins.reduce((max, b) => Math.max(max, b.totalVolume), 0);
-
-      setData({
-        bins,
-        valueArea,
-        totalVolume: state.totalVolume,
-        totalBidVolume: state.totalBidVolume,
-        totalAskVolume: state.totalAskVolume,
-        totalDelta: state.totalDelta,
-        maxBinVolume,
-        profileHigh: state.profileHigh,
-        profileLow: state.profileLow,
-      });
+    // Periodic React state update (4fps throttle)
+    const timer = setInterval(() => {
+      if (!engineRef.current) return;
+      setData(readEngineData(engineRef.current));
     }, 250);
 
     return () => {
       unsubscribe();
-      if (updateTimerRef.current) {
-        clearInterval(updateTimerRef.current);
-        updateTimerRef.current = null;
-      }
-      engineRef.current = null;
+      clearInterval(timer);
+      // DO NOT null out engineRef — engine persists across toggle
     };
   }, [symbol, enabled]);
 

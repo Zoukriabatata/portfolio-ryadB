@@ -162,6 +162,12 @@ export interface PositionTool extends BaseTool {
   extendRight: boolean;  // Extend to right edge of chart
   compactMode: boolean;  // Cleaner, minimal design
   showZoneFill: boolean; // Show profit/risk zone backgrounds
+  // Position sizing
+  accountSize?: number;       // Account size in $
+  riskPercent?: number;        // Risk % of account (default 1)
+  leverage?: number;           // Leverage multiplier (default 1)
+  showPositionSize?: boolean;  // Show calculated position size
+  showDollarPnL?: boolean;     // Show P&L in $ alongside %
 }
 
 export interface TextTool extends BaseTool {
@@ -875,6 +881,11 @@ export class ToolsEngine {
           extendRight: false,  // DEFAULT: NO extension
           compactMode: false,  // Full design by default
           showZoneFill: true,  // Show zone backgrounds
+          accountSize: 10000,
+          riskPercent: 1,
+          leverage: 1,
+          showPositionSize: false,
+          showDollarPnL: false,
         };
 
       case 'text':

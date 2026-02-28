@@ -37,8 +37,10 @@ import {
   Unlock,
   Trash2,
   ChevronRight,
+  Heart,
   type LucideIcon,
 } from 'lucide-react';
+import { useFavoritesToolbarStore } from '@/stores/useFavoritesToolbarStore';
 
 // ============ TOOL ICON MAPPING ============
 
@@ -116,6 +118,89 @@ const TOOL_GROUPS: ToolGroup[] = [
   { id: 'annotations', tools: ['arrow', 'brush', 'highlighter', 'text'] },
   { id: 'measure', tools: ['measure'] },
 ];
+
+// ============ FLYOUT MENU WITH FAVORITES ============
+
+function FlyoutMenu({
+  tools,
+  groupId,
+  activeTool,
+  onToolSelect,
+}: {
+  tools: ToolType[];
+  groupId: string;
+  activeTool: ToolType;
+  onToolSelect: (tool: ToolType, groupId: string) => void;
+}) {
+  const customTools = useFavoritesToolbarStore(s => s.presets.custom.tools);
+  const addToFavorites = useFavoritesToolbarStore(s => s.addToolToPreset);
+  const removeFromFavorites = useFavoritesToolbarStore(s => s.removeToolFromPreset);
+
+  return (
+    <div className="flex flex-col p-1 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl min-w-[180px]">
+      {tools.map(tool => {
+        const ToolIcon = TOOL_ICONS[tool];
+        const isActive = activeTool === tool;
+        const shortcut = TOOL_SHORTCUTS[tool];
+        const isFavorite = customTools.includes(tool);
+
+        return (
+          <div key={tool} className="group/fav flex items-center">
+            <button
+              onClick={() => onToolSelect(tool, groupId)}
+              className={`
+                flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-colors duration-75 flex-1
+                ${isActive
+                  ? 'bg-[var(--primary)]/15 text-[var(--primary)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--surface)]'
+                }
+              `}
+            >
+              <ToolIcon
+                size={14}
+                strokeWidth={1.5}
+                className={`flex-shrink-0 ${tool === 'shortPosition' ? 'rotate-90' : ''}`}
+              />
+              <span className="text-[11px] font-medium flex-1">
+                {TOOL_LABELS[tool]}
+              </span>
+              {shortcut && (
+                <span className="text-[10px] font-mono text-[var(--text-dimmed)]">
+                  {shortcut}
+                </span>
+              )}
+            </button>
+            {/* Favorite heart toggle */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isFavorite) {
+                  removeFromFavorites('custom', tool);
+                } else {
+                  addToFavorites('custom', tool);
+                }
+              }}
+              className={`
+                flex items-center justify-center w-6 h-6 rounded transition-colors mx-0.5
+                ${isFavorite
+                  ? 'text-pink-400 hover:text-pink-300'
+                  : 'text-[var(--text-dimmed)] hover:text-pink-400 opacity-0 group-hover/fav:opacity-100'
+                }
+              `}
+              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              <Heart
+                size={12}
+                strokeWidth={1.5}
+                fill={isFavorite ? 'currentColor' : 'none'}
+              />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ============ COMPONENT ============
 
@@ -263,41 +348,12 @@ export default function VerticalToolbar({
                     onMouseEnter={handleFlyoutMouseEnter}
                     onMouseLeave={handleGroupMouseLeave}
                   >
-                    <div className="flex flex-col p-1 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl min-w-[160px]">
-                      {group.tools.map(tool => {
-                        const ToolIcon = TOOL_ICONS[tool];
-                        const isActive = activeTool === tool;
-                        const shortcut = TOOL_SHORTCUTS[tool];
-
-                        return (
-                          <button
-                            key={tool}
-                            onClick={() => handleToolSelect(tool, group.id)}
-                            className={`
-                              flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-colors duration-75
-                              ${isActive
-                                ? 'bg-[var(--primary)]/15 text-[var(--primary)]'
-                                : 'text-[var(--text-secondary)] hover:bg-[var(--surface)]'
-                              }
-                            `}
-                          >
-                            <ToolIcon
-                              size={14}
-                              strokeWidth={1.5}
-                              className={`flex-shrink-0 ${tool === 'shortPosition' ? 'rotate-90' : ''}`}
-                            />
-                            <span className="text-[11px] font-medium flex-1">
-                              {TOOL_LABELS[tool]}
-                            </span>
-                            {shortcut && (
-                              <span className="text-[10px] font-mono text-[var(--text-dimmed)]">
-                                {shortcut}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <FlyoutMenu
+                      tools={group.tools}
+                      groupId={group.id}
+                      activeTool={activeTool}
+                      onToolSelect={handleToolSelect}
+                    />
                   </div>
                 )}
               </div>

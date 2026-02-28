@@ -57,9 +57,6 @@ export class IndicatorManager {
         return this.calculateVWAP(candles);
       case 'TWAP':
         return this.calculateTWAP(candles);
-      case 'VolumeProfile':
-        // Volume Profile is rendered separately as histogram, return empty
-        return [];
       default:
         return [];
     }

@@ -775,6 +775,18 @@ export class ToolsRenderer {
     const pnlPct = ((reward / tool.entry) * 100).toFixed(2);
     const riskPct = ((risk / tool.entry) * 100).toFixed(2);
 
+    // Position sizing
+    const accountSize = tool.accountSize || 10000;
+    const riskPercent = tool.riskPercent || 1;
+    const leverage = tool.leverage || 1;
+    const dollarRisk = accountSize * (riskPercent / 100);
+    const positionSize = risk > 0 ? dollarRisk / risk : 0;
+    const leveragedSize = positionSize * leverage;
+    const dollarPnL = leveragedSize * reward;
+    const dollarLoss = dollarRisk;
+    const showPosSize = tool.showPositionSize === true;
+    const showDollarPnL = tool.showDollarPnL === true;
+
     // ═══ PROFIT ZONE FILL ═══
     if (tool.showZoneFill !== false) {
       ctx.fillStyle = profitFill;
@@ -818,8 +830,9 @@ export class ToolsRenderer {
 
     // ═══ RIGHT-SIDE ENTRY LABEL ═══
     if (!compact) {
-      const labelW = showRR ? 130 : 110;
-      const labelH = showRR ? 28 : 18;
+      const hasExtraRow = showRR || showPosSize;
+      const labelW = hasExtraRow ? (showPosSize ? 150 : 130) : 110;
+      const labelH = hasExtraRow ? (showPosSize && showRR ? 38 : 28) : 18;
       const labelPad = 8;
       const labelRightX = rightX - labelW - 12;
 
@@ -844,19 +857,32 @@ export class ToolsRenderer {
       ctx.textAlign = 'right';
       ctx.fillText(tool.entry.toFixed(2), labelRightX + labelW - labelPad, entryLabelY + 12);
 
+      let nextLineY = entryLabelY + 24;
+
       // R:R ratio (conditional)
       if (showRR) {
         ctx.fillStyle = '#737373';
         ctx.font = '9px system-ui';
         ctx.textAlign = 'left';
-        ctx.fillText(`R:R  1 : ${rr}`, labelRightX + labelPad, entryLabelY + 24);
+        ctx.fillText(`R:R  1 : ${rr}`, labelRightX + labelPad, nextLineY);
+        nextLineY += 11;
+      }
+
+      // Position size (conditional)
+      if (showPosSize) {
+        ctx.fillStyle = '#8b8b8b';
+        ctx.font = '9px "SF Mono", Consolas, monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Qty: ${leveragedSize.toFixed(4)}`, labelRightX + labelPad, nextLineY);
+        ctx.textAlign = 'right';
+        ctx.fillText(`$${dollarRisk.toFixed(0)} risk`, labelRightX + labelW - labelPad, nextLineY);
       }
     }
 
     // ═══ RIGHT-SIDE TP LABEL ═══
     if (!compact) {
-      const tpLabelW = showPnL ? 100 : 75;
-      const tpLabelH = showPnL ? 24 : 16;
+      const tpLabelW = (showPnL || showDollarPnL) ? 120 : 75;
+      const tpLabelH = (showPnL || showDollarPnL) ? 24 : 16;
       const tpLabelX = rightX - tpLabelW - 12;
       const tpLabelY = tpY - tpLabelH / 2;
 
@@ -873,23 +899,25 @@ export class ToolsRenderer {
       ctx.textAlign = 'left';
       ctx.fillText(`TP  ${tool.takeProfit.toFixed(2)}`, tpLabelX + 6, tpLabelY + 10);
 
-      if (showPnL) {
+      if (showPnL || showDollarPnL) {
         ctx.fillStyle = '#4ade80';
         ctx.font = 'bold 10px system-ui';
         ctx.textAlign = 'right';
-        ctx.fillText(`+${pnlPct}%`, tpLabelX + tpLabelW - 6, tpLabelY + 10);
+        const tpRightText = showDollarPnL ? `+$${dollarPnL.toFixed(0)}` : `+${pnlPct}%`;
+        ctx.fillText(tpRightText, tpLabelX + tpLabelW - 6, tpLabelY + 10);
 
         ctx.fillStyle = '#22c55e80';
         ctx.font = '9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`+${reward.toFixed(2)}`, tpLabelX + 6, tpLabelY + 21);
+        const tpBottomText = showDollarPnL && showPnL ? `+${pnlPct}% | +${reward.toFixed(2)}` : `+${reward.toFixed(2)}`;
+        ctx.fillText(tpBottomText, tpLabelX + 6, tpLabelY + 21);
       }
     }
 
     // ═══ RIGHT-SIDE SL LABEL ═══
     if (!compact) {
-      const slLabelW = showPnL ? 100 : 75;
-      const slLabelH = showPnL ? 24 : 16;
+      const slLabelW = (showPnL || showDollarPnL) ? 120 : 75;
+      const slLabelH = (showPnL || showDollarPnL) ? 24 : 16;
       const slLabelX = rightX - slLabelW - 12;
       const slLabelY = slY - slLabelH / 2;
 
@@ -906,16 +934,18 @@ export class ToolsRenderer {
       ctx.textAlign = 'left';
       ctx.fillText(`SL  ${tool.stopLoss.toFixed(2)}`, slLabelX + 6, slLabelY + 10);
 
-      if (showPnL) {
+      if (showPnL || showDollarPnL) {
         ctx.fillStyle = '#f87171';
         ctx.font = 'bold 10px system-ui';
         ctx.textAlign = 'right';
-        ctx.fillText(`-${riskPct}%`, slLabelX + slLabelW - 6, slLabelY + 10);
+        const slRightText = showDollarPnL ? `-$${dollarLoss.toFixed(0)}` : `-${riskPct}%`;
+        ctx.fillText(slRightText, slLabelX + slLabelW - 6, slLabelY + 10);
 
         ctx.fillStyle = '#ef444480';
         ctx.font = '9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`-${risk.toFixed(2)}`, slLabelX + 6, slLabelY + 21);
+        const slBottomText = showDollarPnL && showPnL ? `-${riskPct}% | -${risk.toFixed(2)}` : `-${risk.toFixed(2)}`;
+        ctx.fillText(slBottomText, slLabelX + 6, slLabelY + 21);
       }
     }
 

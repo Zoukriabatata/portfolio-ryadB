@@ -785,6 +785,170 @@ function ToolSettingsContent({
             </div>
           </div>
 
+          {/* Position Sizing */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase mb-3" style={{ color: theme.colors.textMuted }}>
+              Position Sizing
+            </h4>
+            <div className="space-y-3">
+              {/* Account Size */}
+              <div
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: theme.colors.background }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">💼</span>
+                  <div>
+                    <span className="text-xs" style={{ color: theme.colors.text }}>Taille du compte</span>
+                    <p className="text-[9px]" style={{ color: theme.colors.textMuted }}>Capital total en USD</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>$</span>
+                  <input
+                    type="number"
+                    value={Number(toolSettings.accountSize) || 10000}
+                    onChange={(e) => handleChange('accountSize', parseFloat(e.target.value) || 10000)}
+                    className="w-20 h-6 text-xs font-mono rounded px-2 text-right focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                    style={{ backgroundColor: theme.colors.surface, color: theme.colors.text, border: `1px solid ${theme.colors.border}` }}
+                  />
+                </div>
+              </div>
+
+              {/* Risk % */}
+              <div
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: theme.colors.background }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">⚠️</span>
+                  <div>
+                    <span className="text-xs" style={{ color: theme.colors.text }}>Risque par trade</span>
+                    <p className="text-[9px]" style={{ color: theme.colors.textMuted }}>% du compte risqué</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {[0.5, 1, 2, 3, 5].map(r => (
+                    <button
+                      key={r}
+                      onClick={() => handleChange('riskPercent', r)}
+                      className="px-2 py-1 rounded text-[10px] font-mono transition-colors"
+                      style={{
+                        backgroundColor: (toolSettings.riskPercent ?? 1) === r
+                          ? (activeTool === 'longPosition' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)')
+                          : theme.colors.background,
+                        color: (toolSettings.riskPercent ?? 1) === r
+                          ? (activeTool === 'longPosition' ? '#22c55e' : '#ef4444')
+                          : theme.colors.textMuted,
+                        border: `1px solid ${(toolSettings.riskPercent ?? 1) === r
+                          ? (activeTool === 'longPosition' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)')
+                          : theme.colors.border}`,
+                      }}
+                    >
+                      {r}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Leverage */}
+              <div
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: theme.colors.background }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">⚡</span>
+                  <div>
+                    <span className="text-xs" style={{ color: theme.colors.text }}>Levier</span>
+                    <p className="text-[9px]" style={{ color: theme.colors.textMuted }}>Multiplicateur de position</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-wrap justify-end">
+                  {[1, 2, 5, 10, 25, 50, 125].map(l => (
+                    <button
+                      key={l}
+                      onClick={() => handleChange('leverage', l)}
+                      className="px-1.5 py-0.5 rounded text-[9px] font-mono transition-colors"
+                      style={{
+                        backgroundColor: (toolSettings.leverage ?? 1) === l
+                          ? (activeTool === 'longPosition' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)')
+                          : theme.colors.background,
+                        color: (toolSettings.leverage ?? 1) === l
+                          ? (activeTool === 'longPosition' ? '#22c55e' : '#ef4444')
+                          : theme.colors.textMuted,
+                        border: `1px solid ${(toolSettings.leverage ?? 1) === l
+                          ? (activeTool === 'longPosition' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)')
+                          : theme.colors.border}`,
+                      }}
+                    >
+                      {l}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Show Position Size toggle */}
+              <div
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: theme.colors.background }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">📐</span>
+                  <div>
+                    <span className="text-xs" style={{ color: theme.colors.text }}>Afficher taille</span>
+                    <p className="text-[9px]" style={{ color: theme.colors.textMuted }}>Quantité calculée sur le chart</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleChange('showPositionSize', !(toolSettings.showPositionSize ?? false))}
+                  className="w-10 h-5 rounded-full transition-all"
+                  style={{
+                    backgroundColor: (toolSettings.showPositionSize ?? false)
+                      ? (activeTool === 'longPosition' ? '#22c55e' : '#ef4444')
+                      : theme.colors.textMuted,
+                  }}
+                >
+                  <div
+                    className="w-4 h-4 rounded-full bg-white shadow-md transform transition-transform"
+                    style={{
+                      transform: (toolSettings.showPositionSize ?? false) ? 'translateX(20px)' : 'translateX(2px)',
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Show Dollar P&L toggle */}
+              <div
+                className="flex items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: theme.colors.background }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">💲</span>
+                  <div>
+                    <span className="text-xs" style={{ color: theme.colors.text }}>P&L en dollars</span>
+                    <p className="text-[9px]" style={{ color: theme.colors.textMuted }}>Afficher +$xxx / -$xxx</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleChange('showDollarPnL', !(toolSettings.showDollarPnL ?? false))}
+                  className="w-10 h-5 rounded-full transition-all"
+                  style={{
+                    backgroundColor: (toolSettings.showDollarPnL ?? false)
+                      ? (activeTool === 'longPosition' ? '#22c55e' : '#ef4444')
+                      : theme.colors.textMuted,
+                  }}
+                >
+                  <div
+                    className="w-4 h-4 rounded-full bg-white shadow-md transform transition-transform"
+                    style={{
+                      transform: (toolSettings.showDollarPnL ?? false) ? 'translateX(20px)' : 'translateX(2px)',
+                    }}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Quick Presets */}
           <div>
             <h4 className="text-xs font-semibold uppercase mb-3" style={{ color: theme.colors.textMuted }}>

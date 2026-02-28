@@ -107,11 +107,10 @@ export default function IndicatorSettingsPanel({ indicatorId, onClose, position 
   const label = indicator.type === 'SMA' || indicator.type === 'EMA'
     ? `${indicator.type} (${indicator.params.period || 20})`
     : indicator.type === 'BollingerBands' ? 'Bollinger Bands'
-    : indicator.type === 'VolumeProfile' ? 'Volume Profile'
     : indicator.type;
 
   const hasSource = indicator.type === 'SMA' || indicator.type === 'EMA' || indicator.type === 'BollingerBands';
-  const hasLineStyle = indicator.type !== 'VolumeProfile';
+  const hasLineStyle = true;
 
   return (
     <div
@@ -344,77 +343,6 @@ export default function IndicatorSettingsPanel({ indicatorId, onClose, position 
                 ))}
               </div>
             </Section>
-          )}
-
-          {/* Volume Profile — bars count + position + opacity */}
-          {indicator.type === 'VolumeProfile' && (
-            <>
-              <Slider
-                label="Nombre de barres"
-                value={indicator.params.bars || 50}
-                min={10}
-                max={200}
-                step={5}
-                onChange={(v) => updateParams({ bars: v })}
-              />
-              <div className="flex gap-1">
-                {[20, 30, 50, 80, 100, 150].map(b => (
-                  <button
-                    key={b}
-                    onClick={() => updateParams({ bars: b })}
-                    className="flex-1 py-0.5 rounded text-[9px] font-mono transition-colors"
-                    style={{
-                      backgroundColor: (indicator.params.bars || 50) === b ? 'var(--primary)' : 'var(--background)',
-                      color: (indicator.params.bars || 50) === b ? '#fff' : 'var(--text-muted)',
-                      border: `1px solid ${(indicator.params.bars || 50) === b ? 'var(--primary)' : 'var(--border)'}`,
-                    }}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-
-              <Section label="Value Area">
-                <Slider
-                  label="Pourcentage VA"
-                  value={indicator.params.vaPercent || 70}
-                  min={50}
-                  max={90}
-                  step={5}
-                  unit="%"
-                  onChange={(v) => updateParams({ vaPercent: v })}
-                />
-              </Section>
-
-              <Section label="Position des barres">
-                <div className="flex gap-1">
-                  {(['left', 'right'] as const).map(p => (
-                    <button
-                      key={p}
-                      onClick={() => updateStyle({ position: p })}
-                      className="flex-1 py-1 rounded text-[9px] font-medium transition-all"
-                      style={{
-                        backgroundColor: (indicator.style.position || 'right') === p ? 'var(--primary)' : 'var(--background)',
-                        color: (indicator.style.position || 'right') === p ? '#fff' : 'var(--text-muted)',
-                        border: `1px solid ${(indicator.style.position || 'right') === p ? 'var(--primary)' : 'var(--border)'}`,
-                      }}
-                    >
-                      {p === 'left' ? 'Gauche' : 'Droite'}
-                    </button>
-                  ))}
-                </div>
-              </Section>
-
-              <Slider
-                label="Opacité barres"
-                value={Math.round((indicator.style.fillOpacity ?? 1) * 100)}
-                min={10}
-                max={100}
-                step={5}
-                unit="%"
-                onChange={(v) => updateStyle({ fillOpacity: v / 100 })}
-              />
-            </>
           )}
 
           {/* Show Label Toggle */}

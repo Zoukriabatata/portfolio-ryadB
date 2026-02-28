@@ -24,6 +24,7 @@ import {
   Trash2,
   Settings2,
   ChevronDown,
+  DollarSign,
 } from 'lucide-react';
 
 // Preset colors (TradingView-style palette)
@@ -239,6 +240,66 @@ export default function InlineToolSettings({
           </div>
         )}
       </div>
+
+      {/* Position sizing controls (Long/Short only) */}
+      {(selectedTool.type === 'longPosition' || selectedTool.type === 'shortPosition') && (
+        <>
+          <div className="w-px h-4 bg-[var(--border)] mx-1" />
+          {/* Account size */}
+          <div className="flex items-center gap-0.5">
+            <span className="text-[9px] text-[var(--text-dimmed)]">$</span>
+            <input
+              type="number"
+              value={(selectedTool as any).accountSize || 10000}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value) || 10000;
+                getToolsEngine().updateTool(selectedTool.id, { accountSize: val } as any);
+              }}
+              className="w-14 h-5 text-[10px] font-mono rounded px-1 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]"
+              title="Account size ($)"
+            />
+          </div>
+          {/* Risk % */}
+          <select
+            value={(selectedTool as any).riskPercent || 1}
+            onChange={(e) => {
+              getToolsEngine().updateTool(selectedTool.id, { riskPercent: parseFloat(e.target.value) } as any);
+            }}
+            className="h-5 text-[10px] font-mono rounded px-0.5 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] cursor-pointer focus:outline-none"
+            title="Risk %"
+          >
+            {[0.5, 1, 2, 3, 5].map(r => (
+              <option key={r} value={r}>{r}%</option>
+            ))}
+          </select>
+          {/* Leverage */}
+          <select
+            value={(selectedTool as any).leverage || 1}
+            onChange={(e) => {
+              getToolsEngine().updateTool(selectedTool.id, { leverage: parseFloat(e.target.value) } as any);
+            }}
+            className="h-5 text-[10px] font-mono rounded px-0.5 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] cursor-pointer focus:outline-none"
+            title="Leverage"
+          >
+            {[1, 2, 5, 10, 25, 50, 125].map(l => (
+              <option key={l} value={l}>{l}x</option>
+            ))}
+          </select>
+          {/* Dollar P&L toggle */}
+          <button
+            onClick={() => {
+              const current = (selectedTool as any).showDollarPnL || false;
+              getToolsEngine().updateTool(selectedTool.id, { showDollarPnL: !current } as any);
+            }}
+            className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+              (selectedTool as any).showDollarPnL ? 'text-green-400 bg-green-400/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)]'
+            }`}
+            title="Show Dollar P&L"
+          >
+            <DollarSign size={13} strokeWidth={1.5} />
+          </button>
+        </>
+      )}
 
       <div className="w-px h-4 bg-[var(--border)] mx-1" />
 

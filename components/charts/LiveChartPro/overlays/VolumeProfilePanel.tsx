@@ -90,19 +90,19 @@ export default function VolumeProfilePanel({
     // Clear
     ctx.clearRect(0, 0, w, h);
 
-    // Background
+    // Background (opaque to cleanly separate from chart)
     ctx.fillStyle = theme.background;
-    ctx.globalAlpha = 0.85;
     ctx.fillRect(0, 0, w, h);
-    ctx.globalAlpha = 1;
 
-    // Left border
+    // Left border (subtle separator)
     ctx.strokeStyle = theme.border;
+    ctx.globalAlpha = 0.3;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0.5, 0);
     ctx.lineTo(0.5, h);
     ctx.stroke();
+    ctx.globalAlpha = 1;
 
     const { bins, valueArea, maxBinVolume } = data;
     if (bins.length === 0 || maxBinVolume === 0) {
