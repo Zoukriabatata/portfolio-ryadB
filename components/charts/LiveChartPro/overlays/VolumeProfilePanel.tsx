@@ -111,20 +111,6 @@ export default function VolumeProfilePanel({
     // Clear
     ctx.clearRect(0, 0, w, h);
 
-    // Background (opaque to cleanly separate from chart)
-    ctx.fillStyle = theme.background;
-    ctx.fillRect(0, 0, w, h);
-
-    // Left border (subtle separator)
-    ctx.strokeStyle = theme.border;
-    ctx.globalAlpha = 0.3;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0.5, 0);
-    ctx.lineTo(0.5, h);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
     const { bins, valueArea, maxBinVolume } = data;
     if (bins.length === 0 || maxBinVolume === 0) {
       // "No data" label
@@ -198,63 +184,11 @@ export default function VolumeProfilePanel({
       }
     }
 
-    // Draw POC line
+    // POC highlight bar (subtle indicator within VP bars)
     const pocY = priceToY(valueArea.poc);
     if (pocY >= 0 && pocY <= h) {
-      // POC highlight bar
       ctx.fillStyle = VP_COLORS.pocFill;
       ctx.fillRect(1, pocY - Math.max(barHeight / 2, 2), w - 1, Math.max(barHeight, 4));
-
-      // POC line
-      ctx.strokeStyle = VP_COLORS.poc;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.moveTo(1, pocY);
-      ctx.lineTo(w, pocY);
-      ctx.stroke();
-
-      // POC label
-      ctx.fillStyle = VP_COLORS.poc;
-      ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('POC', 4, pocY - 4);
-    }
-
-    // Draw VAH line
-    if (vahY >= 0 && vahY <= h) {
-      ctx.strokeStyle = VP_COLORS.vah;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(1, vahY);
-      ctx.lineTo(w, vahY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // VAH label
-      ctx.fillStyle = VP_COLORS.vah;
-      ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('VAH', 4, vahY - 3);
-    }
-
-    // Draw VAL line
-    if (valY >= 0 && valY <= h) {
-      ctx.strokeStyle = VP_COLORS.val;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(1, valY);
-      ctx.lineTo(w, valY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // VAL label
-      ctx.fillStyle = VP_COLORS.val;
-      ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('VAL', 4, valY + 10);
     }
 
     // Stats summary at bottom

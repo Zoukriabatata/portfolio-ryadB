@@ -146,6 +146,7 @@ export class CanvasChartEngine {
     labelTextColor: '#ffffff',
     labelOpacity: 1,
   };
+  private vpLevels: { poc: number; vah: number; val: number } | null = null;
 
   // Callbacks
   private onPriceChange?: (price: number) => void;
@@ -377,6 +378,11 @@ export class CanvasChartEngine {
     this.render();
   }
 
+  setVPLevels(levels: { poc: number; vah: number; val: number } | null): void {
+    this.vpLevels = levels;
+    this.render();
+  }
+
   setOnPriceChange(callback: (price: number) => void): void {
     this.onPriceChange = callback;
   }
@@ -583,6 +589,7 @@ export class CanvasChartEngine {
     if (this.showVolume) this.drawVolume();
     this.drawPriceAxis();
     this.drawTimeAxis();
+    if (this.vpLevels) this.drawVPLevels();
     this.drawCurrentPriceLine();
     if (this.crosshair.visible) this.drawCrosshair();
 
@@ -669,6 +676,7 @@ export class CanvasChartEngine {
       if (this.showVolume) this.drawVolume();
       this.drawPriceAxis();
       this.drawTimeAxis();
+      if (this.vpLevels) this.drawVPLevels();
       this.drawCurrentPriceLine();
       if (this.crosshair.visible) this.drawCrosshair();
 
@@ -1038,6 +1046,51 @@ export class CanvasChartEngine {
       const timeStr = this.formatTime(candle.time);
       this.ctx.fillText(timeStr, x, axisY + 18);
     }
+  }
+
+  private drawVPLevels(): void {
+    if (!this.vpLevels) return;
+    const { width, height, priceAxisWidth, timeAxisHeight, volumeHeight } = this.dimensions;
+    const { priceMin, priceMax } = this.viewport;
+    const chartWidth = width - priceAxisWidth;
+    const chartHeight = height - timeAxisHeight - (this.showVolume ? volumeHeight : 0);
+    if (chartHeight <= 0 || priceMax <= priceMin) return;
+
+    const priceToY = (p: number) => ((priceMax - p) / (priceMax - priceMin)) * chartHeight;
+
+    const drawLevel = (price: number, color: string, lineWidth: number, dash: number[], label: string) => {
+      const y = Math.round(priceToY(price)) + 0.5;
+      if (y < 0 || y > chartHeight) return;
+
+      this.ctx.save();
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = lineWidth;
+      this.ctx.setLineDash(dash);
+      this.ctx.globalAlpha = 0.8;
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(chartWidth, y);
+      this.ctx.stroke();
+
+      // Label
+      this.ctx.setLineDash([]);
+      this.ctx.globalAlpha = 1;
+      this.ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, sans-serif';
+      const textWidth = this.ctx.measureText(label).width;
+      this.ctx.fillStyle = color;
+      this.ctx.globalAlpha = 0.15;
+      this.ctx.fillRect(4, y - 8, textWidth + 6, 14);
+      this.ctx.globalAlpha = 1;
+      this.ctx.fillStyle = color;
+      this.ctx.textAlign = 'left';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(label, 7, y);
+      this.ctx.restore();
+    };
+
+    drawLevel(this.vpLevels.poc, '#f59e0b', 1.5, [], 'POC');
+    drawLevel(this.vpLevels.vah, '#3b82f6', 1, [3, 3], 'VAH');
+    drawLevel(this.vpLevels.val, '#3b82f6', 1, [3, 3], 'VAL');
   }
 
   private drawCurrentPriceLine(): void {

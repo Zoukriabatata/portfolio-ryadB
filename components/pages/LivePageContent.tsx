@@ -7,7 +7,6 @@ import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import ConnectionBanner from '@/components/ui/ConnectionBanner';
 import BottomWidgetsPanel from '@/components/widgets/BottomWidgetsPanel';
 import WatchlistPanel from '@/components/widgets/WatchlistPanel';
-import QuickTradeBar from '@/components/trading/QuickTradeBar';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { ChartSkeleton } from '@/components/ui/Skeleton';
 
@@ -49,7 +48,7 @@ const LAYOUT_ICONS: Record<LayoutMode, React.ReactNode> = {
 };
 
 export default function LivePageContent() {
-  const { showTradeBar, setShowTradeBar, tradingSymbol, setTradingSymbol } = useTradingStore();
+  const { tradingSymbol, setTradingSymbol } = useTradingStore();
   const symbol = tradingSymbol;
   const setSymbol = setTradingSymbol;
   const [showFutures, setShowFutures] = useState(true);
@@ -147,20 +146,8 @@ export default function LivePageContent() {
       <div className="flex-1 flex flex-col min-w-0 relative">
         <ConnectionBanner />
 
-        {/* Toolbar: Trade toggle + Layout selector */}
-        <div className="flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
-          <button
-            onClick={() => setShowTradeBar(!showTradeBar)}
-            className="px-2 py-1 text-[10px] font-medium transition-colors"
-            style={{
-              color: showTradeBar ? 'var(--primary)' : 'var(--text-muted)',
-              background: showTradeBar ? 'rgba(16,185,129,0.08)' : 'transparent',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-1"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-            Trade
-          </button>
-
+        {/* Toolbar: Layout selector */}
+        <div className="flex items-center justify-end" style={{ borderBottom: '1px solid var(--border)' }}>
           {/* Layout Selector */}
           <div
             data-testid="layout-selector"
@@ -189,22 +176,6 @@ export default function LivePageContent() {
             ))}
           </div>
         </div>
-        <div style={{ height: showTradeBar ? 38 : 0, overflow: 'hidden', transition: 'height 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
-          <QuickTradeBar
-            symbol={symbol}
-            colors={{
-              surface: 'var(--surface)',
-              border: 'var(--border)',
-              text: 'var(--text-primary)',
-              textSecondary: 'var(--text-secondary)',
-              textMuted: 'var(--text-muted)',
-              success: '#22c55e',
-              error: '#ef4444',
-              background: 'var(--background)',
-            }}
-          />
-        </div>
-
         {/* Chart Grid */}
         {layout === '1x1' ? (
           <ChartErrorBoundary fallbackTitle="Chart Error">

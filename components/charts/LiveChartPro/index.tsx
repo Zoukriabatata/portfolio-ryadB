@@ -42,6 +42,8 @@ import { useChartSyncStore } from '@/stores/useChartSyncStore';
 import { useLiveVolumeProfile } from '@/hooks/useLiveVolumeProfile';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
 import VolumeProfilePanel from './overlays/VolumeProfilePanel';
+import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
+import { useFavoritesToolbarStore } from '@/stores/useFavoritesToolbarStore';
 
 interface LiveChartProProps {
   className?: string;
@@ -236,7 +238,6 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
 
   // === UI TOGGLE STATE ===
   const [showThemePanel, setShowThemePanel] = useState(false);
-  const [showTradeBar, setShowTradeBar] = useState(false);
   const [showDepthMap, setShowDepthMap] = useState(false);
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -247,9 +248,10 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   // === STORE HOOKS ===
   const { themeId, setTheme, getTheme } = useThemeStore();
   const theme = useMemo(() => getTheme(), [themeId, getTheme]);
-  const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity } = useTradingStore();
+  const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity, showTradeBar, setShowTradeBar } = useTradingStore();
   const { indicators: indicatorConfigs, toggleIndicator: toggleIndicatorConfig } = useIndicatorStore();
   const { showVolumeProfile, setShowVolumeProfile } = usePreferencesStore();
+  const customFavorites = useFavoritesToolbarStore(s => s.presets.custom.tools);
 
   // Trading ref for keyboard hotkeys
   const tradingRef = useRef({ activeBroker, connections, placeOrder, closePosition, contractQuantity, symbol: 'btcusdt', showTradeBar });
@@ -271,6 +273,19 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
 
   // Volume Profile — real-time orderflow from aggTrade
   const vpData = useLiveVolumeProfile(symbolData.symbol, showVolumeProfile);
+
+  // Sync VP levels to chart engine for full-width POC/VAH/VAL lines
+  useEffect(() => {
+    if (!showVolumeProfile || !vpData.data.valueArea.poc) {
+      refs.chartEngine.current?.setVPLevels(null);
+      return;
+    }
+    refs.chartEngine.current?.setVPLevels({
+      poc: vpData.data.valueArea.poc,
+      vah: vpData.data.valueArea.vah,
+      val: vpData.data.valueArea.val,
+    });
+  }, [showVolumeProfile, vpData.data.valueArea, refs]);
 
   const settings = useChartSettings({
     refs,
@@ -731,6 +746,32 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
             colors={{ surface: theme.colors.surface, border: theme.colors.border, text: theme.colors.text, textSecondary: theme.colors.textSecondary, textMuted: theme.colors.textMuted, success: theme.colors.success, error: theme.colors.error, background: theme.colors.background }}
           />
         </div>
+
+        {/* Favorites Toolbar — only if has favorites */}
+        {customFavorites.length > 0 && (
+          <FavoritesToolbar
+            activeTool={drawing.mapToolType(drawing.activeTool) || 'cursor'}
+            onToolSelect={drawing.handleToolSelect}
+            onDeleteSelected={() => {
+              if (drawing.selectedTool) {
+                refs.toolsEngine.current.deleteTool(drawing.selectedTool.id);
+                drawing.setSelectedTool(null);
+                drawing.renderDrawingTools();
+              }
+            }}
+            hasSelectedTool={drawing.selectedTool !== null}
+            colors={{
+              surface: theme.colors.surface,
+              background: theme.colors.background,
+              gridColor: theme.colors.border,
+              textPrimary: theme.colors.text,
+              textMuted: theme.colors.textMuted,
+              deltaPositive: theme.colors.success,
+              deltaNegative: theme.colors.error,
+            }}
+            preset="custom"
+          />
+        )}
 
         {/* Inline Tool Settings — TradingView-style */}
         <InlineToolSettings selectedTool={drawing.selectedTool} />
