@@ -137,14 +137,21 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
 
         const candleTotalWidth = chartWidth / (endIndex - startIndex);
 
-        // Binary search for the candle bracket
-        let lo = 0, hi = candles.length - 1;
-        if (time <= candles[0].time) {
+        // Extrapolate beyond candle range (unrestricted positioning)
+        if (candles.length < 2) {
           const visibleIndex = 0 - startIndex;
           return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
         }
+        const interval = candles[candles.length - 1].time - candles[candles.length - 2].time;
+        let lo = 0, hi = candles.length - 1;
+        if (time <= candles[0].time) {
+          const fractionalIndex = (time - candles[0].time) / interval;
+          const visibleIndex = fractionalIndex - startIndex;
+          return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
+        }
         if (time >= candles[hi].time) {
-          const visibleIndex = hi - startIndex;
+          const fractionalIndex = hi + (time - candles[hi].time) / interval;
+          const visibleIndex = fractionalIndex - startIndex;
           return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
         }
 
@@ -175,9 +182,16 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
         const candleIndex = Math.floor(candleIndexFloat);
         const fraction = candleIndexFloat - candleIndex;
 
-        // Clamp to valid range
-        if (candleIndex < 0) return candles[0].time;
-        if (candleIndex >= candles.length - 1) return candles[candles.length - 1].time;
+        // Extrapolate beyond candle range (unrestricted drag)
+        if (candles.length < 2) return candles[0]?.time || Date.now() / 1000;
+        const interval = candles[candles.length - 1].time - candles[candles.length - 2].time;
+        if (candleIndex < 0) {
+          return candles[0].time + candleIndexFloat * interval;
+        }
+        if (candleIndex >= candles.length - 1) {
+          const overshoot = candleIndexFloat - (candles.length - 1);
+          return candles[candles.length - 1].time + overshoot * interval;
+        }
 
         // Linear interpolation between two candles
         const leftTime = candles[candleIndex].time;
@@ -547,8 +561,16 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           const candleIndex = Math.floor(candleIndexFloat);
           const fraction = candleIndexFloat - candleIndex;
 
-          if (candleIndex < 0) return c[0].time;
-          if (candleIndex >= c.length - 1) return c[c.length - 1].time;
+          // Extrapolate beyond candle range (unrestricted drag)
+          if (c.length < 2) return c[0]?.time || 0;
+          const interval = c[c.length - 1].time - c[c.length - 2].time;
+          if (candleIndex < 0) {
+            return c[0].time + candleIndexFloat * interval;
+          }
+          if (candleIndex >= c.length - 1) {
+            const overshoot = candleIndexFloat - (c.length - 1);
+            return c[c.length - 1].time + overshoot * interval;
+          }
 
           // Interpolate between candles for precise timestamp
           const leftTime = c[candleIndex].time;
@@ -561,17 +583,34 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           if (!eng || c.length === 0) return 0;
           const vp = eng.getViewport();
           const visibleCount = vp.endIndex - vp.startIndex;
+          const candleTotalWidth = vp.chartWidth / visibleCount;
 
-          // Find candles that bracket this timestamp
-          let leftIdx = -1;
-          let rightIdx = -1;
-          for (let i = 0; i < c.length; i++) {
-            if (c[i].time <= time) leftIdx = i;
-            if (c[i].time >= time && rightIdx === -1) { rightIdx = i; break; }
+          if (c.length < 2) {
+            const visibleIndex = 0 - vp.startIndex;
+            return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
           }
 
-          if (leftIdx === -1) leftIdx = 0;
-          if (rightIdx === -1) rightIdx = c.length - 1;
+          const interval = c[c.length - 1].time - c[c.length - 2].time;
+
+          // Extrapolate beyond candle range (unrestricted positioning)
+          if (time <= c[0].time) {
+            const fractionalIndex = (time - c[0].time) / interval;
+            const visibleIndex = fractionalIndex - vp.startIndex;
+            return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
+          }
+          if (time >= c[c.length - 1].time) {
+            const fractionalIndex = (c.length - 1) + (time - c[c.length - 1].time) / interval;
+            const visibleIndex = fractionalIndex - vp.startIndex;
+            return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
+          }
+
+          // Find candles that bracket this timestamp
+          let leftIdx = 0;
+          let rightIdx = c.length - 1;
+          for (let i = 0; i < c.length; i++) {
+            if (c[i].time <= time) leftIdx = i;
+            if (c[i].time >= time && rightIdx === c.length - 1) { rightIdx = i; break; }
+          }
 
           // Interpolate for precise position
           let candleIndex: number;
@@ -583,7 +622,6 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
           }
 
           const visibleIndex = candleIndex - vp.startIndex;
-          const candleTotalWidth = vp.chartWidth / visibleCount;
           return visibleIndex * candleTotalWidth + candleTotalWidth / 2;
         },
         yToPrice: (y: number) => {
@@ -691,16 +729,15 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
 
     // Re-render drawing tools whenever the chart viewport changes (zoom, pan, new data)
     const chartEngine = refs.chartEngine.current;
+    const viewportHandler = () => renderDrawingTools();
     if (chartEngine) {
-      chartEngine.setOnViewportChange(() => {
-        renderDrawingTools();
-      });
+      chartEngine.addViewportChangeListener(viewportHandler);
     }
 
     return () => {
       resizeObserver.disconnect();
       if (chartEngine) {
-        chartEngine.setOnViewportChange(() => {});
+        chartEngine.removeViewportChangeListener(viewportHandler);
       }
     };
   }, [refs, renderDrawingTools]);

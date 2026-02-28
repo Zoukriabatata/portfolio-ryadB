@@ -75,6 +75,22 @@ export interface PreferencesState {
   setVolumeMode: (mode: 'classic' | 'bidask' | 'delta') => void;
   setShowVolumeProfile: (show: boolean) => void;
 
+  // Price line settings
+  showCurrentPriceLine: boolean;
+  priceLineStyle: 'dashed' | 'solid';
+  priceLineWidth: number;
+  priceLineColor: string; // '' = auto from theme
+  priceLabelBgColor: string; // '' = auto green/red
+  priceLabelTextColor: string;
+  priceLabelOpacity: number;
+  setShowCurrentPriceLine: (show: boolean) => void;
+  setPriceLineStyle: (style: 'dashed' | 'solid') => void;
+  setPriceLineWidth: (width: number) => void;
+  setPriceLineColor: (color: string) => void;
+  setPriceLabelBgColor: (color: string) => void;
+  setPriceLabelTextColor: (color: string) => void;
+  setPriceLabelOpacity: (opacity: number) => void;
+
   // Trading preferences
   confirmOrders: boolean;
   defaultOrderType: 'market' | 'limit';
@@ -96,9 +112,23 @@ export const usePreferencesStore = create<PreferencesState>()(
       showCrosshairTooltip: true,
       volumeMode: 'classic',
       showVolumeProfile: false,
+      showCurrentPriceLine: true,
+      priceLineStyle: 'dashed',
+      priceLineWidth: 1,
+      priceLineColor: '',
+      priceLabelBgColor: '',
+      priceLabelTextColor: '#ffffff',
+      priceLabelOpacity: 1,
       confirmOrders: true,
       defaultOrderType: 'market',
 
+      setShowCurrentPriceLine: (showCurrentPriceLine) => set({ showCurrentPriceLine }),
+      setPriceLineStyle: (priceLineStyle) => set({ priceLineStyle }),
+      setPriceLineWidth: (priceLineWidth) => set({ priceLineWidth: Math.max(1, Math.min(4, priceLineWidth)) }),
+      setPriceLineColor: (priceLineColor) => set({ priceLineColor }),
+      setPriceLabelBgColor: (priceLabelBgColor) => set({ priceLabelBgColor }),
+      setPriceLabelTextColor: (priceLabelTextColor) => set({ priceLabelTextColor }),
+      setPriceLabelOpacity: (priceLabelOpacity) => set({ priceLabelOpacity: Math.max(0.5, Math.min(1, priceLabelOpacity)) }),
       setVolumeMode: (volumeMode) => set({ volumeMode }),
       setShowVolumeProfile: (showVolumeProfile) => set({ showVolumeProfile }),
       setDensity: (density) => set({ density }),
@@ -125,6 +155,13 @@ export const usePreferencesStore = create<PreferencesState>()(
         showCrosshairTooltip: s.showCrosshairTooltip,
         volumeMode: s.volumeMode,
         showVolumeProfile: s.showVolumeProfile,
+        showCurrentPriceLine: s.showCurrentPriceLine,
+        priceLineStyle: s.priceLineStyle,
+        priceLineWidth: s.priceLineWidth,
+        priceLineColor: s.priceLineColor,
+        priceLabelBgColor: s.priceLabelBgColor,
+        priceLabelTextColor: s.priceLabelTextColor,
+        priceLabelOpacity: s.priceLabelOpacity,
         confirmOrders: s.confirmOrders,
         defaultOrderType: s.defaultOrderType,
       }),

@@ -11,7 +11,7 @@
  * - Synced with chart viewport (priceMin/priceMax)
  */
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import type { LiveVolumeProfileData } from '@/hooks/useLiveVolumeProfile';
 import type { PriceBin } from '@/lib/orderflow/VolumeProfileEngine';
 
@@ -63,6 +63,27 @@ export default function VolumeProfilePanel({
   const hoveredBinRef = useRef<PriceBin | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
+  // Track DPR for sharp rendering at all zoom levels
+  const [currentDpr, setCurrentDpr] = useState(
+    typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+  );
+
+  useEffect(() => {
+    let dpr = window.devicePixelRatio || 1;
+    let query = window.matchMedia(`(resolution: ${dpr}dppx)`);
+    const handler = () => {
+      const newDpr = window.devicePixelRatio || 1;
+      if (newDpr !== dpr) {
+        dpr = newDpr;
+        setCurrentDpr(newDpr);
+      }
+      query = window.matchMedia(`(resolution: ${newDpr}dppx)`);
+      query.addEventListener('change', handler, { once: true });
+    };
+    query.addEventListener('change', handler, { once: true });
+    return () => query.removeEventListener('change', handler);
+  }, []);
+
   const priceToY = useCallback((price: number): number => {
     if (priceMax <= priceMin) return 0;
     return ((priceMax - price) / (priceMax - priceMin)) * chartHeight;
@@ -73,7 +94,7 @@ export default function VolumeProfilePanel({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = currentDpr;
     const w = width;
     const h = chartHeight;
 
@@ -258,7 +279,7 @@ export default function VolumeProfilePanel({
     ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`Δ ${deltaStr}`, w / 2, 12);
-  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY]);
+  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr]);
 
   // Handle mouse hover for tooltip
   useEffect(() => {

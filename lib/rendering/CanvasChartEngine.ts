@@ -33,6 +33,16 @@ export interface ChartTheme {
   priceLineColor: string;
 }
 
+export interface PriceLineConfig {
+  visible: boolean;
+  style: 'dashed' | 'solid';
+  width: number;
+  color: string;         // '' = use theme.priceLineColor
+  labelBgColor: string;  // '' = auto green/red
+  labelTextColor: string;
+  labelOpacity: number;
+}
+
 export interface CrosshairStyle {
   color: string;
   lineWidth: number;
@@ -127,12 +137,21 @@ export class CanvasChartEngine {
     dashPattern: [4, 4],
   };
   private timeframeSeconds = 60; // Default 1 minute
+  private priceLineConfig: PriceLineConfig = {
+    visible: true,
+    style: 'dashed',
+    width: 1,
+    color: '',
+    labelBgColor: '',
+    labelTextColor: '#ffffff',
+    labelOpacity: 1,
+  };
 
   // Callbacks
   private onPriceChange?: (price: number) => void;
   private onCrosshairMove?: (time: number, price: number) => void;
   private onCrosshairCandleData?: (data: CrosshairCandleData | null) => void;
-  private onViewportChange?: () => void;
+  private viewportChangeListeners = new Set<() => void>();
 
   constructor(canvas: HTMLCanvasElement, theme?: Partial<ChartTheme>) {
     this.canvas = canvas;
@@ -353,6 +372,11 @@ export class CanvasChartEngine {
     this.timeframeSeconds = seconds;
   }
 
+  setPriceLineConfig(config: Partial<PriceLineConfig>): void {
+    this.priceLineConfig = { ...this.priceLineConfig, ...config };
+    this.render();
+  }
+
   setOnPriceChange(callback: (price: number) => void): void {
     this.onPriceChange = callback;
   }
@@ -366,7 +390,17 @@ export class CanvasChartEngine {
   }
 
   setOnViewportChange(callback: () => void): void {
-    this.onViewportChange = callback;
+    // Legacy single-callback compat — clears all and adds one
+    this.viewportChangeListeners.clear();
+    this.viewportChangeListeners.add(callback);
+  }
+
+  addViewportChangeListener(cb: () => void): void {
+    this.viewportChangeListeners.add(cb);
+  }
+
+  removeViewportChangeListener(cb: () => void): void {
+    this.viewportChangeListeners.delete(cb);
   }
 
   setCrosshairStyle(style: Partial<CrosshairStyle>): void {
@@ -569,7 +603,7 @@ export class CanvasChartEngine {
       last.endIndex = v.endIndex;
       last.priceMin = v.priceMin;
       last.priceMax = v.priceMax;
-      this.onViewportChange?.();
+      this.viewportChangeListeners.forEach(cb => cb());
     }
   }
 
@@ -922,14 +956,6 @@ export class CanvasChartEngine {
     this.ctx.fillStyle = this.theme.background;
     this.ctx.fillRect(axisX, 0, priceAxisWidth, chartHeight);
 
-    // Border
-    this.ctx.strokeStyle = this.theme.gridLines;
-    this.ctx.lineWidth = 1;
-    this.ctx.beginPath();
-    this.ctx.moveTo(axisX, 0);
-    this.ctx.lineTo(axisX, chartHeight);
-    this.ctx.stroke();
-
     // Price labels at nice levels (matching grid)
     this.ctx.fillStyle = this.theme.text;
     this.ctx.font = '11px monospace';
@@ -1016,6 +1042,7 @@ export class CanvasChartEngine {
 
   private drawCurrentPriceLine(): void {
     if (this.candles.length === 0) return;
+    if (!this.priceLineConfig.visible) return;
 
     const { width, height, priceAxisWidth, timeAxisHeight, volumeHeight } = this.dimensions;
     const { priceMin, priceMax } = this.viewport;
@@ -1032,10 +1059,11 @@ export class CanvasChartEngine {
     // Don't draw if outside visible range
     if (y < 0 || y > chartHeight) return;
 
-    // Dashed line
-    this.ctx.strokeStyle = this.theme.priceLineColor;
-    this.ctx.lineWidth = 1;
-    this.ctx.setLineDash([4, 4]);
+    // Line
+    const lineColor = this.priceLineConfig.color || this.theme.priceLineColor;
+    this.ctx.strokeStyle = lineColor;
+    this.ctx.lineWidth = this.priceLineConfig.width;
+    this.ctx.setLineDash(this.priceLineConfig.style === 'solid' ? [] : [4, 4]);
     this.ctx.beginPath();
     this.ctx.moveTo(0, y);
     this.ctx.lineTo(chartWidth, y);
@@ -1044,7 +1072,8 @@ export class CanvasChartEngine {
 
     // Price label with countdown
     const isUp = this.candles.length > 1 && currentPrice >= this.candles[this.candles.length - 2].close;
-    const bgColor = isUp ? this.theme.candleUp : this.theme.candleDown;
+    const autoBgColor = isUp ? this.theme.candleUp : this.theme.candleDown;
+    const bgColor = this.priceLineConfig.labelBgColor || autoBgColor;
 
     // Calculate countdown
     const now = Date.now();
@@ -1071,12 +1100,15 @@ export class CanvasChartEngine {
     const rectH = 28;
     const rectY = y - rectH / 2;
 
-    // Background
+    // Background with label opacity
+    this.ctx.save();
+    this.ctx.globalAlpha = this.priceLineConfig.labelOpacity;
     this.ctx.fillStyle = bgColor;
     this.ctx.fillRect(chartWidth, rectY, totalW, rectH);
+    this.ctx.restore();
 
     // Price text (top)
-    this.ctx.fillStyle = '#ffffff';
+    this.ctx.fillStyle = this.priceLineConfig.labelTextColor;
     this.ctx.font = 'bold 11px monospace';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';

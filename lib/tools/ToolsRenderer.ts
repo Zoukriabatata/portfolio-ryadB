@@ -179,22 +179,13 @@ export class ToolsRenderer {
     const { ctx } = context;
     const isHovered = context.hoveredToolId === tool.id;
 
-    // Professional selection glow (blue)
-    if (tool.selected) {
-      ctx.shadowColor = '#2962FF';
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-    }
-    // Apply hover effect (subtle glow) when not selected
-    else if (isHovered) {
-      ctx.shadowColor = tool.style.color;
-      ctx.shadowBlur = 8;
-    }
-
-    // Apply style
+    // Apply style — flat, no glow
     ctx.strokeStyle = tool.style.color;
-    ctx.lineWidth = isHovered && !tool.selected ? tool.style.lineWidth + 1 : tool.style.lineWidth;
+    ctx.lineWidth = tool.selected
+      ? tool.style.lineWidth + 1
+      : isHovered
+        ? tool.style.lineWidth + 0.5
+        : tool.style.lineWidth;
     this.setLineDash(ctx, tool.style.lineStyle);
 
     switch (tool.type) {
@@ -236,10 +227,6 @@ export class ToolsRenderer {
         this.renderEllipse(tool as any, context);
         break;
     }
-
-    // Reset shadow
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
 
     // Render attached text
     if (tool.text?.content) {
@@ -1209,28 +1196,16 @@ export class ToolsRenderer {
         handle.position === 'bottom-left' ||
         handle.position === 'bottom-right';
 
-      // Outer glow effect for visibility
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-
-      // Handle fill - white
+      // Handle fill - white (flat, no glow)
       ctx.fillStyle = '#ffffff';
 
       if (isCorner) {
-        // Square handle for corners
         ctx.fillRect(handle.x - halfSize, handle.y - halfSize, size, size);
       } else {
-        // Round handle for edges and points
         ctx.beginPath();
         ctx.arc(handle.x, handle.y, halfSize, 0, Math.PI * 2);
         ctx.fill();
       }
-
-      // Reset shadow
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
 
       // Handle border - tool color for visual connection
       ctx.strokeStyle = tool.style.color;

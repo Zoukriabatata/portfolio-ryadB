@@ -97,11 +97,12 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     };
   }, [symbol]);
 
-  // Effect 2 — Subscription + UI updates (active only when enabled)
+  // Effect 2 — Historical load + live subscription (active only when enabled)
   useEffect(() => {
     if (!enabled || !engineRef.current) return;
 
     const engine = engineRef.current;
+    let cancelled = false;
 
     // Instant load from existing engine data (when re-enabling)
     const existing = readEngineData(engine);
@@ -109,7 +110,50 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
       setData(existing);
     }
 
-    // Subscribe to tick stream
+    // 1. Fetch historical trades (last 1 hour) for full profile immediately
+    const loadHistorical = async () => {
+      const endTime = Date.now();
+      const startTime = endTime - 60 * 60 * 1000; // 1 hour
+      let cursor = startTime;
+
+      while (cursor < endTime && !cancelled) {
+        const params = new URLSearchParams({
+          symbol: symbol.toUpperCase(),
+          startTime: cursor.toString(),
+          endTime: endTime.toString(),
+          limit: '1000',
+        });
+
+        try {
+          const res = await fetch(`/api/binance/fapi/v1/aggTrades?${params}`);
+          if (!res.ok || cancelled) break;
+          const trades = await res.json();
+          if (!Array.isArray(trades) || trades.length === 0) break;
+
+          for (const t of trades) {
+            engine.processTrade({
+              timestamp: t.T,
+              price: parseFloat(t.p),
+              size: parseFloat(t.q),
+              side: t.m ? 'sell' : 'buy',
+            });
+          }
+
+          cursor = trades[trades.length - 1].T + 1;
+          if (trades.length < 1000) break;
+        } catch {
+          break;
+        }
+      }
+
+      if (!cancelled && engineRef.current) {
+        setData(readEngineData(engineRef.current));
+      }
+    };
+
+    loadHistorical();
+
+    // 2. Subscribe to live tick stream (runs in parallel with historical fetch)
     const ws = getBinanceLiveWS();
     const unsubscribe = ws.onTick((tick) => {
       engine.processTrade({
@@ -120,13 +164,14 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
       });
     });
 
-    // Periodic React state update (4fps throttle)
+    // 3. Periodic React state update (4fps throttle)
     const timer = setInterval(() => {
       if (!engineRef.current) return;
       setData(readEngineData(engineRef.current));
     }, 250);
 
     return () => {
+      cancelled = true;
       unsubscribe();
       clearInterval(timer);
       // DO NOT null out engineRef — engine persists across toggle

@@ -166,7 +166,13 @@ export default function AdvancedChartSettings({
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Preferences store
-  const { showVolume, showCrosshairTooltip, setShowVolume, setShowCrosshairTooltip } = usePreferencesStore();
+  const {
+    showVolume, showCrosshairTooltip, setShowVolume, setShowCrosshairTooltip,
+    showCurrentPriceLine, priceLineStyle, priceLineWidth, priceLineColor,
+    priceLabelBgColor, priceLabelTextColor, priceLabelOpacity,
+    setShowCurrentPriceLine, setPriceLineStyle, setPriceLineWidth, setPriceLineColor,
+    setPriceLabelBgColor, setPriceLabelTextColor, setPriceLabelOpacity,
+  } = usePreferencesStore();
 
   // Templates store
   const { templates, deleteTemplate, renameTemplate } = useChartTemplatesStore();
@@ -539,23 +545,153 @@ export default function AdvancedChartSettings({
                 <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }}>
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Ligne de prix</h3>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                      <div className="w-3 h-[2px] rounded-full" style={{ backgroundColor: '#22c55e' }} />
-                      <span>Vert quand le prix monte</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                      <div className="w-3 h-[2px] rounded-full" style={{ backgroundColor: '#ef4444' }} />
-                      <span>Rouge quand le prix baisse</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
-                        <circle cx="8" cy="8" r="5" />
-                        <line x1="8" y1="5" x2="8" y2="8" />
-                        <line x1="8" y1="8" x2="10" y2="10" />
-                      </svg>
-                      <span>Countdown integre dans le rectangle</span>
-                    </div>
+                  <div className="space-y-3">
+                    {/* Toggle visibility */}
+                    <ToggleSwitch
+                      label="Afficher"
+                      description="Ligne du prix actuel sur le chart"
+                      value={showCurrentPriceLine}
+                      onChange={setShowCurrentPriceLine}
+                    />
+
+                    {showCurrentPriceLine && (
+                      <>
+                        {/* Line style: dashed / solid */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Style</span>
+                          <div className="flex gap-1">
+                            {(['dashed', 'solid'] as const).map(s => (
+                              <button
+                                key={s}
+                                onClick={() => setPriceLineStyle(s)}
+                                className="flex items-center justify-center px-2 py-1 rounded text-[10px] transition-colors"
+                                style={{
+                                  backgroundColor: priceLineStyle === s ? 'var(--primary)' : 'var(--surface)',
+                                  color: priceLineStyle === s ? '#fff' : 'var(--text-secondary)',
+                                  opacity: priceLineStyle === s ? 1 : 0.7,
+                                }}
+                              >
+                                <svg width="24" height="6" viewBox="0 0 24 6">
+                                  <line x1="0" y1="3" x2="24" y2="3" stroke="currentColor" strokeWidth="2"
+                                    strokeDasharray={s === 'dashed' ? '4 3' : 'none'} />
+                                </svg>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Line width */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Épaisseur</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min={1}
+                              max={4}
+                              step={1}
+                              value={priceLineWidth}
+                              onChange={(e) => setPriceLineWidth(parseInt(e.target.value))}
+                              className="w-16 h-1 accent-[var(--primary)]"
+                            />
+                            <span className="text-[10px] font-mono w-5 text-right" style={{ color: 'var(--text-muted)' }}>{priceLineWidth}px</span>
+                          </div>
+                        </div>
+
+                        {/* Line color */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur ligne</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setPriceLineColor('')}
+                              className="text-[9px] px-1.5 py-0.5 rounded transition-colors"
+                              style={{
+                                backgroundColor: !priceLineColor ? 'var(--primary)' : 'var(--surface)',
+                                color: !priceLineColor ? '#fff' : 'var(--text-muted)',
+                              }}
+                            >Auto</button>
+                            {['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ffffff'].map(c => (
+                              <button
+                                key={c}
+                                onClick={() => setPriceLineColor(c)}
+                                className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
+                                style={{
+                                  backgroundColor: c,
+                                  borderColor: priceLineColor === c ? 'var(--primary)' : 'var(--border)',
+                                  boxShadow: priceLineColor === c ? '0 0 0 1px var(--primary)' : 'none',
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dimmed)' }}>Label</span>
+                        </div>
+
+                        {/* Label bg color */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Fond label</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setPriceLabelBgColor('')}
+                              className="text-[9px] px-1.5 py-0.5 rounded transition-colors"
+                              style={{
+                                backgroundColor: !priceLabelBgColor ? 'var(--primary)' : 'var(--surface)',
+                                color: !priceLabelBgColor ? '#fff' : 'var(--text-muted)',
+                              }}
+                            >Auto</button>
+                            {['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#374151'].map(c => (
+                              <button
+                                key={c}
+                                onClick={() => setPriceLabelBgColor(c)}
+                                className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
+                                style={{
+                                  backgroundColor: c,
+                                  borderColor: priceLabelBgColor === c ? 'var(--primary)' : 'var(--border)',
+                                  boxShadow: priceLabelBgColor === c ? '0 0 0 1px var(--primary)' : 'none',
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Label text color */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Texte label</span>
+                          <div className="flex items-center gap-1.5">
+                            {['#ffffff', '#000000', '#e5e7eb', '#fbbf24'].map(c => (
+                              <button
+                                key={c}
+                                onClick={() => setPriceLabelTextColor(c)}
+                                className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
+                                style={{
+                                  backgroundColor: c,
+                                  borderColor: priceLabelTextColor === c ? 'var(--primary)' : 'var(--border)',
+                                  boxShadow: priceLabelTextColor === c ? '0 0 0 1px var(--primary)' : 'none',
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Label opacity */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Opacité label</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min={50}
+                              max={100}
+                              step={5}
+                              value={Math.round(priceLabelOpacity * 100)}
+                              onChange={(e) => setPriceLabelOpacity(parseInt(e.target.value) / 100)}
+                              className="w-16 h-1 accent-[var(--primary)]"
+                            />
+                            <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{Math.round(priceLabelOpacity * 100)}%</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

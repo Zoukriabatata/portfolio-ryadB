@@ -388,6 +388,19 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
   // Keep ref in sync
   refs.handleTimeframeChange.current = handleTimeframeChange;
 
+  // Sync viewport state immediately on scroll/zoom (for VP panel sync)
+  useEffect(() => {
+    const engine = refs.chartEngine.current;
+    if (!engine) return;
+    const updateViewport = () => {
+      const vp = engine.getViewport();
+      setViewportState({ priceMin: vp.priceMin, priceMax: vp.priceMax, chartHeight: vp.chartHeight });
+    };
+    engine.addViewportChangeListener(updateViewport);
+    return () => engine.removeViewportChangeListener(updateViewport);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refs]);
+
   // Selected symbol label
   const allSymbols = Object.values(currentSymbolCategories).flat();
   const selectedSymbolLabel = allSymbols.find(s => s.value === symbol)?.label || symbol.toUpperCase();

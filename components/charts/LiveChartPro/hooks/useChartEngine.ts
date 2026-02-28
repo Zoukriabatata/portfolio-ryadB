@@ -110,8 +110,27 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
     });
     resizeObserver.observe(container);
 
+    // DPR change detection (browser zoom without resize)
+    let currentDpr = window.devicePixelRatio || 1;
+    let dprQuery = window.matchMedia(`(resolution: ${currentDpr}dppx)`);
+    const handleDprChange = () => {
+      const newDpr = window.devicePixelRatio || 1;
+      if (newDpr !== currentDpr) {
+        currentDpr = newDpr;
+        const r = container.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          engine.resize(r.width, r.height);
+        }
+      }
+      // Re-subscribe with updated query
+      dprQuery = window.matchMedia(`(resolution: ${currentDpr}dppx)`);
+      dprQuery.addEventListener('change', handleDprChange, { once: true });
+    };
+    dprQuery.addEventListener('change', handleDprChange, { once: true });
+
     return () => {
       resizeObserver.disconnect();
+      dprQuery.removeEventListener('change', handleDprChange);
       engine.destroy();
       refs.chartEngine.current = null;
     };
@@ -151,6 +170,28 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
     refs.chartEngine.current.setShowGrid(prefShowGrid);
     refs.chartEngine.current.setShowVolumeBubbles(prefShowVolumeBubbles);
   }, [refs, prefShowVolume, prefShowGrid, prefShowVolumeBubbles]);
+
+  // Sync price line preferences → chart engine
+  const prefShowPriceLine = usePreferencesStore((s) => s.showCurrentPriceLine);
+  const prefPriceLineStyle = usePreferencesStore((s) => s.priceLineStyle);
+  const prefPriceLineWidth = usePreferencesStore((s) => s.priceLineWidth);
+  const prefPriceLineColor = usePreferencesStore((s) => s.priceLineColor);
+  const prefPriceLabelBgColor = usePreferencesStore((s) => s.priceLabelBgColor);
+  const prefPriceLabelTextColor = usePreferencesStore((s) => s.priceLabelTextColor);
+  const prefPriceLabelOpacity = usePreferencesStore((s) => s.priceLabelOpacity);
+
+  useEffect(() => {
+    if (!refs.chartEngine.current) return;
+    refs.chartEngine.current.setPriceLineConfig({
+      visible: prefShowPriceLine,
+      style: prefPriceLineStyle,
+      width: prefPriceLineWidth,
+      color: prefPriceLineColor,
+      labelBgColor: prefPriceLabelBgColor,
+      labelTextColor: prefPriceLabelTextColor,
+      labelOpacity: prefPriceLabelOpacity,
+    });
+  }, [refs, prefShowPriceLine, prefPriceLineStyle, prefPriceLineWidth, prefPriceLineColor, prefPriceLabelBgColor, prefPriceLabelTextColor, prefPriceLabelOpacity]);
 
   /**
    * Smart Zoom
