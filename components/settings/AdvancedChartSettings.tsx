@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChartTemplatesStore, type ChartTemplate } from '@/stores/useChartTemplatesStore';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
+import { ColorPicker } from '@/components/tools/ColorPicker';
 
 interface AdvancedChartSettingsProps {
   isOpen: boolean;
@@ -413,10 +414,10 @@ export default function AdvancedChartSettings({
               <div className="space-y-4">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Crosshair</h3>
 
-                <ColorSettingRow
-                  label="Couleur"
+                <ColorPicker
                   value={crosshairColor}
                   onChange={(color) => onCrosshairChange({ color })}
+                  label="Couleur"
                 />
 
                 <SliderControl
@@ -484,9 +485,9 @@ export default function AdvancedChartSettings({
                     Bougie Haussiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorSettingRow label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} />
-                    <ColorSettingRow label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} />
-                    <ColorSettingRow label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} />
+                    <ColorPicker label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} />
+                    <ColorPicker label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} />
+                    <ColorPicker label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} />
                   </div>
                 </div>
 
@@ -497,9 +498,9 @@ export default function AdvancedChartSettings({
                     Bougie Baissiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorSettingRow label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} />
-                    <ColorSettingRow label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} />
-                    <ColorSettingRow label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} />
+                    <ColorPicker label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} />
+                    <ColorPicker label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} />
+                    <ColorPicker label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} />
                   </div>
                 </div>
 
@@ -526,7 +527,7 @@ export default function AdvancedChartSettings({
               <div className="space-y-4">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Fond du chart</h3>
 
-                <ColorSettingRow
+                <ColorPicker
                   label="Couleur de fond"
                   value={backgroundColor}
                   onChange={(c) => onBackgroundChange({ color: c })}
@@ -542,7 +543,7 @@ export default function AdvancedChartSettings({
                 </div>
 
                 {showGrid && (
-                  <ColorSettingRow
+                  <ColorPicker
                     label="Couleur grille"
                     value={gridColor}
                     onChange={(c) => onBackgroundChange({ gridColor: c })}
