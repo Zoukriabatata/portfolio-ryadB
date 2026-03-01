@@ -22,6 +22,7 @@ import {
   LineStyle,
   getToolsEngine,
 } from '@/lib/tools/ToolsEngine';
+import { ColorPicker } from '@/components/tools/ColorPicker';
 
 // Global timestamp: when ToolSettingsBar last received a pointerdown/mousedown
 // Set via native capture-phase listener so it fires BEFORE any React handler
@@ -50,19 +51,6 @@ interface ToolSettingsBarProps {
   onInteractionStart?: () => void;
 }
 
-// Fixed preset colors organized by category - no gradients
-const PRESET_COLORS_BY_CATEGORY = {
-  trading: ['#22c55e', '#ef4444', '#fbbf24', '#3b82f6'],
-  extended: ['#06b6d4', '#a855f7', '#ec4899', '#f97316'],
-  neutral: ['#ffffff', '#a1a1aa', '#525252', '#171717'],
-};
-
-// Flat array for quick access
-const PRESET_COLORS = [
-  ...PRESET_COLORS_BY_CATEGORY.trading,
-  ...PRESET_COLORS_BY_CATEGORY.extended,
-  ...PRESET_COLORS_BY_CATEGORY.neutral,
-];
 
 // Line widths
 const LINE_WIDTHS = [1, 2, 3, 4, 5];
@@ -313,98 +301,14 @@ export default function ToolSettingsBar({
                 backgroundColor: 'rgba(20, 20, 28, 0.98)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 backdropFilter: 'blur(12px)',
-                minWidth: 180,
+                minWidth: 220,
               }}
             >
-              {/* Current color preview */}
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
-                <div
-                  className="w-8 h-8 rounded-lg ring-2 ring-white/20"
-                  style={{ backgroundColor: style.color }}
-                />
-                <div className="text-[10px] font-mono text-[var(--text-muted)]">{style.color}</div>
-              </div>
-
-              {/* Trading colors */}
-              <div className="mb-2">
-                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Trading</div>
-                <div className="flex gap-1.5">
-                  {PRESET_COLORS_BY_CATEGORY.trading.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => {
-                        updateStyle({ color });
-                      }}
-                      className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
-                        style.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Extended colors */}
-              <div className="mb-2">
-                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Extended</div>
-                <div className="flex gap-1.5">
-                  {PRESET_COLORS_BY_CATEGORY.extended.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => {
-                        updateStyle({ color });
-                      }}
-                      className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
-                        style.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Neutral colors */}
-              <div className="mb-3">
-                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Neutral</div>
-                <div className="flex gap-1.5">
-                  {PRESET_COLORS_BY_CATEGORY.neutral.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => {
-                        updateStyle({ color });
-                      }}
-                      className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
-                        style.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Custom color */}
-              <div className="pt-2 border-t border-white/10">
-                <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Custom</div>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={style.color}
-                    onChange={(e) => updateStyle({ color: e.target.value })}
-                    className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
-                  />
-                  <input
-                    type="text"
-                    value={style.color}
-                    onChange={(e) => {
-                      if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) {
-                        updateStyle({ color: e.target.value });
-                      }
-                    }}
-                    className="flex-1 px-2 py-1 rounded-lg text-[10px] font-mono bg-black/30 text-white border border-white/10 focus:border-[var(--primary)]/50 focus:outline-none"
-                    placeholder="#ffffff"
-                  />
-                </div>
-              </div>
+              <ColorPicker
+                value={style.color}
+                onChange={(c) => updateStyle({ color: c })}
+                label=""
+              />
             </div>
           )}
         </div>

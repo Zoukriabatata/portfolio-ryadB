@@ -18,6 +18,7 @@ import { SettingsIcon } from '@/components/ui/Icons';
 import QuickTradeBar from '@/components/trading/QuickTradeBar';
 import { PriceCountdownCompact } from '@/components/trading/PriceCountdown';
 import { useTradingStore } from '@/stores/useTradingStore';
+import { useAutoContrast } from '@/hooks/useAutoContrast';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import MiniDepthHeatmap from '@/components/charts/MiniDepthHeatmap';
 
@@ -251,15 +252,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   const { themeId, setTheme, getTheme } = useThemeStore();
   const theme = useMemo(() => getTheme(), [themeId, getTheme]);
 
-  // Contrast text for active buttons: dark gray on light toolActive (e.g. Monochrome)
-  const activeTextColor = useMemo(() => {
-    const hex = theme.colors.toolActive;
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return lum > 0.55 ? '#1a1a1a' : theme.colors.text;
-  }, [theme.colors.toolActive, theme.colors.text]);
+  // Contrast text for active buttons: auto black/white based on toolActive luminance
+  const { textColor: activeTextColor } = useAutoContrast(theme.colors.toolActive);
   const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity, showTradeBar, setShowTradeBar } = useTradingStore();
   const { indicators: indicatorConfigs, toggleIndicator: toggleIndicatorConfig } = useIndicatorStore();
   const { showVolumeProfile, setShowVolumeProfile } = usePreferencesStore();

@@ -26,6 +26,18 @@ export function autoTextColor(bgHex: string): string {
   return relativeLuminance(r, g, b) > 0.179 ? '#000000' : '#ffffff';
 }
 
+/** Returns contrast text + muted colors for a background (pure function for Canvas/non-React) */
+export function getContrastColors(bgHex: string): { text: string; muted: string; isDark: boolean } {
+  const [r, g, b] = hexToRgb(bgHex);
+  const lum = relativeLuminance(r, g, b);
+  const isDark = lum <= 0.179;
+  return {
+    text: isDark ? '#ffffff' : '#000000',
+    muted: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+    isDark,
+  };
+}
+
 /** Convert hex color + alpha to rgba() string */
 export function hexToRgba(hex: string, alpha: number): string {
   const [r, g, b] = hexToRgb(hex);

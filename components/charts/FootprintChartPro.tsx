@@ -13,6 +13,54 @@ import {
 import { getTradeAbsorptionEngine } from '@/lib/orderflow/TradeAbsorptionEngine';
 import type { PassiveOrderLevel } from '@/types/passive-liquidity';
 import { getPassiveLiquiditySimulator } from '@/lib/orderflow/PassiveLiquiditySimulator';
+import { ColorPicker } from '@/components/tools/ColorPicker';
+
+/** Inline color swatch with unified picker popover */
+function InlineColorSwatch({ value, onChange, size = 6 }: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
+        style={{
+          width: size * 4,
+          height: size * 4,
+          backgroundColor: value,
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
+        }}
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 right-0 p-3 rounded-xl shadow-2xl"
+          style={{
+            backgroundColor: 'rgba(20, 20, 28, 0.98)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(12px)',
+            minWidth: 220,
+          }}
+        >
+          <ColorPicker value={value} onChange={onChange} label="" />
+        </div>
+      )}
+    </div>
+  );
+}
 import {
   FootprintLayoutEngine,
   type LayoutMetrics,
@@ -57,7 +105,6 @@ import {
 } from '@/stores/useFootprintSettingsStore';
 import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import { useTimezoneStore, TIMEZONES, type TimezoneId } from '@/stores/useTimezoneStore';
-import { useToolSettingsStore } from '@/stores/useToolSettingsStore';
 import { useAlertsStore } from '@/stores/useAlertsStore';
 import { buildTPOProfile } from '@/lib/profile/TPOEngine';
 import {
@@ -2448,34 +2495,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         // This prevents persisted old settings from overriding the correct defaults
         if (tool) {
           const toolsEngine = getToolsEngine();
-          const toolDefaults = useToolSettingsStore.getState().getToolDefault(tool.type);
-
-          // Build style update - only visual properties
-          const styleUpdate: Record<string, unknown> = { ...tool.style };
-          let hasStyleChange = false;
-
-          if (toolDefaults.color && toolDefaults.color !== tool.style.color) {
-            styleUpdate.color = toolDefaults.color;
-            hasStyleChange = true;
-          }
-          if (toolDefaults.lineWidth && toolDefaults.lineWidth !== tool.style.lineWidth) {
-            styleUpdate.lineWidth = toolDefaults.lineWidth;
-            hasStyleChange = true;
-          }
-          if (toolDefaults.lineStyle && toolDefaults.lineStyle !== tool.style.lineStyle) {
-            styleUpdate.lineStyle = toolDefaults.lineStyle;
-            hasStyleChange = true;
-          }
-          if (toolDefaults.fillOpacity !== undefined) {
-            styleUpdate.fillOpacity = toolDefaults.fillOpacity;
-            hasStyleChange = true;
-          }
-
-          // Apply ONLY style updates - DO NOT override extension settings
-          // The ToolsEngine already sets extendLeft: false, extendRight: false as defaults
-          if (hasStyleChange) {
-            toolsEngine.updateTool(tool.id, { style: styleUpdate } as any);
-          }
+          // Engine already applies default styles during tool creation via getDefaultStyle(),
+          // so no additional style override is needed here.
 
           // For text tools, automatically open the inline editor
           if (tool.type === 'text') {
@@ -3957,12 +3978,9 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                   />
                 ))}
               </div>
-              <input
-                type="color"
+              <InlineColorSwatch
                 value={settings.colors.background}
-                onChange={(e) => settings.setColors({ background: e.target.value })}
-                className="w-full h-7 rounded cursor-pointer"
-                title="Custom color"
+                onChange={(c) => settings.setColors({ background: c })}
               />
             </div>
 
@@ -3985,29 +4003,26 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                       />
                     ))}
                   </div>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.candleUpBody}
-                    onChange={(e) => settings.setColors({ candleUpBody: e.target.value })}
-                    className="w-6 h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ candleUpBody: c })}
+                    size={5}
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs w-12" style={{ color: settings.colors.textSecondary }}>Border</span>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.candleUpBorder}
-                    onChange={(e) => settings.setColors({ candleUpBorder: e.target.value })}
-                    className="w-full h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ candleUpBorder: c })}
+                    size={5}
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs w-12" style={{ color: settings.colors.textSecondary }}>Wick</span>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.candleUpWick}
-                    onChange={(e) => settings.setColors({ candleUpWick: e.target.value })}
-                    className="w-full h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ candleUpWick: c })}
+                    size={5}
                   />
                 </div>
               </div>
@@ -4032,29 +4047,26 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                       />
                     ))}
                   </div>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.candleDownBody}
-                    onChange={(e) => settings.setColors({ candleDownBody: e.target.value })}
-                    className="w-6 h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ candleDownBody: c })}
+                    size={5}
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs w-12" style={{ color: settings.colors.textSecondary }}>Border</span>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.candleDownBorder}
-                    onChange={(e) => settings.setColors({ candleDownBorder: e.target.value })}
-                    className="w-full h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ candleDownBorder: c })}
+                    size={5}
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs w-12" style={{ color: settings.colors.textSecondary }}>Wick</span>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.candleDownWick}
-                    onChange={(e) => settings.setColors({ candleDownWick: e.target.value })}
-                    className="w-full h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ candleDownWick: c })}
+                    size={5}
                   />
                 </div>
               </div>
@@ -4066,20 +4078,18 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs w-12" style={{ color: settings.colors.textSecondary }}>Grid</span>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.gridColor}
-                    onChange={(e) => settings.setColors({ gridColor: e.target.value })}
-                    className="w-full h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ gridColor: c })}
+                    size={5}
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs w-12" style={{ color: settings.colors.textSecondary }}>Surface</span>
-                  <input
-                    type="color"
+                  <InlineColorSwatch
                     value={settings.colors.surface}
-                    onChange={(e) => settings.setColors({ surface: e.target.value })}
-                    className="w-full h-5 rounded cursor-pointer"
+                    onChange={(c) => settings.setColors({ surface: c })}
+                    size={5}
                   />
                 </div>
               </div>

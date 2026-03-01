@@ -1,15 +1,17 @@
 /**
  * TOOL SETTINGS STORE
  *
- * Gère les paramètres de personnalisation des outils de dessin
+ * UI-only state: selected tool, advanced panel toggle, presets.
+ * Default styles are managed exclusively by ToolsEngine (single source of truth).
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ToolType, LineStyle } from '@/lib/tools/ToolsEngine';
+import { getToolsEngine } from '@/lib/tools/ToolsEngine';
 
-// Version for migration - increment when defaults change
-const SETTINGS_VERSION = 3;
+// Version for migration — bump to 4 to drop old toolDefaults on next load
+const SETTINGS_VERSION = 4;
 
 export interface ToolSettings {
   color: string;
@@ -55,11 +57,8 @@ interface ToolSettingsState {
   // Version for migration
   version: number;
 
-  // Default settings for each tool type
-  toolDefaults: Record<string, Partial<ToolSettings>>;
-
-  // Currently selected tool for settings panel
-  selectedToolId: string | null;
+  // Currently selected tool IDs (multi-selection)
+  selectedToolIds: string[];
 
   // Show advanced settings modal
   showAdvancedSettings: boolean;
@@ -69,9 +68,7 @@ interface ToolSettingsState {
   presets: ToolPreset[];
 
   // Actions
-  setToolDefault: (toolType: string, settings: Partial<ToolSettings>) => void;
-  getToolDefault: (toolType: string) => Partial<ToolSettings>;
-  setSelectedToolId: (id: string | null) => void;
+  setSelectedToolIds: (ids: string[]) => void;
   toggleAdvancedSettings: () => void;
   setAdvancedSettingsPosition: (position: { x: number; y: number }) => void;
   closeAdvancedSettings: () => void;
@@ -84,160 +81,16 @@ interface ToolSettingsState {
   setAsDefault: (presetId: string) => void;
 }
 
-const DEFAULT_TOOL_SETTINGS: Record<string, Partial<ToolSettings>> = {
-  trendline: {
-    color: '#3b82f6',
-    lineWidth: 2,
-    lineStyle: 'solid',
-    extendLeft: false,
-    extendRight: false,
-  },
-  ray: {
-    color: '#8b5cf6',
-    lineWidth: 2,
-    lineStyle: 'solid',
-    extendRight: true,
-  },
-  horizontalLine: {
-    color: '#f59e0b',
-    lineWidth: 1,
-    lineStyle: 'dashed',
-    showPrice: true,
-  },
-  hline: {
-    color: '#f59e0b',
-    lineWidth: 1,
-    lineStyle: 'dashed',
-    showPrice: true,
-  },
-  horizontalRay: {
-    color: '#8b5cf6',
-    lineWidth: 1,
-    lineStyle: 'solid',
-  },
-  verticalLine: {
-    color: '#06b6d4',
-    lineWidth: 1,
-    lineStyle: 'dashed',
-    showTime: true,
-  },
-  vline: {
-    color: '#06b6d4',
-    lineWidth: 1,
-    lineStyle: 'dashed',
-    showTime: true,
-  },
-  rectangle: {
-    color: '#06b6d4',
-    lineWidth: 1,
-    lineStyle: 'solid',
-    fillColor: '#06b6d4',
-    fillOpacity: 0.1,
-  },
-  parallelChannel: {
-    color: '#22c55e',
-    lineWidth: 1,
-    lineStyle: 'solid',
-    fillColor: '#22c55e',
-    fillOpacity: 0.05,
-  },
-  fibRetracement: {
-    color: '#f59e0b',
-    lineWidth: 1,
-    lineStyle: 'solid',
-    showLabels: true,
-    showPrice: true,
-    extendLeft: false,   // NO extension by default
-    extendRight: false,  // NO extension by default
-  },
-  fibonacciRetracement: {
-    color: '#f59e0b',
-    lineWidth: 1,
-    lineStyle: 'solid',
-    showLabels: true,
-    showPrice: true,
-    extendLeft: false,   // NO extension by default
-    extendRight: false,  // NO extension by default
-  },
-  fibonacciExtension: {
-    color: '#ec4899',
-    lineWidth: 1,
-    lineStyle: 'solid',
-    showLabels: true,
-    showPrice: true,
-  },
-  arrow: {
-    color: '#ef4444',
-    lineWidth: 2,
-    lineStyle: 'solid',
-  },
-  brush: {
-    color: '#3b82f6',
-    lineWidth: 3,
-    lineStyle: 'solid',
-  },
-  highlighter: {
-    color: '#eab308',
-    lineWidth: 8,
-    lineStyle: 'solid',
-    fillOpacity: 0.3,
-  },
-  measure: {
-    color: '#8b5cf6',
-    lineWidth: 1,
-    lineStyle: 'dashed',
-    showLabels: true,
-    showPrice: true,
-  },
-  longPosition: {
-    color: '#22c55e',
-    lineWidth: 2,
-    lineStyle: 'solid',
-    fillOpacity: 0.1,
-  },
-  shortPosition: {
-    color: '#ef4444',
-    lineWidth: 2,
-    lineStyle: 'solid',
-    fillOpacity: 0.1,
-  },
-  text: {
-    color: '#ffffff',
-    fontSize: 14,
-  },
-};
-
 export const useToolSettingsStore = create<ToolSettingsState>()(
   persist(
     (set, get) => ({
       version: SETTINGS_VERSION,
-      toolDefaults: DEFAULT_TOOL_SETTINGS,
-      selectedToolId: null,
+      selectedToolIds: [],
       showAdvancedSettings: false,
       advancedSettingsPosition: { x: 100, y: 100 },
       presets: [],
 
-      setToolDefault: (toolType, settings) =>
-        set((state) => ({
-          toolDefaults: {
-            ...state.toolDefaults,
-            [toolType]: {
-              ...state.toolDefaults[toolType],
-              ...settings,
-            },
-          },
-        })),
-
-      getToolDefault: (toolType) => {
-        const state = get();
-        // ALWAYS merge with hardcoded defaults to ensure new properties are included
-        const hardcodedDefaults = DEFAULT_TOOL_SETTINGS[toolType] || DEFAULT_TOOL_SETTINGS.trendline;
-        const userDefaults = state.toolDefaults[toolType] || {};
-        // Hardcoded defaults FIRST, then user overrides - ensures new properties exist
-        return { ...hardcodedDefaults, ...userDefaults };
-      },
-
-      setSelectedToolId: (id) => set({ selectedToolId: id }),
+      setSelectedToolIds: (ids) => set({ selectedToolIds: ids }),
 
       toggleAdvancedSettings: () =>
         set((state) => ({ showAdvancedSettings: !state.showAdvancedSettings })),
@@ -247,11 +100,20 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
 
       closeAdvancedSettings: () => set({ showAdvancedSettings: false }),
 
-      resetToDefaults: () =>
-        set({
-          version: SETTINGS_VERSION,
-          toolDefaults: DEFAULT_TOOL_SETTINGS,
-        }),
+      resetToDefaults: () => {
+        // Delegate to engine — clears all custom defaults
+        try {
+          const engine = getToolsEngine();
+          // Reset each tool type that has custom defaults
+          const toolTypes: ToolType[] = [
+            'trendline', 'ray', 'horizontalLine', 'horizontalRay',
+            'verticalLine', 'rectangle', 'parallelChannel',
+            'fibRetracement', 'fibExtension', 'arrow', 'brush',
+            'highlighter', 'measure', 'longPosition', 'shortPosition', 'text',
+          ];
+          for (const t of toolTypes) engine.resetDefaultStyle(t);
+        } catch { /* engine not ready yet */ }
+      },
 
       // Preset actions
       savePreset: (name, toolType, style) =>
@@ -284,7 +146,9 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
         const state = get();
         const preset = state.presets.find((p) => p.id === presetId);
         if (preset) {
-          state.setToolDefault(preset.toolType, preset.style);
+          try {
+            getToolsEngine().setDefaultStyle(preset.toolType as ToolType, preset.style as any);
+          } catch { /* engine not ready yet */ }
         }
       },
     }),
@@ -293,23 +157,23 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
       version: SETTINGS_VERSION,
       partialize: (state) => ({
         version: state.version,
-        toolDefaults: state.toolDefaults,
         presets: state.presets,
       }),
-      // Migration: reset to defaults if version changed
       migrate: (persistedState: unknown, version: number) => {
-        const state = persistedState as Partial<ToolSettingsState>;
-        if (!state.version || state.version < SETTINGS_VERSION) {
-          // Version changed - reset extension defaults to fix the bug
-          console.log('[ToolSettings] Migrating from version', state.version, 'to', SETTINGS_VERSION);
+        const state = persistedState as Record<string, unknown>;
+        // v3 → v4: toolDefaults removed from store, migrated to engine on init
+        // (see ToolsEngine.loadDefaultStyles for one-time migration)
+        if (!state.version || (state.version as number) < SETTINGS_VERSION) {
+          console.log('[ToolSettings] Migrating to v4 — toolDefaults now in ToolsEngine');
           return {
-            ...state,
             version: SETTINGS_VERSION,
-            toolDefaults: DEFAULT_TOOL_SETTINGS,
-            presets: state.presets || [],
+            presets: (state.presets as ToolPreset[]) || [],
+            selectedToolIds: [],
+            showAdvancedSettings: false,
+            advancedSettingsPosition: { x: 100, y: 100 },
           };
         }
-        return state as ToolSettingsState;
+        return state as unknown as ToolSettingsState;
       },
     }
   )

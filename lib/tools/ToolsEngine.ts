@@ -164,6 +164,8 @@ export class ToolsEngine {
   private historyIndex: number = -1;
   private maxHistory: number = 50;
   private customDefaultStyles: Map<ToolType, ToolStyle> = new Map();
+  private styleHistoryTimer: ReturnType<typeof setTimeout> | null = null;
+  private styleHistoryPending = false;
 
   constructor() {
     this.drawingState = {
@@ -822,6 +824,46 @@ export class ToolsEngine {
     this.saveHistory();
   }
 
+  // ============ STYLE UPDATES (UNDO-SAFE) ============
+
+  /**
+   * Update a single tool's style with debounced undo history.
+   * Saves a snapshot ONCE before a batch of rapid changes (e.g. slider drag),
+   * then finalizes after 500ms of inactivity.
+   */
+  updateToolStyle(id: string, styleUpdates: Partial<ToolStyle>): Tool | null {
+    const tool = this.tools.get(id);
+    if (!tool) return null;
+
+    if (!this.styleHistoryPending) {
+      this.saveHistory();
+      this.styleHistoryPending = true;
+    }
+    if (this.styleHistoryTimer) clearTimeout(this.styleHistoryTimer);
+    this.styleHistoryTimer = setTimeout(() => { this.styleHistoryPending = false; }, 500);
+
+    return this.updateTool(id, { style: { ...tool.style, ...styleUpdates } }, false);
+  }
+
+  /**
+   * Update ALL selected tools' styles at once with debounced undo history.
+   */
+  updateSelectedToolsStyle(styleUpdates: Partial<ToolStyle>): void {
+    const selected = this.getSelectedTools();
+    if (selected.length === 0) return;
+
+    if (!this.styleHistoryPending) {
+      this.saveHistory();
+      this.styleHistoryPending = true;
+    }
+    if (this.styleHistoryTimer) clearTimeout(this.styleHistoryTimer);
+    this.styleHistoryTimer = setTimeout(() => { this.styleHistoryPending = false; }, 500);
+
+    for (const tool of selected) {
+      this.updateTool(tool.id, { style: { ...tool.style, ...styleUpdates } }, false);
+    }
+  }
+
   // ============ DEFAULT STYLES MANAGEMENT ============
 
   /**
@@ -861,7 +903,8 @@ export class ToolsEngine {
   }
 
   /**
-   * Load custom default styles from localStorage
+   * Load custom default styles from localStorage.
+   * Also performs one-time migration of old Zustand toolDefaults (v3 → engine).
    */
   private loadDefaultStyles(): void {
     try {
@@ -869,6 +912,31 @@ export class ToolsEngine {
       if (saved) {
         const obj = JSON.parse(saved);
         this.customDefaultStyles = new Map(Object.entries(obj) as [ToolType, ToolStyle][]);
+      }
+
+      // One-time migration: import toolDefaults from old Zustand store (v3)
+      const zustandRaw = localStorage.getItem('tool-settings-storage');
+      if (zustandRaw) {
+        try {
+          const zustandData = JSON.parse(zustandRaw);
+          const oldState = zustandData?.state ?? zustandData;
+          if (oldState?.toolDefaults && typeof oldState.toolDefaults === 'object') {
+            let migrated = false;
+            for (const [toolType, defaults] of Object.entries(oldState.toolDefaults)) {
+              if (!this.customDefaultStyles.has(toolType as ToolType) && defaults) {
+                this.customDefaultStyles.set(toolType as ToolType, {
+                  ...DEFAULT_STYLES[toolType as ToolType],
+                  ...(defaults as Partial<ToolStyle>),
+                } as ToolStyle);
+                migrated = true;
+              }
+            }
+            if (migrated) {
+              this.saveDefaultStyles();
+              console.log('[ToolsEngine] Migrated toolDefaults from Zustand store');
+            }
+          }
+        } catch { /* ignore parse errors from Zustand key */ }
       }
     } catch (e) {
       console.error('Failed to load default styles:', e);

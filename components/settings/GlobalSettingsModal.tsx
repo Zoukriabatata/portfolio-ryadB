@@ -1,16 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePreferencesStore, TRADE_COLOR_PRESETS, type UIDensity } from '@/stores/usePreferencesStore';
 import { useUIThemeStore, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
 import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
+import {
+  CATEGORIES,
+  exportAllSettings,
+  downloadSettings,
+  validateSettingsFile,
+  importSettings,
+  resetAllSettings,
+} from '@/lib/settings/SettingsPortability';
 
 interface GlobalSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type SettingsTab = 'appearance' | 'trading' | 'chart';
+type SettingsTab = 'appearance' | 'trading' | 'chart' | 'data';
 
 export default function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsModalProps) {
   const [tab, setTab] = useState<SettingsTab>('appearance');
@@ -53,6 +61,17 @@ export default function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsM
       icon: (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+        </svg>
+      ),
+    },
+    {
+      id: 'data',
+      label: 'Data',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
       ),
     },
@@ -114,6 +133,7 @@ export default function GlobalSettingsModal({ isOpen, onClose }: GlobalSettingsM
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'chart' && <ChartTab />}
           {tab === 'trading' && <TradingTab />}
+          {tab === 'data' && <DataTab />}
         </div>
       </div>
 
@@ -168,13 +188,16 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 // ─── APPEARANCE TAB ──────────────────────────────────────────
 
 function AppearanceTab() {
-  const { activeTheme, setTheme } = useUIThemeStore();
+  const { activeTheme, setTheme, autoMode, setAutoMode } = useUIThemeStore();
   const { density, setDensity, fontSize, setFontSize } = usePreferencesStore();
 
   return (
     <div className="py-4">
       <Section title="Theme">
-        <div className="grid grid-cols-2 gap-2">
+        <SettingRow label="Auto (follow system)" description="Switch theme based on OS dark/light mode">
+          <Toggle checked={autoMode} onChange={setAutoMode} />
+        </SettingRow>
+        <div className={`grid grid-cols-2 gap-2 mt-2 ${autoMode ? 'opacity-50 pointer-events-none' : ''}`}>
           {UI_THEMES.map((theme) => (
             <button
               key={theme.id}
@@ -345,6 +368,164 @@ function TradingTab() {
         </div>
         <div className="text-[10px] text-[var(--text-dimmed)] mt-2">
           Trading shortcuts only work when the trade bar is open.
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// ─── DATA TAB ─────────────────────────────────────────────────
+
+function DataTab() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    CATEGORIES.map(c => c.id)
+  );
+  const [importResult, setImportResult] = useState<{ imported: number; errors: number } | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const toggleCategory = useCallback((cat: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(cat)
+        ? prev.filter(c => c !== cat)
+        : [...prev, cat]
+    );
+  }, []);
+
+  const handleExport = useCallback(() => {
+    const data = exportAllSettings(selectedCategories);
+    downloadSettings(data);
+  }, [selectedCategories]);
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (!validateSettingsFile(data)) {
+          setImportResult({ imported: 0, errors: 1 });
+          return;
+        }
+        const result = importSettings(data, selectedCategories);
+        setImportResult({ imported: result.imported.length, errors: result.errors.length });
+
+        if (result.imported.length > 0) {
+          setTimeout(() => window.location.reload(), 1500);
+        }
+      } catch {
+        setImportResult({ imported: 0, errors: 1 });
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input
+    e.target.value = '';
+  }, [selectedCategories]);
+
+  const handleReset = useCallback(() => {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 3000);
+      return;
+    }
+    resetAllSettings();
+    window.location.reload();
+  }, [confirmReset]);
+
+  return (
+    <div className="py-4">
+      <Section title="Categories">
+        <div className="flex flex-wrap gap-1.5">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => toggleCategory(cat.id)}
+              className="px-2.5 py-1 rounded text-[11px] font-medium transition-colors"
+              style={{
+                backgroundColor: selectedCategories.includes(cat.id) ? 'var(--primary)' : 'var(--surface)',
+                color: selectedCategories.includes(cat.id) ? '#fff' : 'var(--text-muted)',
+                border: `1px solid ${selectedCategories.includes(cat.id) ? 'var(--primary)' : 'var(--surface-elevated)'}`,
+              }}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Export / Import">
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            disabled={selectedCategories.length === 0}
+            className="flex-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40"
+            style={{
+              backgroundColor: 'var(--surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            Export Settings
+          </button>
+          <button
+            onClick={handleImportClick}
+            disabled={selectedCategories.length === 0}
+            className="flex-1 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40"
+            style={{
+              backgroundColor: 'var(--surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            Import Settings
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+
+        {importResult && (
+          <div className="mt-2 px-3 py-2 rounded text-[11px]" style={{
+            backgroundColor: importResult.errors > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+            color: importResult.errors > 0 ? '#ef4444' : '#22c55e',
+            border: `1px solid ${importResult.errors > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)'}`,
+          }}>
+            {importResult.errors > 0
+              ? `Import failed — invalid file format`
+              : `Imported ${importResult.imported} settings. Reloading...`
+            }
+          </div>
+        )}
+
+        <div className="text-[10px] text-[var(--text-dimmed)] mt-2">
+          Export downloads a JSON file with selected categories. Import restores settings and reloads the page.
+        </div>
+      </Section>
+
+      <Section title="Danger Zone">
+        <button
+          onClick={handleReset}
+          className="w-full px-3 py-2 rounded-lg text-[11px] font-medium transition-colors"
+          style={{
+            backgroundColor: confirmReset ? '#ef4444' : 'var(--surface)',
+            color: confirmReset ? '#fff' : '#ef4444',
+            border: `1px solid ${confirmReset ? '#ef4444' : 'rgba(239,68,68,0.3)'}`,
+          }}
+        >
+          {confirmReset ? 'Click again to confirm reset' : 'Reset All Settings'}
+        </button>
+        <div className="text-[10px] text-[var(--text-dimmed)] mt-1">
+          This clears all saved preferences, themes, tool settings, and templates. Cannot be undone.
         </div>
       </Section>
     </div>

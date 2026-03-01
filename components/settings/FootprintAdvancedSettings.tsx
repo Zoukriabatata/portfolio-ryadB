@@ -9,6 +9,7 @@ import {
   type FootprintColors,
 } from '@/stores/useFootprintSettingsStore';
 import { useCrosshairStore, type CrosshairLineStyle, type MagnetMode } from '@/stores/useCrosshairStore';
+import { ColorPicker } from '@/components/tools/ColorPicker';
 
 /**
  * FOOTPRINT ADVANCED SETTINGS MODAL
@@ -29,40 +30,52 @@ interface FootprintAdvancedSettingsProps {
 
 type SettingsTab = 'candles' | 'delta' | 'layout' | 'features' | 'indicators' | 'crosshair';
 
-// Helper to find the closest standard color to a custom color
-function findClosestStandardColor(customColor: string, standardColors: string[]): string {
-  const hex = customColor.replace('#', '');
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
+/** Inline color swatch + popover with unified ColorPicker */
+function InlineColorSwatch({ value, onChange, size = 6 }: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  let closest = standardColors[0];
-  let minDist = Infinity;
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
-  standardColors.forEach(color => {
-    const h = color.replace('#', '');
-    const cr = parseInt(h.substring(0, 2), 16);
-    const cg = parseInt(h.substring(2, 4), 16);
-    const cb = parseInt(h.substring(4, 6), 16);
-    const dist = Math.sqrt((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2);
-    if (dist < minDist) {
-      minDist = dist;
-      closest = color;
-    }
-  });
-
-  return closest;
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
+        style={{
+          width: size * 4,
+          height: size * 4,
+          backgroundColor: value,
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
+        }}
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 right-0 p-3 rounded-xl shadow-2xl"
+          style={{
+            backgroundColor: 'rgba(20, 20, 28, 0.98)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(12px)',
+            minWidth: 220,
+          }}
+        >
+          <ColorPicker value={value} onChange={onChange} label="" />
+        </div>
+      )}
+    </div>
+  );
 }
-
-// Extended color palette with more variety
-const EXTENDED_GREENS = ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#4ade80', '#86efac', '#10b981', '#059669', '#047857'];
-const EXTENDED_REDS = ['#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d', '#f87171', '#fca5a5', '#f97316', '#ea580c', '#c2410c'];
-const EXTENDED_BLUES = ['#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#60a5fa', '#93c5fd', '#06b6d4', '#0891b2', '#0e7490', '#155e75'];
-const EXTENDED_PURPLES = ['#a855f7', '#9333ea', '#7c3aed', '#6d28d9', '#c084fc', '#d8b4fe', '#ec4899', '#db2777', '#be185d', '#9d174d'];
-const STANDARD_GRAYS = ['#ffffff', '#e5e5e5', '#a3a3a3', '#737373', '#525252', '#404040', '#262626', '#171717', '#0a0a0a', '#000000'];
-
-// All colors for quick selection
-const ALL_PRESET_COLORS = [...EXTENDED_GREENS, ...EXTENDED_REDS, ...EXTENDED_BLUES, ...EXTENDED_PURPLES];
 
 export default function FootprintAdvancedSettings({
   isOpen,
@@ -75,12 +88,8 @@ export default function FootprintAdvancedSettings({
   const [position, setPosition] = useState(initialPosition || { x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Fixed color palettes - no more dynamic gradients
-  const bullishPalette = EXTENDED_GREENS;
-  const bearishPalette = EXTENDED_REDS;
 
   // Dragging logic
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -294,73 +303,17 @@ export default function FootprintAdvancedSettings({
                   Bougie Haussiere
                 </h4>
 
-                {/* Body Color */}
-                <div className="mb-3">
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Corps</label>
-                  <div className="flex flex-wrap gap-1">
-                    {bullishPalette.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => settings.setColors({ candleUpBody: color })}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          settings.colors.candleUpBody === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={settings.colors.candleUpBody}
-                      onChange={(e) => settings.setColors({ candleUpBody: e.target.value })}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-[var(--text-muted)]">Corps</span>
+                  <InlineColorSwatch value={settings.colors.candleUpBody} onChange={(c) => settings.setColors({ candleUpBody: c })} />
                 </div>
-
-                {/* Border Color */}
-                <div className="mb-3">
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Bordure</label>
-                  <div className="flex flex-wrap gap-1">
-                    {bullishPalette.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => settings.setColors({ candleUpBorder: color })}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          settings.colors.candleUpBorder === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={settings.colors.candleUpBorder}
-                      onChange={(e) => settings.setColors({ candleUpBorder: e.target.value })}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-[var(--text-muted)]">Bordure</span>
+                  <InlineColorSwatch value={settings.colors.candleUpBorder} onChange={(c) => settings.setColors({ candleUpBorder: c })} />
                 </div>
-
-                {/* Wick Color */}
-                <div>
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Meche</label>
-                  <div className="flex flex-wrap gap-1">
-                    {bullishPalette.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => settings.setColors({ candleUpWick: color })}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          settings.colors.candleUpWick === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={settings.colors.candleUpWick}
-                      onChange={(e) => settings.setColors({ candleUpWick: e.target.value })}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[var(--text-muted)]">Meche</span>
+                  <InlineColorSwatch value={settings.colors.candleUpWick} onChange={(c) => settings.setColors({ candleUpWick: c })} />
                 </div>
               </div>
 
@@ -371,97 +324,24 @@ export default function FootprintAdvancedSettings({
                   Bougie Baissiere
                 </h4>
 
-                {/* Body Color */}
-                <div className="mb-3">
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Corps</label>
-                  <div className="flex flex-wrap gap-1">
-                    {bearishPalette.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => settings.setColors({ candleDownBody: color })}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          settings.colors.candleDownBody === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={settings.colors.candleDownBody}
-                      onChange={(e) => settings.setColors({ candleDownBody: e.target.value })}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-[var(--text-muted)]">Corps</span>
+                  <InlineColorSwatch value={settings.colors.candleDownBody} onChange={(c) => settings.setColors({ candleDownBody: c })} />
                 </div>
-
-                {/* Border Color */}
-                <div className="mb-3">
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Bordure</label>
-                  <div className="flex flex-wrap gap-1">
-                    {bearishPalette.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => settings.setColors({ candleDownBorder: color })}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          settings.colors.candleDownBorder === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={settings.colors.candleDownBorder}
-                      onChange={(e) => settings.setColors({ candleDownBorder: e.target.value })}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-[var(--text-muted)]">Bordure</span>
+                  <InlineColorSwatch value={settings.colors.candleDownBorder} onChange={(c) => settings.setColors({ candleDownBorder: c })} />
                 </div>
-
-                {/* Wick Color */}
-                <div>
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Meche</label>
-                  <div className="flex flex-wrap gap-1">
-                    {bearishPalette.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => settings.setColors({ candleDownWick: color })}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          settings.colors.candleDownWick === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={settings.colors.candleDownWick}
-                      onChange={(e) => settings.setColors({ candleDownWick: e.target.value })}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[var(--text-muted)]">Meche</span>
+                  <InlineColorSwatch value={settings.colors.candleDownWick} onChange={(c) => settings.setColors({ candleDownWick: c })} />
                 </div>
               </div>
 
               {/* Background Color */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">Fond</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {STANDARD_GRAYS.slice(5).map(color => (
-                    <button
-                      key={color}
-                      onClick={() => settings.setColors({ background: color })}
-                      className={`w-7 h-7 rounded-lg border-2 transition-all hover:scale-110 ${
-                        settings.colors.background === color ? 'border-[var(--primary)] scale-110' : 'border-[var(--border)]'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={settings.colors.background}
-                    onChange={(e) => settings.setColors({ background: e.target.value })}
-                    className="w-7 h-7 rounded-lg cursor-pointer"
-                  />
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Fond</span>
+                <InlineColorSwatch value={settings.colors.background} onChange={(c) => settings.setColors({ background: c })} />
               </div>
             </div>
           )}
@@ -472,46 +352,18 @@ export default function FootprintAdvancedSettings({
               {/* Delta Positive */}
               <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
                 <h4 className="text-xs font-semibold text-[var(--primary)] mb-3">Delta Positif</h4>
-                <div className="flex flex-wrap gap-1">
-                  {bullishPalette.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => settings.setColors({ deltaPositive: color })}
-                      className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                        settings.colors.deltaPositive === color ? 'border-white scale-110' : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={settings.colors.deltaPositive}
-                    onChange={(e) => settings.setColors({ deltaPositive: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer"
-                  />
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[var(--text-muted)]">Color</span>
+                  <InlineColorSwatch value={settings.colors.deltaPositive} onChange={(c) => settings.setColors({ deltaPositive: c })} />
                 </div>
               </div>
 
               {/* Delta Negative */}
               <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
                 <h4 className="text-xs font-semibold text-red-400 mb-3">Delta Negatif</h4>
-                <div className="flex flex-wrap gap-1">
-                  {bearishPalette.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => settings.setColors({ deltaNegative: color })}
-                      className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                        settings.colors.deltaNegative === color ? 'border-white scale-110' : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={settings.colors.deltaNegative}
-                    onChange={(e) => settings.setColors({ deltaNegative: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer"
-                  />
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[var(--text-muted)]">Color</span>
+                  <InlineColorSwatch value={settings.colors.deltaNegative} onChange={(c) => settings.setColors({ deltaNegative: c })} />
                 </div>
               </div>
 
@@ -539,54 +391,21 @@ export default function FootprintAdvancedSettings({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Buy Imbalance</label>
-                    <div className="flex gap-1">
-                      <div
-                        className="w-6 h-6 rounded"
-                        style={{ backgroundColor: settings.colors.imbalanceBuyBg }}
-                      />
-                      <input
-                        type="color"
-                        value={settings.colors.imbalanceBuyBg}
-                        onChange={(e) => settings.setColors({ imbalanceBuyBg: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Buy Imbalance</label>
+                    <InlineColorSwatch value={settings.colors.imbalanceBuyBg} onChange={(c) => settings.setColors({ imbalanceBuyBg: c })} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Sell Imbalance</label>
-                    <div className="flex gap-1">
-                      <div
-                        className="w-6 h-6 rounded"
-                        style={{ backgroundColor: settings.colors.imbalanceSellBg }}
-                      />
-                      <input
-                        type="color"
-                        value={settings.colors.imbalanceSellBg}
-                        onChange={(e) => settings.setColors({ imbalanceSellBg: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Sell Imbalance</label>
+                    <InlineColorSwatch value={settings.colors.imbalanceSellBg} onChange={(c) => settings.setColors({ imbalanceSellBg: c })} />
                   </div>
                 </div>
               </div>
 
               {/* POC */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">POC (Point of Control)</label>
-                <div className="flex gap-1">
-                  <div
-                    className="w-6 h-6 rounded"
-                    style={{ backgroundColor: settings.colors.pocColor }}
-                  />
-                  <input
-                    type="color"
-                    value={settings.colors.pocColor}
-                    onChange={(e) => settings.setColors({ pocColor: e.target.value })}
-                    className="flex-1 h-6 rounded cursor-pointer"
-                  />
-                </div>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-[var(--text-muted)]">POC (Point of Control)</label>
+                <InlineColorSwatch value={settings.colors.pocColor} onChange={(c) => settings.setColors({ pocColor: c })} />
               </div>
 
               {/* Current Price Line - Full Customization */}
@@ -600,26 +419,9 @@ export default function FootprintAdvancedSettings({
                 </h4>
 
                 {/* Line Color */}
-                <div className="mb-3">
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Line Color</label>
-                  <div className="flex flex-wrap gap-1">
-                    {['#2196f3', '#22c55e', '#ef4444', '#fbbf24', '#a855f7', '#06b6d4', '#f97316', '#ffffff'].map(color => (
-                      <button
-                        key={color}
-                        onClick={() => settings.setColors({ currentPriceColor: color, currentPriceLabelBg: color })}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          settings.colors.currentPriceColor === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={settings.colors.currentPriceColor}
-                      onChange={(e) => settings.setColors({ currentPriceColor: e.target.value, currentPriceLabelBg: e.target.value })}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-[11px] text-[var(--text-muted)]">Line Color</label>
+                  <InlineColorSwatch value={settings.colors.currentPriceColor} onChange={(c) => settings.setColors({ currentPriceColor: c, currentPriceLabelBg: c })} />
                 </div>
 
                 {/* Line Width */}
@@ -676,20 +478,9 @@ export default function FootprintAdvancedSettings({
 
                 {/* Label Background (shown only if label enabled) */}
                 {settings.colors.currentPriceShowLabel !== false && (
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Label Background</label>
-                    <div className="flex gap-1">
-                      <div
-                        className="w-6 h-6 rounded border border-[var(--border)]"
-                        style={{ backgroundColor: settings.colors.currentPriceLabelBg || settings.colors.currentPriceColor }}
-                      />
-                      <input
-                        type="color"
-                        value={settings.colors.currentPriceLabelBg || settings.colors.currentPriceColor}
-                        onChange={(e) => settings.setColors({ currentPriceLabelBg: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Label Background</label>
+                    <InlineColorSwatch value={settings.colors.currentPriceLabelBg || settings.colors.currentPriceColor} onChange={(c) => settings.setColors({ currentPriceLabelBg: c })} />
                   </div>
                 )}
               </div>
@@ -706,41 +497,21 @@ export default function FootprintAdvancedSettings({
                 </h4>
 
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Value Area</label>
-                    <div className="flex gap-1">
-                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfileColor || '#5e7ce2' }} />
-                      <input type="color" value={settings.features.volumeProfileColor || '#5e7ce2'}
-                        onChange={(e) => settings.setFeatures({ volumeProfileColor: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer" />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Value Area</label>
+                    <InlineColorSwatch value={settings.features.volumeProfileColor || '#5e7ce2'} onChange={(c) => settings.setFeatures({ volumeProfileColor: c })} size={5} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Outside VA</label>
-                    <div className="flex gap-1">
-                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfileOutsideColor || '#3a3f4b' }} />
-                      <input type="color" value={settings.features.volumeProfileOutsideColor || '#3a3f4b'}
-                        onChange={(e) => settings.setFeatures({ volumeProfileOutsideColor: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer" />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Outside VA</label>
+                    <InlineColorSwatch value={settings.features.volumeProfileOutsideColor || '#3a3f4b'} onChange={(c) => settings.setFeatures({ volumeProfileOutsideColor: c })} size={5} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">POC Bar</label>
-                    <div className="flex gap-1">
-                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfilePocColor || '#e2b93b' }} />
-                      <input type="color" value={settings.features.volumeProfilePocColor || '#e2b93b'}
-                        onChange={(e) => settings.setFeatures({ volumeProfilePocColor: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer" />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">POC Bar</label>
+                    <InlineColorSwatch value={settings.features.volumeProfilePocColor || '#e2b93b'} onChange={(c) => settings.setFeatures({ volumeProfilePocColor: c })} size={5} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">VAH/VAL Lines</label>
-                    <div className="flex gap-1">
-                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.volumeProfileVahValColor || '#7c85f6' }} />
-                      <input type="color" value={settings.features.volumeProfileVahValColor || '#7c85f6'}
-                        onChange={(e) => settings.setFeatures({ volumeProfileVahValColor: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer" />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">VAH/VAL Lines</label>
+                    <InlineColorSwatch value={settings.features.volumeProfileVahValColor || '#7c85f6'} onChange={(c) => settings.setFeatures({ volumeProfileVahValColor: c })} size={5} />
                   </div>
                 </div>
 
@@ -766,23 +537,13 @@ export default function FootprintAdvancedSettings({
                 </h4>
 
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Positive Delta</label>
-                    <div className="flex gap-1">
-                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.deltaProfilePositiveColor || '#22c55e' }} />
-                      <input type="color" value={settings.features.deltaProfilePositiveColor || '#22c55e'}
-                        onChange={(e) => settings.setFeatures({ deltaProfilePositiveColor: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer" />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Positive Delta</label>
+                    <InlineColorSwatch value={settings.features.deltaProfilePositiveColor || '#22c55e'} onChange={(c) => settings.setFeatures({ deltaProfilePositiveColor: c })} size={5} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Negative Delta</label>
-                    <div className="flex gap-1">
-                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.deltaProfileNegativeColor || '#ef4444' }} />
-                      <input type="color" value={settings.features.deltaProfileNegativeColor || '#ef4444'}
-                        onChange={(e) => settings.setFeatures({ deltaProfileNegativeColor: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer" />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Negative Delta</label>
+                    <InlineColorSwatch value={settings.features.deltaProfileNegativeColor || '#ef4444'} onChange={(c) => settings.setFeatures({ deltaProfileNegativeColor: c })} size={5} />
                   </div>
                 </div>
 
@@ -823,12 +584,9 @@ export default function FootprintAdvancedSettings({
                   </div>
                   {settings.features.showVWAP !== false && (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <label className="text-[11px] text-[var(--text-muted)] w-12">Color</label>
-                        <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.vwapColor || '#e2b93b' }} />
-                        <input type="color" value={settings.features.vwapColor || '#e2b93b'}
-                          onChange={(e) => settings.setFeatures({ vwapColor: e.target.value })}
-                          className="flex-1 h-6 rounded cursor-pointer" />
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] text-[var(--text-muted)]">Color</label>
+                        <InlineColorSwatch value={settings.features.vwapColor || '#e2b93b'} onChange={(c) => settings.setFeatures({ vwapColor: c })} size={5} />
                       </div>
                       <div>
                         <label className="block text-[11px] text-[var(--text-muted)] mb-1">
@@ -921,12 +679,9 @@ export default function FootprintAdvancedSettings({
                   </div>
                   {settings.features.showTWAP !== false && (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <label className="text-[11px] text-[var(--text-muted)] w-12">Color</label>
-                        <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.twapColor || '#5eaeff' }} />
-                        <input type="color" value={settings.features.twapColor || '#5eaeff'}
-                          onChange={(e) => settings.setFeatures({ twapColor: e.target.value })}
-                          className="flex-1 h-6 rounded cursor-pointer" />
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] text-[var(--text-muted)]">Color</label>
+                        <InlineColorSwatch value={settings.features.twapColor || '#5eaeff'} onChange={(c) => settings.setFeatures({ twapColor: c })} size={5} />
                       </div>
                       <div>
                         <label className="block text-[11px] text-[var(--text-muted)] mb-1">
@@ -1130,12 +885,9 @@ export default function FootprintAdvancedSettings({
                 </div>
                 {settings.features.showCVDPanel && (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <label className="text-[11px] text-[var(--text-muted)] w-12">Color</label>
-                      <div className="w-6 h-6 rounded" style={{ backgroundColor: settings.features.cvdLineColor || '#22c55e' }} />
-                      <input type="color" value={settings.features.cvdLineColor || '#22c55e'}
-                        onChange={(e) => settings.setFeatures({ cvdLineColor: e.target.value })}
-                        className="flex-1 h-6 rounded cursor-pointer" />
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] text-[var(--text-muted)]">Color</label>
+                      <InlineColorSwatch value={settings.features.cvdLineColor || '#22c55e'} onChange={(c) => settings.setFeatures({ cvdLineColor: c })} size={5} />
                     </div>
                     <div>
                       <label className="block text-[11px] text-[var(--text-muted)] mb-1">
@@ -1241,14 +993,9 @@ export default function FootprintAdvancedSettings({
                   </button>
                 </div>
                 {settings.features.showDevelopingPOC && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between">
                     <label className="text-[11px] text-[var(--text-muted)]">Color</label>
-                    <input
-                      type="color"
-                      value={settings.features.developingPOCColor || '#fbbf24'}
-                      onChange={(e) => settings.setFeatures({ developingPOCColor: e.target.value })}
-                      className="w-8 h-6 rounded cursor-pointer bg-transparent"
-                    />
+                    <InlineColorSwatch value={settings.features.developingPOCColor || '#fbbf24'} onChange={(c) => settings.setFeatures({ developingPOCColor: c })} size={5} />
                   </div>
                 )}
               </div>
@@ -1277,14 +1024,9 @@ export default function FootprintAdvancedSettings({
                         className="w-full h-2 bg-[var(--surface-elevated)] rounded-lg appearance-none cursor-pointer accent-yellow-500"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between">
                       <label className="text-[11px] text-[var(--text-muted)]">Color</label>
-                      <input
-                        type="color"
-                        value={settings.features.largeTradeColor || '#ffd700'}
-                        onChange={(e) => settings.setFeatures({ largeTradeColor: e.target.value })}
-                        className="w-8 h-6 rounded cursor-pointer bg-transparent"
-                      />
+                      <InlineColorSwatch value={settings.features.largeTradeColor || '#ffd700'} onChange={(c) => settings.setFeatures({ largeTradeColor: c })} size={5} />
                     </div>
                   </div>
                 )}
@@ -1328,14 +1070,9 @@ export default function FootprintAdvancedSettings({
                   </button>
                 </div>
                 {settings.features.showNakedPOC && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between">
                     <label className="text-[11px] text-[var(--text-muted)]">Color</label>
-                    <input
-                      type="color"
-                      value={settings.features.nakedPOCColor || '#fbbf24'}
-                      onChange={(e) => settings.setFeatures({ nakedPOCColor: e.target.value })}
-                      className="w-8 h-6 rounded cursor-pointer bg-transparent"
-                    />
+                    <InlineColorSwatch value={settings.features.nakedPOCColor || '#fbbf24'} onChange={(c) => settings.setFeatures({ nakedPOCColor: c })} size={5} />
                   </div>
                 )}
               </div>
@@ -1384,13 +1121,11 @@ export default function FootprintAdvancedSettings({
                           }`} />
                         </button>
                         <span className="text-[10px] text-[var(--text-secondary)] w-14">{session.label}</span>
-                        <input type="color" value={session.color}
-                          onChange={(e) => {
+                        <InlineColorSwatch value={session.color} onChange={(c) => {
                             const updated = [...settings.features.customSessions];
-                            updated[idx] = { ...updated[idx], color: e.target.value };
+                            updated[idx] = { ...updated[idx], color: c };
                             settings.setFeatures({ customSessions: updated });
-                          }}
-                          className="w-5 h-5 rounded cursor-pointer bg-transparent flex-shrink-0" />
+                          }} size={5} />
                         <span className="text-[9px] text-[var(--text-muted)]">
                           {String(session.startUTC).padStart(2, '0')}:00-{String(session.endUTC).padStart(2, '0')}:00 UTC
                         </span>
@@ -1655,23 +1390,13 @@ export default function FootprintAdvancedSettings({
 
                   {/* Colors */}
                   <div className="flex gap-3 mb-4">
-                    <div className="flex-1">
-                      <label className="block text-[10px] text-[var(--text-muted)] mb-1">Bid Color</label>
-                      <input
-                        type="color"
-                        value={settings.passiveLiquidity.bidColor}
-                        onChange={(e) => settings.setPassiveLiquidity({ bidColor: e.target.value })}
-                        className="w-full h-6 rounded cursor-pointer bg-transparent"
-                      />
+                    <div className="flex-1 flex items-center justify-between">
+                      <label className="text-[10px] text-[var(--text-muted)]">Bid Color</label>
+                      <InlineColorSwatch value={settings.passiveLiquidity.bidColor} onChange={(c) => settings.setPassiveLiquidity({ bidColor: c })} size={5} />
                     </div>
-                    <div className="flex-1">
-                      <label className="block text-[10px] text-[var(--text-muted)] mb-1">Ask Color</label>
-                      <input
-                        type="color"
-                        value={settings.passiveLiquidity.askColor}
-                        onChange={(e) => settings.setPassiveLiquidity({ askColor: e.target.value })}
-                        className="w-full h-6 rounded cursor-pointer bg-transparent"
-                      />
+                    <div className="flex-1 flex items-center justify-between">
+                      <label className="text-[10px] text-[var(--text-muted)]">Ask Color</label>
+                      <InlineColorSwatch value={settings.passiveLiquidity.askColor} onChange={(c) => settings.setPassiveLiquidity({ askColor: c })} size={5} />
                     </div>
                   </div>
 
@@ -1748,26 +1473,9 @@ export default function FootprintAdvancedSettings({
                 </h4>
 
                 {/* Color */}
-                <div className="mb-3">
-                  <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">Couleur</label>
-                  <div className="flex flex-wrap gap-1">
-                    {['#6b7280', '#ffffff', '#22c55e', '#ef4444', '#3b82f6', '#a855f7', '#fbbf24'].map(color => (
-                      <button
-                        key={color}
-                        onClick={() => crosshair.setColor(color)}
-                        className={`w-6 h-6 rounded border-2 transition-all hover:scale-110 ${
-                          crosshair.color === color ? 'border-white scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    <input
-                      type="color"
-                      value={crosshair.color}
-                      onChange={(e) => crosshair.setColor(e.target.value)}
-                      className="w-6 h-6 rounded cursor-pointer"
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-[11px] text-[var(--text-muted)]">Couleur</label>
+                  <InlineColorSwatch value={crosshair.color} onChange={(c) => crosshair.setColor(c)} />
                 </div>
 
                 {/* Line Width */}
@@ -1887,35 +1595,13 @@ export default function FootprintAdvancedSettings({
               <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
                 <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-3">Couleurs des labels</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Fond</label>
-                    <div className="flex gap-1">
-                      <div
-                        className="w-6 h-6 rounded border border-[var(--border)]"
-                        style={{ backgroundColor: crosshair.labelBackground }}
-                      />
-                      <input
-                        type="color"
-                        value={crosshair.labelBackground}
-                        onChange={(e) => crosshair.setLabelBackground(e.target.value)}
-                        className="flex-1 h-6 rounded cursor-pointer"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Fond</label>
+                    <InlineColorSwatch value={crosshair.labelBackground} onChange={(c) => crosshair.setLabelBackground(c)} size={5} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">Texte</label>
-                    <div className="flex gap-1">
-                      <div
-                        className="w-6 h-6 rounded border border-[var(--border)]"
-                        style={{ backgroundColor: crosshair.labelTextColor }}
-                      />
-                      <input
-                        type="color"
-                        value={crosshair.labelTextColor}
-                        onChange={(e) => crosshair.setLabelTextColor(e.target.value)}
-                        className="flex-1 h-6 rounded cursor-pointer"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] text-[var(--text-muted)]">Texte</label>
+                    <InlineColorSwatch value={crosshair.labelTextColor} onChange={(c) => crosshair.setLabelTextColor(c)} size={5} />
                   </div>
                 </div>
               </div>

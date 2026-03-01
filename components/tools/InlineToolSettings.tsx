@@ -73,7 +73,7 @@ export default function InlineToolSettings({
   const presetInputRef = useRef<HTMLInputElement>(null);
 
   // Preset store
-  const { presets, savePreset, deletePreset, setAsDefault, setToolDefault } = useToolSettingsStore();
+  const { presets, savePreset, deletePreset, setAsDefault } = useToolSettingsStore();
 
   // Close dropdowns when tool deselected
   useEffect(() => {
@@ -158,20 +158,18 @@ export default function InlineToolSettings({
 
   const handleApplyPreset = useCallback((preset: ToolPreset) => {
     if (!selectedTool) return;
-    const newStyle = { ...selectedTool.style, ...preset.style };
-    getToolsEngine().updateTool(selectedTool.id, { style: newStyle });
+    // Apply preset style to ALL selected tools (multi-edit)
+    getToolsEngine().updateSelectedToolsStyle(preset.style as any);
     onRender?.();
     setShowPresetMenu(false);
   }, [selectedTool, onRender]);
 
   const handleSetAsDefault = useCallback(() => {
     if (!selectedTool) return;
-    // Write to engine (used during tool creation via getDefaultStyle)
+    // Write to engine (single source of truth for defaults)
     getToolsEngine().setDefaultStyle(selectedTool.type as any, selectedTool.style);
-    // Write to Zustand (used by UI components)
-    setToolDefault(selectedTool.type, selectedTool.style as any);
     setShowPresetMenu(false);
-  }, [selectedTool, setToolDefault]);
+  }, [selectedTool]);
 
   if (!selectedTool) return null;
 

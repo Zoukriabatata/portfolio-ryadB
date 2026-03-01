@@ -4,6 +4,54 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import { DEFAULT_INDICATORS } from '@/types/charts';
 import type { IndicatorConfig, IndicatorLineStyle, IndicatorSource } from '@/types/charts';
+import { ColorPicker } from '@/components/tools/ColorPicker';
+
+/** Inline color swatch with unified picker popover */
+function InlineColorSwatch({ value, onChange, size = 6 }: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
+        style={{
+          width: size * 4,
+          height: size * 4,
+          backgroundColor: value,
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
+        }}
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 right-0 p-3 rounded-xl shadow-2xl"
+          style={{
+            backgroundColor: 'rgba(20, 20, 28, 0.98)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(12px)',
+            minWidth: 220,
+          }}
+        >
+          <ColorPicker value={value} onChange={onChange} label="" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 const COLOR_PRESETS = [
   '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6',
@@ -174,19 +222,11 @@ export default function IndicatorSettingsPanel({ indicatorId, onClose, position 
                   style={{ backgroundColor: c }}
                 />
               ))}
-              <div className="relative">
-                <input
-                  type="color"
-                  value={indicator.style.color}
-                  onChange={(e) => updateStyle({ color: e.target.value })}
-                  className="w-5 h-5 rounded-md cursor-pointer opacity-0 absolute inset-0"
-                />
-                <div className="w-5 h-5 rounded-md border border-dashed flex items-center justify-center" style={{ borderColor: 'var(--text-muted)' }}>
-                  <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
-                    <circle cx="8" cy="8" r="5" />
-                  </svg>
-                </div>
-              </div>
+              <InlineColorSwatch
+                value={indicator.style.color}
+                onChange={(c) => updateStyle({ color: c })}
+                size={5}
+              />
             </div>
           </Section>
 

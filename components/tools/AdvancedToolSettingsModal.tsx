@@ -1,10 +1,57 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useToolSettingsStore } from '@/stores/useToolSettingsStore';
 import { useCrosshairStore, type CrosshairSettings } from '@/stores/useCrosshairStore';
 import type { ToolType, LineStyle, Tool } from '@/lib/tools/ToolsEngine';
 import { getToolsEngine } from '@/lib/tools/ToolsEngine';
+import { ColorPicker } from '@/components/tools/ColorPicker';
+
+/** Inline color swatch with unified picker popover */
+function InlineColorSwatch({ value, onChange, size = 6 }: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
+        style={{
+          width: size * 4,
+          height: size * 4,
+          backgroundColor: value,
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
+        }}
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 right-0 p-3 rounded-xl shadow-2xl"
+          style={{
+            backgroundColor: 'rgba(20, 20, 28, 0.98)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(12px)',
+            minWidth: 220,
+          }}
+        >
+          <ColorPicker value={value} onChange={onChange} label="" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * ADVANCED TOOL SETTINGS MODAL
@@ -76,28 +123,27 @@ export default function AdvancedToolSettingsModal({
     offsetY: 0,
   });
 
-  const { getToolDefault, setToolDefault } = useToolSettingsStore();
   const crosshairStore = useCrosshairStore();
-  const defaultSettings = getToolDefault(activeTool);
+  const engine = getToolsEngine();
+  const defaultStyle = engine.getDefaultStyle(activeTool as ToolType);
 
   // Use the selected tool's actual values if available, otherwise use defaults
   // Merge style properties with direct tool properties
   const toolSettings = selectedTool
     ? {
-        ...defaultSettings,
-        color: selectedTool.style?.color || defaultSettings.color,
-        lineWidth: selectedTool.style?.lineWidth || defaultSettings.lineWidth,
-        lineStyle: selectedTool.style?.lineStyle || defaultSettings.lineStyle,
-        extendLeft: (selectedTool as any).extendLeft ?? defaultSettings.extendLeft,
-        extendRight: (selectedTool as any).extendRight ?? defaultSettings.extendRight,
-        showPrice: (selectedTool as any).showPrice ?? (selectedTool as any).showPrices ?? defaultSettings.showPrice,
-        showTime: (selectedTool as any).showTime ?? defaultSettings.showTime,
-        showLabels: (selectedTool as any).showLabels ?? defaultSettings.showLabels,
+        color: selectedTool.style?.color || defaultStyle.color,
+        lineWidth: selectedTool.style?.lineWidth || defaultStyle.lineWidth,
+        lineStyle: selectedTool.style?.lineStyle || defaultStyle.lineStyle,
+        extendLeft: (selectedTool as any).extendLeft ?? false,
+        extendRight: (selectedTool as any).extendRight ?? false,
+        showPrice: (selectedTool as any).showPrice ?? (selectedTool as any).showPrices ?? false,
+        showTime: (selectedTool as any).showTime ?? false,
+        showLabels: (selectedTool as any).showLabels ?? false,
         showRR: (selectedTool as any).showRR,
         showPnL: (selectedTool as any).showPnL,
-        fillOpacity: selectedTool.style?.fillOpacity ?? defaultSettings.fillOpacity,
+        fillOpacity: selectedTool.style?.fillOpacity ?? defaultStyle.fillOpacity,
       } as Record<string, unknown>
-    : defaultSettings;
+    : (defaultStyle as unknown as Record<string, unknown>);
 
   // Tab state for different settings sections
   const [activeTab, setActiveTab] = useState<'tool' | 'crosshair'>('tool');
@@ -258,7 +304,6 @@ export default function AdvancedToolSettingsModal({
           <ToolSettingsContent
             activeTool={activeTool}
             toolSettings={toolSettings}
-            setToolDefault={setToolDefault}
             selectedTool={selectedTool}
             theme={theme}
           />
@@ -277,42 +322,34 @@ export default function AdvancedToolSettingsModal({
 function ToolSettingsContent({
   activeTool,
   toolSettings,
-  setToolDefault,
   selectedTool,
   theme,
 }: {
   activeTool: string;
   toolSettings: Record<string, unknown>;
-  setToolDefault: (tool: string, settings: Record<string, unknown>) => void;
   selectedTool?: Tool | null;
   theme: AdvancedToolSettingsModalProps['theme'];
 }) {
   const handleChange = (key: string, value: unknown) => {
-    // Update defaults for future tools (store both alias and canonical type)
-    setToolDefault(activeTool, { [key]: value });
+    const engine = getToolsEngine();
     const canonicalType = normalizeToolType(activeTool);
+
+    // Update defaults in engine (single source of truth)
+    engine.setDefaultStyle(activeTool as ToolType, { [key]: value } as any);
     if (canonicalType !== activeTool) {
-      setToolDefault(canonicalType, { [key]: value });
+      engine.setDefaultStyle(canonicalType as ToolType, { [key]: value } as any);
     }
 
     // Also update the currently selected tool on the chart for live preview
-    // Use normalized type comparison to handle aliases (hline vs horizontalLine)
     const selectedToolType = selectedTool?.type || '';
     const normalizedActiveTool = normalizeToolType(activeTool);
 
     if (selectedTool && selectedToolType === normalizedActiveTool) {
-      const toolsEngine = getToolsEngine();
-
-      // Map settings key to tool property - handle style vs direct props
       const styleKeys = ['color', 'lineWidth', 'lineStyle', 'fillOpacity'];
       if (styleKeys.includes(key)) {
-        // Update style property
-        toolsEngine.updateTool(selectedTool.id, {
-          style: { ...selectedTool.style, [key]: value },
-        } as Partial<Tool>);
+        engine.updateToolStyle(selectedTool.id, { [key]: value } as any);
       } else {
-        // Update direct property
-        toolsEngine.updateTool(selectedTool.id, { [key]: value } as Partial<Tool>);
+        engine.updateTool(selectedTool.id, { [key]: value } as Partial<Tool>);
       }
     }
   };
@@ -328,11 +365,9 @@ function ToolSettingsContent({
         {/* Color */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs" style={{ color: theme.colors.textSecondary }}>Couleur</span>
-          <input
-            type="color"
+          <InlineColorSwatch
             value={(toolSettings.color as string) || '#3b82f6'}
-            onChange={(e) => handleChange('color', e.target.value)}
-            className="w-8 h-6 rounded cursor-pointer"
+            onChange={(c) => handleChange('color', c)}
           />
         </div>
 
@@ -1130,20 +1165,16 @@ function ToolSettingsContent({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] mb-1" style={{ color: theme.colors.textSecondary }}>Texte</label>
-                <input
-                  type="color"
+                <InlineColorSwatch
                   value={(toolSettings.fontColor as string) || '#ffffff'}
-                  onChange={(e) => handleChange('fontColor', e.target.value)}
-                  className="w-full h-8 rounded cursor-pointer"
+                  onChange={(c) => handleChange('fontColor', c)}
                 />
               </div>
               <div>
                 <label className="block text-[10px] mb-1" style={{ color: theme.colors.textSecondary }}>Fond</label>
-                <input
-                  type="color"
+                <InlineColorSwatch
                   value={(toolSettings.backgroundColor as string) || '#000000'}
-                  onChange={(e) => handleChange('backgroundColor', e.target.value)}
-                  className="w-full h-8 rounded cursor-pointer"
+                  onChange={(c) => handleChange('backgroundColor', c)}
                 />
               </div>
             </div>
@@ -1182,11 +1213,9 @@ function CrosshairSettingsContent({
 
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs" style={{ color: theme.colors.textSecondary }}>Couleur</span>
-          <input
-            type="color"
+          <InlineColorSwatch
             value={crosshairStore.color}
-            onChange={(e) => crosshairStore.setColor(e.target.value)}
-            className="w-8 h-6 rounded cursor-pointer"
+            onChange={(c) => crosshairStore.setColor(c)}
           />
         </div>
 
@@ -1321,20 +1350,16 @@ function CrosshairSettingsContent({
         </h4>
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs" style={{ color: theme.colors.textSecondary }}>Fond</span>
-          <input
-            type="color"
+          <InlineColorSwatch
             value={crosshairStore.labelBackground}
-            onChange={(e) => crosshairStore.setLabelBackground(e.target.value)}
-            className="w-8 h-6 rounded cursor-pointer"
+            onChange={(c) => crosshairStore.setLabelBackground(c)}
           />
         </div>
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs" style={{ color: theme.colors.textSecondary }}>Texte</span>
-          <input
-            type="color"
+          <InlineColorSwatch
             value={crosshairStore.labelTextColor}
-            onChange={(e) => crosshairStore.setLabelTextColor(e.target.value)}
-            className="w-8 h-6 rounded cursor-pointer"
+            onChange={(c) => crosshairStore.setLabelTextColor(c)}
           />
         </div>
       </div>

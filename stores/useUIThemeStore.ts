@@ -281,16 +281,67 @@ export const UI_THEMES: UIThemeDefinition[] = [
 
 interface UIThemeState {
   activeTheme: UIThemeId;
+  autoMode: boolean;
+  lightTheme: UIThemeId;
+  darkTheme: UIThemeId;
   setTheme: (theme: UIThemeId) => void;
+  setAutoMode: (auto: boolean) => void;
+  setLightTheme: (theme: UIThemeId) => void;
+  setDarkTheme: (theme: UIThemeId) => void;
+  /** Called by matchMedia listener — resolves theme when autoMode is on */
+  _applySystemPreference: (isDark: boolean) => void;
 }
 
 export const useUIThemeStore = create<UIThemeState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       activeTheme: 'senzoukria',
+      autoMode: false,
+      lightTheme: 'arctic',
+      darkTheme: 'senzoukria',
+
       setTheme: (theme) => set({ activeTheme: theme }),
+
+      setAutoMode: (auto) => {
+        set({ autoMode: auto });
+        if (auto && typeof window !== 'undefined') {
+          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const resolved = isDark ? get().darkTheme : get().lightTheme;
+          set({ activeTheme: resolved });
+        }
+      },
+
+      setLightTheme: (theme) => {
+        set({ lightTheme: theme });
+        if (get().autoMode && typeof window !== 'undefined') {
+          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (!isDark) set({ activeTheme: theme });
+        }
+      },
+
+      setDarkTheme: (theme) => {
+        set({ darkTheme: theme });
+        if (get().autoMode && typeof window !== 'undefined') {
+          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (isDark) set({ activeTheme: theme });
+        }
+      },
+
+      _applySystemPreference: (isDark) => {
+        if (!get().autoMode) return;
+        const resolved = isDark ? get().darkTheme : get().lightTheme;
+        set({ activeTheme: resolved });
+      },
     }),
-    { name: 'senzoukria-ui-theme' }
+    {
+      name: 'senzoukria-ui-theme',
+      partialize: (state) => ({
+        activeTheme: state.activeTheme,
+        autoMode: state.autoMode,
+        lightTheme: state.lightTheme,
+        darkTheme: state.darkTheme,
+      }),
+    }
   )
 );
 

@@ -12,13 +12,61 @@
  * - Texte attaché
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import {
   Tool,
   ToolStyle,
   LineStyle,
   getToolsEngine,
 } from '@/lib/tools/ToolsEngine';
+import { ColorPicker } from '@/components/tools/ColorPicker';
+
+/** Inline color swatch with unified picker popover */
+function InlineColorSwatch({ value, onChange, size = 6 }: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
+        style={{
+          width: size * 4,
+          height: size * 4,
+          backgroundColor: value,
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
+        }}
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 right-0 p-3 rounded-xl shadow-2xl"
+          style={{
+            backgroundColor: 'rgba(20, 20, 28, 0.98)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(12px)',
+            minWidth: 220,
+          }}
+        >
+          <ColorPicker value={value} onChange={onChange} label="" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface ToolSettingsPanelProps {
   selectedTool: Tool | null;
@@ -70,43 +118,31 @@ export default function ToolSettingsPanel({
   colors,
   onClose,
 }: ToolSettingsPanelProps) {
-  const [style, setStyle] = useState<ToolStyle | null>(null);
-  const [showExtend, setShowExtend] = useState({ left: false, right: false });
+  // Read style directly from selectedTool — single source of truth (no local state)
+  const style = selectedTool?.style ?? null;
 
-  // Sync with selected tool
-  useEffect(() => {
-    if (selectedTool) {
-      setStyle({ ...selectedTool.style });
+  // Extend flags read directly from tool
+  const showExtend = selectedTool?.type === 'trendline'
+    ? { left: selectedTool.extendLeft, right: selectedTool.extendRight }
+    : { left: false, right: false };
 
-      if (selectedTool.type === 'trendline') {
-        setShowExtend({
-          left: selectedTool.extendLeft,
-          right: selectedTool.extendRight,
-        });
-      }
-    } else {
-      setStyle(null);
-    }
+  /**
+   * Update style on ALL selected tools (multi-edit safe, undo-safe)
+   */
+  const updateStyle = useCallback((updates: Partial<ToolStyle>) => {
+    if (!selectedTool) return;
+    getToolsEngine().updateSelectedToolsStyle(updates);
   }, [selectedTool]);
 
   /**
-   * Update tool style
-   */
-  const updateStyle = useCallback((updates: Partial<ToolStyle>) => {
-    if (!selectedTool || !style) return;
-
-    const newStyle = { ...style, ...updates };
-    setStyle(newStyle);
-
-    getToolsEngine().updateTool(selectedTool.id, { style: newStyle });
-  }, [selectedTool, style]);
-
-  /**
-   * Update tool property
+   * Update tool property (non-style — e.g. extend, visibility)
    */
   const updateProperty = useCallback((updates: Partial<Tool>) => {
     if (!selectedTool) return;
-    getToolsEngine().updateTool(selectedTool.id, updates);
+    const engine = getToolsEngine();
+    for (const tool of engine.getSelectedTools()) {
+      engine.updateTool(tool.id, updates);
+    }
   }, [selectedTool]);
 
   /**
@@ -215,11 +251,9 @@ export default function ToolSettingsPanel({
         </div>
         {/* Custom color input */}
         <div className="mt-2 flex items-center gap-2">
-          <input
-            type="color"
+          <InlineColorSwatch
             value={style.color}
-            onChange={(e) => updateStyle({ color: e.target.value })}
-            className="w-8 h-8 rounded cursor-pointer"
+            onChange={(c) => updateStyle({ color: c })}
           />
           <input
             type="text"
@@ -309,7 +343,6 @@ export default function ToolSettingsPanel({
                 type="checkbox"
                 checked={showExtend.left}
                 onChange={(e) => {
-                  setShowExtend(prev => ({ ...prev, left: e.target.checked }));
                   updateProperty({ extendLeft: e.target.checked } as Partial<Tool>);
                 }}
               />
@@ -320,7 +353,6 @@ export default function ToolSettingsPanel({
                 type="checkbox"
                 checked={showExtend.right}
                 onChange={(e) => {
-                  setShowExtend(prev => ({ ...prev, right: e.target.checked }));
                   updateProperty({ extendRight: e.target.checked } as Partial<Tool>);
                 }}
               />
@@ -464,13 +496,12 @@ export default function ToolSettingsPanel({
             {/* Text Color */}
             <div className="flex items-center gap-2">
               <span className="text-[10px]" style={{ color: colors.textMuted }}>Color:</span>
-              <input
-                type="color"
+              <InlineColorSwatch
                 value={selectedTool.text?.fontColor || style.color}
-                onChange={(e) => updateProperty({
-                  text: { ...selectedTool.text!, fontColor: e.target.value }
+                onChange={(c) => updateProperty({
+                  text: { ...selectedTool.text!, fontColor: c }
                 } as Partial<Tool>)}
-                className="w-6 h-6 rounded cursor-pointer"
+                size={5}
               />
               <button
                 onClick={() => updateProperty({

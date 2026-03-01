@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import { type Tool, type ToolType, type ToolStyle, getToolsEngine } from '@/lib/tools/ToolsEngine';
 import { ExpandableSection } from './ExpandableSection';
@@ -73,38 +73,17 @@ export function UnifiedToolPropertiesPanel({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  // Local state for current style (synced with tool)
-  const [currentStyle, setCurrentStyle] = useState<ToolStyle>(
-    selectedTool?.style || engine.getDefaultStyle(defaultToolType)
-  );
+  // Read style directly from tool or engine defaults — no local state copy
+  const currentStyle: ToolStyle = selectedTool?.style ?? engine.getDefaultStyle(defaultToolType);
 
-  // Local state for rectangle properties (synced with tool)
-  const [rectangleProps, setRectangleProps] = useState({
+  // Read rectangle properties directly from selected tool
+  const rectangleProps = useMemo(() => ({
     showPriceLabels: selectedTool?.type === 'rectangle' ? selectedTool.showPriceLabels !== false : true,
     showMedianLine: selectedTool?.type === 'rectangle' ? selectedTool.showMedianLine || false : false,
     showZones: selectedTool?.type === 'rectangle' ? selectedTool.showZones || false : false,
     extendLeft: selectedTool?.type === 'rectangle' ? selectedTool.extendLeft || false : false,
     extendRight: selectedTool?.type === 'rectangle' ? selectedTool.extendRight || false : false,
-  });
-
-  // Sync currentStyle when selectedTool changes
-  useEffect(() => {
-    if (selectedTool) {
-      setCurrentStyle(selectedTool.style);
-      // Sync rectangle properties if it's a rectangle
-      if (selectedTool.type === 'rectangle') {
-        setRectangleProps({
-          showPriceLabels: selectedTool.showPriceLabels !== false,
-          showMedianLine: selectedTool.showMedianLine || false,
-          showZones: selectedTool.showZones || false,
-          extendLeft: selectedTool.extendLeft || false,
-          extendRight: selectedTool.extendRight || false,
-        });
-      }
-    } else {
-      setCurrentStyle(engine.getDefaultStyle(defaultToolType));
-    }
-  }, [selectedTool, defaultToolType, engine]);
+  }), [selectedTool]);
 
   // Drag handlers
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -148,42 +127,26 @@ export function UnifiedToolPropertiesPanel({
     };
   }, [isDragging, dragOffset]);
 
-  // Style change handlers
+  // Style change handlers — multi-edit safe, undo-safe via engine
   const handleStyleChange = useCallback((updates: Partial<ToolStyle>) => {
-    // IMPORTANT: Always use currentStyle as base to preserve all previous changes
-    const newStyle = { ...currentStyle, ...updates };
-
     if (selectedTool) {
-      // Update the tool with new style
-      engine.updateTool(selectedTool.id, {
-        style: newStyle,
-      });
+      // Update ALL selected tools' styles at once
+      engine.updateSelectedToolsStyle(updates);
     } else {
-      // Update default style
+      // No tool selected — update defaults
       engine.setDefaultStyle(defaultToolType, updates);
     }
-
-    // Update local state immediately to reflect changes in UI
-    setCurrentStyle(newStyle);
-
-    // Trigger re-render to show changes immediately
     onUpdate?.();
-  }, [selectedTool, defaultToolType, engine, onUpdate, currentStyle]);
+  }, [selectedTool, defaultToolType, engine, onUpdate]);
 
-  // Rectangle properties change handler
-  const handleRectanglePropsChange = useCallback((updates: Partial<typeof rectangleProps>) => {
+  // Rectangle properties change handler — multi-edit for selected tools
+  const handleRectanglePropsChange = useCallback((updates: Record<string, unknown>) => {
     if (!selectedTool || selectedTool.type !== 'rectangle') return;
-
-    // Update local state immediately
-    const newProps = { ...rectangleProps, ...updates };
-    setRectangleProps(newProps);
-
-    // Update the tool in engine
-    engine.updateTool(selectedTool.id, updates as Partial<Tool>);
-
-    // Trigger re-render
+    for (const tool of engine.getSelectedTools()) {
+      engine.updateTool(tool.id, updates as Partial<Tool>);
+    }
     onUpdate?.();
-  }, [selectedTool, rectangleProps, engine, onUpdate]);
+  }, [selectedTool, engine, onUpdate]);
 
   // Tool actions
   const handleToggleLock = useCallback(() => {

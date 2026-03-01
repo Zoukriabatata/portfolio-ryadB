@@ -219,6 +219,18 @@ export function DashboardClientLayout({
     syncFootprintWithUITheme(activeTheme);
   }, [activeTheme]);
 
+  // Listen for OS dark/light preference changes (for auto mode)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      useUIThemeStore.getState()._applySystemPreference(e.matches);
+    };
+    // Set initial value if autoMode was already on
+    useUIThemeStore.getState()._applySystemPreference(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   // Pause everything when browser tab is hidden (minimized, switched tab)
   const [tabHidden, setTabHidden] = useState(false);
   useEffect(() => {

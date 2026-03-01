@@ -72,12 +72,20 @@ export function DynamicToolSettingsPanel({ tool, onUpdate }: DynamicToolSettings
   const handleChange = useCallback(
     (key: string, value: unknown) => {
       const engine = getToolsEngine();
-      const update = buildNestedUpdate(key, value);
 
-      // For nested paths like 'style.color', we need to merge with existing
-      const merged = deepMerge(tool as unknown as Record<string, unknown>, update);
-      const topKey = key.split('.')[0];
-      engine.updateTool(tool.id, { [topKey]: merged[topKey] } as Partial<Tool>);
+      // Style paths (e.g. 'style.color') → update ALL selected tools via engine
+      if (key.startsWith('style.')) {
+        const styleKey = key.slice(6); // 'style.color' → 'color'
+        engine.updateSelectedToolsStyle({ [styleKey]: value } as any);
+      } else {
+        // Non-style paths → update each selected tool individually
+        const update = buildNestedUpdate(key, value);
+        for (const selected of engine.getSelectedTools()) {
+          const merged = deepMerge(selected as unknown as Record<string, unknown>, update);
+          const topKey = key.split('.')[0];
+          engine.updateTool(selected.id, { [topKey]: merged[topKey] } as Partial<Tool>);
+        }
+      }
       onUpdate?.();
     },
     [tool, onUpdate]

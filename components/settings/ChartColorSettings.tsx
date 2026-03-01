@@ -9,6 +9,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useFootprintSettingsStore, type FootprintColors } from '@/stores/useFootprintSettingsStore';
+import { ColorPicker } from '@/components/tools/ColorPicker';
 
 interface ChartColorSettingsProps {
   colors: {
@@ -22,15 +23,6 @@ interface ChartColorSettingsProps {
   onClose?: () => void;
 }
 
-// Extended preset colors palette - organized by hue
-const PRESET_COLORS = {
-  greens: ['#22c55e', '#16a34a', '#15803d', '#4ade80', '#86efac', '#10b981'],
-  reds: ['#ef4444', '#dc2626', '#b91c1c', '#f87171', '#fca5a5', '#f97316'],
-  blues: ['#3b82f6', '#2563eb', '#1d4ed8', '#60a5fa', '#93c5fd', '#0ea5e9'],
-  purples: ['#a855f7', '#9333ea', '#7c3aed', '#c084fc', '#ec4899', '#d946ef'],
-  yellows: ['#fbbf24', '#f59e0b', '#d97706', '#fcd34d', '#fde68a', '#eab308'],
-  grays: ['#ffffff', '#e5e5e5', '#a1a1aa', '#71717a', '#404040', '#171717'],
-};
 
 type ColorCategory = 'candle' | 'volume' | 'imbalance' | 'general';
 
@@ -241,95 +233,24 @@ export default function ChartColorSettings({ colors, onClose }: ChartColorSettin
                 </div>
               </button>
 
-              {/* Color Picker Dropdown - Redesigned */}
+              {/* Color Picker Dropdown */}
               {isEditing && (
                 <div
                   ref={pickerRef}
-                  className="absolute right-0 top-full mt-2 p-4 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                  className="absolute right-0 top-full mt-2 p-3 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200"
                   style={{
                     backgroundColor: 'rgba(20, 20, 28, 0.98)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)',
-                    minWidth: 260,
+                    minWidth: 230,
                     backdropFilter: 'blur(20px)',
                   }}
                 >
-                  {/* Current Color Preview */}
-                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
-                    <div
-                      className="w-12 h-12 rounded-xl ring-2 ring-white/20 shadow-lg"
-                      style={{ backgroundColor: currentColor }}
-                    />
-                    <div>
-                      <div className="text-xs text-[var(--text-muted)] mb-1">Couleur actuelle</div>
-                      <div className="text-sm font-mono text-[var(--text-primary)]">{currentColor}</div>
-                    </div>
-                  </div>
-
-                  {/* Color Palette by Category */}
-                  <div className="space-y-3">
-                    {Object.entries(PRESET_COLORS).map(([category, colorList]) => (
-                      <div key={category}>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
-                          {category === 'greens' ? 'Verts' :
-                           category === 'reds' ? 'Rouges' :
-                           category === 'blues' ? 'Bleus' :
-                           category === 'purples' ? 'Violets' :
-                           category === 'yellows' ? 'Jaunes' : 'Neutres'}
-                        </div>
-                        <div className="flex gap-1.5">
-                          {colorList.map(color => (
-                            <button
-                              key={color}
-                              onClick={() => {
-                                updateColor(item.key, color);
-                              }}
-                              className={`w-8 h-8 rounded-lg transition-all hover:scale-110 hover:ring-2 hover:ring-white/30 ${
-                                currentColor.toLowerCase() === color.toLowerCase()
-                                  ? 'ring-2 ring-white scale-110'
-                                  : 'ring-1 ring-white/10'
-                              }`}
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Custom Color Input */}
-                  <div className="mt-4 pt-3 border-t border-white/10">
-                    <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2">
-                      Couleur personnalisée
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={currentColor}
-                        onChange={(e) => updateColor(item.key, e.target.value)}
-                        className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
-                      />
-                      <input
-                        type="text"
-                        value={currentColor}
-                        onChange={(e) => {
-                          if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) {
-                            updateColor(item.key, e.target.value);
-                          }
-                        }}
-                        className="flex-1 px-3 py-2 rounded-lg text-xs font-mono bg-black/30 text-[var(--text-primary)] border border-white/10 focus:border-violet-500/50 focus:outline-none transition-colors"
-                        placeholder="#ffffff"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Apply Button */}
-                  <button
-                    onClick={() => setEditingColor(null)}
-                    className="w-full mt-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-[var(--text-primary)] text-xs font-medium transition-colors"
-                  >
-                    Appliquer
-                  </button>
+                  <ColorPicker
+                    value={currentColor}
+                    onChange={(c) => updateColor(item.key, c)}
+                    label=""
+                  />
                 </div>
               )}
             </div>

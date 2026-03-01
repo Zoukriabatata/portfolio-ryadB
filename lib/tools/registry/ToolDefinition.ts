@@ -93,7 +93,8 @@ export interface ToolSettingField {
     | 'select'
     | 'slider'
     | 'lineStyle'
-    | 'lineWidth';
+    | 'lineWidth'
+    | 'gradient';
 
   /** Settings group for collapsible sections */
   group?: string;

@@ -6,6 +6,8 @@ import type { Tool, LineStyle } from '@/lib/tools/types';
 import { ColorPicker } from './ColorPicker';
 import { LineStylePicker } from './LineStylePicker';
 import { LineWidthSlider } from './LineWidthSlider';
+import { GradientEditor } from './GradientEditor';
+import type { GradientStop } from '@/lib/heatmap-webgl/themes/OrderflowTheme';
 
 interface SettingFieldRendererProps {
   field: ToolSettingField;
@@ -137,6 +139,18 @@ export function SettingFieldRenderer({ field, tool, onChange }: SettingFieldRend
               </option>
             ))}
           </select>
+        </div>
+      );
+
+    case 'gradient':
+      return (
+        <div className="py-1">
+          <GradientEditor
+            stops={Array.isArray(value) ? (value as GradientStop[]) : [{ position: 0, color: '#000000' }, { position: 1, color: '#ffffff' }]}
+            onChange={(stops) => onChange(field.key, stops)}
+            label={field.label}
+            compact
+          />
         </div>
       );
 

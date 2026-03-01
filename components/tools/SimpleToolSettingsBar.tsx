@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useToolSettingsStore } from '@/stores/useToolSettingsStore';
 import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import type { ToolType, LineStyle } from '@/lib/tools/ToolsEngine';
+import { getToolsEngine } from '@/lib/tools/ToolsEngine';
+import { ColorPicker } from '@/components/tools/ColorPicker';
 
 /**
  * SIMPLE TOOL SETTINGS BAR (Draggable)
@@ -42,16 +43,6 @@ interface ToolSettings {
   fillOpacity?: number;
 }
 
-const COLOR_PRESETS = [
-  '#3b82f6', // Blue
-  '#22c55e', // Green
-  '#ef4444', // Red
-  '#f59e0b', // Amber
-  '#8b5cf6', // Purple
-  '#06b6d4', // Cyan
-  '#ec4899', // Pink
-  '#ffffff', // White
-];
 
 const LINE_WIDTHS = [1, 2, 3, 4, 5];
 
@@ -94,7 +85,6 @@ export default function SimpleToolSettingsBar({
   initialPosition,
   theme,
 }: SimpleToolSettingsBarProps) {
-  const { getToolDefault, setToolDefault } = useToolSettingsStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showLineStyles, setShowLineStyles] = useState(false);
   const [isHoveringSettings, setIsHoveringSettings] = useState(false);
@@ -106,8 +96,9 @@ export default function SimpleToolSettingsBar({
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const lineStylesRef = useRef<HTMLDivElement>(null);
 
-  // Get current tool settings
-  const toolSettings = getToolDefault(activeTool);
+  // Get current tool defaults from engine (single source of truth)
+  const engine = getToolsEngine();
+  const toolSettings = engine.getDefaultStyle(activeTool as ToolType);
   const currentColor = toolSettings.color || '#3b82f6';
   const currentWidth = toolSettings.lineWidth || 2;
   const currentStyle = toolSettings.lineStyle || 'solid';
@@ -196,18 +187,18 @@ export default function SimpleToolSettingsBar({
   }
 
   const handleColorChange = (color: string) => {
-    setToolDefault(activeTool, { color });
+    engine.setDefaultStyle(activeTool as ToolType, { color });
     onSettingsChange({ color });
     setShowColorPicker(false);
   };
 
   const handleWidthChange = (lineWidth: number) => {
-    setToolDefault(activeTool, { lineWidth });
+    engine.setDefaultStyle(activeTool as ToolType, { lineWidth });
     onSettingsChange({ lineWidth });
   };
 
   const handleStyleChange = (lineStyle: LineStyle) => {
-    setToolDefault(activeTool, { lineStyle });
+    engine.setDefaultStyle(activeTool as ToolType, { lineStyle });
     onSettingsChange({ lineStyle });
     setShowLineStyles(false);
   };
@@ -264,32 +255,18 @@ export default function SimpleToolSettingsBar({
 
           {showColorPicker && (
             <div
-              className="absolute top-full left-0 mt-2 p-2 rounded-lg shadow-xl z-50 animate-slideDown"
+              className="absolute top-full left-0 mt-2 p-3 rounded-xl shadow-2xl z-50 animate-slideDown"
               style={{
-                backgroundColor: theme.colors.surface,
-                border: `1px solid ${theme.colors.border}`,
+                backgroundColor: 'rgba(20, 20, 28, 0.98)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(12px)',
+                minWidth: 220,
               }}
             >
-              <div className="grid grid-cols-4 gap-1.5 mb-2">
-                {COLOR_PRESETS.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => handleColorChange(color)}
-                    className="w-6 h-6 rounded-md transition-all hover:scale-110 active:scale-95"
-                    style={{
-                      backgroundColor: color,
-                      border: currentColor === color ? `2px solid ${theme.colors.toolActive}` : '1px solid #333',
-                      boxShadow: currentColor === color ? `0 0 8px ${color}` : 'none',
-                    }}
-                  />
-                ))}
-              </div>
-              <input
-                type="color"
+              <ColorPicker
                 value={currentColor}
-                onChange={(e) => handleColorChange(e.target.value)}
-                className="w-full h-7 rounded cursor-pointer"
-                style={{ border: `1px solid ${theme.colors.border}` }}
+                onChange={(c) => handleColorChange(c)}
+                label=""
               />
             </div>
           )}

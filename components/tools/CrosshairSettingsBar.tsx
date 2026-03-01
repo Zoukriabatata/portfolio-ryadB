@@ -9,6 +9,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useCrosshairStore, type CrosshairLineStyle, type MagnetMode } from '@/stores/useCrosshairStore';
+import { ColorPicker } from '@/components/tools/ColorPicker';
 
 interface CrosshairSettingsBarProps {
   colors: {
@@ -24,13 +25,6 @@ interface CrosshairSettingsBarProps {
   onClose?: () => void;
 }
 
-// Fixed preset colors organized by category
-const PRESET_COLORS_BY_CATEGORY = {
-  warm: ['#ef4444', '#f97316', '#f59e0b', '#fbbf24'],
-  cool: ['#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6'],
-  accent: ['#ec4899', '#a855f7', '#14b8a6', '#84cc16'],
-  neutral: ['#ffffff', '#a1a1aa', '#525252', '#171717'],
-};
 
 // Line widths
 const LINE_WIDTHS = [1, 2, 3];
@@ -123,121 +117,14 @@ export default function CrosshairSettingsBar({ colors, onClose }: CrosshairSetti
               backgroundColor: 'rgba(20, 20, 28, 0.98)',
               border: '1px solid rgba(255,255,255,0.1)',
               backdropFilter: 'blur(12px)',
-              minWidth: 200,
+              minWidth: 220,
             }}
           >
-            {/* Current color preview */}
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
-              <div
-                className="w-8 h-8 rounded-lg ring-2 ring-white/20"
-                style={{ backgroundColor: crosshair.color }}
-              />
-              <div className="text-[10px] font-mono text-[var(--text-muted)]">{crosshair.color}</div>
-            </div>
-
-            {/* Warm colors */}
-            <div className="mb-2">
-              <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Chaud</div>
-              <div className="flex gap-1.5">
-                {PRESET_COLORS_BY_CATEGORY.warm.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => {
-                      crosshair.setColor(color);
-                      setShowColorPicker(false);
-                    }}
-                    className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
-                      crosshair.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Cool colors */}
-            <div className="mb-2">
-              <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Froid</div>
-              <div className="flex gap-1.5">
-                {PRESET_COLORS_BY_CATEGORY.cool.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => {
-                      crosshair.setColor(color);
-                      setShowColorPicker(false);
-                    }}
-                    className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
-                      crosshair.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Accent colors */}
-            <div className="mb-2">
-              <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Accent</div>
-              <div className="flex gap-1.5">
-                {PRESET_COLORS_BY_CATEGORY.accent.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => {
-                      crosshair.setColor(color);
-                      setShowColorPicker(false);
-                    }}
-                    className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
-                      crosshair.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Neutral colors */}
-            <div className="mb-3">
-              <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Neutres</div>
-              <div className="flex gap-1.5">
-                {PRESET_COLORS_BY_CATEGORY.neutral.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => {
-                      crosshair.setColor(color);
-                      setShowColorPicker(false);
-                    }}
-                    className={`w-7 h-7 rounded-lg transition-all hover:scale-110 ${
-                      crosshair.color === color ? 'ring-2 ring-white scale-110' : 'ring-1 ring-white/10'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Custom color */}
-            <div className="pt-2 border-t border-white/10">
-              <div className="text-[9px] text-[var(--text-muted)] uppercase mb-1.5">Personnalisé</div>
-              <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={crosshair.color}
-                  onChange={(e) => crosshair.setColor(e.target.value)}
-                  className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
-                />
-                <input
-                  type="text"
-                  value={crosshair.color}
-                  onChange={(e) => {
-                    if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) {
-                      crosshair.setColor(e.target.value);
-                    }
-                  }}
-                  className="flex-1 px-2 py-1 rounded-lg text-[10px] font-mono bg-black/30 text-white border border-white/10 focus:border-[var(--primary)]/50 focus:outline-none"
-                  placeholder="#ffffff"
-                />
-              </div>
-            </div>
+            <ColorPicker
+              value={crosshair.color}
+              onChange={(c) => crosshair.setColor(c)}
+              label=""
+            />
           </div>
         )}
       </div>

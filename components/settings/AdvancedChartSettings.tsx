@@ -37,77 +37,14 @@ interface AdvancedChartSettingsProps {
 
 type SettingsTab = 'style' | 'candles' | 'background' | 'scale' | 'templates';
 
-const COLOR_PRESETS = {
-  greens: ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#4ade80', '#86efac'],
-  reds: ['#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d', '#f87171', '#fca5a5'],
-  blues: ['#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#60a5fa', '#93c5fd'],
-  purples: ['#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#a78bfa', '#c4b5fd'],
-  yellows: ['#fbbf24', '#f59e0b', '#d97706', '#b45309', '#92400e', '#fcd34d', '#fde68a'],
-  cyans: ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63', '#22d3ee', '#67e8f9'],
-  pinks: ['#ec4899', '#db2777', '#be185d', '#9d174d', '#831843', '#f472b6', '#f9a8d4'],
-  grays: ['#ffffff', '#e5e5e5', '#a3a3a3', '#737373', '#525252', '#404040', '#262626', '#171717', '#0a0a0a', '#000000'],
-};
-
-function ColorPicker({ label, value, onChange, palette }: {
+/** Local ColorPicker wrapper — uses unified ColorPicker in compact mode */
+function ColorPicker({ label, value, onChange }: {
   label: string;
   value: string;
   onChange: (color: string) => void;
-  palette: string[];
+  palette?: string[];
 }) {
-  const [hexInput, setHexInput] = useState(value);
-
-  // Sync hex input when value changes externally
-  useEffect(() => {
-    setHexInput(value);
-  }, [value]);
-
-  const handleHexSubmit = () => {
-    const hex = hexInput.startsWith('#') ? hexInput : `#${hexInput}`;
-    if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-      onChange(hex);
-    } else {
-      setHexInput(value); // revert
-    }
-  };
-
-  return (
-    <div>
-      <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">{label}</label>
-      <div className="flex items-center gap-2">
-        <div className="flex flex-wrap gap-1 flex-1">
-          {palette.map(color => (
-            <button
-              key={color}
-              onClick={() => onChange(color)}
-              className={`w-5 h-5 rounded transition-all hover:scale-110 ${
-                value.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--surface)] scale-110' : ''
-              }`}
-              style={{ backgroundColor: color }}
-            />
-          ))}
-        </div>
-        {/* HEX input + swatch */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div className="w-5 h-5 rounded border border-[var(--border)]" style={{ backgroundColor: value }} />
-          <input
-            type="text"
-            value={hexInput.toUpperCase()}
-            onChange={(e) => {
-              let v = e.target.value;
-              if (!v.startsWith('#')) v = '#' + v;
-              if (v.length <= 7) setHexInput(v);
-            }}
-            onBlur={handleHexSubmit}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleHexSubmit(); }}
-            className="w-[72px] h-5 text-[10px] font-mono text-center rounded px-1
-              bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]
-              focus:border-[var(--primary)] focus:outline-none"
-            spellCheck={false}
-          />
-        </div>
-      </div>
-    </div>
-  );
+  return <UnifiedColorPicker value={value} onChange={onChange} label={label} compact />;
 }
 
 /** Inline HEX color input with HSV popover picker */
@@ -553,8 +490,7 @@ export default function AdvancedChartSettings({
                   label="Couleur"
                   value={crosshairColor}
                   onChange={(color) => onCrosshairChange({ color })}
-                  palette={[...COLOR_PRESETS.grays.slice(0, 6), ...COLOR_PRESETS.blues.slice(0, 3), ...COLOR_PRESETS.greens.slice(0, 3)]}
-                />
+                                 />
 
                 <SliderControl
                   label="Epaisseur"
@@ -621,9 +557,9 @@ export default function AdvancedChartSettings({
                     Bougie Haussiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorPicker label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} palette={COLOR_PRESETS.greens} />
-                    <ColorPicker label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} palette={COLOR_PRESETS.greens} />
-                    <ColorPicker label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} palette={[...COLOR_PRESETS.greens, ...COLOR_PRESETS.grays.slice(0, 3)]} />
+                    <ColorPicker label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} />
+                    <ColorPicker label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} />
+                    <ColorPicker label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} />
                   </div>
                 </div>
 
@@ -634,9 +570,9 @@ export default function AdvancedChartSettings({
                     Bougie Baissiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorPicker label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} palette={COLOR_PRESETS.reds} />
-                    <ColorPicker label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} palette={COLOR_PRESETS.reds} />
-                    <ColorPicker label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} palette={[...COLOR_PRESETS.reds, ...COLOR_PRESETS.grays.slice(0, 3)]} />
+                    <ColorPicker label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} />
+                    <ColorPicker label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} />
+                    <ColorPicker label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} />
                   </div>
                 </div>
 
@@ -667,8 +603,7 @@ export default function AdvancedChartSettings({
                   label="Couleur de fond"
                   value={backgroundColor}
                   onChange={(c) => onBackgroundChange({ color: c })}
-                  palette={COLOR_PRESETS.grays}
-                />
+                                 />
 
                 <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }}>
                   <ToggleSwitch
