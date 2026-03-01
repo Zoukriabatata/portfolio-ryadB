@@ -146,6 +146,7 @@ export interface PreferencesState {
   posHeatFill: boolean;        // Progressive zone heat fill
   posHeatIntensity: number;    // 0-100
   posTimeWeight: number;       // 0-100 (time weight %, price = 100 - this)
+  posGradientMode: 'static' | 'dynamic' | 'heat'; // Zone fill gradient mode
 
   // Volume bar appearance
   volumeBarBullColor: string;
@@ -245,6 +246,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       posHeatFill: true,
       posHeatIntensity: 40,
       posTimeWeight: 60,
+      posGradientMode: 'dynamic' as const,
 
       // Volume bar appearance
       volumeBarBullColor: '#22c55e',
@@ -321,6 +323,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         posArrowThickness: s.posArrowThickness, posArrowFill: s.posArrowFill,
         posProgressTrail: s.posProgressTrail, posTrailIntensity: s.posTrailIntensity,
         posHeatFill: s.posHeatFill, posHeatIntensity: s.posHeatIntensity, posTimeWeight: s.posTimeWeight,
+        posGradientMode: s.posGradientMode,
         volumeBarBullColor: s.volumeBarBullColor, volumeBarBearColor: s.volumeBarBearColor, volumeBarOpacity: s.volumeBarOpacity,
         showCurrentPriceLine: s.showCurrentPriceLine,
         priceLineStyle: s.priceLineStyle,

@@ -314,7 +314,7 @@ export default function AdvancedChartSettings({
     posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
     posSmartArrow, posDynamicOpacity, posOpacityCurve, posOpacityIntensity,
     posArrowExponent, posArrowIntensity, posArrowThickness, posArrowFill,
-    posProgressTrail, posTrailIntensity, posHeatFill, posHeatIntensity, posTimeWeight,
+    posProgressTrail, posTrailIntensity, posHeatFill, posHeatIntensity, posTimeWeight, posGradientMode,
     // VP Engine settings
     vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
     vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
@@ -1190,10 +1190,6 @@ export default function AdvancedChartSettings({
                           <SliderControl label="Intensité trail" value={posTrailIntensity} min={5} max={50} step={5} unit="%" onChange={(v) => setVPSetting('posTrailIntensity', v)} />
                         )}
 
-                        <ToggleSwitch label="Heat fill" description="Zone qui se chauffe progressivement" value={posHeatFill} onChange={(v) => setVPSetting('posHeatFill', v)} />
-                        {posHeatFill && (
-                          <SliderControl label="Intensité heat" value={posHeatIntensity} min={10} max={80} step={5} unit="%" onChange={(v) => setVPSetting('posHeatIntensity', v)} />
-                        )}
                       </div>
                     )}
 
@@ -1202,6 +1198,24 @@ export default function AdvancedChartSettings({
 
                     {posDynamicOpacity && (
                       <div className="space-y-2 mt-1 pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
+                        {/* Gradient Mode */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Mode gradient</span>
+                          <div className="flex gap-1">
+                            {(['static', 'dynamic', 'heat'] as const).map(mode => (
+                              <button key={mode} onClick={() => setVPSetting('posGradientMode', mode)}
+                                className="px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
+                                style={{
+                                  backgroundColor: posGradientMode === mode ? 'var(--primary)' : 'var(--bg-secondary)',
+                                  color: posGradientMode === mode ? '#fff' : 'var(--text-secondary)',
+                                  border: `1px solid ${posGradientMode === mode ? 'var(--primary)' : 'var(--border)'}`,
+                                }}>
+                                {mode === 'static' ? 'Static' : mode === 'dynamic' ? 'Dynamic' : 'Heat'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         {/* Opacity Curve */}
                         <div className="flex items-center justify-between">
                           <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Courbe</span>

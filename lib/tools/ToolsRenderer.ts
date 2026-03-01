@@ -802,34 +802,44 @@ export class ToolsRenderer {
     const showPosSize = tool.showPositionSize === true;
     const showDollarPnL = tool.showDollarPnL === true;
 
-    // ═══ EXPONENTIAL OPACITY ENGINE — Zone Fill ═══
-    // Curve function: maps linear progress [0,1] → opacity multiplier
+    // ═══ ZONE FILL ENGINE — Y-axis (price) gradients ═══
+    const gradientMode = prefs.posGradientMode ?? 'dynamic';
     const applyCurve = (t: number): number => {
-      if (!dynamicOpacityEnabled) return t;
       switch (opacityCurve) {
         case 'exponential': return Math.pow(t, 1.8);
         case 'aggressive': return Math.pow(t, 2.5);
-        default: return t; // linear
+        default: return t;
       }
     };
 
     if (showFill && tool.showZoneFill !== false) {
       const livePrice = context.currentPrice || 0;
-      const priceInRange = livePrice > 0
-        && livePrice > Math.min(tool.stopLoss, tool.takeProfit)
-        && livePrice < Math.max(tool.stopLoss, tool.takeProfit);
-
       const baseAlpha = zoneAlpha;
       const dynamicFactor = 0.45 * opacityIntensity;
       const maxAlpha = Math.min(baseAlpha + dynamicFactor, 0.57);
       const zoneW = rightX - leftX;
 
-      if (priceInRange && dynamicOpacityEnabled) {
-        const livePriceY = Math.round(priceToY(livePrice));
+      // Profit zone rect: entry ↔ TP
+      const profitTop = Math.min(entryY, tpY);
+      const profitH = Math.abs(tpY - entryY);
+      // Risk zone rect: entry ↔ SL
+      const riskTop = Math.min(entryY, slY);
+      const riskH = Math.abs(slY - entryY);
 
-        // Progress toward TP or SL (0 = at entry, 1 = at target)
+      if (gradientMode === 'static' || livePrice <= 0) {
+        // ── Static: flat fill, both zones visible ──
+        ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
+        if (profitH > 1) ctx.fillRect(leftX, profitTop, zoneW, profitH);
+        ctx.fillStyle = hexToRgba(riskLine, baseAlpha);
+        if (riskH > 1) ctx.fillRect(leftX, riskTop, zoneW, riskH);
+
+      } else {
+        // ── Dynamic / Heat: price-based Y-axis gradient ──
+        const inProfit = isLong ? livePrice > tool.entry : livePrice < tool.entry;
+        const inLoss = isLong ? livePrice < tool.entry : livePrice > tool.entry;
         const tpDist = Math.abs(tool.takeProfit - tool.entry);
         const slDist = Math.abs(tool.stopLoss - tool.entry);
+
         const profitProgress = tpDist > 0
           ? Math.min(1, Math.max(0, (isLong ? livePrice - tool.entry : tool.entry - livePrice) / tpDist))
           : 0;
@@ -837,63 +847,57 @@ export class ToolsRenderer {
           ? Math.min(1, Math.max(0, (isLong ? tool.entry - livePrice : livePrice - tool.entry) / slDist))
           : 0;
 
-        // --- Profit zone (entry ↔ TP) ---
-        if (profitProgress > 0) {
-          // Reached portion: directional gradient (intense near price, soft near entry)
-          const reachedAlpha = baseAlpha + applyCurve(profitProgress) * dynamicFactor;
-          const clampedAlpha = Math.min(reachedAlpha, maxAlpha);
-          const reachedTop = Math.min(entryY, livePriceY);
-          const reachedH = Math.abs(livePriceY - entryY);
-          if (reachedH > 1) {
-            const grad = ctx.createLinearGradient(0, entryY, 0, livePriceY);
-            grad.addColorStop(0, hexToRgba(profitLine, baseAlpha * 0.5));
-            grad.addColorStop(1, hexToRgba(profitLine, clampedAlpha));
+        // ── PROFIT ZONE (entry ↔ TP) — always visible ──
+        if (profitH > 1) {
+          if (inProfit && profitProgress > 0 && dynamicOpacityEnabled) {
+            // Active: Y-gradient from entry (dim) → TP (intense based on progress)
+            const intensity = applyCurve(profitProgress) * dynamicFactor;
+            const peakAlpha = Math.min(baseAlpha + intensity, maxAlpha);
+            const grad = ctx.createLinearGradient(0, entryY, 0, tpY);
+            grad.addColorStop(0, hexToRgba(profitLine, baseAlpha * 0.4));
+            grad.addColorStop(1, hexToRgba(profitLine, peakAlpha));
             ctx.fillStyle = grad;
-            ctx.fillRect(leftX, reachedTop, zoneW, reachedH);
-          }
-          // Unreached portion (live price → TP) — static dim
-          const unTop = Math.min(tpY, livePriceY);
-          const unH = Math.abs(livePriceY - tpY);
-          if (unH > 1) {
+          } else {
+            // Inactive: dim static fill
             ctx.fillStyle = hexToRgba(profitLine, baseAlpha * 0.25);
-            ctx.fillRect(leftX, unTop, zoneW, unH);
           }
-        } else {
-          // No profit progress — static base
-          ctx.fillStyle = hexToRgba(profitLine, baseAlpha * 0.3);
-          ctx.fillRect(leftX, Math.min(entryY, tpY), zoneW, Math.abs(tpY - entryY));
+          ctx.fillRect(leftX, profitTop, zoneW, profitH);
         }
 
-        // --- Risk zone (entry ↔ SL) ---
-        if (riskProgress > 0) {
-          const reachedAlpha = baseAlpha + applyCurve(riskProgress) * dynamicFactor;
-          const clampedAlpha = Math.min(reachedAlpha, maxAlpha);
-          const reachedTop = Math.min(entryY, livePriceY);
-          const reachedH = Math.abs(livePriceY - entryY);
-          if (reachedH > 1) {
-            const grad = ctx.createLinearGradient(0, entryY, 0, livePriceY);
-            grad.addColorStop(0, hexToRgba(riskLine, baseAlpha * 0.5));
-            grad.addColorStop(1, hexToRgba(riskLine, clampedAlpha));
+        // ── RISK ZONE (entry ↔ SL) — always visible ──
+        if (riskH > 1) {
+          if (inLoss && riskProgress > 0 && dynamicOpacityEnabled) {
+            // Active: Y-gradient from entry (dim) → SL (intense based on progress)
+            const intensity = applyCurve(riskProgress) * dynamicFactor;
+            const peakAlpha = Math.min(baseAlpha + intensity, maxAlpha);
+            const grad = ctx.createLinearGradient(0, entryY, 0, slY);
+            grad.addColorStop(0, hexToRgba(riskLine, baseAlpha * 0.4));
+            grad.addColorStop(1, hexToRgba(riskLine, peakAlpha));
             ctx.fillStyle = grad;
-            ctx.fillRect(leftX, reachedTop, zoneW, reachedH);
-          }
-          // Unreached portion
-          const unTop = Math.min(slY, livePriceY);
-          const unH = Math.abs(livePriceY - slY);
-          if (unH > 1) {
+          } else {
+            // Inactive: dim static fill
             ctx.fillStyle = hexToRgba(riskLine, baseAlpha * 0.25);
-            ctx.fillRect(leftX, unTop, zoneW, unH);
           }
-        } else {
-          ctx.fillStyle = hexToRgba(riskLine, baseAlpha * 0.3);
-          ctx.fillRect(leftX, Math.min(entryY, slY), zoneW, Math.abs(slY - entryY));
+          ctx.fillRect(leftX, riskTop, zoneW, riskH);
         }
-      } else {
-        // Static fill — no live price or dynamic disabled
-        ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
-        ctx.fillRect(leftX, Math.min(entryY, tpY), zoneW, Math.abs(tpY - entryY));
-        ctx.fillStyle = hexToRgba(riskLine, baseAlpha);
-        ctx.fillRect(leftX, Math.min(entryY, slY), zoneW, Math.abs(slY - entryY));
+
+        // ── Heat mode overlay: extra intensity near live price ──
+        if (gradientMode === 'heat' && dynamicOpacityEnabled) {
+          const livePriceY = Math.round(priceToY(
+            isLong
+              ? Math.max(tool.stopLoss, Math.min(livePrice, tool.takeProfit))
+              : Math.min(tool.stopLoss, Math.max(livePrice, tool.takeProfit))
+          ));
+          const heatColor = inProfit ? profitLine : riskLine;
+          const heatBand = 12; // px radius of heat glow
+          const heatAlpha = Math.min(0.3, baseAlpha + applyCurve(Math.max(profitProgress, riskProgress)) * 0.25);
+          const heatGrad = ctx.createLinearGradient(0, livePriceY - heatBand, 0, livePriceY + heatBand);
+          heatGrad.addColorStop(0, hexToRgba(heatColor, 0));
+          heatGrad.addColorStop(0.5, hexToRgba(heatColor, heatAlpha));
+          heatGrad.addColorStop(1, hexToRgba(heatColor, 0));
+          ctx.fillStyle = heatGrad;
+          ctx.fillRect(leftX, livePriceY - heatBand, zoneW, heatBand * 2);
+        }
       }
     }
 
@@ -932,8 +936,6 @@ export class ToolsRenderer {
       const arrowThickness = prefs.posArrowThickness ?? 1.4;
       const trailEnabled = prefs.posProgressTrail !== false;
       const trailFactor = (prefs.posTrailIntensity ?? 25) / 100;
-      const heatFillEnabled = prefs.posHeatFill !== false;
-      const heatIntensity = (prefs.posHeatIntensity ?? 40) / 100;
       const timeWeight = (prefs.posTimeWeight ?? 60) / 100;
       const priceWeight = 1 - timeWeight;
 
@@ -987,26 +989,6 @@ export class ToolsRenderer {
         const dx = currentX - startX;
         const dy = currentY - startY;
         const arrowLength = Math.sqrt(dx * dx + dy * dy);
-
-        // ── Heat fill: progressive zone from left → currentX ──
-        if (heatFillEnabled && dx > 2) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(leftX, Math.min(tpY, slY), rightX - leftX, rectHeight);
-          ctx.clip();
-
-          const heatAlpha = baseOpacity + Math.pow(combinedProgress, arrowExponent) * heatIntensity * 0.5;
-          const heatGrad = ctx.createLinearGradient(leftX, 0, currentX, 0);
-          heatGrad.addColorStop(0, hexToRgba(arrowColor, 0.02));
-          heatGrad.addColorStop(0.5, hexToRgba(arrowColor, heatAlpha * 0.3));
-          heatGrad.addColorStop(1, hexToRgba(arrowColor, heatAlpha));
-          ctx.fillStyle = heatGrad;
-
-          // Fill from left edge to current X position, full height of the zone
-          const zoneTop = Math.min(tpY, slY);
-          ctx.fillRect(leftX, zoneTop, currentX - leftX, rectHeight);
-          ctx.restore();
-        }
 
         // ── Progress trail (behind arrow) ──
         if (trailEnabled && arrowLength > 8) {
