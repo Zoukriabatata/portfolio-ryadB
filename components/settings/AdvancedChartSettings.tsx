@@ -257,6 +257,7 @@ export default function AdvancedChartSettings({
     // Position tool settings
     posTpColor, posSlColor, posEntryColor,
     posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
+    posSmartArrow, posDynamicOpacity, posOpacityCurve, posOpacityIntensity,
     // VP Engine settings
     vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
     vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
@@ -1164,7 +1165,7 @@ export default function AdvancedChartSettings({
                     </div>
 
                     {/* Zone Opacity */}
-                    <SliderControl label="Opacité zones" value={Math.round(posZoneOpacity * 100)} min={0} max={30} step={1} unit="%" onChange={(v) => setVPSetting('posZoneOpacity', v / 100)} />
+                    <SliderControl label="Opacité base" value={Math.round(posZoneOpacity * 100)} min={2} max={40} step={1} unit="%" onChange={(v) => setVPSetting('posZoneOpacity', v / 100)} />
 
                     {/* Toggle: Zone Fill */}
                     <ToggleSwitch label="Remplissage zones" description="Afficher les zones TP/SL colorées" value={posShowZoneFill} onChange={(v) => setVPSetting('posShowZoneFill', v)} />
@@ -1174,6 +1175,37 @@ export default function AdvancedChartSettings({
 
                     {/* Toggle: Compact Mode */}
                     <ToggleSwitch label="Mode minimal" description="Lignes pures sans labels ni informations" value={posDefaultCompact} onChange={(v) => setVPSetting('posDefaultCompact', v)} />
+
+                    {/* Toggle: Smart Arrow */}
+                    <ToggleSwitch label="Smart Arrow" description="Flèche dynamique suivant le prix en temps réel" value={posSmartArrow} onChange={(v) => setVPSetting('posSmartArrow', v)} />
+
+                    {/* Toggle: Dynamic Opacity */}
+                    <ToggleSwitch label="Opacité dynamique" description="Progression exponentielle dans les zones parcourues" value={posDynamicOpacity} onChange={(v) => setVPSetting('posDynamicOpacity', v)} />
+
+                    {posDynamicOpacity && (
+                      <div className="space-y-2 mt-1 pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
+                        {/* Opacity Curve */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Courbe</span>
+                          <div className="flex gap-1">
+                            {(['linear', 'exponential', 'aggressive'] as const).map(curve => (
+                              <button key={curve} onClick={() => setVPSetting('posOpacityCurve', curve)}
+                                className="px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
+                                style={{
+                                  backgroundColor: posOpacityCurve === curve ? 'var(--primary)' : 'var(--bg-secondary)',
+                                  color: posOpacityCurve === curve ? '#fff' : 'var(--text-secondary)',
+                                  border: `1px solid ${posOpacityCurve === curve ? 'var(--primary)' : 'var(--border)'}`,
+                                }}>
+                                {curve === 'linear' ? 'Linear' : curve === 'exponential' ? 'Expo' : 'Aggressif'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Intensity slider */}
+                        <SliderControl label="Intensité" value={posOpacityIntensity} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('posOpacityIntensity', v)} />
+                      </div>
+                    )}
                   </div>
                 </div>
 

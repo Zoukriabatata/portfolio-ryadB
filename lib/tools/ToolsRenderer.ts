@@ -762,6 +762,10 @@ export class ToolsRenderer {
     const showFill = prefs.posShowZoneFill;
     const showLabels = prefs.posShowLabels;
     const defaultCompact = prefs.posDefaultCompact;
+    const smartArrowEnabled = prefs.posSmartArrow;
+    const dynamicOpacityEnabled = prefs.posDynamicOpacity;
+    const opacityCurve = prefs.posOpacityCurve;
+    const opacityIntensity = (prefs.posOpacityIntensity ?? 60) / 100;
 
     // ═══ Colors (from settings) ═══
     const profitLine = tpColor;
@@ -797,14 +801,29 @@ export class ToolsRenderer {
     const showPosSize = tool.showPositionSize === true;
     const showDollarPnL = tool.showDollarPnL === true;
 
-    // ═══ ZONE FILL (Dynamic Opacity based on live price) ═══
+    // ═══ EXPONENTIAL OPACITY ENGINE — Zone Fill ═══
+    // Curve function: maps linear progress [0,1] → opacity multiplier
+    const applyCurve = (t: number): number => {
+      if (!dynamicOpacityEnabled) return t;
+      switch (opacityCurve) {
+        case 'exponential': return Math.pow(t, 1.8);
+        case 'aggressive': return Math.pow(t, 2.5);
+        default: return t; // linear
+      }
+    };
+
     if (showFill && tool.showZoneFill !== false) {
       const livePrice = context.currentPrice || 0;
       const priceInRange = livePrice > 0
         && livePrice > Math.min(tool.stopLoss, tool.takeProfit)
         && livePrice < Math.max(tool.stopLoss, tool.takeProfit);
 
-      if (priceInRange) {
+      const baseAlpha = zoneAlpha;
+      const dynamicFactor = 0.45 * opacityIntensity;
+      const maxAlpha = Math.min(baseAlpha + dynamicFactor, 0.57);
+      const zoneW = rightX - leftX;
+
+      if (priceInRange && dynamicOpacityEnabled) {
         const livePriceY = Math.round(priceToY(livePrice));
 
         // Progress toward TP or SL (0 = at entry, 1 = at target)
@@ -817,56 +836,63 @@ export class ToolsRenderer {
           ? Math.min(1, Math.max(0, (isLong ? tool.entry - livePrice : livePrice - tool.entry) / slDist))
           : 0;
 
-        const baseAlpha = zoneAlpha;
-        const enhancedAlpha = Math.min(zoneAlpha * 3, 0.25);
-
         // --- Profit zone (entry ↔ TP) ---
-        const tpTop = Math.min(entryY, tpY);
-        const tpBottom = Math.max(entryY, tpY);
-
         if (profitProgress > 0) {
-          // Reached portion (entry → live price) — enhanced opacity
-          const reachedAlpha = baseAlpha + (enhancedAlpha - baseAlpha) * profitProgress;
-          ctx.fillStyle = hexToRgba(profitLine, reachedAlpha);
+          // Reached portion: directional gradient (intense near price, soft near entry)
+          const reachedAlpha = baseAlpha + applyCurve(profitProgress) * dynamicFactor;
+          const clampedAlpha = Math.min(reachedAlpha, maxAlpha);
           const reachedTop = Math.min(entryY, livePriceY);
           const reachedH = Math.abs(livePriceY - entryY);
-          ctx.fillRect(leftX, reachedTop, rightX - leftX, reachedH);
-          // Unreached portion (live price → TP) — dimmed
-          ctx.fillStyle = hexToRgba(profitLine, baseAlpha * 0.4);
+          if (reachedH > 1) {
+            const grad = ctx.createLinearGradient(0, entryY, 0, livePriceY);
+            grad.addColorStop(0, hexToRgba(profitLine, baseAlpha * 0.5));
+            grad.addColorStop(1, hexToRgba(profitLine, clampedAlpha));
+            ctx.fillStyle = grad;
+            ctx.fillRect(leftX, reachedTop, zoneW, reachedH);
+          }
+          // Unreached portion (live price → TP) — static dim
           const unTop = Math.min(tpY, livePriceY);
           const unH = Math.abs(livePriceY - tpY);
-          ctx.fillRect(leftX, unTop, rightX - leftX, unH);
+          if (unH > 1) {
+            ctx.fillStyle = hexToRgba(profitLine, baseAlpha * 0.25);
+            ctx.fillRect(leftX, unTop, zoneW, unH);
+          }
         } else {
-          // No profit progress — base opacity
-          ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
-          ctx.fillRect(leftX, tpTop, rightX - leftX, tpBottom - tpTop);
+          // No profit progress — static base
+          ctx.fillStyle = hexToRgba(profitLine, baseAlpha * 0.3);
+          ctx.fillRect(leftX, Math.min(entryY, tpY), zoneW, Math.abs(tpY - entryY));
         }
 
         // --- Risk zone (entry ↔ SL) ---
-        const slTop = Math.min(entryY, slY);
-        const slBottom = Math.max(entryY, slY);
-
         if (riskProgress > 0) {
-          const reachedAlpha = baseAlpha + (enhancedAlpha - baseAlpha) * riskProgress;
-          ctx.fillStyle = hexToRgba(riskLine, reachedAlpha);
+          const reachedAlpha = baseAlpha + applyCurve(riskProgress) * dynamicFactor;
+          const clampedAlpha = Math.min(reachedAlpha, maxAlpha);
           const reachedTop = Math.min(entryY, livePriceY);
           const reachedH = Math.abs(livePriceY - entryY);
-          ctx.fillRect(leftX, reachedTop, rightX - leftX, reachedH);
+          if (reachedH > 1) {
+            const grad = ctx.createLinearGradient(0, entryY, 0, livePriceY);
+            grad.addColorStop(0, hexToRgba(riskLine, baseAlpha * 0.5));
+            grad.addColorStop(1, hexToRgba(riskLine, clampedAlpha));
+            ctx.fillStyle = grad;
+            ctx.fillRect(leftX, reachedTop, zoneW, reachedH);
+          }
           // Unreached portion
-          ctx.fillStyle = hexToRgba(riskLine, baseAlpha * 0.4);
           const unTop = Math.min(slY, livePriceY);
           const unH = Math.abs(livePriceY - slY);
-          ctx.fillRect(leftX, unTop, rightX - leftX, unH);
+          if (unH > 1) {
+            ctx.fillStyle = hexToRgba(riskLine, baseAlpha * 0.25);
+            ctx.fillRect(leftX, unTop, zoneW, unH);
+          }
         } else {
-          ctx.fillStyle = hexToRgba(riskLine, baseAlpha);
-          ctx.fillRect(leftX, slTop, rightX - leftX, slBottom - slTop);
+          ctx.fillStyle = hexToRgba(riskLine, baseAlpha * 0.3);
+          ctx.fillRect(leftX, Math.min(entryY, slY), zoneW, Math.abs(slY - entryY));
         }
       } else {
-        // Price outside TP/SL range or no live price — static fill
-        ctx.fillStyle = profitFill;
-        ctx.fillRect(leftX, Math.min(entryY, tpY), rightX - leftX, Math.abs(tpY - entryY));
-        ctx.fillStyle = riskFill;
-        ctx.fillRect(leftX, Math.min(entryY, slY), rightX - leftX, Math.abs(slY - entryY));
+        // Static fill — no live price or dynamic disabled
+        ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
+        ctx.fillRect(leftX, Math.min(entryY, tpY), zoneW, Math.abs(tpY - entryY));
+        ctx.fillStyle = hexToRgba(riskLine, baseAlpha);
+        ctx.fillRect(leftX, Math.min(entryY, slY), zoneW, Math.abs(slY - entryY));
       }
     }
 
@@ -897,23 +923,30 @@ export class ToolsRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ═══ SMART PRICE-FOLLOW ARROW ═══
+    // ═══ SMART PRICE-FOLLOW ARROW (Advanced) ═══
     const livePrice = context.currentPrice || 0;
-    if (livePrice > 0) {
+    if (smartArrowEnabled && livePrice > 0) {
       const livePriceY = Math.round(priceToY(livePrice));
-      const arrowX = rightX + 8;
+      const arrowX = rightX + 6;
       const arrowSize = 5;
 
-      // Direction & color
+      // Direction & color — smooth transition
       const inProfit = isLong ? livePrice > tool.entry : livePrice < tool.entry;
       const inLoss = isLong ? livePrice < tool.entry : livePrice > tool.entry;
-      const arrowColor = inProfit ? tpColor : inLoss ? slColor : entryColor;
-      const arrowUp = livePrice >= tool.entry;
+      const priceDelta = Math.abs(livePrice - tool.entry);
+      const neutralZone = tool.entry * 0.0001; // 0.01% dead zone
+      const isNeutral = priceDelta < neutralZone;
+      const arrowColor = isNeutral ? entryColor : inProfit ? tpColor : slColor;
+      const arrowUp = isLong ? livePrice > tool.entry : livePrice < tool.entry;
+
+      // Arrow opacity: subtle when neutral, stronger when directional
+      const dist = Math.abs(livePrice - tool.entry) / tool.entry;
+      const arrowOpacity = Math.min(0.9, 0.4 + dist * 20);
 
       // Connector: horizontal from entry rightX → arrowX
-      ctx.strokeStyle = hexToRgba(arrowColor, 0.3);
+      ctx.strokeStyle = hexToRgba(arrowColor, 0.2);
       ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
+      ctx.setLineDash([2, 3]);
       ctx.beginPath();
       ctx.moveTo(rightX, entryY + 0.5);
       ctx.lineTo(arrowX, entryY + 0.5);
@@ -921,6 +954,11 @@ export class ToolsRenderer {
 
       // Connector: vertical from entry → live price
       if (Math.abs(livePriceY - entryY) > 4) {
+        // Gradient connector — fades from entry to price
+        const connGrad = ctx.createLinearGradient(0, entryY, 0, livePriceY);
+        connGrad.addColorStop(0, hexToRgba(arrowColor, 0.1));
+        connGrad.addColorStop(1, hexToRgba(arrowColor, 0.35));
+        ctx.strokeStyle = connGrad;
         ctx.beginPath();
         ctx.moveTo(arrowX, entryY);
         ctx.lineTo(arrowX, livePriceY);
@@ -930,9 +968,15 @@ export class ToolsRenderer {
 
       // Triangle arrow at live price
       ctx.fillStyle = arrowColor;
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = arrowOpacity;
       ctx.beginPath();
-      if (arrowUp) {
+      if (isNeutral) {
+        // Neutral: small diamond
+        ctx.moveTo(arrowX - 3, livePriceY);
+        ctx.lineTo(arrowX, livePriceY - 3);
+        ctx.lineTo(arrowX + 3, livePriceY);
+        ctx.lineTo(arrowX, livePriceY + 3);
+      } else if (arrowUp) {
         ctx.moveTo(arrowX - arrowSize, livePriceY + arrowSize);
         ctx.lineTo(arrowX, livePriceY - arrowSize);
         ctx.lineTo(arrowX + arrowSize, livePriceY + arrowSize);
@@ -947,7 +991,8 @@ export class ToolsRenderer {
 
       // % badge next to arrow
       const priceDiffPct = ((livePrice - tool.entry) / tool.entry) * 100;
-      const badgeText = `${priceDiffPct >= 0 ? '+' : ''}${priceDiffPct.toFixed(2)}%`;
+      const badgeSign = isLong ? priceDiffPct : -priceDiffPct;
+      const badgeText = `${badgeSign >= 0 ? '+' : ''}${badgeSign.toFixed(2)}%`;
       ctx.font = '9px "SF Mono", Consolas, monospace';
       const textW = ctx.measureText(badgeText).width;
       const badgeX = arrowX + arrowSize + 3;
@@ -959,8 +1004,10 @@ export class ToolsRenderer {
       ctx.fill();
 
       ctx.fillStyle = arrowColor;
+      ctx.globalAlpha = arrowOpacity;
       ctx.textAlign = 'left';
       ctx.fillText(badgeText, badgeX + 4, badgeY + 10);
+      ctx.globalAlpha = 1;
     }
 
     // ═══ Settings flags ═══
