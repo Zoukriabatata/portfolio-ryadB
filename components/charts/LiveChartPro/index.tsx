@@ -250,6 +250,16 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   // === STORE HOOKS ===
   const { themeId, setTheme, getTheme } = useThemeStore();
   const theme = useMemo(() => getTheme(), [themeId, getTheme]);
+
+  // Contrast text for active buttons: dark gray on light toolActive (e.g. Monochrome)
+  const activeTextColor = useMemo(() => {
+    const hex = theme.colors.toolActive;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return lum > 0.55 ? '#1a1a1a' : theme.colors.text;
+  }, [theme.colors.toolActive, theme.colors.text]);
   const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity, showTradeBar, setShowTradeBar } = useTradingStore();
   const { indicators: indicatorConfigs, toggleIndicator: toggleIndicatorConfig } = useIndicatorStore();
   const { showVolumeProfile, setShowVolumeProfile } = usePreferencesStore();
@@ -542,13 +552,13 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ease-out transform ${symbolData.assetCategory === cat.id ? 'scale-105 shadow-lg' : 'hover:scale-102 active:scale-95'}`}
                           style={{
                             backgroundColor: symbolData.assetCategory === cat.id ? theme.colors.toolActive : 'transparent',
-                            color: symbolData.assetCategory === cat.id ? theme.colors.text : theme.colors.textSecondary,
+                            color: symbolData.assetCategory === cat.id ? activeTextColor : theme.colors.textSecondary,
                             boxShadow: symbolData.assetCategory === cat.id ? `0 0 10px ${theme.colors.toolActive}40` : 'none',
                             animationDelay: `${index * 30}ms`,
                           }}
                         >
                           <span className={`transition-transform duration-200 ${symbolData.assetCategory === cat.id ? 'scale-110' : ''}`}>
-                            <IconComponent size={16} color={symbolData.assetCategory === cat.id ? theme.colors.text : undefined} />
+                            <IconComponent size={16} color={symbolData.assetCategory === cat.id ? activeTextColor : undefined} />
                           </span>
                           <span className="font-medium">{cat.label}</span>
                         </button>
@@ -605,7 +615,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                               className="text-left px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-between"
                               style={{
                                 backgroundColor: symbolData.symbol === s.value ? theme.colors.toolActive : 'transparent',
-                                color: symbolData.symbol === s.value ? theme.colors.text : theme.colors.text,
+                                color: symbolData.symbol === s.value ? activeTextColor : theme.colors.text,
                               }}
                             >
                               <span>{s.label}</span>
@@ -668,7 +678,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                     className="px-1.5 py-0.5 rounded text-[11px] font-medium transition-all duration-150"
                     style={{
                       backgroundColor: symbolData.timeframe === tf ? theme.colors.toolActive : 'transparent',
-                      color: symbolData.timeframe === tf ? theme.colors.text : theme.colors.textSecondary,
+                      color: symbolData.timeframe === tf ? activeTextColor : theme.colors.textSecondary,
                     }}
                   >
                     {TIMEFRAME_LABELS[tf]}
@@ -688,7 +698,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
               onClick={settings.openAdvancedSettings}
               data-tooltip="Chart Settings"
               className="w-7 h-7 flex items-center justify-center rounded transition-colors"
-              style={{ backgroundColor: settings.showAdvancedSettings ? theme.colors.toolActive : 'transparent', color: settings.showAdvancedSettings ? theme.colors.text : theme.colors.textSecondary }}
+              style={{ backgroundColor: settings.showAdvancedSettings ? theme.colors.toolActive : 'transparent', color: settings.showAdvancedSettings ? activeTextColor : theme.colors.textSecondary }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
@@ -702,7 +712,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                 onClick={() => setShowIndicatorMenu(!showIndicatorMenu)}
                 data-tooltip="Indicators"
                 className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95"
-                style={{ backgroundColor: indicatorConfigs.some(i => i.enabled) ? theme.colors.toolActive : 'transparent', color: indicatorConfigs.some(i => i.enabled) ? theme.colors.text : theme.colors.textSecondary }}
+                style={{ backgroundColor: indicatorConfigs.some(i => i.enabled) ? theme.colors.toolActive : 'transparent', color: indicatorConfigs.some(i => i.enabled) ? activeTextColor : theme.colors.textSecondary }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
               </button>
@@ -739,17 +749,17 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
             </div>
 
             {/* Depth Heatmap Toggle */}
-            <button onClick={() => setShowDepthMap(!showDepthMap)} data-tooltip="Depth Map" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showDepthMap ? theme.colors.toolActive : 'transparent', color: showDepthMap ? theme.colors.text : theme.colors.textSecondary }}>
+            <button onClick={() => setShowDepthMap(!showDepthMap)} data-tooltip="Depth Map" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showDepthMap ? theme.colors.toolActive : 'transparent', color: showDepthMap ? activeTextColor : theme.colors.textSecondary }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
             </button>
 
             {/* Volume Profile Toggle */}
-            <button onClick={() => setShowVolumeProfile(!showVolumeProfile)} data-tooltip="Volume Profile" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showVolumeProfile ? theme.colors.toolActive : 'transparent', color: showVolumeProfile ? theme.colors.text : theme.colors.textSecondary }}>
+            <button onClick={() => setShowVolumeProfile(!showVolumeProfile)} data-tooltip="Volume Profile" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showVolumeProfile ? theme.colors.toolActive : 'transparent', color: showVolumeProfile ? activeTextColor : theme.colors.textSecondary }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" rx="1" /><rect x="12" y="6" width="3" height="12" rx="1" /><rect x="17" y="12" width="3" height="6" rx="1" /></svg>
             </button>
 
             {/* Trade Toggle */}
-            <button onClick={() => setShowTradeBar(!showTradeBar)} data-tooltip="Quick Trade" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showTradeBar ? theme.colors.toolActive : 'transparent', color: showTradeBar ? theme.colors.text : theme.colors.textSecondary }}>
+            <button onClick={() => setShowTradeBar(!showTradeBar)} data-tooltip="Quick Trade" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showTradeBar ? theme.colors.toolActive : 'transparent', color: showTradeBar ? activeTextColor : theme.colors.textSecondary }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
             </button>
 
@@ -772,7 +782,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                       key={t.id}
                       onClick={() => { setTheme(t.id); setShowThemePanel(false); }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-all duration-200 ease-out transform ${themeId === t.id ? 'scale-102' : 'hover:scale-102 active:scale-98'}`}
-                      style={{ backgroundColor: themeId === t.id ? theme.colors.toolActive : 'transparent', color: themeId === t.id ? theme.colors.text : theme.colors.text, animationDelay: `${index * 30}ms` }}
+                      style={{ backgroundColor: themeId === t.id ? theme.colors.toolActive : 'transparent', color: themeId === t.id ? activeTextColor : theme.colors.text, animationDelay: `${index * 30}ms` }}
                     >
                       <span className={`w-3 h-3 rounded-full transition-transform duration-200 ${themeId === t.id ? 'scale-125' : ''}`} style={{ backgroundColor: t.colors.candleUp, boxShadow: `0 0 6px ${t.colors.candleUp}` }} />
                       <span className="font-medium">{t.name}</span>
