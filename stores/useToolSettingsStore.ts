@@ -177,14 +177,12 @@ const DEFAULT_TOOL_SETTINGS: Record<string, Partial<ToolSettings>> = {
     lineWidth: 2,
     lineStyle: 'solid',
     fillOpacity: 0.1,
-    extendRight: false,  // NO extension by default
   },
   shortPosition: {
     color: '#ef4444',
     lineWidth: 2,
     lineStyle: 'solid',
     fillOpacity: 0.1,
-    extendRight: false,  // NO extension by default
   },
   text: {
     color: '#ffffff',

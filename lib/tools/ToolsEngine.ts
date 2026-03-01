@@ -159,7 +159,6 @@ export interface PositionTool extends BaseTool {
   riskReward?: number;
   showRR?: boolean;
   showPnL?: boolean;
-  extendRight: boolean;  // Extend to right edge of chart
   compactMode: boolean;  // Cleaner, minimal design
   showZoneFill: boolean; // Show profit/risk zone backgrounds
   // Position sizing
@@ -881,7 +880,6 @@ export class ToolsEngine {
           endTime: posStartTime + fixedWidth,
           showRR: true,
           showPnL: false,
-          extendRight: false,  // DEFAULT: NO extension
           compactMode: true,   // Minimal purist mode by default
           showZoneFill: true,  // Show zone backgrounds
           accountSize: 10000,
@@ -1882,9 +1880,15 @@ export class ToolsEngine {
       this.selectedIds.clear();
 
       data.tools.forEach((tool: Tool) => {
-        // Migration: position tools must never extend right
-        if ((tool.type === 'longPosition' || tool.type === 'shortPosition') && (tool as any).extendRight) {
-          (tool as any).extendRight = false;
+        if (tool.type === 'longPosition' || tool.type === 'shortPosition') {
+          // Remove deprecated extendRight field
+          delete (tool as any).extendRight;
+          // Fix invalid endTime (from old extendRight era — endTime was meaningless)
+          const pos = tool as any;
+          if (!pos.endTime || pos.endTime <= pos.startTime ||
+              pos.endTime - pos.startTime > 24 * 60 * 60000) {
+            pos.endTime = pos.startTime + 20 * 60000;
+          }
         }
         this.tools.set(tool.id, tool);
       });

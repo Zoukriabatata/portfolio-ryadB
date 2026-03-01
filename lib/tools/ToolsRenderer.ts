@@ -749,7 +749,6 @@ export class ToolsRenderer {
     const slY = Math.round(priceToY(tool.stopLoss));
     const tpY = Math.round(priceToY(tool.takeProfit));
     const leftX = Math.round(timeToX(tool.startTime));
-    // Position tools: always use endTime for a resizable right edge (never extendRight)
     const rightX = Math.min(Math.round(timeToX(tool.endTime)), Math.round(width));
 
     const isLong = tool.type === 'longPosition';
