@@ -8,7 +8,7 @@
  * Reads directly from selectedTool prop — single source of truth.
  */
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useReducer, useRef } from 'react';
 import {
   Tool,
   ToolStyle,
@@ -71,6 +71,19 @@ export default function InlineToolSettings({
   const [showPresetNameInput, setShowPresetNameInput] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   const presetInputRef = useRef<HTMLInputElement>(null);
+
+  // Force re-render when the selected tool's style changes in the engine
+  const [, forceRender] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    if (!selectedTool) return;
+    const engine = getToolsEngine();
+    const unsub = engine.on('tool:update', (updatedTool) => {
+      if (updatedTool && 'id' in updatedTool && (updatedTool as Tool).id === selectedTool.id) {
+        forceRender();
+      }
+    });
+    return unsub;
+  }, [selectedTool?.id]);
 
   // Preset store
   const { presets, savePreset, deletePreset, setAsDefault } = useToolSettingsStore();
@@ -136,17 +149,22 @@ export default function InlineToolSettings({
 
   const handleToggleLock = useCallback(() => {
     if (!selectedTool) return;
-    getToolsEngine().updateTool(selectedTool.id, { locked: !selectedTool.locked });
-  }, [selectedTool]);
+    const engine = getToolsEngine();
+    const fresh = engine.getTool(selectedTool.id);
+    if (fresh) engine.updateTool(selectedTool.id, { locked: !fresh.locked });
+  }, [selectedTool?.id]);
 
   const handleToggleVisible = useCallback(() => {
     if (!selectedTool) return;
-    getToolsEngine().updateTool(selectedTool.id, { visible: !selectedTool.visible });
-  }, [selectedTool]);
+    const engine = getToolsEngine();
+    const fresh = engine.getTool(selectedTool.id);
+    if (fresh) engine.updateTool(selectedTool.id, { visible: !fresh.visible });
+  }, [selectedTool?.id]);
 
   const handleSavePreset = useCallback(() => {
     if (!selectedTool || !presetNameInput.trim()) return;
-    savePreset(presetNameInput.trim(), selectedTool.type, selectedTool.style as any);
+    const fresh = getToolsEngine().getTool(selectedTool.id) ?? selectedTool;
+    savePreset(presetNameInput.trim(), fresh.type, fresh.style as any);
     setPresetNameInput('');
     setShowPresetNameInput(false);
   }, [selectedTool, presetNameInput, savePreset]);
@@ -162,14 +180,17 @@ export default function InlineToolSettings({
   const handleSetAsDefault = useCallback(() => {
     if (!selectedTool) return;
     // Write to engine (single source of truth for defaults)
-    getToolsEngine().setDefaultStyle(selectedTool.type as any, selectedTool.style);
+    const fresh = getToolsEngine().getTool(selectedTool.id) ?? selectedTool;
+    getToolsEngine().setDefaultStyle(fresh.type as any, fresh.style);
     setShowPresetMenu(false);
   }, [selectedTool]);
 
   if (!selectedTool) return null;
 
-  // Read style directly from selectedTool — single source of truth
-  const style = selectedTool.style;
+  // Read fresh style from engine — the true single source of truth
+  // (selectedTool prop may be stale if parent hasn't re-rendered yet)
+  const freshTool = getToolsEngine().getTool(selectedTool.id) ?? selectedTool;
+  const style = freshTool.style;
 
   // Filter presets for current tool type
   const toolPresets = presets.filter(p => p.toolType === selectedTool.type);
@@ -282,7 +303,7 @@ export default function InlineToolSettings({
       </div>
 
       {/* Position sizing controls (Long/Short only) */}
-      {(selectedTool.type === 'longPosition' || selectedTool.type === 'shortPosition') && (
+      {(freshTool.type === 'longPosition' || freshTool.type === 'shortPosition') && (
         <>
           <div className="w-px h-4 bg-[var(--border)] mx-1" />
           {/* Account size */}
@@ -290,7 +311,7 @@ export default function InlineToolSettings({
             <span className="text-[9px] text-[var(--text-dimmed)]">$</span>
             <input
               type="number"
-              value={(selectedTool as any).accountSize || 10000}
+              value={(freshTool as any).accountSize || 10000}
               onChange={(e) => {
                 const val = parseFloat(e.target.value) || 10000;
                 getToolsEngine().updateTool(selectedTool.id, { accountSize: val } as any);
@@ -301,7 +322,7 @@ export default function InlineToolSettings({
           </div>
           {/* Risk % */}
           <select
-            value={(selectedTool as any).riskPercent || 1}
+            value={(freshTool as any).riskPercent || 1}
             onChange={(e) => {
               getToolsEngine().updateTool(selectedTool.id, { riskPercent: parseFloat(e.target.value) } as any);
             }}
@@ -314,7 +335,7 @@ export default function InlineToolSettings({
           </select>
           {/* Leverage */}
           <select
-            value={(selectedTool as any).leverage || 1}
+            value={(freshTool as any).leverage || 1}
             onChange={(e) => {
               getToolsEngine().updateTool(selectedTool.id, { leverage: parseFloat(e.target.value) } as any);
             }}
@@ -328,11 +349,11 @@ export default function InlineToolSettings({
           {/* Dollar P&L toggle */}
           <button
             onClick={() => {
-              const current = (selectedTool as any).showDollarPnL || false;
+              const current = (freshTool as any).showDollarPnL || false;
               getToolsEngine().updateTool(selectedTool.id, { showDollarPnL: !current } as any);
             }}
             className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-              (selectedTool as any).showDollarPnL ? 'text-green-400 bg-green-400/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)]'
+              (freshTool as any).showDollarPnL ? 'text-green-400 bg-green-400/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)]'
             }`}
             title="Show Dollar P&L"
           >
@@ -355,21 +376,21 @@ export default function InlineToolSettings({
       <button
         onClick={handleToggleLock}
         className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-          selectedTool.locked ? 'text-[var(--primary)] bg-[var(--primary)]/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
+          freshTool.locked ? 'text-[var(--primary)] bg-[var(--primary)]/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
         }`}
-        title={selectedTool.locked ? 'Unlock' : 'Lock'}
+        title={freshTool.locked ? 'Unlock' : 'Lock'}
       >
-        {selectedTool.locked ? <Lock size={13} strokeWidth={1.5} /> : <Unlock size={13} strokeWidth={1.5} />}
+        {freshTool.locked ? <Lock size={13} strokeWidth={1.5} /> : <Unlock size={13} strokeWidth={1.5} />}
       </button>
 
       <button
         onClick={handleToggleVisible}
         className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-          !selectedTool.visible ? 'text-amber-500 bg-amber-500/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
+          !freshTool.visible ? 'text-amber-500 bg-amber-500/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
         }`}
-        title={selectedTool.visible ? 'Hide' : 'Show'}
+        title={freshTool.visible ? 'Hide' : 'Show'}
       >
-        {selectedTool.visible ? <Eye size={13} strokeWidth={1.5} /> : <EyeOff size={13} strokeWidth={1.5} />}
+        {freshTool.visible ? <Eye size={13} strokeWidth={1.5} /> : <EyeOff size={13} strokeWidth={1.5} />}
       </button>
 
       <button
@@ -503,7 +524,7 @@ export default function InlineToolSettings({
         </button>
         {showDynamicSettings && (
           <DynamicToolSettingsPanel
-            tool={selectedTool}
+            tool={freshTool}
             onUpdate={() => {
               onRender?.();
             }}

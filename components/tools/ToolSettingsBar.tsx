@@ -15,7 +15,7 @@
  * - Advanced settings button
  */
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useReducer, useRef } from 'react';
 import {
   Tool,
   ToolStyle,
@@ -178,8 +178,22 @@ export default function ToolSettingsBar({
     });
   }, [position, getRelativePos]);
 
-  // Read style directly from selectedTool — single source of truth (no local state)
-  const style = selectedTool?.style ?? null;
+  // Force re-render when the selected tool's style changes in the engine
+  const [, forceRender] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    if (!selectedTool) return;
+    const engine = getToolsEngine();
+    const unsub = engine.on('tool:update', (updatedTool) => {
+      if (updatedTool && 'id' in updatedTool && (updatedTool as Tool).id === selectedTool.id) {
+        forceRender();
+      }
+    });
+    return unsub;
+  }, [selectedTool?.id]);
+
+  // Read fresh tool from engine — single source of truth (no local state)
+  const freshTool = selectedTool ? (getToolsEngine().getTool(selectedTool.id) ?? selectedTool) : null;
+  const style = freshTool?.style ?? null;
 
   // Update ALL selected tools (multi-edit safe, undo-safe)
   const updateStyle = useCallback((updates: Partial<ToolStyle>) => {
@@ -209,13 +223,17 @@ export default function ToolSettingsBar({
 
   const handleToggleLock = useCallback(() => {
     if (!selectedTool) return;
-    getToolsEngine().updateTool(selectedTool.id, { locked: !selectedTool.locked });
-  }, [selectedTool]);
+    const engine = getToolsEngine();
+    const fresh = engine.getTool(selectedTool.id);
+    if (fresh) engine.updateTool(selectedTool.id, { locked: !fresh.locked });
+  }, [selectedTool?.id]);
 
   const handleToggleVisible = useCallback(() => {
     if (!selectedTool) return;
-    getToolsEngine().updateTool(selectedTool.id, { visible: !selectedTool.visible });
-  }, [selectedTool]);
+    const engine = getToolsEngine();
+    const fresh = engine.getTool(selectedTool.id);
+    if (fresh) engine.updateTool(selectedTool.id, { visible: !fresh.visible });
+  }, [selectedTool?.id]);
 
   if (!selectedTool || !style) {
     return null;
@@ -429,23 +447,23 @@ export default function ToolSettingsBar({
           {/* Lock */}
           <ActionButton
             onClick={handleToggleLock}
-            active={selectedTool.locked}
+            active={freshTool!.locked}
             activeColor="#fbbf24"
             colors={colors}
-            title={selectedTool.locked ? 'Unlock' : 'Lock'}
+            title={freshTool!.locked ? 'Unlock' : 'Lock'}
           >
-            {selectedTool.locked ? <LockClosedIcon /> : <LockOpenIcon />}
+            {freshTool!.locked ? <LockClosedIcon /> : <LockOpenIcon />}
           </ActionButton>
 
           {/* Visibility */}
           <ActionButton
             onClick={handleToggleVisible}
-            active={!selectedTool.visible}
+            active={!freshTool!.visible}
             activeColor={colors.textMuted}
             colors={colors}
-            title={selectedTool.visible ? 'Hide' : 'Show'}
+            title={freshTool!.visible ? 'Hide' : 'Show'}
           >
-            {selectedTool.visible ? <EyeIcon /> : <EyeSlashIcon />}
+            {freshTool!.visible ? <EyeIcon /> : <EyeSlashIcon />}
           </ActionButton>
 
           {/* Duplicate */}
