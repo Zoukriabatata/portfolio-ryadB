@@ -785,7 +785,7 @@ export class ToolsRenderer {
     const profitFill = hexToRgba(profitLine, zoneAlpha);
     const riskFill = hexToRgba(riskLine, zoneAlpha);
 
-    // ═══ Metrics ═══
+    // ═══ Static Metrics (TP/SL distances from entry) ═══
     const risk = Math.abs(tool.entry - tool.stopLoss);
     const reward = Math.abs(tool.takeProfit - tool.entry);
     const rr = risk > 0 ? (reward / risk).toFixed(2) : '0.00';
@@ -807,6 +807,20 @@ export class ToolsRenderer {
     // ═══ EXECUTION STATE ═══
     const isClosed = tool.positionStatus === 'closed';
     const exitReason = tool.exitReason;
+
+    // ═══ LIVE Metrics (dynamic, from currentPrice) ═══
+    const curPrice = isClosed && tool.exitPrice ? tool.exitPrice : (context.currentPrice || 0);
+    const hasLivePrice = curPrice > 0;
+    // Live P&L from entry
+    const livePriceDiff = isLong ? curPrice - tool.entry : tool.entry - curPrice;
+    const livePnlPct = tool.entry > 0 ? (livePriceDiff / tool.entry) * 100 : 0;
+    const liveDollarPnl = leveragedSize * livePriceDiff;
+    const liveInProfit = livePriceDiff >= 0;
+    // Live R:R — how far current price has moved toward TP vs risk taken
+    const liveRR = risk > 0 ? Math.abs(livePriceDiff) / risk : 0;
+    // Distance remaining to TP / SL
+    const distToTp = isLong ? tool.takeProfit - curPrice : curPrice - tool.takeProfit;
+    const distToSl = isLong ? curPrice - tool.stopLoss : tool.stopLoss - curPrice;
     // Animated fade: 0 = active, 1 = fully faded (closed)
     const fadeFactor = isClosed
       ? (this.engine.getPositionFadeFactor(tool.id) ?? 1.0)
@@ -1144,11 +1158,15 @@ export class ToolsRenderer {
     // Dim labels when closed (fade to 60%)
     if (isClosed && fadeFactor > 0) ctx.globalAlpha = 1.0 - fadeFactor * 0.4;
 
-    // ═══ RIGHT-SIDE ENTRY LABEL ═══
+    // ═══ RIGHT-SIDE ENTRY LABEL (with live metrics) ═══
     if (!compact && showLabels) {
-      const hasExtraRow = showRR || showPosSize;
-      const labelW = hasExtraRow ? (showPosSize ? 150 : 130) : 110;
-      const labelH = hasExtraRow ? (showPosSize && showRR ? 38 : 28) : 18;
+      // Row count: row 1 = type + price, row 2 = live P&L, row 3 = R:R, row 4 = pos size
+      const hasLivePnlRow = hasLivePrice;
+      const hasRRRow = showRR;
+      const hasPosRow = showPosSize;
+      const extraRows = (hasLivePnlRow ? 1 : 0) + (hasRRRow ? 1 : 0) + (hasPosRow ? 1 : 0);
+      const labelW = extraRows > 0 ? (hasPosRow ? 155 : 135) : 110;
+      const labelH = 18 + extraRows * 11;
       const labelPad = 8;
       const labelRightX = rightX - labelW - 12;
 
@@ -1161,13 +1179,11 @@ export class ToolsRenderer {
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Position type badge
+      // Row 1: Position type + entry price
       ctx.fillStyle = isLong ? tpColor : slColor;
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(isLong ? '▲ LONG' : '▼ SHORT', labelRightX + labelPad, entryLabelY + 12);
-
-      // Price
       ctx.fillStyle = '#e5e5e5';
       ctx.font = 'bold 11px "SF Mono", Consolas, monospace';
       ctx.textAlign = 'right';
@@ -1175,17 +1191,43 @@ export class ToolsRenderer {
 
       let nextLineY = entryLabelY + 24;
 
-      // R:R ratio (conditional)
-      if (showRR) {
-        ctx.fillStyle = '#737373';
-        ctx.font = '9px system-ui';
+      // Row 2: Live P&L (dynamic — colored green/red)
+      if (hasLivePnlRow) {
+        const pnlColor = liveInProfit ? profitLine : riskLine;
+        const sign = liveInProfit ? '+' : '';
+        ctx.font = 'bold 9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`R:R  1 : ${rr}`, labelRightX + labelPad, nextLineY);
+        ctx.fillStyle = pnlColor;
+        ctx.fillText(`${sign}${livePnlPct.toFixed(2)}%`, labelRightX + labelPad, nextLineY);
+        if (showDollarPnL) {
+          ctx.textAlign = 'right';
+          ctx.fillText(`${sign}$${liveDollarPnl.toFixed(0)}`, labelRightX + labelW - labelPad, nextLineY);
+        }
         nextLineY += 11;
       }
 
-      // Position size (conditional)
-      if (showPosSize) {
+      // Row 3: Dynamic R:R (live reward achieved vs static risk)
+      if (hasRRRow) {
+        ctx.font = '9px system-ui';
+        ctx.textAlign = 'left';
+        if (hasLivePrice) {
+          const rrColor = liveInProfit ? profitLine : riskLine;
+          ctx.fillStyle = hexToRgba(rrColor, 0.8);
+          ctx.fillText(`R:R  ${liveRR.toFixed(2)}R`, labelRightX + labelPad, nextLineY);
+          // Static target R:R on the right for reference
+          ctx.fillStyle = '#525252';
+          ctx.font = '9px "SF Mono", Consolas, monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText(`/ ${rr}R`, labelRightX + labelW - labelPad, nextLineY);
+        } else {
+          ctx.fillStyle = '#737373';
+          ctx.fillText(`R:R  1 : ${rr}`, labelRightX + labelPad, nextLineY);
+        }
+        nextLineY += 11;
+      }
+
+      // Row 4: Position size
+      if (hasPosRow) {
         ctx.fillStyle = '#8b8b8b';
         ctx.font = '9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
@@ -1195,10 +1237,11 @@ export class ToolsRenderer {
       }
     }
 
-    // ═══ RIGHT-SIDE TP LABEL ═══
+    // ═══ RIGHT-SIDE TP LABEL (with live distance) ═══
     if (!compact && showLabels) {
-      const tpLabelW = (showPnL || showDollarPnL) ? 120 : 75;
-      const tpLabelH = (showPnL || showDollarPnL) ? 24 : 16;
+      const hasPnlDetail = showPnL || showDollarPnL;
+      const tpLabelW = hasPnlDetail ? 125 : 75;
+      const tpLabelH = hasPnlDetail ? 24 : 16;
       const tpLabelX = rightX - tpLabelW - 12;
       const tpLabelY = tpY - tpLabelH / 2;
 
@@ -1215,25 +1258,37 @@ export class ToolsRenderer {
       ctx.textAlign = 'left';
       ctx.fillText(`TP  ${tool.takeProfit.toFixed(2)}`, tpLabelX + 6, tpLabelY + 10);
 
-      if (showPnL || showDollarPnL) {
+      if (hasPnlDetail) {
+        // Right side: potential $ gain or % at TP
         ctx.fillStyle = profitLine;
         ctx.font = 'bold 10px system-ui';
         ctx.textAlign = 'right';
         const tpRightText = showDollarPnL ? `+$${dollarPnL.toFixed(0)}` : `+${pnlPct}%`;
         ctx.fillText(tpRightText, tpLabelX + tpLabelW - 6, tpLabelY + 10);
 
-        ctx.fillStyle = hexToRgba(profitLine, 0.5);
+        // Bottom row: live distance remaining to TP
         ctx.font = '9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
-        const tpBottomText = showDollarPnL && showPnL ? `+${pnlPct}% | +${reward.toFixed(2)}` : `+${reward.toFixed(2)}`;
-        ctx.fillText(tpBottomText, tpLabelX + 6, tpLabelY + 21);
+        if (hasLivePrice && distToTp > 0) {
+          const distPct = ((distToTp / curPrice) * 100).toFixed(2);
+          ctx.fillStyle = hexToRgba(profitLine, 0.6);
+          ctx.fillText(`${distToTp.toFixed(2)} away (${distPct}%)`, tpLabelX + 6, tpLabelY + 21);
+        } else if (hasLivePrice && distToTp <= 0) {
+          ctx.fillStyle = profitLine;
+          ctx.fillText(`REACHED`, tpLabelX + 6, tpLabelY + 21);
+        } else {
+          ctx.fillStyle = hexToRgba(profitLine, 0.5);
+          const tpBottomText = showDollarPnL && showPnL ? `+${pnlPct}% | +${reward.toFixed(2)}` : `+${reward.toFixed(2)}`;
+          ctx.fillText(tpBottomText, tpLabelX + 6, tpLabelY + 21);
+        }
       }
     }
 
-    // ═══ RIGHT-SIDE SL LABEL ═══
+    // ═══ RIGHT-SIDE SL LABEL (with live distance) ═══
     if (!compact && showLabels) {
-      const slLabelW = (showPnL || showDollarPnL) ? 120 : 75;
-      const slLabelH = (showPnL || showDollarPnL) ? 24 : 16;
+      const hasPnlDetail = showPnL || showDollarPnL;
+      const slLabelW = hasPnlDetail ? 125 : 75;
+      const slLabelH = hasPnlDetail ? 24 : 16;
       const slLabelX = rightX - slLabelW - 12;
       const slLabelY = slY - slLabelH / 2;
 
@@ -1250,19 +1305,57 @@ export class ToolsRenderer {
       ctx.textAlign = 'left';
       ctx.fillText(`SL  ${tool.stopLoss.toFixed(2)}`, slLabelX + 6, slLabelY + 10);
 
-      if (showPnL || showDollarPnL) {
+      if (hasPnlDetail) {
+        // Right side: max $ loss or %
         ctx.fillStyle = riskLine;
         ctx.font = 'bold 10px system-ui';
         ctx.textAlign = 'right';
         const slRightText = showDollarPnL ? `-$${dollarLoss.toFixed(0)}` : `-${riskPct}%`;
         ctx.fillText(slRightText, slLabelX + slLabelW - 6, slLabelY + 10);
 
-        ctx.fillStyle = hexToRgba(riskLine, 0.5);
+        // Bottom row: live distance remaining to SL
         ctx.font = '9px "SF Mono", Consolas, monospace';
         ctx.textAlign = 'left';
-        const slBottomText = showDollarPnL && showPnL ? `-${riskPct}% | -${risk.toFixed(2)}` : `-${risk.toFixed(2)}`;
-        ctx.fillText(slBottomText, slLabelX + 6, slLabelY + 21);
+        if (hasLivePrice && distToSl > 0) {
+          const distPct = ((distToSl / curPrice) * 100).toFixed(2);
+          ctx.fillStyle = hexToRgba(riskLine, 0.6);
+          ctx.fillText(`${distToSl.toFixed(2)} away (${distPct}%)`, slLabelX + 6, slLabelY + 21);
+        } else if (hasLivePrice && distToSl <= 0) {
+          ctx.fillStyle = riskLine;
+          ctx.fillText(`REACHED`, slLabelX + 6, slLabelY + 21);
+        } else {
+          ctx.fillStyle = hexToRgba(riskLine, 0.5);
+          const slBottomText = showDollarPnL && showPnL ? `-${riskPct}% | -${risk.toFixed(2)}` : `-${risk.toFixed(2)}`;
+          ctx.fillText(slBottomText, slLabelX + 6, slLabelY + 21);
+        }
       }
+    }
+
+    // ═══ COMPACT LIVE P&L PILL (shown in compact mode when price is live) ═══
+    if (compact && hasLivePrice && !isClosed) {
+      const sign = liveInProfit ? '+' : '';
+      const pillText = `${sign}${livePnlPct.toFixed(2)}%`;
+      const pillColor = liveInProfit ? profitLine : riskLine;
+      ctx.font = 'bold 9px "SF Mono", Consolas, monospace';
+      const tw = ctx.measureText(pillText).width;
+      const pillW = tw + 10;
+      const pillH = 15;
+      const pillX = rightX - pillW - 6;
+      const pillY = entryY - pillH / 2;
+
+      ctx.fillStyle = hexToRgba(pillColor, 0.12);
+      ctx.beginPath();
+      ctx.roundRect(pillX, pillY, pillW, pillH, 3);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(pillColor, 0.35);
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+
+      ctx.fillStyle = pillColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pillText, pillX + pillW / 2, pillY + pillH / 2);
+      ctx.textBaseline = 'alphabetic';
     }
 
     // Restore alpha after labels
