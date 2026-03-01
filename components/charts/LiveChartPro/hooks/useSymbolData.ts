@@ -156,6 +156,8 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       low: c.low,
       close: c.close,
       volume: c.volume,
+      buyVolume: c.buyVolume || 0,
+      sellVolume: c.sellVolume || 0,
     }));
 
     refs.chartEngine.current.setCandles(chartCandles);
@@ -311,6 +313,8 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               low: candle.low,
               close: candle.close,
               volume: candle.volume,
+              buyVolume: candle.buyVolume,
+              sellVolume: candle.sellVolume,
             };
             refs.chartEngine.current.updateCandle(chartCandle);
 

@@ -171,6 +171,28 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
     refs.chartEngine.current.setShowVolumeBubbles(prefShowVolumeBubbles);
   }, [refs, prefShowVolume, prefShowGrid, prefShowVolumeBubbles]);
 
+  // Sync volume bubble advanced config
+  const bubbleMode = usePreferencesStore(s => s.volumeBubbleMode);
+  const bubbleScaling = usePreferencesStore(s => s.volumeBubbleScaling);
+  const bubbleMaxSize = usePreferencesStore(s => s.volumeBubbleMaxSize);
+  const bubbleMinFilter = usePreferencesStore(s => s.volumeBubbleMinFilter);
+  const bubbleOpacity = usePreferencesStore(s => s.volumeBubbleOpacity);
+  const bubblePositiveColor = usePreferencesStore(s => s.volumeBubblePositiveColor);
+  const bubbleNegativeColor = usePreferencesStore(s => s.volumeBubbleNegativeColor);
+  const bubbleNormalization = usePreferencesStore(s => s.volumeBubbleNormalization);
+  const bubbleShowPieChart = usePreferencesStore(s => s.volumeBubbleShowPieChart);
+
+  useEffect(() => {
+    if (!refs.chartEngine.current) return;
+    refs.chartEngine.current.setVolumeBubbleConfig({
+      mode: bubbleMode, scaling: bubbleScaling, maxSize: bubbleMaxSize,
+      minFilter: bubbleMinFilter, opacity: bubbleOpacity,
+      positiveColor: bubblePositiveColor, negativeColor: bubbleNegativeColor,
+      normalization: bubbleNormalization, showPieChart: bubbleShowPieChart,
+    });
+  }, [refs, bubbleMode, bubbleScaling, bubbleMaxSize, bubbleMinFilter, bubbleOpacity,
+      bubblePositiveColor, bubbleNegativeColor, bubbleNormalization, bubbleShowPieChart]);
+
   // Sync crosshair tooltip preference → chart engine
   const prefShowCrosshairTooltip = usePreferencesStore((s) => s.showCrosshairTooltip);
 

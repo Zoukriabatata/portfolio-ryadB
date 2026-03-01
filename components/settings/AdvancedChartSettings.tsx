@@ -256,6 +256,14 @@ export default function AdvancedChartSettings({
     // VP Engine settings
     vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
     vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
+    // Volume Bubble orderflow settings
+    showVolumeBubbles, setShowVolumeBubbles,
+    volumeBubbleMode, volumeBubbleScaling, volumeBubbleMaxSize,
+    volumeBubbleMinFilter, volumeBubbleOpacity,
+    volumeBubblePositiveColor, volumeBubbleNegativeColor,
+    volumeBubbleNormalization, volumeBubbleShowPieChart,
+    // Cluster overlay settings
+    showClusterOverlay, clusterOverlayOpacity,
     setVPSetting,
   } = usePreferencesStore();
 
@@ -1050,6 +1058,135 @@ export default function AdvancedChartSettings({
                     {/* Toggle: Compact Mode */}
                     <ToggleSwitch label="Mode minimal" description="Lignes pures sans labels ni informations" value={posDefaultCompact} onChange={(v) => setVPSetting('posDefaultCompact', v)} />
                   </div>
+                </div>
+
+                {/* ═══ VOLUME BUBBLES ═══ */}
+                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Volume Bubbles</h3>
+
+                  <ToggleSwitch label="Activer" description="Bulles de volume sur les bougies" value={showVolumeBubbles} onChange={setShowVolumeBubbles} />
+
+                  {showVolumeBubbles && (
+                    <div className="space-y-3 mt-3">
+                      {/* Mode */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Mode</span>
+                        <div className="flex gap-1">
+                          {([['total', 'Total'], ['delta', 'Delta'], ['bid', 'Bid'], ['ask', 'Ask']] as const).map(([val, label]) => (
+                            <button key={val} onClick={() => setVPSetting('volumeBubbleMode', val)}
+                              className="px-2 py-0.5 rounded text-[10px] transition-colors"
+                              style={{
+                                backgroundColor: volumeBubbleMode === val ? 'var(--primary)' : 'var(--surface-elevated)',
+                                color: volumeBubbleMode === val ? '#fff' : 'var(--text-secondary)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >{label}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Scaling */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Scaling</span>
+                        <div className="flex gap-1">
+                          {([['sqrt', 'Sqrt'], ['linear', 'Linear'], ['log', 'Log']] as const).map(([val, label]) => (
+                            <button key={val} onClick={() => setVPSetting('volumeBubbleScaling', val)}
+                              className="px-2 py-0.5 rounded text-[10px] transition-colors"
+                              style={{
+                                backgroundColor: volumeBubbleScaling === val ? 'var(--primary)' : 'var(--surface-elevated)',
+                                color: volumeBubbleScaling === val ? '#fff' : 'var(--text-secondary)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >{label}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Normalization */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Normalisation</span>
+                        <div className="flex gap-1">
+                          {([['visible', 'Visible'], ['session', 'Session'], ['rolling', 'Rolling']] as const).map(([val, label]) => (
+                            <button key={val} onClick={() => setVPSetting('volumeBubbleNormalization', val)}
+                              className="px-2 py-0.5 rounded text-[10px] transition-colors"
+                              style={{
+                                backgroundColor: volumeBubbleNormalization === val ? 'var(--primary)' : 'var(--surface-elevated)',
+                                color: volumeBubbleNormalization === val ? '#fff' : 'var(--text-secondary)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >{label}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Max Size */}
+                      <SliderControl label="Taille max" value={volumeBubbleMaxSize} min={10} max={60} step={2} unit="px" onChange={(v) => setVPSetting('volumeBubbleMaxSize', v)} />
+
+                      {/* Opacity */}
+                      <SliderControl label="Opacité" value={Math.round(volumeBubbleOpacity * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('volumeBubbleOpacity', v / 100)} />
+
+                      {/* Min Volume Filter */}
+                      <SliderControl label="Volume min" value={volumeBubbleMinFilter} min={0} max={1000} step={10} unit="" onChange={(v) => setVPSetting('volumeBubbleMinFilter', v)} />
+
+                      {/* Pie Chart */}
+                      <ToggleSwitch label="Pie Chart" description="Afficher la répartition buy/sell en camembert" value={volumeBubbleShowPieChart} onChange={(v) => setVPSetting('volumeBubbleShowPieChart', v)} />
+
+                      {/* Positive Color */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur positive</span>
+                          <div className="relative">
+                            <input type="color" value={volumeBubblePositiveColor} onChange={(e) => setVPSetting('volumeBubblePositiveColor', e.target.value)}
+                              className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
+                            <div className="w-5 h-5 rounded" style={{ backgroundColor: volumeBubblePositiveColor, border: '2px solid var(--border)' }} />
+                          </div>
+                          <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{volumeBubblePositiveColor}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {['#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#fbbf24', '#f59e0b', '#84cc16', '#ffffff'].map(c => (
+                            <button key={c} onClick={() => setVPSetting('volumeBubblePositiveColor', c)}
+                              className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
+                              style={{ backgroundColor: c, border: `1.5px solid ${volumeBubblePositiveColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: volumeBubblePositiveColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Negative Color */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur negative</span>
+                          <div className="relative">
+                            <input type="color" value={volumeBubbleNegativeColor} onChange={(e) => setVPSetting('volumeBubbleNegativeColor', e.target.value)}
+                              className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
+                            <div className="w-5 h-5 rounded" style={{ backgroundColor: volumeBubbleNegativeColor, border: '2px solid var(--border)' }} />
+                          </div>
+                          <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{volumeBubbleNegativeColor}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {['#ef4444', '#f43f5e', '#e11d48', '#ec4899', '#d946ef', '#c084fc', '#a855f7', '#f97316', '#fb923c', '#fbbf24', '#facc15', '#f59e0b', '#06b6d4', '#3b82f6', '#84cc16', '#ffffff'].map(c => (
+                            <button key={c} onClick={() => setVPSetting('volumeBubbleNegativeColor', c)}
+                              className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
+                              style={{ backgroundColor: c, border: `1.5px solid ${volumeBubbleNegativeColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: volumeBubbleNegativeColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ═══ CLUSTER OVERLAY ═══ */}
+                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Cluster Overlay</h3>
+
+                  <ToggleSwitch label="Activer" description="Overlay footprint bid/ask sur les bougies" value={showClusterOverlay} onChange={(v) => setVPSetting('showClusterOverlay', v)} />
+
+                  {showClusterOverlay && (
+                    <div className="space-y-3 mt-3">
+                      <SliderControl label="Opacité" value={Math.round(clusterOverlayOpacity * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('clusterOverlayOpacity', v / 100)} />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

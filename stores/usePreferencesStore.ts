@@ -75,6 +75,21 @@ export interface PreferencesState {
   setVolumeMode: (mode: 'classic' | 'bidask' | 'delta') => void;
   setShowVolumeProfile: (show: boolean) => void;
 
+  // Volume Bubble orderflow settings
+  volumeBubbleMode: 'total' | 'delta' | 'bid' | 'ask';
+  volumeBubbleScaling: 'sqrt' | 'linear' | 'log';
+  volumeBubbleMaxSize: number;
+  volumeBubbleMinFilter: number;
+  volumeBubbleOpacity: number;
+  volumeBubblePositiveColor: string;
+  volumeBubbleNegativeColor: string;
+  volumeBubbleNormalization: 'session' | 'visible' | 'rolling';
+  volumeBubbleShowPieChart: boolean;
+
+  // Cluster overlay
+  showClusterOverlay: boolean;
+  clusterOverlayOpacity: number;
+
   // VP Level Lines
   vpPocEnabled: boolean;
   vpPocColor: string;
@@ -157,6 +172,20 @@ export const usePreferencesStore = create<PreferencesState>()(
       volumeMode: 'classic',
       showVolumeProfile: false,
 
+      // Volume Bubble orderflow defaults
+      volumeBubbleMode: 'total',
+      volumeBubbleScaling: 'sqrt',
+      volumeBubbleMaxSize: 30,
+      volumeBubbleMinFilter: 0,
+      volumeBubbleOpacity: 0.6,
+      volumeBubblePositiveColor: '#22c55e',
+      volumeBubbleNegativeColor: '#ef4444',
+      volumeBubbleNormalization: 'visible',
+      volumeBubbleShowPieChart: false,
+      // Cluster overlay defaults
+      showClusterOverlay: false,
+      clusterOverlayOpacity: 0.8,
+
       // VP Level Lines defaults
       vpPocEnabled: true, vpPocColor: '#f59e0b', vpPocWidth: 1.5, vpPocStyle: 'solid', vpPocLabel: true,
       vpVahEnabled: true, vpVahColor: '#3b82f6', vpVahWidth: 1, vpVahStyle: 'dashed', vpVahLabel: true,
@@ -226,6 +255,12 @@ export const usePreferencesStore = create<PreferencesState>()(
         showCrosshairTooltip: s.showCrosshairTooltip,
         volumeMode: s.volumeMode,
         showVolumeProfile: s.showVolumeProfile,
+        volumeBubbleMode: s.volumeBubbleMode, volumeBubbleScaling: s.volumeBubbleScaling,
+        volumeBubbleMaxSize: s.volumeBubbleMaxSize, volumeBubbleMinFilter: s.volumeBubbleMinFilter,
+        volumeBubbleOpacity: s.volumeBubbleOpacity, volumeBubblePositiveColor: s.volumeBubblePositiveColor,
+        volumeBubbleNegativeColor: s.volumeBubbleNegativeColor, volumeBubbleNormalization: s.volumeBubbleNormalization,
+        volumeBubbleShowPieChart: s.volumeBubbleShowPieChart,
+        showClusterOverlay: s.showClusterOverlay, clusterOverlayOpacity: s.clusterOverlayOpacity,
         vpPocEnabled: s.vpPocEnabled, vpPocColor: s.vpPocColor, vpPocWidth: s.vpPocWidth, vpPocStyle: s.vpPocStyle, vpPocLabel: s.vpPocLabel,
         vpVahEnabled: s.vpVahEnabled, vpVahColor: s.vpVahColor, vpVahWidth: s.vpVahWidth, vpVahStyle: s.vpVahStyle, vpVahLabel: s.vpVahLabel,
         vpValEnabled: s.vpValEnabled, vpValColor: s.vpValColor, vpValWidth: s.vpValWidth, vpValStyle: s.vpValStyle, vpValLabel: s.vpValLabel,

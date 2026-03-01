@@ -12,6 +12,8 @@ export interface ChartCandle {
   low: number;
   close: number;
   volume: number;
+  buyVolume?: number;
+  sellVolume?: number;
 }
 
 export interface ChartTheme {
@@ -130,6 +132,17 @@ export class CanvasChartEngine {
   private showVolume = true;
   private showVolumeBubbles = false;
   private showGrid = true;
+  private volumeBubbleConfig = {
+    mode: 'total' as 'total' | 'delta' | 'bid' | 'ask',
+    scaling: 'sqrt' as 'sqrt' | 'linear' | 'log',
+    maxSize: 30,
+    minFilter: 0,
+    opacity: 0.6,
+    positiveColor: '#22c55e',
+    negativeColor: '#ef4444',
+    normalization: 'visible' as 'session' | 'visible' | 'rolling',
+    showPieChart: false,
+  };
   private animationFrameId: number | null = null;
   private smoothAnimationId: number | null = null; // For lerp animation loop
   private dpr = 1;
@@ -369,6 +382,11 @@ export class CanvasChartEngine {
 
   setShowVolumeBubbles(show: boolean): void {
     this.showVolumeBubbles = show;
+    this.render();
+  }
+
+  setVolumeBubbleConfig(config: Partial<typeof CanvasChartEngine.prototype.volumeBubbleConfig>): void {
+    Object.assign(this.volumeBubbleConfig, config);
     this.render();
   }
 
@@ -889,6 +907,7 @@ export class CanvasChartEngine {
   private drawVolumeBubbles(): void {
     const { width, height, priceAxisWidth, timeAxisHeight, volumeHeight } = this.dimensions;
     const { startIndex, endIndex, priceMin, priceMax } = this.viewport;
+    const cfg = this.volumeBubbleConfig;
 
     const chartWidth = width - priceAxisWidth;
     const chartHeight = height - timeAxisHeight - (this.showVolume ? volumeHeight : 0);
@@ -900,61 +919,168 @@ export class CanvasChartEngine {
     const safeStart = Math.max(0, Math.floor(startIndex));
     const safeEnd = Math.min(Math.ceil(endIndex), this.candles.length);
 
-    // Find max volume for normalization
+    // Get value per candle based on mode
+    const getValue = (c: ChartCandle): number => {
+      switch (cfg.mode) {
+        case 'delta': return Math.abs((c.buyVolume || 0) - (c.sellVolume || 0));
+        case 'bid': return c.sellVolume || 0;
+        case 'ask': return c.buyVolume || 0;
+        default: return c.volume;
+      }
+    };
+
+    // Find max for normalization
     let maxVol = 0;
-    for (let i = safeStart; i < safeEnd; i++) {
-      if (this.candles[i].volume > maxVol) maxVol = this.candles[i].volume;
+    if (cfg.normalization === 'session') {
+      for (let i = 0; i < this.candles.length; i++) maxVol = Math.max(maxVol, getValue(this.candles[i]));
+    } else if (cfg.normalization === 'rolling') {
+      const rollStart = Math.max(0, safeEnd - 100);
+      for (let i = rollStart; i < safeEnd; i++) maxVol = Math.max(maxVol, getValue(this.candles[i]));
+    } else {
+      for (let i = safeStart; i < safeEnd; i++) maxVol = Math.max(maxVol, getValue(this.candles[i]));
     }
     if (maxVol === 0) return;
 
-    const maxRadius = Math.min(30, candleTotalWidth * 0.8);
+    // Max delta for intensity mapping
+    let maxAbsDelta = 0;
+    if (cfg.mode === 'delta') {
+      for (let i = safeStart; i < safeEnd; i++) {
+        const c = this.candles[i];
+        maxAbsDelta = Math.max(maxAbsDelta, Math.abs((c.buyVolume || 0) - (c.sellVolume || 0)));
+      }
+    }
+
+    const maxRadius = Math.min(cfg.maxSize, candleTotalWidth * 0.8);
     this.ctx.save();
 
     for (let i = safeStart; i < safeEnd; i++) {
       const candle = this.candles[i];
-      if (candle.volume < 1) continue;
+      const val = getValue(candle);
+      if (val < cfg.minFilter || val < 1) continue;
 
       const x = (i - startIndex) * candleTotalWidth + candleTotalWidth / 2;
       const midPrice = (candle.open + candle.close) / 2;
       const centerY = ((priceMax - midPrice) / priceRange) * chartHeight;
+
+      // Size scaling
+      const normalized = val / maxVol;
+      let radius: number;
+      switch (cfg.scaling) {
+        case 'linear': radius = normalized * maxRadius; break;
+        case 'log': radius = (Math.log(normalized * 100 + 1) / Math.log(101)) * maxRadius; break;
+        default: radius = Math.sqrt(normalized) * maxRadius; break;
+      }
+      radius = Math.max(3, Math.min(maxRadius, radius));
+
+      // Color logic
+      let bubbleColor: string;
+      let intensity = 1;
       const isUp = candle.close >= candle.open;
+      const buyVol = candle.buyVolume || 0;
+      const sellVol = candle.sellVolume || 0;
+      const delta = buyVol - sellVol;
 
-      // Sqrt scaling for perceptual accuracy
-      const normalizedVol = candle.volume / maxVol;
-      const radius = Math.max(3, Math.sqrt(normalizedVol) * maxRadius);
+      switch (cfg.mode) {
+        case 'delta':
+          bubbleColor = delta >= 0 ? cfg.positiveColor : cfg.negativeColor;
+          intensity = maxAbsDelta > 0 ? Math.abs(delta) / maxAbsDelta : 1;
+          break;
+        case 'bid':
+          bubbleColor = cfg.negativeColor;
+          break;
+        case 'ask':
+          bubbleColor = cfg.positiveColor;
+          break;
+        default:
+          bubbleColor = isUp ? cfg.positiveColor : cfg.negativeColor;
+          break;
+      }
 
-      // Outer glow
-      this.ctx.beginPath();
-      this.ctx.arc(x, centerY, radius + 2, 0, Math.PI * 2);
-      this.ctx.fillStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
-      this.ctx.globalAlpha = 0.08;
-      this.ctx.fill();
+      // Pie chart mode
+      if (cfg.showPieChart && buyVol + sellVol > 0) {
+        const buyRatio = buyVol / (buyVol + sellVol);
+        const startAngle = -Math.PI / 2;
+        const splitAngle = startAngle + buyRatio * Math.PI * 2;
 
-      // Main bubble
-      this.ctx.beginPath();
-      this.ctx.arc(x, centerY, radius, 0, Math.PI * 2);
-      this.ctx.fillStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
-      this.ctx.globalAlpha = 0.35;
-      this.ctx.fill();
+        // Outer glow
+        this.ctx.beginPath();
+        this.ctx.arc(x, centerY, radius + 2, 0, Math.PI * 2);
+        this.ctx.fillStyle = bubbleColor;
+        this.ctx.globalAlpha = cfg.opacity * 0.08;
+        this.ctx.fill();
 
-      // Border
-      this.ctx.strokeStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
-      this.ctx.lineWidth = 1.5;
-      this.ctx.globalAlpha = 0.7;
-      this.ctx.stroke();
+        // Buy (ask) slice
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, centerY);
+        this.ctx.arc(x, centerY, radius, startAngle, splitAngle);
+        this.ctx.closePath();
+        this.ctx.fillStyle = cfg.positiveColor;
+        this.ctx.globalAlpha = cfg.opacity * 0.55;
+        this.ctx.fill();
+
+        // Sell (bid) slice
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, centerY);
+        this.ctx.arc(x, centerY, radius, splitAngle, startAngle + Math.PI * 2);
+        this.ctx.closePath();
+        this.ctx.fillStyle = cfg.negativeColor;
+        this.ctx.globalAlpha = cfg.opacity * 0.55;
+        this.ctx.fill();
+
+        // Border
+        this.ctx.beginPath();
+        this.ctx.arc(x, centerY, radius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = isUp ? cfg.positiveColor : cfg.negativeColor;
+        this.ctx.lineWidth = 1.5;
+        this.ctx.globalAlpha = cfg.opacity * 0.8;
+        this.ctx.stroke();
+
+        // Divider
+        if (buyRatio > 0.05 && buyRatio < 0.95) {
+          const dx = Math.cos(splitAngle) * radius;
+          const dy = Math.sin(splitAngle) * radius;
+          this.ctx.beginPath();
+          this.ctx.moveTo(x, centerY);
+          this.ctx.lineTo(x + dx, centerY + dy);
+          this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+          this.ctx.lineWidth = 1;
+          this.ctx.globalAlpha = cfg.opacity;
+          this.ctx.stroke();
+        }
+      } else {
+        // Solid bubble
+        // Outer glow
+        this.ctx.beginPath();
+        this.ctx.arc(x, centerY, radius + 2, 0, Math.PI * 2);
+        this.ctx.fillStyle = bubbleColor;
+        this.ctx.globalAlpha = cfg.opacity * 0.08;
+        this.ctx.fill();
+
+        // Main bubble
+        this.ctx.beginPath();
+        this.ctx.arc(x, centerY, radius, 0, Math.PI * 2);
+        this.ctx.fillStyle = bubbleColor;
+        this.ctx.globalAlpha = cfg.opacity * (0.2 + intensity * 0.35);
+        this.ctx.fill();
+
+        // Border
+        this.ctx.strokeStyle = bubbleColor;
+        this.ctx.lineWidth = 1.5;
+        this.ctx.globalAlpha = cfg.opacity * 0.7;
+        this.ctx.stroke();
+      }
 
       // Volume label for large bubbles
       if (radius >= 16) {
-        this.ctx.globalAlpha = 0.85;
+        this.ctx.globalAlpha = cfg.opacity * 0.9;
         this.ctx.fillStyle = '#ffffff';
         const fontSize = radius >= 22 ? 9 : 7;
         this.ctx.font = `bold ${fontSize}px "Consolas", monospace`;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        const vol = candle.volume;
-        const label = vol >= 1000000 ? `${(vol / 1000000).toFixed(1)}M`
-          : vol >= 1000 ? `${(vol / 1000).toFixed(1)}K`
-          : Math.round(vol).toString();
+        const label = val >= 1000000 ? `${(val / 1000000).toFixed(1)}M`
+          : val >= 1000 ? `${(val / 1000).toFixed(1)}K`
+          : Math.round(val).toString();
         this.ctx.fillText(label, x, centerY);
       }
     }

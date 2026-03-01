@@ -40,6 +40,8 @@ import { DEFAULT_CUSTOM_COLORS, type SharedRefs, type CustomColors } from './hoo
 import { BroadcastChannelManager } from '@/lib/sync/BroadcastChannelManager';
 import { useChartSyncStore } from '@/stores/useChartSyncStore';
 import { useLiveVolumeProfile } from '@/hooks/useLiveVolumeProfile';
+import { useLiveFootprint } from '@/hooks/useLiveFootprint';
+import { ClusterRenderer } from '@/lib/rendering/ClusterRenderer';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
 import VolumeProfilePanel from './overlays/VolumeProfilePanel';
 import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
@@ -274,6 +276,20 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   // Volume Profile — real-time orderflow from aggTrade
   const vpData = useLiveVolumeProfile(symbolData.symbol, showVolumeProfile);
 
+  // Cluster overlay — footprint bid/ask per price level
+  const showClusterOverlay = usePreferencesStore(s => s.showClusterOverlay);
+  const clusterOverlayOpacity = usePreferencesStore(s => s.clusterOverlayOpacity);
+  const clusterRendererRef = useRef(new ClusterRenderer());
+  const { getFootprintForTime } = useLiveFootprint({
+    symbol: symbolData.symbol,
+    timeframe: symbolData.timeframe,
+    enabled: showClusterOverlay,
+  });
+
+  useEffect(() => {
+    clusterRendererRef.current.setConfig({ opacity: clusterOverlayOpacity });
+  }, [clusterOverlayOpacity]);
+
   // Sync VP levels + settings to chart engine for full-width POC/VAH/VAL lines
   const vpPocEnabled = usePreferencesStore((s) => s.vpPocEnabled);
   const vpPocColor = usePreferencesStore((s) => s.vpPocColor);
@@ -330,6 +346,9 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
     refs,
     theme,
     symbol: symbolData.symbol,
+    clusterRenderer: clusterRendererRef.current,
+    getFootprintForTime,
+    showClusterOverlay,
   });
 
   const contextMenuHook = useContextMenu({

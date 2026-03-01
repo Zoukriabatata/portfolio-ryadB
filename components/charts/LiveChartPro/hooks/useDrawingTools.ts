@@ -18,11 +18,16 @@ import { TOOL_TYPE_MAPPING } from '../constants/tools';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
 import { getLastToolbarInteraction } from '@/components/tools/ToolSettingsBar';
+import type { ClusterRenderer } from '@/lib/rendering/ClusterRenderer';
+import type { FootprintCandle } from '@/lib/orderflow/OrderflowEngine';
 
 interface UseDrawingToolsParams {
   refs: SharedRefs;
   theme: ChartTheme;
   symbol: string;
+  clusterRenderer?: ClusterRenderer;
+  getFootprintForTime?: (time: number) => FootprintCandle | undefined;
+  showClusterOverlay?: boolean;
 }
 
 // Map DrawingTools ToolType to ToolsEngine ToolType
@@ -30,7 +35,7 @@ function mapToolType(type: ToolType): EngineToolType | null {
   return TOOL_TYPE_MAPPING[type] || null;
 }
 
-export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) {
+export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootprintForTime, showClusterOverlay }: UseDrawingToolsParams) {
   const [activeTool, setActiveTool] = useState<ToolType>('cursor');
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [drawings, setDrawings] = useState<DrawingObject[]>([]);
@@ -210,6 +215,22 @@ export function useDrawingTools({ refs, theme, symbol }: UseDrawingToolsParams) 
       hoveredToolId: refs.interactionController.current.getHoveredToolId(),
       hoveredHandle: refs.interactionController.current.getHoveredHandle(),
     };
+
+    // Render cluster overlay (between candles and drawing tools in z-order)
+    if (showClusterOverlay && clusterRenderer && getFootprintForTime) {
+      const candleTotalWidth = chartWidth / (endIndex - startIndex);
+      const visibleFootprints: FootprintCandle[] = [];
+      for (const candle of candles) {
+        const fp = getFootprintForTime(candle.time);
+        if (fp) visibleFootprints.push(fp);
+      }
+      if (visibleFootprints.length > 0) {
+        clusterRenderer.renderClusters(
+          ctx, visibleFootprints, renderContext.priceToY, renderContext.timeToX,
+          chartWidth, chartHeight, candleTotalWidth,
+        );
+      }
+    }
 
     refs.toolsRenderer.current.render(renderContext);
 
