@@ -314,6 +314,7 @@ export default function AdvancedChartSettings({
     posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
     posSmartArrow, posDynamicOpacity, posOpacityCurve, posOpacityIntensity,
     posArrowExponent, posArrowIntensity, posArrowThickness, posArrowFill,
+    posProgressTrail, posTrailIntensity, posHeatFill, posHeatIntensity, posTimeWeight,
     // VP Engine settings
     vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
     vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
@@ -1179,10 +1180,20 @@ export default function AdvancedChartSettings({
 
                     {posSmartArrow && (
                       <div className="space-y-2 mt-1 pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
-                        <ToggleSwitch label="Progress fill" description="Gradient de progression entre entry et prix" value={posArrowFill} onChange={(v) => setVPSetting('posArrowFill', v)} />
                         <SliderControl label="Exposant" value={posArrowExponent} min={1} max={3} step={0.1} onChange={(v) => setVPSetting('posArrowExponent', v)} />
                         <SliderControl label="Intensité" value={posArrowIntensity} min={0} max={100} step={5} unit="%" onChange={(v) => setVPSetting('posArrowIntensity', v)} />
                         <SliderControl label="Épaisseur" value={posArrowThickness} min={1} max={3} step={0.2} unit="px" onChange={(v) => setVPSetting('posArrowThickness', v)} />
+                        <SliderControl label="Poids temps/prix" value={posTimeWeight} min={10} max={90} step={5} unit="%" onChange={(v) => setVPSetting('posTimeWeight', v)} />
+
+                        <ToggleSwitch label="Traînée" description="Trail subtil derrière la flèche" value={posProgressTrail} onChange={(v) => setVPSetting('posProgressTrail', v)} />
+                        {posProgressTrail && (
+                          <SliderControl label="Intensité trail" value={posTrailIntensity} min={5} max={50} step={5} unit="%" onChange={(v) => setVPSetting('posTrailIntensity', v)} />
+                        )}
+
+                        <ToggleSwitch label="Heat fill" description="Zone qui se chauffe progressivement" value={posHeatFill} onChange={(v) => setVPSetting('posHeatFill', v)} />
+                        {posHeatFill && (
+                          <SliderControl label="Intensité heat" value={posHeatIntensity} min={10} max={80} step={5} unit="%" onChange={(v) => setVPSetting('posHeatIntensity', v)} />
+                        )}
                       </div>
                     )}
 

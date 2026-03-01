@@ -924,88 +924,138 @@ export class ToolsRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ═══ INTERNAL SMART ARROW ═══
+    // ═══ POSITION PROGRESS ENGINE v2 ═══
     const livePrice = context.currentPrice || 0;
     if (smartArrowEnabled && livePrice > 0) {
       const arrowExponent = prefs.posArrowExponent ?? 1.6;
       const arrowIntensity = (prefs.posArrowIntensity ?? 50) / 100;
       const arrowThickness = prefs.posArrowThickness ?? 1.4;
-      const arrowFillEnabled = prefs.posArrowFill !== false;
+      const trailEnabled = prefs.posProgressTrail !== false;
+      const trailFactor = (prefs.posTrailIntensity ?? 25) / 100;
+      const heatFillEnabled = prefs.posHeatFill !== false;
+      const heatIntensity = (prefs.posHeatIntensity ?? 40) / 100;
+      const timeWeight = (prefs.posTimeWeight ?? 60) / 100;
+      const priceWeight = 1 - timeWeight;
 
-      // Clamp price within SL ↔ TP bounds
+      // ── Clamp price within SL ↔ TP bounds ──
       const clampedPrice = isLong
         ? Math.max(tool.stopLoss, Math.min(livePrice, tool.takeProfit))
         : Math.min(tool.stopLoss, Math.max(livePrice, tool.takeProfit));
 
-      // Progress: 0 = at entry, positive = toward TP, negative = toward SL
+      // ── Clamp time within leftTime ↔ rightTime ──
+      const currentTime = Date.now() / 1000;
+      const clampedTime = Math.max(tool.startTime, Math.min(currentTime, tool.endTime));
+
+      // ── Progress calculations ──
       const tpDist = Math.abs(tool.takeProfit - tool.entry);
       const slDist = Math.abs(tool.stopLoss - tool.entry);
-      const inProfit = isLong ? clampedPrice >= tool.entry : clampedPrice <= tool.entry;
-      const progress = inProfit
-        ? (tpDist > 0 ? Math.min(1, Math.abs(clampedPrice - tool.entry) / tpDist) : 0)
-        : (slDist > 0 ? -Math.min(1, Math.abs(clampedPrice - tool.entry) / slDist) : 0);
+      const timeDuration = tool.endTime - tool.startTime;
 
-      // Edge case guards: disable if TP≈Entry, SL≈Entry, or rect too small
+      const timeProgress = timeDuration > 0
+        ? Math.min(1, Math.max(0, (clampedTime - tool.startTime) / timeDuration))
+        : 0;
+
+      const inProfit = isLong ? clampedPrice >= tool.entry : clampedPrice <= tool.entry;
+      const priceProgress = inProfit
+        ? (tpDist > 0 ? Math.min(1, Math.abs(clampedPrice - tool.entry) / tpDist) : 0)
+        : (slDist > 0 ? Math.min(1, Math.abs(clampedPrice - tool.entry) / slDist) : 0);
+
+      const combinedProgress = Math.min(1, Math.max(0, timeProgress * timeWeight + priceProgress * priceWeight));
+
+      // ── Edge case guards ──
       const rectHeight = Math.abs(tpY - slY);
       if (tpDist >= 0.01 && slDist >= 0.01 && rectHeight >= 20) {
-        // X: centered in rectangle
-        const centerX = (leftX + rightX) / 2;
-
-        // Y positions with 6px internal padding
-        const clampedPriceY = Math.round(priceToY(clampedPrice));
+        // Pixel positions
         const paddingPx = 6;
         const topBound = Math.min(tpY, slY) + paddingPx;
         const bottomBound = Math.max(tpY, slY) - paddingPx;
-        const paddedEntryY = Math.max(topBound, Math.min(entryY, bottomBound));
-        const paddedCurrentY = Math.max(topBound, Math.min(clampedPriceY, bottomBound));
 
-        // Exponential opacity
-        const absProgress = Math.abs(progress);
-        const baseOpacity = 0.15;
-        const dynamicOpacity = Math.pow(absProgress, arrowExponent) * arrowIntensity;
+        const startX = leftX + paddingPx;
+        const startY = Math.max(topBound, Math.min(entryY, bottomBound));
+
+        const clampedPriceY = Math.round(priceToY(clampedPrice));
+        const clampedTimeX = Math.round(timeToX(clampedTime));
+        const currentX = Math.max(leftX + paddingPx, Math.min(clampedTimeX, rightX - paddingPx));
+        const currentY = Math.max(topBound, Math.min(clampedPriceY, bottomBound));
+
+        // ── Exponential opacity ──
+        const baseOpacity = 0.12;
+        const dynamicOpacity = Math.pow(combinedProgress, arrowExponent) * arrowIntensity * 0.55;
         const arrowOpacity = Math.min(0.85, baseOpacity + dynamicOpacity);
         const arrowColor = inProfit ? profitLine : riskLine;
 
-        // Partial fill gradient (entry ↔ current)
-        if (arrowFillEnabled && Math.abs(paddedCurrentY - paddedEntryY) > 2) {
+        const dx = currentX - startX;
+        const dy = currentY - startY;
+        const arrowLength = Math.sqrt(dx * dx + dy * dy);
+
+        // ── Heat fill: progressive zone from left → currentX ──
+        if (heatFillEnabled && dx > 2) {
           ctx.save();
           ctx.beginPath();
           ctx.rect(leftX, Math.min(tpY, slY), rightX - leftX, rectHeight);
           ctx.clip();
 
-          const grad = ctx.createLinearGradient(0, paddedEntryY, 0, paddedCurrentY);
-          grad.addColorStop(0, hexToRgba(arrowColor, baseOpacity * 0.3));
-          grad.addColorStop(1, hexToRgba(arrowColor, arrowOpacity * 0.4));
-          ctx.fillStyle = grad;
+          const heatAlpha = baseOpacity + Math.pow(combinedProgress, arrowExponent) * heatIntensity * 0.5;
+          const heatGrad = ctx.createLinearGradient(leftX, 0, currentX, 0);
+          heatGrad.addColorStop(0, hexToRgba(arrowColor, 0.02));
+          heatGrad.addColorStop(0.5, hexToRgba(arrowColor, heatAlpha * 0.3));
+          heatGrad.addColorStop(1, hexToRgba(arrowColor, heatAlpha));
+          ctx.fillStyle = heatGrad;
 
-          const fillTop = Math.min(paddedEntryY, paddedCurrentY);
-          const fillH = Math.abs(paddedCurrentY - paddedEntryY);
-          const fillW = Math.min(24, (rightX - leftX) * 0.15);
-          ctx.fillRect(centerX - fillW / 2, fillTop, fillW, fillH);
+          // Fill from left edge to current X position, full height of the zone
+          const zoneTop = Math.min(tpY, slY);
+          ctx.fillRect(leftX, zoneTop, currentX - leftX, rectHeight);
           ctx.restore();
         }
 
-        // Arrow shaft: entry → clamped current price
-        if (Math.abs(paddedCurrentY - paddedEntryY) > 4) {
+        // ── Progress trail (behind arrow) ──
+        if (trailEnabled && arrowLength > 8) {
+          const trailX = currentX - dx * trailFactor;
+          const trailY = currentY - dy * trailFactor;
+          ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity * 0.4);
+          ctx.lineWidth = Math.max(0.5, arrowThickness * 0.6);
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(trailX, trailY);
+          ctx.lineTo(currentX, currentY);
+          ctx.stroke();
+        }
+
+        // ── Arrow shaft: left entry → current position (diagonal) ──
+        if (arrowLength > 6) {
           ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity);
           ctx.lineWidth = arrowThickness;
           ctx.setLineDash([]);
           ctx.beginPath();
-          ctx.moveTo(centerX, paddedEntryY);
-          ctx.lineTo(centerX, paddedCurrentY);
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(currentX, currentY);
           ctx.stroke();
         }
 
-        // Triangle tip at current price (5px, minimal)
-        const tipSize = 5;
-        const tipDirection = paddedCurrentY < paddedEntryY ? -1 : 1;
-        ctx.fillStyle = hexToRgba(arrowColor, arrowOpacity);
-        ctx.beginPath();
-        ctx.moveTo(centerX - tipSize, paddedCurrentY);
-        ctx.lineTo(centerX, paddedCurrentY + tipSize * tipDirection);
-        ctx.lineTo(centerX + tipSize, paddedCurrentY);
-        ctx.closePath();
-        ctx.fill();
+        // ── Arrow head triangle (5px, directional) ──
+        if (arrowLength > 10) {
+          const tipSize = 5;
+          // Direction angle of the arrow
+          const angle = Math.atan2(dy, dx);
+          const tipX = currentX;
+          const tipY2 = currentY;
+          ctx.fillStyle = hexToRgba(arrowColor, arrowOpacity);
+          ctx.beginPath();
+          ctx.moveTo(
+            tipX + tipSize * Math.cos(angle),
+            tipY2 + tipSize * Math.sin(angle)
+          );
+          ctx.lineTo(
+            tipX + tipSize * Math.cos(angle + 2.5),
+            tipY2 + tipSize * Math.sin(angle + 2.5)
+          );
+          ctx.lineTo(
+            tipX + tipSize * Math.cos(angle - 2.5),
+            tipY2 + tipSize * Math.sin(angle - 2.5)
+          );
+          ctx.closePath();
+          ctx.fill();
+        }
       }
     }
 

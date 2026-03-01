@@ -141,6 +141,11 @@ export interface PreferencesState {
   posArrowIntensity: number;   // 0-100
   posArrowThickness: number;   // 1-3
   posArrowFill: boolean;
+  posProgressTrail: boolean;   // Trail behind arrow
+  posTrailIntensity: number;   // 0-100
+  posHeatFill: boolean;        // Progressive zone heat fill
+  posHeatIntensity: number;    // 0-100
+  posTimeWeight: number;       // 0-100 (time weight %, price = 100 - this)
 
   // Volume bar appearance
   volumeBarBullColor: string;
@@ -235,6 +240,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       posArrowIntensity: 50,
       posArrowThickness: 1.4,
       posArrowFill: true,
+      posProgressTrail: true,
+      posTrailIntensity: 25,
+      posHeatFill: true,
+      posHeatIntensity: 40,
+      posTimeWeight: 60,
 
       // Volume bar appearance
       volumeBarBullColor: '#22c55e',
@@ -309,6 +319,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         posOpacityCurve: s.posOpacityCurve, posOpacityIntensity: s.posOpacityIntensity,
         posArrowExponent: s.posArrowExponent, posArrowIntensity: s.posArrowIntensity,
         posArrowThickness: s.posArrowThickness, posArrowFill: s.posArrowFill,
+        posProgressTrail: s.posProgressTrail, posTrailIntensity: s.posTrailIntensity,
+        posHeatFill: s.posHeatFill, posHeatIntensity: s.posHeatIntensity, posTimeWeight: s.posTimeWeight,
         volumeBarBullColor: s.volumeBarBullColor, volumeBarBearColor: s.volumeBarBearColor, volumeBarOpacity: s.volumeBarOpacity,
         showCurrentPriceLine: s.showCurrentPriceLine,
         priceLineStyle: s.priceLineStyle,
