@@ -211,12 +211,7 @@ export default function AdvancedChartSettings({
     vpValEnabled, vpValColor, vpValWidth, vpValStyle, vpValLabel,
     vpBidColor, vpAskColor, vpBarOpacity,
     vpShowBackground, vpBackgroundColor, vpBackgroundOpacity,
-    // Position tool settings
-    posTpColor, posSlColor, posEntryColor,
-    posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
-    posSmartArrow, posDynamicOpacity, posOpacityCurve, posOpacityIntensity,
-    posArrowExponent, posArrowIntensity, posArrowThickness, posArrowFill,
-    posProgressTrail, posTrailIntensity, posHeatFill, posHeatIntensity, posTimeWeight, posGradientMode,
+    // (Position tool settings moved to tool-specific DynamicToolSettingsPanel)
     // VP Engine settings
     vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
     vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
@@ -913,106 +908,7 @@ export default function AdvancedChartSettings({
                   )}
                 </div>
 
-                {/* ═══ LONG/SHORT POSITION TOOL ═══ */}
-                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Position (Long/Short)</h3>
-
-                  <div className="space-y-2">
-                    {/* TP Color */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur TP</span>
-                      <InlineColorSwatch value={posTpColor} onChange={(c) => setVPSetting('posTpColor', c)} size={4} />
-                    </div>
-
-                    {/* SL Color */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur SL</span>
-                      <InlineColorSwatch value={posSlColor} onChange={(c) => setVPSetting('posSlColor', c)} size={4} />
-                    </div>
-
-                    {/* Entry Color */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur Entry</span>
-                      <InlineColorSwatch value={posEntryColor} onChange={(c) => setVPSetting('posEntryColor', c)} size={4} />
-                    </div>
-
-                    {/* Zone Opacity */}
-                    <SliderControl label="Opacité base" value={Math.round(posZoneOpacity * 100)} min={2} max={40} step={1} unit="%" onChange={(v) => setVPSetting('posZoneOpacity', v / 100)} />
-
-                    {/* Toggle: Zone Fill */}
-                    <ToggleSwitch label="Remplissage zones" description="Afficher les zones TP/SL colorées" value={posShowZoneFill} onChange={(v) => setVPSetting('posShowZoneFill', v)} />
-
-                    {/* Toggle: Show Labels */}
-                    <ToggleSwitch label="Afficher labels" description="Labels Entry, TP, SL avec prix et R:R" value={posShowLabels} onChange={(v) => setVPSetting('posShowLabels', v)} />
-
-                    {/* Toggle: Compact Mode */}
-                    <ToggleSwitch label="Mode minimal" description="Lignes pures sans labels ni informations" value={posDefaultCompact} onChange={(v) => setVPSetting('posDefaultCompact', v)} />
-
-                    {/* Toggle: Smart Arrow */}
-                    <ToggleSwitch label="Smart Arrow" description="Flèche interne suivant le prix en temps réel" value={posSmartArrow} onChange={(v) => setVPSetting('posSmartArrow', v)} />
-
-                    {posSmartArrow && (
-                      <div className="space-y-2 mt-1 pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
-                        <SliderControl label="Exposant" value={posArrowExponent} min={1} max={3} step={0.1} onChange={(v) => setVPSetting('posArrowExponent', v)} />
-                        <SliderControl label="Intensité" value={posArrowIntensity} min={0} max={100} step={5} unit="%" onChange={(v) => setVPSetting('posArrowIntensity', v)} />
-                        <SliderControl label="Épaisseur" value={posArrowThickness} min={1} max={3} step={0.2} unit="px" onChange={(v) => setVPSetting('posArrowThickness', v)} />
-                        <SliderControl label="Poids temps/prix" value={posTimeWeight} min={10} max={90} step={5} unit="%" onChange={(v) => setVPSetting('posTimeWeight', v)} />
-
-                        <ToggleSwitch label="Traînée" description="Trail subtil derrière la flèche" value={posProgressTrail} onChange={(v) => setVPSetting('posProgressTrail', v)} />
-                        {posProgressTrail && (
-                          <SliderControl label="Intensité trail" value={posTrailIntensity} min={5} max={50} step={5} unit="%" onChange={(v) => setVPSetting('posTrailIntensity', v)} />
-                        )}
-
-                      </div>
-                    )}
-
-                    {/* Toggle: Dynamic Opacity */}
-                    <ToggleSwitch label="Opacité dynamique" description="Progression exponentielle dans les zones parcourues" value={posDynamicOpacity} onChange={(v) => setVPSetting('posDynamicOpacity', v)} />
-
-                    {posDynamicOpacity && (
-                      <div className="space-y-2 mt-1 pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
-                        {/* Gradient Mode */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Mode gradient</span>
-                          <div className="flex gap-1">
-                            {(['static', 'dynamic', 'heat'] as const).map(mode => (
-                              <button key={mode} onClick={() => setVPSetting('posGradientMode', mode)}
-                                className="px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
-                                style={{
-                                  backgroundColor: posGradientMode === mode ? 'var(--primary)' : 'var(--bg-secondary)',
-                                  color: posGradientMode === mode ? '#fff' : 'var(--text-secondary)',
-                                  border: `1px solid ${posGradientMode === mode ? 'var(--primary)' : 'var(--border)'}`,
-                                }}>
-                                {mode === 'static' ? 'Static' : mode === 'dynamic' ? 'Dynamic' : 'Heat'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Opacity Curve */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Courbe</span>
-                          <div className="flex gap-1">
-                            {(['linear', 'exponential', 'aggressive'] as const).map(curve => (
-                              <button key={curve} onClick={() => setVPSetting('posOpacityCurve', curve)}
-                                className="px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
-                                style={{
-                                  backgroundColor: posOpacityCurve === curve ? 'var(--primary)' : 'var(--bg-secondary)',
-                                  color: posOpacityCurve === curve ? '#fff' : 'var(--text-secondary)',
-                                  border: `1px solid ${posOpacityCurve === curve ? 'var(--primary)' : 'var(--border)'}`,
-                                }}>
-                                {curve === 'linear' ? 'Linear' : curve === 'exponential' ? 'Expo' : 'Aggressif'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Intensity slider */}
-                        <SliderControl label="Intensité" value={posOpacityIntensity} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('posOpacityIntensity', v)} />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Position (Long/Short) settings moved to tool-specific settings panel */}
 
                 {/* ═══ VOLUME BUBBLES ═══ */}
                 <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>

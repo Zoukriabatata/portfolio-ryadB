@@ -6,6 +6,8 @@ import type { ToolSettingField } from '@/lib/tools/registry/ToolDefinition';
 import { getToolsEngine } from '@/lib/tools/ToolsEngine';
 import { toolRegistry } from '@/lib/tools/registry/ToolRegistry';
 import { SettingFieldRenderer } from './SettingFieldRenderer';
+import { usePreferencesStore } from '@/stores/usePreferencesStore';
+import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 interface DynamicToolSettingsPanelProps {
   tool: Tool;
@@ -106,7 +108,9 @@ export function DynamicToolSettingsPanel({ tool, onUpdate }: DynamicToolSettings
     [tool, onUpdate]
   );
 
-  if (!schema || schema.length === 0) {
+  const isPosition = freshTool.type === 'longPosition' || freshTool.type === 'shortPosition';
+
+  if ((!schema || schema.length === 0) && !isPosition) {
     return null;
   }
 
@@ -141,7 +145,143 @@ export function DynamicToolSettingsPanel({ tool, onUpdate }: DynamicToolSettings
             ))}
           </div>
         ))}
+
+        {/* Position-specific global settings */}
+        {isPosition && <PositionGlobalSettings />}
       </div>
+    </div>
+  );
+}
+
+// ═══ Mini toggle ═══
+function MiniToggle({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between py-1.5">
+      <div>
+        <span className="text-[11px] font-medium text-[#c9cdd4]">{label}</span>
+        {desc && <p className="text-[9px] text-[#555]">{desc}</p>}
+      </div>
+      <button
+        onClick={() => onChange(!value)}
+        className={`w-8 h-4 rounded-full transition-all flex items-center ${value ? 'bg-blue-500 justify-end' : 'bg-[#2a2e35] justify-start'}`}
+      >
+        <div className="w-3.5 h-3.5 rounded-full bg-white shadow-sm mx-px" />
+      </button>
+    </div>
+  );
+}
+
+// ═══ Mini slider ═══
+function MiniSlider({ label, value, min, max, step, unit, onChange }: { label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[10px] text-[#666]">{label}</span>
+        <span className="text-[9px] font-mono text-[#888]">{value}{unit || ''}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step || 1} value={value} onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-1 bg-[#2a2e35] rounded-full appearance-none cursor-pointer accent-blue-500" />
+    </div>
+  );
+}
+
+// ═══ Position Global Settings — colors, zones, arrow, opacity ═══
+function PositionGlobalSettings() {
+  const {
+    posTpColor, posSlColor, posEntryColor,
+    posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
+    posSmartArrow, posDynamicOpacity, posOpacityCurve, posOpacityIntensity,
+    posArrowExponent, posArrowIntensity, posArrowThickness,
+    posProgressTrail, posTrailIntensity, posTimeWeight, posGradientMode,
+    setVPSetting,
+  } = usePreferencesStore();
+
+  return (
+    <div className="mt-2 pt-2 border-t border-[#1C1F23]">
+      <div className="text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1">
+        Apparence
+      </div>
+
+      {/* Colors */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-[#888]">Couleur TP</span>
+          <InlineColorSwatch value={posTpColor} onChange={(c) => setVPSetting('posTpColor', c)} size={4} mini />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-[#888]">Couleur SL</span>
+          <InlineColorSwatch value={posSlColor} onChange={(c) => setVPSetting('posSlColor', c)} size={4} mini />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-[#888]">Couleur Entry</span>
+          <InlineColorSwatch value={posEntryColor} onChange={(c) => setVPSetting('posEntryColor', c)} size={4} mini />
+        </div>
+      </div>
+
+      {/* Zone opacity */}
+      <div className="mt-2">
+        <MiniSlider label="Opacité zone" value={Math.round(posZoneOpacity * 100)} min={2} max={40} step={1} unit="%" onChange={(v) => setVPSetting('posZoneOpacity', v / 100)} />
+      </div>
+
+      {/* Toggles */}
+      <MiniToggle label="Zones TP/SL" value={posShowZoneFill} onChange={(v) => setVPSetting('posShowZoneFill', v)} />
+      <MiniToggle label="Labels" desc="Entry, TP, SL + R:R" value={posShowLabels} onChange={(v) => setVPSetting('posShowLabels', v)} />
+      <MiniToggle label="Mode minimal" value={posDefaultCompact} onChange={(v) => setVPSetting('posDefaultCompact', v)} />
+
+      {/* Smart Arrow */}
+      <MiniToggle label="Smart Arrow" desc="Flèche suivant le prix" value={posSmartArrow} onChange={(v) => setVPSetting('posSmartArrow', v)} />
+      {posSmartArrow && (
+        <div className="space-y-1.5 pl-2 ml-1 border-l border-[#2a2e35]">
+          <MiniSlider label="Exposant" value={posArrowExponent} min={1} max={3} step={0.1} onChange={(v) => setVPSetting('posArrowExponent', v)} />
+          <MiniSlider label="Intensité" value={posArrowIntensity} min={0} max={100} step={5} unit="%" onChange={(v) => setVPSetting('posArrowIntensity', v)} />
+          <MiniSlider label="Épaisseur" value={posArrowThickness} min={1} max={3} step={0.2} unit="px" onChange={(v) => setVPSetting('posArrowThickness', v)} />
+          <MiniSlider label="Poids temps/prix" value={posTimeWeight} min={10} max={90} step={5} unit="%" onChange={(v) => setVPSetting('posTimeWeight', v)} />
+          <MiniToggle label="Traînée" value={posProgressTrail} onChange={(v) => setVPSetting('posProgressTrail', v)} />
+          {posProgressTrail && (
+            <MiniSlider label="Intensité trail" value={posTrailIntensity} min={5} max={50} step={5} unit="%" onChange={(v) => setVPSetting('posTrailIntensity', v)} />
+          )}
+        </div>
+      )}
+
+      {/* Dynamic Opacity */}
+      <MiniToggle label="Opacité dynamique" desc="Progression dans les zones" value={posDynamicOpacity} onChange={(v) => setVPSetting('posDynamicOpacity', v)} />
+      {posDynamicOpacity && (
+        <div className="space-y-1.5 pl-2 ml-1 border-l border-[#2a2e35]">
+          {/* Gradient Mode */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-[#666]">Gradient</span>
+            <div className="flex gap-0.5">
+              {(['static', 'dynamic', 'heat'] as const).map(mode => (
+                <button key={mode} onClick={() => setVPSetting('posGradientMode', mode)}
+                  className="px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
+                  style={{
+                    backgroundColor: posGradientMode === mode ? '#3b82f6' : '#1C1F23',
+                    color: posGradientMode === mode ? '#fff' : '#888',
+                  }}>
+                  {mode === 'static' ? 'Static' : mode === 'dynamic' ? 'Dynamic' : 'Heat'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Curve */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-[#666]">Courbe</span>
+            <div className="flex gap-0.5">
+              {(['linear', 'exponential', 'aggressive'] as const).map(curve => (
+                <button key={curve} onClick={() => setVPSetting('posOpacityCurve', curve)}
+                  className="px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
+                  style={{
+                    backgroundColor: posOpacityCurve === curve ? '#3b82f6' : '#1C1F23',
+                    color: posOpacityCurve === curve ? '#fff' : '#888',
+                  }}>
+                  {curve === 'linear' ? 'Linear' : curve === 'exponential' ? 'Expo' : 'Aggressif'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <MiniSlider label="Intensité" value={posOpacityIntensity} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('posOpacityIntensity', v)} />
+        </div>
+      )}
     </div>
   );
 }
