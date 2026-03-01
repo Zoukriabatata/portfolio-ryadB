@@ -68,6 +68,16 @@ export {
   type LayoutData,
 } from './LayoutPersistence';
 
+// Execution Engine
+export {
+  evaluateCandle,
+  evaluateAllPositions,
+  closePosition,
+  calculatePnL,
+  type CandleData,
+  type ExecutionResult,
+} from './ExecutionEngine';
+
 // Registry
 export { toolRegistry } from './registry/ToolRegistry';
 export type { ToolDefinition, ToolSettingField, CoordinateConverters } from './registry/ToolDefinition';

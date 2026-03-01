@@ -160,6 +160,11 @@ export interface PositionTool extends BaseTool {
   leverage?: number;           // Leverage multiplier (default 1)
   showPositionSize?: boolean;  // Show calculated position size
   showDollarPnL?: boolean;     // Show P&L in $ alongside %
+  // Execution state
+  positionStatus?: 'open' | 'closed';
+  exitPrice?: number;
+  exitReason?: 'stop' | 'target' | 'manual';
+  executionMode?: 'conservative' | 'optimistic';
 }
 
 export interface TextTool extends BaseTool {

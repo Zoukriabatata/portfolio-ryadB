@@ -9,6 +9,7 @@ import {
   type Tool,
 } from '@/lib/tools/ToolsEngine';
 import type { RenderContext } from '@/lib/tools/ToolsRenderer';
+import { evaluateAllPositions } from '@/lib/tools/ExecutionEngine';
 import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import { useAlertsStore, type PriceAlert } from '@/stores/useAlertsStore';
 import { useTradingStore, type Position } from '@/stores/useTradingStore';
@@ -406,6 +407,12 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
           chartWidth, chartHeight, candleTotalWidth,
         );
       }
+    }
+
+    // Evaluate positions against latest candle (high/low based execution)
+    if (candles.length > 0) {
+      const lastCandle = candles[candles.length - 1];
+      evaluateAllPositions(lastCandle);
     }
 
     refs.toolsRenderer.current.render(renderContext);

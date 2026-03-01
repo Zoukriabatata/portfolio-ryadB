@@ -125,14 +125,16 @@ function createPositionDefinition(isLong: boolean): ToolDefinition<PositionTool>
       if (Math.hypot(px - leftX, py - bottomY) <= HANDLE_HIT_SIZE) return { handle: 'bottom-left' as HandlePosition, distance: 0 };
       if (Math.hypot(px - rightX, py - bottomY) <= HANDLE_HIT_SIZE) return { handle: 'bottom-right' as HandlePosition, distance: 0 };
 
-      // Price line handles (on left edge)
-      if (Math.abs(py - entryY) <= HANDLE_HIT_SIZE && Math.abs(px - leftX) <= HANDLE_HIT_SIZE * 2) {
+      // Price line handles (left or right edge)
+      const nearLeftEdge = Math.abs(px - leftX) <= HANDLE_HIT_SIZE * 2;
+      const nearRightEdge = Math.abs(px - rightX) <= HANDLE_HIT_SIZE * 2;
+      if (Math.abs(py - entryY) <= HANDLE_HIT_SIZE && (nearLeftEdge || nearRightEdge)) {
         return { handle: 'start' as HandlePosition, distance: 0 };
       }
-      if (Math.abs(py - tpY) <= HANDLE_HIT_SIZE && Math.abs(px - leftX) <= HANDLE_HIT_SIZE * 2) {
+      if (Math.abs(py - tpY) <= HANDLE_HIT_SIZE && (nearLeftEdge || nearRightEdge)) {
         return { handle: 'end' as HandlePosition, distance: 0 };
       }
-      if (Math.abs(py - slY) <= HANDLE_HIT_SIZE && Math.abs(px - leftX) <= HANDLE_HIT_SIZE * 2) {
+      if (Math.abs(py - slY) <= HANDLE_HIT_SIZE && (nearLeftEdge || nearRightEdge)) {
         return { handle: 'center' as HandlePosition, distance: 0 };
       }
 

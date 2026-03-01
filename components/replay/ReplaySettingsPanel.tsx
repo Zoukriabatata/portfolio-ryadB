@@ -7,7 +7,7 @@
  * colors, and thresholds. Reads/writes useFootprintSettingsStore.
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useFootprintSettingsStore } from '@/stores/useFootprintSettingsStore';
 
 interface ReplaySettingsPanelProps {
@@ -140,16 +140,137 @@ function Toggle({ label, value, onChange, indent }: { label: string; value: bool
 }
 
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between" ref={ref}>
       <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</span>
-      <input
-        type="color"
-        value={value || '#ffffff'}
-        onChange={e => onChange(e.target.value)}
-        className="w-6 h-5 rounded cursor-pointer border-0"
-        style={{ background: 'transparent' }}
-      />
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="w-6 h-5 rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
+          style={{ backgroundColor: value || '#ffffff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+        />
+        {open && (
+          <div className="absolute z-50 mt-1 right-0" style={{
+            width: 200,
+            padding: 8,
+            borderRadius: 8,
+            backgroundColor: '#1c1f26',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}>
+            <ReplayMiniPicker value={value || '#ffffff'} onChange={onChange} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Minimal HSV picker for replay settings */
+function ReplayMiniPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  const [hue, setHue] = useState(0);
+  const [sat, setSat] = useState(100);
+  const [bright, setBright] = useState(100);
+  const svRef = useRef<HTMLCanvasElement>(null);
+  const hueRef = useRef<HTMLCanvasElement>(null);
+  const isSvDrag = useRef(false);
+  const isHueDrag = useRef(false);
+  const skip = useRef(false);
+
+  const hsvHex = (h: number, s: number, v: number) => {
+    const s1 = s / 100, v1 = v / 100, c = v1 * s1, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v1 - c;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+    const t = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+    return `#${t(r)}${t(g)}${t(b)}`;
+  };
+
+  useEffect(() => {
+    if (skip.current) { skip.current = false; return; }
+    const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(value);
+    if (!res) return;
+    const r = parseInt(res[1], 16) / 255, g = parseInt(res[2], 16) / 255, b = parseInt(res[3], 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let h = 0;
+    if (d !== 0) { if (max === r) h = ((g - b) / d + 6) % 6; else if (max === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; }
+    setHue(h); setSat(max === 0 ? 0 : (d / max) * 100); setBright(max * 100);
+  }, [value]);
+
+  useEffect(() => {
+    const canvas = svRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
+    const w = canvas.width, h = canvas.height;
+    const gH = ctx.createLinearGradient(0, 0, w, 0);
+    gH.addColorStop(0, '#fff'); gH.addColorStop(1, hsvHex(hue, 100, 100));
+    ctx.fillStyle = gH; ctx.fillRect(0, 0, w, h);
+    const gV = ctx.createLinearGradient(0, 0, 0, h);
+    gV.addColorStop(0, 'rgba(0,0,0,0)'); gV.addColorStop(1, '#000');
+    ctx.fillStyle = gV; ctx.fillRect(0, 0, w, h);
+  }, [hue]);
+
+  useEffect(() => {
+    const canvas = hueRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    for (let i = 0; i <= 6; i++) grad.addColorStop(i / 6, hsvHex(i * 60, 100, 100));
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  const emit = (h: number, s: number, v: number) => { skip.current = true; onChange(hsvHex(h, s, v)); };
+
+  const onSV = (e: React.PointerEvent, start = false) => {
+    if (start) { isSvDrag.current = true; e.currentTarget.setPointerCapture(e.pointerId); }
+    if (!isSvDrag.current) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const s = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 100;
+    const v = (1 - Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))) * 100;
+    setSat(s); setBright(v); emit(hue, s, v);
+  };
+
+  const onHue = (e: React.PointerEvent, start = false) => {
+    if (start) { isHueDrag.current = true; e.currentTarget.setPointerCapture(e.pointerId); }
+    if (!isHueDrag.current) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const h = Math.max(0, Math.min(360, (e.clientX - r.left) / r.width * 360));
+    setHue(h); emit(h, sat, bright);
+  };
+
+  const stop = () => { isSvDrag.current = false; isHueDrag.current = false; };
+
+  return (
+    <div>
+      <div className="relative mb-1 rounded overflow-hidden" style={{ height: 80 }}>
+        <canvas ref={svRef} width={180} height={80} className="w-full h-full cursor-crosshair"
+          onPointerDown={e => onSV(e, true)} onPointerMove={onSV} onPointerUp={stop} />
+        <div className="absolute pointer-events-none" style={{
+          left: `${sat}%`, top: `${100 - bright}%`,
+          width: 7, height: 7, transform: 'translate(-50%,-50%)',
+          borderRadius: '50%', border: '1.5px solid #fff', boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+        }} />
+      </div>
+      <div className="relative rounded overflow-hidden" style={{ height: 10 }}>
+        <canvas ref={hueRef} width={180} height={10} className="w-full h-full cursor-ew-resize"
+          onPointerDown={e => onHue(e, true)} onPointerMove={onHue} onPointerUp={stop} />
+        <div className="absolute top-0 pointer-events-none" style={{
+          left: `${(hue / 360) * 100}%`, width: 3, height: '100%',
+          transform: 'translateX(-50%)', backgroundColor: '#fff', borderRadius: 1,
+        }} />
+      </div>
     </div>
   );
 }

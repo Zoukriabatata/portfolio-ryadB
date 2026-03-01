@@ -109,14 +109,29 @@ function ColorPicker({ label, value, onChange, palette }: {
   );
 }
 
-/** Inline HEX color input — replaces native <input type="color"> */
+/** Inline HEX color input with HSV popover picker */
 function HexInput({ value, onChange, size = 'sm' }: {
   value: string;
   onChange: (color: string) => void;
   size?: 'sm' | 'md';
 }) {
   const [hex, setHex] = useState(value);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => { setHex(value); }, [value]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [pickerOpen]);
+
   const commit = () => {
     const h = hex.startsWith('#') ? hex : `#${hex}`;
     if (/^#[0-9a-fA-F]{6}$/.test(h)) onChange(h);
@@ -125,19 +140,161 @@ function HexInput({ value, onChange, size = 'sm' }: {
   const w = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
   const inputW = size === 'sm' ? 'w-[58px] h-4 text-[9px]' : 'w-[68px] h-5 text-[10px]';
   return (
-    <div className="flex items-center gap-1">
-      <div className={`${w} rounded-sm`} style={{ backgroundColor: value, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }} />
-      <input
-        type="text"
-        value={hex.toUpperCase()}
-        onChange={(e) => { let v = e.target.value; if (!v.startsWith('#')) v = '#' + v; if (v.length <= 7) setHex(v); }}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-        className={`${inputW} font-mono text-center rounded px-1
-          bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]
-          focus:border-[var(--primary)] focus:outline-none`}
-        spellCheck={false}
-      />
+    <div className="relative" ref={containerRef}>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setPickerOpen(!pickerOpen)}
+          className={`${w} rounded-sm cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all`}
+          style={{ backgroundColor: value, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+        />
+        <input
+          type="text"
+          value={hex.toUpperCase()}
+          onChange={(e) => { let v = e.target.value; if (!v.startsWith('#')) v = '#' + v; if (v.length <= 7) setHex(v); }}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
+          className={`${inputW} font-mono text-center rounded px-1
+            bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]
+            focus:border-[var(--primary)] focus:outline-none`}
+          spellCheck={false}
+        />
+      </div>
+      {pickerOpen && (
+        <div className="absolute z-50 mt-1 right-0" style={{
+          width: 220,
+          padding: 10,
+          borderRadius: 10,
+          backgroundColor: '#1c1f26',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        }}>
+          <InlineHSVPicker value={value} onChange={(c) => { onChange(c); setHex(c); }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Minimal inline HSV picker — SV square + hue bar + presets */
+function InlineHSVPicker({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  const [hue, setHue] = useState(0);
+  const [sat, setSat] = useState(100);
+  const [bright, setBright] = useState(100);
+  const svRef = useRef<HTMLCanvasElement>(null);
+  const hueRef = useRef<HTMLCanvasElement>(null);
+  const isSvDrag = useRef(false);
+  const isHueDrag = useRef(false);
+  const skipSync = useRef(false);
+
+  const hsvToHex = (h: number, s: number, v: number): string => {
+    const s1 = s / 100, v1 = v / 100;
+    const c = v1 * s1, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v1 - c;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+    const toH = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+    return `#${toH(r)}${toH(g)}${toH(b)}`;
+  };
+
+  const hexToHSV = (hex: string) => {
+    const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!res) return { h: 0, s: 0, v: 100 };
+    const r = parseInt(res[1], 16) / 255, g = parseInt(res[2], 16) / 255, b = parseInt(res[3], 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let h = 0;
+    if (d !== 0) { if (max === r) h = ((g - b) / d + 6) % 6; else if (max === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; }
+    return { h, s: max === 0 ? 0 : (d / max) * 100, v: max * 100 };
+  };
+
+  useEffect(() => {
+    if (skipSync.current) { skipSync.current = false; return; }
+    const { h, s, v } = hexToHSV(value);
+    setHue(h); setSat(s); setBright(v);
+  }, [value]);
+
+  // Draw SV gradient
+  useEffect(() => {
+    const canvas = svRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
+    const w = canvas.width, h = canvas.height;
+    const gradH = ctx.createLinearGradient(0, 0, w, 0);
+    gradH.addColorStop(0, '#ffffff');
+    gradH.addColorStop(1, hsvToHex(hue, 100, 100));
+    ctx.fillStyle = gradH; ctx.fillRect(0, 0, w, h);
+    const gradV = ctx.createLinearGradient(0, 0, 0, h);
+    gradV.addColorStop(0, 'rgba(0,0,0,0)');
+    gradV.addColorStop(1, '#000000');
+    ctx.fillStyle = gradV; ctx.fillRect(0, 0, w, h);
+  }, [hue]);
+
+  // Draw hue bar
+  useEffect(() => {
+    const canvas = hueRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    for (let i = 0; i <= 6; i++) grad.addColorStop(i / 6, hsvToHex(i * 60, 100, 100));
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  const emit = (h: number, s: number, v: number) => {
+    skipSync.current = true;
+    onChange(hsvToHex(h, s, v));
+  };
+
+  const handleSV = (e: React.PointerEvent, start = false) => {
+    if (start) { isSvDrag.current = true; e.currentTarget.setPointerCapture(e.pointerId); }
+    if (!isSvDrag.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    const s = x * 100, v = (1 - y) * 100;
+    setSat(s); setBright(v); emit(hue, s, v);
+  };
+
+  const handleHue = (e: React.PointerEvent, start = false) => {
+    if (start) { isHueDrag.current = true; e.currentTarget.setPointerCapture(e.pointerId); }
+    if (!isHueDrag.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const h = Math.max(0, Math.min(360, (e.clientX - rect.left) / rect.width * 360));
+    setHue(h); emit(h, sat, bright);
+  };
+
+  const stopDrag = () => { isSvDrag.current = false; isHueDrag.current = false; };
+
+  const PRESETS = ['#22c55e', '#ef4444', '#3b82f6', '#fbbf24', '#a855f7', '#06b6d4', '#ec4899', '#f97316', '#ffffff', '#525252'];
+
+  return (
+    <div>
+      {/* SV square */}
+      <div className="relative mb-1.5 rounded overflow-hidden" style={{ height: 100, border: '1px solid rgba(255,255,255,0.06)' }}>
+        <canvas ref={svRef} width={200} height={100} className="w-full h-full cursor-crosshair"
+          onPointerDown={(e) => handleSV(e, true)} onPointerMove={handleSV} onPointerUp={stopDrag} />
+        <div className="absolute pointer-events-none" style={{
+          left: `${(sat / 100) * 100}%`, top: `${(1 - bright / 100) * 100}%`,
+          width: 8, height: 8, transform: 'translate(-50%, -50%)',
+          borderRadius: '50%', border: '1.5px solid #fff', boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+        }} />
+      </div>
+      {/* Hue bar */}
+      <div className="relative mb-2 rounded overflow-hidden" style={{ height: 12, border: '1px solid rgba(255,255,255,0.06)' }}>
+        <canvas ref={hueRef} width={200} height={12} className="w-full h-full cursor-ew-resize"
+          onPointerDown={(e) => handleHue(e, true)} onPointerMove={handleHue} onPointerUp={stopDrag} />
+        <div className="absolute top-0 pointer-events-none" style={{
+          left: `${(hue / 360) * 100}%`, width: 3, height: '100%',
+          transform: 'translateX(-50%)', backgroundColor: '#fff', borderRadius: 1,
+          boxShadow: '0 0 2px rgba(0,0,0,0.6)',
+        }} />
+      </div>
+      {/* Presets */}
+      <div className="flex gap-1 flex-wrap">
+        {PRESETS.map(c => (
+          <button key={c} onClick={() => onChange(c)}
+            className={`w-4 h-4 rounded-sm transition-all hover:scale-110 ${value.toLowerCase() === c.toLowerCase() ? 'ring-1 ring-[var(--primary)]' : ''}`}
+            style={{ backgroundColor: c, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }} />
+        ))}
+      </div>
     </div>
   );
 }

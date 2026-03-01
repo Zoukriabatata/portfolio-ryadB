@@ -802,6 +802,10 @@ export class ToolsRenderer {
     const showPosSize = tool.showPositionSize === true;
     const showDollarPnL = tool.showDollarPnL === true;
 
+    // ═══ EXECUTION STATE ═══
+    const isClosed = tool.positionStatus === 'closed';
+    const exitReason = tool.exitReason;
+
     // ═══ ZONE FILL ENGINE — Y-axis (price) gradients ═══
     const gradientMode = prefs.posGradientMode ?? 'dynamic';
     const applyCurve = (t: number): number => {
@@ -826,7 +830,19 @@ export class ToolsRenderer {
       const riskTop = Math.min(entryY, slY);
       const riskH = Math.abs(slY - entryY);
 
-      if (gradientMode === 'static' || livePrice <= 0) {
+      if (isClosed) {
+        // ── Closed: winning zone at full intensity, losing zone dim ──
+        const wonTarget = exitReason === 'target';
+        if (profitH > 1) {
+          ctx.fillStyle = hexToRgba(profitLine, wonTarget ? maxAlpha : baseAlpha * 0.15);
+          ctx.fillRect(leftX, profitTop, zoneW, profitH);
+        }
+        if (riskH > 1) {
+          ctx.fillStyle = hexToRgba(riskLine, !wonTarget ? maxAlpha : baseAlpha * 0.15);
+          ctx.fillRect(leftX, riskTop, zoneW, riskH);
+        }
+
+      } else if (gradientMode === 'static' || livePrice <= 0) {
         // ── Static: flat fill, both zones visible ──
         ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
         if (profitH > 1) ctx.fillRect(leftX, profitTop, zoneW, profitH);
@@ -929,8 +945,8 @@ export class ToolsRenderer {
     ctx.setLineDash([]);
 
     // ═══ POSITION PROGRESS ENGINE v2 ═══
-    const livePrice = context.currentPrice || 0;
-    if (smartArrowEnabled && livePrice > 0) {
+    const livePrice = isClosed ? (tool.exitPrice || 0) : (context.currentPrice || 0);
+    if (smartArrowEnabled && livePrice > 0 && !isClosed) {
       const arrowExponent = prefs.posArrowExponent ?? 1.6;
       const arrowIntensity = (prefs.posArrowIntensity ?? 50) / 100;
       const arrowThickness = prefs.posArrowThickness ?? 1.4;
@@ -1039,6 +1055,30 @@ export class ToolsRenderer {
           ctx.fill();
         }
       }
+    }
+
+    // ═══ CLOSED POSITION BADGE ═══
+    if (isClosed) {
+      const badgeColor = exitReason === 'target' ? profitLine : riskLine;
+      const badgeText = exitReason === 'target' ? 'TP HIT' : 'SL HIT';
+      const centerX = (leftX + rightX) / 2;
+      const centerY = (entryY + (exitReason === 'target' ? tpY : slY)) / 2;
+      ctx.font = 'bold 10px system-ui';
+      const textW = ctx.measureText(badgeText).width;
+      const badgeW = textW + 12;
+      const badgeH = 18;
+      ctx.fillStyle = 'rgba(15, 15, 20, 0.9)';
+      ctx.beginPath();
+      ctx.roundRect(centerX - badgeW / 2, centerY - badgeH / 2, badgeW, badgeH, 4);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(badgeColor, 0.6);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = badgeColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, centerX, centerY);
+      ctx.textBaseline = 'alphabetic';
     }
 
     // ═══ Settings flags ═══

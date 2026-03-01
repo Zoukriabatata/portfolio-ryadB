@@ -117,6 +117,10 @@ export default function VolumeProfilePanel({
     // Clear
     ctx.clearRect(0, 0, w, h);
 
+    // Safety: ensure compositing is correct
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+
     // Dynamic colors from props (fallback to hardcoded defaults)
     const bidColor = vpColors?.bid || VP_COLORS.bid;
     const askColor = vpColors?.ask || VP_COLORS.ask;
@@ -173,7 +177,7 @@ export default function VolumeProfilePanel({
     const gradAskEnd = vpGradient?.askEnd || '#0a3d1a';
     const gradBidEnd = vpGradient?.bidEnd || '#3d0a0a';
 
-    // Draw bars
+    // Draw bars — each bar uses per-bar opacity, never CSS/container opacity
     for (const bin of bins) {
       const y = priceToY(bin.price);
 
@@ -187,20 +191,22 @@ export default function VolumeProfilePanel({
       const bidBarWidth = (bidRatio * barMaxWidth) / 2;
       const askBarWidth = (askRatio * barMaxWidth) / 2;
 
+      // Bar opacity: volume-based, never distance-from-price-based
+      // Each bar uses same base opacity — intensity comes from color gradient only
+      const binBarOpacity = barOpacity;
+
       // Bid bar (left from center, red)
       if (bidBarWidth > 0.5) {
         ctx.fillStyle = gradEnabled ? interpolateHex(gradBidEnd, bidColor, totalIntensity) : bidColor;
-        ctx.globalAlpha = barOpacity;
+        ctx.globalAlpha = binBarOpacity;
         ctx.fillRect(centerX - bidBarWidth, y - barHeight / 2, bidBarWidth, Math.max(1, barHeight));
-        ctx.globalAlpha = 1;
       }
 
       // Ask bar (right from center, green)
       if (askBarWidth > 0.5) {
         ctx.fillStyle = gradEnabled ? interpolateHex(gradAskEnd, askColor, totalIntensity) : askColor;
-        ctx.globalAlpha = barOpacity;
+        ctx.globalAlpha = binBarOpacity;
         ctx.fillRect(centerX, y - barHeight / 2, askBarWidth, Math.max(1, barHeight));
-        ctx.globalAlpha = 1;
       }
 
       // Delta border indicator
@@ -209,9 +215,11 @@ export default function VolumeProfilePanel({
         ctx.fillStyle = deltaColor;
         ctx.globalAlpha = 0.5;
         ctx.fillRect(centerX - 0.5, y - barHeight / 2, 1, Math.max(1, barHeight));
-        ctx.globalAlpha = 1;
       }
     }
+
+    // Reset alpha after bar loop
+    ctx.globalAlpha = 1;
 
     // POC highlight bar (subtle indicator within VP bars)
     const pocY = priceToY(valueArea.poc);
