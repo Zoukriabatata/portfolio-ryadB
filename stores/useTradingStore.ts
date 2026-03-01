@@ -521,6 +521,13 @@ export const useTradingStore = create<TradingState>()(
           const closingPositions = state.positions.filter((p) => p.symbol === symbol);
           const remainingPositions = state.positions.filter((p) => p.symbol !== symbol);
 
+          // AUTO-CANCEL: Cancel all pending orders for this symbol
+          const updatedOrders = state.orders.map((o) =>
+            o.status === 'pending' && o.symbol === symbol
+              ? { ...o, status: 'cancelled' as OrderStatus, updatedAt: Date.now() }
+              : o
+          );
+
           // Record closed trades for auto-journal
           const now = Date.now();
           const activeBroker = state.activeBroker;
@@ -550,6 +557,7 @@ export const useTradingStore = create<TradingState>()(
           if (activeBroker === 'demo' && closingPositions.length > 0) {
             const currentBalance = state.connections.demo?.balance || 100000;
             return {
+              orders: updatedOrders,
               positions: remainingPositions,
               closedTrades: [...state.closedTrades, ...newClosedTrades],
               connections: {
@@ -559,7 +567,7 @@ export const useTradingStore = create<TradingState>()(
             };
           }
 
-          return { positions: remainingPositions, closedTrades: [...state.closedTrades, ...newClosedTrades] };
+          return { orders: updatedOrders, positions: remainingPositions, closedTrades: [...state.closedTrades, ...newClosedTrades] };
         });
 
         // Play close position sound
@@ -640,7 +648,7 @@ export const useTradingStore = create<TradingState>()(
 
             // Fill the order using net position logic
             set((st) => {
-              const updatedOrders = st.orders.map((o) =>
+              let resultOrders = st.orders.map((o) =>
                 o.id === order.id
                   ? { ...o, status: 'filled' as OrderStatus, filledQuantity: o.quantity, avgFillPrice: fillPrice, updatedAt: Date.now() }
                   : o
@@ -674,6 +682,12 @@ export const useTradingStore = create<TradingState>()(
                     entryPrice: existing.entryPrice, exitPrice: fillPrice, pnl,
                     entryTime: existing.openedAt || now, exitTime: now, broker: st.activeBroker || 'demo', synced: false,
                   });
+                  // Auto-cancel remaining pending orders for this symbol (TP hit → cancel SL, vice versa)
+                  resultOrders = resultOrders.map((o) =>
+                    o.status === 'pending' && o.symbol === order.symbol && o.id !== order.id
+                      ? { ...o, status: 'cancelled' as OrderStatus, updatedAt: Date.now() }
+                      : o
+                  );
                   // Play close/SL/TP sound
                   try {
                     const { soundEnabled, alertSound } = useAccountPrefsStore.getState();
@@ -708,6 +722,12 @@ export const useTradingStore = create<TradingState>()(
                     entryPrice: existing.entryPrice, exitPrice: fillPrice, pnl,
                     entryTime: existing.openedAt || now, exitTime: now, broker: st.activeBroker || 'demo', synced: false,
                   });
+                  // Flip also cancels remaining orders
+                  resultOrders = resultOrders.map((o) =>
+                    o.status === 'pending' && o.symbol === order.symbol && o.id !== order.id
+                      ? { ...o, status: 'cancelled' as OrderStatus, updatedAt: Date.now() }
+                      : o
+                  );
                   if (remainder > 0) {
                     positions.push({
                       symbol: order.symbol, side: order.side, quantity: remainder,
@@ -718,7 +738,7 @@ export const useTradingStore = create<TradingState>()(
               }
 
               return {
-                orders: updatedOrders, positions, closedTrades: newClosedTrades,
+                orders: resultOrders, positions, closedTrades: newClosedTrades,
                 connections: { ...st.connections, demo: { ...st.connections.demo, balance: currentBalance + balanceChange, lastUpdate: now } },
               };
             });

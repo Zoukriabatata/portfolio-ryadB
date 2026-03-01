@@ -134,21 +134,30 @@ export interface PreferencesState {
   posShowLabels: boolean;
   posDefaultCompact: boolean;
 
+  // Volume bar appearance
+  volumeBarBullColor: string;
+  volumeBarBearColor: string;
+  volumeBarOpacity: number;
+
   // Price line settings
   showCurrentPriceLine: boolean;
-  priceLineStyle: 'dashed' | 'solid';
+  priceLineStyle: 'dashed' | 'solid' | 'dotted';
   priceLineWidth: number;
   priceLineColor: string; // '' = auto from theme
+  priceLineOpacity: number;
   priceLabelBgColor: string; // '' = auto green/red
-  priceLabelTextColor: string;
+  priceLabelTextColor: string; // 'auto' = WCAG contrast
   priceLabelOpacity: number;
+  priceLabelBorderRadius: number;
   setShowCurrentPriceLine: (show: boolean) => void;
-  setPriceLineStyle: (style: 'dashed' | 'solid') => void;
+  setPriceLineStyle: (style: 'dashed' | 'solid' | 'dotted') => void;
   setPriceLineWidth: (width: number) => void;
   setPriceLineColor: (color: string) => void;
+  setPriceLineOpacity: (opacity: number) => void;
   setPriceLabelBgColor: (color: string) => void;
   setPriceLabelTextColor: (color: string) => void;
   setPriceLabelOpacity: (opacity: number) => void;
+  setPriceLabelBorderRadius: (radius: number) => void;
 
   // Trading preferences
   confirmOrders: boolean;
@@ -211,13 +220,20 @@ export const usePreferencesStore = create<PreferencesState>()(
       posShowLabels: false,
       posDefaultCompact: true,
 
+      // Volume bar appearance
+      volumeBarBullColor: '#22c55e',
+      volumeBarBearColor: '#ef4444',
+      volumeBarOpacity: 0.4,
+
       showCurrentPriceLine: true,
       priceLineStyle: 'dashed',
       priceLineWidth: 1,
       priceLineColor: '',
+      priceLineOpacity: 1,
       priceLabelBgColor: '',
-      priceLabelTextColor: '#ffffff',
+      priceLabelTextColor: 'auto',
       priceLabelOpacity: 1,
+      priceLabelBorderRadius: 0,
       confirmOrders: true,
       defaultOrderType: 'market',
 
@@ -225,9 +241,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       setPriceLineStyle: (priceLineStyle) => set({ priceLineStyle }),
       setPriceLineWidth: (priceLineWidth) => set({ priceLineWidth: Math.max(1, Math.min(4, priceLineWidth)) }),
       setPriceLineColor: (priceLineColor) => set({ priceLineColor }),
+      setPriceLineOpacity: (priceLineOpacity) => set({ priceLineOpacity: Math.max(0.1, Math.min(1, priceLineOpacity)) }),
       setPriceLabelBgColor: (priceLabelBgColor) => set({ priceLabelBgColor }),
       setPriceLabelTextColor: (priceLabelTextColor) => set({ priceLabelTextColor }),
       setPriceLabelOpacity: (priceLabelOpacity) => set({ priceLabelOpacity: Math.max(0.5, Math.min(1, priceLabelOpacity)) }),
+      setPriceLabelBorderRadius: (priceLabelBorderRadius) => set({ priceLabelBorderRadius: Math.max(0, Math.min(8, priceLabelBorderRadius)) }),
       setVolumeMode: (volumeMode) => set({ volumeMode }),
       setShowVolumeProfile: (showVolumeProfile) => set({ showVolumeProfile }),
       setVPSetting: (key, value) => set({ [key]: value } as any),
@@ -271,13 +289,16 @@ export const usePreferencesStore = create<PreferencesState>()(
         posTpColor: s.posTpColor, posSlColor: s.posSlColor, posEntryColor: s.posEntryColor,
         posZoneOpacity: s.posZoneOpacity, posShowZoneFill: s.posShowZoneFill,
         posShowLabels: s.posShowLabels, posDefaultCompact: s.posDefaultCompact,
+        volumeBarBullColor: s.volumeBarBullColor, volumeBarBearColor: s.volumeBarBearColor, volumeBarOpacity: s.volumeBarOpacity,
         showCurrentPriceLine: s.showCurrentPriceLine,
         priceLineStyle: s.priceLineStyle,
         priceLineWidth: s.priceLineWidth,
         priceLineColor: s.priceLineColor,
+        priceLineOpacity: s.priceLineOpacity,
         priceLabelBgColor: s.priceLabelBgColor,
         priceLabelTextColor: s.priceLabelTextColor,
         priceLabelOpacity: s.priceLabelOpacity,
+        priceLabelBorderRadius: s.priceLabelBorderRadius,
         confirmOrders: s.confirmOrders,
         defaultOrderType: s.defaultOrderType,
       }),

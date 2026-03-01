@@ -241,9 +241,13 @@ export default function AdvancedChartSettings({
   const {
     showVolume, showCrosshairTooltip, setShowVolume, setShowCrosshairTooltip,
     showCurrentPriceLine, priceLineStyle, priceLineWidth, priceLineColor,
-    priceLabelBgColor, priceLabelTextColor, priceLabelOpacity,
+    priceLineOpacity, priceLabelBgColor, priceLabelTextColor, priceLabelOpacity,
+    priceLabelBorderRadius,
     setShowCurrentPriceLine, setPriceLineStyle, setPriceLineWidth, setPriceLineColor,
-    setPriceLabelBgColor, setPriceLabelTextColor, setPriceLabelOpacity,
+    setPriceLineOpacity, setPriceLabelBgColor, setPriceLabelTextColor, setPriceLabelOpacity,
+    setPriceLabelBorderRadius,
+    // Volume bar appearance
+    volumeBarBullColor, volumeBarBearColor, volumeBarOpacity,
     // VP settings
     vpPocEnabled, vpPocColor, vpPocWidth, vpPocStyle, vpPocLabel,
     vpVahEnabled, vpVahColor, vpVahWidth, vpVahStyle, vpVahLabel,
@@ -621,6 +625,77 @@ export default function AdvancedChartSettings({
                   onChange={setShowVolume}
                 />
 
+                {showVolume && (
+                  <div className="ml-2 space-y-2 pb-2" style={{ borderLeft: '2px solid var(--border)', paddingLeft: '10px' }}>
+                    {/* Bull color */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur haussière</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#22c55e', '#34d399', '#3b82f6', '#06b6d4', '#a3e635'].map(c => (
+                          <button
+                            key={c}
+                            onClick={() => setVPSetting('volumeBarBullColor', c)}
+                            className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
+                            style={{
+                              backgroundColor: c,
+                              borderColor: volumeBarBullColor === c ? 'var(--primary)' : 'var(--border)',
+                              boxShadow: volumeBarBullColor === c ? '0 0 0 1px var(--primary)' : 'none',
+                            }}
+                          />
+                        ))}
+                        <input
+                          type="color"
+                          value={volumeBarBullColor}
+                          onChange={(e) => setVPSetting('volumeBarBullColor', e.target.value)}
+                          className="w-4 h-4 rounded-sm border-0 cursor-pointer"
+                          style={{ padding: 0 }}
+                        />
+                      </div>
+                    </div>
+                    {/* Bear color */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur baissière</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#ef4444', '#f87171', '#f97316', '#ec4899', '#fbbf24'].map(c => (
+                          <button
+                            key={c}
+                            onClick={() => setVPSetting('volumeBarBearColor', c)}
+                            className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
+                            style={{
+                              backgroundColor: c,
+                              borderColor: volumeBarBearColor === c ? 'var(--primary)' : 'var(--border)',
+                              boxShadow: volumeBarBearColor === c ? '0 0 0 1px var(--primary)' : 'none',
+                            }}
+                          />
+                        ))}
+                        <input
+                          type="color"
+                          value={volumeBarBearColor}
+                          onChange={(e) => setVPSetting('volumeBarBearColor', e.target.value)}
+                          className="w-4 h-4 rounded-sm border-0 cursor-pointer"
+                          style={{ padding: 0 }}
+                        />
+                      </div>
+                    </div>
+                    {/* Opacity */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Opacité</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min={10}
+                          max={80}
+                          step={5}
+                          value={Math.round(volumeBarOpacity * 100)}
+                          onChange={(e) => setVPSetting('volumeBarOpacity', parseInt(e.target.value) / 100)}
+                          className="w-16 h-1 accent-[var(--primary)]"
+                        />
+                        <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{Math.round(volumeBarOpacity * 100)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <ToggleSwitch
                   label="Grille"
                   description="Lignes de la grille"
@@ -649,11 +724,11 @@ export default function AdvancedChartSettings({
 
                     {showCurrentPriceLine && (
                       <>
-                        {/* Line style: dashed / solid */}
+                        {/* Line style: dashed / solid / dotted */}
                         <div className="flex items-center justify-between">
                           <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Style</span>
                           <div className="flex gap-1">
-                            {(['dashed', 'solid'] as const).map(s => (
+                            {(['dashed', 'solid', 'dotted'] as const).map(s => (
                               <button
                                 key={s}
                                 onClick={() => setPriceLineStyle(s)}
@@ -666,7 +741,7 @@ export default function AdvancedChartSettings({
                               >
                                 <svg width="24" height="6" viewBox="0 0 24 6">
                                   <line x1="0" y1="3" x2="24" y2="3" stroke="currentColor" strokeWidth="2"
-                                    strokeDasharray={s === 'dashed' ? '4 3' : 'none'} />
+                                    strokeDasharray={s === 'dashed' ? '4 3' : s === 'dotted' ? '2 2' : 'none'} />
                                 </svg>
                               </button>
                             ))}
@@ -687,6 +762,23 @@ export default function AdvancedChartSettings({
                               className="w-16 h-1 accent-[var(--primary)]"
                             />
                             <span className="text-[10px] font-mono w-5 text-right" style={{ color: 'var(--text-muted)' }}>{priceLineWidth}px</span>
+                          </div>
+                        </div>
+
+                        {/* Line opacity */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Opacité ligne</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min={10}
+                              max={100}
+                              step={5}
+                              value={Math.round(priceLineOpacity * 100)}
+                              onChange={(e) => setPriceLineOpacity(parseInt(e.target.value) / 100)}
+                              className="w-16 h-1 accent-[var(--primary)]"
+                            />
+                            <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{Math.round(priceLineOpacity * 100)}%</span>
                           </div>
                         </div>
 
@@ -752,6 +844,14 @@ export default function AdvancedChartSettings({
                         <div className="flex items-center justify-between">
                           <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Texte label</span>
                           <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setPriceLabelTextColor('auto')}
+                              className="text-[9px] px-1.5 py-0.5 rounded transition-colors"
+                              style={{
+                                backgroundColor: priceLabelTextColor === 'auto' ? 'var(--primary)' : 'var(--surface)',
+                                color: priceLabelTextColor === 'auto' ? '#fff' : 'var(--text-muted)',
+                              }}
+                            >Auto</button>
                             {['#ffffff', '#000000', '#e5e7eb', '#fbbf24'].map(c => (
                               <button
                                 key={c}
@@ -781,6 +881,23 @@ export default function AdvancedChartSettings({
                               className="w-16 h-1 accent-[var(--primary)]"
                             />
                             <span className="text-[10px] font-mono w-7 text-right" style={{ color: 'var(--text-muted)' }}>{Math.round(priceLabelOpacity * 100)}%</span>
+                          </div>
+                        </div>
+
+                        {/* Label border radius */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Arrondi label</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min={0}
+                              max={8}
+                              step={1}
+                              value={priceLabelBorderRadius}
+                              onChange={(e) => setPriceLabelBorderRadius(parseInt(e.target.value))}
+                              className="w-16 h-1 accent-[var(--primary)]"
+                            />
+                            <span className="text-[10px] font-mono w-5 text-right" style={{ color: 'var(--text-muted)' }}>{priceLabelBorderRadius}px</span>
                           </div>
                         </div>
                       </>

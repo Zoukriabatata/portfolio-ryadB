@@ -1063,6 +1063,79 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
               thresholdMet: false,
               lastTickY: my,
             };
+
+            // Window events so drag continues outside canvas
+            const drawingCanvas = refs.drawingCanvas.current;
+            const onWindowMove = (ev: MouseEvent) => {
+              if (!pnlDragRef.current.active || !drawingCanvas) return;
+              const r = drawingCanvas.getBoundingClientRect();
+              const wy = ev.clientY - r.top;
+              pnlDragRef.current.currentY = wy;
+
+              if (!positionsRef.current.some(p => p.symbol === pnlDragRef.current.position?.symbol)) {
+                pnlDragRef.current = { active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 };
+                if (drawingCanvas) drawingCanvas.style.cursor = '';
+                renderDrawingTools();
+                return;
+              }
+
+              const conv = refs.interactionController.current.getCoordinateConverter();
+              if (conv) {
+                const rawPrice = conv.yToPrice(wy);
+                pnlDragRef.current.dragPrice = Math.round(rawPrice / 0.01) * 0.01;
+                const dist = Math.abs(wy - pnlDragRef.current.startY);
+                if (dist > 15) pnlDragRef.current.thresholdMet = true;
+                if (pnlDragRef.current.thresholdMet && pnlDragRef.current.position) {
+                  const pos = pnlDragRef.current.position;
+                  const entryY = conv.priceToY(pos.entryPrice);
+                  if (pos.side === 'buy') {
+                    pnlDragRef.current.orderType = wy < entryY ? 'limit' : 'stop';
+                  } else {
+                    pnlDragRef.current.orderType = wy > entryY ? 'limit' : 'stop';
+                  }
+                }
+                if (Math.abs(wy - pnlDragRef.current.lastTickY) > 20) {
+                  pnlDragRef.current.lastTickY = wy;
+                  const { soundEnabled } = useAccountPrefsStore.getState();
+                  if (soundEnabled) getSoundManager().playDragTick();
+                }
+              }
+              drawingCanvas.style.cursor = 'ns-resize';
+              renderDrawingTools();
+            };
+            const onWindowUp = (ev: MouseEvent) => {
+              window.removeEventListener('mousemove', onWindowMove);
+              window.removeEventListener('mouseup', onWindowUp);
+              if (!pnlDragRef.current.active) return;
+              // Reuse mouseup logic — synthesize a React-like event
+              const r = drawingCanvas?.getBoundingClientRect();
+              if (r && pnlDragRef.current.thresholdMet && pnlDragRef.current.position && pnlDragRef.current.orderType) {
+                const tradingState = useTradingStore.getState();
+                const broker = tradingState.activeBroker;
+                if (broker) {
+                  const pos = pnlDragRef.current.position;
+                  const orderSide = pos.side === 'buy' ? 'sell' : 'buy';
+                  const existingOrders = tradingState.orders.filter(
+                    (o: { status: string; symbol: string; side: string; type: string }) =>
+                      o.status === 'pending' && o.symbol === pos.symbol
+                      && o.side === orderSide && o.type === pnlDragRef.current.orderType
+                  );
+                  for (const existing of existingOrders) tradingState.cancelOrder(existing.id);
+                  if (pnlDragRef.current.orderType === 'limit') {
+                    tradingState.placeOrder({ broker, symbol: pos.symbol, side: orderSide as 'buy' | 'sell', type: 'limit', quantity: pos.quantity, price: pnlDragRef.current.dragPrice, marketPrice: refs.currentPrice.current || 0 });
+                  } else {
+                    tradingState.placeOrder({ broker, symbol: pos.symbol, side: orderSide as 'buy' | 'sell', type: 'stop', quantity: pos.quantity, stopPrice: pnlDragRef.current.dragPrice, marketPrice: refs.currentPrice.current || 0 });
+                  }
+                  const { soundEnabled } = useAccountPrefsStore.getState();
+                  if (soundEnabled) getSoundManager().playOrderConfirm();
+                }
+              }
+              pnlDragRef.current = { active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 };
+              if (drawingCanvas) drawingCanvas.style.cursor = '';
+              renderDrawingTools();
+            };
+            window.addEventListener('mousemove', onWindowMove);
+            window.addEventListener('mouseup', onWindowUp);
             return;
           }
         }
@@ -1195,6 +1268,16 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
           const pos = drag.position;
           const orderSide = pos.side === 'buy' ? 'sell' : 'buy';
 
+          // DEDUP: Cancel existing pending order of same type/side before placing new
+          const existingOrders = tradingState.orders.filter(
+            (o: { status: string; symbol: string; side: string; type: string }) =>
+              o.status === 'pending' && o.symbol === pos.symbol
+              && o.side === orderSide && o.type === drag.orderType
+          );
+          for (const existing of existingOrders) {
+            tradingState.cancelOrder(existing.id);
+          }
+
           if (drag.orderType === 'limit') {
             tradingState.placeOrder({
               broker,
@@ -1239,13 +1322,8 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
   }, [refs, forwardEventToChart, renderDrawingTools]);
 
   const handleCanvasMouseLeave = useCallback(() => {
-    // Cancel PnL drag on mouse leave
+    // If PnL drag is active, let window events handle — don't cancel
     if (pnlDragRef.current.active) {
-      pnlDragRef.current = { active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 };
-      const canvas = refs.drawingCanvas.current;
-      if (canvas) canvas.style.cursor = '';
-      hoveredBadgeSymbol.current = null;
-      renderDrawingTools();
       return;
     }
 

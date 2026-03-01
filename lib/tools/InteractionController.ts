@@ -525,15 +525,9 @@ export class InteractionController {
   }
 
   handleMouseLeave(): void {
-    // Cancel drawing if mouse leaves chart
-    if (this.state.mode === 'drawing') {
-      const engine = getToolsEngine();
-      engine.cancelDrawing();
-      this.state.mode = 'idle';
-      this.state.activeTool = 'cursor';
-      engine.setActiveTool('cursor');
-      this.callbacks.onActiveToolChanged?.('cursor');
-      this.callbacks.onModeChanged?.('idle');
+    // If actively drawing or dragging, keep going — window events handle completion
+    if (this.state.mode === 'drawing' || this.state.mode === 'dragging') {
+      return;
     }
 
     this.state.isMouseDown = false;

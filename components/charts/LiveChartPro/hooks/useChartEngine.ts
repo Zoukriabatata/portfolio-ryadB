@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { CanvasChartEngine } from '@/lib/rendering/CanvasChartEngine';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
+import { hexToRgba } from '@/lib/utils/colorUtils';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs, CustomColors, EffectiveColors } from './types';
 
@@ -157,6 +158,7 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
   useEffect(() => {
     if (!refs.chartEngine.current) return;
 
+    const prefs = usePreferencesStore.getState();
     refs.chartEngine.current.setTheme({
       background: effectiveColors.background,
       gridLines: theme.colors.gridLines,
@@ -166,12 +168,24 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
       candleDown: effectiveColors.candleDown,
       wickUp: effectiveColors.wickUp,
       wickDown: effectiveColors.wickDown,
-      volumeUp: theme.colors.volumeUp,
-      volumeDown: theme.colors.volumeDown,
+      volumeUp: hexToRgba(prefs.volumeBarBullColor, prefs.volumeBarOpacity),
+      volumeDown: hexToRgba(prefs.volumeBarBearColor, prefs.volumeBarOpacity),
       crosshair: theme.colors.crosshair,
       priceLineColor: effectiveColors.priceLineColor,
     });
   }, [refs, theme, effectiveColors]);
+
+  // Sync volume bar colors
+  const volBarBull = usePreferencesStore(s => s.volumeBarBullColor);
+  const volBarBear = usePreferencesStore(s => s.volumeBarBearColor);
+  const volBarOpacity = usePreferencesStore(s => s.volumeBarOpacity);
+  useEffect(() => {
+    if (!refs.chartEngine.current) return;
+    refs.chartEngine.current.setTheme({
+      volumeUp: hexToRgba(volBarBull, volBarOpacity),
+      volumeDown: hexToRgba(volBarBear, volBarOpacity),
+    });
+  }, [refs, volBarBull, volBarBear, volBarOpacity]);
 
   // Sync preferences store → chart engine
   const prefShowVolume = usePreferencesStore((s) => s.showVolume);
@@ -220,9 +234,11 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
   const prefPriceLineStyle = usePreferencesStore((s) => s.priceLineStyle);
   const prefPriceLineWidth = usePreferencesStore((s) => s.priceLineWidth);
   const prefPriceLineColor = usePreferencesStore((s) => s.priceLineColor);
+  const prefPriceLineOpacity = usePreferencesStore((s) => s.priceLineOpacity);
   const prefPriceLabelBgColor = usePreferencesStore((s) => s.priceLabelBgColor);
   const prefPriceLabelTextColor = usePreferencesStore((s) => s.priceLabelTextColor);
   const prefPriceLabelOpacity = usePreferencesStore((s) => s.priceLabelOpacity);
+  const prefPriceLabelBorderRadius = usePreferencesStore((s) => s.priceLabelBorderRadius);
 
   useEffect(() => {
     if (!refs.chartEngine.current) return;
@@ -231,11 +247,13 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
       style: prefPriceLineStyle,
       width: prefPriceLineWidth,
       color: prefPriceLineColor,
+      lineOpacity: prefPriceLineOpacity,
       labelBgColor: prefPriceLabelBgColor,
       labelTextColor: prefPriceLabelTextColor,
       labelOpacity: prefPriceLabelOpacity,
+      labelBorderRadius: prefPriceLabelBorderRadius,
     });
-  }, [refs, prefShowPriceLine, prefPriceLineStyle, prefPriceLineWidth, prefPriceLineColor, prefPriceLabelBgColor, prefPriceLabelTextColor, prefPriceLabelOpacity]);
+  }, [refs, prefShowPriceLine, prefPriceLineStyle, prefPriceLineWidth, prefPriceLineColor, prefPriceLineOpacity, prefPriceLabelBgColor, prefPriceLabelTextColor, prefPriceLabelOpacity, prefPriceLabelBorderRadius]);
 
   /**
    * Smart Zoom

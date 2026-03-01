@@ -37,12 +37,14 @@ export interface ChartTheme {
 
 export interface PriceLineConfig {
   visible: boolean;
-  style: 'dashed' | 'solid';
+  style: 'dashed' | 'solid' | 'dotted';
   width: number;
   color: string;         // '' = use theme.priceLineColor
+  lineOpacity: number;
   labelBgColor: string;  // '' = auto green/red
-  labelTextColor: string;
+  labelTextColor: string; // 'auto' = WCAG contrast
   labelOpacity: number;
+  labelBorderRadius: number;
 }
 
 export interface VPLevelConfig {
@@ -162,9 +164,11 @@ export class CanvasChartEngine {
     style: 'dashed',
     width: 1,
     color: '',
+    lineOpacity: 1,
     labelBgColor: '',
-    labelTextColor: '#ffffff',
+    labelTextColor: 'auto',
     labelOpacity: 1,
+    labelBorderRadius: 0,
   };
   private vpLevels: VPLevelConfig | null = null;
   private showCrosshairTooltip = true;
@@ -678,6 +682,8 @@ export class CanvasChartEngine {
     this.canvas.removeEventListener('mousemove', this.handleMouseMove);
     this.canvas.removeEventListener('mouseup', this.handleMouseUp);
     this.canvas.removeEventListener('mouseleave', this.handleMouseLeave);
+    window.removeEventListener('mousemove', this.handleWindowMouseMove);
+    window.removeEventListener('mouseup', this.handleWindowMouseUp);
     this.canvas.removeEventListener('wheel', this.handleWheel);
     this.canvas.removeEventListener('dblclick', this.handleDoubleClick);
     this.canvas.removeEventListener('touchstart', this.handleTouchStart);
@@ -738,7 +744,7 @@ export class CanvasChartEngine {
     for (let price = firstSubPrice; price <= priceMax; price += subStep) {
       // Skip major grid positions
       if (Math.abs(price % niceStep) < subStep * 0.1) continue;
-      const y = ((priceMax - price) / priceRange) * chartHeight;
+      const y = Math.round(((priceMax - price) / priceRange) * chartHeight) + 0.5;
       if (y >= 0 && y <= chartHeight) {
         this.ctx.beginPath();
         this.ctx.moveTo(0, y);
@@ -749,13 +755,13 @@ export class CanvasChartEngine {
     this.ctx.setLineDash([]);
     this.ctx.globalAlpha = 1;
 
-    // Major grid lines
+    // Major grid lines (pixel-aligned)
     this.ctx.strokeStyle = this.theme.gridLines;
     this.ctx.lineWidth = 1;
 
     const firstNicePrice = Math.ceil(priceMin / niceStep) * niceStep;
     for (let price = firstNicePrice; price <= priceMax; price += niceStep) {
-      const y = ((priceMax - price) / priceRange) * chartHeight;
+      const y = Math.round(((priceMax - price) / priceRange) * chartHeight) + 0.5;
       if (y >= 0 && y <= chartHeight) {
         this.ctx.beginPath();
         this.ctx.moveTo(0, y);
@@ -764,9 +770,9 @@ export class CanvasChartEngine {
       }
     }
 
-    // Volume separator line
+    // Volume separator line (pixel-aligned)
     if (this.showVolume) {
-      const sepY = chartHeight;
+      const sepY = Math.round(chartHeight) + 0.5;
       this.ctx.strokeStyle = this.theme.gridLines;
       this.ctx.lineWidth = 1;
       this.ctx.globalAlpha = 0.6;
@@ -777,10 +783,10 @@ export class CanvasChartEngine {
       this.ctx.globalAlpha = 1;
     }
 
-    // Vertical lines
+    // Vertical lines (pixel-aligned)
     const timeSteps = Math.floor(chartWidth / 100);
     for (let i = 0; i <= timeSteps; i++) {
-      const x = (chartWidth / timeSteps) * i;
+      const x = Math.round((chartWidth / timeSteps) * i) + 0.5;
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
       this.ctx.lineTo(x, chartHeight + (this.showVolume ? volumeHeight : 0));
@@ -845,27 +851,27 @@ export class CanvasChartEngine {
       const openY = ((priceMax - candle.open) / priceRange) * chartHeight;
       const closeY = ((priceMax - candle.close) / priceRange) * chartHeight;
 
-      // Draw wick
+      // Draw wick (pixel-aligned for crisp 1px lines)
       this.ctx.strokeStyle = isUp ? this.theme.wickUp : this.theme.wickDown;
       this.ctx.lineWidth = 1;
       this.ctx.beginPath();
-      const wickX = x + candleBodyWidth / 2;
-      this.ctx.moveTo(wickX, highY);
-      this.ctx.lineTo(wickX, lowY);
+      const wickX = Math.round(x + candleBodyWidth / 2) + 0.5;
+      this.ctx.moveTo(wickX, Math.round(highY));
+      this.ctx.lineTo(wickX, Math.round(lowY));
       this.ctx.stroke();
 
-      // Draw body
+      // Draw body (pixel-aligned filled rects)
       this.ctx.fillStyle = isUp ? this.theme.candleUp : this.theme.candleDown;
-      const bodyTop = Math.min(openY, closeY);
-      const bodyHeight = Math.max(1, Math.abs(closeY - openY));
-      this.ctx.fillRect(x, bodyTop, candleBodyWidth, bodyHeight);
+      const bodyTop = Math.round(Math.min(openY, closeY));
+      const bodyHeight = Math.max(1, Math.round(Math.abs(closeY - openY)));
+      this.ctx.fillRect(Math.round(x), bodyTop, Math.round(candleBodyWidth), bodyHeight);
 
       // Draw border if specified
       const borderColor = isUp ? this.theme.candleBorderUp : this.theme.candleBorderDown;
       if (borderColor) {
         this.ctx.strokeStyle = borderColor;
         this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(x, bodyTop, candleBodyWidth, bodyHeight);
+        this.ctx.strokeRect(Math.round(x) + 0.5, bodyTop + 0.5, Math.round(candleBodyWidth) - 1, bodyHeight - 1);
       }
     }
   }
@@ -898,9 +904,9 @@ export class CanvasChartEngine {
       const barHeight = (candle.volume / maxVolume) * (volumeHeight - 5);
       const y = chartTop + volumeHeight - barHeight;
 
-      // Volume bars — use solid color (gradients are too expensive per-bar)
+      // Volume bars — pixel-aligned filled rects
       this.ctx.fillStyle = isUp ? this.theme.volumeUp : this.theme.volumeDown;
-      this.ctx.fillRect(x, y, barWidth, barHeight);
+      this.ctx.fillRect(Math.round(x), Math.round(y), Math.round(barWidth), Math.round(barHeight));
     }
   }
 
@@ -1255,21 +1261,26 @@ export class CanvasChartEngine {
     const priceRange = priceMax - priceMin;
     if (priceRange === 0) return;
 
-    const y = ((priceMax - currentPrice) / priceRange) * chartHeight;
+    const y = Math.round(((priceMax - currentPrice) / priceRange) * chartHeight) + 0.5;
 
     // Don't draw if outside visible range
     if (y < 0 || y > chartHeight) return;
 
-    // Line
+    // Line with opacity and dotted support
+    this.ctx.save();
+    this.ctx.globalAlpha = this.priceLineConfig.lineOpacity;
     const lineColor = this.priceLineConfig.color || this.theme.priceLineColor;
     this.ctx.strokeStyle = lineColor;
     this.ctx.lineWidth = this.priceLineConfig.width;
-    this.ctx.setLineDash(this.priceLineConfig.style === 'solid' ? [] : [4, 4]);
+    const dashPattern = this.priceLineConfig.style === 'solid' ? [] :
+      this.priceLineConfig.style === 'dotted' ? [2, 2] : [4, 4];
+    this.ctx.setLineDash(dashPattern);
     this.ctx.beginPath();
     this.ctx.moveTo(0, y);
     this.ctx.lineTo(chartWidth, y);
     this.ctx.stroke();
     this.ctx.setLineDash([]);
+    this.ctx.restore();
 
     // Price label with countdown
     const isUp = this.candles.length > 1 && currentPrice >= this.candles[this.candles.length - 2].close;
@@ -1299,17 +1310,40 @@ export class CanvasChartEngine {
     // Badge dimensions — price on top, countdown below
     const totalW = Math.max(priceAxisWidth, Math.max(priceTextW, cdTextW) + 16);
     const rectH = 28;
-    const rectY = y - rectH / 2;
+    const rectY = Math.round(y - rectH / 2);
 
-    // Background with label opacity
+    // Background with label opacity and border radius
     this.ctx.save();
     this.ctx.globalAlpha = this.priceLineConfig.labelOpacity;
     this.ctx.fillStyle = bgColor;
-    this.ctx.fillRect(chartWidth, rectY, totalW, rectH);
+    const br = this.priceLineConfig.labelBorderRadius;
+    if (br > 0) {
+      this.ctx.beginPath();
+      this.ctx.roundRect(chartWidth, rectY, totalW, rectH, [br, 0, 0, br]);
+      this.ctx.fill();
+    } else {
+      this.ctx.fillRect(chartWidth, rectY, totalW, rectH);
+    }
     this.ctx.restore();
 
-    // Price text (top)
-    this.ctx.fillStyle = this.priceLineConfig.labelTextColor;
+    // Price text (top) — auto contrast based on label background
+    let textColor = this.priceLineConfig.labelTextColor;
+    if (textColor === 'auto' || textColor === '') {
+      // WCAG luminance-based auto text color
+      const hexMatch = bgColor.match(/#([0-9a-fA-F]{6})/);
+      if (hexMatch) {
+        const r = parseInt(hexMatch[1].substring(0, 2), 16) / 255;
+        const g = parseInt(hexMatch[1].substring(2, 4), 16) / 255;
+        const b = parseInt(hexMatch[1].substring(4, 6), 16) / 255;
+        const lum = 0.2126 * (r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4))
+                  + 0.7152 * (g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4))
+                  + 0.0722 * (b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4));
+        textColor = lum > 0.179 ? '#000000' : '#ffffff';
+      } else {
+        textColor = '#ffffff';
+      }
+    }
+    this.ctx.fillStyle = textColor;
     this.ctx.font = 'bold 11px monospace';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
@@ -1728,6 +1762,11 @@ export class CanvasChartEngine {
       this.crosshair.visible = false;
       this.canvas.style.cursor = 'grabbing';
     }
+    // Attach window-level events so drag continues outside canvas
+    if (this.isDragging || this.isDraggingPriceAxis || this.isDraggingTimeAxis) {
+      window.addEventListener('mousemove', this.handleWindowMouseMove);
+      window.addEventListener('mouseup', this.handleWindowMouseUp);
+    }
   };
 
   private handleMouseMove = (e: MouseEvent): void => {
@@ -1774,6 +1813,8 @@ export class CanvasChartEngine {
   };
 
   private handleMouseUp = (): void => {
+    window.removeEventListener('mousemove', this.handleWindowMouseMove);
+    window.removeEventListener('mouseup', this.handleWindowMouseUp);
     const wasDragging = this.isDragging;
     this.isDragging = false;
     this.isDraggingPriceAxis = false;
@@ -1784,6 +1825,15 @@ export class CanvasChartEngine {
     if (wasDragging && (Math.abs(this.panVelocity) > 0.05 || Math.abs(this.panVelocityY) > 0.05)) {
       this.startMomentum();
     }
+  };
+
+  private handleWindowMouseMove = (e: MouseEvent): void => {
+    if (!this.isDragging && !this.isDraggingPriceAxis && !this.isDraggingTimeAxis) return;
+    this.handleMouseMove(e);
+  };
+
+  private handleWindowMouseUp = (): void => {
+    this.handleMouseUp();
   };
 
   private stopMomentum(): void {
@@ -1813,12 +1863,13 @@ export class CanvasChartEngine {
   }
 
   private handleMouseLeave = (): void => {
-    if (this.isDragging && (Math.abs(this.panVelocity) > 0.05 || Math.abs(this.panVelocityY) > 0.05)) {
-      this.startMomentum(); // Keep momentum when mouse leaves
+    // If actively dragging, let window events handle completion — don't stop drag
+    if (this.isDragging || this.isDraggingPriceAxis || this.isDraggingTimeAxis) {
+      this.crosshair.visible = false;
+      if (this.onCrosshairCandleData) this.onCrosshairCandleData(null);
+      this.render();
+      return;
     }
-    this.isDragging = false;
-    this.isDraggingPriceAxis = false;
-    this.isDraggingTimeAxis = false;
     this.crosshair.visible = false;
     this.canvas.style.cursor = 'crosshair';
     if (this.onCrosshairCandleData) this.onCrosshairCandleData(null);

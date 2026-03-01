@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware';
 import type { ToolType, LineStyle } from '@/lib/tools/ToolsEngine';
 
 // Version for migration - increment when defaults change
-const SETTINGS_VERSION = 2;
+const SETTINGS_VERSION = 3;
 
 export interface ToolSettings {
   color: string;
