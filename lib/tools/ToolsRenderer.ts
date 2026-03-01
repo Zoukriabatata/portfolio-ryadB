@@ -836,33 +836,50 @@ export class ToolsRenderer {
       const riskTop = Math.min(entryY, slY);
       const riskH = Math.abs(slY - entryY);
 
+      // ── Shared gradient helper: 3-stop vertical gradient ──
+      // entry edge = near-transparent, mid = base, target edge = peak
+      const makeZoneGradient = (
+        color: string, fromY: number, toY: number,
+        edgeAlpha: number, midAlpha: number, peakAlpha: number,
+      ) => {
+        const grad = ctx.createLinearGradient(0, fromY, 0, toY);
+        grad.addColorStop(0, hexToRgba(color, edgeAlpha));
+        grad.addColorStop(0.45, hexToRgba(color, midAlpha));
+        grad.addColorStop(1, hexToRgba(color, peakAlpha));
+        return grad;
+      };
+
       if (isClosed) {
-        // ── Closed: professional TradingView-grade opacity ──
-        // Interpolate fill from active (baseAlpha ~0.12) → hit (0.06)
+        // ── Closed: professional TradingView-grade vertical gradient ──
         const hitFillAlpha = 0.06;
         const currentFill = baseAlpha + (hitFillAlpha - baseAlpha) * fadeFactor;
         const wonTarget = exitReason === 'target';
-        // Subtle differential: winner slightly brighter, loser dimmer
-        const winnerAlpha = currentFill * 1.1;
-        const loserAlpha = currentFill * 0.7;
+        const winnerPeak = currentFill * 1.2;
+        const loserPeak = currentFill * 0.6;
         if (profitH > 1) {
-          ctx.fillStyle = hexToRgba(profitLine, wonTarget ? winnerAlpha : loserAlpha);
+          const peak = wonTarget ? winnerPeak : loserPeak;
+          ctx.fillStyle = makeZoneGradient(profitLine, entryY, tpY, peak * 0.15, peak * 0.5, peak);
           ctx.fillRect(leftX, profitTop, zoneW, profitH);
         }
         if (riskH > 1) {
-          ctx.fillStyle = hexToRgba(riskLine, !wonTarget ? winnerAlpha : loserAlpha);
+          const peak = !wonTarget ? winnerPeak : loserPeak;
+          ctx.fillStyle = makeZoneGradient(riskLine, entryY, slY, peak * 0.15, peak * 0.5, peak);
           ctx.fillRect(leftX, riskTop, zoneW, riskH);
         }
 
       } else if (gradientMode === 'static' || livePrice <= 0) {
-        // ── Static: flat fill, both zones visible ──
-        ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
-        if (profitH > 1) ctx.fillRect(leftX, profitTop, zoneW, profitH);
-        ctx.fillStyle = hexToRgba(riskLine, baseAlpha);
-        if (riskH > 1) ctx.fillRect(leftX, riskTop, zoneW, riskH);
+        // ── Static: gentle vertical gradient (entry dim → target bright) ──
+        if (profitH > 1) {
+          ctx.fillStyle = makeZoneGradient(profitLine, entryY, tpY, baseAlpha * 0.1, baseAlpha * 0.5, baseAlpha);
+          ctx.fillRect(leftX, profitTop, zoneW, profitH);
+        }
+        if (riskH > 1) {
+          ctx.fillStyle = makeZoneGradient(riskLine, entryY, slY, baseAlpha * 0.1, baseAlpha * 0.5, baseAlpha);
+          ctx.fillRect(leftX, riskTop, zoneW, riskH);
+        }
 
       } else {
-        // ── Dynamic / Heat: price-based Y-axis gradient ──
+        // ── Dynamic / Heat: price-responsive vertical gradient ──
         const inProfit = isLong ? livePrice > tool.entry : livePrice < tool.entry;
         const inLoss = isLong ? livePrice < tool.entry : livePrice > tool.entry;
         const tpDist = Math.abs(tool.takeProfit - tool.entry);
@@ -875,41 +892,33 @@ export class ToolsRenderer {
           ? Math.min(1, Math.max(0, (isLong ? tool.entry - livePrice : livePrice - tool.entry) / slDist))
           : 0;
 
-        // ── PROFIT ZONE (entry ↔ TP) — always visible ──
+        // ── PROFIT ZONE (entry ↔ TP) — always visible, gradient intensifies with progress ──
         if (profitH > 1) {
           if (inProfit && profitProgress > 0 && dynamicOpacityEnabled) {
-            // Active: Y-gradient from entry (dim) → TP (intense based on progress)
             const intensity = applyCurve(profitProgress) * dynamicFactor;
             const peakAlpha = Math.min(baseAlpha + intensity, maxAlpha);
-            const grad = ctx.createLinearGradient(0, entryY, 0, tpY);
-            grad.addColorStop(0, hexToRgba(profitLine, baseAlpha * 0.4));
-            grad.addColorStop(1, hexToRgba(profitLine, peakAlpha));
-            ctx.fillStyle = grad;
+            ctx.fillStyle = makeZoneGradient(profitLine, entryY, tpY, baseAlpha * 0.08, baseAlpha * 0.35, peakAlpha);
           } else {
-            // Inactive: dim static fill
-            ctx.fillStyle = hexToRgba(profitLine, baseAlpha * 0.25);
+            // Inactive: very subtle gradient (not flat)
+            ctx.fillStyle = makeZoneGradient(profitLine, entryY, tpY, baseAlpha * 0.05, baseAlpha * 0.15, baseAlpha * 0.3);
           }
           ctx.fillRect(leftX, profitTop, zoneW, profitH);
         }
 
-        // ── RISK ZONE (entry ↔ SL) — always visible ──
+        // ── RISK ZONE (entry ↔ SL) — always visible, gradient intensifies with progress ──
         if (riskH > 1) {
           if (inLoss && riskProgress > 0 && dynamicOpacityEnabled) {
-            // Active: Y-gradient from entry (dim) → SL (intense based on progress)
             const intensity = applyCurve(riskProgress) * dynamicFactor;
             const peakAlpha = Math.min(baseAlpha + intensity, maxAlpha);
-            const grad = ctx.createLinearGradient(0, entryY, 0, slY);
-            grad.addColorStop(0, hexToRgba(riskLine, baseAlpha * 0.4));
-            grad.addColorStop(1, hexToRgba(riskLine, peakAlpha));
-            ctx.fillStyle = grad;
+            ctx.fillStyle = makeZoneGradient(riskLine, entryY, slY, baseAlpha * 0.08, baseAlpha * 0.35, peakAlpha);
           } else {
-            // Inactive: dim static fill
-            ctx.fillStyle = hexToRgba(riskLine, baseAlpha * 0.25);
+            // Inactive: very subtle gradient (not flat)
+            ctx.fillStyle = makeZoneGradient(riskLine, entryY, slY, baseAlpha * 0.05, baseAlpha * 0.15, baseAlpha * 0.3);
           }
           ctx.fillRect(leftX, riskTop, zoneW, riskH);
         }
 
-        // ── Heat mode overlay: extra intensity near live price ──
+        // ── Heat mode overlay: radial glow near live price ──
         if (gradientMode === 'heat' && dynamicOpacityEnabled) {
           const livePriceY = Math.round(priceToY(
             isLong
@@ -917,11 +926,13 @@ export class ToolsRenderer {
               : Math.min(tool.stopLoss, Math.max(livePrice, tool.takeProfit))
           ));
           const heatColor = inProfit ? profitLine : riskLine;
-          const heatBand = 12; // px radius of heat glow
-          const heatAlpha = Math.min(0.3, baseAlpha + applyCurve(Math.max(profitProgress, riskProgress)) * 0.25);
+          const heatBand = 14;
+          const heatAlpha = Math.min(0.25, baseAlpha + applyCurve(Math.max(profitProgress, riskProgress)) * 0.2);
           const heatGrad = ctx.createLinearGradient(0, livePriceY - heatBand, 0, livePriceY + heatBand);
           heatGrad.addColorStop(0, hexToRgba(heatColor, 0));
+          heatGrad.addColorStop(0.35, hexToRgba(heatColor, heatAlpha * 0.6));
           heatGrad.addColorStop(0.5, hexToRgba(heatColor, heatAlpha));
+          heatGrad.addColorStop(0.65, hexToRgba(heatColor, heatAlpha * 0.6));
           heatGrad.addColorStop(1, hexToRgba(heatColor, 0));
           ctx.fillStyle = heatGrad;
           ctx.fillRect(leftX, livePriceY - heatBand, zoneW, heatBand * 2);
@@ -959,7 +970,7 @@ export class ToolsRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ═══ POSITION PROGRESS ENGINE v2 ═══
+    // ═══ SMOOTH PROGRESS ARROW v3 — Bézier curve + chevron arrowhead ═══
     const livePrice = isClosed ? (tool.exitPrice || 0) : (context.currentPrice || 0);
     if (smartArrowEnabled && livePrice > 0 && !isClosed) {
       const arrowExponent = prefs.posArrowExponent ?? 1.6;
@@ -998,7 +1009,6 @@ export class ToolsRenderer {
       // ── Edge case guards ──
       const rectHeight = Math.abs(tpY - slY);
       if (tpDist >= 0.01 && slDist >= 0.01 && rectHeight >= 20) {
-        // Pixel positions
         const paddingPx = 6;
         const topBound = Math.min(tpY, slY) + paddingPx;
         const bottomBound = Math.max(tpY, slY) - paddingPx;
@@ -1008,8 +1018,8 @@ export class ToolsRenderer {
 
         const clampedPriceY = Math.round(priceToY(clampedPrice));
         const clampedTimeX = Math.round(timeToX(clampedTime));
-        const currentX = Math.max(leftX + paddingPx, Math.min(clampedTimeX, rightX - paddingPx));
-        const currentY = Math.max(topBound, Math.min(clampedPriceY, bottomBound));
+        const endX = Math.max(leftX + paddingPx, Math.min(clampedTimeX, rightX - paddingPx));
+        const endY = Math.max(topBound, Math.min(clampedPriceY, bottomBound));
 
         // ── Exponential opacity ──
         const baseOpacity = 0.12;
@@ -1017,58 +1027,83 @@ export class ToolsRenderer {
         const arrowOpacity = Math.min(0.85, baseOpacity + dynamicOpacity);
         const arrowColor = inProfit ? profitLine : riskLine;
 
-        const dx = currentX - startX;
-        const dy = currentY - startY;
+        const dx = endX - startX;
+        const dy = endY - startY;
         const arrowLength = Math.sqrt(dx * dx + dy * dy);
 
-        // ── Progress trail (behind arrow) ──
-        if (trailEnabled && arrowLength > 8) {
-          const trailX = currentX - dx * trailFactor;
-          const trailY = currentY - dy * trailFactor;
-          ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity * 0.4);
-          ctx.lineWidth = Math.max(0.5, arrowThickness * 0.6);
+        // ── Bézier control point: smooth S-curve ──
+        // Horizontal first, then curves toward price target
+        const cpX = startX + dx * 0.65;
+        const cpY = startY + dy * 0.15;
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // ── Trail: faded Bézier shadow behind curve ──
+        if (trailEnabled && arrowLength > 10) {
+          // Trail control point — offset behind the main curve
+          const tCpX = startX + dx * (0.65 - trailFactor * 0.3);
+          const tCpY = startY + dy * (0.15 + trailFactor * 0.2);
+          const tEndX = endX - dx * trailFactor;
+          const tEndY = endY - dy * trailFactor;
+          // Gradient trail: fades from transparent → arrowColor
+          const trailGrad = ctx.createLinearGradient(startX, startY, tEndX, tEndY);
+          trailGrad.addColorStop(0, hexToRgba(arrowColor, 0));
+          trailGrad.addColorStop(1, hexToRgba(arrowColor, arrowOpacity * 0.3));
+          ctx.strokeStyle = trailGrad;
+          ctx.lineWidth = Math.max(0.5, arrowThickness * 0.5);
           ctx.setLineDash([]);
           ctx.beginPath();
-          ctx.moveTo(trailX, trailY);
-          ctx.lineTo(currentX, currentY);
+          ctx.moveTo(startX, startY);
+          ctx.quadraticCurveTo(tCpX, tCpY, tEndX, tEndY);
           ctx.stroke();
         }
 
-        // ── Arrow shaft: left entry → current position (diagonal) ──
+        // ── Main curve: smooth quadratic Bézier ──
         if (arrowLength > 6) {
-          ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity);
+          // Gradient along curve: dim start → bright end
+          const shaftGrad = ctx.createLinearGradient(startX, startY, endX, endY);
+          shaftGrad.addColorStop(0, hexToRgba(arrowColor, arrowOpacity * 0.25));
+          shaftGrad.addColorStop(0.4, hexToRgba(arrowColor, arrowOpacity * 0.6));
+          shaftGrad.addColorStop(1, hexToRgba(arrowColor, arrowOpacity));
+          ctx.strokeStyle = shaftGrad;
           ctx.lineWidth = arrowThickness;
           ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(startX, startY);
-          ctx.lineTo(currentX, currentY);
+          ctx.quadraticCurveTo(cpX, cpY, endX, endY);
           ctx.stroke();
         }
 
-        // ── Arrow head triangle (5px, directional) ──
-        if (arrowLength > 10) {
-          const tipSize = 5;
-          // Direction angle of the arrow
-          const angle = Math.atan2(dy, dx);
-          const tipX = currentX;
-          const tipY2 = currentY;
-          ctx.fillStyle = hexToRgba(arrowColor, arrowOpacity);
+        // ── Chevron arrowhead (proper ±30° wings) ──
+        if (arrowLength > 12) {
+          // Tangent at curve endpoint: derivative of quadratic Bézier at t=1
+          // P'(1) = 2 * (P2 - P1_control) = 2 * (end - cp)
+          const tangentX = endX - cpX;
+          const tangentY = endY - cpY;
+          const angle = Math.atan2(tangentY, tangentX);
+          const wingLength = Math.min(7, arrowThickness * 4);
+          const wingAngle = Math.PI / 6; // 30°
+
+          ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity);
+          ctx.lineWidth = Math.max(1, arrowThickness * 0.85);
           ctx.beginPath();
+          // Left wing
           ctx.moveTo(
-            tipX + tipSize * Math.cos(angle),
-            tipY2 + tipSize * Math.sin(angle)
+            endX - wingLength * Math.cos(angle - wingAngle),
+            endY - wingLength * Math.sin(angle - wingAngle)
           );
+          ctx.lineTo(endX, endY);
+          // Right wing
           ctx.lineTo(
-            tipX + tipSize * Math.cos(angle + 2.5),
-            tipY2 + tipSize * Math.sin(angle + 2.5)
+            endX - wingLength * Math.cos(angle + wingAngle),
+            endY - wingLength * Math.sin(angle + wingAngle)
           );
-          ctx.lineTo(
-            tipX + tipSize * Math.cos(angle - 2.5),
-            tipY2 + tipSize * Math.sin(angle - 2.5)
-          );
-          ctx.closePath();
-          ctx.fill();
+          ctx.stroke();
         }
+
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
       }
     }
 
