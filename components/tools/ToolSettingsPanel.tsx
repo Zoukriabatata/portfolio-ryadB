@@ -19,6 +19,7 @@ import {
   LineStyle,
   getToolsEngine,
 } from '@/lib/tools/ToolsEngine';
+import { ColorPicker } from '@/components/tools/ColorPicker';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 interface ToolSettingsPanelProps {
@@ -200,43 +201,15 @@ export default function ToolSettingsPanel({
         )}
       </div>
 
-      {/* Color */}
-      <div>
-        <label className="text-xs mb-2 block" style={{ color: colors.textMuted }}>
-          Color
-        </label>
-        <div className="grid grid-cols-8 gap-1">
-          {PRESET_COLORS.map(color => (
-            <button
-              key={color}
-              onClick={() => updateStyle({ color })}
-              className="w-6 h-6 rounded border-2 transition-transform hover:scale-110"
-              style={{
-                backgroundColor: color,
-                borderColor: style.color === color ? '#fff' : 'transparent',
-              }}
-            />
-          ))}
-        </div>
-        {/* Custom color input */}
-        <div className="mt-2 flex items-center gap-2">
-          <InlineColorSwatch
-            value={style.color}
-            onChange={(c) => updateStyle({ color: c })}
-          />
-          <input
-            type="text"
-            value={style.color}
-            onChange={(e) => updateStyle({ color: e.target.value })}
-            className="flex-1 px-2 py-1 rounded text-xs font-mono"
-            style={{
-              backgroundColor: colors.background,
-              color: colors.textPrimary,
-              border: `1px solid ${colors.gridColor}`,
-            }}
-          />
-        </div>
-      </div>
+      {/* Color — Full HSV picker */}
+      <ColorPicker
+        value={style.color}
+        onChange={(color) => updateStyle({ color })}
+        label="Color"
+        showAlpha
+        alpha={style.opacity ?? 1}
+        onAlphaChange={(a) => updateStyle({ opacity: a })}
+      />
 
       {/* Line Width */}
       <div>

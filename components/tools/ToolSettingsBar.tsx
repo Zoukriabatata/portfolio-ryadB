@@ -306,18 +306,22 @@ export default function ToolSettingsBar({
           />
           {showColorPicker && (
             <div
-              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-3 rounded-xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-3 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
               style={{
-                backgroundColor: 'rgba(20, 20, 28, 0.98)',
+                backgroundColor: 'rgba(15, 15, 20, 0.98)',
                 border: '1px solid rgba(255,255,255,0.1)',
-                backdropFilter: 'blur(12px)',
-                minWidth: 220,
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)',
+                minWidth: 240,
+                backdropFilter: 'blur(20px)',
               }}
             >
               <ColorPicker
                 value={style.color}
                 onChange={(c) => updateStyle({ color: c })}
                 label=""
+                showAlpha
+                alpha={style.opacity ?? 1}
+                onAlphaChange={(a) => updateStyle({ opacity: a })}
               />
             </div>
           )}

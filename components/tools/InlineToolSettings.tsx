@@ -223,11 +223,23 @@ export default function InlineToolSettings({
           <ChevronDown size={10} className="text-[var(--text-dimmed)]" />
         </button>
         {showColorPicker && (
-          <div className="absolute top-full left-0 mt-1 p-2 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50" style={{ width: 220 }}>
+          <div
+            className="absolute top-full left-0 mt-2 p-3 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+            style={{
+              backgroundColor: 'rgba(15, 15, 20, 0.98)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)',
+              minWidth: 240,
+              backdropFilter: 'blur(20px)',
+            }}
+          >
             <ColorPicker
               value={style.color}
               onChange={(color) => updateStyle({ color })}
               label=""
+              showAlpha
+              alpha={style.opacity ?? 1}
+              onAlphaChange={(a) => updateStyle({ opacity: a })}
             />
           </div>
         )}
