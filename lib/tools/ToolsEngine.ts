@@ -868,8 +868,8 @@ export class ToolsEngine {
         const other = points[1].price;
         const isLong = type === 'longPosition';
         const posStartTime = Math.min(points[0].time, points[1].time);
-        // Fixed compact width: 20 candles (~20min on 1m chart) — no right extension
-        const fixedWidth = 20 * 60000;
+        // Fixed compact width: 20 candles (~20min on 1m chart) — times are in SECONDS
+        const fixedWidth = 20 * 60;
         return {
           ...base,
           type,
@@ -1886,8 +1886,8 @@ export class ToolsEngine {
           // Fix invalid endTime (from old extendRight era — endTime was meaningless)
           const pos = tool as any;
           if (!pos.endTime || pos.endTime <= pos.startTime ||
-              pos.endTime - pos.startTime > 24 * 60 * 60000) {
-            pos.endTime = pos.startTime + 20 * 60000;
+              pos.endTime - pos.startTime > 24 * 3600) {
+            pos.endTime = pos.startTime + 20 * 60;
           }
         }
         this.tools.set(tool.id, tool);

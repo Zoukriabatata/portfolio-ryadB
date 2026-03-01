@@ -469,7 +469,7 @@ export class InteractionController {
           const offset = entry * 0.002; // 0.2% auto offset
           const autoTP = activeTool === 'longPosition' ? entry + offset : entry - offset;
           const secondPoint = {
-            time: this.state.startPoint.time + 20 * 60000, // Fixed 20-candle width
+            time: this.state.startPoint.time + 20 * 60, // Fixed 20-candle width (times in seconds)
             price: autoTP,
           };
           engine.updateDrawing(secondPoint);
