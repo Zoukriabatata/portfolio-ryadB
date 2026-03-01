@@ -11,8 +11,10 @@ import {
 import type { RenderContext } from '@/lib/tools/ToolsRenderer';
 import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import { useAlertsStore, type PriceAlert } from '@/stores/useAlertsStore';
-import { useTradingStore } from '@/stores/useTradingStore';
+import { useTradingStore, type Position } from '@/stores/useTradingStore';
+import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
+import { getSoundManager } from '@/lib/audio/SoundManager';
 import { computeSMA, computeEMA, drawIndicatorLine, getSourceValues, lineStyleToDash } from '../utils/indicators';
 import { TOOL_TYPE_MAPPING } from '../constants/tools';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
@@ -59,6 +61,27 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
   const indicatorConfigsRef = useRef(indicatorConfigs);
   indicatorConfigsRef.current = indicatorConfigs;
 
+  // PnL badge drag state machine
+  const pnlDragRef = useRef<{
+    active: boolean;
+    position: Position | null;
+    startY: number;
+    currentY: number;
+    dragPrice: number;
+    orderType: 'limit' | 'stop' | null;
+    thresholdMet: boolean;
+    lastTickY: number;
+  }>({ active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 });
+  const hoveredBadgeSymbol = useRef<string | null>(null);
+  const [hasPositionsOrOrders, setHasPositionsOrOrders] = useState(false);
+
+  // Track positions/orders for pointerEvents
+  useEffect(() => {
+    const sym = symbol.toUpperCase();
+    const has = positions.some(p => p.symbol === sym) || orders.some(o => o.status === 'pending' && o.symbol === sym);
+    setHasPositionsOrOrders(has);
+  }, [positions, orders, symbol]);
+
   /**
    * Subscribe to drawing tools updates
    */
@@ -71,6 +94,91 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     });
     return unsubscribe;
   }, []);
+
+  // ═══ HIT-TEST HELPERS for PnL badge & order buttons ═══
+
+  const hitTestPnlBadge = useCallback((
+    mx: number, my: number,
+    posArr: Position[],
+    priceToY: (p: number) => number,
+    chartWidth: number,
+    ctx: CanvasRenderingContext2D,
+  ): { position: Position; badgeRect: { x: number; y: number; w: number; h: number } } | null => {
+    const symbolUpper = symbol.toUpperCase();
+    for (const pos of posArr) {
+      if (pos.symbol !== symbolUpper) continue;
+      const posY = priceToY(pos.entryPrice);
+      const pnlStr = pos.currentPrice > 0
+        ? `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}`
+        : '$0.00';
+      ctx.font = 'bold 11px monospace';
+      const pnlWidth = ctx.measureText(pnlStr).width;
+      const badgeW = pnlWidth + 14;
+      const badgeH = 18;
+      const badgeX = (chartWidth - badgeW) / 2;
+      const badgeY = posY - badgeH / 2;
+      // Include close button circle zone (radius 8, centered at badgeX + badgeW + 11, posY)
+      const closeBtnCX = badgeX + badgeW + 11;
+      const closeDx = mx - closeBtnCX;
+      const closeDy = my - posY;
+      const inCloseBtn = closeDx * closeDx + closeDy * closeDy <= 100; // radius 10
+      if ((mx >= badgeX && mx <= badgeX + badgeW && my >= badgeY && my <= badgeY + badgeH) || inCloseBtn) {
+        return { position: pos, badgeRect: { x: badgeX, y: badgeY, w: badgeW, h: badgeH } };
+      }
+    }
+    return null;
+  }, [symbol]);
+
+  const hitTestCloseButton = useCallback((
+    mx: number, my: number,
+    posArr: Position[],
+    priceToY: (p: number) => number,
+    chartWidth: number,
+    ctx: CanvasRenderingContext2D,
+    hoveredSym: string | null,
+  ): Position | null => {
+    if (!hoveredSym) return null;
+    const symbolUpper = symbol.toUpperCase();
+    for (const pos of posArr) {
+      if (pos.symbol !== symbolUpper || pos.symbol !== hoveredSym) continue;
+      const posY = priceToY(pos.entryPrice);
+      const pnlStr = `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}`;
+      ctx.font = 'bold 11px monospace';
+      const pnlWidth = ctx.measureText(pnlStr).width;
+      const badgeW = pnlWidth + 14;
+      const badgeX = (chartWidth - badgeW) / 2;
+      // Circle close button: radius 8, centered right of badge
+      const btnR = 8;
+      const btnCX = badgeX + badgeW + btnR + 3;
+      const btnCY = posY;
+      const dx = mx - btnCX;
+      const dy = my - btnCY;
+      if (dx * dx + dy * dy <= (btnR + 2) * (btnR + 2)) {
+        return pos;
+      }
+    }
+    return null;
+  }, [symbol]);
+
+  const hitTestOrderCancel = useCallback((
+    mx: number, my: number,
+    orderArr: typeof orders,
+    priceToY: (p: number) => number,
+    chartWidth: number,
+  ) => {
+    const symbolUpper = symbol.toUpperCase();
+    const pending = orderArr.filter(o => o.status === 'pending' && o.symbol === symbolUpper);
+    for (const order of pending) {
+      const orderPrice = order.price || order.stopPrice || 0;
+      if (orderPrice <= 0) continue;
+      const oy = priceToY(orderPrice);
+      // Cancel button matches render code geometry
+      if (mx >= chartWidth - 18 && mx <= chartWidth - 6 && my >= oy - 6 && my <= oy + 6) {
+        return order;
+      }
+    }
+    return null;
+  }, [symbol]);
 
   /**
    * Handle tool change (for drawing new tools)
@@ -320,6 +428,31 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       ctx.textBaseline = 'middle';
       ctx.fillText(pnlStr, chartWidth / 2, y);
 
+      // Close "×" button — integrated circle, only visible on hover
+      if (hoveredBadgeSymbol.current === pos.symbol) {
+        const btnR = 8;
+        const btnCX = badgeX + badgeW + btnR + 3;
+        const btnCY = y;
+
+        // Circle background
+        ctx.beginPath();
+        ctx.arc(btnCX, btnCY, btnR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
+        ctx.fill();
+
+        // "×" inside circle
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        const xOff = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(btnCX - xOff, btnCY - xOff);
+        ctx.lineTo(btnCX + xOff, btnCY + xOff);
+        ctx.moveTo(btnCX + xOff, btnCY - xOff);
+        ctx.lineTo(btnCX - xOff, btnCY + xOff);
+        ctx.stroke();
+      }
+
       ctx.restore();
     }
 
@@ -379,6 +512,59 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       }
 
       ctx.restore();
+    }
+
+    // ═══ Ghost line during PnL badge drag ═══
+    const drag = pnlDragRef.current;
+    if (drag.active && drag.thresholdMet && drag.orderType) {
+      const ghostY = renderContext.priceToY(drag.dragPrice);
+      if (ghostY >= 0 && ghostY <= chartHeight) {
+        ctx.save();
+
+        const ghostColor = drag.orderType === 'limit' ? '#3b82f6' : '#f97316';
+
+        // Dashed line across chart
+        ctx.strokeStyle = ghostColor;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(0, ghostY);
+        ctx.lineTo(chartWidth, ghostY);
+        ctx.stroke();
+
+        // Price label on the right
+        ctx.setLineDash([]);
+        ctx.font = 'bold 10px monospace';
+        const priceStr = drag.dragPrice.toFixed(2);
+        const labelW = ctx.measureText(priceStr).width;
+        const labelPad = 8;
+        const labelTotalW = labelW + labelPad * 2;
+
+        ctx.fillStyle = ghostColor;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.roundRect(chartWidth - labelTotalW, ghostY - 9, labelTotalW, 18, 3);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(priceStr, chartWidth - labelTotalW / 2, ghostY);
+
+        // Type label on the left
+        const typeLabel = drag.orderType === 'limit' ? 'LIMIT' : 'STOP';
+        ctx.font = 'bold 9px monospace';
+        const typeLabelW = ctx.measureText(typeLabel).width;
+        ctx.fillStyle = ghostColor + '25';
+        ctx.fillRect(4, ghostY - 9, typeLabelW + 12, 18);
+        ctx.fillStyle = ghostColor;
+        ctx.globalAlpha = 0.9;
+        ctx.textAlign = 'left';
+        ctx.fillText(typeLabel, 10, ghostY);
+
+        ctx.restore();
+      }
     }
 
     // Draw indicator overlays (SMA, EMA, Bollinger, VWAP, VolumeProfile)
@@ -831,6 +1017,58 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
     const currentTool = controller.getActiveTool();
 
+    // ═══ TRADE INTERACTION PRIORITY CHECK ═══
+    if (currentTool === 'cursor' || currentTool === 'crosshair') {
+      const canvas = refs.drawingCanvas.current;
+      const converter = controller.getCoordinateConverter();
+      if (canvas && converter) {
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const vp = refs.chartEngine.current?.getViewport();
+        const chartWidth = vp?.chartWidth || canvas.width;
+        const canvasCtx = canvas.getContext('2d');
+
+        if (canvasCtx) {
+          // 1. Close button (highest priority, smallest target)
+          const closeHit = hitTestCloseButton(mx, my, positionsRef.current, converter.priceToY, chartWidth, canvasCtx, hoveredBadgeSymbol.current);
+          if (closeHit) {
+            e.preventDefault();
+            forwardingToChartRef.current = false;
+            useTradingStore.getState().closePosition(closeHit.symbol);
+            return;
+          }
+
+          // 2. Order cancel "×" button
+          const cancelHit = hitTestOrderCancel(mx, my, ordersRef.current, converter.priceToY, chartWidth);
+          if (cancelHit) {
+            e.preventDefault();
+            forwardingToChartRef.current = false;
+            useTradingStore.getState().cancelOrder(cancelHit.id);
+            renderDrawingTools();
+            return;
+          }
+
+          // 3. PnL badge (start drag)
+          const badgeHit = hitTestPnlBadge(mx, my, positionsRef.current, converter.priceToY, chartWidth, canvasCtx);
+          if (badgeHit) {
+            e.preventDefault();
+            forwardingToChartRef.current = false;
+            pnlDragRef.current = {
+              active: true,
+              position: badgeHit.position,
+              startY: my,
+              currentY: my,
+              dragPrice: badgeHit.position.entryPrice,
+              orderType: null,
+              thresholdMet: false,
+              lastTickY: my,
+            };
+            return;
+          }
+        }
+      }
+    }
+
     // In cursor mode, check if we're clicking on a tool first
     if (currentTool === 'cursor' || currentTool === 'crosshair') {
       const engine = refs.toolsEngine.current;
@@ -860,31 +1098,159 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     // Drawing mode - always handle
     forwardingToChartRef.current = false;
     controller.handleMouseDown(e);
-  }, [refs, renderDrawingTools, forwardEventToChart]);
+  }, [refs, renderDrawingTools, forwardEventToChart, hitTestPnlBadge, hitTestCloseButton, hitTestOrderCancel]);
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    // ═══ PnL BADGE DRAG HANDLING ═══
+    const drag = pnlDragRef.current;
+    if (drag.active) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const my = e.clientY - rect.top;
+      drag.currentY = my;
+
+      // Check if position still exists (may have been closed externally)
+      if (drag.position && !positionsRef.current.some(p => p.symbol === drag.position!.symbol)) {
+        pnlDragRef.current = { active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 };
+        const canvas = refs.drawingCanvas.current;
+        if (canvas) canvas.style.cursor = '';
+        renderDrawingTools();
+        return;
+      }
+
+      const converter = refs.interactionController.current.getCoordinateConverter();
+      if (converter) {
+        const rawPrice = converter.yToPrice(my);
+        drag.dragPrice = Math.round(rawPrice * 100) / 100; // snap to 0.01 tick
+
+        const pixelDelta = Math.abs(my - drag.startY);
+        drag.thresholdMet = pixelDelta >= 15;
+
+        if (drag.thresholdMet && drag.position) {
+          const isLong = drag.position.side === 'buy';
+          const draggedUp = my < drag.startY;
+          // Long: UP = limit (TP above), DOWN = stop (SL below)
+          // Short: UP = stop (SL above), DOWN = limit (TP below)
+          drag.orderType = (isLong && draggedUp) || (!isLong && !draggedUp) ? 'limit' : 'stop';
+        }
+
+        // Drag tick sound every ~20px
+        if (drag.thresholdMet && Math.abs(my - drag.lastTickY) >= 20) {
+          const { soundEnabled } = useAccountPrefsStore.getState();
+          if (soundEnabled) getSoundManager().playDragTick();
+          drag.lastTickY = my;
+        }
+      }
+
+      const canvas = refs.drawingCanvas.current;
+      if (canvas) canvas.style.cursor = 'ns-resize';
+      renderDrawingTools();
+      return;
+    }
+
     if (forwardingToChartRef.current) {
       forwardEventToChart(e, 'mousemove');
       return;
     }
+
+    // ═══ PnL badge hover detection (for close button visibility) ═══
+    const canvas = refs.drawingCanvas.current;
+    const converter = refs.interactionController.current.getCoordinateConverter();
+    if (canvas && converter) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my2 = e.clientY - rect.top;
+      const vp = refs.chartEngine.current?.getViewport();
+      const chartWidth = vp?.chartWidth || canvas.width;
+      const canvasCtx = canvas.getContext('2d');
+      if (canvasCtx) {
+        const badgeHit = hitTestPnlBadge(mx, my2, positionsRef.current, converter.priceToY, chartWidth, canvasCtx);
+        const newHovered = badgeHit ? badgeHit.position.symbol : null;
+        if (newHovered !== hoveredBadgeSymbol.current) {
+          hoveredBadgeSymbol.current = newHovered;
+          renderDrawingTools();
+        }
+        // Update cursor for close button
+        if (newHovered) {
+          const closeHit = hitTestCloseButton(mx, my2, positionsRef.current, converter.priceToY, chartWidth, canvasCtx, newHovered);
+          canvas.style.cursor = closeHit ? 'pointer' : 'grab';
+        } else {
+          canvas.style.cursor = '';
+        }
+      }
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     refs.interactionController.current.setChartBounds(rect);
     refs.interactionController.current.handleMouseMove(e);
-  }, [refs, forwardEventToChart]);
+  }, [refs, forwardEventToChart, renderDrawingTools, hitTestPnlBadge, hitTestCloseButton]);
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    // ═══ PnL BADGE DRAG RELEASE ═══
+    const drag = pnlDragRef.current;
+    if (drag.active) {
+      if (drag.thresholdMet && drag.position && drag.orderType) {
+        const tradingState = useTradingStore.getState();
+        const broker = tradingState.activeBroker;
+        if (broker) {
+          const pos = drag.position;
+          const orderSide = pos.side === 'buy' ? 'sell' : 'buy';
+
+          if (drag.orderType === 'limit') {
+            tradingState.placeOrder({
+              broker,
+              symbol: pos.symbol,
+              side: orderSide as 'buy' | 'sell',
+              type: 'limit',
+              quantity: pos.quantity,
+              price: drag.dragPrice,
+              marketPrice: refs.currentPrice.current || 0,
+            });
+          } else {
+            tradingState.placeOrder({
+              broker,
+              symbol: pos.symbol,
+              side: orderSide as 'buy' | 'sell',
+              type: 'stop',
+              quantity: pos.quantity,
+              stopPrice: drag.dragPrice,
+              marketPrice: refs.currentPrice.current || 0,
+            });
+          }
+
+          const { soundEnabled } = useAccountPrefsStore.getState();
+          if (soundEnabled) getSoundManager().playOrderConfirm();
+        }
+      }
+
+      // Reset drag state
+      pnlDragRef.current = { active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 };
+      const canvas = refs.drawingCanvas.current;
+      if (canvas) canvas.style.cursor = '';
+      renderDrawingTools();
+      return;
+    }
+
     if (forwardingToChartRef.current) {
       forwardingToChartRef.current = false;
       forwardEventToChart(e, 'mouseup');
       return;
     }
     refs.interactionController.current.handleMouseUp(e);
-  }, [refs, forwardEventToChart]);
+  }, [refs, forwardEventToChart, renderDrawingTools]);
 
   const handleCanvasMouseLeave = useCallback(() => {
+    // Cancel PnL drag on mouse leave
+    if (pnlDragRef.current.active) {
+      pnlDragRef.current = { active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 };
+      const canvas = refs.drawingCanvas.current;
+      if (canvas) canvas.style.cursor = '';
+      hoveredBadgeSymbol.current = null;
+      renderDrawingTools();
+      return;
+    }
+
     if (forwardingToChartRef.current) {
       forwardingToChartRef.current = false;
-      // Trigger mouseup on chart canvas to end drag
       const chartCanvas = refs.chartCanvas.current;
       if (chartCanvas) {
         chartCanvas.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
@@ -892,7 +1258,21 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       return;
     }
     refs.interactionController.current.handleMouseLeave();
-  }, [refs]);
+  }, [refs, renderDrawingTools]);
+
+  // ESC key cancels PnL drag
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && pnlDragRef.current.active) {
+        pnlDragRef.current = { active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 };
+        const canvas = refs.drawingCanvas.current;
+        if (canvas) canvas.style.cursor = '';
+        renderDrawingTools();
+      }
+    };
+    window.addEventListener('keydown', handleEscKey);
+    return () => window.removeEventListener('keydown', handleEscKey);
+  }, [refs, renderDrawingTools]);
 
   const handleCanvasContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -988,5 +1368,6 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     setTextEditorState,
     mapToolType,
     ignoreNextCanvasClickRef,
+    hasPositionsOrOrders,
   };
 }

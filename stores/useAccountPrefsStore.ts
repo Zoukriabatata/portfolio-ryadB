@@ -25,6 +25,9 @@ interface AccountPrefsState {
   notifyEmail: boolean;
   notifyPush: boolean;
 
+  // Trading
+  confirmClosePosition: boolean;
+
   // Security
   twoFA: boolean;
 
@@ -43,6 +46,7 @@ interface AccountPrefsState {
   setNotifyUpdates: (v: boolean) => void;
   setNotifyEmail: (v: boolean) => void;
   setNotifyPush: (v: boolean) => void;
+  setConfirmClosePosition: (v: boolean) => void;
   setTwoFA: (v: boolean) => void;
 }
 
@@ -63,6 +67,7 @@ export const useAccountPrefsStore = create<AccountPrefsState>()(
       notifyUpdates: true,
       notifyEmail: false,
       notifyPush: true,
+      confirmClosePosition: false,
       twoFA: false,
 
       setLanguage: (lang) => set({ language: lang }),
@@ -79,6 +84,7 @@ export const useAccountPrefsStore = create<AccountPrefsState>()(
       setNotifyUpdates: (v) => set({ notifyUpdates: v }),
       setNotifyEmail: (v) => set({ notifyEmail: v }),
       setNotifyPush: (v) => set({ notifyPush: v }),
+      setConfirmClosePosition: (v) => set({ confirmClosePosition: v }),
       setTwoFA: (v) => set({ twoFA: v }),
     }),
     {

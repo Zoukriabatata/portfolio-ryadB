@@ -91,17 +91,23 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         return [];
       }
 
-      return data.map((k: (string | number)[]) => ({
-        time: Math.floor(Number(k[0]) / 1000),
-        open: parseFloat(k[1] as string),
-        high: parseFloat(k[2] as string),
-        low: parseFloat(k[3] as string),
-        close: parseFloat(k[4] as string),
-        volume: parseFloat(k[5] as string),
-        buyVolume: 0,
-        sellVolume: 0,
-        trades: Number(k[8]),
-      })) as LiveCandle[];
+      return data.map((k: (string | number)[]) => {
+        const totalVolume = parseFloat(k[5] as string);
+        // k[9] = Taker buy base asset volume (from Binance klines API)
+        const takerBuyVolume = k[9] != null ? parseFloat(k[9] as string) : 0;
+        const takerSellVolume = totalVolume - takerBuyVolume;
+        return {
+          time: Math.floor(Number(k[0]) / 1000),
+          open: parseFloat(k[1] as string),
+          high: parseFloat(k[2] as string),
+          low: parseFloat(k[3] as string),
+          close: parseFloat(k[4] as string),
+          volume: totalVolume,
+          buyVolume: takerBuyVolume,
+          sellVolume: Math.max(0, takerSellVolume),
+          trades: Number(k[8]),
+        };
+      }) as LiveCandle[];
     } catch {
       return [];
     } finally {

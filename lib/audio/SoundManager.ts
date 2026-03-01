@@ -145,6 +145,83 @@ class SoundManagerClass {
     this.playTone(220, 0.25, 'sawtooth', 0.06);
   }
 
+  /** Resolving descending fifth for position close */
+  playClosePosition() {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523, now); // C5
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(392, now); // G4
+      gain.gain.setValueAtTime(0.10, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+      osc1.start(now);
+      osc2.start(now + 0.05);
+      osc1.stop(now + 0.3);
+      osc2.stop(now + 0.35);
+    } catch {}
+  }
+
+  /** Alarming descending sweep for stop loss hit */
+  playStopHit() {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.4);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } catch {}
+  }
+
+  /** Rewarding ascending arpeggio for take profit hit */
+  playTakeProfitHit() {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      const notes = [523, 659, 784]; // C5, E5, G5
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        const start = now + i * 0.08;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.10, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.15);
+      });
+    } catch {}
+  }
+
+  /** Ultra-subtle tick during drag interaction */
+  playDragTick() {
+    this.playTone(1000, 0.03, 'sine', 0.04);
+  }
+
+  /** Two-note ascending confirmation chime for order placed */
+  playOrderConfirm() {
+    this.playTone(698, 0.12, 'sine', 0.08); // F5
+    setTimeout(() => this.playTone(880, 0.15, 'sine', 0.08), 100); // A5
+  }
+
   /** Play a voice alert using Web Speech API */
   playVoiceAlert(side: 'buy' | 'sell', voiceType: 'male' | 'female' | 'senzoukria') {
     try {

@@ -130,7 +130,7 @@ export class CanvasChartEngine {
   private lastDragTimestamp = 0;
   private lastPinchDistance = 0;
   private showVolume = true;
-  private showVolumeBubbles = false;
+  private showVolumeBubbles = true;
   private showGrid = true;
   private volumeBubbleConfig = {
     mode: 'total' as 'total' | 'delta' | 'bid' | 'ask',
@@ -950,7 +950,9 @@ export class CanvasChartEngine {
       }
     }
 
-    const maxRadius = Math.min(cfg.maxSize, candleTotalWidth * 0.8);
+    // Allow bubbles to overflow candle width for better visibility when zoomed out
+    const maxRadius = cfg.maxSize;
+    const minRadius = Math.max(3, candleTotalWidth * 0.3);
     this.ctx.save();
 
     for (let i = safeStart; i < safeEnd; i++) {
@@ -970,7 +972,7 @@ export class CanvasChartEngine {
         case 'log': radius = (Math.log(normalized * 100 + 1) / Math.log(101)) * maxRadius; break;
         default: radius = Math.sqrt(normalized) * maxRadius; break;
       }
-      radius = Math.max(3, Math.min(maxRadius, radius));
+      radius = Math.max(minRadius, Math.min(maxRadius, radius));
 
       // Color logic
       let bubbleColor: string;
@@ -1053,20 +1055,20 @@ export class CanvasChartEngine {
         this.ctx.beginPath();
         this.ctx.arc(x, centerY, radius + 2, 0, Math.PI * 2);
         this.ctx.fillStyle = bubbleColor;
-        this.ctx.globalAlpha = cfg.opacity * 0.08;
+        this.ctx.globalAlpha = cfg.opacity * 0.15;
         this.ctx.fill();
 
         // Main bubble
         this.ctx.beginPath();
         this.ctx.arc(x, centerY, radius, 0, Math.PI * 2);
         this.ctx.fillStyle = bubbleColor;
-        this.ctx.globalAlpha = cfg.opacity * (0.2 + intensity * 0.35);
+        this.ctx.globalAlpha = cfg.opacity * (0.35 + intensity * 0.4);
         this.ctx.fill();
 
         // Border
         this.ctx.strokeStyle = bubbleColor;
         this.ctx.lineWidth = 1.5;
-        this.ctx.globalAlpha = cfg.opacity * 0.7;
+        this.ctx.globalAlpha = cfg.opacity * 0.85;
         this.ctx.stroke();
       }
 

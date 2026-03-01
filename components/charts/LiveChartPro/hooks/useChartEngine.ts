@@ -98,6 +98,20 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
     });
 
     engine.resize(rect.width, rect.height);
+
+    // Apply preferences immediately at creation time (before any render)
+    const prefs = usePreferencesStore.getState();
+    engine.setShowVolume(prefs.showVolume);
+    engine.setShowGrid(prefs.showGrid);
+    engine.setShowVolumeBubbles(prefs.showVolumeBubbles);
+    engine.setVolumeBubbleConfig({
+      mode: prefs.volumeBubbleMode, scaling: prefs.volumeBubbleScaling,
+      maxSize: prefs.volumeBubbleMaxSize, minFilter: prefs.volumeBubbleMinFilter,
+      opacity: prefs.volumeBubbleOpacity, positiveColor: prefs.volumeBubblePositiveColor,
+      negativeColor: prefs.volumeBubbleNegativeColor, normalization: prefs.volumeBubbleNormalization,
+      showPieChart: prefs.volumeBubbleShowPieChart,
+    });
+
     refs.chartEngine.current = engine;
 
     const resizeObserver = new ResizeObserver((entries) => {

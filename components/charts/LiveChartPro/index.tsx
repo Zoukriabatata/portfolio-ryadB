@@ -856,7 +856,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           <canvas
             ref={refs.drawingCanvas}
             className="absolute inset-0"
-            style={{ zIndex: 5, pointerEvents: (drawing.activeTool !== 'cursor' && drawing.activeTool !== 'crosshair') || drawing.toolCount > 0 ? 'auto' : 'none' }}
+            style={{ zIndex: 5, pointerEvents: (drawing.activeTool !== 'cursor' && drawing.activeTool !== 'crosshair') || drawing.toolCount > 0 || drawing.hasPositionsOrOrders ? 'auto' : 'none' }}
             onMouseDown={drawing.handleCanvasMouseDown}
             onMouseMove={drawing.handleCanvasMouseMove}
             onMouseUp={drawing.handleCanvasMouseUp}

@@ -332,11 +332,15 @@ export const useTradingStore = create<TradingState>()(
 
         // Simulate order fill for demo
         if (state.activeBroker === 'demo') {
+          // Only auto-fill market orders immediately.
+          // Limit/stop orders stay pending until price reaches them.
+          if (orderData.type !== 'market') {
+            return order;
+          }
+
           // Capture price at click time — NOT inside setTimeout which runs 50ms later
           const clickTimePrice = orderData.marketPrice || useMarketStore.getState().currentPrice || orderData.price || 0;
-          const fillPrice = orderData.type === 'market'
-            ? clickTimePrice
-            : (orderData.price || orderData.marketPrice || 0);
+          const fillPrice = clickTimePrice;
 
           setTimeout(() => {
             // Play sound if enabled
@@ -557,6 +561,15 @@ export const useTradingStore = create<TradingState>()(
 
           return { positions: remainingPositions, closedTrades: [...state.closedTrades, ...newClosedTrades] };
         });
+
+        // Play close position sound
+        try {
+          const { soundEnabled, alertSound } = useAccountPrefsStore.getState();
+          if (soundEnabled && alertSound !== 'none') {
+            getSoundManager().playClosePosition();
+          }
+        } catch {}
+
         return true;
       },
 
@@ -575,6 +588,142 @@ export const useTradingStore = create<TradingState>()(
             }),
           };
         });
+
+        // Demo mode: check pending limit/stop orders against current price
+        const state = get();
+        if (state.activeBroker !== 'demo') return;
+        const pendingOrders = state.orders.filter(
+          (o) => o.status === 'pending' && o.symbol === symbol
+        );
+        for (const order of pendingOrders) {
+          let shouldFill = false;
+          let fillPrice = 0;
+
+          if (order.type === 'limit' && order.price) {
+            // Limit buy fills when price drops to or below limit price
+            // Limit sell fills when price rises to or above limit price
+            if (order.side === 'buy' && currentPrice <= order.price) {
+              shouldFill = true;
+              fillPrice = order.price;
+            } else if (order.side === 'sell' && currentPrice >= order.price) {
+              shouldFill = true;
+              fillPrice = order.price;
+            }
+          } else if ((order.type === 'stop' || order.type === 'stop_limit') && (order.stopPrice || order.price)) {
+            const triggerPrice = order.stopPrice || order.price || 0;
+            // Stop buy fills when price rises to or above stop price
+            // Stop sell fills when price drops to or below stop price
+            if (order.side === 'buy' && currentPrice >= triggerPrice) {
+              shouldFill = true;
+              fillPrice = triggerPrice;
+            } else if (order.side === 'sell' && currentPrice <= triggerPrice) {
+              shouldFill = true;
+              fillPrice = triggerPrice;
+            }
+          }
+
+          if (shouldFill) {
+            // Play sound
+            try {
+              const { soundEnabled, alertSound } = useAccountPrefsStore.getState();
+              if (soundEnabled && alertSound !== 'none') {
+                const sm = getSoundManager();
+                if (alertSound === 'voice_male') sm.playVoiceAlert(order.side, 'male');
+                else if (alertSound === 'voice_female') sm.playVoiceAlert(order.side, 'female');
+                else if (alertSound === 'voice_senzoukria') sm.playVoiceAlert(order.side, 'senzoukria');
+                else {
+                  if (order.side === 'buy') sm.playBuyFilled();
+                  else sm.playSellFilled();
+                }
+              }
+            } catch {}
+
+            // Fill the order using net position logic
+            set((st) => {
+              const updatedOrders = st.orders.map((o) =>
+                o.id === order.id
+                  ? { ...o, status: 'filled' as OrderStatus, filledQuantity: o.quantity, avgFillPrice: fillPrice, updatedAt: Date.now() }
+                  : o
+              );
+              const now = Date.now();
+              const currentBalance = st.connections.demo?.balance || 100000;
+              const newClosedTrades = [...st.closedTrades];
+              const existing = st.positions.find((p) => p.symbol === order.symbol);
+              let positions: Position[];
+              let balanceChange = 0;
+
+              if (!existing) {
+                positions = [...st.positions, {
+                  symbol: order.symbol, side: order.side, quantity: order.quantity,
+                  entryPrice: fillPrice, currentPrice: fillPrice, pnl: 0, pnlPercent: 0, openedAt: now,
+                }];
+              } else if (existing.side === order.side) {
+                const totalQty = existing.quantity + order.quantity;
+                const avgEntry = (existing.entryPrice * existing.quantity + fillPrice * order.quantity) / totalQty;
+                positions = st.positions.map((p) => p === existing ? { ...p, quantity: totalQty, entryPrice: avgEntry } : p);
+              } else {
+                if (order.quantity === existing.quantity) {
+                  const pnl = existing.side === 'buy'
+                    ? (fillPrice - existing.entryPrice) * existing.quantity
+                    : (existing.entryPrice - fillPrice) * existing.quantity;
+                  balanceChange = pnl;
+                  positions = st.positions.filter((p) => p !== existing);
+                  newClosedTrades.push({
+                    id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                    symbol: existing.symbol, side: existing.side, quantity: existing.quantity,
+                    entryPrice: existing.entryPrice, exitPrice: fillPrice, pnl,
+                    entryTime: existing.openedAt || now, exitTime: now, broker: st.activeBroker || 'demo', synced: false,
+                  });
+                  // Play close/SL/TP sound
+                  try {
+                    const { soundEnabled, alertSound } = useAccountPrefsStore.getState();
+                    if (soundEnabled && alertSound !== 'none') {
+                      const sm = getSoundManager();
+                      if (order.type === 'stop' || order.type === 'stop_limit') sm.playStopHit();
+                      else sm.playTakeProfitHit();
+                    }
+                  } catch {}
+                } else if (order.quantity < existing.quantity) {
+                  const pnl = existing.side === 'buy'
+                    ? (fillPrice - existing.entryPrice) * order.quantity
+                    : (existing.entryPrice - fillPrice) * order.quantity;
+                  balanceChange = pnl;
+                  positions = st.positions.map((p) => p === existing ? { ...p, quantity: p.quantity - order.quantity } : p);
+                  newClosedTrades.push({
+                    id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                    symbol: existing.symbol, side: existing.side, quantity: order.quantity,
+                    entryPrice: existing.entryPrice, exitPrice: fillPrice, pnl,
+                    entryTime: existing.openedAt || now, exitTime: now, broker: st.activeBroker || 'demo', synced: false,
+                  });
+                } else {
+                  const pnl = existing.side === 'buy'
+                    ? (fillPrice - existing.entryPrice) * existing.quantity
+                    : (existing.entryPrice - fillPrice) * existing.quantity;
+                  balanceChange = pnl;
+                  const remainder = order.quantity - existing.quantity;
+                  positions = st.positions.filter((p) => p !== existing);
+                  newClosedTrades.push({
+                    id: `ct_${now}_${Math.random().toString(36).substr(2, 9)}`,
+                    symbol: existing.symbol, side: existing.side, quantity: existing.quantity,
+                    entryPrice: existing.entryPrice, exitPrice: fillPrice, pnl,
+                    entryTime: existing.openedAt || now, exitTime: now, broker: st.activeBroker || 'demo', synced: false,
+                  });
+                  if (remainder > 0) {
+                    positions.push({
+                      symbol: order.symbol, side: order.side, quantity: remainder,
+                      entryPrice: fillPrice, currentPrice: fillPrice, pnl: 0, pnlPercent: 0, openedAt: now,
+                    });
+                  }
+                }
+              }
+
+              return {
+                orders: updatedOrders, positions, closedTrades: newClosedTrades,
+                connections: { ...st.connections, demo: { ...st.connections.demo, balance: currentBalance + balanceChange, lastUpdate: now } },
+              };
+            });
+          }
+        }
       },
 
       markTradesSynced: (ids) => {

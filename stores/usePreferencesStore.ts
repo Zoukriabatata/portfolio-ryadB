@@ -166,7 +166,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       tradeColorPreset: 'classic',
       customTradeColors: TRADE_COLOR_PRESETS.classic,
       showVolume: true,
-      showVolumeBubbles: false,
+      showVolumeBubbles: true,
       showGrid: true,
       showCrosshairTooltip: true,
       volumeMode: 'classic',
