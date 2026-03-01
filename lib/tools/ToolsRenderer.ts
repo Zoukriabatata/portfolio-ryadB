@@ -749,10 +749,8 @@ export class ToolsRenderer {
     const slY = Math.round(priceToY(tool.stopLoss));
     const tpY = Math.round(priceToY(tool.takeProfit));
     const leftX = Math.round(timeToX(tool.startTime));
-    const rightX = Math.min(
-      tool.extendRight ? Math.round(width) : Math.round(timeToX(tool.endTime)),
-      Math.round(width) // Never exceed chart viewport
-    );
+    // Position tools: always use endTime for a resizable right edge (never extendRight)
+    const rightX = Math.min(Math.round(timeToX(tool.endTime)), Math.round(width));
 
     const isLong = tool.type === 'longPosition';
 
