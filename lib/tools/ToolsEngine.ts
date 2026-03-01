@@ -167,6 +167,10 @@ export class ToolsEngine {
   private styleHistoryTimer: ReturnType<typeof setTimeout> | null = null;
   private styleHistoryPending = false;
 
+  // Transient animated lineWidth values (not persisted)
+  private animatedLineWidths: Map<string, number> = new Map();
+  private lineWidthAnimations: Map<string, number> = new Map(); // rAF ids
+
   constructor() {
     this.drawingState = {
       isDrawing: false,
@@ -260,6 +264,10 @@ export class ToolsEngine {
 
     this.tools.delete(id);
     this.selectedIds.delete(id);
+    // Clean up any running animation
+    const anim = this.lineWidthAnimations.get(id);
+    if (anim) { cancelAnimationFrame(anim); this.lineWidthAnimations.delete(id); }
+    this.animatedLineWidths.delete(id);
     this.saveHistory();
     this.emit('tool:delete', tool);
 
@@ -842,6 +850,11 @@ export class ToolsEngine {
     if (this.styleHistoryTimer) clearTimeout(this.styleHistoryTimer);
     this.styleHistoryTimer = setTimeout(() => { this.styleHistoryPending = false; }, 500);
 
+    // Animate lineWidth transition
+    if (styleUpdates.lineWidth !== undefined && styleUpdates.lineWidth !== tool.style.lineWidth) {
+      this.animateLineWidth(id, tool.style.lineWidth, styleUpdates.lineWidth);
+    }
+
     return this.updateTool(id, { style: { ...tool.style, ...styleUpdates } }, false);
   }
 
@@ -860,8 +873,59 @@ export class ToolsEngine {
     this.styleHistoryTimer = setTimeout(() => { this.styleHistoryPending = false; }, 500);
 
     for (const tool of selected) {
+      // Animate lineWidth transition for each tool in parallel
+      if (styleUpdates.lineWidth !== undefined && styleUpdates.lineWidth !== tool.style.lineWidth) {
+        this.animateLineWidth(tool.id, tool.style.lineWidth, styleUpdates.lineWidth);
+      }
       this.updateTool(tool.id, { style: { ...tool.style, ...styleUpdates } }, false);
     }
+  }
+
+  // ============ LINE WIDTH ANIMATION ============
+
+  /**
+   * Get the animated lineWidth for rendering (falls back to style.lineWidth).
+   * The renderer should call this instead of reading tool.style.lineWidth directly.
+   */
+  getAnimatedLineWidth(toolId: string, fallback?: number): number {
+    const animated = this.animatedLineWidths.get(toolId);
+    if (animated !== undefined) return animated;
+    if (fallback !== undefined) return fallback;
+    const tool = this.tools.get(toolId);
+    return tool?.style.lineWidth ?? 2;
+  }
+
+  /**
+   * Animate lineWidth for a single tool with cubic-out easing.
+   * Duration: 100ms. The chart's existing rAF loop picks up changes automatically.
+   */
+  private animateLineWidth(toolId: string, from: number, to: number): void {
+    // Cancel any running animation for this tool
+    const existing = this.lineWidthAnimations.get(toolId);
+    if (existing) cancelAnimationFrame(existing);
+
+    const duration = 100; // ms
+    const startTime = performance.now();
+
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const frame = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = easeOutCubic(progress);
+      this.animatedLineWidths.set(toolId, from + (to - from) * eased);
+
+      if (progress < 1) {
+        this.lineWidthAnimations.set(toolId, requestAnimationFrame(frame));
+      } else {
+        // Animation done — clean up
+        this.animatedLineWidths.delete(toolId);
+        this.lineWidthAnimations.delete(toolId);
+      }
+    };
+
+    // Set initial animated value
+    this.animatedLineWidths.set(toolId, from);
+    this.lineWidthAnimations.set(toolId, requestAnimationFrame(frame));
   }
 
   // ============ DEFAULT STYLES MANAGEMENT ============

@@ -182,12 +182,14 @@ export class ToolsRenderer {
     const isHovered = context.hoveredToolId === tool.id;
 
     // Apply style — flat, no glow
+    // Use animated lineWidth for smooth transitions (falls back to style.lineWidth)
+    const baseLineWidth = this.engine.getAnimatedLineWidth(tool.id, tool.style.lineWidth);
     ctx.strokeStyle = tool.style.color;
     ctx.lineWidth = tool.selected
-      ? tool.style.lineWidth + 1
+      ? baseLineWidth + 1
       : isHovered
-        ? tool.style.lineWidth + 0.5
-        : tool.style.lineWidth;
+        ? baseLineWidth + 0.5
+        : baseLineWidth;
     this.setLineDash(ctx, tool.style.lineStyle);
 
     switch (tool.type) {
@@ -267,7 +269,7 @@ export class ToolsRenderer {
 
     // FIXED: Pixel-perfect Y coordinate
     const rawY = priceToY(tool.price);
-    const lineWidth = tool.style.lineWidth;
+    const lineWidth = this.engine.getAnimatedLineWidth(tool.id, tool.style.lineWidth);
     const y = alignToPixel(rawY, lineWidth);
 
     // Selection highlight (draw first)
@@ -313,7 +315,7 @@ export class ToolsRenderer {
 
   private renderHorizontalRay(tool: Tool & { type: 'horizontalRay' }, context: RenderContext): void {
     const { ctx, width, priceToY, timeToX } = context;
-    const lineWidth = tool.style.lineWidth || 1;
+    const lineWidth = this.engine.getAnimatedLineWidth(tool.id, tool.style.lineWidth) || 1;
     // FIXED: Pixel-perfect coordinates for crisp horizontal line
     const rawY = priceToY(tool.startPoint.price);
     const y = alignToPixel(rawY, lineWidth);
@@ -338,7 +340,7 @@ export class ToolsRenderer {
 
     // FIXED: Pixel-perfect X coordinate
     const rawX = timeToX(tool.time);
-    const lineWidth = tool.style.lineWidth;
+    const lineWidth = this.engine.getAnimatedLineWidth(tool.id, tool.style.lineWidth);
     const x = alignToPixel(rawX, lineWidth);
 
     ctx.beginPath();
@@ -392,7 +394,7 @@ export class ToolsRenderer {
     }
 
     // FIXED: Pixel-aligned line coordinates
-    const lineWidth = tool.style.lineWidth;
+    const lineWidth = this.engine.getAnimatedLineWidth(tool.id, tool.style.lineWidth);
     const alignedStartX = alignToPixel(startX, lineWidth);
     const alignedStartY = alignToPixel(startY, lineWidth);
     const alignedEndX = alignToPixel(endX, lineWidth);
@@ -504,7 +506,7 @@ export class ToolsRenderer {
 
     // Border (main rectangle)
     ctx.strokeStyle = tool.style.color;
-    ctx.lineWidth = tool.style.lineWidth;
+    ctx.lineWidth = this.engine.getAnimatedLineWidth(tool.id, tool.style.lineWidth);
     this.setLineDash(ctx, tool.style.lineStyle);
     ctx.strokeRect(extendedLeft, minY, w, h);
     ctx.setLineDash([]);
@@ -675,7 +677,7 @@ export class ToolsRenderer {
     const startPrice = tool.startPoint.price;
     const endPrice = tool.endPoint.price;
     const priceRange = endPrice - startPrice;
-    const lineWidth = tool.style.lineWidth || 1;
+    const lineWidth = this.engine.getAnimatedLineWidth(tool.id, tool.style.lineWidth) || 1;
 
     // Calculate boundaries based on extension settings
     // FIXED: Respect extendLeft and extendRight settings - DEFAULT is NO extension
