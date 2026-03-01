@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { COLOR_PRESETS } from '../constants/colors';
+import { CHART_COLOR_PRESETS } from '@/lib/utils/colorPresets';
 import type { CustomColors, EffectiveColors } from '../hooks/types';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import { DEFAULT_CUSTOM_COLORS } from '../hooks/types';
-import { ColorPicker } from '@/components/tools/ColorPicker';
+import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 interface CustomizeColorsPanelProps {
   customColors: CustomColors;
@@ -15,34 +16,20 @@ interface CustomizeColorsPanelProps {
   onClose: () => void;
 }
 
-/** Single color row: label + presets + swatch with HSV picker + HEX input */
+/** Single color row: label + presets + portal swatch + HEX input */
 function ColorRow({ label, value, fallback, presets, onChange }: {
   label: string;
   value: string;
   fallback: string;
-  presets: string[];
+  presets: readonly string[];
   onChange: (color: string) => void;
 }) {
   const effective = value || fallback;
   const [hex, setHex] = useState(effective);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setHex(effective);
   }, [effective]);
-
-  // Close picker on outside click
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [pickerOpen]);
 
   const commitHex = useCallback(() => {
     const h = hex.startsWith('#') ? hex : `#${hex}`;
@@ -54,7 +41,7 @@ function ColorRow({ label, value, fallback, presets, onChange }: {
   }, [hex, effective, onChange]);
 
   return (
-    <div className="space-y-1.5" ref={containerRef}>
+    <div className="space-y-1.5">
       <div className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</div>
       <div className="flex items-center gap-2">
         <div className="flex flex-wrap gap-1 flex-1">
@@ -72,12 +59,12 @@ function ColorRow({ label, value, fallback, presets, onChange }: {
             />
           ))}
         </div>
-        <div className="relative flex items-center gap-1.5 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => setPickerOpen(!pickerOpen)}
-            className="w-5 h-5 rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
-            style={{ backgroundColor: effective, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Portal-based swatch — never clipped */}
+          <InlineColorSwatch
+            value={effective}
+            onChange={(c) => { onChange(c); setHex(c); }}
+            size={5}
           />
           <input
             type="text"
@@ -94,20 +81,6 @@ function ColorRow({ label, value, fallback, presets, onChange }: {
               focus:border-[var(--primary)] focus:outline-none"
             spellCheck={false}
           />
-          {pickerOpen && (
-            <div className="absolute z-50 mt-1 right-0 top-full" style={{
-              width: 230,
-              borderRadius: 10,
-              backgroundColor: '#1c1f26',
-              border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              overflow: 'hidden',
-            }}>
-              <div className="p-2">
-                <ColorPicker value={effective} onChange={(c) => { onChange(c); setHex(c); }} compact={false} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -121,7 +94,7 @@ export default function CustomizeColorsPanel({
   theme,
   onClose,
 }: CustomizeColorsPanelProps) {
-  const PRICE_LINE_PRESETS = ['#7ed321', '#3b82f6', '#f59e0b', '#22d3ee', '#a855f7', '#ef4444'];
+  const PRICE_LINE_PRESETS = CHART_COLOR_PRESETS.priceLine;
 
   return (
     <div

@@ -22,7 +22,7 @@ import {
   LineStyle,
   getToolsEngine,
 } from '@/lib/tools/ToolsEngine';
-import { ColorPicker } from '@/components/tools/ColorPicker';
+import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 // Global timestamp: when ToolSettingsBar last received a pointerdown/mousedown
 // Set via native capture-phase listener so it fires BEFORE any React handler
@@ -70,7 +70,6 @@ export default function ToolSettingsBar({
   onOpenAdvanced,
   onInteractionStart,
 }: ToolSettingsBarProps) {
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [showWidthPicker, setShowWidthPicker] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
@@ -133,7 +132,6 @@ export default function ToolSettingsBar({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
-        setShowColorPicker(false);
         setShowWidthPicker(false);
         setShowStylePicker(false);
       }
@@ -289,50 +287,23 @@ export default function ToolSettingsBar({
 
         <Divider color={colors.gridColor} />
 
-        {/* Color Picker */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setShowColorPicker(!showColorPicker);
-              setShowWidthPicker(false);
-              setShowStylePicker(false);
-            }}
-            className="w-7 h-7 rounded-lg border-2 hover:scale-105 transition-transform"
-            style={{
-              backgroundColor: style.color,
-              borderColor: showColorPicker ? '#22c55e' : 'rgba(255,255,255,0.2)',
-            }}
-            title="Color"
-          />
-          {showColorPicker && (
-            <div
-              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-3 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-              style={{
-                backgroundColor: 'rgba(15, 15, 20, 0.98)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)',
-                minWidth: 240,
-                backdropFilter: 'blur(20px)',
-              }}
-            >
-              <ColorPicker
-                value={style.color}
-                onChange={(c) => updateStyle({ color: c })}
-                label=""
-                showAlpha
-                alpha={style.opacity ?? 1}
-                onAlphaChange={(a) => updateStyle({ opacity: a })}
-              />
-            </div>
-          )}
-        </div>
+        {/* Color Picker — portal-based, never clipped */}
+        <InlineColorSwatch
+          value={style.color}
+          onChange={(c) => updateStyle({ color: c })}
+          showAlpha
+          alpha={style.opacity ?? 1}
+          onAlphaChange={(a) => updateStyle({ opacity: a })}
+          className="w-7 h-7 rounded-lg border-2 hover:scale-105 transition-transform cursor-pointer"
+        >
+          <div className="w-full h-full rounded-md" style={{ backgroundColor: style.color }} />
+        </InlineColorSwatch>
 
         {/* Line Width */}
         <div className="relative">
           <button
             onClick={() => {
               setShowWidthPicker(!showWidthPicker);
-              setShowColorPicker(false);
               setShowStylePicker(false);
             }}
             className="flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/10 transition-colors"
@@ -388,7 +359,6 @@ export default function ToolSettingsBar({
           <button
             onClick={() => {
               setShowStylePicker(!showStylePicker);
-              setShowColorPicker(false);
               setShowWidthPicker(false);
             }}
             className="px-2 py-1 text-[11px] font-mono rounded-lg hover:bg-white/10 transition-colors"

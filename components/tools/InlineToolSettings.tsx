@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { DynamicToolSettingsPanel } from './DynamicToolSettingsPanel';
 import { useToolSettingsStore, type ToolPreset } from '@/stores/useToolSettingsStore';
-import { ColorPicker } from '@/components/tools/ColorPicker';
+import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 const LINE_WIDTHS = [1, 2, 3, 4];
 
@@ -62,7 +62,6 @@ export default function InlineToolSettings({
   onOpenAdvanced,
   onRender,
 }: InlineToolSettingsProps) {
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [showWidthPicker, setShowWidthPicker] = useState(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [showDynamicSettings, setShowDynamicSettings] = useState(false);
@@ -91,7 +90,6 @@ export default function InlineToolSettings({
   // Close dropdowns when tool deselected
   useEffect(() => {
     if (!selectedTool) {
-      setShowColorPicker(false);
       setShowWidthPicker(false);
       setShowStylePicker(false);
       setShowDynamicSettings(false);
@@ -104,7 +102,6 @@ export default function InlineToolSettings({
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
-        setShowColorPicker(false);
         setShowWidthPicker(false);
         setShowStylePicker(false);
         setShowDynamicSettings(false);
@@ -209,46 +206,26 @@ export default function InlineToolSettings({
 
       <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
 
-      {/* Color picker */}
-      <div className="relative">
-        <button
-          onClick={() => { setShowColorPicker(!showColorPicker); setShowWidthPicker(false); setShowStylePicker(false); setShowPresetMenu(false); }}
-          className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
-          title="Line color"
-        >
-          <div
-            className="w-4 h-4 rounded-sm border border-[var(--border)]"
-            style={{ backgroundColor: style.color }}
-          />
-          <ChevronDown size={10} className="text-[var(--text-dimmed)]" />
-        </button>
-        {showColorPicker && (
-          <div
-            className="absolute top-full left-0 mt-2 p-3 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-            style={{
-              backgroundColor: 'rgba(15, 15, 20, 0.98)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)',
-              minWidth: 240,
-              backdropFilter: 'blur(20px)',
-            }}
-          >
-            <ColorPicker
-              value={style.color}
-              onChange={(color) => updateStyle({ color })}
-              label=""
-              showAlpha
-              alpha={style.opacity ?? 1}
-              onAlphaChange={(a) => updateStyle({ opacity: a })}
-            />
-          </div>
-        )}
-      </div>
+      {/* Color picker — portal-based, never clipped */}
+      <InlineColorSwatch
+        value={style.color}
+        onChange={(color) => updateStyle({ color })}
+        showAlpha
+        alpha={style.opacity ?? 1}
+        onAlphaChange={(a) => updateStyle({ opacity: a })}
+        className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors cursor-pointer"
+      >
+        <div
+          className="w-4 h-4 rounded-sm border border-[var(--border)]"
+          style={{ backgroundColor: style.color }}
+        />
+        <ChevronDown size={10} className="text-[var(--text-dimmed)]" />
+      </InlineColorSwatch>
 
       {/* Line width */}
       <div className="relative">
         <button
-          onClick={() => { setShowWidthPicker(!showWidthPicker); setShowColorPicker(false); setShowStylePicker(false); setShowPresetMenu(false); }}
+          onClick={() => { setShowWidthPicker(!showWidthPicker); setShowStylePicker(false); setShowPresetMenu(false); }}
           className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
           title="Line width"
         >
@@ -287,7 +264,7 @@ export default function InlineToolSettings({
       {/* Line style */}
       <div className="relative">
         <button
-          onClick={() => { setShowStylePicker(!showStylePicker); setShowColorPicker(false); setShowWidthPicker(false); setShowPresetMenu(false); }}
+          onClick={() => { setShowStylePicker(!showStylePicker); setShowWidthPicker(false); setShowPresetMenu(false); }}
           className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
           title="Line style"
         >
@@ -417,7 +394,7 @@ export default function InlineToolSettings({
       <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
       <div className="relative">
         <button
-          onClick={() => { setShowPresetMenu(!showPresetMenu); setShowColorPicker(false); setShowWidthPicker(false); setShowStylePicker(false); setShowDynamicSettings(false); }}
+          onClick={() => { setShowPresetMenu(!showPresetMenu); setShowWidthPicker(false); setShowStylePicker(false); setShowDynamicSettings(false); }}
           className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
             showPresetMenu
               ? 'text-[var(--primary)] bg-[var(--primary)]/10'

@@ -24,18 +24,10 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { hsvToHex, hexToHSV, hexToRGB, rgbToHex, getRecentColors, addRecentColor } from '@/lib/utils/colorUtils';
 import { Copy, Check } from 'lucide-react';
 
-// ============ PRESETS ============
+import { PICKER_PRESETS, TOOL_PRESETS_COMPACT } from '@/lib/utils/colorPresets';
 
-const PRESET_COLORS = [
-  '#22c55e', '#ef4444', '#3b82f6', '#fbbf24',
-  '#06b6d4', '#a855f7', '#ec4899', '#f97316',
-  '#ffffff', '#a1a1aa', '#525252', '#171717',
-];
-
-const COMPACT_COLORS = [
-  '#22c55e', '#ef4444', '#3b82f6', '#fbbf24',
-  '#a855f7', '#06b6d4', '#ffffff', '#525252',
-];
+const PRESET_COLORS = PICKER_PRESETS;
+const COMPACT_COLORS = TOOL_PRESETS_COMPACT;
 
 // ============ COMPONENT ============
 

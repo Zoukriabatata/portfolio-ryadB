@@ -6,12 +6,8 @@ import { DEFAULT_INDICATORS } from '@/types/charts';
 import type { IndicatorConfig, IndicatorLineStyle, IndicatorSource } from '@/types/charts';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
-const COLOR_PRESETS = [
-  '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6',
-  '#a78bfa', '#ec4899', '#f43f5e', '#ef4444', '#f97316',
-  '#f59e0b', '#eab308', '#84cc16', '#22d3ee', '#ffffff',
-  '#a3a3a3', '#737373', '#525252',
-];
+import { INDICATOR_PRESETS } from '@/lib/utils/colorPresets';
+const COLOR_PRESETS = INDICATOR_PRESETS;
 
 const SOURCE_OPTIONS: { value: IndicatorSource; label: string }[] = [
   { value: 'close', label: 'Close' },
