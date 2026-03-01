@@ -39,6 +39,8 @@ interface ColorPickerProps {
   label?: string;
   className?: string;
   compact?: boolean;
+  /** Mini mode: small SV canvas (80px) + hue bar + hex input. No presets/RGB/recent. */
+  mini?: boolean;
   showRGB?: boolean;
   showRecent?: boolean;
   /** Enable alpha/opacity slider (0-1). Default: false */
@@ -56,6 +58,7 @@ export function ColorPicker({
   label = 'Color',
   className = '',
   compact = false,
+  mini = false,
   showRGB = true,
   showRecent = true,
   showAlpha = false,
@@ -316,6 +319,88 @@ export function ColorPicker({
                 title={color}
               />
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══ MINI MODE — compact HSV: small SV + hue bar + hex ═══
+  if (mini) {
+    return (
+      <div className={className}>
+        {label && <label className="block text-[10px] text-[var(--text-muted)] mb-1">{label}</label>}
+
+        <div className="flex gap-2 items-start">
+          {/* SV square — small */}
+          <div className="relative rounded overflow-hidden flex-shrink-0" style={{ width: 80, height: 80, border: '1px solid var(--border)' }}>
+            <canvas
+              ref={svCanvasRef}
+              width={80}
+              height={80}
+              className="w-full h-full cursor-crosshair"
+              onPointerDown={(e) => handleSVPointer(e, true)}
+              onPointerMove={handleSVPointer}
+              onPointerUp={handlePointerUp}
+            />
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                left: svMarkerX, top: svMarkerY,
+                width: 10, height: 10,
+                transform: 'translate(-50%, -50%)',
+                borderRadius: '50%',
+                border: '2px solid #fff',
+                boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+              }}
+            />
+          </div>
+
+          {/* Right column: hue + hex + preview */}
+          <div className="flex-1 min-w-0 space-y-1.5">
+            {/* Hue bar */}
+            <div className="relative rounded overflow-hidden" style={{ height: 12, border: '1px solid var(--border)' }}>
+              <canvas
+                ref={hueCanvasRef}
+                width={200}
+                height={12}
+                className="w-full h-full cursor-ew-resize"
+                onPointerDown={(e) => handleHuePointer(e, true)}
+                onPointerMove={handleHuePointer}
+                onPointerUp={handlePointerUp}
+              />
+              <div
+                className="absolute top-0 pointer-events-none"
+                style={{
+                  left: hueMarkerX,
+                  width: 3, height: '100%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: '#fff',
+                  borderRadius: 1,
+                  boxShadow: '0 0 2px rgba(0,0,0,0.6)',
+                }}
+              />
+            </div>
+
+            {/* Preview + HEX */}
+            <div className="flex items-center gap-1">
+              <div
+                className="w-5 h-5 rounded flex-shrink-0"
+                style={{ backgroundColor: value, border: '1px solid var(--border)' }}
+              />
+              <input
+                type="text"
+                value={hexInput}
+                onChange={handleHexChange}
+                maxLength={7}
+                className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[10px] font-mono focus:outline-none"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>

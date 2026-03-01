@@ -418,6 +418,7 @@ export default function AdvancedChartSettings({
                   value={crosshairColor}
                   onChange={(color) => onCrosshairChange({ color })}
                   label="Couleur"
+                  mini
                 />
 
                 <SliderControl
@@ -485,9 +486,9 @@ export default function AdvancedChartSettings({
                     Bougie Haussiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorPicker label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} />
-                    <ColorPicker label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} />
-                    <ColorPicker label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} />
+                    <ColorPicker label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} mini />
+                    <ColorPicker label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} mini />
+                    <ColorPicker label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} mini />
                   </div>
                 </div>
 
@@ -498,9 +499,9 @@ export default function AdvancedChartSettings({
                     Bougie Baissiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorPicker label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} />
-                    <ColorPicker label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} />
-                    <ColorPicker label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} />
+                    <ColorPicker label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} mini />
+                    <ColorPicker label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} mini />
+                    <ColorPicker label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} mini />
                   </div>
                 </div>
 
@@ -531,6 +532,7 @@ export default function AdvancedChartSettings({
                   label="Couleur de fond"
                   value={backgroundColor}
                   onChange={(c) => onBackgroundChange({ color: c })}
+                  mini
                 />
 
                 <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }}>
@@ -547,6 +549,7 @@ export default function AdvancedChartSettings({
                     label="Couleur grille"
                     value={gridColor}
                     onChange={(c) => onBackgroundChange({ gridColor: c })}
+                    mini
                   />
                 )}
 
