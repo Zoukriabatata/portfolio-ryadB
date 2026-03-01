@@ -80,9 +80,14 @@ export function ColorPicker({
   const isHueDragging = useRef(false);
   const isAlphaDragging = useRef(false);
   const internalUpdate = useRef(false);
+  const rafId = useRef<number>(0);
+  const pendingEmit = useRef<string | null>(null);
 
   // Resolve alpha — prefer external, fall back to local
   const currentAlpha = externalAlpha ?? localAlpha;
+
+  // Cleanup rAF on unmount
+  useEffect(() => () => { if (rafId.current) cancelAnimationFrame(rafId.current); }, []);
 
   // Load recent colors
   useEffect(() => {
@@ -178,17 +183,36 @@ export function ColorPicker({
     ctx.fillRect(0, 0, w, h);
   }, [value, showAlpha]);
 
-  const emitColor = useCallback((h: number, s: number, v: number) => {
+  // Emit during drag — NO localStorage, rAF-throttled onChange
+  const emitColorDrag = useCallback((hex: string) => {
     internalUpdate.current = true;
-    const hex = hsvToHex(h, s, v);
+    pendingEmit.current = hex;
+    if (!rafId.current) {
+      rafId.current = requestAnimationFrame(() => {
+        rafId.current = 0;
+        const h = pendingEmit.current;
+        if (h) {
+          setHexInput(h);
+          onChange(h);
+          pendingEmit.current = null;
+        }
+      });
+    }
+  }, [onChange]);
+
+  // Commit on pointer up — save to recent + onChangeEnd
+  const commitColor = useCallback((hex: string) => {
+    // Flush any pending rAF
+    if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = 0; }
+    internalUpdate.current = true;
     setHexInput(hex);
     onChange(hex);
-    // Save to recent
     if (showRecent) {
       addRecentColor(hex);
       setRecentColors(getRecentColors());
     }
-  }, [onChange, showRecent]);
+    onChangeEnd?.(hex);
+  }, [onChange, onChangeEnd, showRecent]);
 
   // SV drag
   const handleSVPointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>, start = false) => {
@@ -204,8 +228,8 @@ export function ColorPicker({
     const newV = (1 - y) * 100;
     setSat(newS);
     setBright(newV);
-    emitColor(hue, newS, newV);
-  }, [hue, emitColor]);
+    emitColorDrag(hsvToHex(hue, newS, newV));
+  }, [hue, emitColorDrag]);
 
   // Hue drag
   const handleHuePointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>, start = false) => {
@@ -218,8 +242,8 @@ export function ColorPicker({
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newH = x * 360;
     setHue(newH);
-    emitColor(newH, sat, bright);
-  }, [sat, bright, emitColor]);
+    emitColorDrag(hsvToHex(newH, sat, bright));
+  }, [sat, bright, emitColorDrag]);
 
   // Alpha drag
   const handleAlphaPointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>, start = false) => {
@@ -241,9 +265,9 @@ export function ColorPicker({
     isHueDragging.current = false;
     isAlphaDragging.current = false;
     if (wasDragging) {
-      onChangeEnd?.(hsvToHex(hue, sat, bright));
+      commitColor(hsvToHex(hue, sat, bright));
     }
-  }, [hue, sat, bright, onChangeEnd]);
+  }, [hue, sat, bright, commitColor]);
 
   const handleHexChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
