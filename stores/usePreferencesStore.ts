@@ -100,6 +100,14 @@ export interface PreferencesState {
   vpBackgroundColor: string;
   vpBackgroundOpacity: number;
 
+  // VP Engine settings
+  vpHistoryDepth: number; // minutes (default 240 = 4h)
+  vpProfileMode: 'session' | 'visible' | 'custom';
+  vpCustomRangeMinutes: number;
+  vpGradientEnabled: boolean;
+  vpAskGradientEnd: string; // low-volume end color
+  vpBidGradientEnd: string; // low-volume end color
+
   setVPSetting: <K extends keyof PreferencesState>(key: K, value: PreferencesState[K]) => void;
 
   // Long/Short position tool settings
@@ -156,6 +164,14 @@ export const usePreferencesStore = create<PreferencesState>()(
       // VP Panel defaults
       vpBidColor: '#ef4444', vpAskColor: '#22c55e', vpBarOpacity: 0.6,
       vpShowBackground: false, vpBackgroundColor: '#3b82f6', vpBackgroundOpacity: 0.05,
+
+      // VP Engine defaults
+      vpHistoryDepth: 240,
+      vpProfileMode: 'session',
+      vpCustomRangeMinutes: 240,
+      vpGradientEnabled: false,
+      vpAskGradientEnd: '#0a3d1a',
+      vpBidGradientEnd: '#3d0a0a',
 
       // Long/Short position tool defaults
       posTpColor: '#22c55e',
@@ -215,6 +231,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         vpValEnabled: s.vpValEnabled, vpValColor: s.vpValColor, vpValWidth: s.vpValWidth, vpValStyle: s.vpValStyle, vpValLabel: s.vpValLabel,
         vpBidColor: s.vpBidColor, vpAskColor: s.vpAskColor, vpBarOpacity: s.vpBarOpacity,
         vpShowBackground: s.vpShowBackground, vpBackgroundColor: s.vpBackgroundColor, vpBackgroundOpacity: s.vpBackgroundOpacity,
+        vpHistoryDepth: s.vpHistoryDepth, vpProfileMode: s.vpProfileMode, vpCustomRangeMinutes: s.vpCustomRangeMinutes,
+        vpGradientEnabled: s.vpGradientEnabled, vpAskGradientEnd: s.vpAskGradientEnd, vpBidGradientEnd: s.vpBidGradientEnd,
         posTpColor: s.posTpColor, posSlColor: s.posSlColor, posEntryColor: s.posEntryColor,
         posZoneOpacity: s.posZoneOpacity, posShowZoneFill: s.posShowZoneFill,
         posShowLabels: s.posShowLabels, posDefaultCompact: s.posDefaultCompact,

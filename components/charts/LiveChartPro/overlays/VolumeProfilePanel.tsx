@@ -29,6 +29,7 @@ interface VolumeProfilePanelProps {
   };
   vpColors?: { bid: string; ask: string; opacity: number };
   vpBackground?: { show: boolean; color: string; opacity: number };
+  vpGradient?: { enabled: boolean; askEnd: string; bidEnd: string };
 }
 
 const DEFAULT_THEME = {
@@ -62,6 +63,7 @@ export default function VolumeProfilePanel({
   theme = DEFAULT_THEME,
   vpColors,
   vpBackground,
+  vpGradient,
 }: VolumeProfilePanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredBinRef = useRef<PriceBin | null>(null);
@@ -166,6 +168,11 @@ export default function VolumeProfilePanel({
 
     const barHeight = Math.max(1, (tickSize / priceRange) * chartHeight - 1);
 
+    // Gradient settings
+    const gradEnabled = vpGradient?.enabled ?? false;
+    const gradAskEnd = vpGradient?.askEnd || '#0a3d1a';
+    const gradBidEnd = vpGradient?.bidEnd || '#3d0a0a';
+
     // Draw bars
     for (const bin of bins) {
       const y = priceToY(bin.price);
@@ -175,13 +182,14 @@ export default function VolumeProfilePanel({
 
       const bidRatio = bin.bidVolume / maxBinVolume;
       const askRatio = bin.askVolume / maxBinVolume;
+      const totalIntensity = bin.totalVolume / maxBinVolume;
 
       const bidBarWidth = (bidRatio * barMaxWidth) / 2;
       const askBarWidth = (askRatio * barMaxWidth) / 2;
 
       // Bid bar (left from center, red)
       if (bidBarWidth > 0.5) {
-        ctx.fillStyle = bidColor;
+        ctx.fillStyle = gradEnabled ? interpolateHex(gradBidEnd, bidColor, totalIntensity) : bidColor;
         ctx.globalAlpha = barOpacity;
         ctx.fillRect(centerX - bidBarWidth, y - barHeight / 2, bidBarWidth, Math.max(1, barHeight));
         ctx.globalAlpha = 1;
@@ -189,7 +197,7 @@ export default function VolumeProfilePanel({
 
       // Ask bar (right from center, green)
       if (askBarWidth > 0.5) {
-        ctx.fillStyle = askColor;
+        ctx.fillStyle = gradEnabled ? interpolateHex(gradAskEnd, askColor, totalIntensity) : askColor;
         ctx.globalAlpha = barOpacity;
         ctx.fillRect(centerX, y - barHeight / 2, askBarWidth, Math.max(1, barHeight));
         ctx.globalAlpha = 1;
@@ -234,7 +242,7 @@ export default function VolumeProfilePanel({
     ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`Δ ${deltaStr}`, w / 2, 12);
-  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr, vpColors, vpBackground]);
+  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr, vpColors, vpBackground, vpGradient]);
 
   // Handle mouse hover for tooltip
   useEffect(() => {
@@ -325,4 +333,17 @@ function formatCompact(n: number): string {
   if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (abs >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toFixed(0);
+}
+
+function interpolateHex(startHex: string, endHex: string, t: number): string {
+  const r1 = parseInt(startHex.slice(1, 3), 16);
+  const g1 = parseInt(startHex.slice(3, 5), 16);
+  const b1 = parseInt(startHex.slice(5, 7), 16);
+  const r2 = parseInt(endHex.slice(1, 3), 16);
+  const g2 = parseInt(endHex.slice(3, 5), 16);
+  const b2 = parseInt(endHex.slice(5, 7), 16);
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }

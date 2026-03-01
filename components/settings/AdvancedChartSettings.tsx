@@ -253,6 +253,9 @@ export default function AdvancedChartSettings({
     // Position tool settings
     posTpColor, posSlColor, posEntryColor,
     posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
+    // VP Engine settings
+    vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
+    vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
     setVPSetting,
   } = usePreferencesStore();
 
@@ -781,6 +784,37 @@ export default function AdvancedChartSettings({
                 <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Volume Profile</h3>
 
+                  {/* Profile Mode */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Mode</span>
+                    <div className="flex gap-1">
+                      {(['session', 'visible', 'custom'] as const).map(mode => (
+                        <button key={mode} onClick={() => setVPSetting('vpProfileMode', mode)}
+                          className="px-2 py-0.5 rounded text-[10px] transition-colors"
+                          style={{
+                            backgroundColor: vpProfileMode === mode ? 'var(--primary)' : 'var(--surface-elevated)',
+                            color: vpProfileMode === mode ? '#fff' : 'var(--text-secondary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          {mode === 'session' ? 'Session' : mode === 'visible' ? 'Visible' : 'Custom'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* History Depth */}
+                  {vpProfileMode !== 'visible' && (
+                    <SliderControl
+                      label={vpProfileMode === 'custom' ? 'Profondeur personnalisée' : 'Profondeur historique'}
+                      value={vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth}
+                      min={30} max={480} step={30} unit="min"
+                      onChange={(v) => setVPSetting(vpProfileMode === 'custom' ? 'vpCustomRangeMinutes' : 'vpHistoryDepth', v)}
+                    />
+                  )}
+
+                  <div className="my-2" style={{ borderTop: '1px solid var(--border)' }} />
+
                   {/* POC Line */}
                   <VPLineRow
                     label="POC" enabled={vpPocEnabled} color={vpPocColor} width={vpPocWidth}
@@ -845,6 +879,36 @@ export default function AdvancedChartSettings({
                     </div>
 
                     <SliderControl label="Opacité barres" value={Math.round(vpBarOpacity * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('vpBarOpacity', v / 100)} />
+
+                    {/* Gradient intensity */}
+                    <ToggleSwitch label="Gradient intensité" description="Couleur varie selon le volume" value={vpGradientEnabled} onChange={(v) => setVPSetting('vpGradientEnabled', v)} />
+
+                    {vpGradientEnabled && (
+                      <div className="space-y-2 mt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Ask (min)</span>
+                          <div className="flex items-center gap-1.5">
+                            {['#0a3d1a', '#1a2e1a', '#0a2d3d', '#1a1a2e', '#0a0a0a'].map(c => (
+                              <button key={c} onClick={() => setVPSetting('vpAskGradientEnd', c)}
+                                className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-110"
+                                style={{ backgroundColor: c, border: `1px solid ${vpAskGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Bid (min)</span>
+                          <div className="flex items-center gap-1.5">
+                            {['#3d0a0a', '#2e1a1a', '#3d1a0a', '#2e1a2e', '#0a0a0a'].map(c => (
+                              <button key={c} onClick={() => setVPSetting('vpBidGradientEnd', c)}
+                                className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-110"
+                                style={{ backgroundColor: c, border: `1px solid ${vpBidGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

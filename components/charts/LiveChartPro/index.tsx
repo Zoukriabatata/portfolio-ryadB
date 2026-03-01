@@ -296,6 +296,9 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   const vpShowBackground = usePreferencesStore((s) => s.vpShowBackground);
   const vpBackgroundColor = usePreferencesStore((s) => s.vpBackgroundColor);
   const vpBackgroundOpacity = usePreferencesStore((s) => s.vpBackgroundOpacity);
+  const vpGradientEnabled = usePreferencesStore((s) => s.vpGradientEnabled);
+  const vpAskGradientEnd = usePreferencesStore((s) => s.vpAskGradientEnd);
+  const vpBidGradientEnd = usePreferencesStore((s) => s.vpBidGradientEnd);
 
   useEffect(() => {
     if (!showVolumeProfile || !vpData.data.valueArea.poc) {
@@ -822,6 +825,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                 theme={{ background: engine.effectiveColors.background, border: theme.colors.border, text: theme.colors.text, textMuted: theme.colors.textMuted }}
                 vpColors={{ bid: vpBidColor, ask: vpAskColor, opacity: vpBarOpacity }}
                 vpBackground={{ show: vpShowBackground, color: vpBackgroundColor, opacity: vpBackgroundOpacity }}
+                vpGradient={{ enabled: vpGradientEnabled, askEnd: vpAskGradientEnd, bidEnd: vpBidGradientEnd }}
               />
             </div>
           )}

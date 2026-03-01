@@ -739,13 +739,20 @@ export class ToolsRenderer {
   private renderPosition(tool: Tool & { type: 'longPosition' | 'shortPosition' }, context: RenderContext): void {
     const { ctx, priceToY, timeToX, width } = context;
 
+    // ═══ VIEWPORT CLIPPING — prevent overflow into price scale / VP panel ═══
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, width, context.height);
+    ctx.clip();
+
     const entryY = Math.round(priceToY(tool.entry));
     const slY = Math.round(priceToY(tool.stopLoss));
     const tpY = Math.round(priceToY(tool.takeProfit));
     const leftX = Math.round(timeToX(tool.startTime));
-    const rightX = tool.extendRight
-      ? Math.round(width)
-      : Math.round(timeToX(tool.endTime));
+    const rightX = Math.min(
+      tool.extendRight ? Math.round(width) : Math.round(timeToX(tool.endTime)),
+      Math.round(width) // Never exceed chart viewport
+    );
 
     const isLong = tool.type === 'longPosition';
 
@@ -1155,6 +1162,9 @@ export class ToolsRenderer {
         ctx.stroke();
       });
     }
+
+    // ═══ RESTORE VIEWPORT CLIP ═══
+    ctx.restore();
   }
 
   // ============ TEXT ============

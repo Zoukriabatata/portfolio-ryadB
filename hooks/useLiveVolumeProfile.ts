@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getBinanceLiveWS } from '@/lib/live/BinanceLiveWS';
+import { usePreferencesStore } from '@/stores/usePreferencesStore';
 import {
   VolumeProfileEngine,
   type PriceBin,
@@ -78,6 +79,9 @@ function readEngineData(eng: VolumeProfileEngine): LiveVolumeProfileData {
 export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
   const [data, setData] = useState<LiveVolumeProfileData>(EMPTY_DATA);
   const engineRef = useRef<VolumeProfileEngine | null>(null);
+  const vpHistoryDepth = usePreferencesStore((s) => s.vpHistoryDepth);
+  const vpProfileMode = usePreferencesStore((s) => s.vpProfileMode);
+  const vpCustomRangeMinutes = usePreferencesStore((s) => s.vpCustomRangeMinutes);
 
   // Effect 1 — Engine lifecycle (symbol only, persists across toggle)
   useEffect(() => {
@@ -104,16 +108,15 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     const engine = engineRef.current;
     let cancelled = false;
 
-    // Instant load from existing engine data (when re-enabling)
-    const existing = readEngineData(engine);
-    if (existing.totalVolume > 0) {
-      setData(existing);
-    }
+    // Reset engine when depth/mode settings change to re-fetch with new range
+    engine.reset();
+    setData(EMPTY_DATA);
 
-    // 1. Fetch historical trades (last 1 hour) for full profile immediately
+    // 1. Fetch historical trades for full profile immediately
     const loadHistorical = async () => {
       const endTime = Date.now();
-      const startTime = endTime - 60 * 60 * 1000; // 1 hour
+      const depthMinutes = vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth;
+      const startTime = endTime - depthMinutes * 60 * 1000;
       let cursor = startTime;
 
       while (cursor < endTime && !cancelled) {
@@ -176,7 +179,7 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
       clearInterval(timer);
       // DO NOT null out engineRef — engine persists across toggle
     };
-  }, [symbol, enabled]);
+  }, [symbol, enabled, vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes]);
 
   const reset = useCallback(() => {
     engineRef.current?.reset();
