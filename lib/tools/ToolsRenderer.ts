@@ -793,13 +793,77 @@ export class ToolsRenderer {
     const showPosSize = tool.showPositionSize === true;
     const showDollarPnL = tool.showDollarPnL === true;
 
-    // ═══ PROFIT ZONE FILL ═══
+    // ═══ ZONE FILL (Dynamic Opacity based on live price) ═══
     if (showFill && tool.showZoneFill !== false) {
-      ctx.fillStyle = profitFill;
-      ctx.fillRect(leftX, Math.min(entryY, tpY), rightX - leftX, Math.abs(tpY - entryY));
+      const livePrice = context.currentPrice || 0;
+      const priceInRange = livePrice > 0
+        && livePrice > Math.min(tool.stopLoss, tool.takeProfit)
+        && livePrice < Math.max(tool.stopLoss, tool.takeProfit);
 
-      ctx.fillStyle = riskFill;
-      ctx.fillRect(leftX, Math.min(entryY, slY), rightX - leftX, Math.abs(slY - entryY));
+      if (priceInRange) {
+        const livePriceY = Math.round(priceToY(livePrice));
+
+        // Progress toward TP or SL (0 = at entry, 1 = at target)
+        const tpDist = Math.abs(tool.takeProfit - tool.entry);
+        const slDist = Math.abs(tool.stopLoss - tool.entry);
+        const profitProgress = tpDist > 0
+          ? Math.min(1, Math.max(0, (isLong ? livePrice - tool.entry : tool.entry - livePrice) / tpDist))
+          : 0;
+        const riskProgress = slDist > 0
+          ? Math.min(1, Math.max(0, (isLong ? tool.entry - livePrice : livePrice - tool.entry) / slDist))
+          : 0;
+
+        const baseAlpha = zoneAlpha;
+        const enhancedAlpha = Math.min(zoneAlpha * 3, 0.25);
+
+        // --- Profit zone (entry ↔ TP) ---
+        const tpTop = Math.min(entryY, tpY);
+        const tpBottom = Math.max(entryY, tpY);
+
+        if (profitProgress > 0) {
+          // Reached portion (entry → live price) — enhanced opacity
+          const reachedAlpha = baseAlpha + (enhancedAlpha - baseAlpha) * profitProgress;
+          ctx.fillStyle = hexToRgba(profitLine, reachedAlpha);
+          const reachedTop = Math.min(entryY, livePriceY);
+          const reachedH = Math.abs(livePriceY - entryY);
+          ctx.fillRect(leftX, reachedTop, rightX - leftX, reachedH);
+          // Unreached portion (live price → TP) — dimmed
+          ctx.fillStyle = hexToRgba(profitLine, baseAlpha * 0.4);
+          const unTop = Math.min(tpY, livePriceY);
+          const unH = Math.abs(livePriceY - tpY);
+          ctx.fillRect(leftX, unTop, rightX - leftX, unH);
+        } else {
+          // No profit progress — base opacity
+          ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
+          ctx.fillRect(leftX, tpTop, rightX - leftX, tpBottom - tpTop);
+        }
+
+        // --- Risk zone (entry ↔ SL) ---
+        const slTop = Math.min(entryY, slY);
+        const slBottom = Math.max(entryY, slY);
+
+        if (riskProgress > 0) {
+          const reachedAlpha = baseAlpha + (enhancedAlpha - baseAlpha) * riskProgress;
+          ctx.fillStyle = hexToRgba(riskLine, reachedAlpha);
+          const reachedTop = Math.min(entryY, livePriceY);
+          const reachedH = Math.abs(livePriceY - entryY);
+          ctx.fillRect(leftX, reachedTop, rightX - leftX, reachedH);
+          // Unreached portion
+          ctx.fillStyle = hexToRgba(riskLine, baseAlpha * 0.4);
+          const unTop = Math.min(slY, livePriceY);
+          const unH = Math.abs(livePriceY - slY);
+          ctx.fillRect(leftX, unTop, rightX - leftX, unH);
+        } else {
+          ctx.fillStyle = hexToRgba(riskLine, baseAlpha);
+          ctx.fillRect(leftX, slTop, rightX - leftX, slBottom - slTop);
+        }
+      } else {
+        // Price outside TP/SL range or no live price — static fill
+        ctx.fillStyle = profitFill;
+        ctx.fillRect(leftX, Math.min(entryY, tpY), rightX - leftX, Math.abs(tpY - entryY));
+        ctx.fillStyle = riskFill;
+        ctx.fillRect(leftX, Math.min(entryY, slY), rightX - leftX, Math.abs(slY - entryY));
+      }
     }
 
     // ═══ ENTRY LINE ═══
@@ -828,6 +892,72 @@ export class ToolsRenderer {
     ctx.lineTo(rightX, slY + 0.5);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // ═══ SMART PRICE-FOLLOW ARROW ═══
+    const livePrice = context.currentPrice || 0;
+    if (livePrice > 0) {
+      const livePriceY = Math.round(priceToY(livePrice));
+      const arrowX = rightX + 8;
+      const arrowSize = 5;
+
+      // Direction & color
+      const inProfit = isLong ? livePrice > tool.entry : livePrice < tool.entry;
+      const inLoss = isLong ? livePrice < tool.entry : livePrice > tool.entry;
+      const arrowColor = inProfit ? tpColor : inLoss ? slColor : entryColor;
+      const arrowUp = livePrice >= tool.entry;
+
+      // Connector: horizontal from entry rightX → arrowX
+      ctx.strokeStyle = hexToRgba(arrowColor, 0.3);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(rightX, entryY + 0.5);
+      ctx.lineTo(arrowX, entryY + 0.5);
+      ctx.stroke();
+
+      // Connector: vertical from entry → live price
+      if (Math.abs(livePriceY - entryY) > 4) {
+        ctx.beginPath();
+        ctx.moveTo(arrowX, entryY);
+        ctx.lineTo(arrowX, livePriceY);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Triangle arrow at live price
+      ctx.fillStyle = arrowColor;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      if (arrowUp) {
+        ctx.moveTo(arrowX - arrowSize, livePriceY + arrowSize);
+        ctx.lineTo(arrowX, livePriceY - arrowSize);
+        ctx.lineTo(arrowX + arrowSize, livePriceY + arrowSize);
+      } else {
+        ctx.moveTo(arrowX - arrowSize, livePriceY - arrowSize);
+        ctx.lineTo(arrowX, livePriceY + arrowSize);
+        ctx.lineTo(arrowX + arrowSize, livePriceY - arrowSize);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // % badge next to arrow
+      const priceDiffPct = ((livePrice - tool.entry) / tool.entry) * 100;
+      const badgeText = `${priceDiffPct >= 0 ? '+' : ''}${priceDiffPct.toFixed(2)}%`;
+      ctx.font = '9px "SF Mono", Consolas, monospace';
+      const textW = ctx.measureText(badgeText).width;
+      const badgeX = arrowX + arrowSize + 3;
+      const badgeY = livePriceY - 7;
+
+      ctx.fillStyle = 'rgba(15, 15, 20, 0.85)';
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, textW + 8, 14, 3);
+      ctx.fill();
+
+      ctx.fillStyle = arrowColor;
+      ctx.textAlign = 'left';
+      ctx.fillText(badgeText, badgeX + 4, badgeY + 10);
+    }
 
     // ═══ Settings flags ═══
     const showRR = showLabels && tool.showRR !== false;
