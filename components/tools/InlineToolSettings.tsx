@@ -206,10 +206,11 @@ export default function InlineToolSettings({
 
       <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
 
-      {/* Color picker — portal-based, never clipped */}
+      {/* Color picker — portal-based mini HSV, never clipped */}
       <InlineColorSwatch
         value={style.color}
         onChange={(color) => updateStyle({ color })}
+        mini
         showAlpha
         alpha={style.opacity ?? 1}
         onAlphaChange={(a) => updateStyle({ opacity: a })}

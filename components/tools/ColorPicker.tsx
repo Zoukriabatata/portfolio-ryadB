@@ -406,6 +406,32 @@ export function ColorPicker({
               />
             </div>
 
+            {/* Alpha bar (mini) */}
+            {showAlpha && (
+              <div className="relative rounded overflow-hidden" style={{ height: 12, border: '1px solid var(--border)' }}>
+                <canvas
+                  ref={alphaCanvasRef}
+                  width={200}
+                  height={12}
+                  className="w-full h-full cursor-ew-resize"
+                  onPointerDown={(e) => handleAlphaPointer(e, true)}
+                  onPointerMove={handleAlphaPointer}
+                  onPointerUp={handlePointerUp}
+                />
+                <div
+                  className="absolute top-0 pointer-events-none"
+                  style={{
+                    left: alphaMarkerX,
+                    width: 3, height: '100%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#fff',
+                    borderRadius: 1,
+                    boxShadow: '0 0 2px rgba(0,0,0,0.6)',
+                  }}
+                />
+              </div>
+            )}
+
             {/* Preview + HEX */}
             <div className="flex items-center gap-1">
               <div
@@ -424,6 +450,11 @@ export function ColorPicker({
                   color: 'var(--text-primary)',
                 }}
               />
+              {showAlpha && (
+                <span className="text-[9px] font-mono flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  {Math.round(currentAlpha * 100)}%
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -287,10 +287,11 @@ export default function ToolSettingsBar({
 
         <Divider color={colors.gridColor} />
 
-        {/* Color Picker — portal-based, never clipped */}
+        {/* Color Picker — portal-based mini HSV, never clipped */}
         <InlineColorSwatch
           value={style.color}
           onChange={(c) => updateStyle({ color: c })}
+          mini
           showAlpha
           alpha={style.opacity ?? 1}
           onAlphaChange={(a) => updateStyle({ opacity: a })}

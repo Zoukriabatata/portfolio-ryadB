@@ -185,11 +185,12 @@ export default function ToolSettingsPanel({
         )}
       </div>
 
-      {/* Color — Full HSV picker */}
+      {/* Color — Mini HSV picker */}
       <ColorPicker
         value={style.color}
         onChange={(color) => updateStyle({ color })}
         label="Color"
+        mini
         showAlpha
         alpha={style.opacity ?? 1}
         onAlphaChange={(a) => updateStyle({ opacity: a })}

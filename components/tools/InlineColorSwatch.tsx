@@ -16,6 +16,8 @@ interface InlineColorSwatchProps {
   onChange: (color: string) => void;
   /** Swatch size multiplier (width/height = size * 4). Default: 6 */
   size?: number;
+  /** Use mini HSV picker (compact SV canvas + hue bar + hex). Default: false */
+  mini?: boolean;
   /** Enable alpha slider in the popover picker */
   showAlpha?: boolean;
   alpha?: number;
@@ -30,6 +32,7 @@ export function InlineColorSwatch({
   value,
   onChange,
   size = 6,
+  mini = false,
   showAlpha,
   alpha,
   onAlphaChange,
@@ -45,8 +48,8 @@ export function InlineColorSwatch({
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const pickerW = 260;
-    const pickerH = 380;
+    const pickerW = mini ? 220 : 260;
+    const pickerH = mini ? 160 : 380;
     const gap = 8;
 
     // Default: below the button, right-aligned
@@ -129,6 +132,7 @@ export function InlineColorSwatch({
             value={value}
             onChange={onChange}
             label=""
+            mini={mini}
             showAlpha={showAlpha}
             alpha={alpha}
             onAlphaChange={onAlphaChange}
