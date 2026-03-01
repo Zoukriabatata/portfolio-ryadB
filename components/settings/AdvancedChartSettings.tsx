@@ -857,24 +857,38 @@ export default function AdvancedChartSettings({
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Ask (Buy)</span>
                       <div className="flex items-center gap-1.5">
-                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7'].map(c => (
+                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7', '#10b981', '#14b8a6', '#0ea5e9', '#6366f1', '#d946ef'].map(c => (
                           <button key={c} onClick={() => setVPSetting('vpAskColor', c)}
                             className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
                             style={{ backgroundColor: c, border: `1px solid ${vpAskColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpAskColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
+                        <div className="relative">
+                          <input type="color" value={vpAskColor} onChange={(e) => setVPSetting('vpAskColor', e.target.value)}
+                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Bid (Sell)</span>
                       <div className="flex items-center gap-1.5">
-                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7'].map(c => (
+                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7', '#f43f5e', '#e11d48', '#fb923c', '#facc15', '#c084fc'].map(c => (
                           <button key={c} onClick={() => setVPSetting('vpBidColor', c)}
                             className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
                             style={{ backgroundColor: c, border: `1px solid ${vpBidColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpBidColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
+                        <div className="relative">
+                          <input type="color" value={vpBidColor} onChange={(e) => setVPSetting('vpBidColor', e.target.value)}
+                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -888,23 +902,37 @@ export default function AdvancedChartSettings({
                         <div className="flex items-center justify-between">
                           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Ask (min)</span>
                           <div className="flex items-center gap-1.5">
-                            {['#0a3d1a', '#1a2e1a', '#0a2d3d', '#1a1a2e', '#0a0a0a'].map(c => (
+                            {['#0a3d1a', '#1a2e1a', '#0a2d3d', '#1a1a2e', '#0a0a0a', '#0d2818', '#0a1a2e'].map(c => (
                               <button key={c} onClick={() => setVPSetting('vpAskGradientEnd', c)}
                                 className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-110"
                                 style={{ backgroundColor: c, border: `1px solid ${vpAskGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
                               />
                             ))}
+                            <div className="relative">
+                              <input type="color" value={vpAskGradientEnd} onChange={(e) => setVPSetting('vpAskGradientEnd', e.target.value)}
+                                className="w-3.5 h-3.5 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                              <div className="w-3.5 h-3.5 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                                <svg width="7" height="7" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Bid (min)</span>
                           <div className="flex items-center gap-1.5">
-                            {['#3d0a0a', '#2e1a1a', '#3d1a0a', '#2e1a2e', '#0a0a0a'].map(c => (
+                            {['#3d0a0a', '#2e1a1a', '#3d1a0a', '#2e1a2e', '#0a0a0a', '#281008', '#2e0a1a'].map(c => (
                               <button key={c} onClick={() => setVPSetting('vpBidGradientEnd', c)}
                                 className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-110"
                                 style={{ backgroundColor: c, border: `1px solid ${vpBidGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
                               />
                             ))}
+                            <div className="relative">
+                              <input type="color" value={vpBidGradientEnd} onChange={(e) => setVPSetting('vpBidGradientEnd', e.target.value)}
+                                className="w-3.5 h-3.5 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                              <div className="w-3.5 h-3.5 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                                <svg width="7" height="7" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -921,12 +949,19 @@ export default function AdvancedChartSettings({
                       <div className="flex items-center justify-between">
                         <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur</span>
                         <div className="flex items-center gap-1.5">
-                          {['#3b82f6', '#22c55e', '#8b5cf6', '#525252', '#171717'].map(c => (
+                          {['#3b82f6', '#22c55e', '#8b5cf6', '#525252', '#171717', '#0ea5e9', '#f59e0b', '#ec4899'].map(c => (
                             <button key={c} onClick={() => setVPSetting('vpBackgroundColor', c)}
                               className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
                               style={{ backgroundColor: c, border: `1px solid ${vpBackgroundColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpBackgroundColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                             />
                           ))}
+                          <div className="relative">
+                            <input type="color" value={vpBackgroundColor} onChange={(e) => setVPSetting('vpBackgroundColor', e.target.value)}
+                              className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                            <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                              <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <SliderControl label="Opacité fond" value={Math.round(vpBackgroundOpacity * 100)} min={1} max={30} step={1} unit="%" onChange={(v) => setVPSetting('vpBackgroundOpacity', v / 100)} />
@@ -943,12 +978,19 @@ export default function AdvancedChartSettings({
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur TP</span>
                       <div className="flex items-center gap-1.5">
-                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7'].map(c => (
+                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7', '#10b981', '#14b8a6', '#0ea5e9', '#6366f1', '#d946ef'].map(c => (
                           <button key={c} onClick={() => setVPSetting('posTpColor', c)}
                             className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
                             style={{ backgroundColor: c, border: `1px solid ${posTpColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posTpColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
+                        <div className="relative">
+                          <input type="color" value={posTpColor} onChange={(e) => setVPSetting('posTpColor', e.target.value)}
+                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -956,12 +998,19 @@ export default function AdvancedChartSettings({
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur SL</span>
                       <div className="flex items-center gap-1.5">
-                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7'].map(c => (
+                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7', '#f43f5e', '#e11d48', '#fb923c', '#facc15', '#c084fc'].map(c => (
                           <button key={c} onClick={() => setVPSetting('posSlColor', c)}
                             className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
                             style={{ backgroundColor: c, border: `1px solid ${posSlColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posSlColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
+                        <div className="relative">
+                          <input type="color" value={posSlColor} onChange={(e) => setVPSetting('posSlColor', e.target.value)}
+                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -969,12 +1018,19 @@ export default function AdvancedChartSettings({
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur Entry</span>
                       <div className="flex items-center gap-1.5">
-                        {['#a3a3a3', '#e5e5e5', '#737373', '#fbbf24', '#3b82f6'].map(c => (
+                        {['#a3a3a3', '#e5e5e5', '#737373', '#fbbf24', '#3b82f6', '#525252', '#d4d4d4', '#78716c', '#0ea5e9', '#8b5cf6'].map(c => (
                           <button key={c} onClick={() => setVPSetting('posEntryColor', c)}
                             className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
                             style={{ backgroundColor: c, border: `1px solid ${posEntryColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posEntryColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
+                        <div className="relative">
+                          <input type="color" value={posEntryColor} onChange={(e) => setVPSetting('posEntryColor', e.target.value)}
+                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
+                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
