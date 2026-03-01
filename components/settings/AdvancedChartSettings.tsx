@@ -53,36 +53,91 @@ function ColorPicker({ label, value, onChange, palette }: {
   onChange: (color: string) => void;
   palette: string[];
 }) {
+  const [hexInput, setHexInput] = useState(value);
+
+  // Sync hex input when value changes externally
+  useEffect(() => {
+    setHexInput(value);
+  }, [value]);
+
+  const handleHexSubmit = () => {
+    const hex = hexInput.startsWith('#') ? hexInput : `#${hexInput}`;
+    if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+      onChange(hex);
+    } else {
+      setHexInput(value); // revert
+    }
+  };
+
   return (
     <div>
       <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">{label}</label>
-      <div className="flex flex-wrap gap-1">
-        {palette.map(color => (
-          <button
-            key={color}
-            onClick={() => onChange(color)}
-            className={`w-6 h-6 rounded-md transition-all hover:scale-110 ${
-              value === color ? 'ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--surface)] scale-110' : ''
-            }`}
-            style={{ backgroundColor: color }}
-          />
-        ))}
-        <div className="relative">
+      <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-1 flex-1">
+          {palette.map(color => (
+            <button
+              key={color}
+              onClick={() => onChange(color)}
+              className={`w-5 h-5 rounded transition-all hover:scale-110 ${
+                value.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--surface)] scale-110' : ''
+              }`}
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+        {/* HEX input + swatch */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="w-5 h-5 rounded border border-[var(--border)]" style={{ backgroundColor: value }} />
           <input
-            type="color"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-6 h-6 rounded-md cursor-pointer opacity-0 absolute inset-0"
+            type="text"
+            value={hexInput.toUpperCase()}
+            onChange={(e) => {
+              let v = e.target.value;
+              if (!v.startsWith('#')) v = '#' + v;
+              if (v.length <= 7) setHexInput(v);
+            }}
+            onBlur={handleHexSubmit}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleHexSubmit(); }}
+            className="w-[72px] h-5 text-[10px] font-mono text-center rounded px-1
+              bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]
+              focus:border-[var(--primary)] focus:outline-none"
+            spellCheck={false}
           />
-          <div className="w-6 h-6 rounded-md border border-dashed border-[var(--text-muted)] flex items-center justify-center">
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
-              <circle cx="8" cy="8" r="6" />
-              <line x1="8" y1="5" x2="8" y2="11" />
-              <line x1="5" y1="8" x2="11" y2="8" />
-            </svg>
-          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Inline HEX color input — replaces native <input type="color"> */
+function HexInput({ value, onChange, size = 'sm' }: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: 'sm' | 'md';
+}) {
+  const [hex, setHex] = useState(value);
+  useEffect(() => { setHex(value); }, [value]);
+  const commit = () => {
+    const h = hex.startsWith('#') ? hex : `#${hex}`;
+    if (/^#[0-9a-fA-F]{6}$/.test(h)) onChange(h);
+    else setHex(value);
+  };
+  const w = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
+  const inputW = size === 'sm' ? 'w-[58px] h-4 text-[9px]' : 'w-[68px] h-5 text-[10px]';
+  return (
+    <div className="flex items-center gap-1">
+      <div className={`${w} rounded-sm`} style={{ backgroundColor: value, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }} />
+      <input
+        type="text"
+        value={hex.toUpperCase()}
+        onChange={(e) => { let v = e.target.value; if (!v.startsWith('#')) v = '#' + v; if (v.length <= 7) setHex(v); }}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
+        className={`${inputW} font-mono text-center rounded px-1
+          bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]
+          focus:border-[var(--primary)] focus:outline-none`}
+        spellCheck={false}
+      />
     </div>
   );
 }
@@ -644,13 +699,7 @@ export default function AdvancedChartSettings({
                             }}
                           />
                         ))}
-                        <input
-                          type="color"
-                          value={volumeBarBullColor}
-                          onChange={(e) => setVPSetting('volumeBarBullColor', e.target.value)}
-                          className="w-4 h-4 rounded-sm border-0 cursor-pointer"
-                          style={{ padding: 0 }}
-                        />
+                        <HexInput value={volumeBarBullColor} onChange={(c) => setVPSetting('volumeBarBullColor', c)} />
                       </div>
                     </div>
                     {/* Bear color */}
@@ -669,13 +718,7 @@ export default function AdvancedChartSettings({
                             }}
                           />
                         ))}
-                        <input
-                          type="color"
-                          value={volumeBarBearColor}
-                          onChange={(e) => setVPSetting('volumeBarBearColor', e.target.value)}
-                          className="w-4 h-4 rounded-sm border-0 cursor-pointer"
-                          style={{ padding: 0 }}
-                        />
+                        <HexInput value={volumeBarBearColor} onChange={(c) => setVPSetting('volumeBarBearColor', c)} />
                       </div>
                     </div>
                     {/* Opacity */}
@@ -984,12 +1027,7 @@ export default function AdvancedChartSettings({
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Ask (Buy)</span>
-                        <div className="relative">
-                          <input type="color" value={vpAskColor} onChange={(e) => setVPSetting('vpAskColor', e.target.value)}
-                            className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
-                          <div className="w-5 h-5 rounded" style={{ backgroundColor: vpAskColor, border: '2px solid var(--border)' }} />
-                        </div>
-                        <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{vpAskColor}</span>
+                        <HexInput value={vpAskColor} onChange={(c) => setVPSetting('vpAskColor', c)} />
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {['#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#fbbf24', '#f59e0b', '#84cc16', '#ffffff'].map(c => (
@@ -1005,12 +1043,7 @@ export default function AdvancedChartSettings({
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Bid (Sell)</span>
-                        <div className="relative">
-                          <input type="color" value={vpBidColor} onChange={(e) => setVPSetting('vpBidColor', e.target.value)}
-                            className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
-                          <div className="w-5 h-5 rounded" style={{ backgroundColor: vpBidColor, border: '2px solid var(--border)' }} />
-                        </div>
-                        <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{vpBidColor}</span>
+                        <HexInput value={vpBidColor} onChange={(c) => setVPSetting('vpBidColor', c)} />
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {['#ef4444', '#f43f5e', '#e11d48', '#ec4899', '#d946ef', '#c084fc', '#a855f7', '#f97316', '#fb923c', '#fbbf24', '#facc15', '#f59e0b', '#06b6d4', '#3b82f6', '#84cc16', '#ffffff'].map(c => (
@@ -1038,13 +1071,7 @@ export default function AdvancedChartSettings({
                                 style={{ backgroundColor: c, border: `1px solid ${vpAskGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
                               />
                             ))}
-                            <div className="relative">
-                              <input type="color" value={vpAskGradientEnd} onChange={(e) => setVPSetting('vpAskGradientEnd', e.target.value)}
-                                className="w-3.5 h-3.5 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                              <div className="w-3.5 h-3.5 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                                <svg width="7" height="7" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                              </div>
-                            </div>
+                            <HexInput value={vpAskGradientEnd} onChange={(c) => setVPSetting('vpAskGradientEnd', c)} />
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
@@ -1056,13 +1083,7 @@ export default function AdvancedChartSettings({
                                 style={{ backgroundColor: c, border: `1px solid ${vpBidGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
                               />
                             ))}
-                            <div className="relative">
-                              <input type="color" value={vpBidGradientEnd} onChange={(e) => setVPSetting('vpBidGradientEnd', e.target.value)}
-                                className="w-3.5 h-3.5 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                              <div className="w-3.5 h-3.5 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                                <svg width="7" height="7" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                              </div>
-                            </div>
+                            <HexInput value={vpBidGradientEnd} onChange={(c) => setVPSetting('vpBidGradientEnd', c)} />
                           </div>
                         </div>
                       </div>
@@ -1085,13 +1106,7 @@ export default function AdvancedChartSettings({
                               style={{ backgroundColor: c, border: `1px solid ${vpBackgroundColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpBackgroundColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                             />
                           ))}
-                          <div className="relative">
-                            <input type="color" value={vpBackgroundColor} onChange={(e) => setVPSetting('vpBackgroundColor', e.target.value)}
-                              className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                            <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                              <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                            </div>
-                          </div>
+                          <HexInput value={vpBackgroundColor} onChange={(c) => setVPSetting('vpBackgroundColor', c)} />
                         </div>
                       </div>
                       <SliderControl label="Opacité fond" value={Math.round(vpBackgroundOpacity * 100)} min={1} max={30} step={1} unit="%" onChange={(v) => setVPSetting('vpBackgroundOpacity', v / 100)} />
@@ -1114,13 +1129,7 @@ export default function AdvancedChartSettings({
                             style={{ backgroundColor: c, border: `1px solid ${posTpColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posTpColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
-                        <div className="relative">
-                          <input type="color" value={posTpColor} onChange={(e) => setVPSetting('posTpColor', e.target.value)}
-                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                          </div>
-                        </div>
+                        <HexInput value={posTpColor} onChange={(c) => setVPSetting('posTpColor', c)} />
                       </div>
                     </div>
 
@@ -1134,13 +1143,7 @@ export default function AdvancedChartSettings({
                             style={{ backgroundColor: c, border: `1px solid ${posSlColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posSlColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
-                        <div className="relative">
-                          <input type="color" value={posSlColor} onChange={(e) => setVPSetting('posSlColor', e.target.value)}
-                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                          </div>
-                        </div>
+                        <HexInput value={posSlColor} onChange={(c) => setVPSetting('posSlColor', c)} />
                       </div>
                     </div>
 
@@ -1154,13 +1157,7 @@ export default function AdvancedChartSettings({
                             style={{ backgroundColor: c, border: `1px solid ${posEntryColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posEntryColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
                           />
                         ))}
-                        <div className="relative">
-                          <input type="color" value={posEntryColor} onChange={(e) => setVPSetting('posEntryColor', e.target.value)}
-                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                          </div>
-                        </div>
+                        <HexInput value={posEntryColor} onChange={(c) => setVPSetting('posEntryColor', c)} />
                       </div>
                     </div>
 
@@ -1284,12 +1281,7 @@ export default function AdvancedChartSettings({
                       <div>
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur positive</span>
-                          <div className="relative">
-                            <input type="color" value={volumeBubblePositiveColor} onChange={(e) => setVPSetting('volumeBubblePositiveColor', e.target.value)}
-                              className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
-                            <div className="w-5 h-5 rounded" style={{ backgroundColor: volumeBubblePositiveColor, border: '2px solid var(--border)' }} />
-                          </div>
-                          <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{volumeBubblePositiveColor}</span>
+                          <HexInput value={volumeBubblePositiveColor} onChange={(c) => setVPSetting('volumeBubblePositiveColor', c)} />
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {['#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#fbbf24', '#f59e0b', '#84cc16', '#ffffff'].map(c => (
@@ -1305,12 +1297,7 @@ export default function AdvancedChartSettings({
                       <div>
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur negative</span>
-                          <div className="relative">
-                            <input type="color" value={volumeBubbleNegativeColor} onChange={(e) => setVPSetting('volumeBubbleNegativeColor', e.target.value)}
-                              className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
-                            <div className="w-5 h-5 rounded" style={{ backgroundColor: volumeBubbleNegativeColor, border: '2px solid var(--border)' }} />
-                          </div>
-                          <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{volumeBubbleNegativeColor}</span>
+                          <HexInput value={volumeBubbleNegativeColor} onChange={(c) => setVPSetting('volumeBubbleNegativeColor', c)} />
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {['#ef4444', '#f43f5e', '#e11d48', '#ec4899', '#d946ef', '#c084fc', '#a855f7', '#f97316', '#fb923c', '#fbbf24', '#facc15', '#f59e0b', '#06b6d4', '#3b82f6', '#84cc16', '#ffffff'].map(c => (

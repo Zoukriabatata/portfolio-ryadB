@@ -28,12 +28,12 @@ const AdvancedToolSettingsModal = dynamic(() => import('@/components/tools/Advan
 const KeyboardShortcutsModal = dynamic(() => import('@/components/ui/KeyboardShortcutsModal'), { ssr: false });
 import { ASSET_CATEGORY_ICONS, ASSET_CATEGORIES } from './constants/symbols';
 import { TF_GROUPS } from './constants/timeframes';
-import { COLOR_PRESETS } from './constants/colors';
 import LoadingOverlay from './components/LoadingOverlay';
 import ZoomControls from './components/ZoomControls';
 import AlertNotifications from './components/AlertNotifications';
 import ChartFooter from './components/ChartFooter';
 import MagnetToggle from './components/MagnetToggle';
+import CustomizeColorsPanel from './components/CustomizeColorsPanel';
 import IndicatorSettingsPanel from '@/components/settings/IndicatorSettingsPanel';
 import { useChartEngine, useSymbolData, useChartSettings, useDrawingTools, useContextMenu } from './hooks';
 import { DEFAULT_CUSTOM_COLORS, type SharedRefs, type CustomColors } from './hooks/types';
@@ -888,53 +888,13 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
 
           {/* Customize Panel */}
           {settings.showCustomizePanel && (
-            <div className="absolute top-2 right-2 w-72 rounded-lg shadow-2xl z-20 overflow-hidden animate-slideInRight" style={{ backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}>
-              <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: theme.colors.border }}>
-                <span className="text-sm font-semibold" style={{ color: theme.colors.text }}>Customize Colors</span>
-                <button onClick={() => settings.setShowCustomizePanel(false)} className="text-xs" style={{ color: theme.colors.textMuted }}>✕</button>
-              </div>
-              <div className="p-3 space-y-3 max-h-80 overflow-y-auto">
-                <div>
-                  <div className="text-xs mb-2" style={{ color: theme.colors.textMuted }}>Background</div>
-                  <div className="flex flex-wrap gap-1">
-                    {COLOR_PRESETS.background.map(color => (
-                      <button key={color} onClick={() => setCustomColors(prev => ({ ...prev, background: color }))} className="w-6 h-6 rounded border-2 transition-transform hover:scale-110" style={{ backgroundColor: color, borderColor: customColors.background === color ? theme.colors.toolActive : 'transparent' }} />
-                    ))}
-                    <input type="color" value={customColors.background || engine.effectiveColors.background} onChange={(e) => setCustomColors(prev => ({ ...prev, background: e.target.value }))} className="w-6 h-6 rounded cursor-pointer" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs mb-2" style={{ color: theme.colors.textMuted }}>Bullish Candle</div>
-                  <div className="flex flex-wrap gap-1">
-                    {COLOR_PRESETS.candles.bullish.map(color => (
-                      <button key={color} onClick={() => setCustomColors(prev => ({ ...prev, candleUp: color, wickUp: color }))} className="w-6 h-6 rounded border-2 transition-transform hover:scale-110" style={{ backgroundColor: color, borderColor: customColors.candleUp === color ? theme.colors.toolActive : 'transparent' }} />
-                    ))}
-                    <input type="color" value={customColors.candleUp || engine.effectiveColors.candleUp} onChange={(e) => setCustomColors(prev => ({ ...prev, candleUp: e.target.value, wickUp: e.target.value }))} className="w-6 h-6 rounded cursor-pointer" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs mb-2" style={{ color: theme.colors.textMuted }}>Bearish Candle</div>
-                  <div className="flex flex-wrap gap-1">
-                    {COLOR_PRESETS.candles.bearish.map(color => (
-                      <button key={color} onClick={() => setCustomColors(prev => ({ ...prev, candleDown: color, wickDown: color }))} className="w-6 h-6 rounded border-2 transition-transform hover:scale-110" style={{ backgroundColor: color, borderColor: customColors.candleDown === color ? theme.colors.toolActive : 'transparent' }} />
-                    ))}
-                    <input type="color" value={customColors.candleDown || engine.effectiveColors.candleDown} onChange={(e) => setCustomColors(prev => ({ ...prev, candleDown: e.target.value, wickDown: e.target.value }))} className="w-6 h-6 rounded cursor-pointer" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs mb-2" style={{ color: theme.colors.textMuted }}>Price Line</div>
-                  <div className="flex flex-wrap gap-1">
-                    {['#7ed321', '#3b82f6', '#f59e0b', '#22d3ee', '#a855f7', '#ef4444'].map(color => (
-                      <button key={color} onClick={() => setCustomColors(prev => ({ ...prev, priceLineColor: color }))} className="w-6 h-6 rounded border-2 transition-transform hover:scale-110" style={{ backgroundColor: color, borderColor: customColors.priceLineColor === color ? theme.colors.toolActive : 'transparent' }} />
-                    ))}
-                    <input type="color" value={customColors.priceLineColor || engine.effectiveColors.priceLineColor} onChange={(e) => setCustomColors(prev => ({ ...prev, priceLineColor: e.target.value }))} className="w-6 h-6 rounded cursor-pointer" />
-                  </div>
-                </div>
-                <button onClick={() => setCustomColors(DEFAULT_CUSTOM_COLORS)} className="w-full py-1.5 rounded text-xs font-medium transition-colors" style={{ backgroundColor: theme.colors.background, color: theme.colors.textSecondary, border: `1px solid ${theme.colors.border}` }}>
-                  Reset to Theme Defaults
-                </button>
-              </div>
-            </div>
+            <CustomizeColorsPanel
+              customColors={customColors}
+              setCustomColors={setCustomColors}
+              effectiveColors={engine.effectiveColors}
+              theme={theme}
+              onClose={() => settings.setShowCustomizePanel(false)}
+            />
           )}
         </div>
 
