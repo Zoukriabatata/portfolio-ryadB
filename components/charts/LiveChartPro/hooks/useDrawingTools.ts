@@ -73,6 +73,8 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     lastTickY: number;
   }>({ active: false, position: null, startY: 0, currentY: 0, dragPrice: 0, orderType: null, thresholdMet: false, lastTickY: 0 });
   const hoveredBadgeSymbol = useRef<string | null>(null);
+  const hoveredOrderId = useRef<string | null>(null);
+  const posCloseHovered = useRef<string | null>(null);
   const [hasPositionsOrOrders, setHasPositionsOrOrders] = useState(false);
 
   // Track positions/orders for pointerEvents
@@ -95,7 +97,48 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     return unsubscribe;
   }, []);
 
+  // ═══ BADGE DESIGN CONSTANTS ═══
+  const BADGE_FONT = '600 10px system-ui, sans-serif';
+  const BADGE_H = 20;
+  const BADGE_R = 4;
+  const BADGE_PAD = 7;
+  const BADGE_SEP = 1;
+  const BADGE_MARGIN = 6;
+  const CLOSE_SIZE = 16;
+  const CLOSE_GAP = 4;
+  const CLOSE_R = 3;
+  const CLOSE_ICON = 3;
+
+  const ORDER_COLORS = {
+    LIMIT:  { line: '#5b8def', badge: '#1e2d4a', text: '#7da8f7', sep: '#2a3d5c' },
+    STOP:   { line: '#d97b4a', badge: '#3a2518', text: '#e8965f', sep: '#4d3322' },
+    LONG:   { line: '#4a7a5e', badge: '#162a1e', text: '#6cb585', sep: '#1f3a28' },
+    SHORT:  { line: '#a15555', badge: '#2e1818', text: '#d07070', sep: '#3d2222' },
+    TP:     { line: '#3d8b5a', badge: '#162a1e', text: '#5ec07e', sep: '#1f3a28' },
+    SL:     { line: '#c05050', badge: '#2e1818', text: '#e07070', sep: '#3d2222' },
+    CLOSE_BG: 'rgba(255,255,255,0.06)',
+    CLOSE_BG_HOVER: 'rgba(239,68,68,0.25)',
+    CLOSE_X: 'rgba(255,255,255,0.35)',
+    CLOSE_X_HOVER: 'rgba(255,255,255,0.85)',
+  };
+
   // ═══ HIT-TEST HELPERS for PnL badge & order buttons ═══
+
+  /** Measure a segmented badge and return geometry */
+  const measureBadge = useCallback((
+    ctx: CanvasRenderingContext2D,
+    segments: string[],
+    chartWidth: number,
+    showClose: boolean,
+  ) => {
+    ctx.font = BADGE_FONT;
+    const segWidths = segments.map(s => ctx.measureText(s).width + BADGE_PAD * 2);
+    const totalW = segWidths.reduce((a, b) => a + b, 0) + (segments.length - 1) * BADGE_SEP;
+    const closeW = showClose ? CLOSE_SIZE + CLOSE_GAP : 0;
+    const badgeX = chartWidth - BADGE_MARGIN - closeW - totalW;
+    const closeX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+    return { totalW, segWidths, badgeX, closeX, closeW };
+  }, []);
 
   const hitTestPnlBadge = useCallback((
     mx: number, my: number,
@@ -108,26 +151,20 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     for (const pos of posArr) {
       if (pos.symbol !== symbolUpper) continue;
       const posY = priceToY(pos.entryPrice);
+      const isLong = pos.side === 'buy';
       const pnlStr = pos.currentPrice > 0
         ? `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}`
         : '$0.00';
-      ctx.font = 'bold 11px monospace';
-      const pnlWidth = ctx.measureText(pnlStr).width;
-      const badgeW = pnlWidth + 14;
-      const badgeH = 18;
-      const badgeX = (chartWidth - badgeW) / 2;
-      const badgeY = posY - badgeH / 2;
-      // Include close button circle zone (radius 8, centered at badgeX + badgeW + 11, posY)
-      const closeBtnCX = badgeX + badgeW + 11;
-      const closeDx = mx - closeBtnCX;
-      const closeDy = my - posY;
-      const inCloseBtn = closeDx * closeDx + closeDy * closeDy <= 100; // radius 10
-      if ((mx >= badgeX && mx <= badgeX + badgeW && my >= badgeY && my <= badgeY + badgeH) || inCloseBtn) {
-        return { position: pos, badgeRect: { x: badgeX, y: badgeY, w: badgeW, h: badgeH } };
+      const segments = [`${isLong ? 'LONG' : 'SHORT'} ${pos.quantity}x`, pnlStr];
+      const { totalW, badgeX } = measureBadge(ctx, segments, chartWidth, true);
+      const badgeY = posY - BADGE_H / 2;
+      const hitW = totalW + CLOSE_GAP + CLOSE_SIZE;
+      if (mx >= badgeX && mx <= badgeX + hitW && my >= badgeY && my <= badgeY + BADGE_H) {
+        return { position: pos, badgeRect: { x: badgeX, y: badgeY, w: totalW, h: BADGE_H } };
       }
     }
     return null;
-  }, [symbol]);
+  }, [symbol, measureBadge]);
 
   const hitTestCloseButton = useCallback((
     mx: number, my: number,
@@ -142,18 +179,9 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     for (const pos of posArr) {
       if (pos.symbol !== symbolUpper || pos.symbol !== hoveredSym) continue;
       const posY = priceToY(pos.entryPrice);
-      const pnlStr = `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}`;
-      ctx.font = 'bold 11px monospace';
-      const pnlWidth = ctx.measureText(pnlStr).width;
-      const badgeW = pnlWidth + 14;
-      const badgeX = (chartWidth - badgeW) / 2;
-      // Circle close button: radius 8, centered right of badge
-      const btnR = 8;
-      const btnCX = badgeX + badgeW + btnR + 3;
-      const btnCY = posY;
-      const dx = mx - btnCX;
-      const dy = my - btnCY;
-      if (dx * dx + dy * dy <= (btnR + 2) * (btnR + 2)) {
+      const cbX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+      const cbY = posY - CLOSE_SIZE / 2;
+      if (mx >= cbX - 2 && mx <= cbX + CLOSE_SIZE + 2 && my >= cbY - 2 && my <= cbY + CLOSE_SIZE + 2) {
         return pos;
       }
     }
@@ -165,6 +193,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     orderArr: typeof orders,
     priceToY: (p: number) => number,
     chartWidth: number,
+    ctx: CanvasRenderingContext2D,
   ) => {
     const symbolUpper = symbol.toUpperCase();
     const pending = orderArr.filter(o => o.status === 'pending' && o.symbol === symbolUpper);
@@ -172,8 +201,9 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const orderPrice = order.price || order.stopPrice || 0;
       if (orderPrice <= 0) continue;
       const oy = priceToY(orderPrice);
-      // Cancel button matches render code geometry
-      if (mx >= chartWidth - 18 && mx <= chartWidth - 6 && my >= oy - 6 && my <= oy + 6) {
+      const cbX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+      const cbY = oy - CLOSE_SIZE / 2;
+      if (mx >= cbX - 2 && mx <= cbX + CLOSE_SIZE + 2 && my >= cbY - 2 && my <= cbY + CLOSE_SIZE + 2) {
         return order;
       }
     }
@@ -371,92 +401,121 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       ctx.restore();
     }
 
-    // Draw position lines — solid gray 2px with single centered P&L badge
+    // ═══ Position lines — fine line + right-aligned segmented badge ═══
     const symbolUpper = symbol.toUpperCase();
     const nowMs = Date.now();
     const openPositions = positionsRef.current.filter(p => p.symbol === symbolUpper);
+
+    /** Render a segmented badge on canvas and return geometry */
+    const drawSegmentedBadge = (
+      segments: string[],
+      centerY: number,
+      colors: { badge: string; text: string; sep: string },
+      showClose: boolean,
+      closeHovered: boolean,
+    ) => {
+      ctx.font = BADGE_FONT;
+      const segWidths = segments.map(s => ctx.measureText(s).width + BADGE_PAD * 2);
+      const totalW = segWidths.reduce((a, b) => a + b, 0) + (segments.length - 1) * BADGE_SEP;
+      const closeW = showClose ? CLOSE_SIZE + CLOSE_GAP : 0;
+      const badgeX = chartWidth - BADGE_MARGIN - closeW - totalW;
+      const badgeY = centerY - BADGE_H / 2;
+
+      // Badge background
+      ctx.fillStyle = colors.badge;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, totalW, BADGE_H, BADGE_R);
+      ctx.fill();
+      ctx.strokeStyle = colors.sep;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+
+      // Segments text + separators
+      let xCursor = badgeX;
+      for (let i = 0; i < segments.length; i++) {
+        const segW = segWidths[i];
+        ctx.fillStyle = colors.text;
+        ctx.font = BADGE_FONT;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(segments[i], xCursor + segW / 2, centerY);
+        if (i < segments.length - 1) {
+          ctx.fillStyle = colors.sep;
+          ctx.fillRect(xCursor + segW, badgeY + 4, BADGE_SEP, BADGE_H - 8);
+        }
+        xCursor += segW + BADGE_SEP;
+      }
+
+      // Close button
+      if (showClose) {
+        const cbX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+        const cbY = centerY - CLOSE_SIZE / 2;
+        ctx.fillStyle = closeHovered ? ORDER_COLORS.CLOSE_BG_HOVER : ORDER_COLORS.CLOSE_BG;
+        ctx.beginPath();
+        ctx.roundRect(cbX, cbY, CLOSE_SIZE, CLOSE_SIZE, CLOSE_R);
+        ctx.fill();
+        ctx.strokeStyle = closeHovered ? ORDER_COLORS.CLOSE_X_HOVER : ORDER_COLORS.CLOSE_X;
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        const cx = cbX + CLOSE_SIZE / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - CLOSE_ICON, centerY - CLOSE_ICON);
+        ctx.lineTo(cx + CLOSE_ICON, centerY + CLOSE_ICON);
+        ctx.moveTo(cx + CLOSE_ICON, centerY - CLOSE_ICON);
+        ctx.lineTo(cx - CLOSE_ICON, centerY + CLOSE_ICON);
+        ctx.stroke();
+      }
+
+      return { badgeX, totalW };
+    };
+
     for (const pos of openPositions) {
       const y = renderContext.priceToY(pos.entryPrice);
       if (y < -50 || y > chartHeight + 50) continue;
 
-      const pnlColor = pos.pnl >= 0 ? '#10b981' : '#ef4444';
+      const isLong = pos.side === 'buy';
+      const colorSet = isLong ? ORDER_COLORS.LONG : ORDER_COLORS.SHORT;
       const age = nowMs - (pos.openedAt || 0);
-      const isNew = age < 1500; // Flash effect for 1.5s
-      const flashAlpha = isNew ? 0.15 * (1 - age / 1500) : 0;
+      const isNew = age < 1500;
+      const flashAlpha = isNew ? 0.12 * (1 - age / 1500) : 0;
 
       ctx.save();
 
-      // Flash background glow on new positions
+      // Flash background on new positions (subtle)
       if (isNew) {
         ctx.globalAlpha = flashAlpha;
-        ctx.fillStyle = pos.side === 'buy' ? '#10b981' : '#ef4444';
-        ctx.fillRect(0, y - 12, chartWidth, 24);
+        ctx.fillStyle = colorSet.line;
+        ctx.fillRect(0, y - 10, chartWidth, 20);
         ctx.globalAlpha = 1;
       }
 
-      // Solid gray line, 2px
-      ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 2;
+      // Fine line
+      ctx.strokeStyle = colorSet.line;
+      ctx.lineWidth = 1.2;
       ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.6;
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(chartWidth, y);
+      ctx.moveTo(0, Math.round(y) + 0.5);
+      ctx.lineTo(chartWidth, Math.round(y) + 0.5);
       ctx.stroke();
 
-      // Single centered P&L badge on the line
+      // Segmented badge — right-aligned
+      ctx.globalAlpha = 1;
+      const sideLabel = isLong ? 'LONG' : 'SHORT';
       const pnlStr = pos.currentPrice > 0
         ? `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}`
         : '$0.00';
-      ctx.font = 'bold 11px monospace';
-      const pnlWidth = ctx.measureText(pnlStr).width;
-      const badgeW = pnlWidth + 14;
-      const badgeH = 18;
-      const badgeX = (chartWidth - badgeW) / 2;
-      const badgeY = y - badgeH / 2;
-
-      ctx.fillStyle = '#1a1a2e';
-      ctx.strokeStyle = pnlColor + 'B0';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = pnlColor;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(pnlStr, chartWidth / 2, y);
-
-      // Close "×" button — integrated circle, only visible on hover
-      if (hoveredBadgeSymbol.current === pos.symbol) {
-        const btnR = 8;
-        const btnCX = badgeX + badgeW + btnR + 3;
-        const btnCY = y;
-
-        // Circle background
-        ctx.beginPath();
-        ctx.arc(btnCX, btnCY, btnR, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
-        ctx.fill();
-
-        // "×" inside circle
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.lineCap = 'round';
-        const xOff = 3.5;
-        ctx.beginPath();
-        ctx.moveTo(btnCX - xOff, btnCY - xOff);
-        ctx.lineTo(btnCX + xOff, btnCY + xOff);
-        ctx.moveTo(btnCX + xOff, btnCY - xOff);
-        ctx.lineTo(btnCX - xOff, btnCY + xOff);
-        ctx.stroke();
-      }
+      const isHovered = hoveredBadgeSymbol.current === pos.symbol;
+      const isCloseHovered = posCloseHovered.current === pos.symbol;
+      drawSegmentedBadge(
+        [`${sideLabel} ${pos.quantity}x`, pnlStr],
+        y, colorSet, isHovered, isCloseHovered,
+      );
 
       ctx.restore();
     }
 
-    // Draw pending order lines
+    // ═══ Pending order lines — fine line + segmented badge ═══
     const pendingOrders = ordersRef.current.filter(o => o.status === 'pending' && o.symbol === symbolUpper);
     for (const order of pendingOrders) {
       const orderPrice = order.price || order.stopPrice || 0;
@@ -464,47 +523,38 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const y = renderContext.priceToY(orderPrice);
       if (y < -20 || y > chartHeight + 20) continue;
 
-      const isBuy = order.side === 'buy';
       const isStop = order.type === 'stop' || order.type === 'stop_limit';
-      const color = isBuy ? '#3b82f6' : '#f97316';
       const typeLabel = isStop ? 'STOP' : 'LIMIT';
+      const colorSet = isStop ? ORDER_COLORS.STOP : ORDER_COLORS.LIMIT;
 
       ctx.save();
 
-      ctx.strokeStyle = color;
+      // Fine line
+      ctx.strokeStyle = colorSet.line;
       ctx.lineWidth = 1;
-      ctx.setLineDash(isStop ? [3, 3] : [6, 3]);
-      ctx.globalAlpha = 0.7;
+      ctx.setLineDash(isStop ? [4, 4] : []);
+      ctx.globalAlpha = 0.5;
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(chartWidth, y);
+      ctx.moveTo(0, Math.round(y) + 0.5);
+      ctx.lineTo(chartWidth, Math.round(y) + 0.5);
       ctx.stroke();
 
+      // Segmented badge
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
-      ctx.font = '9px monospace';
-      const orderLabel = `${typeLabel} ${isBuy ? 'BUY' : 'SELL'} ${order.quantity} @ ${orderPrice.toFixed(2)}`;
-      const labelW = ctx.measureText(orderLabel).width;
-      ctx.fillStyle = color + '18';
-      ctx.fillRect(chartWidth - labelW - 30, y - 8, labelW + 26, 16);
-      ctx.fillStyle = color;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(orderLabel, chartWidth - 22, y);
+      const isOrderHovered = hoveredOrderId.current === order.id;
+      drawSegmentedBadge(
+        [`${order.quantity}x`, typeLabel, orderPrice.toFixed(2)],
+        y, colorSet, true, isOrderHovered,
+      );
 
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fillRect(chartWidth - 18, y - 6, 12, 12);
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = 'bold 8px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('×', chartWidth - 12, y + 1);
-
+      // P&L preview zone (subtle)
       if (refs.currentPrice.current > 0) {
+        const isBuy = order.side === 'buy';
         const currentY = renderContext.priceToY(refs.currentPrice.current);
         const priceDiff = isBuy ? (refs.currentPrice.current - orderPrice) : (orderPrice - refs.currentPrice.current);
-        const pnlPreview = priceDiff * order.quantity;
         if (Math.abs(y - currentY) > 10) {
-          ctx.fillStyle = pnlPreview >= 0 ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)';
+          ctx.fillStyle = priceDiff >= 0 ? 'rgba(16,185,129,0.03)' : 'rgba(239,68,68,0.03)';
           const zoneTop = Math.min(y, currentY);
           const zoneH = Math.abs(y - currentY);
           ctx.fillRect(0, zoneTop, chartWidth, zoneH);
@@ -521,47 +571,28 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       if (ghostY >= 0 && ghostY <= chartHeight) {
         ctx.save();
 
-        const ghostColor = drag.orderType === 'limit' ? '#3b82f6' : '#f97316';
+        const isTP = drag.orderType === 'limit';
+        const ghostColors = isTP ? ORDER_COLORS.TP : ORDER_COLORS.SL;
 
-        // Dashed line across chart
-        ctx.strokeStyle = ghostColor;
-        ctx.lineWidth = 1.5;
+        // Fine dashed line
+        ctx.strokeStyle = ghostColors.line;
+        ctx.lineWidth = 1;
         ctx.setLineDash([6, 4]);
-        ctx.globalAlpha = 0.85;
+        ctx.globalAlpha = 0.6;
         ctx.beginPath();
-        ctx.moveTo(0, ghostY);
-        ctx.lineTo(chartWidth, ghostY);
+        ctx.moveTo(0, Math.round(ghostY) + 0.5);
+        ctx.lineTo(chartWidth, Math.round(ghostY) + 0.5);
         ctx.stroke();
 
-        // Price label on the right
+        // Segmented badge (no close button)
         ctx.setLineDash([]);
-        ctx.font = 'bold 10px monospace';
-        const priceStr = drag.dragPrice.toFixed(2);
-        const labelW = ctx.measureText(priceStr).width;
-        const labelPad = 8;
-        const labelTotalW = labelW + labelPad * 2;
-
-        ctx.fillStyle = ghostColor;
         ctx.globalAlpha = 0.9;
-        ctx.beginPath();
-        ctx.roundRect(chartWidth - labelTotalW, ghostY - 9, labelTotalW, 18, 3);
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(priceStr, chartWidth - labelTotalW / 2, ghostY);
-
-        // Type label on the left
-        const typeLabel = drag.orderType === 'limit' ? 'LIMIT' : 'STOP';
-        ctx.font = 'bold 9px monospace';
-        const typeLabelW = ctx.measureText(typeLabel).width;
-        ctx.fillStyle = ghostColor + '25';
-        ctx.fillRect(4, ghostY - 9, typeLabelW + 12, 18);
-        ctx.fillStyle = ghostColor;
-        ctx.globalAlpha = 0.9;
-        ctx.textAlign = 'left';
-        ctx.fillText(typeLabel, 10, ghostY);
+        const pos = drag.position;
+        const qtyText = pos ? `${pos.quantity}x` : '1x';
+        drawSegmentedBadge(
+          [qtyText, isTP ? 'TP' : 'SL', drag.dragPrice.toFixed(2)],
+          ghostY, ghostColors, false, false,
+        );
 
         ctx.restore();
       }
@@ -1039,7 +1070,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
           }
 
           // 2. Order cancel "×" button
-          const cancelHit = hitTestOrderCancel(mx, my, ordersRef.current, converter.priceToY, chartWidth);
+          const cancelHit = hitTestOrderCancel(mx, my, ordersRef.current, converter.priceToY, chartWidth, canvasCtx);
           if (cancelHit) {
             e.preventDefault();
             forwardingToChartRef.current = false;
@@ -1236,26 +1267,49 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const chartWidth = vp?.chartWidth || canvas.width;
       const canvasCtx = canvas.getContext('2d');
       if (canvasCtx) {
+        let needsRedraw = false;
+
+        // Position badge hover
         const badgeHit = hitTestPnlBadge(mx, my2, positionsRef.current, converter.priceToY, chartWidth, canvasCtx);
         const newHovered = badgeHit ? badgeHit.position.symbol : null;
         if (newHovered !== hoveredBadgeSymbol.current) {
           hoveredBadgeSymbol.current = newHovered;
-          renderDrawingTools();
+          needsRedraw = true;
         }
-        // Update cursor for close button
+
+        // Position close button hover
         if (newHovered) {
           const closeHit = hitTestCloseButton(mx, my2, positionsRef.current, converter.priceToY, chartWidth, canvasCtx, newHovered);
+          const newCloseHovered = closeHit ? closeHit.symbol : null;
+          if (newCloseHovered !== posCloseHovered.current) {
+            posCloseHovered.current = newCloseHovered;
+            needsRedraw = true;
+          }
           canvas.style.cursor = closeHit ? 'pointer' : 'grab';
         } else {
+          if (posCloseHovered.current !== null) { posCloseHovered.current = null; needsRedraw = true; }
           canvas.style.cursor = '';
         }
+
+        // Order cancel hover
+        const orderCancelHit = hitTestOrderCancel(mx, my2, ordersRef.current, converter.priceToY, chartWidth, canvasCtx);
+        const newOrderHovered = orderCancelHit ? orderCancelHit.id : null;
+        if (newOrderHovered !== hoveredOrderId.current) {
+          hoveredOrderId.current = newOrderHovered;
+          needsRedraw = true;
+        }
+        if (newOrderHovered) {
+          canvas.style.cursor = 'pointer';
+        }
+
+        if (needsRedraw) renderDrawingTools();
       }
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
     refs.interactionController.current.setChartBounds(rect);
     refs.interactionController.current.handleMouseMove(e);
-  }, [refs, forwardEventToChart, renderDrawingTools, hitTestPnlBadge, hitTestCloseButton]);
+  }, [refs, forwardEventToChart, renderDrawingTools, hitTestPnlBadge, hitTestCloseButton, hitTestOrderCancel]);
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     // ═══ PnL BADGE DRAG RELEASE ═══
