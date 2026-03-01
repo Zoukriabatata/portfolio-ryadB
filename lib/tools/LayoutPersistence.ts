@@ -10,7 +10,8 @@
  * Prêt pour intégration backend API
  */
 
-import { Tool, getToolsEngine } from './ToolsEngine';
+import type { Tool } from './types';
+import { getToolsEngine } from './ToolsEngine';
 import { FootprintColors, FootprintFonts, FootprintFeatures, ImbalanceSettings } from '@/stores/useFootprintSettingsStore';
 
 // ============ TYPES ============

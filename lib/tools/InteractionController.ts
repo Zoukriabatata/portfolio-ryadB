@@ -7,13 +7,8 @@
  * Institutional architecture
  */
 
-import {
-  getToolsEngine,
-  type ToolType,
-  type Tool,
-  type HandlePosition,
-  type Point,
-} from './ToolsEngine';
+import type { ToolType, Tool, HandlePosition, Point } from './types';
+import { getToolsEngine } from './ToolsEngine';
 
 // OHLC data for magnet snapping
 export interface OHLCData {

@@ -9,7 +9,8 @@
  * - Lignes étendues
  */
 
-import { Tool, PreviewTool, Handle, ToolsEngine, getToolsEngine, RectangleZone, type ParallelChannelTool, type FibExtensionTool, type MeasureTool, type EllipseTool } from './ToolsEngine';
+import type { Tool, PreviewTool, Handle, RectangleZone, ParallelChannelTool, FibExtensionTool, MeasureTool, EllipseTool } from './types';
+import { ToolsEngine, getToolsEngine } from './ToolsEngine';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
 
 // ============ TYPES ============

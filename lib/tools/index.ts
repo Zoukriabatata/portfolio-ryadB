@@ -4,40 +4,54 @@
  * Professional drawing tools for trading charts
  */
 
+// Types (canonical source)
+export type {
+  ToolType,
+  LineStyle,
+  HandlePosition,
+  Point,
+  ToolStyle,
+  ToolText,
+  Handle,
+  BaseTool,
+  TrendLineTool,
+  HorizontalLineTool,
+  HorizontalRayTool,
+  VerticalLineTool,
+  RectangleZone,
+  RectangleTool,
+  FibRetracementTool,
+  PositionTool,
+  TextTool,
+  ParallelChannelTool,
+  FibExtensionTool,
+  MeasureTool,
+  EllipseTool,
+  Tool,
+  PreviewTool,
+  DrawingState,
+  DragState,
+  HitTestResult,
+  ToolEvent,
+  ToolCallback,
+} from './types';
+
+// Engine
 export {
   ToolsEngine,
   getToolsEngine,
   resetToolsEngine,
   DEFAULT_STYLES,
-  type ToolType,
-  type Tool,
-  type TrendLineTool,
-  type HorizontalLineTool,
-  type HorizontalRayTool,
-  type VerticalLineTool,
-  type RectangleTool,
-  type FibRetracementTool,
-  type PositionTool,
-  type TextTool,
-  type PreviewTool,
-  type Point,
-  type ToolStyle,
-  type ToolText,
-  type Handle,
-  type HandlePosition,
-  type DrawingState,
-  type DragState,
-  type HitTestResult,
-  type ToolEvent,
-  type LineStyle,
 } from './ToolsEngine';
 
+// Renderer
 export {
   ToolsRenderer,
   getToolsRenderer,
   type RenderContext,
 } from './ToolsRenderer';
 
+// Interaction
 export {
   InteractionController,
   getInteractionController,
@@ -48,7 +62,12 @@ export {
   type InteractionCallbacks,
 } from './InteractionController';
 
+// Persistence
 export {
   layoutPersistence,
   type LayoutData,
 } from './LayoutPersistence';
+
+// Registry
+export { toolRegistry } from './registry/ToolRegistry';
+export type { ToolDefinition, ToolSettingField, CoordinateConverters } from './registry/ToolDefinition';
