@@ -112,13 +112,8 @@ export default function InlineToolSettings({
 
   const updateStyle = useCallback((updates: Partial<ToolStyle>) => {
     if (!selectedTool) return;
-    const engine = getToolsEngine();
-    const selected = engine.getSelectedTools();
-    // Multi-tool bulk editing: apply to ALL selected tools
-    for (const tool of selected) {
-      const newStyle = { ...tool.style, ...updates };
-      engine.updateTool(tool.id, { style: newStyle });
-    }
+    // Multi-tool bulk editing with debounced undo + lineWidth animation
+    getToolsEngine().updateSelectedToolsStyle(updates);
     onRender?.();
   }, [selectedTool, onRender]);
 
