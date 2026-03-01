@@ -1882,6 +1882,10 @@ export class ToolsEngine {
       this.selectedIds.clear();
 
       data.tools.forEach((tool: Tool) => {
+        // Migration: position tools must never extend right
+        if ((tool.type === 'longPosition' || tool.type === 'shortPosition') && (tool as any).extendRight) {
+          (tool as any).extendRight = false;
+        }
         this.tools.set(tool.id, tool);
       });
 

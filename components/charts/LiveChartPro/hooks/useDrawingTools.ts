@@ -75,6 +75,14 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
   const hoveredBadgeSymbol = useRef<string | null>(null);
   const hoveredOrderId = useRef<string | null>(null);
   const posCloseHovered = useRef<string | null>(null);
+  // Order drag state (drag limit/stop to modify price)
+  const orderDragRef = useRef<{
+    active: boolean;
+    order: (typeof orders)[number] | null;
+    startY: number;
+    currentY: number;
+    dragPrice: number;
+  }>({ active: false, order: null, startY: 0, currentY: 0, dragPrice: 0 });
   const [hasPositionsOrOrders, setHasPositionsOrOrders] = useState(false);
 
   // Track positions/orders for pointerEvents
@@ -124,7 +132,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
   // ═══ HIT-TEST HELPERS for PnL badge & order buttons ═══
 
-  /** Measure a segmented badge and return geometry */
+  /** Measure a segmented badge and return centered geometry */
   const measureBadge = useCallback((
     ctx: CanvasRenderingContext2D,
     segments: string[],
@@ -135,8 +143,9 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     const segWidths = segments.map(s => ctx.measureText(s).width + BADGE_PAD * 2);
     const totalW = segWidths.reduce((a, b) => a + b, 0) + (segments.length - 1) * BADGE_SEP;
     const closeW = showClose ? CLOSE_SIZE + CLOSE_GAP : 0;
-    const badgeX = chartWidth - BADGE_MARGIN - closeW - totalW;
-    const closeX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+    const fullW = totalW + closeW;
+    const badgeX = (chartWidth - fullW) / 2;
+    const closeX = badgeX + totalW + CLOSE_GAP;
     return { totalW, segWidths, badgeX, closeX, closeW };
   }, []);
 
@@ -179,14 +188,16 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     for (const pos of posArr) {
       if (pos.symbol !== symbolUpper || pos.symbol !== hoveredSym) continue;
       const posY = priceToY(pos.entryPrice);
-      const cbX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+      const isLong = pos.side === 'buy';
+      const pnlStr = pos.currentPrice > 0 ? `${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}` : '$0.00';
+      const { closeX } = measureBadge(ctx, [`${isLong ? 'LONG' : 'SHORT'} ${pos.quantity}x`, pnlStr], chartWidth, true);
       const cbY = posY - CLOSE_SIZE / 2;
-      if (mx >= cbX - 2 && mx <= cbX + CLOSE_SIZE + 2 && my >= cbY - 2 && my <= cbY + CLOSE_SIZE + 2) {
+      if (mx >= closeX - 2 && mx <= closeX + CLOSE_SIZE + 2 && my >= cbY - 2 && my <= cbY + CLOSE_SIZE + 2) {
         return pos;
       }
     }
     return null;
-  }, [symbol]);
+  }, [symbol, measureBadge]);
 
   const hitTestOrderCancel = useCallback((
     mx: number, my: number,
@@ -201,14 +212,41 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const orderPrice = order.price || order.stopPrice || 0;
       if (orderPrice <= 0) continue;
       const oy = priceToY(orderPrice);
-      const cbX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+      const isStop = order.type === 'stop' || order.type === 'stop_limit';
+      const typeLabel = isStop ? 'STOP' : 'LIMIT';
+      const { closeX } = measureBadge(ctx, [`${order.quantity}x`, typeLabel, orderPrice.toFixed(2)], chartWidth, true);
       const cbY = oy - CLOSE_SIZE / 2;
-      if (mx >= cbX - 2 && mx <= cbX + CLOSE_SIZE + 2 && my >= cbY - 2 && my <= cbY + CLOSE_SIZE + 2) {
+      if (mx >= closeX - 2 && mx <= closeX + CLOSE_SIZE + 2 && my >= cbY - 2 && my <= cbY + CLOSE_SIZE + 2) {
         return order;
       }
     }
     return null;
-  }, [symbol]);
+  }, [symbol, measureBadge]);
+
+  /** Hit-test order BADGE area (for drag-to-modify) */
+  const hitTestOrderBadge = useCallback((
+    mx: number, my: number,
+    orderArr: typeof orders,
+    priceToY: (p: number) => number,
+    chartWidth: number,
+    ctx: CanvasRenderingContext2D,
+  ) => {
+    const symbolUpper = symbol.toUpperCase();
+    const pending = orderArr.filter(o => o.status === 'pending' && o.symbol === symbolUpper);
+    for (const order of pending) {
+      const orderPrice = order.price || order.stopPrice || 0;
+      if (orderPrice <= 0) continue;
+      const oy = priceToY(orderPrice);
+      const isStop = order.type === 'stop' || order.type === 'stop_limit';
+      const typeLabel = isStop ? 'STOP' : 'LIMIT';
+      const { badgeX, totalW } = measureBadge(ctx, [`${order.quantity}x`, typeLabel, orderPrice.toFixed(2)], chartWidth, true);
+      const badgeY = oy - BADGE_H / 2;
+      if (mx >= badgeX && mx <= badgeX + totalW && my >= badgeY && my <= badgeY + BADGE_H) {
+        return order;
+      }
+    }
+    return null;
+  }, [symbol, measureBadge]);
 
   /**
    * Handle tool change (for drawing new tools)
@@ -418,7 +456,8 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const segWidths = segments.map(s => ctx.measureText(s).width + BADGE_PAD * 2);
       const totalW = segWidths.reduce((a, b) => a + b, 0) + (segments.length - 1) * BADGE_SEP;
       const closeW = showClose ? CLOSE_SIZE + CLOSE_GAP : 0;
-      const badgeX = chartWidth - BADGE_MARGIN - closeW - totalW;
+      const fullW = totalW + closeW;
+      const badgeX = (chartWidth - fullW) / 2;
       const badgeY = centerY - BADGE_H / 2;
 
       // Badge background
@@ -446,9 +485,9 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
         xCursor += segW + BADGE_SEP;
       }
 
-      // Close button
+      // Close button (right of badge)
       if (showClose) {
-        const cbX = chartWidth - BADGE_MARGIN - CLOSE_SIZE;
+        const cbX = badgeX + totalW + CLOSE_GAP;
         const cbY = centerY - CLOSE_SIZE / 2;
         ctx.fillStyle = closeHovered ? ORDER_COLORS.CLOSE_BG_HOVER : ORDER_COLORS.CLOSE_BG;
         ctx.beginPath();
@@ -594,6 +633,35 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
           ghostY, ghostColors, false, false,
         );
 
+        ctx.restore();
+      }
+    }
+
+    // ═══ Ghost line during order drag (modify price) ═══
+    const orderDrag = orderDragRef.current;
+    if (orderDrag.active && orderDrag.order) {
+      const ghostY = renderContext.priceToY(orderDrag.dragPrice);
+      if (ghostY >= 0 && ghostY <= chartHeight) {
+        ctx.save();
+        const isStop = orderDrag.order.type === 'stop' || orderDrag.order.type === 'stop_limit';
+        const ghostColors = isStop ? ORDER_COLORS.STOP : ORDER_COLORS.LIMIT;
+
+        ctx.strokeStyle = ghostColors.line;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(0, Math.round(ghostY) + 0.5);
+        ctx.lineTo(chartWidth, Math.round(ghostY) + 0.5);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.9;
+        const typeLabel = isStop ? 'STOP' : 'LIMIT';
+        drawSegmentedBadge(
+          [`${orderDrag.order.quantity}x`, typeLabel, orderDrag.dragPrice.toFixed(2)],
+          ghostY, ghostColors, false, false,
+        );
         ctx.restore();
       }
     }
@@ -1079,6 +1147,67 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
             return;
           }
 
+          // 2b. Order badge drag (to modify price)
+          const orderBadgeHit = hitTestOrderBadge(mx, my, ordersRef.current, converter.priceToY, chartWidth, canvasCtx);
+          if (orderBadgeHit) {
+            e.preventDefault();
+            forwardingToChartRef.current = false;
+            const orderPrice = orderBadgeHit.price || orderBadgeHit.stopPrice || 0;
+            orderDragRef.current = {
+              active: true,
+              order: orderBadgeHit,
+              startY: my,
+              currentY: my,
+              dragPrice: orderPrice,
+            };
+            const drawingCanvas = refs.drawingCanvas.current;
+            if (drawingCanvas) drawingCanvas.style.cursor = 'ns-resize';
+            // Window events for drag beyond canvas
+            const onWindowMove = (ev: MouseEvent) => {
+              if (!orderDragRef.current.active || !drawingCanvas) return;
+              const r = drawingCanvas.getBoundingClientRect();
+              const wy = ev.clientY - r.top;
+              orderDragRef.current.currentY = wy;
+              const conv = refs.interactionController.current.getCoordinateConverter();
+              if (conv) {
+                const rawPrice = conv.yToPrice(wy);
+                orderDragRef.current.dragPrice = Math.round(rawPrice * 100) / 100;
+              }
+              renderDrawingTools();
+            };
+            const onWindowUp = () => {
+              window.removeEventListener('mousemove', onWindowMove);
+              window.removeEventListener('mouseup', onWindowUp);
+              if (!orderDragRef.current.active) return;
+              const dragOrder = orderDragRef.current.order;
+              const newPrice = orderDragRef.current.dragPrice;
+              orderDragRef.current = { active: false, order: null, startY: 0, currentY: 0, dragPrice: 0 };
+              if (drawingCanvas) drawingCanvas.style.cursor = '';
+              if (dragOrder && newPrice > 0) {
+                const oldPrice = dragOrder.price || dragOrder.stopPrice || 0;
+                if (Math.abs(newPrice - oldPrice) > 0.001) {
+                  const tradingState = useTradingStore.getState();
+                  tradingState.cancelOrder(dragOrder.id);
+                  const isStop = dragOrder.type === 'stop' || dragOrder.type === 'stop_limit';
+                  tradingState.placeOrder({
+                    broker: dragOrder.broker,
+                    symbol: dragOrder.symbol,
+                    side: dragOrder.side,
+                    type: dragOrder.type,
+                    quantity: dragOrder.quantity,
+                    price: isStop ? undefined : newPrice,
+                    stopPrice: isStop ? newPrice : undefined,
+                    marketPrice: refs.currentPrice.current || 0,
+                  });
+                }
+              }
+              renderDrawingTools();
+            };
+            window.addEventListener('mousemove', onWindowMove);
+            window.addEventListener('mouseup', onWindowUp);
+            return;
+          }
+
           // 3. PnL badge (start drag)
           const badgeHit = hitTestPnlBadge(mx, my, positionsRef.current, converter.priceToY, chartWidth, canvasCtx);
           if (badgeHit) {
@@ -1202,7 +1331,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     // Drawing mode - always handle
     forwardingToChartRef.current = false;
     controller.handleMouseDown(e);
-  }, [refs, renderDrawingTools, forwardEventToChart, hitTestPnlBadge, hitTestCloseButton, hitTestOrderCancel]);
+  }, [refs, renderDrawingTools, forwardEventToChart, hitTestPnlBadge, hitTestCloseButton, hitTestOrderCancel, hitTestOrderBadge]);
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     // ═══ PnL BADGE DRAG HANDLING ═══
@@ -1300,6 +1429,12 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
         }
         if (newOrderHovered) {
           canvas.style.cursor = 'pointer';
+        } else if (!newHovered) {
+          // Order badge hover (show grab cursor for drag-to-modify)
+          const orderBadge = hitTestOrderBadge(mx, my2, ordersRef.current, converter.priceToY, chartWidth, canvasCtx);
+          if (orderBadge) {
+            canvas.style.cursor = 'grab';
+          }
         }
 
         if (needsRedraw) renderDrawingTools();
@@ -1309,7 +1444,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     const rect = e.currentTarget.getBoundingClientRect();
     refs.interactionController.current.setChartBounds(rect);
     refs.interactionController.current.handleMouseMove(e);
-  }, [refs, forwardEventToChart, renderDrawingTools, hitTestPnlBadge, hitTestCloseButton, hitTestOrderCancel]);
+  }, [refs, forwardEventToChart, renderDrawingTools, hitTestPnlBadge, hitTestCloseButton, hitTestOrderCancel, hitTestOrderBadge]);
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     // ═══ PnL BADGE DRAG RELEASE ═══
