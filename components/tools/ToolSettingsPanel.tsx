@@ -19,54 +19,7 @@ import {
   LineStyle,
   getToolsEngine,
 } from '@/lib/tools/ToolsEngine';
-import { ColorPicker } from '@/components/tools/ColorPicker';
-
-/** Inline color swatch with unified picker popover */
-function InlineColorSwatch({ value, onChange, size = 6 }: {
-  value: string;
-  onChange: (color: string) => void;
-  size?: number;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="rounded cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all"
-        style={{
-          width: size * 4,
-          height: size * 4,
-          backgroundColor: value,
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
-        }}
-      />
-      {open && (
-        <div className="absolute z-50 mt-1 right-0 p-3 rounded-xl shadow-2xl"
-          style={{
-            backgroundColor: 'rgba(20, 20, 28, 0.98)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(12px)',
-            minWidth: 220,
-          }}
-        >
-          <ColorPicker value={value} onChange={onChange} label="" />
-        </div>
-      )}
-    </div>
-  );
-}
+import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 interface ToolSettingsPanelProps {
   selectedTool: Tool | null;

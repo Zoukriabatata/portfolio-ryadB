@@ -5,7 +5,19 @@
  *
  * Modes:
  *  compact=true  → Swatch grid only (for inline bars)
- *  compact=false → Full HSV picker + HEX/RGB inputs + presets + recent colors
+ *  compact=false → Full HSV picker + alpha + HEX/RGBA inputs + presets + recent colors
+ *
+ * Features:
+ *  - Saturation/Value 2D canvas
+ *  - Hue horizontal slider
+ *  - Alpha/Opacity horizontal slider
+ *  - HEX input with validation
+ *  - RGB channel inputs + Alpha %
+ *  - Preset color swatches
+ *  - Recent colors (localStorage)
+ *  - Copy to clipboard
+ *  - Live preview swatch
+ *  - onChangeEnd for commit (undo snapshot)
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -30,34 +42,52 @@ const COMPACT_COLORS = [
 interface ColorPickerProps {
   value: string;
   onChange: (color: string) => void;
+  /** Called when a drag ends (pointer up) — use for undo snapshots */
+  onChangeEnd?: (color: string) => void;
   label?: string;
   className?: string;
   compact?: boolean;
   showRGB?: boolean;
   showRecent?: boolean;
+  /** Enable alpha/opacity slider (0-1). Default: false */
+  showAlpha?: boolean;
+  /** Current alpha value 0-1. Only used when showAlpha=true */
+  alpha?: number;
+  /** Called when alpha changes. Only used when showAlpha=true */
+  onAlphaChange?: (alpha: number) => void;
 }
 
 export function ColorPicker({
   value,
   onChange,
+  onChangeEnd,
   label = 'Color',
   className = '',
   compact = false,
   showRGB = true,
   showRecent = true,
+  showAlpha = false,
+  alpha: externalAlpha,
+  onAlphaChange,
 }: ColorPickerProps) {
   const [hue, setHue] = useState(0);
   const [sat, setSat] = useState(100);
   const [bright, setBright] = useState(100);
+  const [localAlpha, setLocalAlpha] = useState(externalAlpha ?? 1);
   const [hexInput, setHexInput] = useState(value);
   const [copied, setCopied] = useState(false);
   const [recentColors, setRecentColors] = useState<string[]>([]);
 
   const svCanvasRef = useRef<HTMLCanvasElement>(null);
   const hueCanvasRef = useRef<HTMLCanvasElement>(null);
+  const alphaCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSvDragging = useRef(false);
   const isHueDragging = useRef(false);
+  const isAlphaDragging = useRef(false);
   const internalUpdate = useRef(false);
+
+  // Resolve alpha — prefer external, fall back to local
+  const currentAlpha = externalAlpha ?? localAlpha;
 
   // Load recent colors
   useEffect(() => {
@@ -78,6 +108,13 @@ export function ColorPicker({
     setBright(v);
     setHexInput(value);
   }, [value]);
+
+  // Sync external alpha
+  useEffect(() => {
+    if (externalAlpha !== undefined) {
+      setLocalAlpha(externalAlpha);
+    }
+  }, [externalAlpha]);
 
   // Draw SV gradient when hue changes
   useEffect(() => {
@@ -117,6 +154,34 @@ export function ColorPicker({
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
   }, []);
+
+  // Draw alpha bar when color changes
+  useEffect(() => {
+    if (!showAlpha) return;
+    const canvas = alphaCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Checkerboard background (transparency indicator)
+    const checkSize = 5;
+    for (let x = 0; x < w; x += checkSize) {
+      for (let y = 0; y < h; y += checkSize) {
+        ctx.fillStyle = ((x + y) / checkSize) % 2 === 0 ? '#cccccc' : '#999999';
+        ctx.fillRect(x, y, checkSize, checkSize);
+      }
+    }
+
+    // Alpha gradient overlay
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    const rgb = hexToRGB(value);
+    grad.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+    grad.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }, [value, showAlpha]);
 
   const emitColor = useCallback((h: number, s: number, v: number) => {
     internalUpdate.current = true;
@@ -161,10 +226,29 @@ export function ColorPicker({
     emitColor(newH, sat, bright);
   }, [sat, bright, emitColor]);
 
+  // Alpha drag
+  const handleAlphaPointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>, start = false) => {
+    if (start) {
+      isAlphaDragging.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    if (!isAlphaDragging.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newAlpha = Math.round(x * 100) / 100;
+    setLocalAlpha(newAlpha);
+    onAlphaChange?.(newAlpha);
+  }, [onAlphaChange]);
+
   const handlePointerUp = useCallback(() => {
+    const wasDragging = isSvDragging.current || isHueDragging.current || isAlphaDragging.current;
     isSvDragging.current = false;
     isHueDragging.current = false;
-  }, []);
+    isAlphaDragging.current = false;
+    if (wasDragging) {
+      onChangeEnd?.(hsvToHex(hue, sat, bright));
+    }
+  }, [hue, sat, bright, onChangeEnd]);
 
   const handleHexChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
@@ -199,6 +283,13 @@ export function ColorPicker({
     onChange(hex);
   }, [value, onChange]);
 
+  const handleAlphaInput = useCallback((val: number) => {
+    const clamped = Math.max(0, Math.min(100, val));
+    const a = clamped / 100;
+    setLocalAlpha(a);
+    onAlphaChange?.(a);
+  }, [onAlphaChange]);
+
   const colors = compact ? COMPACT_COLORS : PRESET_COLORS;
 
   // SV marker position
@@ -206,6 +297,8 @@ export function ColorPicker({
   const svMarkerY = `${(1 - bright / 100) * 100}%`;
   // Hue marker position
   const hueMarkerX = `${(hue / 360) * 100}%`;
+  // Alpha marker position
+  const alphaMarkerX = `${currentAlpha * 100}%`;
 
   // ═══ COMPACT MODE ═══
   if (compact) {
@@ -215,19 +308,19 @@ export function ColorPicker({
         <div className="flex items-center gap-1.5">
           <div
             className="w-6 h-6 rounded flex-shrink-0"
-            style={{ backgroundColor: value, border: '1px solid var(--border)' }}
+            style={{ backgroundColor: value, border: '1px solid var(--border)', transition: 'background-color 0.15s ease' }}
           />
           <div className="flex-1 grid grid-cols-4 gap-1">
             {colors.map((color) => (
               <button
                 key={color}
                 onClick={() => onChange(color)}
-                className={`w-full aspect-square rounded transition-all hover:scale-110 ${
+                className={`w-full aspect-square rounded hover:scale-110 ${
                   value.toLowerCase() === color.toLowerCase()
                     ? 'ring-1 ring-[var(--primary)]'
                     : ''
                 }`}
-                style={{ backgroundColor: color, border: '1px solid var(--border)' }}
+                style={{ backgroundColor: color, border: '1px solid var(--border)', transition: 'transform 0.1s ease' }}
                 title={color}
               />
             ))}
@@ -269,7 +362,7 @@ export function ColorPicker({
       </div>
 
       {/* Hue Bar */}
-      <div className="relative mb-2 rounded overflow-hidden" style={{ height: 14, border: '1px solid var(--border)' }}>
+      <div className="relative mb-1.5 rounded overflow-hidden" style={{ height: 14, border: '1px solid var(--border)' }}>
         <canvas
           ref={hueCanvasRef}
           width={200}
@@ -292,11 +385,43 @@ export function ColorPicker({
         />
       </div>
 
-      {/* HEX + Copy */}
+      {/* Alpha Bar */}
+      {showAlpha && (
+        <div className="relative mb-1.5 rounded overflow-hidden" style={{ height: 14, border: '1px solid var(--border)' }}>
+          <canvas
+            ref={alphaCanvasRef}
+            width={200}
+            height={14}
+            className="w-full h-full cursor-ew-resize"
+            onPointerDown={(e) => handleAlphaPointer(e, true)}
+            onPointerMove={handleAlphaPointer}
+            onPointerUp={handlePointerUp}
+          />
+          <div
+            className="absolute top-0 pointer-events-none"
+            style={{
+              left: alphaMarkerX,
+              width: 4, height: '100%',
+              transform: 'translateX(-50%)',
+              backgroundColor: '#fff',
+              borderRadius: 1,
+              boxShadow: '0 0 2px rgba(0,0,0,0.6)',
+            }}
+          />
+        </div>
+      )}
+
+      {/* HEX + Preview + Copy */}
       <div className="flex items-center gap-1.5 mb-2">
         <div
           className="w-7 h-7 rounded flex-shrink-0"
-          style={{ backgroundColor: value, border: '1px solid var(--border)' }}
+          style={{
+            backgroundColor: showAlpha
+              ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${currentAlpha})`
+              : value,
+            border: '1px solid var(--border)',
+            transition: 'background-color 0.15s ease',
+          }}
         />
         <input
           type="text"
@@ -321,7 +446,7 @@ export function ColorPicker({
         </button>
       </div>
 
-      {/* RGB Inputs */}
+      {/* RGB + Alpha Inputs */}
       {showRGB && (
         <div className="flex items-center gap-1 mb-2">
           {(['r', 'g', 'b'] as const).map((ch) => (
@@ -342,6 +467,24 @@ export function ColorPicker({
               />
             </div>
           ))}
+          {showAlpha && (
+            <div className="flex-1">
+              <label className="block text-[9px] text-[var(--text-muted)] text-center uppercase mb-0.5">A</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={Math.round(currentAlpha * 100)}
+                onChange={(e) => handleAlphaInput(parseInt(e.target.value) || 0)}
+                className="w-full px-1.5 py-0.5 rounded text-[10px] font-mono text-center focus:outline-none"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -351,12 +494,12 @@ export function ColorPicker({
           <button
             key={color}
             onClick={() => { onChange(color); if (showRecent) { addRecentColor(color); setRecentColors(getRecentColors()); } }}
-            className={`w-full aspect-square rounded transition-all hover:scale-110 ${
+            className={`w-full aspect-square rounded hover:scale-110 ${
               value.toLowerCase() === color.toLowerCase()
                 ? 'ring-1 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]'
                 : ''
             }`}
-            style={{ backgroundColor: color, border: '1px solid var(--border)' }}
+            style={{ backgroundColor: color, border: '1px solid var(--border)', transition: 'transform 0.1s ease' }}
             title={color}
           />
         ))}
@@ -371,10 +514,10 @@ export function ColorPicker({
               <button
                 key={`${color}-${i}`}
                 onClick={() => onChange(color)}
-                className={`w-5 h-5 rounded-sm transition-all hover:scale-110 ${
+                className={`w-5 h-5 rounded-sm hover:scale-110 ${
                   value.toLowerCase() === color.toLowerCase() ? 'ring-1 ring-[var(--primary)]' : ''
                 }`}
-                style={{ backgroundColor: color, border: '1px solid var(--border)' }}
+                style={{ backgroundColor: color, border: '1px solid var(--border)', transition: 'transform 0.1s ease' }}
                 title={color}
               />
             ))}
