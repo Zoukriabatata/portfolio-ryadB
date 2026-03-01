@@ -853,42 +853,46 @@ export default function AdvancedChartSettings({
                 <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Barres VP</h3>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Ask (Buy)</span>
-                      <div className="flex items-center gap-1.5">
-                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7', '#10b981', '#14b8a6', '#0ea5e9', '#6366f1', '#d946ef'].map(c => (
-                          <button key={c} onClick={() => setVPSetting('vpAskColor', c)}
-                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
-                            style={{ backgroundColor: c, border: `1px solid ${vpAskColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpAskColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
-                          />
-                        ))}
+                  <div className="space-y-3">
+                    {/* Ask (Buy) color */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Ask (Buy)</span>
                         <div className="relative">
                           <input type="color" value={vpAskColor} onChange={(e) => setVPSetting('vpAskColor', e.target.value)}
-                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                          </div>
+                            className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
+                          <div className="w-5 h-5 rounded" style={{ backgroundColor: vpAskColor, border: '2px solid var(--border)' }} />
                         </div>
+                        <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{vpAskColor}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {['#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#fbbf24', '#f59e0b', '#84cc16', '#ffffff'].map(c => (
+                          <button key={c} onClick={() => setVPSetting('vpAskColor', c)}
+                            className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
+                            style={{ backgroundColor: c, border: `1.5px solid ${vpAskColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: vpAskColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
+                          />
+                        ))}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Bid (Sell)</span>
-                      <div className="flex items-center gap-1.5">
-                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7', '#f43f5e', '#e11d48', '#fb923c', '#facc15', '#c084fc'].map(c => (
-                          <button key={c} onClick={() => setVPSetting('vpBidColor', c)}
-                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
-                            style={{ backgroundColor: c, border: `1px solid ${vpBidColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpBidColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
-                          />
-                        ))}
+                    {/* Bid (Sell) color */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Bid (Sell)</span>
                         <div className="relative">
                           <input type="color" value={vpBidColor} onChange={(e) => setVPSetting('vpBidColor', e.target.value)}
-                            className="w-4 h-4 rounded-sm cursor-pointer opacity-0 absolute inset-0" />
-                          <div className="w-4 h-4 rounded-sm flex items-center justify-center" style={{ border: '1px dashed var(--text-muted)' }}>
-                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" strokeWidth="2"><line x1="8" y1="4" x2="8" y2="12" /><line x1="4" y1="8" x2="12" y2="8" /></svg>
-                          </div>
+                            className="w-5 h-5 rounded cursor-pointer opacity-0 absolute inset-0" />
+                          <div className="w-5 h-5 rounded" style={{ backgroundColor: vpBidColor, border: '2px solid var(--border)' }} />
                         </div>
+                        <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{vpBidColor}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {['#ef4444', '#f43f5e', '#e11d48', '#ec4899', '#d946ef', '#c084fc', '#a855f7', '#f97316', '#fb923c', '#fbbf24', '#facc15', '#f59e0b', '#06b6d4', '#3b82f6', '#84cc16', '#ffffff'].map(c => (
+                          <button key={c} onClick={() => setVPSetting('vpBidColor', c)}
+                            className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
+                            style={{ backgroundColor: c, border: `1.5px solid ${vpBidColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: vpBidColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
+                          />
+                        ))}
                       </div>
                     </div>
 
