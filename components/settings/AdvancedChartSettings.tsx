@@ -194,6 +194,13 @@ export default function AdvancedChartSettings({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Update position when re-opened at a new location (right-click)
+  useEffect(() => {
+    if (isOpen && initialPosition) {
+      setPosition(initialPosition);
+    }
+  }, [isOpen, initialPosition?.x, initialPosition?.y]);
+
   // Preferences store
   const {
     showVolume, showCrosshairTooltip, setShowVolume, setShowCrosshairTooltip,
