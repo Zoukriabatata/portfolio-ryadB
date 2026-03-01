@@ -1,6 +1,7 @@
 'use client';
 
 import { useChartToolsStore } from '@/stores/useChartToolsStore';
+import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 import type { DrawingTool } from '@/types/charts';
 
 const TOOLS: { id: DrawingTool; icon: string; label: string }[] = [
@@ -9,16 +10,6 @@ const TOOLS: { id: DrawingTool; icon: string; label: string }[] = [
   { id: 'horizontalLine', icon: '─', label: 'Horizontal Line' },
   { id: 'rectangle', icon: '▢', label: 'Rectangle' },
   { id: 'fibonacci', icon: '⏛', label: 'Fibonacci' },
-];
-
-const COLORS = [
-  '#3b82f6', // blue
-  '#22c55e', // green
-  '#ef4444', // red
-  '#f59e0b', // amber
-  '#8b5cf6', // purple
-  '#ec4899', // pink
-  '#ffffff', // white
 ];
 
 interface DrawingToolbarProps {
@@ -57,23 +48,11 @@ export default function DrawingToolbar({ onClearAll }: DrawingToolbarProps) {
       <div className="w-px h-6 mx-1" style={{ backgroundColor: 'var(--border)' }} />
 
       {/* Color Picker */}
-      <div className="flex items-center gap-0.5">
-        {COLORS.map((color) => (
-          <button
-            key={color}
-            onClick={() => setDefaultStyle({ color })}
-            className={`
-              w-5 h-5 rounded-full border-2 transition-transform
-              ${defaultStyle.color === color
-                ? 'border-white scale-110'
-                : 'border-transparent hover:scale-105'
-              }
-            `}
-            style={{ backgroundColor: color }}
-            title={color}
-          />
-        ))}
-      </div>
+      <InlineColorSwatch
+        value={defaultStyle.color}
+        onChange={(color) => setDefaultStyle({ color })}
+        size={5}
+      />
 
       {/* Separator */}
       <div className="w-px h-6 mx-1" style={{ backgroundColor: 'var(--border)' }} />

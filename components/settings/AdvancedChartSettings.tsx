@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChartTemplatesStore, type ChartTemplate } from '@/stores/useChartTemplatesStore';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
-import { ColorPicker as UnifiedColorPicker } from '@/components/tools/ColorPicker';
+import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 interface AdvancedChartSettingsProps {
   isOpen: boolean;
@@ -37,84 +37,19 @@ interface AdvancedChartSettingsProps {
 
 type SettingsTab = 'style' | 'candles' | 'background' | 'scale' | 'templates';
 
-/** Local ColorPicker wrapper — uses unified ColorPicker in compact mode */
-function ColorPicker({ label, value, onChange }: {
+/** Labeled color swatch row — label + InlineColorSwatch (portal-based full HSV picker) */
+function ColorSettingRow({ label, value, onChange }: {
   label: string;
   value: string;
   onChange: (color: string) => void;
-  palette?: string[];
 }) {
-  return <UnifiedColorPicker value={value} onChange={onChange} label={label} compact />;
-}
-
-/** Inline HEX color input with HSV popover picker */
-function HexInput({ value, onChange, size = 'sm' }: {
-  value: string;
-  onChange: (color: string) => void;
-  size?: 'sm' | 'md';
-}) {
-  const [hex, setHex] = useState(value);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { setHex(value); }, [value]);
-
-  // Close picker on outside click
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [pickerOpen]);
-
-  const commit = () => {
-    const h = hex.startsWith('#') ? hex : `#${hex}`;
-    if (/^#[0-9a-fA-F]{6}$/.test(h)) onChange(h);
-    else setHex(value);
-  };
-  const w = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
-  const inputW = size === 'sm' ? 'w-[58px] h-4 text-[9px]' : 'w-[68px] h-5 text-[10px]';
   return (
-    <div className="relative" ref={containerRef}>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setPickerOpen(!pickerOpen)}
-          className={`${w} rounded-sm cursor-pointer hover:ring-1 hover:ring-[var(--primary)] transition-all`}
-          style={{ backgroundColor: value, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)' }}
-        />
-        <input
-          type="text"
-          value={hex.toUpperCase()}
-          onChange={(e) => { let v = e.target.value; if (!v.startsWith('#')) v = '#' + v; if (v.length <= 7) setHex(v); }}
-          onBlur={commit}
-          onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-          className={`${inputW} font-mono text-center rounded px-1
-            bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]
-            focus:border-[var(--primary)] focus:outline-none`}
-          spellCheck={false}
-        />
-      </div>
-      {pickerOpen && (
-        <div className="absolute z-50 mt-1 right-0" style={{
-          width: 220,
-          padding: 10,
-          borderRadius: 10,
-          backgroundColor: '#1c1f26',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        }}>
-          <UnifiedColorPicker value={value} onChange={(c) => { onChange(c); setHex(c); }} label="" />
-        </div>
-      )}
+    <div className="flex items-center justify-between">
+      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <InlineColorSwatch value={value} onChange={onChange} size={5} />
     </div>
   );
 }
-
-/* InlineHSVPicker removed — now uses UnifiedColorPicker from components/tools/ColorPicker */
 
 function ToggleSwitch({ label, description, value, onChange }: {
   label: string;
@@ -195,15 +130,7 @@ function VPLineRow({ label, enabled, color, width, lineStyle, showLabel, onToggl
           <span className="text-[11px] font-semibold" style={{ color: enabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>{label}</span>
         </div>
         {enabled && (
-          <div className="flex items-center gap-1.5">
-            {/* Color dots */}
-            {['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ffffff'].map(c => (
-              <button key={c} onClick={() => onColor(c)}
-                className="w-3.5 h-3.5 rounded-full transition-transform hover:scale-125"
-                style={{ backgroundColor: c, border: `1.5px solid ${color === c ? 'var(--primary)' : 'var(--border)'}` }}
-              />
-            ))}
-          </div>
+          <InlineColorSwatch value={color} onChange={onColor} size={4} />
         )}
       </div>
       {enabled && (
@@ -486,11 +413,11 @@ export default function AdvancedChartSettings({
               <div className="space-y-4">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Crosshair</h3>
 
-                <ColorPicker
+                <ColorSettingRow
                   label="Couleur"
                   value={crosshairColor}
                   onChange={(color) => onCrosshairChange({ color })}
-                                 />
+                />
 
                 <SliderControl
                   label="Epaisseur"
@@ -557,9 +484,9 @@ export default function AdvancedChartSettings({
                     Bougie Haussiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorPicker label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} />
-                    <ColorPicker label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} />
-                    <ColorPicker label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} />
+                    <ColorSettingRow label="Corps" value={candleUpColor} onChange={(c) => onCandleChange({ upColor: c })} />
+                    <ColorSettingRow label="Meche" value={wickUpColor} onChange={(c) => onCandleChange({ wickUp: c })} />
+                    <ColorSettingRow label="Bordure" value={candleBorderUp} onChange={(c) => onCandleChange({ borderUp: c })} />
                   </div>
                 </div>
 
@@ -570,9 +497,9 @@ export default function AdvancedChartSettings({
                     Bougie Baissiere
                   </h4>
                   <div className="space-y-3">
-                    <ColorPicker label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} />
-                    <ColorPicker label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} />
-                    <ColorPicker label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} />
+                    <ColorSettingRow label="Corps" value={candleDownColor} onChange={(c) => onCandleChange({ downColor: c })} />
+                    <ColorSettingRow label="Meche" value={wickDownColor} onChange={(c) => onCandleChange({ wickDown: c })} />
+                    <ColorSettingRow label="Bordure" value={candleBorderDown} onChange={(c) => onCandleChange({ borderDown: c })} />
                   </div>
                 </div>
 
@@ -599,11 +526,11 @@ export default function AdvancedChartSettings({
               <div className="space-y-4">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Fond du chart</h3>
 
-                <ColorPicker
+                <ColorSettingRow
                   label="Couleur de fond"
                   value={backgroundColor}
                   onChange={(c) => onBackgroundChange({ color: c })}
-                                 />
+                />
 
                 <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }}>
                   <ToggleSwitch
@@ -615,11 +542,10 @@ export default function AdvancedChartSettings({
                 </div>
 
                 {showGrid && (
-                  <ColorPicker
+                  <ColorSettingRow
                     label="Couleur grille"
                     value={gridColor}
                     onChange={(c) => onBackgroundChange({ gridColor: c })}
-                    palette={['#0d0d0d', '#141414', '#1a1a1a', '#222222', '#2a2a2a', '#333333', '#1a2a1a', '#1a1a2a', '#2a1a2a']}
                   />
                 )}
 
@@ -660,40 +586,12 @@ export default function AdvancedChartSettings({
                     {/* Bull color */}
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur haussière</span>
-                      <div className="flex items-center gap-1.5">
-                        {['#22c55e', '#34d399', '#3b82f6', '#06b6d4', '#a3e635'].map(c => (
-                          <button
-                            key={c}
-                            onClick={() => setVPSetting('volumeBarBullColor', c)}
-                            className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
-                            style={{
-                              backgroundColor: c,
-                              borderColor: volumeBarBullColor === c ? 'var(--primary)' : 'var(--border)',
-                              boxShadow: volumeBarBullColor === c ? '0 0 0 1px var(--primary)' : 'none',
-                            }}
-                          />
-                        ))}
-                        <HexInput value={volumeBarBullColor} onChange={(c) => setVPSetting('volumeBarBullColor', c)} />
-                      </div>
+                      <InlineColorSwatch value={volumeBarBullColor} onChange={(c) => setVPSetting('volumeBarBullColor', c)} size={4} />
                     </div>
                     {/* Bear color */}
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur baissière</span>
-                      <div className="flex items-center gap-1.5">
-                        {['#ef4444', '#f87171', '#f97316', '#ec4899', '#fbbf24'].map(c => (
-                          <button
-                            key={c}
-                            onClick={() => setVPSetting('volumeBarBearColor', c)}
-                            className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
-                            style={{
-                              backgroundColor: c,
-                              borderColor: volumeBarBearColor === c ? 'var(--primary)' : 'var(--border)',
-                              boxShadow: volumeBarBearColor === c ? '0 0 0 1px var(--primary)' : 'none',
-                            }}
-                          />
-                        ))}
-                        <HexInput value={volumeBarBearColor} onChange={(c) => setVPSetting('volumeBarBearColor', c)} />
-                      </div>
+                      <InlineColorSwatch value={volumeBarBearColor} onChange={(c) => setVPSetting('volumeBarBearColor', c)} size={4} />
                     </div>
                     {/* Opacity */}
                     <div className="flex items-center justify-between">
@@ -812,18 +710,7 @@ export default function AdvancedChartSettings({
                                 color: !priceLineColor ? '#fff' : 'var(--text-muted)',
                               }}
                             >Auto</button>
-                            {['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ffffff'].map(c => (
-                              <button
-                                key={c}
-                                onClick={() => setPriceLineColor(c)}
-                                className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
-                                style={{
-                                  backgroundColor: c,
-                                  borderColor: priceLineColor === c ? 'var(--primary)' : 'var(--border)',
-                                  boxShadow: priceLineColor === c ? '0 0 0 1px var(--primary)' : 'none',
-                                }}
-                              />
-                            ))}
+                            <InlineColorSwatch value={priceLineColor || '#3b82f6'} onChange={setPriceLineColor} size={4} />
                           </div>
                         </div>
 
@@ -843,18 +730,7 @@ export default function AdvancedChartSettings({
                                 color: !priceLabelBgColor ? '#fff' : 'var(--text-muted)',
                               }}
                             >Auto</button>
-                            {['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#374151'].map(c => (
-                              <button
-                                key={c}
-                                onClick={() => setPriceLabelBgColor(c)}
-                                className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
-                                style={{
-                                  backgroundColor: c,
-                                  borderColor: priceLabelBgColor === c ? 'var(--primary)' : 'var(--border)',
-                                  boxShadow: priceLabelBgColor === c ? '0 0 0 1px var(--primary)' : 'none',
-                                }}
-                              />
-                            ))}
+                            <InlineColorSwatch value={priceLabelBgColor || '#22c55e'} onChange={setPriceLabelBgColor} size={4} />
                           </div>
                         </div>
 
@@ -870,18 +746,7 @@ export default function AdvancedChartSettings({
                                 color: priceLabelTextColor === 'auto' ? '#fff' : 'var(--text-muted)',
                               }}
                             >Auto</button>
-                            {['#ffffff', '#000000', '#e5e7eb', '#fbbf24'].map(c => (
-                              <button
-                                key={c}
-                                onClick={() => setPriceLabelTextColor(c)}
-                                className="w-4 h-4 rounded-sm border transition-transform hover:scale-110"
-                                style={{
-                                  backgroundColor: c,
-                                  borderColor: priceLabelTextColor === c ? 'var(--primary)' : 'var(--border)',
-                                  boxShadow: priceLabelTextColor === c ? '0 0 0 1px var(--primary)' : 'none',
-                                }}
-                              />
-                            ))}
+                            <InlineColorSwatch value={priceLabelTextColor === 'auto' ? '#ffffff' : priceLabelTextColor} onChange={setPriceLabelTextColor} size={4} />
                           </div>
                         </div>
 
@@ -998,35 +863,15 @@ export default function AdvancedChartSettings({
 
                   <div className="space-y-3">
                     {/* Ask (Buy) color */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Ask (Buy)</span>
-                        <HexInput value={vpAskColor} onChange={(c) => setVPSetting('vpAskColor', c)} />
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {['#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#fbbf24', '#f59e0b', '#84cc16', '#ffffff'].map(c => (
-                          <button key={c} onClick={() => setVPSetting('vpAskColor', c)}
-                            className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
-                            style={{ backgroundColor: c, border: `1.5px solid ${vpAskColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: vpAskColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
-                          />
-                        ))}
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Ask (Buy)</span>
+                      <InlineColorSwatch value={vpAskColor} onChange={(c) => setVPSetting('vpAskColor', c)} size={4} />
                     </div>
 
                     {/* Bid (Sell) color */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Bid (Sell)</span>
-                        <HexInput value={vpBidColor} onChange={(c) => setVPSetting('vpBidColor', c)} />
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {['#ef4444', '#f43f5e', '#e11d48', '#ec4899', '#d946ef', '#c084fc', '#a855f7', '#f97316', '#fb923c', '#fbbf24', '#facc15', '#f59e0b', '#06b6d4', '#3b82f6', '#84cc16', '#ffffff'].map(c => (
-                          <button key={c} onClick={() => setVPSetting('vpBidColor', c)}
-                            className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
-                            style={{ backgroundColor: c, border: `1.5px solid ${vpBidColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: vpBidColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
-                          />
-                        ))}
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Bid (Sell)</span>
+                      <InlineColorSwatch value={vpBidColor} onChange={(c) => setVPSetting('vpBidColor', c)} size={4} />
                     </div>
 
                     <SliderControl label="Opacité barres" value={Math.round(vpBarOpacity * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => setVPSetting('vpBarOpacity', v / 100)} />
@@ -1038,27 +883,11 @@ export default function AdvancedChartSettings({
                       <div className="space-y-2 mt-1">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Ask (min)</span>
-                          <div className="flex items-center gap-1.5">
-                            {['#0a3d1a', '#1a2e1a', '#0a2d3d', '#1a1a2e', '#0a0a0a', '#0d2818', '#0a1a2e'].map(c => (
-                              <button key={c} onClick={() => setVPSetting('vpAskGradientEnd', c)}
-                                className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-110"
-                                style={{ backgroundColor: c, border: `1px solid ${vpAskGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
-                              />
-                            ))}
-                            <HexInput value={vpAskGradientEnd} onChange={(c) => setVPSetting('vpAskGradientEnd', c)} />
-                          </div>
+                          <InlineColorSwatch value={vpAskGradientEnd} onChange={(c) => setVPSetting('vpAskGradientEnd', c)} size={4} />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Bid (min)</span>
-                          <div className="flex items-center gap-1.5">
-                            {['#3d0a0a', '#2e1a1a', '#3d1a0a', '#2e1a2e', '#0a0a0a', '#281008', '#2e0a1a'].map(c => (
-                              <button key={c} onClick={() => setVPSetting('vpBidGradientEnd', c)}
-                                className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-110"
-                                style={{ backgroundColor: c, border: `1px solid ${vpBidGradientEnd === c ? 'var(--primary)' : 'var(--border)'}` }}
-                              />
-                            ))}
-                            <HexInput value={vpBidGradientEnd} onChange={(c) => setVPSetting('vpBidGradientEnd', c)} />
-                          </div>
+                          <InlineColorSwatch value={vpBidGradientEnd} onChange={(c) => setVPSetting('vpBidGradientEnd', c)} size={4} />
                         </div>
                       </div>
                     )}
@@ -1073,15 +902,7 @@ export default function AdvancedChartSettings({
                     <div className="space-y-2 mt-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur</span>
-                        <div className="flex items-center gap-1.5">
-                          {['#3b82f6', '#22c55e', '#8b5cf6', '#525252', '#171717', '#0ea5e9', '#f59e0b', '#ec4899'].map(c => (
-                            <button key={c} onClick={() => setVPSetting('vpBackgroundColor', c)}
-                              className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
-                              style={{ backgroundColor: c, border: `1px solid ${vpBackgroundColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: vpBackgroundColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
-                            />
-                          ))}
-                          <HexInput value={vpBackgroundColor} onChange={(c) => setVPSetting('vpBackgroundColor', c)} />
-                        </div>
+                        <InlineColorSwatch value={vpBackgroundColor} onChange={(c) => setVPSetting('vpBackgroundColor', c)} size={4} />
                       </div>
                       <SliderControl label="Opacité fond" value={Math.round(vpBackgroundOpacity * 100)} min={1} max={30} step={1} unit="%" onChange={(v) => setVPSetting('vpBackgroundOpacity', v / 100)} />
                     </div>
@@ -1096,43 +917,19 @@ export default function AdvancedChartSettings({
                     {/* TP Color */}
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur TP</span>
-                      <div className="flex items-center gap-1.5">
-                        {['#22c55e', '#3b82f6', '#06b6d4', '#fbbf24', '#a855f7', '#10b981', '#14b8a6', '#0ea5e9', '#6366f1', '#d946ef'].map(c => (
-                          <button key={c} onClick={() => setVPSetting('posTpColor', c)}
-                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
-                            style={{ backgroundColor: c, border: `1px solid ${posTpColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posTpColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
-                          />
-                        ))}
-                        <HexInput value={posTpColor} onChange={(c) => setVPSetting('posTpColor', c)} />
-                      </div>
+                      <InlineColorSwatch value={posTpColor} onChange={(c) => setVPSetting('posTpColor', c)} size={4} />
                     </div>
 
                     {/* SL Color */}
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur SL</span>
-                      <div className="flex items-center gap-1.5">
-                        {['#ef4444', '#f97316', '#ec4899', '#fbbf24', '#a855f7', '#f43f5e', '#e11d48', '#fb923c', '#facc15', '#c084fc'].map(c => (
-                          <button key={c} onClick={() => setVPSetting('posSlColor', c)}
-                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
-                            style={{ backgroundColor: c, border: `1px solid ${posSlColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posSlColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
-                          />
-                        ))}
-                        <HexInput value={posSlColor} onChange={(c) => setVPSetting('posSlColor', c)} />
-                      </div>
+                      <InlineColorSwatch value={posSlColor} onChange={(c) => setVPSetting('posSlColor', c)} size={4} />
                     </div>
 
                     {/* Entry Color */}
                     <div className="flex items-center justify-between">
                       <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur Entry</span>
-                      <div className="flex items-center gap-1.5">
-                        {['#a3a3a3', '#e5e5e5', '#737373', '#fbbf24', '#3b82f6', '#525252', '#d4d4d4', '#78716c', '#0ea5e9', '#8b5cf6'].map(c => (
-                          <button key={c} onClick={() => setVPSetting('posEntryColor', c)}
-                            className="w-4 h-4 rounded-sm transition-transform hover:scale-110"
-                            style={{ backgroundColor: c, border: `1px solid ${posEntryColor === c ? 'var(--primary)' : 'var(--border)'}`, boxShadow: posEntryColor === c ? '0 0 0 1px var(--primary)' : 'none' }}
-                          />
-                        ))}
-                        <HexInput value={posEntryColor} onChange={(c) => setVPSetting('posEntryColor', c)} />
-                      </div>
+                      <InlineColorSwatch value={posEntryColor} onChange={(c) => setVPSetting('posEntryColor', c)} size={4} />
                     </div>
 
                     {/* Zone Opacity */}
@@ -1285,35 +1082,15 @@ export default function AdvancedChartSettings({
                       <ToggleSwitch label="Pie Chart" description="Afficher la répartition buy/sell en camembert" value={volumeBubbleShowPieChart} onChange={(v) => setVPSetting('volumeBubbleShowPieChart', v)} />
 
                       {/* Positive Color */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur positive</span>
-                          <HexInput value={volumeBubblePositiveColor} onChange={(c) => setVPSetting('volumeBubblePositiveColor', c)} />
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {['#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#fbbf24', '#f59e0b', '#84cc16', '#ffffff'].map(c => (
-                            <button key={c} onClick={() => setVPSetting('volumeBubblePositiveColor', c)}
-                              className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
-                              style={{ backgroundColor: c, border: `1.5px solid ${volumeBubblePositiveColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: volumeBubblePositiveColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
-                            />
-                          ))}
-                        </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur positive</span>
+                        <InlineColorSwatch value={volumeBubblePositiveColor} onChange={(c) => setVPSetting('volumeBubblePositiveColor', c)} size={4} />
                       </div>
 
                       {/* Negative Color */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur negative</span>
-                          <HexInput value={volumeBubbleNegativeColor} onChange={(c) => setVPSetting('volumeBubbleNegativeColor', c)} />
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {['#ef4444', '#f43f5e', '#e11d48', '#ec4899', '#d946ef', '#c084fc', '#a855f7', '#f97316', '#fb923c', '#fbbf24', '#facc15', '#f59e0b', '#06b6d4', '#3b82f6', '#84cc16', '#ffffff'].map(c => (
-                            <button key={c} onClick={() => setVPSetting('volumeBubbleNegativeColor', c)}
-                              className="w-[18px] h-[18px] rounded-sm transition-all hover:scale-110"
-                              style={{ backgroundColor: c, border: `1.5px solid ${volumeBubbleNegativeColor === c ? 'var(--primary)' : 'transparent'}`, boxShadow: volumeBubbleNegativeColor === c ? '0 0 0 1px var(--primary)' : 'inset 0 0 0 0.5px rgba(255,255,255,0.1)' }}
-                            />
-                          ))}
-                        </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Couleur negative</span>
+                        <InlineColorSwatch value={volumeBubbleNegativeColor} onChange={(c) => setVPSetting('volumeBubbleNegativeColor', c)} size={4} />
                       </div>
                     </div>
                   )}
