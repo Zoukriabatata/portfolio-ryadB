@@ -230,18 +230,20 @@ class SoundManagerClass {
       // Cancel any in-progress speech
       window.speechSynthesis.cancel();
 
-      const text = voiceType === 'senzoukria' ? 'SENZOUUUUU!' : 'Order filled';
+      const text = voiceType === 'senzoukria'
+        ? 'SENZOUUUUU!'
+        : side === 'buy' ? 'Buy order filled' : 'Sell order filled';
       const utterance = new SpeechSynthesisUtterance(text);
 
       if (voiceType === 'senzoukria') {
         utterance.pitch = 1.3;
         utterance.rate = 1.1;
       } else if (voiceType === 'male') {
-        utterance.pitch = 0.3;
-        utterance.rate = 1.2;
+        utterance.pitch = 0.85;  // natural adult male (was 0.3 — too robotic)
+        utterance.rate = 1.0;
       } else {
-        utterance.pitch = 1.8;
-        utterance.rate = 1.15;
+        utterance.pitch = 1.15;  // natural adult female (was 1.8 — too squeaky)
+        utterance.rate = 1.0;
       }
 
       utterance.volume = 0.85;
