@@ -32,13 +32,7 @@ import {
 } from 'lucide-react';
 import { DynamicToolSettingsPanel } from './DynamicToolSettingsPanel';
 import { useToolSettingsStore, type ToolPreset } from '@/stores/useToolSettingsStore';
-
-// Preset colors (TradingView-style palette)
-const PRESET_COLORS = [
-  '#2962FF', '#e91e63', '#ff9800', '#4caf50',
-  '#00bcd4', '#9c27b0', '#ffeb3b', '#795548',
-  '#ffffff', '#b2b5be', '#787b86', '#2a2e39',
-];
+import { ColorPicker } from '@/components/tools/ColorPicker';
 
 const LINE_WIDTHS = [1, 2, 3, 4];
 
@@ -118,8 +112,13 @@ export default function InlineToolSettings({
 
   const updateStyle = useCallback((updates: Partial<ToolStyle>) => {
     if (!selectedTool) return;
-    const newStyle = { ...selectedTool.style, ...updates };
-    getToolsEngine().updateTool(selectedTool.id, { style: newStyle });
+    const engine = getToolsEngine();
+    const selected = engine.getSelectedTools();
+    // Multi-tool bulk editing: apply to ALL selected tools
+    for (const tool of selected) {
+      const newStyle = { ...tool.style, ...updates };
+      engine.updateTool(tool.id, { style: newStyle });
+    }
     onRender?.();
   }, [selectedTool, onRender]);
 
@@ -167,6 +166,9 @@ export default function InlineToolSettings({
 
   const handleSetAsDefault = useCallback(() => {
     if (!selectedTool) return;
+    // Write to engine (used during tool creation via getDefaultStyle)
+    getToolsEngine().setDefaultStyle(selectedTool.type as any, selectedTool.style);
+    // Write to Zustand (used by UI components)
     setToolDefault(selectedTool.type, selectedTool.style as any);
     setShowPresetMenu(false);
   }, [selectedTool, setToolDefault]);
@@ -207,19 +209,12 @@ export default function InlineToolSettings({
           <ChevronDown size={10} className="text-[var(--text-dimmed)]" />
         </button>
         {showColorPicker && (
-          <div className="absolute top-full left-0 mt-1 p-2 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50">
-            <div className="grid grid-cols-4 gap-1">
-              {PRESET_COLORS.map(color => (
-                <button
-                  key={color}
-                  onClick={() => { updateStyle({ color }); setShowColorPicker(false); }}
-                  className={`w-6 h-6 rounded-sm border transition-transform hover:scale-110 ${
-                    style.color === color ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]' : 'border-[var(--border)]'
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
+          <div className="absolute top-full left-0 mt-1 p-2 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50" style={{ width: 220 }}>
+            <ColorPicker
+              value={style.color}
+              onChange={(color) => updateStyle({ color })}
+              label=""
+            />
           </div>
         )}
       </div>

@@ -31,3 +31,73 @@ export function hexToRgba(hex: string, alpha: number): string {
   const [r, g, b] = hexToRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+// ============ HSV ↔ HEX ↔ RGB CONVERSIONS ============
+
+export function hsvToHex(h: number, s: number, v: number): string {
+  const s1 = s / 100;
+  const v1 = v / 100;
+  const c = v1 * s1;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v1 - c;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; }
+  else if (h < 120) { r = x; g = c; }
+  else if (h < 180) { g = c; b = x; }
+  else if (h < 240) { g = x; b = c; }
+  else if (h < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  const toHex = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+export function hexToHSV(hex: string): { h: number; s: number; v: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return { h: 0, s: 0, v: 100 };
+  const r = parseInt(result[1], 16) / 255;
+  const g = parseInt(result[2], 16) / 255;
+  const b = parseInt(result[3], 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d + 6) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  const s = max === 0 ? 0 : (d / max) * 100;
+  const v = max * 100;
+  return { h, s, v };
+}
+
+export function hexToRGB(hex: string): { r: number; g: number; b: number } {
+  const [r, g, b] = hexToRgb(hex);
+  return { r, g, b };
+}
+
+export function rgbToHex(r: number, g: number, b: number): string {
+  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
+  return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`;
+}
+
+// ============ RECENT COLORS (localStorage) ============
+
+const RECENT_COLORS_KEY = 'colorPickerRecent';
+const MAX_RECENT = 8;
+
+export function getRecentColors(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_COLORS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function addRecentColor(color: string): void {
+  try {
+    const recent = getRecentColors().filter(c => c.toLowerCase() !== color.toLowerCase());
+    recent.unshift(color);
+    localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  } catch { /* ignore */ }
+}

@@ -1,46 +1,16 @@
 'use client';
 
+/**
+ * UNIFIED COLOR PICKER — Single component used across entire app.
+ *
+ * Modes:
+ *  compact=true  → Swatch grid only (for inline bars)
+ *  compact=false → Full HSV picker + HEX/RGB inputs + presets + recent colors
+ */
+
 import { useState, useRef, useEffect, useCallback } from 'react';
-
-// ============ HSV ↔ HEX CONVERSIONS ============
-
-function hsvToHex(h: number, s: number, v: number): string {
-  const s1 = s / 100;
-  const v1 = v / 100;
-  const c = v1 * s1;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = v1 - c;
-  let r = 0, g = 0, b = 0;
-  if (h < 60) { r = c; g = x; }
-  else if (h < 120) { r = x; g = c; }
-  else if (h < 180) { g = c; b = x; }
-  else if (h < 240) { g = x; b = c; }
-  else if (h < 300) { r = x; b = c; }
-  else { r = c; b = x; }
-  const toHex = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-function hexToHSV(hex: string): { h: number; s: number; v: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return { h: 0, s: 0, v: 100 };
-  const r = parseInt(result[1], 16) / 255;
-  const g = parseInt(result[2], 16) / 255;
-  const b = parseInt(result[3], 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const d = max - min;
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = ((g - b) / d + 6) % 6;
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h *= 60;
-  }
-  const s = max === 0 ? 0 : (d / max) * 100;
-  const v = max * 100;
-  return { h, s, v };
-}
+import { hsvToHex, hexToHSV, hexToRGB, rgbToHex, getRecentColors, addRecentColor } from '@/lib/utils/colorUtils';
+import { Copy, Check } from 'lucide-react';
 
 // ============ PRESETS ============
 
@@ -63,19 +33,38 @@ interface ColorPickerProps {
   label?: string;
   className?: string;
   compact?: boolean;
+  showRGB?: boolean;
+  showRecent?: boolean;
 }
 
-export function ColorPicker({ value, onChange, label = 'Color', className = '', compact = false }: ColorPickerProps) {
+export function ColorPicker({
+  value,
+  onChange,
+  label = 'Color',
+  className = '',
+  compact = false,
+  showRGB = true,
+  showRecent = true,
+}: ColorPickerProps) {
   const [hue, setHue] = useState(0);
   const [sat, setSat] = useState(100);
   const [bright, setBright] = useState(100);
   const [hexInput, setHexInput] = useState(value);
+  const [copied, setCopied] = useState(false);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
 
   const svCanvasRef = useRef<HTMLCanvasElement>(null);
   const hueCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSvDragging = useRef(false);
   const isHueDragging = useRef(false);
   const internalUpdate = useRef(false);
+
+  // Load recent colors
+  useEffect(() => {
+    if (showRecent && !compact) {
+      setRecentColors(getRecentColors());
+    }
+  }, [showRecent, compact]);
 
   // Sync from external value
   useEffect(() => {
@@ -99,7 +88,6 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
     const w = canvas.width;
     const h = canvas.height;
 
-    // White → pure hue (horizontal)
     const hueColor = hsvToHex(hue, 100, 100);
     const gradH = ctx.createLinearGradient(0, 0, w, 0);
     gradH.addColorStop(0, '#ffffff');
@@ -107,7 +95,6 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
     ctx.fillStyle = gradH;
     ctx.fillRect(0, 0, w, h);
 
-    // Transparent → black (vertical)
     const gradV = ctx.createLinearGradient(0, 0, 0, h);
     gradV.addColorStop(0, 'rgba(0,0,0,0)');
     gradV.addColorStop(1, '#000000');
@@ -136,7 +123,12 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
     const hex = hsvToHex(h, s, v);
     setHexInput(hex);
     onChange(hex);
-  }, [onChange]);
+    // Save to recent
+    if (showRecent) {
+      addRecentColor(hex);
+      setRecentColors(getRecentColors());
+    }
+  }, [onChange, showRecent]);
 
   // SV drag
   const handleSVPointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>, start = false) => {
@@ -187,6 +179,26 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
     }
   }, [onChange]);
 
+  const handleCopyHex = useCallback(() => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  }, [value]);
+
+  const handleRGBChange = useCallback((channel: 'r' | 'g' | 'b', val: number) => {
+    const rgb = hexToRGB(value);
+    rgb[channel] = Math.max(0, Math.min(255, val));
+    const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+    const { h, s, v } = hexToHSV(hex);
+    setHue(h);
+    setSat(s);
+    setBright(v);
+    setHexInput(hex);
+    internalUpdate.current = true;
+    onChange(hex);
+  }, [value, onChange]);
+
   const colors = compact ? COMPACT_COLORS : PRESET_COLORS;
 
   // SV marker position
@@ -195,6 +207,7 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
   // Hue marker position
   const hueMarkerX = `${(hue / 360) * 100}%`;
 
+  // ═══ COMPACT MODE ═══
   if (compact) {
     return (
       <div className={className}>
@@ -224,9 +237,12 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
     );
   }
 
+  // ═══ FULL MODE ═══
+  const rgb = hexToRGB(value);
+
   return (
     <div className={className}>
-      <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">{label}</label>
+      {label && <label className="block text-[11px] text-[var(--text-muted)] mb-1.5">{label}</label>}
 
       {/* SV Gradient Canvas */}
       <div className="relative mb-1.5 rounded overflow-hidden" style={{ height: 120, border: '1px solid var(--border)' }}>
@@ -239,16 +255,15 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
           onPointerMove={handleSVPointer}
           onPointerUp={handlePointerUp}
         />
-        {/* SV Marker */}
         <div
           className="absolute pointer-events-none"
           style={{
             left: svMarkerX, top: svMarkerY,
-            width: 10, height: 10,
+            width: 12, height: 12,
             transform: 'translate(-50%, -50%)',
             borderRadius: '50%',
             border: '2px solid #fff',
-            boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+            boxShadow: '0 0 3px rgba(0,0,0,0.8)',
           }}
         />
       </div>
@@ -264,7 +279,6 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
           onPointerMove={handleHuePointer}
           onPointerUp={handlePointerUp}
         />
-        {/* Hue Marker */}
         <div
           className="absolute top-0 pointer-events-none"
           style={{
@@ -278,8 +292,8 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
         />
       </div>
 
-      {/* Preview + HEX Input */}
-      <div className="flex items-center gap-2 mb-2">
+      {/* HEX + Copy */}
+      <div className="flex items-center gap-1.5 mb-2">
         <div
           className="w-7 h-7 rounded flex-shrink-0"
           style={{ backgroundColor: value, border: '1px solid var(--border)' }}
@@ -297,14 +311,46 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
             color: 'var(--text-primary)',
           }}
         />
+        <button
+          onClick={handleCopyHex}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--surface)] transition-colors"
+          style={{ color: copied ? '#22c55e' : 'var(--text-muted)' }}
+          title="Copy HEX"
+        >
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+        </button>
       </div>
 
+      {/* RGB Inputs */}
+      {showRGB && (
+        <div className="flex items-center gap-1 mb-2">
+          {(['r', 'g', 'b'] as const).map((ch) => (
+            <div key={ch} className="flex-1">
+              <label className="block text-[9px] text-[var(--text-muted)] text-center uppercase mb-0.5">{ch}</label>
+              <input
+                type="number"
+                min={0}
+                max={255}
+                value={rgb[ch]}
+                onChange={(e) => handleRGBChange(ch, parseInt(e.target.value) || 0)}
+                className="w-full px-1.5 py-0.5 rounded text-[10px] font-mono text-center focus:outline-none"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Preset colors */}
-      <div className="grid grid-cols-6 gap-1">
+      <div className="grid grid-cols-6 gap-1 mb-1">
         {PRESET_COLORS.map((color) => (
           <button
             key={color}
-            onClick={() => onChange(color)}
+            onClick={() => { onChange(color); if (showRecent) { addRecentColor(color); setRecentColors(getRecentColors()); } }}
             className={`w-full aspect-square rounded transition-all hover:scale-110 ${
               value.toLowerCase() === color.toLowerCase()
                 ? 'ring-1 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]'
@@ -315,6 +361,26 @@ export function ColorPicker({ value, onChange, label = 'Color', className = '', 
           />
         ))}
       </div>
+
+      {/* Recent colors */}
+      {showRecent && recentColors.length > 0 && (
+        <div className="mt-1">
+          <div className="text-[9px] text-[var(--text-muted)] mb-0.5">Recent</div>
+          <div className="flex items-center gap-1">
+            {recentColors.map((color, i) => (
+              <button
+                key={`${color}-${i}`}
+                onClick={() => onChange(color)}
+                className={`w-5 h-5 rounded-sm transition-all hover:scale-110 ${
+                  value.toLowerCase() === color.toLowerCase() ? 'ring-1 ring-[var(--primary)]' : ''
+                }`}
+                style={{ backgroundColor: color, border: '1px solid var(--border)' }}
+                title={color}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
