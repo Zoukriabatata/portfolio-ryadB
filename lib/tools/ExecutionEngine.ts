@@ -71,7 +71,8 @@ export function evaluateCandle(
 
 /**
  * Close a position in the tools engine.
- * Sets status, exit price, exit reason, and locks the tool.
+ * Sets status, exit price, exit reason. Tool remains unlocked.
+ * Triggers a 120ms fade animation (renderer-side visual only).
  */
 export function closePosition(toolId: string, execution: ExecutionResult): void {
   const engine = getToolsEngine();
@@ -79,8 +80,23 @@ export function closePosition(toolId: string, execution: ExecutionResult): void 
     positionStatus: 'closed',
     exitPrice: execution.price,
     exitReason: execution.reason,
-    locked: true,
   } as Partial<Tool>);
+  // Trigger smooth fade animation (visual only — doesn't modify tool state)
+  engine.animatePositionFade(toolId);
+}
+
+/**
+ * Reopen a closed position (e.g. after user adjusts TP/SL).
+ * Clears execution state and fade animation.
+ */
+export function reopenPosition(toolId: string): void {
+  const engine = getToolsEngine();
+  engine.updateTool(toolId, {
+    positionStatus: 'open',
+    exitPrice: undefined,
+    exitReason: undefined,
+  } as Partial<Tool>);
+  engine.clearPositionFade(toolId);
 }
 
 // ============ PNL ENGINE ============

@@ -807,6 +807,10 @@ export class ToolsRenderer {
     // ═══ EXECUTION STATE ═══
     const isClosed = tool.positionStatus === 'closed';
     const exitReason = tool.exitReason;
+    // Animated fade: 0 = active, 1 = fully faded (closed)
+    const fadeFactor = isClosed
+      ? (this.engine.getPositionFadeFactor(tool.id) ?? 1.0)
+      : 0;
 
     // ═══ ZONE FILL ENGINE — Y-axis (price) gradients ═══
     const gradientMode = prefs.posGradientMode ?? 'dynamic';
@@ -833,14 +837,20 @@ export class ToolsRenderer {
       const riskH = Math.abs(slY - entryY);
 
       if (isClosed) {
-        // ── Closed: winning zone at full intensity, losing zone dim ──
+        // ── Closed: professional TradingView-grade opacity ──
+        // Interpolate fill from active (baseAlpha ~0.12) → hit (0.06)
+        const hitFillAlpha = 0.06;
+        const currentFill = baseAlpha + (hitFillAlpha - baseAlpha) * fadeFactor;
         const wonTarget = exitReason === 'target';
+        // Subtle differential: winner slightly brighter, loser dimmer
+        const winnerAlpha = currentFill * 1.1;
+        const loserAlpha = currentFill * 0.7;
         if (profitH > 1) {
-          ctx.fillStyle = hexToRgba(profitLine, wonTarget ? maxAlpha : baseAlpha * 0.15);
+          ctx.fillStyle = hexToRgba(profitLine, wonTarget ? winnerAlpha : loserAlpha);
           ctx.fillRect(leftX, profitTop, zoneW, profitH);
         }
         if (riskH > 1) {
-          ctx.fillStyle = hexToRgba(riskLine, !wonTarget ? maxAlpha : baseAlpha * 0.15);
+          ctx.fillStyle = hexToRgba(riskLine, !wonTarget ? winnerAlpha : loserAlpha);
           ctx.fillRect(leftX, riskTop, zoneW, riskH);
         }
 
@@ -919,8 +929,11 @@ export class ToolsRenderer {
       }
     }
 
+    // ═══ BORDER LINES — fade to 50% on close ═══
+    const borderAlpha = 1.0 - fadeFactor * 0.5;
+
     // ═══ ENTRY LINE ═══
-    ctx.strokeStyle = entryColor;
+    ctx.strokeStyle = fadeFactor > 0 ? hexToRgba(entryColor.startsWith('#') ? entryColor : '#a3a3a3', borderAlpha) : entryColor;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([]);
     ctx.beginPath();
@@ -929,7 +942,7 @@ export class ToolsRenderer {
     ctx.stroke();
 
     // ═══ TP LINE ═══
-    ctx.strokeStyle = profitLine;
+    ctx.strokeStyle = fadeFactor > 0 ? hexToRgba(profitLine, borderAlpha) : profitLine;
     ctx.lineWidth = 1;
     ctx.setLineDash([]);
     ctx.beginPath();
@@ -938,7 +951,7 @@ export class ToolsRenderer {
     ctx.stroke();
 
     // ═══ SL LINE ═══
-    ctx.strokeStyle = riskLine;
+    ctx.strokeStyle = fadeFactor > 0 ? hexToRgba(riskLine, borderAlpha) : riskLine;
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(leftX, slY + 0.5);
@@ -1059,24 +1072,29 @@ export class ToolsRenderer {
       }
     }
 
-    // ═══ CLOSED POSITION BADGE ═══
+    // ═══ CLOSED POSITION BADGE — Refined TradingView style ═══
     if (isClosed) {
       const badgeColor = exitReason === 'target' ? profitLine : riskLine;
       const badgeText = exitReason === 'target' ? 'TP HIT' : 'SL HIT';
       const centerX = (leftX + rightX) / 2;
       const centerY = (entryY + (exitReason === 'target' ? tpY : slY)) / 2;
-      ctx.font = 'bold 10px system-ui';
+      // Badge fades in during close animation
+      const badgeOpacity = fadeFactor * 0.7;
+      ctx.font = '600 9px system-ui';
       const textW = ctx.measureText(badgeText).width;
-      const badgeW = textW + 12;
-      const badgeH = 18;
-      ctx.fillStyle = 'rgba(15, 15, 20, 0.9)';
+      const badgeW = textW + 14;
+      const badgeH = 17;
+      // Subtle dark background
+      ctx.fillStyle = `rgba(12, 12, 16, ${badgeOpacity * 0.85})`;
       ctx.beginPath();
-      ctx.roundRect(centerX - badgeW / 2, centerY - badgeH / 2, badgeW, badgeH, 4);
+      ctx.roundRect(centerX - badgeW / 2, centerY - badgeH / 2, badgeW, badgeH, 3);
       ctx.fill();
-      ctx.strokeStyle = hexToRgba(badgeColor, 0.6);
-      ctx.lineWidth = 1;
+      // Thin accent border
+      ctx.strokeStyle = hexToRgba(badgeColor, badgeOpacity * 0.5);
+      ctx.lineWidth = 0.5;
       ctx.stroke();
-      ctx.fillStyle = badgeColor;
+      // Accent text
+      ctx.fillStyle = hexToRgba(badgeColor, badgeOpacity);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(badgeText, centerX, centerY);
@@ -1087,6 +1105,9 @@ export class ToolsRenderer {
     const showRR = showLabels && tool.showRR !== false;
     const showPnL = showLabels && tool.showPnL !== false;
     const compact = defaultCompact || tool.compactMode === true;
+
+    // Dim labels when closed (fade to 60%)
+    if (isClosed && fadeFactor > 0) ctx.globalAlpha = 1.0 - fadeFactor * 0.4;
 
     // ═══ RIGHT-SIDE ENTRY LABEL ═══
     if (!compact && showLabels) {
@@ -1208,6 +1229,9 @@ export class ToolsRenderer {
         ctx.fillText(slBottomText, slLabelX + 6, slLabelY + 21);
       }
     }
+
+    // Restore alpha after labels
+    if (isClosed && fadeFactor > 0) ctx.globalAlpha = 1;
 
     // ═══ DRAG HANDLES (only when selected or hovered) ═══
     const isActive = tool.selected || context.hoveredToolId === tool.id;

@@ -171,6 +171,10 @@ export class ToolsEngine {
   private animatedLineWidths: Map<string, number> = new Map();
   private lineWidthAnimations: Map<string, number> = new Map(); // rAF ids
 
+  // Transient position close fade (0=active, 1=fully faded — not persisted)
+  private animatedPositionFade: Map<string, number> = new Map();
+  private positionFadeAnimations: Map<string, number> = new Map(); // rAF ids
+
   constructor() {
     this.drawingState = {
       isDrawing: false,
@@ -264,10 +268,13 @@ export class ToolsEngine {
 
     this.tools.delete(id);
     this.selectedIds.delete(id);
-    // Clean up any running animation
+    // Clean up any running animations
     const anim = this.lineWidthAnimations.get(id);
     if (anim) { cancelAnimationFrame(anim); this.lineWidthAnimations.delete(id); }
     this.animatedLineWidths.delete(id);
+    const fadeAnim = this.positionFadeAnimations.get(id);
+    if (fadeAnim) { cancelAnimationFrame(fadeAnim); this.positionFadeAnimations.delete(id); }
+    this.animatedPositionFade.delete(id);
     this.saveHistory();
     this.emit('tool:delete', tool);
 
@@ -806,6 +813,10 @@ export class ToolsEngine {
               pos.endTime - pos.startTime > 24 * 3600) {
             pos.endTime = pos.startTime + 20 * 60;
           }
+          // Migration: remove auto-lock from closed positions (old behavior)
+          if (pos.positionStatus === 'closed' && pos.locked === true) {
+            pos.locked = false;
+          }
         }
         this.tools.set(tool.id, tool);
       });
@@ -926,6 +937,55 @@ export class ToolsEngine {
     // Set initial animated value
     this.animatedLineWidths.set(toolId, from);
     this.lineWidthAnimations.set(toolId, requestAnimationFrame(frame));
+  }
+
+  // ============ POSITION FADE ANIMATION ============
+
+  /**
+   * Get the animated fade factor for a closed position.
+   * Returns 0..1 (0 = active, 1 = fully faded) or null if no animation data.
+   */
+  getPositionFadeFactor(toolId: string): number | null {
+    const value = this.animatedPositionFade.get(toolId);
+    return value !== undefined ? value : null;
+  }
+
+  /**
+   * Start a 120ms easeOutCubic fade for a closed position (0→1).
+   * Keeps final value in map so renderer knows it's fully faded.
+   */
+  animatePositionFade(toolId: string): void {
+    const existing = this.positionFadeAnimations.get(toolId);
+    if (existing) cancelAnimationFrame(existing);
+
+    const duration = 120;
+    const startTime = performance.now();
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const frame = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      this.animatedPositionFade.set(toolId, easeOutCubic(progress));
+
+      if (progress < 1) {
+        this.positionFadeAnimations.set(toolId, requestAnimationFrame(frame));
+      } else {
+        // Keep final value (1.0) — renderer reads it for closed state
+        this.positionFadeAnimations.delete(toolId);
+      }
+    };
+
+    this.animatedPositionFade.set(toolId, 0);
+    this.positionFadeAnimations.set(toolId, requestAnimationFrame(frame));
+  }
+
+  /**
+   * Clear fade state (for reopen / undo).
+   */
+  clearPositionFade(toolId: string): void {
+    const anim = this.positionFadeAnimations.get(toolId);
+    if (anim) cancelAnimationFrame(anim);
+    this.positionFadeAnimations.delete(toolId);
+    this.animatedPositionFade.delete(toolId);
   }
 
   // ============ DEFAULT STYLES MANAGEMENT ============
