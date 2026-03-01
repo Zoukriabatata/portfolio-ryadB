@@ -313,6 +313,7 @@ export default function AdvancedChartSettings({
     posTpColor, posSlColor, posEntryColor,
     posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
     posSmartArrow, posDynamicOpacity, posOpacityCurve, posOpacityIntensity,
+    posArrowExponent, posArrowIntensity, posArrowThickness, posArrowFill,
     // VP Engine settings
     vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
     vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
@@ -1174,7 +1175,16 @@ export default function AdvancedChartSettings({
                     <ToggleSwitch label="Mode minimal" description="Lignes pures sans labels ni informations" value={posDefaultCompact} onChange={(v) => setVPSetting('posDefaultCompact', v)} />
 
                     {/* Toggle: Smart Arrow */}
-                    <ToggleSwitch label="Smart Arrow" description="Flèche dynamique suivant le prix en temps réel" value={posSmartArrow} onChange={(v) => setVPSetting('posSmartArrow', v)} />
+                    <ToggleSwitch label="Smart Arrow" description="Flèche interne suivant le prix en temps réel" value={posSmartArrow} onChange={(v) => setVPSetting('posSmartArrow', v)} />
+
+                    {posSmartArrow && (
+                      <div className="space-y-2 mt-1 pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
+                        <ToggleSwitch label="Progress fill" description="Gradient de progression entre entry et prix" value={posArrowFill} onChange={(v) => setVPSetting('posArrowFill', v)} />
+                        <SliderControl label="Exposant" value={posArrowExponent} min={1} max={3} step={0.1} onChange={(v) => setVPSetting('posArrowExponent', v)} />
+                        <SliderControl label="Intensité" value={posArrowIntensity} min={0} max={100} step={5} unit="%" onChange={(v) => setVPSetting('posArrowIntensity', v)} />
+                        <SliderControl label="Épaisseur" value={posArrowThickness} min={1} max={3} step={0.2} unit="px" onChange={(v) => setVPSetting('posArrowThickness', v)} />
+                      </div>
+                    )}
 
                     {/* Toggle: Dynamic Opacity */}
                     <ToggleSwitch label="Opacité dynamique" description="Progression exponentielle dans les zones parcourues" value={posDynamicOpacity} onChange={(v) => setVPSetting('posDynamicOpacity', v)} />

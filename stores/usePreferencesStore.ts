@@ -137,6 +137,10 @@ export interface PreferencesState {
   posDynamicOpacity: boolean;
   posOpacityCurve: 'linear' | 'exponential' | 'aggressive';
   posOpacityIntensity: number; // 0-100
+  posArrowExponent: number;    // 1.0-3.0
+  posArrowIntensity: number;   // 0-100
+  posArrowThickness: number;   // 1-3
+  posArrowFill: boolean;
 
   // Volume bar appearance
   volumeBarBullColor: string;
@@ -227,6 +231,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       posDynamicOpacity: true,
       posOpacityCurve: 'exponential' as const,
       posOpacityIntensity: 60,
+      posArrowExponent: 1.6,
+      posArrowIntensity: 50,
+      posArrowThickness: 1.4,
+      posArrowFill: true,
 
       // Volume bar appearance
       volumeBarBullColor: '#22c55e',
@@ -299,6 +307,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         posShowLabels: s.posShowLabels, posDefaultCompact: s.posDefaultCompact,
         posSmartArrow: s.posSmartArrow, posDynamicOpacity: s.posDynamicOpacity,
         posOpacityCurve: s.posOpacityCurve, posOpacityIntensity: s.posOpacityIntensity,
+        posArrowExponent: s.posArrowExponent, posArrowIntensity: s.posArrowIntensity,
+        posArrowThickness: s.posArrowThickness, posArrowFill: s.posArrowFill,
         volumeBarBullColor: s.volumeBarBullColor, volumeBarBearColor: s.volumeBarBearColor, volumeBarOpacity: s.volumeBarOpacity,
         showCurrentPriceLine: s.showCurrentPriceLine,
         priceLineStyle: s.priceLineStyle,

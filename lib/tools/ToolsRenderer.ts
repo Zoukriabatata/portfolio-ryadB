@@ -924,91 +924,89 @@ export class ToolsRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ═══ SMART PRICE-FOLLOW ARROW (Advanced) ═══
+    // ═══ INTERNAL SMART ARROW ═══
     const livePrice = context.currentPrice || 0;
     if (smartArrowEnabled && livePrice > 0) {
-      const livePriceY = Math.round(priceToY(livePrice));
-      const arrowX = rightX + 6;
-      const arrowSize = 5;
+      const arrowExponent = prefs.posArrowExponent ?? 1.6;
+      const arrowIntensity = (prefs.posArrowIntensity ?? 50) / 100;
+      const arrowThickness = prefs.posArrowThickness ?? 1.4;
+      const arrowFillEnabled = prefs.posArrowFill !== false;
 
-      // Direction & color — smooth transition
-      const inProfit = isLong ? livePrice > tool.entry : livePrice < tool.entry;
-      const inLoss = isLong ? livePrice < tool.entry : livePrice > tool.entry;
-      const priceDelta = Math.abs(livePrice - tool.entry);
-      const neutralZone = tool.entry * 0.0001; // 0.01% dead zone
-      const isNeutral = priceDelta < neutralZone;
-      const arrowColor = isNeutral ? entryColor : inProfit ? tpColor : slColor;
-      const arrowUp = isLong ? livePrice > tool.entry : livePrice < tool.entry;
+      // Clamp price within SL ↔ TP bounds
+      const clampedPrice = isLong
+        ? Math.max(tool.stopLoss, Math.min(livePrice, tool.takeProfit))
+        : Math.min(tool.stopLoss, Math.max(livePrice, tool.takeProfit));
 
-      // Arrow opacity: subtle when neutral, stronger when directional
-      const dist = Math.abs(livePrice - tool.entry) / tool.entry;
-      const arrowOpacity = Math.min(0.9, 0.4 + dist * 20);
+      // Progress: 0 = at entry, positive = toward TP, negative = toward SL
+      const tpDist = Math.abs(tool.takeProfit - tool.entry);
+      const slDist = Math.abs(tool.stopLoss - tool.entry);
+      const inProfit = isLong ? clampedPrice >= tool.entry : clampedPrice <= tool.entry;
+      const progress = inProfit
+        ? (tpDist > 0 ? Math.min(1, Math.abs(clampedPrice - tool.entry) / tpDist) : 0)
+        : (slDist > 0 ? -Math.min(1, Math.abs(clampedPrice - tool.entry) / slDist) : 0);
 
-      // Connector: horizontal from entry rightX → arrowX
-      ctx.strokeStyle = hexToRgba(arrowColor, 0.2);
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 3]);
-      ctx.beginPath();
-      ctx.moveTo(rightX, entryY + 0.5);
-      ctx.lineTo(arrowX, entryY + 0.5);
-      ctx.stroke();
+      // Edge case guards: disable if TP≈Entry, SL≈Entry, or rect too small
+      const rectHeight = Math.abs(tpY - slY);
+      if (tpDist >= 0.01 && slDist >= 0.01 && rectHeight >= 20) {
+        // X: centered in rectangle
+        const centerX = (leftX + rightX) / 2;
 
-      // Connector: vertical from entry → live price
-      if (Math.abs(livePriceY - entryY) > 4) {
-        // Gradient connector — fades from entry to price
-        const connGrad = ctx.createLinearGradient(0, entryY, 0, livePriceY);
-        connGrad.addColorStop(0, hexToRgba(arrowColor, 0.1));
-        connGrad.addColorStop(1, hexToRgba(arrowColor, 0.35));
-        ctx.strokeStyle = connGrad;
+        // Y positions with 6px internal padding
+        const clampedPriceY = Math.round(priceToY(clampedPrice));
+        const paddingPx = 6;
+        const topBound = Math.min(tpY, slY) + paddingPx;
+        const bottomBound = Math.max(tpY, slY) - paddingPx;
+        const paddedEntryY = Math.max(topBound, Math.min(entryY, bottomBound));
+        const paddedCurrentY = Math.max(topBound, Math.min(clampedPriceY, bottomBound));
+
+        // Exponential opacity
+        const absProgress = Math.abs(progress);
+        const baseOpacity = 0.15;
+        const dynamicOpacity = Math.pow(absProgress, arrowExponent) * arrowIntensity;
+        const arrowOpacity = Math.min(0.85, baseOpacity + dynamicOpacity);
+        const arrowColor = inProfit ? profitLine : riskLine;
+
+        // Partial fill gradient (entry ↔ current)
+        if (arrowFillEnabled && Math.abs(paddedCurrentY - paddedEntryY) > 2) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(leftX, Math.min(tpY, slY), rightX - leftX, rectHeight);
+          ctx.clip();
+
+          const grad = ctx.createLinearGradient(0, paddedEntryY, 0, paddedCurrentY);
+          grad.addColorStop(0, hexToRgba(arrowColor, baseOpacity * 0.3));
+          grad.addColorStop(1, hexToRgba(arrowColor, arrowOpacity * 0.4));
+          ctx.fillStyle = grad;
+
+          const fillTop = Math.min(paddedEntryY, paddedCurrentY);
+          const fillH = Math.abs(paddedCurrentY - paddedEntryY);
+          const fillW = Math.min(24, (rightX - leftX) * 0.15);
+          ctx.fillRect(centerX - fillW / 2, fillTop, fillW, fillH);
+          ctx.restore();
+        }
+
+        // Arrow shaft: entry → clamped current price
+        if (Math.abs(paddedCurrentY - paddedEntryY) > 4) {
+          ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity);
+          ctx.lineWidth = arrowThickness;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(centerX, paddedEntryY);
+          ctx.lineTo(centerX, paddedCurrentY);
+          ctx.stroke();
+        }
+
+        // Triangle tip at current price (5px, minimal)
+        const tipSize = 5;
+        const tipDirection = paddedCurrentY < paddedEntryY ? -1 : 1;
+        ctx.fillStyle = hexToRgba(arrowColor, arrowOpacity);
         ctx.beginPath();
-        ctx.moveTo(arrowX, entryY);
-        ctx.lineTo(arrowX, livePriceY);
-        ctx.stroke();
+        ctx.moveTo(centerX - tipSize, paddedCurrentY);
+        ctx.lineTo(centerX, paddedCurrentY + tipSize * tipDirection);
+        ctx.lineTo(centerX + tipSize, paddedCurrentY);
+        ctx.closePath();
+        ctx.fill();
       }
-      ctx.setLineDash([]);
-
-      // Triangle arrow at live price
-      ctx.fillStyle = arrowColor;
-      ctx.globalAlpha = arrowOpacity;
-      ctx.beginPath();
-      if (isNeutral) {
-        // Neutral: small diamond
-        ctx.moveTo(arrowX - 3, livePriceY);
-        ctx.lineTo(arrowX, livePriceY - 3);
-        ctx.lineTo(arrowX + 3, livePriceY);
-        ctx.lineTo(arrowX, livePriceY + 3);
-      } else if (arrowUp) {
-        ctx.moveTo(arrowX - arrowSize, livePriceY + arrowSize);
-        ctx.lineTo(arrowX, livePriceY - arrowSize);
-        ctx.lineTo(arrowX + arrowSize, livePriceY + arrowSize);
-      } else {
-        ctx.moveTo(arrowX - arrowSize, livePriceY - arrowSize);
-        ctx.lineTo(arrowX, livePriceY + arrowSize);
-        ctx.lineTo(arrowX + arrowSize, livePriceY - arrowSize);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      // % badge next to arrow
-      const priceDiffPct = ((livePrice - tool.entry) / tool.entry) * 100;
-      const badgeSign = isLong ? priceDiffPct : -priceDiffPct;
-      const badgeText = `${badgeSign >= 0 ? '+' : ''}${badgeSign.toFixed(2)}%`;
-      ctx.font = '9px "SF Mono", Consolas, monospace';
-      const textW = ctx.measureText(badgeText).width;
-      const badgeX = arrowX + arrowSize + 3;
-      const badgeY = livePriceY - 7;
-
-      ctx.fillStyle = 'rgba(15, 15, 20, 0.85)';
-      ctx.beginPath();
-      ctx.roundRect(badgeX, badgeY, textW + 8, 14, 3);
-      ctx.fill();
-
-      ctx.fillStyle = arrowColor;
-      ctx.globalAlpha = arrowOpacity;
-      ctx.textAlign = 'left';
-      ctx.fillText(badgeText, badgeX + 4, badgeY + 10);
-      ctx.globalAlpha = 1;
     }
 
     // ═══ Settings flags ═══
