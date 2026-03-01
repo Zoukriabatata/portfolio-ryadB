@@ -70,7 +70,6 @@ export default function ToolSettingsBar({
   onOpenAdvanced,
   onInteractionStart,
 }: ToolSettingsBarProps) {
-  const [style, setStyle] = useState<ToolStyle | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [showWidthPicker, setShowWidthPicker] = useState(false);
@@ -179,21 +178,14 @@ export default function ToolSettingsBar({
     });
   }, [position, getRelativePos]);
 
-  // Sync with selected tool
-  useEffect(() => {
-    if (selectedTool) {
-      setStyle({ ...selectedTool.style });
-    } else {
-      setStyle(null);
-    }
-  }, [selectedTool]);
+  // Read style directly from selectedTool — single source of truth (no local state)
+  const style = selectedTool?.style ?? null;
 
+  // Update ALL selected tools (multi-edit safe, undo-safe)
   const updateStyle = useCallback((updates: Partial<ToolStyle>) => {
-    if (!selectedTool || !style) return;
-    const newStyle = { ...style, ...updates };
-    setStyle(newStyle);
-    getToolsEngine().updateTool(selectedTool.id, { style: newStyle });
-  }, [selectedTool, style]);
+    if (!selectedTool) return;
+    getToolsEngine().updateSelectedToolsStyle(updates);
+  }, [selectedTool]);
 
   const handleDelete = useCallback(() => {
     if (!selectedTool) return;
