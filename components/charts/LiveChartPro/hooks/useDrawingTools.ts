@@ -989,6 +989,14 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       },
       onToolUpdated: () => {
         renderDrawingTools();
+        // Refresh selectedTool so UI components get fresh data
+        const engine = refs.toolsEngine.current;
+        const selected = engine.getSelectedTools();
+        if (selected.length === 1) {
+          setSelectedTool({ ...selected[0] });
+        } else if (selected.length === 0) {
+          setSelectedTool(null);
+        }
       },
       onModeChanged: () => {
         renderDrawingTools();

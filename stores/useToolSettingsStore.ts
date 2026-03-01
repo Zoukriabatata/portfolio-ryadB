@@ -43,6 +43,14 @@ export interface PositionSettings extends ToolSettings {
   showQuantity: boolean;
 }
 
+export interface ToolPreset {
+  id: string;
+  name: string;
+  toolType: string;
+  style: Partial<ToolSettings>;
+  createdAt: number;
+}
+
 interface ToolSettingsState {
   // Version for migration
   version: number;
@@ -57,6 +65,9 @@ interface ToolSettingsState {
   showAdvancedSettings: boolean;
   advancedSettingsPosition: { x: number; y: number };
 
+  // Style presets
+  presets: ToolPreset[];
+
   // Actions
   setToolDefault: (toolType: string, settings: Partial<ToolSettings>) => void;
   getToolDefault: (toolType: string) => Partial<ToolSettings>;
@@ -65,6 +76,12 @@ interface ToolSettingsState {
   setAdvancedSettingsPosition: (position: { x: number; y: number }) => void;
   closeAdvancedSettings: () => void;
   resetToDefaults: () => void;
+
+  // Preset actions
+  savePreset: (name: string, toolType: string, style: Partial<ToolSettings>) => void;
+  deletePreset: (presetId: string) => void;
+  renamePreset: (presetId: string, name: string) => void;
+  setAsDefault: (presetId: string) => void;
 }
 
 const DEFAULT_TOOL_SETTINGS: Record<string, Partial<ToolSettings>> = {
@@ -198,6 +215,7 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
       selectedToolId: null,
       showAdvancedSettings: false,
       advancedSettingsPosition: { x: 100, y: 100 },
+      presets: [],
 
       setToolDefault: (toolType, settings) =>
         set((state) => ({
@@ -234,6 +252,41 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
           version: SETTINGS_VERSION,
           toolDefaults: DEFAULT_TOOL_SETTINGS,
         }),
+
+      // Preset actions
+      savePreset: (name, toolType, style) =>
+        set((state) => ({
+          presets: [
+            ...state.presets,
+            {
+              id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+              name,
+              toolType,
+              style,
+              createdAt: Date.now(),
+            },
+          ],
+        })),
+
+      deletePreset: (presetId) =>
+        set((state) => ({
+          presets: state.presets.filter((p) => p.id !== presetId),
+        })),
+
+      renamePreset: (presetId, name) =>
+        set((state) => ({
+          presets: state.presets.map((p) =>
+            p.id === presetId ? { ...p, name } : p
+          ),
+        })),
+
+      setAsDefault: (presetId) => {
+        const state = get();
+        const preset = state.presets.find((p) => p.id === presetId);
+        if (preset) {
+          state.setToolDefault(preset.toolType, preset.style);
+        }
+      },
     }),
     {
       name: 'tool-settings-storage',
@@ -241,6 +294,7 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
       partialize: (state) => ({
         version: state.version,
         toolDefaults: state.toolDefaults,
+        presets: state.presets,
       }),
       // Migration: reset to defaults if version changed
       migrate: (persistedState: unknown, version: number) => {
@@ -252,6 +306,7 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
             ...state,
             version: SETTINGS_VERSION,
             toolDefaults: DEFAULT_TOOL_SETTINGS,
+            presets: state.presets || [],
           };
         }
         return state as ToolSettingsState;
