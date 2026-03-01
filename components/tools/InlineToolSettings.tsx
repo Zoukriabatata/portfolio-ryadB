@@ -26,6 +26,7 @@ import {
   ChevronDown,
   DollarSign,
 } from 'lucide-react';
+import { DynamicToolSettingsPanel } from './DynamicToolSettingsPanel';
 
 // Preset colors (TradingView-style palette)
 const PRESET_COLORS = [
@@ -54,16 +55,19 @@ const LINE_STYLES: { value: LineStyle; label: string; svg: React.ReactNode }[] =
 interface InlineToolSettingsProps {
   selectedTool: Tool | null;
   onOpenAdvanced?: (tool: Tool) => void;
+  onRender?: () => void;
 }
 
 export default function InlineToolSettings({
   selectedTool,
   onOpenAdvanced,
+  onRender,
 }: InlineToolSettingsProps) {
   const [style, setStyle] = useState<ToolStyle | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showWidthPicker, setShowWidthPicker] = useState(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
+  const [showDynamicSettings, setShowDynamicSettings] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
 
   // Sync style with selected tool
@@ -75,6 +79,7 @@ export default function InlineToolSettings({
       setShowColorPicker(false);
       setShowWidthPicker(false);
       setShowStylePicker(false);
+      setShowDynamicSettings(false);
     }
   }, [selectedTool]);
 
@@ -85,6 +90,7 @@ export default function InlineToolSettings({
         setShowColorPicker(false);
         setShowWidthPicker(false);
         setShowStylePicker(false);
+        setShowDynamicSettings(false);
       }
     };
     document.addEventListener('mousedown', handle);
@@ -96,7 +102,8 @@ export default function InlineToolSettings({
     const newStyle = { ...style, ...updates };
     setStyle(newStyle);
     getToolsEngine().updateTool(selectedTool.id, { style: newStyle });
-  }, [selectedTool, style]);
+    onRender?.();
+  }, [selectedTool, style, onRender]);
 
   const handleDelete = useCallback(() => {
     if (!selectedTool) return;
@@ -340,19 +347,32 @@ export default function InlineToolSettings({
         <Trash2 size={13} strokeWidth={1.5} />
       </button>
 
-      {/* Advanced settings */}
-      {onOpenAdvanced && (
-        <>
-          <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
-          <button
-            onClick={() => onOpenAdvanced(selectedTool)}
-            className="flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] transition-colors"
-            title="Advanced settings"
-          >
-            <Settings2 size={13} strokeWidth={1.5} />
-          </button>
-        </>
-      )}
+      {/* Advanced settings (dynamic panel) */}
+      <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
+      <div className="relative">
+        <button
+          onClick={() => setShowDynamicSettings(!showDynamicSettings)}
+          className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+            showDynamicSettings
+              ? 'text-[var(--primary)] bg-[var(--primary)]/10'
+              : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
+          }`}
+          title="Tool properties"
+        >
+          <Settings2 size={13} strokeWidth={1.5} />
+        </button>
+        {showDynamicSettings && (
+          <DynamicToolSettingsPanel
+            tool={selectedTool}
+            onUpdate={() => {
+              // Re-read tool state after engine update
+              const updated = getToolsEngine().getTool(selectedTool.id);
+              if (updated) setStyle({ ...updated.style });
+              onRender?.();
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

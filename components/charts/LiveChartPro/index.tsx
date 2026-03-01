@@ -824,7 +824,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
         )}
 
         {/* Inline Tool Settings — TradingView-style */}
-        <InlineToolSettings selectedTool={drawing.selectedTool} />
+        <InlineToolSettings selectedTool={drawing.selectedTool} onRender={drawing.renderDrawingTools} />
 
         {/* Chart Area */}
         <div className="flex-1 relative" onContextMenu={contextMenuHook.handleContextMenu}>
