@@ -841,13 +841,19 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       }
     });
 
-    // Re-sync selectedTool when any tool is updated (style change, drag, etc.)
-    // This ensures settings panels always reflect the current tool state
-    const unsubUpdate = engine.on('tool:update', (tool) => {
-      if (tool && 'id' in tool) {
-        const selected = engine.getSelectedTools();
-        if (selected.length > 0 && selected[0].id === (tool as Tool).id) {
-          setSelectedTool({ ...(tool as Tool) });
+    // Re-sync selectedTool when any selected tool is updated (style, drag, etc.)
+    // Creates a fresh object reference so React detects the change and re-renders panels
+    const unsubUpdate = engine.on('tool:update', (updatedTool) => {
+      if (!updatedTool || !('id' in updatedTool)) return;
+      const updated = updatedTool as Tool;
+      // Check if this updated tool is among the currently selected tools
+      const selected = engine.getSelectedTools();
+      const isSelected = selected.some(t => t.id === updated.id);
+      if (isSelected) {
+        // Re-fetch from engine and deep-spread to guarantee new references
+        const fresh = engine.getTool(updated.id);
+        if (fresh) {
+          setSelectedTool({ ...fresh, style: { ...fresh.style } });
         }
       }
     });
