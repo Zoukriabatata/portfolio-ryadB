@@ -1444,6 +1444,9 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     const rect = e.currentTarget.getBoundingClientRect();
     refs.interactionController.current.setChartBounds(rect);
     refs.interactionController.current.handleMouseMove(e);
+
+    // Always forward mousemove to chart engine so crosshair lines update
+    forwardEventToChart(e, 'mousemove');
   }, [refs, forwardEventToChart, renderDrawingTools, hitTestPnlBadge, hitTestCloseButton, hitTestOrderCancel, hitTestOrderBadge]);
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1518,11 +1521,11 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
     if (forwardingToChartRef.current) {
       forwardingToChartRef.current = false;
-      const chartCanvas = refs.chartCanvas.current;
-      if (chartCanvas) {
-        chartCanvas.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-      }
-      return;
+    }
+    // Always forward mouseleave to chart so crosshair hides
+    const chartCanvas = refs.chartCanvas.current;
+    if (chartCanvas) {
+      chartCanvas.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
     }
     refs.interactionController.current.handleMouseLeave();
   }, [refs, renderDrawingTools]);
