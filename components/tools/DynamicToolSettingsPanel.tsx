@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useReducer, useEffect } from 'react';
 import type { Tool } from '@/lib/tools/types';
 import type { ToolSettingField } from '@/lib/tools/registry/ToolDefinition';
 import { getToolsEngine } from '@/lib/tools/ToolsEngine';
@@ -54,20 +54,35 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
 }
 
 export function DynamicToolSettingsPanel({ tool, onUpdate }: DynamicToolSettingsPanelProps) {
-  const def = toolRegistry.get(tool.type);
+  // Force re-render when the tool changes in the engine
+  const [, forceRender] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    const engine = getToolsEngine();
+    const unsub = engine.on('tool:update', (updatedTool) => {
+      if (updatedTool && 'id' in updatedTool && (updatedTool as { id: string }).id === tool.id) {
+        forceRender();
+      }
+    });
+    return unsub;
+  }, [tool.id]);
+
+  // Read fresh tool from engine — single source of truth
+  const freshTool = getToolsEngine().getTool(tool.id) ?? tool;
+
+  const def = toolRegistry.get(freshTool.type);
   const schema = def?.settingsSchema;
 
   const groups = useMemo(() => {
     if (!schema) return new Map<string, ToolSettingField[]>();
     const map = new Map<string, ToolSettingField[]>();
     for (const field of schema) {
-      if (field.condition && !field.condition(tool)) continue;
+      if (field.condition && !field.condition(freshTool)) continue;
       const group = field.group || 'General';
       if (!map.has(group)) map.set(group, []);
       map.get(group)!.push(field);
     }
     return map;
-  }, [schema, tool]);
+  }, [schema, freshTool]);
 
   const handleChange = useCallback(
     (key: string, value: unknown) => {
@@ -103,7 +118,7 @@ export function DynamicToolSettingsPanel({ tool, onUpdate }: DynamicToolSettings
       {/* Header */}
       <div className="px-3 py-2 border-b border-[#1C1F23]">
         <span className="text-[11px] font-medium text-[#8a8f98] uppercase tracking-wider">
-          {tool.type.replace(/([A-Z])/g, ' $1').trim()}
+          {freshTool.type.replace(/([A-Z])/g, ' $1').trim()}
         </span>
       </div>
 
@@ -120,7 +135,7 @@ export function DynamicToolSettingsPanel({ tool, onUpdate }: DynamicToolSettings
               <SettingFieldRenderer
                 key={field.key}
                 field={field}
-                tool={tool}
+                tool={freshTool}
                 onChange={handleChange}
               />
             ))}

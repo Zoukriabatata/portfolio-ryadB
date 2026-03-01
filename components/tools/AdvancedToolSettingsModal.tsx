@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useReducer } from 'react';
 import { useCrosshairStore, type CrosshairSettings } from '@/stores/useCrosshairStore';
 import type { ToolType, LineStyle, Tool } from '@/lib/tools/ToolsEngine';
 import { getToolsEngine } from '@/lib/tools/ToolsEngine';
@@ -127,21 +127,35 @@ export default function AdvancedToolSettingsModal({
   const engine = getToolsEngine();
   const defaultStyle = engine.getDefaultStyle(activeTool as ToolType);
 
-  // Use the selected tool's actual values if available, otherwise use defaults
-  // Merge style properties with direct tool properties
-  const toolSettings = selectedTool
+  // Force re-render when the selected tool changes in the engine
+  const [, forceRender] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    if (!selectedTool) return;
+    const unsub = engine.on('tool:update', (updatedTool) => {
+      if (updatedTool && 'id' in updatedTool && (updatedTool as Tool).id === selectedTool.id) {
+        forceRender();
+      }
+    });
+    return unsub;
+  }, [selectedTool?.id, engine]);
+
+  // Read fresh tool from engine — single source of truth
+  const freshTool = selectedTool ? (engine.getTool(selectedTool.id) ?? selectedTool) : null;
+
+  // Use the fresh tool's actual values if available, otherwise use defaults
+  const toolSettings = freshTool
     ? {
-        color: selectedTool.style?.color || defaultStyle.color,
-        lineWidth: selectedTool.style?.lineWidth || defaultStyle.lineWidth,
-        lineStyle: selectedTool.style?.lineStyle || defaultStyle.lineStyle,
-        extendLeft: (selectedTool as any).extendLeft ?? false,
-        extendRight: (selectedTool as any).extendRight ?? false,
-        showPrice: (selectedTool as any).showPrice ?? (selectedTool as any).showPrices ?? false,
-        showTime: (selectedTool as any).showTime ?? false,
-        showLabels: (selectedTool as any).showLabels ?? false,
-        showRR: (selectedTool as any).showRR,
-        showPnL: (selectedTool as any).showPnL,
-        fillOpacity: selectedTool.style?.fillOpacity ?? defaultStyle.fillOpacity,
+        color: freshTool.style?.color || defaultStyle.color,
+        lineWidth: freshTool.style?.lineWidth || defaultStyle.lineWidth,
+        lineStyle: freshTool.style?.lineStyle || defaultStyle.lineStyle,
+        extendLeft: (freshTool as any).extendLeft ?? false,
+        extendRight: (freshTool as any).extendRight ?? false,
+        showPrice: (freshTool as any).showPrice ?? (freshTool as any).showPrices ?? false,
+        showTime: (freshTool as any).showTime ?? false,
+        showLabels: (freshTool as any).showLabels ?? false,
+        showRR: (freshTool as any).showRR,
+        showPnL: (freshTool as any).showPnL,
+        fillOpacity: freshTool.style?.fillOpacity ?? defaultStyle.fillOpacity,
       } as Record<string, unknown>
     : (defaultStyle as unknown as Record<string, unknown>);
 
@@ -304,7 +318,7 @@ export default function AdvancedToolSettingsModal({
           <ToolSettingsContent
             activeTool={activeTool}
             toolSettings={toolSettings}
-            selectedTool={selectedTool}
+            selectedTool={freshTool}
             theme={theme}
           />
         ) : (

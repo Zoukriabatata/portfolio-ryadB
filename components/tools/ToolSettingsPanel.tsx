@@ -12,7 +12,7 @@
  * - Texte attaché
  */
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useReducer, useRef } from 'react';
 import {
   Tool,
   ToolStyle,
@@ -118,12 +118,26 @@ export default function ToolSettingsPanel({
   colors,
   onClose,
 }: ToolSettingsPanelProps) {
-  // Read style directly from selectedTool — single source of truth (no local state)
-  const style = selectedTool?.style ?? null;
+  // Force re-render when the selected tool changes in the engine
+  const [, forceRender] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    if (!selectedTool) return;
+    const engine = getToolsEngine();
+    const unsub = engine.on('tool:update', (updatedTool) => {
+      if (updatedTool && 'id' in updatedTool && (updatedTool as Tool).id === selectedTool.id) {
+        forceRender();
+      }
+    });
+    return unsub;
+  }, [selectedTool?.id]);
 
-  // Extend flags read directly from tool
-  const showExtend = selectedTool?.type === 'trendline'
-    ? { left: selectedTool.extendLeft, right: selectedTool.extendRight }
+  // Read fresh tool from engine — single source of truth
+  const freshTool = selectedTool ? (getToolsEngine().getTool(selectedTool.id) ?? selectedTool) : null;
+  const style = freshTool?.style ?? null;
+
+  // Extend flags read directly from fresh tool
+  const showExtend = freshTool?.type === 'trendline'
+    ? { left: freshTool.extendLeft, right: freshTool.extendRight }
     : { left: false, right: false };
 
   /**
@@ -159,8 +173,10 @@ export default function ToolSettingsPanel({
    */
   const handleToggleLock = useCallback(() => {
     if (!selectedTool) return;
-    getToolsEngine().updateTool(selectedTool.id, { locked: !selectedTool.locked });
-  }, [selectedTool]);
+    const engine = getToolsEngine();
+    const fresh = engine.getTool(selectedTool.id);
+    if (fresh) engine.updateTool(selectedTool.id, { locked: !fresh.locked });
+  }, [selectedTool?.id]);
 
   /**
    * Duplicate tool
@@ -194,7 +210,7 @@ export default function ToolSettingsPanel({
     engine.selectTool(newTool.id);
   }, [selectedTool]);
 
-  if (!selectedTool || !style) {
+  if (!freshTool || !style) {
     return (
       <div
         className="p-4 text-center"
@@ -205,7 +221,7 @@ export default function ToolSettingsPanel({
     );
   }
 
-  const toolTypeLabel = getToolTypeLabel(selectedTool.type);
+  const toolTypeLabel = getToolTypeLabel(freshTool.type);
 
   return (
     <div
@@ -215,7 +231,7 @@ export default function ToolSettingsPanel({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{getToolIcon(selectedTool.type)}</span>
+          <span className="text-lg">{getToolIcon(freshTool.type)}</span>
           <span className="font-medium text-sm" style={{ color: colors.textPrimary }}>
             {toolTypeLabel}
           </span>
@@ -315,7 +331,7 @@ export default function ToolSettingsPanel({
       </div>
 
       {/* Fill (for rectangles and positions) */}
-      {(selectedTool.type === 'rectangle' || selectedTool.type === 'longPosition' || selectedTool.type === 'shortPosition') && (
+      {(freshTool.type === 'rectangle' || freshTool.type === 'longPosition' || freshTool.type === 'shortPosition') && (
         <div>
           <label className="text-xs mb-2 block" style={{ color: colors.textMuted }}>
             Fill Opacity: {Math.round((style.fillOpacity || 0) * 100)}%
@@ -332,7 +348,7 @@ export default function ToolSettingsPanel({
       )}
 
       {/* Extend options for trendline */}
-      {selectedTool.type === 'trendline' && (
+      {freshTool.type === 'trendline' && (
         <div>
           <label className="text-xs mb-2 block" style={{ color: colors.textMuted }}>
             Extend Line
@@ -363,7 +379,7 @@ export default function ToolSettingsPanel({
       )}
 
       {/* Position details */}
-      {(selectedTool.type === 'longPosition' || selectedTool.type === 'shortPosition') && (
+      {(freshTool.type === 'longPosition' || freshTool.type === 'shortPosition') && (
         <div className="space-y-2">
           <label className="text-xs block" style={{ color: colors.textMuted }}>
             Position Details
@@ -374,21 +390,21 @@ export default function ToolSettingsPanel({
               style={{ backgroundColor: colors.background }}
             >
               <div style={{ color: colors.textMuted }}>Entry</div>
-              <div style={{ color: style.color }}>${selectedTool.entry.toFixed(2)}</div>
+              <div style={{ color: style.color }}>${freshTool.entry.toFixed(2)}</div>
             </div>
             <div
               className="p-2 rounded"
               style={{ backgroundColor: colors.background }}
             >
               <div style={{ color: colors.textMuted }}>Stop Loss</div>
-              <div style={{ color: colors.deltaNegative }}>${selectedTool.stopLoss.toFixed(2)}</div>
+              <div style={{ color: colors.deltaNegative }}>${freshTool.stopLoss.toFixed(2)}</div>
             </div>
             <div
               className="p-2 rounded"
               style={{ backgroundColor: colors.background }}
             >
               <div style={{ color: colors.textMuted }}>Take Profit</div>
-              <div style={{ color: colors.deltaPositive }}>${selectedTool.takeProfit.toFixed(2)}</div>
+              <div style={{ color: colors.deltaPositive }}>${freshTool.takeProfit.toFixed(2)}</div>
             </div>
           </div>
           <div
@@ -397,14 +413,14 @@ export default function ToolSettingsPanel({
           >
             <span style={{ color: colors.textMuted }}>Risk/Reward: </span>
             <span style={{ color: colors.textPrimary }}>
-              1:{(Math.abs(selectedTool.takeProfit - selectedTool.entry) / Math.abs(selectedTool.entry - selectedTool.stopLoss)).toFixed(2)}
+              1:{(Math.abs(freshTool.takeProfit - freshTool.entry) / Math.abs(freshTool.entry - freshTool.stopLoss)).toFixed(2)}
             </span>
           </div>
         </div>
       )}
 
       {/* Horizontal line price */}
-      {selectedTool.type === 'horizontalLine' && (
+      {freshTool.type === 'horizontalLine' && (
         <div>
           <label className="text-xs mb-2 block" style={{ color: colors.textMuted }}>
             Price Level
@@ -412,7 +428,7 @@ export default function ToolSettingsPanel({
           <input
             type="number"
             step="0.01"
-            value={selectedTool.price}
+            value={freshTool.price}
             onChange={(e) => updateProperty({ price: Number(e.target.value) } as Partial<Tool>)}
             className="w-full px-2 py-1 rounded text-xs font-mono"
             style={{
@@ -424,7 +440,7 @@ export default function ToolSettingsPanel({
           <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer" style={{ color: colors.textSecondary }}>
             <input
               type="checkbox"
-              checked={selectedTool.showPrice}
+              checked={freshTool.showPrice}
               onChange={(e) => updateProperty({ showPrice: e.target.checked } as Partial<Tool>)}
             />
             Show price label
@@ -439,13 +455,13 @@ export default function ToolSettingsPanel({
         </label>
         <input
           type="text"
-          value={selectedTool.text?.content || ''}
+          value={freshTool.text?.content || ''}
           onChange={(e) => updateProperty({
             text: {
               content: e.target.value,
-              position: selectedTool.text?.position || 'end',
-              fontSize: selectedTool.text?.fontSize || 11,
-              fontColor: selectedTool.text?.fontColor || style.color,
+              position: freshTool.text?.position || 'end',
+              fontSize: freshTool.text?.fontSize || 11,
+              fontColor: freshTool.text?.fontColor || style.color,
             }
           } as Partial<Tool>)}
           placeholder="Add label..."
@@ -456,7 +472,7 @@ export default function ToolSettingsPanel({
             border: `1px solid ${colors.gridColor}`,
           }}
         />
-        {selectedTool.text?.content && (
+        {freshTool.text?.content && (
           <div className="mt-2 space-y-2">
             {/* Text Position */}
             <div className="flex gap-1">
@@ -464,12 +480,12 @@ export default function ToolSettingsPanel({
                 <button
                   key={pos}
                   onClick={() => updateProperty({
-                    text: { ...selectedTool.text!, position: pos }
+                    text: { ...freshTool.text!, position: pos }
                   } as Partial<Tool>)}
                   className="flex-1 py-1 rounded text-[10px] capitalize"
                   style={{
-                    backgroundColor: selectedTool.text?.position === pos ? colors.textPrimary : colors.background,
-                    color: selectedTool.text?.position === pos ? colors.background : colors.textSecondary,
+                    backgroundColor: freshTool.text?.position === pos ? colors.textPrimary : colors.background,
+                    color: freshTool.text?.position === pos ? colors.background : colors.textSecondary,
                   }}
                 >
                   {pos}
@@ -483,29 +499,29 @@ export default function ToolSettingsPanel({
                 type="range"
                 min={8}
                 max={16}
-                value={selectedTool.text?.fontSize || 11}
+                value={freshTool.text?.fontSize || 11}
                 onChange={(e) => updateProperty({
-                  text: { ...selectedTool.text!, fontSize: Number(e.target.value) }
+                  text: { ...freshTool.text!, fontSize: Number(e.target.value) }
                 } as Partial<Tool>)}
                 className="flex-1"
               />
               <span className="text-[10px] w-6" style={{ color: colors.textSecondary }}>
-                {selectedTool.text?.fontSize || 11}
+                {freshTool.text?.fontSize || 11}
               </span>
             </div>
             {/* Text Color */}
             <div className="flex items-center gap-2">
               <span className="text-[10px]" style={{ color: colors.textMuted }}>Color:</span>
               <InlineColorSwatch
-                value={selectedTool.text?.fontColor || style.color}
+                value={freshTool.text?.fontColor || style.color}
                 onChange={(c) => updateProperty({
-                  text: { ...selectedTool.text!, fontColor: c }
+                  text: { ...freshTool.text!, fontColor: c }
                 } as Partial<Tool>)}
                 size={5}
               />
               <button
                 onClick={() => updateProperty({
-                  text: { ...selectedTool.text!, fontColor: style.color }
+                  text: { ...freshTool.text!, fontColor: style.color }
                 } as Partial<Tool>)}
                 className="text-[10px] px-2 py-0.5 rounded"
                 style={{ backgroundColor: colors.background, color: colors.textSecondary }}
@@ -526,7 +542,7 @@ export default function ToolSettingsPanel({
           <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: colors.textSecondary }}>
             <input
               type="checkbox"
-              checked={selectedTool.visible}
+              checked={freshTool.visible}
               onChange={(e) => updateProperty({ visible: e.target.checked })}
             />
             Visible
@@ -534,7 +550,7 @@ export default function ToolSettingsPanel({
           <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: colors.textSecondary }}>
             <input
               type="checkbox"
-              checked={selectedTool.locked}
+              checked={freshTool.locked}
               onChange={handleToggleLock}
             />
             Locked

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, useReducer } from 'react';
 import { toast } from 'sonner';
 import { type Tool, type ToolType, type ToolStyle, getToolsEngine } from '@/lib/tools/ToolsEngine';
 import { ExpandableSection } from './ExpandableSection';
@@ -62,6 +62,21 @@ export function UnifiedToolPropertiesPanel({
 
   const engine = getToolsEngine();
 
+  // Force re-render when the selected tool changes in the engine
+  const [, forceRender] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    if (!selectedTool) return;
+    const unsub = engine.on('tool:update', (updatedTool) => {
+      if (updatedTool && 'id' in updatedTool && (updatedTool as Tool).id === selectedTool.id) {
+        forceRender();
+      }
+    });
+    return unsub;
+  }, [selectedTool?.id, engine]);
+
+  // Read fresh tool from engine — single source of truth
+  const freshTool = selectedTool ? (engine.getTool(selectedTool.id) ?? selectedTool) : null;
+
   // Close panel with Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -73,17 +88,17 @@ export function UnifiedToolPropertiesPanel({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  // Read style directly from tool or engine defaults — no local state copy
-  const currentStyle: ToolStyle = selectedTool?.style ?? engine.getDefaultStyle(defaultToolType);
+  // Read style directly from fresh tool or engine defaults — no local state copy
+  const currentStyle: ToolStyle = freshTool?.style ?? engine.getDefaultStyle(defaultToolType);
 
-  // Read rectangle properties directly from selected tool
+  // Read rectangle properties directly from fresh tool
   const rectangleProps = useMemo(() => ({
-    showPriceLabels: selectedTool?.type === 'rectangle' ? selectedTool.showPriceLabels !== false : true,
-    showMedianLine: selectedTool?.type === 'rectangle' ? selectedTool.showMedianLine || false : false,
-    showZones: selectedTool?.type === 'rectangle' ? selectedTool.showZones || false : false,
-    extendLeft: selectedTool?.type === 'rectangle' ? selectedTool.extendLeft || false : false,
-    extendRight: selectedTool?.type === 'rectangle' ? selectedTool.extendRight || false : false,
-  }), [selectedTool]);
+    showPriceLabels: freshTool?.type === 'rectangle' ? freshTool.showPriceLabels !== false : true,
+    showMedianLine: freshTool?.type === 'rectangle' ? freshTool.showMedianLine || false : false,
+    showZones: freshTool?.type === 'rectangle' ? freshTool.showZones || false : false,
+    extendLeft: freshTool?.type === 'rectangle' ? freshTool.extendLeft || false : false,
+    extendRight: freshTool?.type === 'rectangle' ? freshTool.extendRight || false : false,
+  }), [freshTool]);
 
   // Drag handlers
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -151,13 +166,15 @@ export function UnifiedToolPropertiesPanel({
   // Tool actions
   const handleToggleLock = useCallback(() => {
     if (!selectedTool) return;
-    engine.updateTool(selectedTool.id, { locked: !selectedTool.locked });
-  }, [selectedTool, engine]);
+    const fresh = engine.getTool(selectedTool.id);
+    if (fresh) engine.updateTool(selectedTool.id, { locked: !fresh.locked });
+  }, [selectedTool?.id, engine]);
 
   const handleToggleVisibility = useCallback(() => {
     if (!selectedTool) return;
-    engine.updateTool(selectedTool.id, { visible: !selectedTool.visible });
-  }, [selectedTool, engine]);
+    const fresh = engine.getTool(selectedTool.id);
+    if (fresh) engine.updateTool(selectedTool.id, { visible: !fresh.visible });
+  }, [selectedTool?.id, engine]);
 
   const handleDuplicate = useCallback(() => {
     if (!selectedTool) return;
@@ -205,10 +222,10 @@ export function UnifiedToolPropertiesPanel({
           </div>
           <div className="flex flex-col">
             <span className="text-xs font-semibold leading-tight" style={{ color: colors.textPrimary }}>
-              {selectedTool ? TOOL_LABELS[selectedTool.type] : 'Drawing Defaults'}
+              {freshTool ? TOOL_LABELS[freshTool.type] : 'Drawing Defaults'}
             </span>
             <span className="text-[10px] leading-tight" style={{ color: colors.textMuted }}>
-              {selectedTool ? 'Properties' : 'Default Styles'}
+              {freshTool ? 'Properties' : 'Default Styles'}
             </span>
           </div>
         </div>
@@ -228,7 +245,7 @@ export function UnifiedToolPropertiesPanel({
       {/* Content - scrollable */}
       <div className="flex-1 overflow-y-auto">
         {/* Tool Type Selector (when no selection) */}
-        {!selectedTool && (
+        {!freshTool && (
           <div className="p-3 border-b" style={{ borderColor: colors.gridColor }}>
             <label className="block text-xs mb-1.5" style={{ color: colors.textMuted }}>
               Tool Type
@@ -260,13 +277,13 @@ export function UnifiedToolPropertiesPanel({
           />
 
           {/* Fill Color for tools that support background */}
-          {(selectedTool?.type === 'rectangle' ||
-            selectedTool?.type === 'fibRetracement' ||
-            selectedTool?.type === 'parallelChannel' ||
-            selectedTool?.type === 'longPosition' ||
-            selectedTool?.type === 'shortPosition' ||
-            (selectedTool?.type as string) === 'highlighter' ||
-            (!selectedTool && (defaultToolType === 'rectangle' ||
+          {(freshTool?.type === 'rectangle' ||
+            freshTool?.type === 'fibRetracement' ||
+            freshTool?.type === 'parallelChannel' ||
+            freshTool?.type === 'longPosition' ||
+            freshTool?.type === 'shortPosition' ||
+            (freshTool?.type as string) === 'highlighter' ||
+            (!freshTool && (defaultToolType === 'rectangle' ||
                               defaultToolType === 'fibRetracement' ||
                               defaultToolType === 'longPosition' ||
                               defaultToolType === 'shortPosition'))) && (
@@ -300,7 +317,7 @@ export function UnifiedToolPropertiesPanel({
           )}
 
           {/* Apply as Default button (when no selection) */}
-          {!selectedTool && (
+          {!freshTool && (
             <button
               onClick={() => {
                 // Already applied via handleStyleChange
@@ -319,35 +336,35 @@ export function UnifiedToolPropertiesPanel({
         </ExpandableSection>
 
         {/* Coordinates Section (tool selected only) */}
-        {selectedTool && (
+        {freshTool && (
           <ExpandableSection title="Coordinates">
-            {selectedTool.type === 'horizontalLine' && (
+            {freshTool.type === 'horizontalLine' && (
               <NumberInput
                 label="Price"
-                value={selectedTool.price}
-                onChange={(price) => engine.updateTool(selectedTool.id, { price } as Partial<Tool>)}
+                value={freshTool.price}
+                onChange={(price) => engine.updateTool(freshTool.id, { price } as Partial<Tool>)}
               />
             )}
 
-            {selectedTool.type === 'trendline' && (
+            {freshTool.type === 'trendline' && (
               <div className="space-y-3">
                 <div>
                   <div className="text-xs text-white/60 mb-2">Start Point</div>
                   <NumberInput
                     label="Price"
-                    value={selectedTool.startPoint.price}
+                    value={freshTool.startPoint.price}
                     onChange={(price) =>
-                      engine.updateTool(selectedTool.id, {
-                        startPoint: { ...selectedTool.startPoint, price },
+                      engine.updateTool(freshTool.id, {
+                        startPoint: { ...freshTool.startPoint, price },
                       } as Partial<Tool>)
                     }
                   />
                   <NumberInput
                     label="Time"
-                    value={selectedTool.startPoint.time}
+                    value={freshTool.startPoint.time}
                     onChange={(time) =>
-                      engine.updateTool(selectedTool.id, {
-                        startPoint: { ...selectedTool.startPoint, time },
+                      engine.updateTool(freshTool.id, {
+                        startPoint: { ...freshTool.startPoint, time },
                       } as Partial<Tool>)
                     }
                     type="datetime"
@@ -358,19 +375,19 @@ export function UnifiedToolPropertiesPanel({
                   <div className="text-xs text-white/60 mb-2">End Point</div>
                   <NumberInput
                     label="Price"
-                    value={selectedTool.endPoint.price}
+                    value={freshTool.endPoint.price}
                     onChange={(price) =>
-                      engine.updateTool(selectedTool.id, {
-                        endPoint: { ...selectedTool.endPoint, price },
+                      engine.updateTool(freshTool.id, {
+                        endPoint: { ...freshTool.endPoint, price },
                       } as Partial<Tool>)
                     }
                   />
                   <NumberInput
                     label="Time"
-                    value={selectedTool.endPoint.time}
+                    value={freshTool.endPoint.time}
                     onChange={(time) =>
-                      engine.updateTool(selectedTool.id, {
-                        endPoint: { ...selectedTool.endPoint, time },
+                      engine.updateTool(freshTool.id, {
+                        endPoint: { ...freshTool.endPoint, time },
                       } as Partial<Tool>)
                     }
                     type="datetime"
@@ -380,25 +397,25 @@ export function UnifiedToolPropertiesPanel({
               </div>
             )}
 
-            {selectedTool.type === 'rectangle' && (
+            {freshTool.type === 'rectangle' && (
               <div className="space-y-3">
                 <div>
                   <div className="text-xs text-white/60 mb-2">Top Left</div>
                   <NumberInput
                     label="Price"
-                    value={selectedTool.topLeft.price}
+                    value={freshTool.topLeft.price}
                     onChange={(price) =>
-                      engine.updateTool(selectedTool.id, {
-                        topLeft: { ...selectedTool.topLeft, price },
+                      engine.updateTool(freshTool.id, {
+                        topLeft: { ...freshTool.topLeft, price },
                       } as Partial<Tool>)
                     }
                   />
                   <NumberInput
                     label="Time"
-                    value={selectedTool.topLeft.time}
+                    value={freshTool.topLeft.time}
                     onChange={(time) =>
-                      engine.updateTool(selectedTool.id, {
-                        topLeft: { ...selectedTool.topLeft, time },
+                      engine.updateTool(freshTool.id, {
+                        topLeft: { ...freshTool.topLeft, time },
                       } as Partial<Tool>)
                     }
                     type="datetime"
@@ -409,19 +426,19 @@ export function UnifiedToolPropertiesPanel({
                   <div className="text-xs text-white/60 mb-2">Bottom Right</div>
                   <NumberInput
                     label="Price"
-                    value={selectedTool.bottomRight.price}
+                    value={freshTool.bottomRight.price}
                     onChange={(price) =>
-                      engine.updateTool(selectedTool.id, {
-                        bottomRight: { ...selectedTool.bottomRight, price },
+                      engine.updateTool(freshTool.id, {
+                        bottomRight: { ...freshTool.bottomRight, price },
                       } as Partial<Tool>)
                     }
                   />
                   <NumberInput
                     label="Time"
-                    value={selectedTool.bottomRight.time}
+                    value={freshTool.bottomRight.time}
                     onChange={(time) =>
-                      engine.updateTool(selectedTool.id, {
-                        bottomRight: { ...selectedTool.bottomRight, time },
+                      engine.updateTool(freshTool.id, {
+                        bottomRight: { ...freshTool.bottomRight, time },
                       } as Partial<Tool>)
                     }
                     type="datetime"
@@ -434,7 +451,7 @@ export function UnifiedToolPropertiesPanel({
         )}
 
         {/* Rectangle Options Section */}
-        {selectedTool && selectedTool.type === 'rectangle' && (
+        {freshTool && freshTool.type === 'rectangle' && (
           <ExpandableSection title="Rectangle Options">
             {/* Price Labels Toggle */}
             <div className="flex items-center justify-between py-2">
@@ -505,7 +522,7 @@ export function UnifiedToolPropertiesPanel({
                         { level: 0.5, label: '50%', showLabel: true, showPrice: false },
                         { level: 0.75, label: '75%', showLabel: true, showPrice: false },
                       ];
-                      engine.updateTool(selectedTool.id, {
+                      engine.updateTool(freshTool!.id, {
                         zones: standardZones,
                       } as Partial<Tool>);
                       onUpdate?.();
@@ -520,7 +537,7 @@ export function UnifiedToolPropertiesPanel({
                         { level: 0.33, label: '33%', showLabel: true, showPrice: false },
                         { level: 0.66, label: '66%', showLabel: true, showPrice: false },
                       ];
-                      engine.updateTool(selectedTool.id, {
+                      engine.updateTool(freshTool!.id, {
                         zones: thirdZones,
                       } as Partial<Tool>);
                       onUpdate?.();
@@ -535,7 +552,7 @@ export function UnifiedToolPropertiesPanel({
                         { level: 0.25, label: '25%', showLabel: true, showPrice: false },
                         { level: 0.5, label: '50%', showLabel: true, showPrice: false },
                       ];
-                      engine.updateTool(selectedTool.id, {
+                      engine.updateTool(freshTool!.id, {
                         zones: quarterZones,
                       } as Partial<Tool>);
                       onUpdate?.();
@@ -546,7 +563,7 @@ export function UnifiedToolPropertiesPanel({
                   </button>
                   <button
                     onClick={() => {
-                      engine.updateTool(selectedTool.id, {
+                      engine.updateTool(freshTool!.id, {
                         zones: [],
                       } as Partial<Tool>);
                       onUpdate?.();
@@ -599,16 +616,16 @@ export function UnifiedToolPropertiesPanel({
         )}
 
         {/* Actions Section (tool selected only) */}
-        {selectedTool && (
+        {freshTool && (
           <div className="p-3 border-t" style={{ borderColor: colors.gridColor }}>
             <div className="grid grid-cols-2 gap-2">
               {/* Lock/Unlock */}
               <button
                 onClick={handleToggleLock}
                 className="group px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-white text-xs font-medium transition-all flex items-center justify-center gap-2 border border-white/5 hover:border-white/10"
-                title={selectedTool.locked ? 'Unlock tool' : 'Lock tool'}
+                title={freshTool.locked ? 'Unlock tool' : 'Lock tool'}
               >
-                {selectedTool.locked ? (
+                {freshTool.locked ? (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                     <path d="M7 11V7a5 5 0 0110 0v4"/>
@@ -619,16 +636,16 @@ export function UnifiedToolPropertiesPanel({
                     <path d="M7 11V7a5 5 0 019.9-1"/>
                   </svg>
                 )}
-                <span>{selectedTool.locked ? 'Unlock' : 'Lock'}</span>
+                <span>{freshTool.locked ? 'Unlock' : 'Lock'}</span>
               </button>
 
               {/* Show/Hide */}
               <button
                 onClick={handleToggleVisibility}
                 className="group px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-white text-xs font-medium transition-all flex items-center justify-center gap-2 border border-white/5 hover:border-white/10"
-                title={selectedTool.visible ? 'Hide tool' : 'Show tool'}
+                title={freshTool.visible ? 'Hide tool' : 'Show tool'}
               >
-                {selectedTool.visible ? (
+                {freshTool.visible ? (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -639,7 +656,7 @@ export function UnifiedToolPropertiesPanel({
                     <line x1="1" y1="1" x2="23" y2="23"/>
                   </svg>
                 )}
-                <span>{selectedTool.visible ? 'Hide' : 'Show'}</span>
+                <span>{freshTool.visible ? 'Hide' : 'Show'}</span>
               </button>
 
               {/* Duplicate */}
