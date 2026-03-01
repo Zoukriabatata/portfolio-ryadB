@@ -59,6 +59,10 @@ function createPositionDefinition(isLong: boolean): ToolDefinition<PositionTool>
         updates = { takeProfit: original.takeProfit + deltaPrice };
       } else if (handle === 'center') {
         updates = { stopLoss: original.stopLoss + deltaPrice };
+      } else if (handle === 'right') {
+        updates = { endTime: original.endTime + deltaTime };
+      } else if (handle === 'left') {
+        updates = { startTime: original.startTime + deltaTime };
       } else if (handle === 'top-left') {
         updates = {
           takeProfit: isLong ? original.takeProfit + deltaPrice : original.takeProfit,
@@ -125,6 +129,17 @@ function createPositionDefinition(isLong: boolean): ToolDefinition<PositionTool>
       if (Math.hypot(px - leftX, py - bottomY) <= HANDLE_HIT_SIZE) return { handle: 'bottom-left' as HandlePosition, distance: 0 };
       if (Math.hypot(px - rightX, py - bottomY) <= HANDLE_HIT_SIZE) return { handle: 'bottom-right' as HandlePosition, distance: 0 };
 
+      // Right-center handle (horizontal resize — adjust endTime)
+      const midY = (topY + bottomY) / 2;
+      if (Math.abs(px - rightX) <= HANDLE_HIT_SIZE && Math.abs(py - midY) <= HANDLE_HIT_SIZE) {
+        return { handle: 'right' as HandlePosition, distance: 0 };
+      }
+
+      // Left-center handle (horizontal resize — adjust startTime)
+      if (Math.abs(px - leftX) <= HANDLE_HIT_SIZE && Math.abs(py - midY) <= HANDLE_HIT_SIZE) {
+        return { handle: 'left' as HandlePosition, distance: 0 };
+      }
+
       // Price line handles (left or right edge)
       const nearLeftEdge = Math.abs(px - leftX) <= HANDLE_HIT_SIZE * 2;
       const nearRightEdge = Math.abs(px - rightX) <= HANDLE_HIT_SIZE * 2;
@@ -159,11 +174,14 @@ function createPositionDefinition(isLong: boolean): ToolDefinition<PositionTool>
       const topY = Math.min(converters.priceToY(tool.entry), converters.priceToY(tool.stopLoss), converters.priceToY(tool.takeProfit));
       const bottomY = Math.max(converters.priceToY(tool.entry), converters.priceToY(tool.stopLoss), converters.priceToY(tool.takeProfit));
 
+      const midY = (topY + bottomY) / 2;
       return [
         { position: 'top-left', x: leftX, y: topY, size: HANDLE_SIZE, cursor: 'nwse-resize' },
         { position: 'top-right', x: rightX, y: topY, size: HANDLE_SIZE, cursor: 'nesw-resize' },
         { position: 'bottom-left', x: leftX, y: bottomY, size: HANDLE_SIZE, cursor: 'nesw-resize' },
         { position: 'bottom-right', x: rightX, y: bottomY, size: HANDLE_SIZE, cursor: 'nwse-resize' },
+        { position: 'left', x: leftX, y: midY, size: HANDLE_SIZE, cursor: 'ew-resize' },
+        { position: 'right', x: rightX, y: midY, size: HANDLE_SIZE, cursor: 'ew-resize' },
         { position: 'start', x: leftX, y: converters.priceToY(tool.entry), size: HANDLE_SIZE, cursor: 'ns-resize' },
         { position: 'center', x: leftX, y: converters.priceToY(tool.stopLoss), size: HANDLE_SIZE, cursor: 'ns-resize' },
         { position: 'end', x: leftX, y: converters.priceToY(tool.takeProfit), size: HANDLE_SIZE, cursor: 'ns-resize' },

@@ -1230,9 +1230,10 @@ export class ToolsRenderer {
         ctx.stroke();
       });
 
-      // 4 corner resize handles
+      // 4 corner resize handles + 2 edge center handles
       const topY = Math.min(entryY, tpY, slY);
       const bottomY = Math.max(entryY, tpY, slY);
+      const midY = (topY + bottomY) / 2;
       const corners = [
         { x: leftX, y: topY },
         { x: rightX, y: topY },
@@ -1247,6 +1248,17 @@ export class ToolsRenderer {
         ctx.fill();
         ctx.strokeStyle = '#737373';
         ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // Left-center and right-center edge handles (horizontal resize)
+      [{ x: leftX, y: midY }, { x: rightX, y: midY }].forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 15, 20, 0.6)';
+        ctx.fill();
+        ctx.strokeStyle = '#a3a3a3';
+        ctx.lineWidth = 1.2;
         ctx.stroke();
       });
     }

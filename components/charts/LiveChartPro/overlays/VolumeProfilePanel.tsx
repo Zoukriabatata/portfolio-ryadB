@@ -134,8 +134,8 @@ export default function VolumeProfilePanel({
       ctx.globalAlpha = 1;
     }
 
-    const { bins, valueArea, maxBinVolume } = data;
-    if (bins.length === 0 || maxBinVolume === 0) {
+    const { bins, valueArea } = data;
+    if (bins.length === 0) {
       // "No data" label
       ctx.fillStyle = theme.textMuted;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
@@ -146,16 +146,6 @@ export default function VolumeProfilePanel({
 
     const priceRange = priceMax - priceMin;
     if (priceRange <= 0) return;
-
-    // Draw Value Area zone
-    const vahY = priceToY(valueArea.vah);
-    const valY = priceToY(valueArea.val);
-    ctx.fillStyle = VP_COLORS.vaFill;
-    ctx.fillRect(1, vahY, w - 1, valY - vahY);
-
-    // Calculate bar metrics
-    const barMaxWidth = w - 12; // 6px margin each side
-    const centerX = w / 2;
 
     // Determine tick size from bins for bar height
     let tickSize = 1;
@@ -172,40 +162,63 @@ export default function VolumeProfilePanel({
 
     const barHeight = Math.max(1, (tickSize / priceRange) * chartHeight - 1);
 
+    // ═══ VIEWPORT-AWARE maxBinVolume ═══
+    // Recalculate from ONLY visible bins — prevents fade when POC is off-screen
+    const viewportPadding = tickSize * 2;
+    const visibleBins = bins.filter(b =>
+      b.price >= priceMin - viewportPadding && b.price <= priceMax + viewportPadding
+    );
+    const visibleMaxVolume = visibleBins.reduce((max, b) => Math.max(max, b.totalVolume), 0);
+
+    if (visibleMaxVolume === 0) {
+      ctx.fillStyle = theme.textMuted;
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No VP Data', w / 2, h / 2);
+      return;
+    }
+
+    // Draw Value Area zone
+    const vahY = priceToY(valueArea.vah);
+    const valY = priceToY(valueArea.val);
+    ctx.fillStyle = VP_COLORS.vaFill;
+    ctx.fillRect(1, vahY, w - 1, valY - vahY);
+
+    // Calculate bar metrics
+    const barMaxWidth = w - 12; // 6px margin each side
+    const centerX = w / 2;
+
     // Gradient settings
     const gradEnabled = vpGradient?.enabled ?? false;
     const gradAskEnd = vpGradient?.askEnd || '#0a3d1a';
     const gradBidEnd = vpGradient?.bidEnd || '#3d0a0a';
 
-    // Draw bars — each bar uses per-bar opacity, never CSS/container opacity
-    for (const bin of bins) {
+    // Draw bars — each bar uses per-bar opacity, never distance-from-price-based
+    for (const bin of visibleBins) {
       const y = priceToY(bin.price);
 
-      // Skip bins outside viewport
+      // Skip bins outside canvas bounds
       if (y < -barHeight || y > h + barHeight) continue;
 
-      const bidRatio = bin.bidVolume / maxBinVolume;
-      const askRatio = bin.askVolume / maxBinVolume;
-      const totalIntensity = bin.totalVolume / maxBinVolume;
+      // Scale against VISIBLE max, not global max
+      const bidRatio = bin.bidVolume / visibleMaxVolume;
+      const askRatio = bin.askVolume / visibleMaxVolume;
+      const totalIntensity = bin.totalVolume / visibleMaxVolume;
 
       const bidBarWidth = (bidRatio * barMaxWidth) / 2;
       const askBarWidth = (askRatio * barMaxWidth) / 2;
 
-      // Bar opacity: volume-based, never distance-from-price-based
-      // Each bar uses same base opacity — intensity comes from color gradient only
-      const binBarOpacity = barOpacity;
-
       // Bid bar (left from center, red)
       if (bidBarWidth > 0.5) {
         ctx.fillStyle = gradEnabled ? interpolateHex(gradBidEnd, bidColor, totalIntensity) : bidColor;
-        ctx.globalAlpha = binBarOpacity;
+        ctx.globalAlpha = barOpacity;
         ctx.fillRect(centerX - bidBarWidth, y - barHeight / 2, bidBarWidth, Math.max(1, barHeight));
       }
 
       // Ask bar (right from center, green)
       if (askBarWidth > 0.5) {
         ctx.fillStyle = gradEnabled ? interpolateHex(gradAskEnd, askColor, totalIntensity) : askColor;
-        ctx.globalAlpha = binBarOpacity;
+        ctx.globalAlpha = barOpacity;
         ctx.fillRect(centerX, y - barHeight / 2, askBarWidth, Math.max(1, barHeight));
       }
 
