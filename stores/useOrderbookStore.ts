@@ -45,7 +45,7 @@ const MAX_WHALE_ORDERS = 50;
 
 // Throttle heavy analysis (whale detection, liquidity delta) to every 500ms
 // instead of running on every 100ms orderbook update
-const ANALYSIS_THROTTLE_MS = 500;
+const ANALYSIS_THROTTLE_MS = 250;
 let lastAnalysisTime = 0;
 
 export const useOrderbookStore = create<OrderbookState>((set, get) => ({

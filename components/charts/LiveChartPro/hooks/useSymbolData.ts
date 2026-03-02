@@ -113,10 +113,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     } finally {
       setLoadingPhase('rendering');
       requestAnimationFrame(() => {
-        setTimeout(() => {
-          setLoadingPhase(prev => prev === 'rendering' ? 'connecting' : prev);
-          setTimeout(() => setLoadingPhase(null), 600);
-        }, 300);
+        setLoadingPhase(null);
       });
     }
   }, []);
@@ -283,7 +280,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
 
         // Check price alerts + update positions + viewport (throttled)
         const now = Date.now();
-        if (now - refs.lastAlertCheck.current > 1000) {
+        if (now - refs.lastAlertCheck.current > 250) {
           refs.lastAlertCheck.current = now;
           checkAlerts(symbol, candle.close);
           updatePositionPrices(symbol.toUpperCase(), candle.close);
@@ -344,7 +341,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               refs.tickCount.current.textContent = ws.getTickCount().toLocaleString();
             }
             tickUpdateTimer = null;
-          }, 500);
+          }, 150);
         }
       });
       refs.unsubscribers.current.push(unsubTick);
