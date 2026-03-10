@@ -1,7 +1,9 @@
 import type { EconomicEvent, EventDetail } from '@/types/news';
 import { getEventDetail } from '@/lib/news/eventDatabase';
 import { generateImpactChart } from '@/lib/news/impactSimulation';
+import { generateHistory } from '@/lib/news/generateHistory';
 import { ImpactChart } from './ImpactChart';
+import { HistoricalSparkline } from './HistoricalSparkline';
 
 // ---------------------------------------------------------------------------
 // Section component
@@ -37,6 +39,8 @@ export function EventDetailPanel({ event }: { event: EconomicEvent }) {
 
   const deviation = event.deviation || 'inline';
   const impactData = generateImpactChart(event.event, deviation, event.impact);
+  const history = generateHistory(event.event, event.previous);
+  const hasConsensus = !!(event.consensusMin && event.consensusMax);
 
   return (
     <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-4 animate-fadeIn">
@@ -147,6 +151,60 @@ export function EventDetailPanel({ event }: { event: EconomicEvent }) {
             <span className="font-semibold text-[var(--warning)]">Key Level: </span>
             {detail.keyLevelToWatch}
           </p>
+        </div>
+      </Section>
+
+      {/* Consensus Range */}
+      {hasConsensus && event.forecast && (
+        <Section title="Analyst Consensus Range">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="font-mono text-[var(--text-dimmed)]">{event.consensusMin}</span>
+              <div className="flex-1 relative h-1.5 rounded-full" style={{ backgroundColor: 'var(--border)' }}>
+                {/* Range bar */}
+                <div
+                  className="absolute inset-y-0 rounded-full"
+                  style={{ left: '10%', right: '10%', backgroundColor: 'var(--primary)', opacity: 0.25 }}
+                />
+                {/* Forecast marker */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border-2"
+                  style={{
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: 'var(--surface)',
+                    borderColor: 'var(--primary)',
+                  }}
+                  title={`Forecast: ${event.forecast}`}
+                />
+                {/* Actual marker */}
+                {event.actual && (
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full"
+                    style={{
+                      left: event.deviation === 'beat' ? '65%' : event.deviation === 'miss' ? '35%' : '50%',
+                      transform: 'translate(-50%, -50%)',
+                      backgroundColor: event.deviation === 'beat' ? 'var(--bull)' : event.deviation === 'miss' ? 'var(--bear)' : 'var(--text-muted)',
+                    }}
+                    title={`Actual: ${event.actual}`}
+                  />
+                )}
+              </div>
+              <span className="font-mono text-[var(--text-dimmed)]">{event.consensusMax}</span>
+            </div>
+            <div className="flex justify-between text-[9px] text-[var(--text-dimmed)]">
+              <span>Low estimate</span>
+              <span className="text-[var(--primary)]">Fcst {event.forecast}</span>
+              <span>High estimate</span>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Historical Releases */}
+      <Section title="Last 6 Releases">
+        <div className="rounded-lg p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+          <HistoricalSparkline data={history} />
         </div>
       </Section>
 

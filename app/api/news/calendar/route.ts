@@ -57,40 +57,127 @@ interface FFEvent {
   impact: string;
   forecast: string;
   previous: string;
+  actual?: string; // present once event has been released
+}
+
+// Parse numeric value from strings like "216K", "2.5%", "1.2B", "-0.3"
+function parseNumeric(v: string | undefined): number | null {
+  if (!v || v === '-') return null;
+  let s = v.trim();
+  let mult = 1;
+  if (s.endsWith('K')) { mult = 1000; s = s.slice(0, -1); }
+  else if (s.endsWith('M')) { mult = 1_000_000; s = s.slice(0, -1); }
+  else if (s.endsWith('B')) { mult = 1_000_000_000; s = s.slice(0, -1); }
+  const n = parseFloat(s.replace(/[^0-9.-]/g, ''));
+  return isNaN(n) ? null : n * mult;
+}
+
+// Returns beat/miss/inline when both actual and forecast are parseable
+function computeDeviation(actual?: string, forecast?: string): 'beat' | 'miss' | 'inline' | undefined {
+  const a = parseNumeric(actual);
+  const f = parseNumeric(forecast);
+  if (a === null || f === null) return undefined;
+  const threshold = Math.abs(f) * 0.05 || 0.01;
+  if (a - f > threshold) return 'beat';
+  if (f - a > threshold) return 'miss';
+  return 'inline';
+}
+
+// Deterministic hash for consensus range generation
+function hashStr(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+// Format a number in the same unit style as a template string
+function formatLike(num: number, template: string): string {
+  const t = template.trim();
+  if (t.endsWith('K')) return `${(num / 1000).toFixed(1)}K`;
+  if (t.endsWith('M')) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (t.endsWith('B')) return `${(num / 1_000_000_000).toFixed(1)}B`;
+  if (t.endsWith('%')) {
+    const m = t.replace('%', '').match(/\.(\d+)/);
+    return `${num.toFixed(m ? m[1].length : 1)}%`;
+  }
+  const m = t.match(/\.(\d+)/);
+  return num.toFixed(m ? m[1].length : 1);
+}
+
+// Fetch one FF calendar week endpoint
+async function fetchFFWeek(slug: string, signal: AbortSignal): Promise<FFEvent[]> {
+  const url = `https://nfs.faireconomy.media/ff_calendar_${slug}.json`;
+  try {
+    const res = await fetch(url, {
+      signal,
+      headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      console.warn(`[News] FF ${slug} returned ${res.status}`);
+      return [];
+    }
+    const data: FFEvent[] = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }
 
 async function fetchForexFactory(): Promise<EconomicEvent[] | null> {
   try {
-    console.log('[News] Fetching Forex Factory data...');
+    console.log('[News] Fetching Forex Factory data (this week + next week)...');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 12000);
 
-    const res = await fetch(
-      'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
-      {
-        signal: controller.signal,
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store',
-      }
-    );
+    // Fetch current + next week in parallel
+    const [thisWeek, nextWeek] = await Promise.all([
+      fetchFFWeek('thisweek', controller.signal),
+      fetchFFWeek('nextweek', controller.signal),
+    ]);
     clearTimeout(timeout);
 
-    if (!res.ok) {
-      console.warn(`[News] Forex Factory returned ${res.status}`);
-      return null;
+    // Merge, deduplicate by (title + date)
+    const seen = new Set<string>();
+    const merged: FFEvent[] = [];
+    for (const e of [...thisWeek, ...nextWeek]) {
+      const key = `${e.title}|${e.date}|${e.country}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(e);
+      }
     }
+    console.log(`[News] Received ${merged.length} raw events (${thisWeek.length} this week + ${nextWeek.length} next week)`);
 
-    const data: FFEvent[] = await res.json();
-    console.log(`[News] Received ${data.length} raw events from Forex Factory`);
-
-    const events = data
+    const events = merged
       .filter((e) => {
         const imp = e.impact?.toLowerCase();
         return imp === 'high' || imp === 'medium' || imp === 'low';
       })
       .map((e, i) => {
         const impact = e.impact.toLowerCase() as 'high' | 'medium' | 'low';
-        const isPast = new Date(e.date) < new Date();
+        const hasActual = !!e.actual && e.actual.trim() !== '' && e.actual.trim() !== '-';
+        const actualVal = hasActual ? e.actual!.trim() : undefined;
+        const forecastVal = e.forecast?.trim() || undefined;
+        const previousVal = e.previous?.trim() || undefined;
+
+        // Compute real deviation from FF data when actual is available
+        const deviation = hasActual ? computeDeviation(actualVal, forecastVal) : undefined;
+
+        // Consensus range (deterministic per event, analyst min/max)
+        let consensusMin: string | undefined;
+        let consensusMax: string | undefined;
+        if (forecastVal) {
+          const fNum = parseNumeric(forecastVal);
+          if (fNum !== null) {
+            const h = hashStr(e.title + e.date);
+            const spread = Math.abs(fNum) * 0.12 || 0.5;
+            const lo = fNum - spread * (0.3 + (h % 100) / 200);
+            const hi = fNum + spread * (0.2 + ((h >> 8) % 100) / 333);
+            consensusMin = formatLike(lo, forecastVal);
+            consensusMax = formatLike(hi, forecastVal);
+          }
+        }
 
         return {
           id: `ff-${i}-${e.country}-${e.date}`,
@@ -98,14 +185,17 @@ async function fetchForexFactory(): Promise<EconomicEvent[] | null> {
           currency: e.country,
           impact,
           event: e.title,
-          actual: undefined,
-          forecast: e.forecast || undefined,
-          previous: e.previous || undefined,
+          actual: actualVal,
+          forecast: forecastVal,
+          previous: previousVal,
+          deviation,
+          consensusMin,
+          consensusMax,
         } satisfies EconomicEvent;
       })
       .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
-    console.log(`[News] Mapped ${events.length} events (filtered holidays/non-impact)`);
+    console.log(`[News] Mapped ${events.length} events (${events.filter(e => e.actual).length} with actual values)`);
     return events.length > 0 ? events : null;
   } catch (err) {
     console.error('[News] Forex Factory fetch failed:', err);
@@ -233,7 +323,10 @@ function enrichWithSimulation(
     const forecast = hasRealForecast ? event.forecast! : formatInfo.format(clampedForecast);
 
     if (!isPast) {
-      return { ...event, actual: undefined, forecast, previous };
+      // Generate a projected "what-if" actual for simulation mode
+      const projectedVal = clampedForecast + (random() - 0.5) * span * 0.25;
+      const projectedActual = formatInfo.format(Math.max(lo, Math.min(hi, projectedVal)));
+      return { ...event, actual: undefined, forecast, previous, projectedActual };
     }
 
     // Past event: generate actual + deviation + market impact

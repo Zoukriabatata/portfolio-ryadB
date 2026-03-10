@@ -1,151 +1,252 @@
+'use client';
+
+import { useRef } from 'react';
 import { SimulationIcon } from '@/components/ui/Icons';
 import type { TimeFilter } from '@/types/news';
+import { useNewsSettingsStore, type NewsTimezone } from '@/stores/useNewsSettingsStore';
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CURRENCY_FLAGS: Record<string, string> = {
-  USD: '\u{1F1FA}\u{1F1F8}', EUR: '\u{1F1EA}\u{1F1FA}', GBP: '\u{1F1EC}\u{1F1E7}',
-  JPY: '\u{1F1EF}\u{1F1F5}', AUD: '\u{1F1E6}\u{1F1FA}', CAD: '\u{1F1E8}\u{1F1E6}',
-  CHF: '\u{1F1E8}\u{1F1ED}', NZD: '\u{1F1F3}\u{1F1FF}',
+  USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
+  JPY: '🇯🇵', AUD: '🇦🇺', CAD: '🇨🇦',
+  CHF: '🇨🇭', NZD: '🇳🇿', CNY: '🇨🇳',
 };
 
-const TIME_OPTIONS: { value: TimeFilter; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'tomorrow', label: 'Tomorrow' },
-  { value: 'week', label: 'Week' },
-  { value: 'all', label: 'All' },
+const TZ_OPTIONS: { value: NewsTimezone; label: string }[] = [
+  { value: 'local', label: 'Local' },
+  { value: 'ET',    label: 'ET' },
+  { value: 'UTC',   label: 'UTC' },
 ];
 
-const CURRENCIES = ['All', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD'];
+const TIME_OPTIONS: { value: TimeFilter; label: string; short: string }[] = [
+  { value: 'today',    label: 'Today',    short: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow', short: 'Tmrw'  },
+  { value: 'week',     label: 'This Week', short: 'Week' },
+  { value: 'all',      label: 'All',      short: 'All'  },
+];
+
+const CURRENCIES = ['All', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'CNY'];
 
 const IMPACT_OPTIONS = [
-  { value: 'All', color: '' },
-  { value: 'High', color: 'bg-red-500' },
-  { value: 'Medium', color: 'bg-orange-500' },
-  { value: 'Low', color: 'bg-yellow-500' },
+  { value: 'All',    dot: null },
+  { value: 'High',   dot: '#ef4444' },
+  { value: 'Medium', dot: '#f59e0b' },
+  { value: 'Low',    dot: '#eab308' },
 ];
 
-// ---------------------------------------------------------------------------
-// Pill button
-// ---------------------------------------------------------------------------
+// ─── Component ────────────────────────────────────────────────────────────────
 
-function FilterPill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-2.5 py-1.5 text-xs rounded-full whitespace-nowrap transition-all duration-200 ${
-        active
-          ? 'bg-[var(--primary)] text-white shadow-md shadow-[var(--primary-glow)]'
-          : 'bg-[var(--surface-elevated)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)] active:scale-95'
-      }`}
-    >
-      {children}
-    </button>
-  );
+interface CalendarFiltersProps {
+  time: TimeFilter;
+  currency: string;
+  impact: string;
+  simulationMode: boolean;
+  searchQuery: string;
+  onTimeChange: (v: TimeFilter) => void;
+  onCurrencyChange: (v: string) => void;
+  onImpactChange: (v: string) => void;
+  onSimulationToggle: () => void;
+  onSearchChange: (v: string) => void;
+  onSearchClear: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// CalendarFilters
-// ---------------------------------------------------------------------------
 
 export function CalendarFilters({
   time,
   currency,
   impact,
   simulationMode,
+  searchQuery,
   onTimeChange,
   onCurrencyChange,
   onImpactChange,
   onSimulationToggle,
-}: {
-  time: TimeFilter;
-  currency: string;
-  impact: string;
-  simulationMode: boolean;
-  onTimeChange: (v: TimeFilter) => void;
-  onCurrencyChange: (v: string) => void;
-  onImpactChange: (v: string) => void;
-  onSimulationToggle: () => void;
-}) {
+  onSearchChange,
+  onSearchClear,
+}: CalendarFiltersProps) {
+  const searchRef = useRef<HTMLInputElement>(null);
+  const timezone = useNewsSettingsStore(s => s.timezone);
+  const setTimezone = useNewsSettingsStore(s => s.setTimezone);
+  const watchlistMode = useNewsSettingsStore(s => s.watchlistMode);
+  const toggleWatchlistMode = useNewsSettingsStore(s => s.toggleWatchlistMode);
+  const watchlistCount = useNewsSettingsStore(s => s.watchlist.length);
+
   return (
-    <div className="flex-shrink-0 px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Period */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[9px] text-[var(--text-dimmed)] uppercase tracking-widest font-semibold pl-1">Period</span>
-            <div className="flex items-center gap-1">
-              {TIME_OPTIONS.map(opt => (
-                <FilterPill key={opt.value} active={time === opt.value} onClick={() => onTimeChange(opt.value)}>
-                  {opt.label}
-                </FilterPill>
-              ))}
-            </div>
-          </div>
+    <div
+      className="flex-shrink-0 border-b border-[var(--border)]"
+      style={{ backgroundColor: 'var(--surface)' }}
+    >
+      {/* ── Row 1: Search + Period + Simulation ─────────────────────────── */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)]">
 
-          <div className="w-px h-8 bg-[var(--border)] hidden sm:block" />
-
-          {/* Currency */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[9px] text-[var(--text-dimmed)] uppercase tracking-widest font-semibold pl-1">Currency</span>
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none max-w-[calc(100vw-2rem)] sm:max-w-none relative">
-              {CURRENCIES.map(c => (
-                <FilterPill key={c} active={currency === c} onClick={() => onCurrencyChange(c)}>
-                  {c === 'All' ? 'All' : `${CURRENCY_FLAGS[c] || ''} ${c}`}
-                </FilterPill>
-              ))}
-            </div>
-          </div>
-
-          <div className="w-px h-8 bg-[var(--border)] hidden sm:block" />
-
-          {/* Impact */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[9px] text-[var(--text-dimmed)] uppercase tracking-widest font-semibold pl-1">Impact</span>
-            <div className="flex items-center gap-1">
-              {IMPACT_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => onImpactChange(opt.value)}
-                  className={`px-2.5 py-1.5 text-xs rounded-full flex items-center gap-1.5 transition-all duration-200 ${
-                    impact === opt.value
-                      ? 'bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border-light)]'
-                      : 'bg-[var(--surface-elevated)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]'
-                  }`}
-                >
-                  {opt.color && <span className={`w-2 h-2 rounded-full ${opt.color}`} />}
-                  {opt.value}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Search */}
+        <div
+          className="flex items-center gap-1.5 flex-1 max-w-[220px] px-2.5 h-7 rounded-md"
+          style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}
+          onClick={() => searchRef.current?.focus()}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: 'var(--text-dimmed)', flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            ref={searchRef}
+            type="text"
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+            placeholder="Search events…"
+            className="flex-1 bg-transparent text-[11px] focus:outline-none"
+            style={{ color: 'var(--text-primary)' }}
+          />
+          {searchQuery && (
+            <button
+              onClick={onSearchClear}
+              className="text-[var(--text-dimmed)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
+
+        <div className="w-px h-4 flex-shrink-0" style={{ backgroundColor: 'var(--border)' }} />
+
+        {/* Period tabs */}
+        <div
+          className="flex items-center rounded-md overflow-hidden flex-shrink-0"
+          style={{ border: '1px solid var(--border)', backgroundColor: 'var(--background)' }}
+        >
+          {TIME_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => onTimeChange(opt.value)}
+              className="px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap"
+              style={{
+                backgroundColor: time === opt.value ? 'var(--primary)' : 'transparent',
+                color: time === opt.value ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              {opt.short}
+            </button>
+          ))}
+        </div>
+
+        {/* Timezone selector */}
+        <div
+          className="flex items-center rounded-md overflow-hidden flex-shrink-0"
+          style={{ border: '1px solid var(--border)', backgroundColor: 'var(--background)' }}
+        >
+          {TZ_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setTimezone(opt.value)}
+              className="px-2 py-1 text-[10px] font-medium transition-colors whitespace-nowrap"
+              style={{
+                backgroundColor: timezone === opt.value ? 'var(--surface-elevated)' : 'transparent',
+                color: timezone === opt.value ? 'var(--text-primary)' : 'var(--text-dimmed)',
+              }}
+              title={`Display times in ${opt.label}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Watchlist toggle */}
+        {watchlistCount > 0 && (
+          <button
+            onClick={toggleWatchlistMode}
+            className="flex items-center gap-1 px-2 h-7 rounded-md text-[10px] font-medium transition-all flex-shrink-0"
+            style={{
+              backgroundColor: watchlistMode ? 'var(--warning-bg)' : 'var(--background)',
+              color: watchlistMode ? 'var(--warning)' : 'var(--text-dimmed)',
+              border: `1px solid ${watchlistMode ? 'var(--warning)' : 'var(--border)'}`,
+            }}
+            title="Show starred events only"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill={watchlistMode ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            {watchlistCount}
+          </button>
+        )}
 
         {/* Simulation toggle */}
         <button
           onClick={onSimulationToggle}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 flex-shrink-0 ${
-            simulationMode
-              ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-glow)]'
-              : 'bg-[var(--surface-elevated)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)]/50'
-          }`}
+          className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-md text-[11px] font-medium transition-all flex-shrink-0"
+          style={{
+            backgroundColor: simulationMode ? 'var(--primary)' : 'var(--background)',
+            color: simulationMode ? '#fff' : 'var(--text-muted)',
+            border: `1px solid ${simulationMode ? 'var(--primary)' : 'var(--border)'}`,
+          }}
+          title="Toggle simulation mode"
         >
-          <SimulationIcon size={14} color={simulationMode ? '#fff' : 'currentColor'} />
-          <span>Simulation</span>
-          <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${simulationMode ? 'bg-white/20' : 'bg-[var(--surface)]'}`}>
-            <div className={`w-3 h-3 rounded-full absolute top-0.5 transition-all duration-300 ${simulationMode ? 'left-[18px] bg-white' : 'left-0.5 bg-[var(--text-dimmed)]'}`} />
+          <SimulationIcon size={12} color="currentColor" />
+          <span className="hidden sm:block">Simulate</span>
+          {/* Mini toggle pill */}
+          <div
+            className="relative h-3.5 w-6 rounded-full transition-colors flex-shrink-0"
+            style={{ backgroundColor: simulationMode ? 'rgba(255,255,255,0.3)' : 'var(--border)' }}
+          >
+            <div
+              className="absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white transition-all"
+              style={{ left: simulationMode ? 11 : 2 }}
+            />
           </div>
         </button>
+      </div>
+
+      {/* ── Row 2: Currency + Impact ──────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-3 py-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+
+        {/* Currency */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {CURRENCIES.map(c => {
+            const active = currency === c;
+            return (
+              <button
+                key={c}
+                onClick={() => onCurrencyChange(c)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all whitespace-nowrap"
+                style={{
+                  backgroundColor: active ? 'var(--primary)' : 'transparent',
+                  color: active ? '#fff' : 'var(--text-muted)',
+                  border: `1px solid ${active ? 'var(--primary)' : 'transparent'}`,
+                }}
+              >
+                {c !== 'All' && <span className="text-[11px]">{CURRENCY_FLAGS[c]}</span>}
+                {c}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="w-px h-4 flex-shrink-0 mx-1" style={{ backgroundColor: 'var(--border)' }} />
+
+        {/* Impact */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {IMPACT_OPTIONS.map(opt => {
+            const active = impact === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => onImpactChange(opt.value)}
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium transition-all whitespace-nowrap"
+                style={{
+                  backgroundColor: active ? 'var(--surface-elevated)' : 'transparent',
+                  color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                  border: `1px solid ${active ? 'var(--border-light)' : 'transparent'}`,
+                }}
+              >
+                {opt.dot && (
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: opt.dot }} />
+                )}
+                {opt.value}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

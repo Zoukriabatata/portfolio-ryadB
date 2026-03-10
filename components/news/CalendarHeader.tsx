@@ -1,3 +1,7 @@
+'use client';
+
+import { useNewsSettingsStore } from '@/stores/useNewsSettingsStore';
+import { useEventNotifications } from '@/hooks/useEventNotifications';
 import { CalendarIcon, RefreshIcon } from '@/components/ui/Icons';
 import { ThemeSelector } from './ThemeSelector';
 import type { EconomicEvent } from '@/types/news';
@@ -15,14 +19,40 @@ export function CalendarHeader({
   lastUpdate,
   totalToday,
   nextHighImpact,
+  dataSource,
   onRefresh,
+  events,
 }: {
   isLoading: boolean;
   lastUpdate: Date | null;
   totalToday: number;
   nextHighImpact: EconomicEvent | null;
+  dataSource: 'forex-factory' | 'simulation' | null;
   onRefresh: () => void;
+  events: EconomicEvent[];
 }) {
+  const isLive = dataSource === 'forex-factory';
+
+  const notificationsEnabled = useNewsSettingsStore(s => s.notificationsEnabled);
+  const notificationLeadMinutes = useNewsSettingsStore(s => s.notificationLeadMinutes);
+  const toggleNotifications = useNewsSettingsStore(s => s.toggleNotifications);
+  const setNotificationLead = useNewsSettingsStore(s => s.setNotificationLead);
+
+  const { permission, requestPermission } = useEventNotifications(
+    events,
+    notificationsEnabled,
+    notificationLeadMinutes,
+  );
+
+  const handleBellClick = async () => {
+    if (notificationsEnabled) {
+      toggleNotifications();
+      return;
+    }
+    const perm = permission === 'default' ? await requestPermission() : permission;
+    if (perm === 'granted') toggleNotifications();
+  };
+
   return (
     <div className="flex-shrink-0 px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)]">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -31,8 +61,18 @@ export function CalendarHeader({
             <CalendarIcon size={20} color="#fff" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-[var(--text-primary)] leading-tight">Economic Calendar</h1>
-            <p className="text-[11px] text-[var(--text-muted)]">High-impact events & releases</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-[var(--text-primary)] leading-tight">Economic Calendar</h1>
+              {isLive && (
+                <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-500/12 text-emerald-400 border border-emerald-500/20">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                  Live
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              {isLive ? 'Forex Factory — real-time economic data' : 'High-impact events & releases'}
+            </p>
           </div>
         </div>
 
@@ -59,6 +99,41 @@ export function CalendarHeader({
               {lastUpdate.toLocaleTimeString()}
             </span>
           )}
+
+          {/* Notification bell */}
+          <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={handleBellClick}
+              className="p-2 rounded-lg border transition-all duration-200 active:scale-95"
+              style={{
+                backgroundColor: notificationsEnabled ? 'var(--primary)' : 'var(--surface-elevated)',
+                borderColor: notificationsEnabled ? 'var(--primary)' : 'var(--border)',
+                color: notificationsEnabled ? '#fff' : 'var(--text-muted)',
+              }}
+              title={notificationsEnabled ? 'Disable notifications' : 'Enable notifications (high-impact events)'}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill={notificationsEnabled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </button>
+            {notificationsEnabled && (
+              <select
+                value={notificationLeadMinutes}
+                onChange={e => setNotificationLead(Number(e.target.value))}
+                className="h-7 px-1.5 rounded text-[10px] font-medium border appearance-none cursor-pointer"
+                style={{
+                  backgroundColor: 'var(--surface-elevated)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <option value={5}>5m</option>
+                <option value={15}>15m</option>
+                <option value={30}>30m</option>
+              </select>
+            )}
+          </div>
 
           {/* Theme selector */}
           <ThemeSelector />

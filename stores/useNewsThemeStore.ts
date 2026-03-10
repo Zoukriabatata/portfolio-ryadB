@@ -17,7 +17,10 @@ export const useNewsThemeStore = create<NewsThemeState>()(
       name: 'senzoukria-news-theme',
       merge: (persisted, current) => {
         const p = persisted as Partial<NewsThemeState> | undefined;
-        const valid: NewsThemeId[] = ['senzoukria', 'atas', 'bookmap', 'sierra', 'highcontrast'];
+        const valid: NewsThemeId[] = [
+          'senzoukria', 'atas', 'bookmap', 'sierra', 'highcontrast',
+          'tradingview', 'bloomberg', 'midnight', 'light', 'dracula', 'nord', 'obsidian',
+        ];
         return {
           ...current,
           theme: p?.theme && valid.includes(p.theme) ? p.theme : current.theme,

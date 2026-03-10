@@ -20,6 +20,10 @@ export interface EconomicEvent {
   previous?: string;
   marketImpact?: MarketImpact;
   deviation?: 'beat' | 'miss' | 'inline';
+  /** Simulated projected value for future events in simulation mode */
+  projectedActual?: string;
+  consensusMin?: string;
+  consensusMax?: string;
 }
 
 export type TimeFilter = 'all' | 'today' | 'tomorrow' | 'week';
@@ -90,7 +94,19 @@ export interface SimulationResult {
 // News Themes
 // ---------------------------------------------------------------------------
 
-export type NewsThemeId = 'senzoukria' | 'atas' | 'bookmap' | 'sierra' | 'highcontrast';
+export type NewsThemeId =
+  | 'senzoukria'
+  | 'atas'
+  | 'bookmap'
+  | 'sierra'
+  | 'highcontrast'
+  | 'tradingview'
+  | 'bloomberg'
+  | 'midnight'
+  | 'light'
+  | 'dracula'
+  | 'nord'
+  | 'obsidian';
 
 export interface NewsThemeColors {
   background: string;

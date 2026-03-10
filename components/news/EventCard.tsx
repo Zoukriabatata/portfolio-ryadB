@@ -6,236 +6,325 @@ import type { EconomicEvent } from '@/types/news';
 import { MarketImpactPanel } from './MarketImpactPanel';
 import { EventDetailPanel } from './EventDetailPanel';
 import { SimulationPanel } from './SimulationPanel';
+import { useNewsSettingsStore } from '@/stores/useNewsSettingsStore';
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CURRENCY_FLAGS: Record<string, string> = {
-  USD: '\u{1F1FA}\u{1F1F8}', EUR: '\u{1F1EA}\u{1F1FA}', GBP: '\u{1F1EC}\u{1F1E7}',
-  JPY: '\u{1F1EF}\u{1F1F5}', AUD: '\u{1F1E6}\u{1F1FA}', CAD: '\u{1F1E8}\u{1F1E6}',
-  CHF: '\u{1F1E8}\u{1F1ED}', NZD: '\u{1F1F3}\u{1F1FF}', CNY: '\u{1F1E8}\u{1F1F3}',
+  USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
+  JPY: '🇯🇵', AUD: '🇦🇺', CAD: '🇨🇦',
+  CHF: '🇨🇭', NZD: '🇳🇿', CNY: '🇨🇳',
 };
 
-const IMPACT_COLORS = { high: 'bg-[var(--bear)]', medium: 'bg-[var(--warning)]', low: 'bg-[var(--warning-light,#eab308)]' };
-const IMPACT_BADGE = {
-  high: 'bg-[var(--bear-bg)] text-[var(--bear)]',
-  medium: 'bg-[var(--warning-bg)] text-[var(--warning)]',
-  low: 'bg-[var(--warning-bg)] text-[var(--warning-light,#eab308)]',
-};
+const IMPACT_CONFIG = {
+  high:   { count: 3, color: 'var(--bear)',    bg: 'var(--bear-bg)',    label: 'HIGH' },
+  medium: { count: 2, color: 'var(--warning)', bg: 'var(--warning-bg)', label: 'MED'  },
+  low:    { count: 1, color: 'var(--accent)',   bg: 'var(--surface-elevated)', label: 'LOW' },
+} as const;
 
-const DEVIATION_STYLES = {
-  beat: { text: 'text-[var(--bull)]', bg: 'bg-[var(--bull-bg)]', label: 'Beat' },
-  miss: { text: 'text-[var(--bear)]', bg: 'bg-[var(--bear-bg)]', label: 'Miss' },
-  inline: { text: 'text-[var(--text-secondary)]', bg: 'bg-[var(--surface-elevated)]', label: 'Inline' },
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatTime(timeStr: string) {
-  return new Date(timeStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+function formatTime(t: string, tz: 'local' | 'ET' | 'UTC' = 'local') {
+  const opts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
+  if (tz === 'UTC') opts.timeZone = 'UTC';
+  else if (tz === 'ET') opts.timeZone = 'America/New_York';
+  return new Date(t).toLocaleTimeString('en-US', opts);
+}
+function isPast(t: string) { return new Date(t) < new Date(); }
+function isSoon(t: string) {
+  const d = new Date(t).getTime() - Date.now();
+  return d > 0 && d < 60 * 60 * 1000;
 }
 
-function isEventPast(timeStr: string) {
-  return new Date(timeStr) < new Date();
-}
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-function isEventSoon(timeStr: string) {
-  const diff = new Date(timeStr).getTime() - Date.now();
-  return diff > 0 && diff < 60 * 60 * 1000;
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function DataPill({ label, value, className }: { label: string; value?: string; className: string }) {
+/** 3 dots indicator: filled = impact level, empty = grey */
+function ImpactDots({ impact }: { impact: 'high' | 'medium' | 'low' }) {
+  const { count, color } = IMPACT_CONFIG[impact];
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono ${className}`}>
-      <span className="text-[var(--text-dimmed)] text-[10px] uppercase tracking-wider font-sans">{label}</span>
-      <span className="font-semibold">{value || '-'}</span>
+    <div className="flex gap-0.5 items-center flex-shrink-0">
+      {[0, 1, 2].map(i => (
+        <span
+          key={i}
+          className="rounded-full"
+          style={{
+            width: 5, height: 5,
+            backgroundColor: i < count ? color : 'var(--border)',
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-function CountdownBadge({ targetTime }: { targetTime: string }) {
-  const [remaining, setRemaining] = useState('');
-  const isActive = usePageActive();
-
-  useEffect(() => {
-    if (!isActive) return;
-    const update = () => {
-      const diff = new Date(targetTime).getTime() - Date.now();
-      if (diff <= 0) { setRemaining('NOW'); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setRemaining(h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`);
-    };
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [targetTime, isActive]);
+/** One data value: label + formatted value */
+function DataCell({
+  label,
+  value,
+  deviation,
+  projected,
+}: {
+  label: string;
+  value?: string;
+  deviation?: 'beat' | 'miss' | 'inline';
+  projected?: boolean;
+}) {
+  const color = projected
+    ? 'var(--warning)'
+    : deviation === 'beat'
+      ? 'var(--bull)'
+      : deviation === 'miss'
+        ? 'var(--bear)'
+        : value
+          ? 'var(--text-primary)'
+          : 'var(--text-dimmed)';
 
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-[var(--warning)] bg-[var(--warning-bg)] animate-pulse">
-      <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]" />
-      {remaining}
+    <div className="text-center" style={{ minWidth: 44 }}>
+      <div className="text-[8px] font-semibold uppercase tracking-wider leading-none mb-0.5" style={{ color: projected ? 'var(--warning)' : 'var(--text-dimmed)' }}>
+        {projected ? 'PROJ' : label}
+      </div>
+      <div
+        className="text-[11px] font-mono font-bold tabular-nums leading-none"
+        style={{ color, fontStyle: projected ? 'italic' : 'normal', opacity: projected ? 0.85 : 1 }}
+      >
+        {value || '—'}
+      </div>
+    </div>
+  );
+}
+
+/** Deviation badge: BEAT / MISS / INLINE */
+function DeviationBadge({ deviation }: { deviation: 'beat' | 'miss' | 'inline' }) {
+  const config = {
+    beat:   { label: '↑ BEAT', color: 'var(--bull)',    bg: 'var(--bull-bg)'    },
+    miss:   { label: '↓ MISS', color: 'var(--bear)',    bg: 'var(--bear-bg)'   },
+    inline: { label: '= INLINE', color: 'var(--text-muted)', bg: 'var(--surface-elevated)' },
+  }[deviation];
+  return (
+    <span
+      className="text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide flex-shrink-0"
+      style={{ color: config.color, backgroundColor: config.bg }}
+    >
+      {config.label}
     </span>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Expand chevron
-// ---------------------------------------------------------------------------
+/** Live countdown for events within 1 hour */
+function Countdown({ targetTime }: { targetTime: string }) {
+  const [text, setText] = useState('');
+  const active = usePageActive();
 
-function ExpandChevron({ expanded }: { expanded: boolean }) {
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => {
+      const diff = new Date(targetTime).getTime() - Date.now();
+      if (diff <= 0) { setText('NOW'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setText(h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [targetTime, active]);
+
+  return (
+    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold animate-pulse flex-shrink-0" style={{ color: 'var(--warning)', backgroundColor: 'var(--warning-bg)' }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--warning)' }} />
+      {text}
+    </span>
+  );
+}
+
+/** Expand chevron */
+function Chevron({ open }: { open: boolean }) {
   return (
     <svg
-      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-      className={`transition-transform duration-200 text-[var(--text-dimmed)] ${expanded ? 'rotate-180' : ''}`}
+      width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      className="transition-transform duration-200 flex-shrink-0"
+      style={{
+        transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+        color: 'var(--text-dimmed)',
+      }}
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
   );
 }
 
-// ---------------------------------------------------------------------------
-// EventCard
-// ---------------------------------------------------------------------------
+// ─── Main EventCard ───────────────────────────────────────────────────────────
 
 export function EventCard({
   event,
-  index,
   simulationMode,
 }: {
   event: EconomicEvent;
-  index: number;
   simulationMode: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const isPast = isEventPast(event.time);
-  const isSoon = isEventSoon(event.time);
-  const isHigh = event.impact === 'high';
-  const isFuture = !isPast;
-  const stagger = Math.min(index + 1, 10);
+  const past = isPast(event.time);
+  const soon = isSoon(event.time);
+  const future = !past;
+  const { color, bg } = IMPACT_CONFIG[event.impact];
 
-  const actualColor = event.deviation === 'beat'
-    ? 'text-[var(--bull)] bg-[var(--bull-bg)]'
-    : event.deviation === 'miss'
-      ? 'text-[var(--bear)] bg-[var(--bear-bg)]'
-      : event.actual
-        ? 'text-[var(--text-primary)] bg-[var(--surface-elevated)]'
-        : 'text-[var(--text-dimmed)] bg-[var(--surface-elevated)]';
+  const timezone = useNewsSettingsStore(s => s.timezone);
+  const toggleStar = useNewsSettingsStore(s => s.toggleStar);
+  const isStarred = useNewsSettingsStore(s => s.watchlist.includes(event.event));
+
+  // Border color: left accent
+  const borderColor = soon
+    ? 'var(--warning)'
+    : event.impact === 'high' && future
+      ? 'var(--bear)'
+      : past
+        ? 'var(--border)'
+        : 'var(--border-light)';
 
   return (
     <div
-      className={`
-        glass rounded-xl border-l-4 p-4 transition-all duration-200
-        ${isHigh ? 'border-l-[var(--bear)]' : event.impact === 'medium' ? 'border-l-[var(--warning)]' : 'border-l-[var(--warning-light,#eab308)]'}
-        animate-slideUp stagger-${stagger}
-        ${isPast && !expanded ? 'opacity-50 hover:opacity-75' : isPast && expanded ? 'opacity-80' : 'card-hover'}
-        ${isSoon ? 'ring-1 ring-[var(--warning)]/30 shadow-lg shadow-[var(--warning)]/10' : ''}
-        ${isHigh && !isPast ? 'bg-gradient-to-r from-[var(--bear-bg)] to-transparent' : ''}
-        ${expanded ? 'ring-1 ring-[var(--primary)]/20' : ''}
-      `}
+      className="rounded-lg overflow-hidden transition-all duration-150"
+      style={{
+        borderTop: `1px solid ${expanded ? 'var(--primary)' : borderColor}`,
+        borderRight: `1px solid ${expanded ? 'var(--primary)' : borderColor}`,
+        borderBottom: `1px solid ${expanded ? 'var(--primary)' : borderColor}`,
+        borderLeft: `3px solid ${borderColor}`,
+        backgroundColor: past && !expanded ? 'transparent' : 'var(--surface)',
+        opacity: past && !expanded ? 0.65 : 1,
+        boxShadow: soon ? `0 0 12px rgba(var(--warning-rgb, 245,158,11),0.12)` : undefined,
+      }}
     >
-      {/* Header — clickable */}
+      {/* ── Main row (always visible, clickable) ──────────────────────────── */}
       <div
-        className="flex items-center justify-between mb-3 gap-2 flex-wrap cursor-pointer select-none"
+        className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-3">
-          <span className={`text-sm font-mono font-semibold ${isSoon ? 'text-[var(--warning)]' : 'text-[var(--text-primary)]'}`}>
-            {formatTime(event.time)}
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] text-xs">
-            <span>{CURRENCY_FLAGS[event.currency] || '\u{1F3F3}\u{FE0F}'}</span>
-            <span className="font-medium text-[var(--text-primary)]">{event.currency}</span>
+        {/* Time */}
+        <span
+          className="text-[11px] font-mono font-semibold tabular-nums flex-shrink-0 w-11 text-right"
+          style={{ color: soon ? 'var(--warning)' : past ? 'var(--text-dimmed)' : 'var(--text-primary)' }}
+        >
+          {formatTime(event.time, timezone)}
+        </span>
+
+        {/* Currency flag + code */}
+        <div className="flex items-center gap-1 flex-shrink-0 w-16">
+          <span className="text-sm leading-none">{CURRENCY_FLAGS[event.currency] ?? '🏳️'}</span>
+          <span className="text-[10px] font-bold" style={{ color: 'var(--text-secondary)' }}>
+            {event.currency}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {isSoon && <CountdownBadge targetTime={event.time} />}
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${IMPACT_BADGE[event.impact]} ${isHigh && !isPast ? 'animate-pulse' : ''}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${IMPACT_COLORS[event.impact]}`} />
-            {event.impact}
-          </span>
-          <ExpandChevron expanded={expanded} />
+        {/* Impact dots */}
+        <ImpactDots impact={event.impact} />
+
+        {/* Event name */}
+        <span
+          className="flex-1 text-[12px] font-medium truncate min-w-0"
+          style={{ color: past ? 'var(--text-muted)' : 'var(--text-primary)' }}
+        >
+          {event.event}
+        </span>
+
+        {/* Data cells: ACT / FCST / PREV */}
+        <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
+          <DataCell
+            label="ACT"
+            value={event.actual ?? (simulationMode && event.projectedActual ? `~${event.projectedActual}` : undefined)}
+            deviation={event.actual ? event.deviation : undefined}
+            projected={!event.actual && simulationMode && !!event.projectedActual}
+          />
+          <DataCell label="FCST" value={event.forecast} />
+          <DataCell label="PREV" value={event.previous} />
         </div>
-      </div>
 
-      {/* Event name — clickable */}
-      <h3
-        className={`font-semibold mb-3 cursor-pointer ${isHigh ? 'text-base text-[var(--text-primary)]' : 'text-sm text-[var(--text-secondary)]'}`}
-        onClick={() => setExpanded(!expanded)}
-      >
-        {event.event}
-      </h3>
-
-      {/* Data pills */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <DataPill label="Act" value={event.actual} className={actualColor} />
-        <DataPill label="Fcst" value={event.forecast} className="text-[var(--text-secondary)] bg-[var(--surface-elevated)]" />
-        <DataPill label="Prev" value={event.previous} className="text-[var(--text-muted)] bg-[var(--surface-elevated)]" />
-
-        {simulationMode && event.deviation && (
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${DEVIATION_STYLES[event.deviation].bg} ${DEVIATION_STYLES[event.deviation].text}`}>
-            {DEVIATION_STYLES[event.deviation].label}
-          </span>
+        {/* Deviation badge (only when actual exists) */}
+        {event.deviation && event.actual && (
+          <div className="hidden md:block">
+            <DeviationBadge deviation={event.deviation} />
+          </div>
         )}
+
+        {/* Countdown for soon events */}
+        {soon && <Countdown targetTime={event.time} />}
+
+        {/* High-impact upcoming pulse */}
+        {!past && event.impact === 'high' && !soon && (
+          <span
+            className="hidden sm:flex w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse"
+            style={{ backgroundColor: 'var(--bear)' }}
+          />
+        )}
+
+        {/* Star / watchlist */}
+        <button
+          onClick={e => { e.stopPropagation(); toggleStar(event.event); }}
+          className="flex-shrink-0 transition-colors"
+          style={{ color: isStarred ? 'var(--warning)' : 'var(--border)' }}
+          title={isStarred ? 'Remove from watchlist' : 'Add to watchlist'}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill={isStarred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </button>
+
+        {/* Expand chevron */}
+        <Chevron open={expanded} />
       </div>
 
-      {/* Market Impact (simulation mode, past events) */}
-      {simulationMode && event.marketImpact && (
-        <MarketImpactPanel impact={event.marketImpact} />
-      )}
+      {/* ── Mobile: data row (only visible on small screens) ─────────────── */}
+      <div
+        className="sm:hidden flex items-center gap-3 px-3 pb-2.5"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-3 ml-auto">
+          <DataCell
+            label="ACT"
+            value={event.actual ?? (simulationMode && event.projectedActual ? `~${event.projectedActual}` : undefined)}
+            deviation={event.actual ? event.deviation : undefined}
+            projected={!event.actual && simulationMode && !!event.projectedActual}
+          />
+          <DataCell label="FCST" value={event.forecast} />
+          <DataCell label="PREV" value={event.previous} />
+          {event.deviation && event.actual && <DeviationBadge deviation={event.deviation} />}
+        </div>
+      </div>
 
-      {/* Expanded: Event Detail Panel */}
+      {/* ── Expanded content ──────────────────────────────────────────────── */}
       {expanded && (
-        <EventDetailPanel event={event} />
-      )}
+        <div
+          className="px-3 pb-3"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          {/* Simulation market impact (past events) */}
+          {simulationMode && event.marketImpact && (
+            <MarketImpactPanel impact={event.marketImpact} />
+          )}
 
-      {/* Expanded + Simulation: Interactive Simulation for future events */}
-      {expanded && simulationMode && isFuture && (
-        <SimulationPanel event={event} />
+          {/* Event detail panel */}
+          <EventDetailPanel event={event} />
+
+          {/* Interactive simulation (future events in sim mode) */}
+          {simulationMode && future && (
+            <SimulationPanel event={event} />
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Timeline wrapper — dot + card
-// ---------------------------------------------------------------------------
+// ─── TimelineEvent wrapper ────────────────────────────────────────────────────
 
 export function TimelineEvent({
   event,
-  index,
   simulationMode,
 }: {
   event: EconomicEvent;
   index: number;
   simulationMode: boolean;
 }) {
-  const isPast = isEventPast(event.time);
-  const isSoon = isEventSoon(event.time);
-  const isHigh = event.impact === 'high';
-
-  return (
-    <div className="relative">
-      {/* Timeline dot — larger for high impact */}
-      <div className={`absolute -left-[27px] top-5 rounded-full border-2 transition-all duration-200 ${
-        isHigh ? 'w-3 h-3 -left-[28px]' : 'w-2.5 h-2.5'
-      } ${
-        isSoon
-          ? 'bg-[var(--warning)] border-[var(--warning)] shadow-md shadow-[var(--warning)]/50 animate-pulse'
-          : isPast
-            ? 'bg-[var(--surface-elevated)] border-[var(--border)]'
-            : `${IMPACT_COLORS[event.impact]} border-[var(--surface)]`
-      }`} />
-      <EventCard event={event} index={index} simulationMode={simulationMode} />
-    </div>
-  );
+  return <EventCard event={event} simulationMode={simulationMode} />;
 }

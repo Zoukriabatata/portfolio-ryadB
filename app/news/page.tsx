@@ -1,11 +1,14 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useEconomicCalendar } from '@/hooks/useEconomicCalendar';
 import { useNewsThemeStore } from '@/stores/useNewsThemeStore';
+import { useNewsSettingsStore } from '@/stores/useNewsSettingsStore';
 import { NEWS_THEMES, themeToCSS } from '@/lib/news/newsThemes';
 import { CalendarHeader } from '@/components/news/CalendarHeader';
 import { CalendarFilters } from '@/components/news/CalendarFilters';
 import { CalendarFooter } from '@/components/news/CalendarFooter';
+import { SurpriseTape } from '@/components/news/SurpriseTape';
 import { TimelineEvent } from '@/components/news/EventCard';
 import { LoadingSkeleton } from '@/components/news/LoadingSkeleton';
 import { EmptyState } from '@/components/news/EmptyState';
@@ -18,6 +21,7 @@ export default function NewsPage() {
     isLoading,
     error,
     lastUpdate,
+    dataSource,
     filters,
     setCurrency,
     setImpact,
@@ -27,10 +31,27 @@ export default function NewsPage() {
     refresh,
     nextHighImpact,
     totalToday,
+    todayStats,
+    searchQuery,
+    setSearchQuery,
+    clearSearch,
   } = useEconomicCalendar();
 
   const themeId = useNewsThemeStore(s => s.theme);
   const themeCSS = themeToCSS(NEWS_THEMES[themeId]);
+
+  const watchlistMode = useNewsSettingsStore(s => s.watchlistMode);
+  const watchlist = useNewsSettingsStore(s => s.watchlist);
+
+  // Apply watchlist filter on top of existing grouped events
+  const displayedGroups = useMemo(() => {
+    if (!watchlistMode || watchlist.length === 0) return groupedEvents;
+    return Object.fromEntries(
+      Object.entries(groupedEvents)
+        .map(([date, evts]) => [date, evts.filter(e => watchlist.includes(e.event))] as const)
+        .filter(([, evts]) => evts.length > 0)
+    );
+  }, [groupedEvents, watchlistMode, watchlist]);
 
   return (
     <div className="h-full flex flex-col bg-[var(--background)]" style={themeCSS}>
@@ -39,7 +60,9 @@ export default function NewsPage() {
         lastUpdate={lastUpdate}
         totalToday={totalToday}
         nextHighImpact={nextHighImpact}
+        dataSource={dataSource}
         onRefresh={refresh}
+        events={events}
       />
 
       <CalendarFilters
@@ -47,41 +70,61 @@ export default function NewsPage() {
         currency={filters.currency}
         impact={filters.impact}
         simulationMode={simulationMode}
+        searchQuery={searchQuery}
         onTimeChange={setTime}
         onCurrencyChange={setCurrency}
         onImpactChange={setImpact}
         onSimulationToggle={toggleSimulation}
+        onSearchChange={setSearchQuery}
+        onSearchClear={clearSearch}
       />
+
+      <SurpriseTape events={events} />
 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {isLoading ? (
           <LoadingSkeleton />
         ) : error ? (
           <ErrorState error={error} onRetry={refresh} />
-        ) : events.length === 0 ? (
+        ) : Object.keys(displayedGroups).length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="max-w-4xl mx-auto space-y-8">
-            {Object.entries(groupedEvents).map(([date, dayEvents]) => (
-              <div key={date} className="animate-fadeIn">
-                {/* Date section header */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-[var(--primary)] shadow-md shadow-[var(--primary-glow)]" />
-                  <h2 className="text-sm font-semibold text-[var(--text-secondary)] tracking-wide uppercase">
-                    {date}
-                  </h2>
-                  <div className="flex-1 h-px bg-gradient-to-r from-[var(--border)] to-transparent" />
-                  <span className="text-[10px] text-[var(--text-dimmed)] tabular-nums">
-                    {dayEvents.length} event{dayEvents.length > 1 ? 's' : ''}
-                  </span>
-                </div>
+          <div className="max-w-4xl mx-auto space-y-6">
+            {Object.entries(displayedGroups).map(([date, dayEvents]) => {
+              const high = dayEvents.filter(e => e.impact === 'high').length;
+              const med = dayEvents.filter(e => e.impact === 'medium').length;
+              const low = dayEvents.filter(e => e.impact === 'low').length;
+              return (
+                <div key={date} className="animate-fadeIn">
+                  {/* Date section header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <h2 className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wider uppercase">
+                      {date}
+                    </h2>
+                    <div className="flex-1 h-px bg-[var(--border)]" />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {high > 0 && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded tabular-nums" style={{ color: 'var(--bear)', backgroundColor: 'var(--bear-bg)' }}>
+                          {high}H
+                        </span>
+                      )}
+                      {med > 0 && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded tabular-nums" style={{ color: 'var(--warning)', backgroundColor: 'var(--warning-bg)' }}>
+                          {med}M
+                        </span>
+                      )}
+                      {low > 0 && (
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded tabular-nums" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--surface-elevated)' }}>
+                          {low}L
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                {/* Timeline */}
-                <div className="relative pl-8">
-                  <div className="absolute left-[5px] top-0 bottom-0 w-px bg-gradient-to-b from-[var(--primary)]/30 via-[var(--border)] to-transparent" />
-                  <div className="space-y-3">
+                  {/* Event rows */}
+                  <div className="space-y-1.5">
                     {dayEvents.map((event, idx) => (
-                      <div key={event.id} className="animate-slideUp" style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'both' }}>
+                      <div key={event.id} className="animate-slideUp" style={{ animationDelay: `${idx * 30}ms`, animationFillMode: 'both' }}>
                         <TimelineEvent
                           event={event}
                           index={idx}
@@ -91,13 +134,13 @@ export default function NewsPage() {
                     ))}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      <CalendarFooter simulationMode={simulationMode} />
+      <CalendarFooter simulationMode={simulationMode} dataSource={dataSource} />
     </div>
   );
 }
