@@ -4,6 +4,8 @@ import { useEffect, useCallback, useState, useMemo } from 'react';
 import IVTermStructure from '@/components/charts/IVTermStructure';
 import dynamic from 'next/dynamic';
 import { ChartSkeleton, EmptyState } from '@/components/ui/Skeleton';
+import { usePageActive } from '@/hooks/usePageActive';
+import { useLiveSpot } from '@/lib/useLiveSpot';
 
 const IVSurface3D = dynamic(() => import('@/components/charts/IVSurface3D'), { ssr: false });
 const IVSmileChart = dynamic(() => import('@/components/charts/IVSmileChart'), { ssr: false });
@@ -32,6 +34,9 @@ export default function VolatilityPageContent() {
     getATMStrike,
     reset,
   } = useEquityOptionsStore();
+
+  const isActive = usePageActive();
+  const liveSpot = useLiveSpot(symbol, 10_000);
 
   const [viewMode, setViewMode] = useState<ViewMode>('smile');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -78,9 +83,16 @@ export default function VolatilityPageContent() {
     if (selectedExpiration) loadLiveData();
   }, [selectedExpiration]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-refresh every 30s when tab is active
+  useEffect(() => {
+    if (!isActive) return;
+    const t = setInterval(loadLiveData, 30_000);
+    return () => clearInterval(t);
+  }, [isActive, loadLiveData]);
+
   // ─── Derived metrics ───
   const skewData = liveSkewData;
-  const spot = liveSpotPrice || underlyingPrice;
+  const spot = liveSpot.price > 0 ? liveSpot.price : liveSpotPrice || underlyingPrice;
   const atmStrike = skewData.length > 0
     ? skewData.reduce((c, d) => Math.abs(d.moneyness - 1) < Math.abs(c.moneyness - 1) ? d : c).strike
     : getATMStrike();

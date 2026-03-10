@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { usePageActive } from '@/hooks/usePageActive';
 import type {
   GEXStreamData,
   OptionsFlowData,
@@ -237,13 +238,14 @@ function calculateBias(
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useTradingData(autoRefreshMs = 60_000): UseTradingDataReturn {
+export function useTradingData(autoRefreshMs = 30_000): UseTradingDataReturn {
   const [symbol, setSymbol] = useState('QQQ');
   const [gexData, setGexData] = useState<GEXStreamData | null>(null);
   const [optionsData, setOptionsData] = useState<OptionsFlowData | null>(null);
   const [bias, setBias] = useState<TradingBias | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isActive = usePageActive();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const symbolRef = useRef(symbol);
   symbolRef.current = symbol;
@@ -293,13 +295,14 @@ export function useTradingData(autoRefreshMs = 60_000): UseTradingDataReturn {
     fetchAll();
   }, [symbol, fetchAll]);
 
-  // Auto-refresh
+  // Auto-refresh (pauses when tab is inactive)
   useEffect(() => {
-    if (autoRefreshMs > 0) {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (autoRefreshMs > 0 && isActive) {
       intervalRef.current = setInterval(fetchAll, autoRefreshMs);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [fetchAll, autoRefreshMs]);
+  }, [fetchAll, autoRefreshMs, isActive]);
 
   return { gexData, optionsData, bias, loading, error, refresh: fetchAll, symbol, setSymbol };
 }

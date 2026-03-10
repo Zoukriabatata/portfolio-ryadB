@@ -133,7 +133,7 @@ export default function GEXPageContent() {
     const strikes = adaptedLegacyData.map(d => d.strike);
     const lo = Math.min(...strikes), hi = Math.max(...strikes), range = hi - lo;
     if (zoom === 'full') return adaptedLegacyData;
-    const center = spotPrice || (lo + hi) / 2;
+    const center = effectiveSpot || spotPrice || (lo + hi) / 2;
     const half = range * (zoom === 'atm' ? 0.15 : 0.06);
     return adaptedLegacyData.filter(d => d.strike >= center - half && d.strike <= center + half);
   }, [adaptedLegacyData, zoom, spotPrice]);
@@ -144,22 +144,22 @@ export default function GEXPageContent() {
     if (!multiGreekSummary) return null;
     const gexBull = multiGreekSummary.netGEX > 0;
     const flowBull = multiGreekSummary.flowRatio >= 1;
-    const aboveZG = spotPrice > multiGreekSummary.zeroGammaLevel;
+    const aboveZG = effectiveSpot > multiGreekSummary.zeroGammaLevel;
     const bullCount = [gexBull, flowBull, aboveZG].filter(Boolean).length;
     if (bullCount >= 2) return 'BULLISH';
     if (bullCount === 0) return 'BEARISH';
     return 'NEUTRAL';
-  }, [multiGreekSummary, spotPrice]);
+  }, [multiGreekSummary, effectiveSpot]);
 
   const biasColor = bias === 'BULLISH' ? '#22c55e' : bias === 'BEARISH' ? '#ef4444' : '#eab308';
 
-  // Wall bar position
+  // Wall bar position — uses 10s live spot for real-time wall proximity
   const wallBarPct = useMemo(() => {
     const cw = multiGreekSummary?.callWall ?? 0;
     const pw = multiGreekSummary?.putWall ?? 0;
-    if (!cw || !pw || cw <= pw || spotPrice <= pw) return 50;
-    return Math.min(100, Math.max(0, ((spotPrice - pw) / (cw - pw)) * 100));
-  }, [multiGreekSummary, spotPrice]);
+    if (!cw || !pw || cw <= pw || effectiveSpot <= pw) return 50;
+    return Math.min(100, Math.max(0, ((effectiveSpot - pw) / (cw - pw)) * 100));
+  }, [multiGreekSummary, effectiveSpot]);
 
   // ─── Data fetch ────────────────────────────────────────────────────────────
 
@@ -310,11 +310,14 @@ export default function GEXPageContent() {
             })}
           </div>
 
-          {/* Spot price */}
-          {spotPrice > 0 && (
-            <span className="text-[12px] font-mono font-bold text-[var(--text-secondary)]">
-              ${spotPrice.toFixed(2)}
-            </span>
+          {/* Spot price — live 10s update */}
+          {effectiveSpot > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: biasColor }} />
+              <span className="text-[13px] font-mono font-bold" style={{ color: biasColor }}>
+                ${effectiveSpot.toFixed(2)}
+              </span>
+            </div>
           )}
         </div>
 
@@ -384,7 +387,7 @@ export default function GEXPageContent() {
                 <div className="mt-4 mb-2">
                   <div className="flex justify-between text-[9px] text-[var(--text-muted)] mb-1">
                     <span className="text-red-400 font-bold">${putWall > 0 ? putWall.toFixed(0) : '—'}</span>
-                    <span className="text-[var(--text-secondary)] font-mono text-[10px]">${spotPrice > 0 ? spotPrice.toFixed(1) : '—'}</span>
+                    <span className="text-[var(--text-secondary)] font-mono text-[10px]">${effectiveSpot > 0 ? effectiveSpot.toFixed(1) : '—'}</span>
                     <span className="text-green-400 font-bold">${callWall > 0 ? callWall.toFixed(0) : '—'}</span>
                   </div>
                   <div className="relative h-2 rounded-full overflow-hidden bg-[var(--background)]">
@@ -400,8 +403,8 @@ export default function GEXPageContent() {
 
                 {/* KEY LEVELS */}
                 <SectionLabel>Key Levels</SectionLabel>
-                <MetricRow label="Call Wall" value={`$${callWall > 0 ? callWall.toFixed(0) : '—'}`} sub={callWall > 0 && spotPrice > 0 ? `+${((callWall - spotPrice) / spotPrice * 100).toFixed(1)}%` : ''} />
-                <MetricRow label="Put Wall" value={`$${putWall > 0 ? putWall.toFixed(0) : '—'}`} sub={putWall > 0 && spotPrice > 0 ? `${((putWall - spotPrice) / spotPrice * 100).toFixed(1)}%` : ''} />
+                <MetricRow label="Call Wall" value={`$${callWall > 0 ? callWall.toFixed(0) : '—'}`} sub={callWall > 0 && effectiveSpot > 0 ? `+${((callWall - effectiveSpot) / effectiveSpot * 100).toFixed(1)}%` : ''} />
+                <MetricRow label="Put Wall" value={`$${putWall > 0 ? putWall.toFixed(0) : '—'}`} sub={putWall > 0 && effectiveSpot > 0 ? `${((putWall - effectiveSpot) / effectiveSpot * 100).toFixed(1)}%` : ''} />
                 <MetricRow label="Zero Gamma" value={`$${zeroGamma > 0 ? zeroGamma.toFixed(0) : '—'}`} />
                 <MetricRow label="Max Pain" value={`$${s.maxPain > 0 ? s.maxPain.toFixed(0) : '—'}`} />
 

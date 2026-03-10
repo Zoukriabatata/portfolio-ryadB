@@ -2,6 +2,7 @@
 
 import { useTradingData } from '@/lib/useTradingData';
 import { useWallAlerts } from '@/lib/useWallAlerts';
+import { useLiveSpot } from '@/lib/useLiveSpot';
 import { useRef, useEffect } from 'react';
 import type {
   BiasDirection, TradeStyle, MarketRegime,
@@ -619,8 +620,9 @@ function ReasoningBlock({ text }: { text: string }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function BiasDashboard() {
-  const { gexData, optionsData, bias, loading, error, refresh, symbol, setSymbol } = useTradingData(60_000);
-  const spot = gexData?.spotPrice ?? null;
+  const { gexData, optionsData, bias, loading, error, refresh, symbol, setSymbol } = useTradingData(30_000);
+  const liveSpot = useLiveSpot(symbol, 10_000);
+  const spot = liveSpot.price > 0 ? liveSpot.price : gexData?.spotPrice ?? null;
   useWallAlerts(gexData, symbol);
 
   return (
