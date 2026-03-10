@@ -3,9 +3,8 @@
 /**
  * INLINE TOOL SETTINGS BAR — TradingView-Style
  *
- * Horizontal bar displayed above the chart when a drawing tool is selected.
- * Shows: color, line width, line style, opacity + actions (lock, clone, hide, delete).
- * Reads directly from selectedTool prop — single source of truth.
+ * Horizontal bar (h-8) shown above the chart when a drawing tool is active.
+ * Very compact, left-to-right: [icon + label] | [color] [width] [style] | [position controls] | [lock] [hide] [clone] [delete] | [presets] [props]
  */
 
 import { useCallback, useEffect, useState, useReducer, useRef } from 'react';
@@ -29,27 +28,131 @@ import {
   Star,
   X,
   Check,
+  TrendingUp,
+  MoveRight,
+  Minus,
+  ArrowRight,
+  SeparatorVertical,
+  Square,
+  Columns2,
+  Circle,
+  GitBranch,
+  GitFork,
+  ArrowUpRight,
+  Pen,
+  Highlighter,
+  Ruler,
+  Type,
+  MousePointer2,
+  type LucideIcon,
 } from 'lucide-react';
 import { DynamicToolSettingsPanel } from './DynamicToolSettingsPanel';
 import { useToolSettingsStore, type ToolPreset } from '@/stores/useToolSettingsStore';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
+
+// ─── Tool icon + label mapping ────────────────────────────────────────────────
+
+const TOOL_ICONS: Partial<Record<string, LucideIcon>> = {
+  cursor: MousePointer2,
+  trendline: TrendingUp,
+  ray: MoveRight,
+  horizontalLine: Minus,
+  horizontalRay: ArrowRight,
+  verticalLine: SeparatorVertical,
+  rectangle: Square,
+  parallelChannel: Columns2,
+  ellipse: Circle,
+  fibRetracement: GitBranch,
+  fibExtension: GitFork,
+  longPosition: ArrowUpRight,
+  shortPosition: ArrowUpRight,
+  arrow: ArrowUpRight,
+  brush: Pen,
+  highlighter: Highlighter,
+  measure: Ruler,
+  text: Type,
+};
+
+const TOOL_LABELS: Partial<Record<string, string>> = {
+  cursor: 'Cursor',
+  trendline: 'Trend',
+  ray: 'Ray',
+  horizontalLine: 'H. Line',
+  horizontalRay: 'H. Ray',
+  verticalLine: 'V. Line',
+  rectangle: 'Rectangle',
+  parallelChannel: 'Channel',
+  ellipse: 'Ellipse',
+  fibRetracement: 'Fibonacci',
+  fibExtension: 'Fib. Ext.',
+  longPosition: 'Long',
+  shortPosition: 'Short',
+  arrow: 'Arrow',
+  brush: 'Brush',
+  highlighter: 'Highlighter',
+  measure: 'Measure',
+  text: 'Text',
+};
+
+// ─── Line width & style ───────────────────────────────────────────────────────
 
 const LINE_WIDTHS = [1, 2, 3, 4];
 
 const LINE_STYLES: { value: LineStyle; label: string; svg: React.ReactNode }[] = [
   {
     value: 'solid', label: 'Solid',
-    svg: <line x1="2" y1="6" x2="18" y2="6" stroke="currentColor" strokeWidth="2" />,
+    svg: <line x1="2" y1="6" x2="26" y2="6" stroke="currentColor" strokeWidth="1.5" />,
   },
   {
     value: 'dashed', label: 'Dashed',
-    svg: <line x1="2" y1="6" x2="18" y2="6" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" />,
+    svg: <line x1="2" y1="6" x2="26" y2="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="5 3" />,
   },
   {
     value: 'dotted', label: 'Dotted',
-    svg: <line x1="2" y1="6" x2="18" y2="6" stroke="currentColor" strokeWidth="2" strokeDasharray="1.5 2" />,
+    svg: <line x1="2" y1="6" x2="26" y2="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 3" />,
   },
 ];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function Sep() {
+  return <div className="w-px h-4 flex-shrink-0" style={{ backgroundColor: 'var(--border)' }} />;
+}
+
+function ActionBtn({
+  onClick,
+  active,
+  activeColor,
+  hoverRed,
+  title,
+  children,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  activeColor?: string;
+  hoverRed?: boolean;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+        hoverRed
+          ? 'text-[var(--text-muted)] hover:bg-red-500/12 hover:text-red-400'
+          : active
+          ? ''
+          : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
+      }`}
+      style={active ? { color: activeColor, backgroundColor: `${activeColor}1a` } : undefined}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 interface InlineToolSettingsProps {
   selectedTool: Tool | null;
@@ -71,7 +174,7 @@ export default function InlineToolSettings({
   const barRef = useRef<HTMLDivElement>(null);
   const presetInputRef = useRef<HTMLInputElement>(null);
 
-  // Force re-render when the selected tool's style changes in the engine
+  // Force re-render when the engine updates the tool
   const [, forceRender] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     if (!selectedTool) return;
@@ -84,10 +187,8 @@ export default function InlineToolSettings({
     return unsub;
   }, [selectedTool?.id]);
 
-  // Preset store
-  const { presets, savePreset, deletePreset, setAsDefault } = useToolSettingsStore();
+  const { presets, savePreset, deletePreset } = useToolSettingsStore();
 
-  // Close dropdowns when tool deselected
   useEffect(() => {
     if (!selectedTool) {
       setShowWidthPicker(false);
@@ -98,7 +199,6 @@ export default function InlineToolSettings({
     }
   }, [selectedTool]);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       if (barRef.current && !barRef.current.contains(e.target as Node)) {
@@ -113,7 +213,6 @@ export default function InlineToolSettings({
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  // Focus preset name input when shown
   useEffect(() => {
     if (showPresetNameInput && presetInputRef.current) {
       presetInputRef.current.focus();
@@ -122,7 +221,6 @@ export default function InlineToolSettings({
 
   const updateStyle = useCallback((updates: Partial<ToolStyle>) => {
     if (!selectedTool) return;
-    // Multi-tool bulk editing with debounced undo + lineWidth animation
     getToolsEngine().updateSelectedToolsStyle(updates);
     onRender?.();
   }, [selectedTool, onRender]);
@@ -168,7 +266,6 @@ export default function InlineToolSettings({
 
   const handleApplyPreset = useCallback((preset: ToolPreset) => {
     if (!selectedTool) return;
-    // Apply preset style to ALL selected tools (multi-edit)
     getToolsEngine().updateSelectedToolsStyle(preset.style as any);
     onRender?.();
     setShowPresetMenu(false);
@@ -176,7 +273,6 @@ export default function InlineToolSettings({
 
   const handleSetAsDefault = useCallback(() => {
     if (!selectedTool) return;
-    // Write to engine (single source of truth for defaults)
     const fresh = getToolsEngine().getTool(selectedTool.id) ?? selectedTool;
     getToolsEngine().setDefaultStyle(fresh.type as any, fresh.style);
     setShowPresetMenu(false);
@@ -184,29 +280,53 @@ export default function InlineToolSettings({
 
   if (!selectedTool) return null;
 
-  // Read fresh style from engine — the true single source of truth
-  // (selectedTool prop may be stale if parent hasn't re-rendered yet)
   const freshTool = getToolsEngine().getTool(selectedTool.id) ?? selectedTool;
   const style = freshTool.style;
-
-  // Filter presets for current tool type
   const toolPresets = presets.filter(p => p.toolType === selectedTool.type);
+  const ToolIcon = TOOL_ICONS[selectedTool.type];
+  const toolLabel = TOOL_LABELS[selectedTool.type] ?? selectedTool.type;
+  const isPosition = freshTool.type === 'longPosition' || freshTool.type === 'shortPosition';
+
+  const closeAll = () => {
+    setShowWidthPicker(false);
+    setShowStylePicker(false);
+    setShowPresetMenu(false);
+    setShowDynamicSettings(false);
+  };
 
   return (
     <div
       ref={barRef}
-      className="flex items-center gap-0.5 h-8 px-1.5 border-b border-[var(--border)] bg-[var(--background)] flex-shrink-0 select-none"
+      className="flex items-center gap-0.5 h-8 px-1 border-b border-[var(--border)] bg-[var(--background)] flex-shrink-0 select-none overflow-x-auto"
+      style={{ scrollbarWidth: 'none' }}
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {/* Tool type label */}
-      <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider px-1.5 mr-1">
-        {selectedTool.type.replace(/([A-Z])/g, ' $1').trim()}
-      </span>
+      {/* ── Tool label ─────────────────────────────────────────────────── */}
+      <div
+        className="flex items-center gap-1.5 px-2 h-6 rounded flex-shrink-0"
+        style={{
+          backgroundColor: isPosition
+            ? freshTool.type === 'longPosition' ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.10)'
+            : 'transparent',
+          color: isPosition
+            ? freshTool.type === 'longPosition' ? '#22c55e' : '#ef4444'
+            : 'var(--text-muted)',
+        }}
+      >
+        {ToolIcon && (
+          <ToolIcon
+            size={12}
+            strokeWidth={1.5}
+            className={freshTool.type === 'shortPosition' ? 'rotate-90' : ''}
+          />
+        )}
+        <span className="text-[10px] font-medium whitespace-nowrap">{toolLabel}</span>
+      </div>
 
-      <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
+      <Sep />
 
-      {/* Color picker — portal-based mini HSV, never clipped */}
+      {/* ── Color ──────────────────────────────────────────────────────── */}
       <InlineColorSwatch
         value={style.color}
         onChange={(color) => updateStyle({ color })}
@@ -217,74 +337,83 @@ export default function InlineToolSettings({
         className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors cursor-pointer"
       >
         <div
-          className="w-4 h-4 rounded-sm border border-[var(--border)]"
-          style={{ backgroundColor: style.color }}
+          className="w-3.5 h-3.5 rounded-sm flex-shrink-0"
+          style={{
+            backgroundColor: style.color,
+            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
+          }}
         />
-        <ChevronDown size={10} className="text-[var(--text-dimmed)]" />
+        <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
       </InlineColorSwatch>
 
-      {/* Line width */}
+      {/* ── Line width ─────────────────────────────────────────────────── */}
       <div className="relative">
         <button
-          onClick={() => { setShowWidthPicker(!showWidthPicker); setShowStylePicker(false); setShowPresetMenu(false); }}
+          onClick={() => { closeAll(); setShowWidthPicker(!showWidthPicker); }}
           className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
           title="Line width"
         >
-          <div className="flex items-center justify-center w-4 h-4">
+          <div className="w-7 h-4 flex items-center">
             <div
-              className="rounded-full"
+              className="w-full"
               style={{
-                width: Math.min(style.lineWidth * 2 + 2, 12),
-                height: Math.min(style.lineWidth * 2 + 2, 12),
+                height: `${Math.min(style.lineWidth, 4)}px`,
                 backgroundColor: 'var(--text-secondary)',
+                borderRadius: 99,
               }}
             />
           </div>
-          <ChevronDown size={10} className="text-[var(--text-dimmed)]" />
+          <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
         </button>
+
         {showWidthPicker && (
-          <div className="absolute top-full left-0 mt-1 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50">
+          <div className="absolute top-full left-0 mt-1 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50 min-w-[120px]">
             {LINE_WIDTHS.map(w => (
               <button
                 key={w}
                 onClick={() => { updateStyle({ lineWidth: w }); setShowWidthPicker(false); }}
-                className={`flex items-center gap-2 w-full px-2 py-1 rounded text-left transition-colors ${
-                  style.lineWidth === w ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
+                className={`flex items-center gap-2.5 w-full px-2 py-1.5 rounded transition-colors ${
+                  style.lineWidth === w
+                    ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
+                    : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
                 }`}
               >
-                <div className="w-12 flex items-center">
-                  <div className="w-full rounded-full" style={{ height: w, backgroundColor: 'currentColor' }} />
+                <div className="w-10 flex items-center">
+                  <div className="w-full rounded-full" style={{ height: Math.min(w, 4), backgroundColor: 'currentColor' }} />
                 </div>
-                <span className="text-[10px] font-mono">{w}px</span>
+                <span className="text-[10px] font-mono tabular-nums">{w}px</span>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Line style */}
+      {/* ── Line style ─────────────────────────────────────────────────── */}
       <div className="relative">
         <button
-          onClick={() => { setShowStylePicker(!showStylePicker); setShowWidthPicker(false); setShowPresetMenu(false); }}
+          onClick={() => { closeAll(); setShowStylePicker(!showStylePicker); }}
           className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
           title="Line style"
         >
-          <svg width="16" height="12" viewBox="0 0 20 12" className="text-[var(--text-secondary)]">
+          <svg width="20" height="12" viewBox="0 0 28 12" className="text-[var(--text-secondary)]">
             {LINE_STYLES.find(s => s.value === style.lineStyle)?.svg}
           </svg>
-          <ChevronDown size={10} className="text-[var(--text-dimmed)]" />
+          <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
         </button>
+
         {showStylePicker && (
-          <div className="absolute top-full left-0 mt-1 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50">
+          <div className="absolute top-full left-0 mt-1 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50 min-w-[130px]">
             {LINE_STYLES.map(ls => (
               <button
                 key={ls.value}
                 onClick={() => { updateStyle({ lineStyle: ls.value }); setShowStylePicker(false); }}
-                className={`flex items-center gap-2 w-full px-2 py-1.5 rounded transition-colors ${
-                  style.lineStyle === ls.value ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
+                className={`flex items-center gap-2.5 w-full px-2 py-1.5 rounded transition-colors ${
+                  style.lineStyle === ls.value
+                    ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
+                    : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
                 }`}
               >
-                <svg width="28" height="12" viewBox="0 0 20 12">{ls.svg}</svg>
+                <svg width="24" height="12" viewBox="0 0 28 12">{ls.svg}</svg>
                 <span className="text-[10px]">{ls.label}</span>
               </button>
             ))}
@@ -292,130 +421,109 @@ export default function InlineToolSettings({
         )}
       </div>
 
-      {/* Position sizing controls (Long/Short only) */}
-      {(freshTool.type === 'longPosition' || freshTool.type === 'shortPosition') && (
+      {/* ── Position controls (Long/Short only) ───────────────────────── */}
+      {isPosition && (
         <>
-          <div className="w-px h-4 bg-[var(--border)] mx-1" />
-          {/* Account size */}
-          <div className="flex items-center gap-0.5">
+          <Sep />
+          <div className="flex items-center gap-1">
             <span className="text-[9px] text-[var(--text-dimmed)]">$</span>
             <input
               type="number"
               value={(freshTool as any).accountSize || 10000}
               onChange={(e) => {
-                const val = parseFloat(e.target.value) || 10000;
-                getToolsEngine().updateTool(selectedTool.id, { accountSize: val } as any);
+                getToolsEngine().updateTool(selectedTool.id, { accountSize: parseFloat(e.target.value) || 10000 } as any);
               }}
               className="w-14 h-5 text-[10px] font-mono rounded px-1 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]"
               title="Account size ($)"
             />
           </div>
-          {/* Risk % */}
           <select
             value={(freshTool as any).riskPercent || 1}
-            onChange={(e) => {
-              getToolsEngine().updateTool(selectedTool.id, { riskPercent: parseFloat(e.target.value) } as any);
-            }}
+            onChange={(e) => getToolsEngine().updateTool(selectedTool.id, { riskPercent: parseFloat(e.target.value) } as any)}
             className="h-5 text-[10px] font-mono rounded px-0.5 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] cursor-pointer focus:outline-none"
             title="Risk %"
           >
-            {[0.5, 1, 2, 3, 5].map(r => (
-              <option key={r} value={r}>{r}%</option>
-            ))}
+            {[0.5, 1, 2, 3, 5].map(r => <option key={r} value={r}>{r}%</option>)}
           </select>
-          {/* Leverage */}
           <select
             value={(freshTool as any).leverage || 1}
-            onChange={(e) => {
-              getToolsEngine().updateTool(selectedTool.id, { leverage: parseFloat(e.target.value) } as any);
-            }}
+            onChange={(e) => getToolsEngine().updateTool(selectedTool.id, { leverage: parseFloat(e.target.value) } as any)}
             className="h-5 text-[10px] font-mono rounded px-0.5 bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] cursor-pointer focus:outline-none"
             title="Leverage"
           >
-            {[1, 2, 5, 10, 25, 50, 125].map(l => (
-              <option key={l} value={l}>{l}x</option>
-            ))}
+            {[1, 2, 5, 10, 25, 50, 125].map(l => <option key={l} value={l}>{l}x</option>)}
           </select>
-          {/* Dollar P&L toggle */}
-          <button
+          <ActionBtn
             onClick={() => {
               const current = (freshTool as any).showDollarPnL || false;
               getToolsEngine().updateTool(selectedTool.id, { showDollarPnL: !current } as any);
             }}
-            className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-              (freshTool as any).showDollarPnL ? 'text-green-400 bg-green-400/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)]'
-            }`}
+            active={(freshTool as any).showDollarPnL}
+            activeColor="#22c55e"
             title="Show Dollar P&L"
           >
-            <DollarSign size={13} strokeWidth={1.5} />
-          </button>
+            <DollarSign size={12} strokeWidth={1.5} />
+          </ActionBtn>
         </>
       )}
 
-      <div className="w-px h-4 bg-[var(--border)] mx-1" />
+      <Sep />
 
-      {/* Action buttons */}
-      <button
-        onClick={handleDuplicate}
-        className="flex items-center justify-center w-6 h-6 rounded hover:bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-        title="Duplicate"
-      >
-        <Copy size={13} strokeWidth={1.5} />
-      </button>
+      {/* ── Actions ────────────────────────────────────────────────────── */}
+      <ActionBtn onClick={handleDuplicate} title="Duplicate (Ctrl+D)">
+        <Copy size={12} strokeWidth={1.5} />
+      </ActionBtn>
 
-      <button
+      <ActionBtn
         onClick={handleToggleLock}
-        className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-          freshTool.locked ? 'text-[var(--primary)] bg-[var(--primary)]/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
-        }`}
+        active={freshTool.locked}
+        activeColor="var(--primary)"
         title={freshTool.locked ? 'Unlock' : 'Lock'}
       >
-        {freshTool.locked ? <Lock size={13} strokeWidth={1.5} /> : <Unlock size={13} strokeWidth={1.5} />}
-      </button>
+        {freshTool.locked
+          ? <Lock size={12} strokeWidth={1.5} />
+          : <Unlock size={12} strokeWidth={1.5} />}
+      </ActionBtn>
 
-      <button
+      <ActionBtn
         onClick={handleToggleVisible}
-        className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-          !freshTool.visible ? 'text-amber-500 bg-amber-500/10' : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
-        }`}
+        active={!freshTool.visible}
+        activeColor="#f59e0b"
         title={freshTool.visible ? 'Hide' : 'Show'}
       >
-        {freshTool.visible ? <Eye size={13} strokeWidth={1.5} /> : <EyeOff size={13} strokeWidth={1.5} />}
-      </button>
+        {freshTool.visible
+          ? <Eye size={12} strokeWidth={1.5} />
+          : <EyeOff size={12} strokeWidth={1.5} />}
+      </ActionBtn>
 
-      <button
-        onClick={handleDelete}
-        className="flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:bg-red-500/15 hover:text-red-500 transition-colors"
-        title="Delete (Del)"
-      >
-        <Trash2 size={13} strokeWidth={1.5} />
-      </button>
+      <ActionBtn onClick={handleDelete} hoverRed title="Delete (Del)">
+        <Trash2 size={12} strokeWidth={1.5} />
+      </ActionBtn>
 
-      {/* Presets */}
-      <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
+      <Sep />
+
+      {/* ── Presets ────────────────────────────────────────────────────── */}
       <div className="relative">
-        <button
-          onClick={() => { setShowPresetMenu(!showPresetMenu); setShowWidthPicker(false); setShowStylePicker(false); setShowDynamicSettings(false); }}
-          className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-            showPresetMenu
-              ? 'text-[var(--primary)] bg-[var(--primary)]/10'
-              : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
-          }`}
-          title="Style Presets"
+        <ActionBtn
+          onClick={() => { closeAll(); setShowPresetMenu(!showPresetMenu); }}
+          active={showPresetMenu}
+          activeColor="var(--primary)"
+          title="Style presets"
         >
-          <Bookmark size={13} strokeWidth={1.5} />
-        </button>
+          <Bookmark size={12} strokeWidth={1.5} />
+        </ActionBtn>
+
         {showPresetMenu && (
-          <div className="absolute right-0 top-full mt-1 w-[220px] bg-[#111315] border border-[#1C1F23] rounded-[10px] shadow-xl z-50 overflow-hidden">
-            {/* Header */}
-            <div className="px-3 py-2 border-b border-[#1C1F23]">
-              <span className="text-[11px] font-medium text-[#8a8f98] uppercase tracking-wider">
+          <div
+            className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50 overflow-hidden"
+          >
+            <div className="px-3 py-2 border-b border-[var(--border)]">
+              <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                 Style Presets
               </span>
             </div>
 
-            <div className="p-1.5">
-              {/* Save as Preset */}
+            <div className="p-1.5 space-y-0.5">
               {showPresetNameInput ? (
                 <div className="flex items-center gap-1 px-1 py-1">
                   <input
@@ -428,18 +536,18 @@ export default function InlineToolSettings({
                       if (e.key === 'Escape') { setShowPresetNameInput(false); setPresetNameInput(''); }
                     }}
                     placeholder="Preset name..."
-                    className="flex-1 h-6 text-[11px] rounded px-2 bg-[#1C1F23] text-[#e5e7eb] border border-[#2a2e35] focus:outline-none focus:border-blue-500"
+                    className="flex-1 h-6 text-[11px] rounded px-2 bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]"
                   />
                   <button
                     onClick={handleSavePreset}
                     disabled={!presetNameInput.trim()}
-                    className="w-6 h-6 flex items-center justify-center rounded text-green-400 hover:bg-green-400/10 disabled:opacity-30 transition-colors"
+                    className="w-6 h-6 flex items-center justify-center rounded text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 transition-colors"
                   >
                     <Check size={12} strokeWidth={2} />
                   </button>
                   <button
                     onClick={() => { setShowPresetNameInput(false); setPresetNameInput(''); }}
-                    className="w-6 h-6 flex items-center justify-center rounded text-[#666] hover:bg-[#1C1F23] transition-colors"
+                    className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-dimmed)] hover:bg-[var(--surface)] transition-colors"
                   >
                     <X size={12} strokeWidth={2} />
                   </button>
@@ -447,35 +555,31 @@ export default function InlineToolSettings({
               ) : (
                 <button
                   onClick={() => setShowPresetNameInput(true)}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-[#8a8f98] hover:bg-[#1C1F23] transition-colors"
+                  className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded text-[11px] text-[var(--text-muted)] hover:bg-[var(--surface)] transition-colors"
                 >
-                  <Bookmark size={12} strokeWidth={1.5} />
-                  <span>Save as Preset...</span>
+                  <Bookmark size={11} strokeWidth={1.5} />
+                  Save as Preset…
                 </button>
               )}
 
-              {/* Preset list */}
               {toolPresets.length > 0 && (
                 <>
-                  <div className="h-px bg-[#1C1F23] my-1" />
+                  <div className="h-px bg-[var(--border)] my-1" />
                   {toolPresets.map(preset => (
-                    <div
-                      key={preset.id}
-                      className="flex items-center gap-1 group"
-                    >
+                    <div key={preset.id} className="flex items-center gap-1 group">
                       <button
                         onClick={() => handleApplyPreset(preset)}
-                        className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-[11px] text-[#c9cdd4] hover:bg-[#1C1F23] transition-colors text-left"
+                        className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded text-[11px] text-[var(--text-secondary)] hover:bg-[var(--surface)] transition-colors text-left"
                       >
                         <div
-                          className="w-3 h-3 rounded-sm border border-[#333]"
-                          style={{ backgroundColor: preset.style.color || '#666' }}
+                          className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                          style={{ backgroundColor: preset.style.color || 'var(--border)' }}
                         />
                         <span className="truncate">{preset.name}</span>
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deletePreset(preset.id); }}
-                        className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-[#555] hover:text-red-400 hover:bg-red-400/10 transition-all"
+                        className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-[var(--text-dimmed)] hover:text-red-400 hover:bg-red-400/10 transition-all"
                       >
                         <X size={10} strokeWidth={2} />
                       </button>
@@ -484,40 +588,34 @@ export default function InlineToolSettings({
                 </>
               )}
 
-              {/* Set as Default */}
-              <div className="h-px bg-[#1C1F23] my-1" />
+              <div className="h-px bg-[var(--border)] my-1" />
               <button
                 onClick={handleSetAsDefault}
-                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-[#8a8f98] hover:bg-[#1C1F23] transition-colors"
+                className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded text-[11px] text-[var(--text-muted)] hover:bg-[var(--surface)] transition-colors"
               >
-                <Star size={12} strokeWidth={1.5} />
-                <span>Set as Default</span>
+                <Star size={11} strokeWidth={1.5} />
+                Set as Default
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Advanced settings (dynamic panel) */}
-      <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
+      {/* ── Dynamic tool properties ────────────────────────────────────── */}
       <div className="relative">
-        <button
-          onClick={() => { setShowDynamicSettings(!showDynamicSettings); setShowPresetMenu(false); }}
-          className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-            showDynamicSettings
-              ? 'text-[var(--primary)] bg-[var(--primary)]/10'
-              : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
-          }`}
+        <ActionBtn
+          onClick={() => { closeAll(); setShowDynamicSettings(!showDynamicSettings); }}
+          active={showDynamicSettings}
+          activeColor="var(--primary)"
           title="Tool properties"
         >
-          <Settings2 size={13} strokeWidth={1.5} />
-        </button>
+          <Settings2 size={12} strokeWidth={1.5} />
+        </ActionBtn>
+
         {showDynamicSettings && (
           <DynamicToolSettingsPanel
             tool={freshTool}
-            onUpdate={() => {
-              onRender?.();
-            }}
+            onUpdate={() => { onRender?.(); }}
           />
         )}
       </div>

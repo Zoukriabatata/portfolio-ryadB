@@ -70,28 +70,26 @@ export default function GEXDashboard({
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: typeof height === 'number' ? height : 500 });
   const [hoveredStrike, setHoveredStrike] = useState<number | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
 
   // Zoom & pan
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null);
-  const panRef = useRef({ active: false, startY: 0, startMin: 0, startMax: 0 });
+  const panRef = useRef({ startY: 0, startMin: 0, startMax: 0 });
 
   // Reset zoom when data changes
   useEffect(() => { setZoomRange(null); }, [gexData.length]);
 
   // Resize
   useEffect(() => {
-    const handleResize = () => {
-      if (containerRef.current) {
-        const containerHeight = height === 'auto' ? containerRef.current.clientHeight : height;
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: Math.max(400, containerHeight),
-        });
-      }
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      const containerHeight = height === 'auto' ? el.clientHeight : height;
+      setDimensions({ width: el.clientWidth, height: Math.max(400, typeof containerHeight === 'number' ? containerHeight : 500) });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [height]);
 
   const themeColors = useGEXColors();
@@ -103,19 +101,19 @@ export default function GEXDashboard({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { width, height } = dimensions;
+    const { width, height: h } = dimensions;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
-    canvas.height = height * dpr;
+    canvas.height = h * dpr;
     canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    canvas.style.height = `${h}px`;
     ctx.scale(dpr, dpr);
 
     ctx.fillStyle = themeColors.bg;
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, width, h);
 
     const chartWidth = width - PADDING.left - PADDING.right;
-    const chartHeight = height - PADDING.top - PADDING.bottom;
+    const chartHeight = h - PADDING.top - PADDING.bottom;
 
     // Strike range (zoom-aware)
     const allStrikes = gexData.map(d => d.strike);
@@ -149,10 +147,6 @@ export default function GEXDashboard({
       }
     }
 
-    // Grid lines
-    ctx.strokeStyle = themeColors.gridLine;
-    ctx.lineWidth = 1;
-
     // Center line (zero GEX)
     ctx.strokeStyle = themeColors.border;
     ctx.lineWidth = 1.5;
@@ -176,31 +170,27 @@ export default function GEXDashboard({
       ctx.lineTo(PADDING.left + chartWidth, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      // Strike price on left
       ctx.textAlign = 'right';
       ctx.fillStyle = themeColors.text;
       ctx.fillText(`$${strike.toFixed(0)}`, PADDING.left - 8, y + 3.5);
     }
 
-    // X-axis GEX value labels (bottom, equally spaced)
+    // X-axis GEX value labels
     ctx.font = '9px monospace';
     ctx.fillStyle = themeColors.text;
     ctx.textAlign = 'center';
     const xSteps = 4;
     for (let i = 0; i <= xSteps; i++) {
-      // Left (put) side
       const putVal = -maxGEX * (i / xSteps);
       const putX = PADDING.left + chartWidth / 2 - (chartWidth / 2) * (i / xSteps);
       if (i > 0) ctx.fillText(formatGEX(putVal), putX, PADDING.top + chartHeight + 14);
-      // Right (call) side
       const callVal = maxGEX * (i / xSteps);
       const callX = PADDING.left + chartWidth / 2 + (chartWidth / 2) * (i / xSteps);
       if (i > 0) ctx.fillText(formatGEX(callVal), callX, PADDING.top + chartHeight + 14);
     }
-    // Center zero label
     ctx.fillText('0', PADDING.left + chartWidth / 2, PADDING.top + chartHeight + 14);
 
-    // Bars with rounded ends, gradient fills, and improved spacing
+    // Bars
     const barHeight = Math.max(4, (chartHeight / visibleData.length) * 0.6);
     const barRadius = Math.min(barHeight / 2, 5);
 
@@ -208,7 +198,6 @@ export default function GEXDashboard({
       const y = strikeToY(level.strike);
       const isHovered = hoveredStrike === level.strike;
 
-      // Hovered bar highlight: subtle background band
       if (isHovered) {
         ctx.fillStyle = themeColors.gridBand;
         ctx.fillRect(PADDING.left, y - barHeight, chartWidth, barHeight * 2);
@@ -220,13 +209,11 @@ export default function GEXDashboard({
         const bx = PADDING.left + chartWidth / 2;
         const by = y - barHeight / 2;
 
-        // Gradient fill — stronger opacity for better contrast
         const grad = ctx.createLinearGradient(bx, 0, bx + barWidth, 0);
         grad.addColorStop(0, themeColors.callGEX + (isHovered ? 'ff' : 'cc'));
         grad.addColorStop(1, themeColors.callGEX + (isHovered ? 'ee' : '77'));
         ctx.fillStyle = grad;
 
-        // Rounded rect
         ctx.beginPath();
         ctx.moveTo(bx, by);
         ctx.lineTo(bx + barWidth - barRadius, by);
@@ -237,7 +224,6 @@ export default function GEXDashboard({
         ctx.closePath();
         ctx.fill();
 
-        // Value label on significant bars — improved font
         if (barWidth > 35) {
           ctx.fillStyle = isHovered ? themeColors.textBright : themeColors.textMid;
           ctx.font = `${isHovered ? 'bold ' : ''}10px monospace`;
@@ -252,13 +238,11 @@ export default function GEXDashboard({
         const bx = PADDING.left + chartWidth / 2 - barWidth;
         const by = y - barHeight / 2;
 
-        // Gradient fill — stronger opacity for better contrast
         const grad = ctx.createLinearGradient(bx, 0, bx + barWidth, 0);
         grad.addColorStop(0, themeColors.putGEX + (isHovered ? 'ee' : '77'));
         grad.addColorStop(1, themeColors.putGEX + (isHovered ? 'ff' : 'cc'));
         ctx.fillStyle = grad;
 
-        // Rounded rect
         ctx.beginPath();
         ctx.moveTo(bx + barRadius, by);
         ctx.lineTo(bx + barWidth, by);
@@ -270,7 +254,6 @@ export default function GEXDashboard({
         ctx.closePath();
         ctx.fill();
 
-        // Value label on significant bars — improved font
         if (barWidth > 35) {
           ctx.fillStyle = isHovered ? themeColors.textBright : themeColors.textMid;
           ctx.font = `${isHovered ? 'bold ' : ''}10px monospace`;
@@ -285,7 +268,6 @@ export default function GEXDashboard({
       if (price < minStrike || price > maxStrike) return;
       const y = strikeToY(price);
 
-      // Dashed line
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 4]);
@@ -295,7 +277,6 @@ export default function GEXDashboard({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Pill label
       const text = `${label}: $${price.toFixed(0)}`;
       ctx.font = 'bold 10px system-ui';
       const textWidth = ctx.measureText(text).width;
@@ -305,7 +286,6 @@ export default function GEXDashboard({
       const pillX = side === 'left' ? PADDING.left + 8 : PADDING.left + chartWidth - pillW - 8;
       const pillY = y - pillH - 3;
 
-      // Pill background
       ctx.fillStyle = color + '22';
       ctx.strokeStyle = color + '88';
       ctx.lineWidth = 1;
@@ -314,7 +294,6 @@ export default function GEXDashboard({
       ctx.fill();
       ctx.stroke();
 
-      // Pill text
       ctx.fillStyle = color;
       ctx.textAlign = 'left';
       ctx.fillText(text, pillX + pillPad, pillY + 11);
@@ -326,7 +305,7 @@ export default function GEXDashboard({
       drawLevel(summary.zeroGamma, themeColors.zeroGamma, 'Zero Gamma', 'right');
     }
 
-    // Spot price with pill label
+    // Spot price
     if (spotPrice >= minStrike && spotPrice <= maxStrike) {
       const y = strikeToY(spotPrice);
       ctx.strokeStyle = themeColors.spotPrice;
@@ -336,7 +315,6 @@ export default function GEXDashboard({
       ctx.lineTo(PADDING.left + chartWidth, y);
       ctx.stroke();
 
-      // Spot pill centered
       const spotText = `SPOT $${spotPrice.toFixed(2)}`;
       ctx.font = 'bold 11px system-ui';
       const spotTextW = ctx.measureText(spotText).width;
@@ -357,49 +335,35 @@ export default function GEXDashboard({
       ctx.fillText(spotText, PADDING.left + chartWidth / 2, spotPillY + 13);
     }
 
-    // Axis labels with better contrast and sizing
+    // Axis labels
     ctx.font = '11px system-ui';
     ctx.textAlign = 'center';
-    // Put side label
     ctx.fillStyle = themeColors.putGEX + '99';
-    ctx.fillText('\u2190 Put GEX (Negative)', PADDING.left + chartWidth / 4, height - 14);
-    // Call side label
+    ctx.fillText('\u2190 Put GEX (Negative)', PADDING.left + chartWidth / 4, h - 14);
     ctx.fillStyle = themeColors.callGEX + '99';
-    ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, height - 14);
+    ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, h - 14);
 
-    // Title — left aligned with subtle styling
+    // Title
     ctx.fillStyle = themeColors.textBright;
     ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'left';
     ctx.fillText(`${symbol}`, PADDING.left, 24);
-    // Subtitle
     ctx.fillStyle = themeColors.textMid;
     ctx.font = '11px system-ui';
     ctx.fillText('Gamma Exposure by Strike', PADDING.left + ctx.measureText(`${symbol}`).width + 8, 24);
 
-    // Regime indicator (top right)
     if (summary) {
-      const regime = summary.regime;
-      const regimeColor = regime === 'positive' ? themeColors.callGEX : themeColors.putGEX;
+      const regimeColor = summary.regime === 'positive' ? themeColors.callGEX : themeColors.putGEX;
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'right';
       ctx.fillStyle = regimeColor + 'cc';
-      ctx.fillText(`${regime.toUpperCase()} GAMMA`, width - PADDING.right, 24);
-    }
-
-    // Zoom indicator
-    if (zoomRange) {
-      ctx.fillStyle = themeColors.text;
-      ctx.font = '10px system-ui';
-      ctx.textAlign = 'right';
-      const pct = ((strikeRange / (dataMax - dataMin)) * 100).toFixed(0);
-      ctx.fillText(`${pct}% \u00b7 scroll to zoom \u00b7 double-click to reset`, width - PADDING.right, height - 4);
+      ctx.fillText(`${summary.regime.toUpperCase()} GAMMA`, width - PADDING.right, 24);
     }
   }, [gexData, dimensions, spotPrice, summary, hoveredStrike, zoomRange, symbol, themeColors]);
 
   useEffect(() => { draw(); }, [draw]);
 
-  // Wheel zoom (uses functional updater to avoid zoomRange dependency)
+  // Wheel zoom
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || gexData.length < 3) return;
@@ -449,8 +413,11 @@ export default function GEXDashboard({
     const canvas = canvasRef.current;
     if (!canvas || gexData.length === 0) return;
 
+    const rect = canvas.getBoundingClientRect();
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+
     // Pan when dragging
-    if (panRef.current.active) {
+    if (isPanning) {
       const chartH = dimensions.height - PADDING.top - PADDING.bottom;
       const range = panRef.current.startMax - panRef.current.startMin;
       const strikeDelta = ((e.clientY - panRef.current.startY) / chartH) * range;
@@ -470,7 +437,6 @@ export default function GEXDashboard({
     }
 
     // Hover
-    const rect = canvas.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const chartHeight = dimensions.height - PADDING.top - PADDING.bottom;
 
@@ -489,83 +455,158 @@ export default function GEXDashboard({
     });
 
     setHoveredStrike(closest);
-  }, [gexData, dimensions, zoomRange]);
+  }, [gexData, dimensions, zoomRange, isPanning]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0 || !zoomRange) return;
-    panRef.current = {
-      active: true,
-      startY: e.clientY,
-      startMin: zoomRange.min,
-      startMax: zoomRange.max,
-    };
-  }, [zoomRange]);
+    if (e.button !== 0) return;
+
+    const allStrikes = gexData.map(d => d.strike);
+    const dataMin = Math.min(...allStrikes);
+    const dataMax = Math.max(...allStrikes);
+    const dataRange = dataMax - dataMin;
+
+    let startMin: number;
+    let startMax: number;
+
+    if (!zoomRange && dataRange > 0) {
+      // No zoom yet → auto-zoom to 70% centered on cursor so pan has room to move
+      const canvas = canvasRef.current;
+      const rect = canvas?.getBoundingClientRect();
+      const chartH = (rect?.height ?? dimensions.height) - PADDING.top - PADDING.bottom;
+      const normalizedY = (e.clientY - (rect?.top ?? 0) - PADDING.top) / chartH;
+      const cursorStrike = dataMax - normalizedY * dataRange;
+
+      const newRange = dataRange * 0.7;
+      let nMin = cursorStrike - newRange / 2;
+      let nMax = cursorStrike + newRange / 2;
+      if (nMin < dataMin) { nMax += dataMin - nMin; nMin = dataMin; }
+      if (nMax > dataMax) { nMin -= nMax - dataMax; nMax = dataMax; }
+      startMin = Math.max(dataMin, nMin);
+      startMax = Math.min(dataMax, nMax);
+      setZoomRange({ min: startMin, max: startMax });
+    } else {
+      startMin = zoomRange?.min ?? dataMin;
+      startMax = zoomRange?.max ?? dataMax;
+    }
+
+    panRef.current = { startY: e.clientY, startMin, startMax };
+    setIsPanning(true);
+  }, [zoomRange, gexData, dimensions]);
 
   const handleMouseUp = useCallback(() => {
-    panRef.current.active = false;
+    setIsPanning(false);
   }, []);
 
+  const handleMouseLeave = useCallback(() => {
+    setHoveredStrike(null);
+    setIsPanning(false);
+  }, []);
+
+  // Tooltip data
+  const level = hoveredStrike ? gexData.find(d => d.strike === hoveredStrike) : null;
+
+  // Clamp tooltip position
+  const tooltipOffset = 14;
+  const tooltipW = 188;
+  const tooltipH = 130;
+  const rawTtX = mousePos.x + tooltipOffset;
+  const rawTtY = mousePos.y + tooltipOffset;
+  const ttX = Math.min(rawTtX, dimensions.width - tooltipW - 8);
+  const ttY = Math.min(rawTtY, dimensions.height - tooltipH - 8);
+
+  const isZoomed = !!zoomRange;
+  const allStrikes = gexData.map(d => d.strike);
+  const dataMin = Math.min(...allStrikes);
+  const dataMax = Math.max(...allStrikes);
+  const zoomPct = isZoomed
+    ? (((zoomRange!.max - zoomRange!.min) / (dataMax - dataMin)) * 100).toFixed(0)
+    : '100';
+
   return (
-    <div ref={containerRef} className="relative w-full h-full" style={{ height: height === 'auto' ? '100%' : height }}>
+    <div ref={containerRef} className="relative w-full h-full select-none" style={{ height: height === 'auto' ? '100%' : height }}>
       <canvas
         ref={canvasRef}
         className="w-full h-full"
-        style={{ cursor: panRef.current.active ? 'grabbing' : zoomRange ? 'grab' : 'crosshair' }}
+        style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        onMouseLeave={() => { setHoveredStrike(null); panRef.current.active = false; }}
+        onMouseLeave={handleMouseLeave}
         onDoubleClick={() => setZoomRange(null)}
       />
 
-      {/* Tooltip */}
-      {hoveredStrike && !panRef.current.active && (() => {
-        const level = gexData.find(d => d.strike === hoveredStrike);
-        if (!level) return null;
-        return (
-          <div className="absolute top-3 right-3 rounded-2xl p-0 text-xs animate-scaleIn backdrop-blur-xl overflow-hidden shadow-2xl"
-            style={{
-              backgroundColor: 'color-mix(in srgb, var(--surface-elevated) 90%, var(--primary) 10%)',
-              border: '1px solid color-mix(in srgb, var(--border-light) 70%, var(--primary) 30%)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 1px rgba(255,255,255,0.1) inset',
-              minWidth: 180,
-            }}>
-            {/* Header */}
-            <div className="px-3.5 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, var(--primary)08, transparent)' }}>
-              <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Strike ${hoveredStrike}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold font-mono"
-                style={{ color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)', backgroundColor: level.netGEX >= 0 ? 'var(--bull-bg, rgba(34,197,94,0.1))' : 'var(--bear-bg, rgba(239,68,68,0.1))' }}>
-                {level.netGEX >= 0 ? '+' : ''}{formatGEX(level.netGEX)}
+      {/* Cursor-following tooltip */}
+      {level && !isPanning && (
+        <div
+          className="pointer-events-none absolute rounded-2xl p-0 text-xs backdrop-blur-xl overflow-hidden shadow-2xl z-10"
+          style={{
+            left: ttX,
+            top: ttY,
+            backgroundColor: 'color-mix(in srgb, var(--surface-elevated) 90%, var(--primary) 10%)',
+            border: '1px solid color-mix(in srgb, var(--border-light) 70%, var(--primary) 30%)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            minWidth: tooltipW,
+          }}
+        >
+          <div className="px-3.5 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+            <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Strike ${hoveredStrike}</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold font-mono"
+              style={{ color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)', backgroundColor: level.netGEX >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }}>
+              {level.netGEX >= 0 ? '+' : ''}{formatGEX(level.netGEX)}
+            </span>
+          </div>
+          <div className="px-3.5 py-2.5 space-y-1.5">
+            <div className="flex justify-between gap-6">
+              <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bull)' }} />Call GEX
               </span>
+              <span className="font-mono font-semibold" style={{ color: 'var(--bull)' }}>{formatGEX(level.callGEX)}</span>
             </div>
-            {/* Body */}
-            <div className="px-3.5 py-2.5 space-y-1.5">
+            <div className="flex justify-between gap-6">
+              <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bear)' }} />Put GEX
+              </span>
+              <span className="font-mono font-semibold" style={{ color: 'var(--bear)' }}>{formatGEX(level.putGEX)}</span>
+            </div>
+            <div className="border-t pt-1.5 mt-1" style={{ borderColor: 'var(--border)' }}>
               <div className="flex justify-between gap-6">
-                <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bull)' }} />Call GEX
-                </span>
-                <span className="font-mono font-semibold" style={{ color: 'var(--bull)' }}>{formatGEX(level.callGEX)}</span>
+                <span style={{ color: 'var(--text-muted)' }}>Call OI</span>
+                <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.callOI.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between gap-6">
-                <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bear)' }} />Put GEX
-                </span>
-                <span className="font-mono font-semibold" style={{ color: 'var(--bear)' }}>{formatGEX(level.putGEX)}</span>
-              </div>
-              <div className="border-t pt-1.5 mt-1.5" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex justify-between gap-6">
-                  <span style={{ color: 'var(--text-muted)' }}>Call OI</span>
-                  <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.callOI.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between gap-6 mt-1">
-                  <span style={{ color: 'var(--text-muted)' }}>Put OI</span>
-                  <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.putOI.toLocaleString()}</span>
-                </div>
+              <div className="flex justify-between gap-6 mt-1">
+                <span style={{ color: 'var(--text-muted)' }}>Put OI</span>
+                <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.putOI.toLocaleString()}</span>
               </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {/* Bottom hint bar */}
+      <div className="pointer-events-none absolute bottom-1 left-0 right-0 flex items-center justify-center gap-3"
+        style={{ color: 'var(--text-dimmed, rgba(255,255,255,0.2))', fontSize: 10 }}>
+        <span>scroll · zoom</span>
+        <span>·</span>
+        <span>drag · pan</span>
+        <span>·</span>
+        <span>dbl-click · reset</span>
+      </div>
+
+      {/* Floating zoom indicator + reset button */}
+      {isZoomed && (
+        <button
+          onClick={() => setZoomRange(null)}
+          className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-mono transition-opacity hover:opacity-100 opacity-70"
+          style={{
+            background: 'var(--surface-elevated, rgba(30,30,40,0.9))',
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <span style={{ color: 'var(--primary)' }}>{zoomPct}%</span>
+          <span>× reset</span>
+        </button>
+      )}
     </div>
   );
 }

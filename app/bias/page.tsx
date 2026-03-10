@@ -1,10 +1,15 @@
 import type { Metadata } from 'next';
+import BiasDashboard from '@/components/BiasDashboard';
 
 export const metadata: Metadata = {
-  title: 'GVS Bias Engine',
-  description: 'Gamma-volatility-skew bias engine combining GEX, IV surface, and order flow signals for directional analysis.',
+  title: 'Bias Dashboard',
+  description: 'QQQ trading bias based on GEX, options flow, IV skew and key levels.',
 };
 
 export default function BiasPage() {
-  return null;
+  return (
+    <div className="h-full">
+      <BiasDashboard />
+    </div>
+  );
 }

@@ -14,31 +14,24 @@ interface GEXKPIGridProps {
 }
 
 export function GEXKPIGrid({ summary, spotPrice, history, totalCallOI = 0, totalPutOI = 0 }: GEXKPIGridProps) {
-  const stats = useMemo(() => ({
-    netGEX: history.getStats('netGEX'),
-    netVEX: history.getStats('netVEX'),
-    netCEX: history.getStats('netCEX'),
-    netDEX: history.getStats('netDEX'),
-    zeroGammaLevel: history.getStats('zeroGammaLevel'),
-    callWall: history.getStats('callWall'),
-    putWall: history.getStats('putWall'),
-    gammaIntensity: history.getStats('gammaIntensity'),
-    maxPain: history.getStats('maxPain'),
-    impliedMove: history.getStats('impliedMove'),
-  }), [history]);
+  const metrics = [
+    'netGEX', 'netVEX', 'netCEX', 'netDEX',
+    'zeroGammaLevel', 'callWall', 'putWall', 'gammaIntensity',
+    'maxPain', 'impliedMove', 'netFlow', 'flowRatio', 'gexRatio',
+    'callIV', 'putIV', 'ivSkew',
+  ] as const;
 
-  const sparklines = useMemo(() => ({
-    netGEX: history.getSparkline('netGEX'),
-    netVEX: history.getSparkline('netVEX'),
-    netCEX: history.getSparkline('netCEX'),
-    netDEX: history.getSparkline('netDEX'),
-    gammaIntensity: history.getSparkline('gammaIntensity'),
-    zeroGammaLevel: history.getSparkline('zeroGammaLevel'),
-    callWall: history.getSparkline('callWall'),
-    putWall: history.getSparkline('putWall'),
-    maxPain: history.getSparkline('maxPain'),
-    impliedMove: history.getSparkline('impliedMove'),
-  }), [history]);
+  const stats = useMemo(() => {
+    const s: Record<string, ReturnType<typeof history.getStats>> = {};
+    for (const m of metrics) s[m] = history.getStats(m);
+    return s;
+  }, [history, metrics]);
+
+  const sparklines = useMemo(() => {
+    const s: Record<string, number[]> = {};
+    for (const m of metrics) s[m] = history.getSparkline(m);
+    return s;
+  }, [history, metrics]);
 
   const callPutRatio = totalPutOI > 0 ? totalCallOI / totalPutOI : 0;
   const totalOI = totalCallOI + totalPutOI;
@@ -140,7 +133,70 @@ export function GEXKPIGrid({ summary, spotPrice, history, totalCallOI = 0, total
         subtitle={`-${distanceToPutWall.toFixed(1)}% below spot`}
       />
 
-      {/* Row 3: Advanced Metrics */}
+      {/* Row 3: GEXStream Metrics */}
+      <GEXMetricCard
+        label="Net Flow"
+        icon="$"
+        value={summary.netFlow}
+        format="gex"
+        color={summary.netFlow >= 0 ? '#22c55e' : '#ef4444'}
+        sparkline={sparklines.netFlow}
+        stats={stats.netFlow}
+        pulsing
+        subtitle={summary.netFlow >= 0 ? 'Net call premium inflow' : 'Net put premium inflow'}
+      />
+      <GEXMetricCard
+        label="Flow Ratio"
+        icon="⇄"
+        value={summary.flowRatio}
+        format="ratio"
+        color={summary.flowRatio >= 1 ? '#22c55e' : '#ef4444'}
+        sparkline={sparklines.flowRatio}
+        stats={stats.flowRatio}
+        subtitle={summary.flowRatio >= 1.2 ? 'Call volume dominant' : summary.flowRatio <= 0.8 ? 'Put volume dominant' : 'Balanced flow'}
+      />
+      <GEXMetricCard
+        label="GEX Ratio"
+        icon="⚖"
+        value={summary.gexRatio}
+        format="ratio"
+        color={summary.gexRatio >= 1 ? '#22c55e' : '#ef4444'}
+        sparkline={sparklines.gexRatio}
+        stats={stats.gexRatio}
+        subtitle={`|Call GEX / Put GEX|`}
+      />
+      <GEXMetricCard
+        label="IV Skew"
+        icon="∿"
+        value={summary.ivSkew}
+        format="ratio"
+        color={summary.ivSkew > 3 ? '#ef4444' : summary.ivSkew < -1 ? '#22c55e' : '#eab308'}
+        sparkline={sparklines.ivSkew}
+        stats={stats.ivSkew}
+        subtitle={summary.ivSkew > 3 ? 'Put premium (fear)' : summary.ivSkew < -1 ? 'Call premium (greed)' : 'Neutral skew'}
+      />
+
+      {/* Row 4: Levels & IV */}
+      <GEXMetricCard
+        label="Call IV"
+        icon="C"
+        value={summary.callIV * 100}
+        format="percent"
+        color="#22c55e"
+        sparkline={sparklines.callIV?.map((v: number) => v * 100)}
+        stats={stats.callIV}
+        subtitle="ATM call implied vol"
+      />
+      <GEXMetricCard
+        label="Put IV"
+        icon="P"
+        value={summary.putIV * 100}
+        format="percent"
+        color="#ef4444"
+        sparkline={sparklines.putIV?.map((v: number) => v * 100)}
+        stats={stats.putIV}
+        subtitle="ATM put implied vol"
+      />
       <GEXMetricCard
         label="Max Pain"
         value={summary.maxPain}
@@ -157,10 +213,12 @@ export function GEXKPIGrid({ summary, spotPrice, history, totalCallOI = 0, total
         color="#06b6d4"
         sparkline={sparklines.impliedMove}
         stats={stats.impliedMove}
-        subtitle={`±${spotPrice > 0 ? (summary.impliedMove / spotPrice * 100).toFixed(1) : '0'}% (7d)`}
+        subtitle={`±${spotPrice > 0 ? (summary.impliedMove / spotPrice * 100).toFixed(1) : '0'}%`}
       />
+
+      {/* Row 5: OI & Regime */}
       <GEXMetricCard
-        label="Call/Put Ratio"
+        label="Call/Put OI"
         value={callPutRatio}
         format="ratio"
         color={callPutRatio >= 1 ? '#22c55e' : '#ef4444'}

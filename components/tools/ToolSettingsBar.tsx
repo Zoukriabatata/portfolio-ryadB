@@ -23,6 +23,46 @@ import {
   getToolsEngine,
 } from '@/lib/tools/ToolsEngine';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
+import {
+  TrendingUp,
+  MoveRight,
+  Minus,
+  ArrowRight,
+  SeparatorVertical,
+  Square,
+  Columns2,
+  Circle,
+  GitBranch,
+  GitFork,
+  ArrowUpRight,
+  Pen,
+  Highlighter,
+  Ruler,
+  Type,
+  MousePointer2,
+  type LucideIcon,
+} from 'lucide-react';
+
+const BAR_TOOL_ICONS: Partial<Record<string, LucideIcon>> = {
+  cursor: MousePointer2,
+  trendline: TrendingUp,
+  ray: MoveRight,
+  horizontalLine: Minus,
+  horizontalRay: ArrowRight,
+  verticalLine: SeparatorVertical,
+  rectangle: Square,
+  parallelChannel: Columns2,
+  ellipse: Circle,
+  fibRetracement: GitBranch,
+  fibExtension: GitFork,
+  longPosition: ArrowUpRight,
+  shortPosition: ArrowUpRight,
+  arrow: ArrowUpRight,
+  brush: Pen,
+  highlighter: Highlighter,
+  measure: Ruler,
+  text: Type,
+};
 
 // Global timestamp: when ToolSettingsBar last received a pointerdown/mousedown
 // Set via native capture-phase listener so it fires BEFORE any React handler
@@ -260,30 +300,31 @@ export default function ToolSettingsBar({
         }}
         onMouseDown={handleDragStart}
       >
-        {/* Tool Type Badge - Enhanced for Long/Short positions */}
-        <div
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium"
-          style={{
-            backgroundColor: selectedTool.type === 'longPosition'
-              ? 'rgba(34, 197, 94, 0.15)'
-              : selectedTool.type === 'shortPosition'
-                ? 'rgba(239, 68, 68, 0.15)'
-                : colors.background,
-            color: selectedTool.type === 'longPosition'
-              ? '#22c55e'
-              : selectedTool.type === 'shortPosition'
-                ? '#ef4444'
-                : colors.textPrimary,
-            border: selectedTool.type === 'longPosition'
-              ? '1px solid rgba(34, 197, 94, 0.3)'
-              : selectedTool.type === 'shortPosition'
-                ? '1px solid rgba(239, 68, 68, 0.3)'
-                : 'none',
-          }}
-        >
-          <span className="text-sm">{getToolIcon(selectedTool.type)}</span>
-          <span className="hidden sm:inline font-semibold">{getToolTypeLabel(selectedTool.type)}</span>
-        </div>
+        {/* Tool Type Badge */}
+        {(() => {
+          const BarIcon = BAR_TOOL_ICONS[selectedTool.type];
+          const isLong = selectedTool.type === 'longPosition';
+          const isShort = selectedTool.type === 'shortPosition';
+          return (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-semibold flex-shrink-0"
+              style={{
+                backgroundColor: isLong ? 'rgba(34,197,94,0.12)' : isShort ? 'rgba(239,68,68,0.12)' : colors.background,
+                color: isLong ? '#22c55e' : isShort ? '#ef4444' : colors.textPrimary,
+                border: isLong ? '1px solid rgba(34,197,94,0.25)' : isShort ? '1px solid rgba(239,68,68,0.25)' : 'none',
+              }}
+            >
+              {BarIcon && (
+                <BarIcon
+                  size={13}
+                  strokeWidth={1.5}
+                  className={selectedTool.type === 'shortPosition' ? 'rotate-90' : ''}
+                />
+              )}
+              <span className="hidden sm:inline">{getToolTypeLabel(selectedTool.type)}</span>
+            </div>
+          );
+        })()}
 
         <Divider color={colors.gridColor} />
 

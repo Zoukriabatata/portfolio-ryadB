@@ -462,6 +462,7 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
       currentPrice: price,
       hoveredToolId: controllerState.hoveredToolId,
       hoveredHandle: controllerState.hoveredHandle ?? undefined,
+      altKey: controllerState.modifiers.alt,
     };
     toolsRenderer.render(toolsRC);
 

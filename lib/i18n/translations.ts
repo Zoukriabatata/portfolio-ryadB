@@ -11,6 +11,7 @@ const en = {
   'nav.gex': 'GEX',
   'nav.volatility': 'Volatility',
   'nav.bias': 'GVS Bias',
+  'nav.flow': 'Options Flow',
   'nav.news': 'News',
   'nav.journal': 'Journal',
   'nav.replay': 'Replay',
@@ -177,6 +178,7 @@ const fr: Record<TranslationKey, string> = {
   'nav.gex': 'GEX',
   'nav.volatility': 'Volatilité',
   'nav.bias': 'GVS Bias',
+  'nav.flow': 'Options Flow',
   'nav.news': 'Actualités',
   'nav.journal': 'Journal',
   'nav.replay': 'Replay',
@@ -320,7 +322,7 @@ const fr: Record<TranslationKey, string> = {
 const es: Record<TranslationKey, string> = {
   'nav.dashboard': 'Inicio',
   'nav.live': 'En vivo', 'nav.footprint': 'Footprint', 'nav.liquidity': 'Liquidez',
-  'nav.gex': 'GEX', 'nav.volatility': 'Volatilidad', 'nav.bias': 'GVS Bias',
+  'nav.gex': 'GEX', 'nav.volatility': 'Volatilidad', 'nav.bias': 'GVS Bias', 'nav.flow': 'Flujo Opciones',
   'nav.news': 'Noticias', 'nav.journal': 'Diario', 'nav.replay': 'Replay',
   'nav.dataFeeds': 'Datos', 'nav.account': 'Cuenta',
   'common.save': 'Guardar', 'common.cancel': 'Cancelar', 'common.delete': 'Eliminar',
@@ -396,7 +398,7 @@ const es: Record<TranslationKey, string> = {
 const de: Record<TranslationKey, string> = {
   'nav.dashboard': 'Startseite',
   'nav.live': 'Live', 'nav.footprint': 'Footprint', 'nav.liquidity': 'Liquidität',
-  'nav.gex': 'GEX', 'nav.volatility': 'Volatilität', 'nav.bias': 'GVS Bias',
+  'nav.gex': 'GEX', 'nav.volatility': 'Volatilität', 'nav.bias': 'GVS Bias', 'nav.flow': 'Optionsfluss',
   'nav.news': 'Nachrichten', 'nav.journal': 'Journal', 'nav.replay': 'Replay',
   'nav.dataFeeds': 'Daten', 'nav.account': 'Konto',
   'common.save': 'Speichern', 'common.cancel': 'Abbrechen', 'common.delete': 'Löschen',
@@ -472,7 +474,7 @@ const de: Record<TranslationKey, string> = {
 const ar: Record<TranslationKey, string> = {
   'nav.dashboard': 'الرئيسية',
   'nav.live': 'مباشر', 'nav.footprint': 'بصمة', 'nav.liquidity': 'سيولة',
-  'nav.gex': 'GEX', 'nav.volatility': 'تقلب', 'nav.bias': 'GVS انحياز',
+  'nav.gex': 'GEX', 'nav.volatility': 'تقلب', 'nav.bias': 'GVS انحياز', 'nav.flow': 'تدفق الخيارات',
   'nav.news': 'أخبار', 'nav.journal': 'دفتر', 'nav.replay': 'إعادة',
   'nav.dataFeeds': 'بيانات', 'nav.account': 'حساب',
   'common.save': 'حفظ', 'common.cancel': 'إلغاء', 'common.delete': 'حذف',

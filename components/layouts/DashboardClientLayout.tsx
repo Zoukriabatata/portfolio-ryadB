@@ -27,6 +27,7 @@ import {
   X,
   Wifi,
   WifiOff,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -67,7 +68,7 @@ import { useAutoTrackTrades } from '@/hooks/useAutoTrackTrades';
 // Only `display` toggles — no unmount/remount, no data loss.
 // ============================================================
 
-const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility', '/bias'] as const;
+const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility', '/bias', '/flow'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
 function ChartLoadingFallback({ label }: { label: string }) {
@@ -134,6 +135,10 @@ const BiasPageContent = dynamic(() => import('@/components/pages/BiasPageContent
   ssr: false,
   loading: () => <ChartLoadingFallback label="Bias" />,
 });
+const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="Options Flow" />,
+});
 
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
@@ -142,6 +147,7 @@ const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/gex': GEXPageContent,
   '/volatility': VolatilityPageContent,
   '/bias': BiasPageContent,
+  '/flow': FlowPageContent,
 };
 
 // ============================================================
@@ -172,9 +178,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Analytics',
     items: [
-      { href: '/gex', labelKey: 'nav.gex', Icon: Zap, shortcut: '4' },
-      { href: '/volatility', labelKey: 'nav.volatility', Icon: Activity, shortcut: '5' },
-      { href: '/bias', labelKey: 'nav.bias', Icon: Compass, shortcut: '6' },
+      { href: '/gex',        labelKey: 'nav.gex',        Icon: Zap,         shortcut: '4' },
+      { href: '/volatility', labelKey: 'nav.volatility', Icon: Activity,    shortcut: '5' },
+      { href: '/bias',       labelKey: 'nav.bias',       Icon: Compass,     shortcut: '6' },
+      { href: '/flow',       labelKey: 'nav.flow',       Icon: TrendingUp,  shortcut: '' },
     ],
   },
   {

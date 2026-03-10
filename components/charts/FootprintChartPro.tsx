@@ -2062,6 +2062,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         handle: '#ffffff',
         handleBorder: colors.currentPriceColor,
       },
+      altKey: getInteractionController().getState().modifiers.alt,
     };
 
     getToolsRenderer().render(renderContext);

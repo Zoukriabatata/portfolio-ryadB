@@ -34,6 +34,7 @@ export interface RenderContext {
   currentPrice?: number;  // Current live price for position tracking arrows
   hoveredToolId?: string | null;
   hoveredHandle?: string | null;
+  altKey?: boolean; // Show handles when Alt is held
   dpr?: number; // Device pixel ratio for sharp rendering
 }
 
@@ -237,9 +238,13 @@ export class ToolsRenderer {
       this.renderAttachedText(tool, context);
     }
 
-    // Render handles if selected (skip for position tools — they have custom handles)
+    // Render handles only when Alt is held or tool is hovered while selected
+    // (skip for position tools — they have custom handles)
     if (tool.selected && tool.type !== 'longPosition' && tool.type !== 'shortPosition') {
-      this.renderHandles(tool, context);
+      const isHoveredSelected = context.hoveredToolId === tool.id;
+      if (context.altKey || isHoveredSelected) {
+        this.renderHandles(tool, context);
+      }
     }
 
     // Reset line dash
@@ -587,19 +592,14 @@ export class ToolsRenderer {
       ctx.globalAlpha = 1;
     }
 
-    // Corner indicators when not selected (subtle)
-    if (!tool.selected) {
-      const cornerSize = 4;
-      ctx.fillStyle = tool.style.color;
-      ctx.globalAlpha = 0.6;
-      // Top-left (original bounds)
-      ctx.fillRect(minX - cornerSize/2, minY - cornerSize/2, cornerSize, cornerSize);
-      // Top-right (original bounds)
-      ctx.fillRect(maxX - cornerSize/2, minY - cornerSize/2, cornerSize, cornerSize);
-      // Bottom-left (original bounds)
-      ctx.fillRect(minX - cornerSize/2, maxY - cornerSize/2, cornerSize, cornerSize);
-      // Bottom-right (original bounds)
-      ctx.fillRect(maxX - cornerSize/2, maxY - cornerSize/2, cornerSize, cornerSize);
+    // Hover affordance: subtle border brightness increase (no handles)
+    const isHovered = context.hoveredToolId === tool.id;
+    if (isHovered && !tool.selected) {
+      ctx.strokeStyle = tool.style.color;
+      ctx.lineWidth = tool.style.lineWidth + 0.5;
+      ctx.globalAlpha = 0.5;
+      ctx.setLineDash([]);
+      ctx.strokeRect(extendedLeft - 1, minY - 1, w + 2, h + 2);
       ctx.globalAlpha = 1;
     }
   }

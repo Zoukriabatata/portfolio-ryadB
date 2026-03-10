@@ -44,10 +44,12 @@ export default function CumulativeGEXChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: typeof height === 'number' ? height : 500 });
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
 
   // Zoom & pan
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null);
-  const panRef = useRef({ active: false, startX: 0, startMin: 0, startMax: 0 });
+  const panRef = useRef({ startX: 0, startMin: 0, startMax: 0 });
 
   // Cumulative data
   const cumulativeData = useMemo(() => {
@@ -64,15 +66,14 @@ export default function CumulativeGEXChart({
 
   // Resize
   useEffect(() => {
-    const handleResize = () => {
-      if (containerRef.current) {
-        const h = height === 'auto' ? containerRef.current.clientHeight : (typeof height === 'number' ? height : 500);
-        setDimensions({ width: containerRef.current.clientWidth, height: Math.max(300, h) });
-      }
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      const h = height === 'auto' ? el.clientHeight : (typeof height === 'number' ? height : 500);
+      setDimensions({ width: el.clientWidth, height: Math.max(300, h) });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [height]);
 
   // Draw
@@ -109,7 +110,7 @@ export default function CumulativeGEXChart({
     const visibleData = cumulativeData.filter(d => d.strike >= minStrike && d.strike <= maxStrike);
     if (visibleData.length < 2) return;
 
-    // Auto-scale Y to visible data
+    // Auto-scale Y
     const values = visibleData.map(d => d.value);
     const minVal = Math.min(0, ...values);
     const maxVal = Math.max(0, ...values);
@@ -243,7 +244,8 @@ export default function CumulativeGEXChart({
         const x = toX(d.strike);
         const y = toY(d.value);
 
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        // Full crosshair lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -254,6 +256,22 @@ export default function CumulativeGEXChart({
         ctx.stroke();
         ctx.setLineDash([]);
 
+        // Axis value labels
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = 'bold 9px monospace';
+
+        // Y-axis value label
+        const yLabel = Math.abs(d.value) >= 1e6 ? `${(d.value / 1e6).toFixed(1)}M`
+          : Math.abs(d.value) >= 1e3 ? `${(d.value / 1e3).toFixed(1)}K`
+          : d.value.toFixed(0);
+        ctx.textAlign = 'right';
+        ctx.fillText(yLabel, PADDING.left - 4, y + 4);
+
+        // X-axis strike label
+        ctx.textAlign = 'center';
+        ctx.fillText(`$${d.strike.toFixed(0)}`, x, PADDING.top + ch + 12);
+
+        // Data point circle
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(x, y, 5, 0, Math.PI * 2);
@@ -275,20 +293,11 @@ export default function CumulativeGEXChart({
     ctx.fillStyle = COLORS.text;
     ctx.font = '10px system-ui';
     ctx.fillText('Zero crossing = Gamma Flip Level', PADDING.left + 280, 24);
-
-    // Zoom indicator
-    if (zoomRange) {
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.font = '10px system-ui';
-      ctx.textAlign = 'right';
-      const pct = ((strikeRange / (dataMax - dataMin)) * 100).toFixed(0);
-      ctx.fillText(`${pct}% \u00b7 scroll to zoom \u00b7 double-click to reset`, width - PADDING.right, h - 5);
-    }
   }, [cumulativeData, dimensions, spotPrice, hoveredIdx, selectedGreek, symbol, zeroGammaLevel, callWall, putWall, zoomRange]);
 
   useEffect(() => { draw(); }, [draw]);
 
-  // Wheel zoom (functional updater to avoid zoomRange dep)
+  // Wheel zoom
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || cumulativeData.length < 3) return;
@@ -338,8 +347,11 @@ export default function CumulativeGEXChart({
     const canvas = canvasRef.current;
     if (!canvas || cumulativeData.length === 0) return;
 
+    const rect = canvas.getBoundingClientRect();
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+
     // Pan
-    if (panRef.current.active) {
+    if (isPanning) {
       const chartW = dimensions.width - PADDING.left - PADDING.right;
       const range = panRef.current.startMax - panRef.current.startMin;
       const strikeDelta = -((e.clientX - panRef.current.startX) / chartW) * range;
@@ -359,7 +371,6 @@ export default function CumulativeGEXChart({
     }
 
     // Hover
-    const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const chartW = dimensions.width - PADDING.left - PADDING.right;
 
@@ -378,61 +389,152 @@ export default function CumulativeGEXChart({
     }
 
     setHoveredIdx(closestIdx);
-  }, [cumulativeData, dimensions, zoomRange]);
+  }, [cumulativeData, dimensions, zoomRange, isPanning]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0 || !zoomRange) return;
-    panRef.current = {
-      active: true,
-      startX: e.clientX,
-      startMin: zoomRange.min,
-      startMax: zoomRange.max,
-    };
-  }, [zoomRange]);
+    if (e.button !== 0) return;
+
+    const allStrikes = cumulativeData.map(d => d.strike);
+    const dataMin = Math.min(...allStrikes);
+    const dataMax = Math.max(...allStrikes);
+    const dataRange = dataMax - dataMin;
+
+    let startMin: number;
+    let startMax: number;
+
+    if (!zoomRange && dataRange > 0) {
+      // No zoom yet → auto-zoom to 70% centered on cursor so pan has room to move
+      const canvas = canvasRef.current;
+      const rect = canvas?.getBoundingClientRect();
+      const chartW = (rect?.width ?? dimensions.width) - PADDING.left - PADDING.right;
+      const normalizedX = (e.clientX - (rect?.left ?? 0) - PADDING.left) / chartW;
+      const cursorStrike = dataMin + normalizedX * dataRange;
+
+      const newRange = dataRange * 0.7;
+      let nMin = cursorStrike - newRange / 2;
+      let nMax = cursorStrike + newRange / 2;
+      if (nMin < dataMin) { nMax += dataMin - nMin; nMin = dataMin; }
+      if (nMax > dataMax) { nMin -= nMax - dataMax; nMax = dataMax; }
+      startMin = Math.max(dataMin, nMin);
+      startMax = Math.min(dataMax, nMax);
+      setZoomRange({ min: startMin, max: startMax });
+    } else {
+      startMin = zoomRange?.min ?? dataMin;
+      startMax = zoomRange?.max ?? dataMax;
+    }
+
+    panRef.current = { startX: e.clientX, startMin, startMax };
+    setIsPanning(true);
+  }, [zoomRange, cumulativeData, dimensions]);
 
   const handleMouseUp = useCallback(() => {
-    panRef.current.active = false;
+    setIsPanning(false);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredIdx(null);
+    setIsPanning(false);
   }, []);
 
   const hoveredData = hoveredIdx !== null ? cumulativeData[hoveredIdx] : null;
   const greekMeta = GREEK_META[selectedGreek];
 
+  // Tooltip position (follow cursor, clamp to bounds)
+  const tooltipOffset = 14;
+  const tooltipW = 188;
+  const tooltipH = 110;
+  const rawTtX = mousePos.x + tooltipOffset;
+  const rawTtY = mousePos.y + tooltipOffset;
+  const ttX = Math.min(rawTtX, dimensions.width - tooltipW - 8);
+  const ttY = Math.min(rawTtY, dimensions.height - tooltipH - 8);
+
+  const isZoomed = !!zoomRange;
+  const allStrikes = cumulativeData.map(d => d.strike);
+  const dataMin = allStrikes.length ? Math.min(...allStrikes) : 0;
+  const dataMax = allStrikes.length ? Math.max(...allStrikes) : 1;
+  const zoomPct = isZoomed
+    ? (((zoomRange!.max - zoomRange!.min) / (dataMax - dataMin)) * 100).toFixed(0)
+    : '100';
+
   return (
-    <div ref={containerRef} className="relative w-full h-full" style={{ height: height === 'auto' ? '100%' : height }}>
+    <div ref={containerRef} className="relative w-full h-full select-none" style={{ height: height === 'auto' ? '100%' : height }}>
       <canvas
         ref={canvasRef}
         className="w-full h-full"
-        style={{ cursor: panRef.current.active ? 'grabbing' : zoomRange ? 'grab' : 'crosshair' }}
+        style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        onMouseLeave={() => { setHoveredIdx(null); panRef.current.active = false; }}
+        onMouseLeave={handleMouseLeave}
         onDoubleClick={() => setZoomRange(null)}
       />
 
-      {/* Tooltip */}
-      {hoveredData && !panRef.current.active && (
-        <div className="absolute top-2 right-2 bg-zinc-900/95 border border-zinc-700 rounded-lg p-3 text-xs min-w-[160px]">
-          <div className="font-bold text-white mb-1.5">Strike: ${hoveredData.strike.toFixed(0)}</div>
-          <div className="flex justify-between gap-4">
-            <span className="text-zinc-400">Level {greekMeta.label}:</span>
-            <span className={`font-mono ${hoveredData.raw >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatVal(hoveredData.raw)}
+      {/* Cursor-following tooltip */}
+      {hoveredData && !isPanning && (
+        <div
+          className="pointer-events-none absolute rounded-xl text-xs backdrop-blur-xl overflow-hidden shadow-2xl z-10"
+          style={{
+            left: ttX,
+            top: ttY,
+            background: 'rgba(15,15,20,0.95)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            minWidth: tooltipW,
+          }}
+        >
+          <div className="px-3.5 py-2 border-b border-white/10 flex items-center justify-between">
+            <span className="font-bold text-white text-[13px]">Strike ${hoveredData.strike.toFixed(0)}</span>
+            <span className="text-[9px] font-mono" style={{ color: hoveredData.raw >= 0 ? COLORS.positive : COLORS.negative }}>
+              {hoveredData.raw >= 0 ? '+' : ''}{formatVal(hoveredData.raw)}
             </span>
           </div>
-          <div className="flex justify-between gap-4 border-t border-zinc-700 mt-1.5 pt-1.5">
-            <span className="text-zinc-400">Cumulative:</span>
-            <span className={`font-mono font-bold ${hoveredData.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatVal(hoveredData.value)}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4 mt-1">
-            <span className="text-zinc-400">vs Spot:</span>
-            <span className="text-zinc-300 font-mono">
-              {((hoveredData.strike - spotPrice) / spotPrice * 100).toFixed(1)}%
-            </span>
+          <div className="px-3.5 py-2.5 space-y-1.5">
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-400">{greekMeta.label}:</span>
+              <span className={`font-mono ${hoveredData.raw >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {formatVal(hoveredData.raw)}
+              </span>
+            </div>
+            <div className="flex justify-between gap-4 border-t border-white/10 pt-1.5">
+              <span className="text-zinc-400">Cumulative:</span>
+              <span className={`font-mono font-bold ${hoveredData.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {formatVal(hoveredData.value)}
+              </span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-400">vs Spot:</span>
+              <span className="text-zinc-300 font-mono">
+                {((hoveredData.strike - spotPrice) / spotPrice * 100).toFixed(1)}%
+              </span>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Bottom hint bar */}
+      <div className="pointer-events-none absolute bottom-1 left-0 right-0 flex items-center justify-center gap-3"
+        style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>
+        <span>scroll · zoom</span>
+        <span>·</span>
+        <span>drag · pan</span>
+        <span>·</span>
+        <span>dbl-click · reset</span>
+      </div>
+
+      {/* Floating zoom indicator + reset */}
+      {isZoomed && (
+        <button
+          onClick={() => setZoomRange(null)}
+          className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-mono transition-opacity hover:opacity-100 opacity-70"
+          style={{
+            background: 'rgba(20,20,28,0.9)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.5)',
+          }}
+        >
+          <span style={{ color: '#3b82f6' }}>{zoomPct}%</span>
+          <span>× reset</span>
+        </button>
       )}
     </div>
   );

@@ -137,7 +137,7 @@ function FlyoutMenu({
   const removeFromFavorites = useFavoritesToolbarStore(s => s.removeToolFromPreset);
 
   return (
-    <div className="flex flex-col p-1 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl min-w-[180px]">
+    <div className="flex flex-col py-1 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-[0_8px_24px_rgba(0,0,0,0.4)] min-w-[180px]">
       {tools.map(tool => {
         const ToolIcon = TOOL_ICONS[tool];
         const isActive = activeTool === tool;
@@ -149,23 +149,23 @@ function FlyoutMenu({
             <button
               onClick={() => onToolSelect(tool, groupId)}
               className={`
-                flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-colors duration-75 flex-1
+                flex items-center gap-2 px-3 py-1.5 text-left transition-colors duration-75 flex-1
                 ${isActive
-                  ? 'bg-[var(--primary)]/15 text-[var(--primary)]'
+                  ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--surface)]'
                 }
               `}
             >
               <ToolIcon
-                size={14}
+                size={13}
                 strokeWidth={1.5}
                 className={`flex-shrink-0 ${tool === 'shortPosition' ? 'rotate-90' : ''}`}
               />
-              <span className="text-[11px] font-medium flex-1">
+              <span className="text-[11px] font-medium flex-1 leading-none">
                 {TOOL_LABELS[tool]}
               </span>
               {shortcut && (
-                <span className="text-[10px] font-mono text-[var(--text-dimmed)]">
+                <span className="text-[10px] font-mono tabular-nums" style={{ color: 'var(--text-dimmed)' }}>
                   {shortcut}
                 </span>
               )}
@@ -307,7 +307,7 @@ export default function VerticalToolbar({
             <div key={group.id}>
               {/* Separator between groups */}
               {gi > 0 && (
-                <div className="w-5 h-px bg-[var(--border)] mx-auto my-0.5" />
+                <div className="w-full h-px my-0.5" style={{ backgroundColor: 'var(--border)' }} />
               )}
 
               {/* Primary tool button */}
@@ -319,24 +319,26 @@ export default function VerticalToolbar({
                 <button
                   onClick={() => handleToolSelect(primaryTool, group.id)}
                   className={`
-                    relative flex items-center justify-center w-[34px] h-[34px] rounded-md transition-colors duration-100
+                    relative flex items-center justify-center w-[34px] h-[34px] rounded transition-colors duration-100 border-l-2
                     ${isGroupActive
-                      ? 'bg-[var(--primary)]/15 text-[var(--primary)]'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
+                      ? 'bg-[var(--primary)]/10 text-[var(--primary)] border-l-[var(--primary)]'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] border-l-transparent'
                     }
                   `}
                   title={`${TOOL_LABELS[primaryTool]}${TOOL_SHORTCUTS[primaryTool] ? ` (${TOOL_SHORTCUTS[primaryTool]})` : ''}`}
                 >
                   <Icon
-                    size={16}
+                    size={15}
                     strokeWidth={1.5}
                     className={primaryTool === 'shortPosition' ? 'rotate-90' : ''}
                   />
 
-                  {/* Submenu indicator — small triangle */}
+                  {/* Submenu indicator — micro triangle corner */}
                   {hasSubmenu && (
-                    <span className="absolute bottom-0.5 right-0.5">
-                      <ChevronRight size={7} strokeWidth={2} className="text-[var(--text-dimmed)]" />
+                    <span className="absolute bottom-[3px] right-[3px] leading-none">
+                      <svg width="5" height="5" viewBox="0 0 5 5">
+                        <path d="M0 5 L5 0 L5 5 Z" fill="currentColor" opacity="0.5" />
+                      </svg>
                     </span>
                   )}
                 </button>

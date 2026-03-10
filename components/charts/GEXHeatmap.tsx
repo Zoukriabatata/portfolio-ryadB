@@ -77,14 +77,14 @@ export default function GEXHeatmap({
   const [tooltip3D, setTooltip3D] = useState<{ x: number; y: number; strike: number; time: number; value: number } | null>(null);
   const themeColors = useHeatmapColors();
 
-  // Generate time series data (simulated historical GEX over time)
+  // Generate time series data from GEX per strike (time-axis is synthetic variation)
   const timeSeriesData = useMemo(() => {
     const timeSteps = 20;
     const data: { strike: number; time: number; value: number }[][] = [];
     for (let t = 0; t < timeSteps; t++) {
       const timeData: { strike: number; time: number; value: number }[] = [];
       gexData.forEach(level => {
-        const timeFactor = 1 + Math.sin(t * 0.3) * 0.3 + (Math.random() - 0.5) * 0.2;
+        const timeFactor = 1 + Math.sin(t * 0.3) * 0.3;
         const value = dataType === 'netGEX'
           ? level.netGEX * timeFactor
           : (level.callOI + level.putOI) * 0.001 * timeFactor;
@@ -93,8 +93,7 @@ export default function GEXHeatmap({
       data.push(timeData);
     }
     return data;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gexData.length, dataType]);
+  }, [gexData, dataType]);
 
   // Resize
   useEffect(() => {

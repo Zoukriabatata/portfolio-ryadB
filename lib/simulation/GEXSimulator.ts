@@ -248,6 +248,12 @@ function generateSimulatedHistory(
       impliedMove: currentSummary.impliedMove * noise(),
       regime: spot >= currentSummary.zeroGammaLevel ? 'positive' : 'negative',
       gammaIntensity: Math.max(0, Math.min(100, currentSummary.gammaIntensity + (rng() - 0.5) * 20)),
+      netFlow: (currentSummary.netFlow ?? 0) * noise(),
+      flowRatio: (currentSummary.flowRatio ?? 1) * (0.95 + rng() * 0.1),
+      gexRatio: (currentSummary.gexRatio ?? 0) * (0.95 + rng() * 0.1),
+      callIV: (currentSummary.callIV ?? 0) * (0.98 + rng() * 0.04),
+      putIV: (currentSummary.putIV ?? 0) * (0.98 + rng() * 0.04),
+      ivSkew: (currentSummary.ivSkew ?? 0) + (rng() - 0.5) * 0.5,
     };
 
     history.push({

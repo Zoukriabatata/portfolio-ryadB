@@ -391,6 +391,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       currentPrice: refs.currentPrice.current || 0,
       hoveredToolId: refs.interactionController.current.getHoveredToolId(),
       hoveredHandle: refs.interactionController.current.getHoveredHandle(),
+      altKey: refs.interactionController.current.getState().modifiers.alt,
     };
 
     // Render cluster overlay (between candles and drawing tools in z-order)

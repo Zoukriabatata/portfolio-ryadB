@@ -1,685 +1,527 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef, Fragment } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { usePageActive } from '@/hooks/usePageActive';
 import { ChartSkeleton, EmptyState } from '@/components/ui/Skeleton';
-import {
-  generateSimulatedGEX,
-  generateSimulatedExpirations,
-  generateSimulatedMultiGreek,
-} from '@/lib/simulation/GEXSimulator';
 import { GEXHistoryBuffer } from '@/lib/calculations/gexHistory';
-import { GEXKPIGrid } from '@/components/widgets/GEXKPIGrid';
-import { GEXIntensityGauge } from '@/components/widgets/GEXIntensityGauge';
-import { GEXNarrativePanel } from '@/components/widgets/GEXNarrativePanel';
 import type { MultiGreekData, MultiGreekSummary, GreekType } from '@/types/options';
 import { GREEK_META } from '@/types/options';
-import { GammaIcon, SimulationIcon, RefreshIcon } from '@/components/ui/Icons';
+import { RefreshIcon } from '@/components/ui/Icons';
+import { useLiveSpot } from '@/lib/useLiveSpot';
 
-const GEXDashboard = dynamic(
-  () => import('@/components/charts/GEXDashboard'),
-  { ssr: false }
-);
+const GEXDashboard = dynamic(() => import('@/components/charts/GEXDashboard'), { ssr: false });
+const GEXHeatmap = dynamic(() => import('@/components/charts/GEXHeatmap'), { ssr: false });
+const CumulativeGEXChart = dynamic(() => import('@/components/charts/CumulativeGEXChart'), { ssr: false });
+const OptionsFlowPanel = dynamic(() => import('@/components/widgets/OptionsFlowPanel'), { ssr: false });
 
-const GEXHeatmap = dynamic(
-  () => import('@/components/charts/GEXHeatmap'),
-  { ssr: false }
-);
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-const CumulativeGEXChart = dynamic(
-  () => import('@/components/charts/CumulativeGEXChart'),
-  { ssr: false }
-);
+interface LegacyGEXLevel {
+  strike: number; callGEX: number; putGEX: number; netGEX: number;
+  callOI: number; putOI: number; callVolume: number; putVolume: number;
+}
+interface LegacyGEXSummary {
+  netGEX: number; totalCallGEX: number; totalPutGEX: number;
+  callWall: number; putWall: number; zeroGamma: number;
+  maxGamma: number; gammaFlip: number; hvl: number;
+  regime: 'positive' | 'negative';
+}
 
 type ViewMode = 'bars' | 'cumulative' | 'heatmap2D' | 'heatmap3D';
 
-// Legacy interface for backward compat with existing chart components
-interface LegacyGEXLevel {
-  strike: number;
-  callGEX: number;
-  putGEX: number;
-  netGEX: number;
-  callOI: number;
-  putOI: number;
-  callVolume: number;
-  putVolume: number;
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmtBig(n: number, dec = 2) {
+  const a = Math.abs(n);
+  if (a >= 1e9) return `${(n / 1e9).toFixed(dec)}B`;
+  if (a >= 1e6) return `${(n / 1e6).toFixed(dec)}M`;
+  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return n.toFixed(dec);
 }
 
-interface LegacyGEXSummary {
-  netGEX: number;
-  totalCallGEX: number;
-  totalPutGEX: number;
-  callWall: number;
-  putWall: number;
-  zeroGamma: number;
-  maxGamma: number;
-  gammaFlip: number;
-  hvl: number;
-  regime: 'positive' | 'negative';
+function pct(a: number, b: number) {
+  if (!b) return '—';
+  return `${((a - b) / b * 100).toFixed(1)}%`;
 }
 
 const ETF_SYMBOLS = ['SPY', 'QQQ', 'IWM', 'DIA'];
 const STOCK_SYMBOLS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'META'];
-const SYMBOLS = [...ETF_SYMBOLS, ...STOCK_SYMBOLS];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function MetricRow({ label, value, sub, bull }: {
+  label: string; value: string; sub?: string; bull?: boolean;
+}) {
+  const color = bull === undefined ? 'var(--text-primary)' : bull ? '#22c55e' : '#ef4444';
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-[var(--border)]/40 last:border-0">
+      <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
+      <div className="text-right">
+        <span className="text-[12px] font-mono font-semibold" style={{ color }}>{value}</span>
+        {sub && <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2 mt-3 first:mt-0">
+      {children}
+    </p>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GEXPageContent() {
-  const [symbol, setSymbol] = useState('SPY');
+  const [symbol, setSymbol] = useState('QQQ');
   const [expiration, setExpiration] = useState<number | null>(null);
   const [expirations, setExpirations] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [isSimulation, setIsSimulation] = useState(true);
-  const [realSpotPrice, setRealSpotPrice] = useState<number | undefined>();
-  const [priceSource, setPriceSource] = useState<'yahoo-finance' | 'fallback' | null>(null);
-  const [symbolPopoverOpen, setSymbolPopoverOpen] = useState(false);
-  const [symbolSearch, setSymbolSearch] = useState('');
-  const symbolPopoverRef = useRef<HTMLDivElement>(null);
+  const [dataSource, setDataSource] = useState<'cboe' | 'error' | null>(null);
+  const [symbolOpen, setSymbolOpen] = useState(false);
+  const symbolRef = useRef<HTMLDivElement>(null);
 
-  // View controls
   const [viewMode, setViewMode] = useState<ViewMode>('bars');
   const [selectedGreek, setSelectedGreek] = useState<GreekType>('gex');
-  const [priceZoom, setPriceZoom] = useState({ min: 0, max: 100 });
-  const [zoomCenter, setZoomCenter] = useState<number | null>(null);
+  const [zoom, setZoom] = useState<'full' | 'atm' | 'tight'>('atm');
 
-  // Multi-Greek data (new)
+  // Live spot price — polls every 10s (faster than full GEX refresh at 30s)
+  const liveSpot = useLiveSpot(symbol, 10_000);
+
   const [multiGreekData, setMultiGreekData] = useState<MultiGreekData[]>([]);
   const [multiGreekSummary, setMultiGreekSummary] = useState<MultiGreekSummary | null>(null);
   const [spotPrice, setSpotPrice] = useState(0);
+
+  // Effective spot: prefer live price (10s) over API price (30s)
+  const effectiveSpot = liveSpot.price > 0 ? liveSpot.price : spotPrice;
   const [totalCallOI, setTotalCallOI] = useState(0);
   const [totalPutOI, setTotalPutOI] = useState(0);
   const historyRef = useRef<GEXHistoryBuffer>(new GEXHistoryBuffer());
 
-  // Legacy data (for existing chart components)
+  const [netFlowByStrike, setNetFlowByStrike] = useState<{ strike: number; callPremium: number; putPremium: number; net: number }[]>([]);
+  const [oiByStrike, setOiByStrike] = useState<{ strike: number; callOI: number; putOI: number }[]>([]);
+  const [topContracts, setTopContracts] = useState<{ strike: number; type: 'C' | 'P'; expiration: string; volume: number; oi: number; premium: number; iv: number; delta: number; voiRatio: number }[]>([]);
+  const [gexByExpiry, setGexByExpiry] = useState<{ label: string; daysToExp: number; callGEX: number; putGEX: number; netGEX: number }[]>([]);
+
   const [legacyGexData, setLegacyGexData] = useState<LegacyGEXLevel[]>([]);
   const [legacySummary, setLegacySummary] = useState<LegacyGEXSummary | null>(null);
 
-  // Convert MultiGreekData to legacy format based on selected Greek
+  // ─── Derived ───────────────────────────────────────────────────────────────
+
   const adaptedLegacyData = useMemo((): LegacyGEXLevel[] => {
-    if (selectedGreek === 'gex' && legacyGexData.length > 0) {
-      return legacyGexData; // Use native legacy data for GEX
-    }
-
-    // Adapt multi-Greek data to legacy format for other Greeks
+    if (selectedGreek === 'gex' && legacyGexData.length > 0) return legacyGexData;
     return multiGreekData.map(d => {
-      const value = d[selectedGreek];
-      const callPortion = value > 0 ? value : 0;
-      const putPortion = value < 0 ? value : 0;
-
-      return {
-        strike: d.strike,
-        callGEX: callPortion,
-        putGEX: putPortion,
-        netGEX: value,
-        callOI: d.callOI,
-        putOI: d.putOI,
-        callVolume: 0,
-        putVolume: 0,
-      };
+      const v = d[selectedGreek];
+      return { strike: d.strike, callGEX: v > 0 ? v : 0, putGEX: v < 0 ? v : 0, netGEX: v, callOI: d.callOI, putOI: d.putOI, callVolume: 0, putVolume: 0 };
     });
   }, [multiGreekData, legacyGexData, selectedGreek]);
 
   const adaptedLegacySummary = useMemo((): LegacyGEXSummary | null => {
     if (selectedGreek === 'gex' && legacySummary) return legacySummary;
     if (!multiGreekSummary) return null;
-
     const netVal = multiGreekSummary[`net${selectedGreek.toUpperCase()}` as keyof MultiGreekSummary] as number;
-
-    return {
-      netGEX: netVal,
-      totalCallGEX: netVal > 0 ? netVal : 0,
-      totalPutGEX: netVal < 0 ? netVal : 0,
-      callWall: multiGreekSummary.callWall,
-      putWall: multiGreekSummary.putWall,
-      zeroGamma: multiGreekSummary.zeroGammaLevel,
-      maxGamma: multiGreekSummary.callWall,
-      gammaFlip: multiGreekSummary.zeroGammaLevel,
-      hvl: multiGreekSummary.zeroGammaLevel,
-      regime: multiGreekSummary.regime,
-    };
+    return { netGEX: netVal, totalCallGEX: netVal > 0 ? netVal : 0, totalPutGEX: netVal < 0 ? netVal : 0, callWall: multiGreekSummary.callWall, putWall: multiGreekSummary.putWall, zeroGamma: multiGreekSummary.zeroGammaLevel, maxGamma: multiGreekSummary.callWall, gammaFlip: multiGreekSummary.zeroGammaLevel, hvl: multiGreekSummary.zeroGammaLevel, regime: multiGreekSummary.regime };
   }, [multiGreekSummary, legacySummary, selectedGreek]);
 
-  // ─── Fetch real ETF price ───
+  const zoomedData = useMemo(() => {
+    if (adaptedLegacyData.length === 0) return adaptedLegacyData;
+    const strikes = adaptedLegacyData.map(d => d.strike);
+    const lo = Math.min(...strikes), hi = Math.max(...strikes), range = hi - lo;
+    if (zoom === 'full') return adaptedLegacyData;
+    const center = spotPrice || (lo + hi) / 2;
+    const half = range * (zoom === 'atm' ? 0.15 : 0.06);
+    return adaptedLegacyData.filter(d => d.strike >= center - half && d.strike <= center + half);
+  }, [adaptedLegacyData, zoom, spotPrice]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchPrice = async () => {
-      try {
-        const res = await fetch(`/api/market/etf-price?symbol=${symbol}`);
-        if (!res.ok) throw new Error('fetch failed');
-        const data = await res.json();
-        if (!cancelled) {
-          setRealSpotPrice(data.price);
-          setPriceSource(data.source);
-        }
-      } catch {
-        if (!cancelled) {
-          setRealSpotPrice(undefined);
-          setPriceSource('fallback');
-        }
-      }
-    };
-    fetchPrice();
-    const interval = setInterval(fetchPrice, 5 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [symbol]);
+  // ─── Bias logic ────────────────────────────────────────────────────────────
 
-  // ─── Data Loading ───
+  const bias = useMemo(() => {
+    if (!multiGreekSummary) return null;
+    const gexBull = multiGreekSummary.netGEX > 0;
+    const flowBull = multiGreekSummary.flowRatio >= 1;
+    const aboveZG = spotPrice > multiGreekSummary.zeroGammaLevel;
+    const bullCount = [gexBull, flowBull, aboveZG].filter(Boolean).length;
+    if (bullCount >= 2) return 'BULLISH';
+    if (bullCount === 0) return 'BEARISH';
+    return 'NEUTRAL';
+  }, [multiGreekSummary, spotPrice]);
 
-  const loadSimulatedData = useCallback(() => {
+  const biasColor = bias === 'BULLISH' ? '#22c55e' : bias === 'BEARISH' ? '#ef4444' : '#eab308';
+
+  // Wall bar position
+  const wallBarPct = useMemo(() => {
+    const cw = multiGreekSummary?.callWall ?? 0;
+    const pw = multiGreekSummary?.putWall ?? 0;
+    if (!cw || !pw || cw <= pw || spotPrice <= pw) return 50;
+    return Math.min(100, Math.max(0, ((spotPrice - pw) / (cw - pw)) * 100));
+  }, [multiGreekSummary, spotPrice]);
+
+  // ─── Data fetch ────────────────────────────────────────────────────────────
+
+  const loadLiveData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    try {
+      const expParam = expiration ? `&expiration=${expiration}` : '';
+      const res = await fetch(`/api/gex-live?symbol=${symbol}${expParam}`);
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message || `API ${res.status}`);
+      const data = await res.json();
 
-    setTimeout(() => {
-      // Generate expirations
-      const fakeExpirations = generateSimulatedExpirations();
-      setExpirations(fakeExpirations);
-      if (!expiration) setExpiration(fakeExpirations[0]);
+      setExpirations(data.expirations);
+      if (!expiration && data.expirations.length > 0) setExpiration(data.expirations[0]);
+      setLegacyGexData(data.legacyData);
+      setLegacySummary(data.legacySummary);
+      setMultiGreekData(data.multiGreekData);
+      setMultiGreekSummary(data.multiGreekSummary);
+      setSpotPrice(data.spotPrice);
+      setTotalCallOI(data.totalCallOI);
+      setTotalPutOI(data.totalPutOI);
+      setNetFlowByStrike(data.netFlowByStrike || []);
+      setOiByStrike(data.oiByStrike || []);
+      setTopContracts(data.topContracts || []);
+      setGexByExpiry(data.gexByExpiry || []);
 
-      // Legacy GEX (for bars chart)
-      const expDate = expiration || fakeExpirations[0];
-      const daysToExp = Math.max(1, Math.ceil((expDate * 1000 - Date.now()) / (1000 * 60 * 60 * 24)));
-      const { gexData: simData, summary: simSummary, spotPrice: simSpot } = generateSimulatedGEX(symbol, daysToExp);
-      setLegacyGexData(simData);
-      setLegacySummary(simSummary);
-      setSpotPrice(simSpot);
-
-      // Multi-Greek data (new) — anchored on real price when available
-      const multiResult = generateSimulatedMultiGreek(symbol, 5, realSpotPrice);
-      setMultiGreekData(multiResult.data);
-      setMultiGreekSummary(multiResult.summary);
-      setSpotPrice(multiResult.spotPrice); // Override with multi-Greek spot
-      setTotalCallOI(multiResult.totalCallOI);
-      setTotalPutOI(multiResult.totalPutOI);
-      historyRef.current = multiResult.history;
-
+      historyRef.current.push({ timestamp: Date.now(), summary: data.multiGreekSummary, data: data.multiGreekData, spotPrice: data.spotPrice });
+      setDataSource('cboe');
       setLastUpdate(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed');
+      setDataSource('error');
+    } finally {
       setIsLoading(false);
-    }, 300);
-  }, [symbol, expiration, realSpotPrice]);
+    }
+  }, [symbol, expiration]);
 
-  // Initial load
-  useEffect(() => {
-    loadSimulatedData();
-  }, [loadSimulatedData]);
+  useEffect(() => { loadLiveData(); }, [loadLiveData]);
+  useEffect(() => { if (expiration) loadLiveData(); }, [expiration, loadLiveData]);
 
-  useEffect(() => {
-    if (expiration) loadSimulatedData();
-  }, [expiration, loadSimulatedData]);
-
-  // Auto refresh (30s) — only when page is active
   const isActive = usePageActive();
   useEffect(() => {
     if (!isActive) return;
-    const interval = setInterval(() => loadSimulatedData(), 30_000);
-    return () => clearInterval(interval);
-  }, [isActive, loadSimulatedData]);
+    const t = setInterval(loadLiveData, 30_000);
+    return () => clearInterval(t);
+  }, [isActive, loadLiveData]);
 
-  // Keyboard shortcuts
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
-      if (e.key === 'Escape') { setSymbolPopoverOpen(false); return; }
-      const greeks: GreekType[] = ['gex', 'vex', 'cex', 'dex'];
-      if (e.key >= '1' && e.key <= '4') {
-        setSelectedGreek(greeks[parseInt(e.key) - 1]);
-      } else if (e.key === 'r' || e.key === 'R') {
-        loadSimulatedData();
-      }
+    const h = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.key === 'Escape') setSymbolOpen(false);
+      if (e.key === 'r' || e.key === 'R') loadLiveData();
+      const gs: GreekType[] = ['gex', 'vex', 'cex', 'dex'];
+      if (e.key >= '1' && e.key <= '4') setSelectedGreek(gs[+e.key - 1]);
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [loadSimulatedData]);
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [loadLiveData]);
 
-  // Close symbol popover on outside click
   useEffect(() => {
-    if (!symbolPopoverOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (symbolPopoverRef.current && !symbolPopoverRef.current.contains(e.target as Node)) setSymbolPopoverOpen(false);
+    if (!symbolOpen) return;
+    const h = (e: MouseEvent) => {
+      if (symbolRef.current && !symbolRef.current.contains(e.target as Node)) setSymbolOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [symbolPopoverOpen]);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [symbolOpen]);
 
-  // ─── Zoom ───
-
-  const getZoomedData = useCallback(() => {
-    const data = adaptedLegacyData;
-    if (data.length === 0) return data;
-    const strikes = data.map(d => d.strike);
-    const minStrike = Math.min(...strikes);
-    const maxStrike = Math.max(...strikes);
-    const range = maxStrike - minStrike;
-    let zoomMin = minStrike + (range * priceZoom.min) / 100;
-    let zoomMax = minStrike + (range * priceZoom.max) / 100;
-    if (zoomCenter !== null && priceZoom.max - priceZoom.min < 100) {
-      const zoomRange = (range * (priceZoom.max - priceZoom.min)) / 100;
-      zoomMin = zoomCenter - zoomRange / 2;
-      zoomMax = zoomCenter + zoomRange / 2;
-    }
-    return data.filter(d => d.strike >= zoomMin && d.strike <= zoomMax);
-  }, [adaptedLegacyData, priceZoom, zoomCenter]);
-
-  const zoomedGexData = getZoomedData();
-
-  const formatExpDate = (ts: number) => {
-    return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const resetSymbol = (s: string) => {
+    setSymbol(s); setExpiration(null);
+    setLegacyGexData([]); setLegacySummary(null);
+    setMultiGreekData([]); setMultiGreekSummary(null);
+    setSymbolOpen(false);
   };
 
-  const setZoomPreset = (preset: 'full' | 'atm' | 'tight') => {
-    switch (preset) {
-      case 'full': setPriceZoom({ min: 0, max: 100 }); setZoomCenter(null); break;
-      case 'atm': setPriceZoom({ min: 35, max: 65 }); setZoomCenter(spotPrice); break;
-      case 'tight': setPriceZoom({ min: 45, max: 55 }); setZoomCenter(spotPrice); break;
-    }
-  };
-
+  const s = multiGreekSummary;
+  const callWall = s?.callWall ?? 0;
+  const putWall = s?.putWall ?? 0;
+  const zeroGamma = s?.zeroGammaLevel ?? 0;
   const greekMeta = GREEK_META[selectedGreek];
 
   return (
-    <div className="h-full flex flex-col bg-[var(--background)] p-4 gap-3 overflow-auto">
-      {/* ─── Disclaimer ─── */}
-      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] animate-fadeIn ${
-        priceSource === 'yahoo-finance'
-          ? 'bg-[var(--success-bg)] border-[var(--success)]/20 text-[var(--success)]'
-          : 'bg-[var(--warning-bg)] border-[var(--warning)]/20 text-[var(--warning)]'
-      }`}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 9v4m0 4h.01M12 2L2 22h20L12 2z"/></svg>
-        <span>
-          {priceSource === 'yahoo-finance'
-            ? `Live ${symbol} price anchored. GEX/Greeks data is simulated. Not financial advice.`
-            : 'Simulated data for educational purposes only. Not financial advice. Do not use for real trading decisions.'}
-        </span>
-      </div>
+    <div className="h-full flex flex-col overflow-hidden bg-[var(--background)]">
 
-      {/* ─── Header ─── */}
-      <div className="flex items-center justify-between flex-wrap gap-3 animate-slideUp stagger-1">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--primary)] flex items-center justify-center">
-              <GammaIcon size={22} color="#fff" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-[var(--text-primary)]">
-                {greekMeta.fullName}
-              </h1>
-              <p className="text-xs text-[var(--text-muted)]">
-                {greekMeta.description}
-              </p>
-            </div>
-          </div>
+      {/* ═══ HEADER ══════════════════════════════════════════════════════════ */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
 
-          {/* Symbol selector — popover */}
-          <div className="relative" ref={symbolPopoverRef}>
+        {/* Left: Symbol + Greek */}
+        <div className="flex items-center gap-3">
+
+          {/* Symbol selector */}
+          <div className="relative" ref={symbolRef}>
             <button
-              onClick={() => setSymbolPopoverOpen(!symbolPopoverOpen)}
-              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl transition-all duration-200 group ${
-                symbolPopoverOpen
-                  ? 'bg-[var(--primary)]/10 border-[var(--primary)]/40 ring-1 ring-[var(--primary)]/20 shadow-lg shadow-[var(--primary)]/5'
-                  : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--primary)]/40 hover:shadow-md'
-              } border`}
+              onClick={() => setSymbolOpen(!symbolOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-light)] transition-colors text-sm font-bold text-[var(--text-primary)]"
+              style={{ background: 'var(--surface-elevated)' }}
             >
-              <span className={`w-2 h-2 rounded-full transition-all duration-300 ${symbolPopoverOpen ? 'bg-[var(--primary)] shadow-[0_0_8px_var(--primary)]' : 'bg-[var(--text-dimmed)]'}`} />
-              <span className="text-sm font-bold text-[var(--text-primary)] tracking-wide">{symbol}</span>
-              <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform duration-300 ${symbolPopoverOpen ? 'rotate-180 text-[var(--primary)]' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: biasColor ?? '#6b7280' }} />
+              {symbol}
+              <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform ${symbolOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
-            {symbolPopoverOpen && (
-              <div className="absolute top-full left-0 mt-2 w-80 z-50 animate-dropdown-in rounded-2xl overflow-hidden backdrop-blur-xl"
-                style={{
-                  background: 'linear-gradient(160deg, var(--surface-elevated) 0%, color-mix(in srgb, var(--surface-elevated) 90%, var(--primary) 10%) 100%)',
-                  border: '1px solid color-mix(in srgb, var(--border-light) 50%, var(--primary) 50%)',
-                  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 1px rgba(255,255,255,0.08) inset, 0 0 48px color-mix(in srgb, var(--primary) 8%, transparent 92%)',
-                }}>
-                {/* Search with icon */}
-                <div className="p-3 border-b border-[var(--border)]">
-                  <div className="relative">
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                    </svg>
-                    <input
-                      type="text"
-                      value={symbolSearch}
-                      onChange={(e) => setSymbolSearch(e.target.value)}
-                      placeholder="Search symbol..."
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[var(--background)] text-[var(--text-primary)] placeholder:text-[var(--text-dimmed)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]/50 border border-[var(--border)] transition-shadow duration-200 focus:shadow-[0_0_12px_var(--primary-glow)]"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <div className="max-h-80 overflow-y-auto p-2.5 custom-scrollbar">
-                  {/* ETF Indices Section */}
-                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1.5">
-                    <svg className="w-3.5 h-3.5 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" />
-                    </svg>
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--primary)]">ETF Indices</span>
-                    <div className="flex-1 h-px bg-gradient-to-r from-[var(--primary)]/20 to-transparent" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5 mb-3">
-                    {ETF_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map((s, i) => (
-                      <button
-                        key={s}
-                        onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
-                        className={`stagger-fade-up group flex items-center gap-2.5 px-3.5 py-2.5 text-xs rounded-xl text-left transition-all duration-200 ${
-                          symbol === s
-                            ? 'bg-[var(--primary)]/15 text-[var(--text-primary)] font-bold ring-1 ring-[var(--primary)]/30 shadow-sm'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5 hover:shadow-sm'
-                        }`}
-                        style={{ animationDelay: `${i * 0.04}s` }}
-                      >
-                        <span className={`w-2 h-2 rounded-full transition-all duration-300 ${symbol === s ? 'bg-[var(--primary)] shadow-[0_0_8px_var(--primary)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--primary)] group-hover:shadow-[0_0_4px_var(--primary)]'}`} />
-                        <span className="font-semibold tracking-wide">{s}</span>
-                        {symbol === s && (
-                          <svg className="ml-auto w-3.5 h-3.5 text-[var(--primary)] animate-popIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="3 8 7 12 13 4" />
-                          </svg>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Individual Stocks Section */}
-                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1.5">
-                    <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a4 4 0 00-8 0v2" />
-                    </svg>
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--accent)]">Stocks</span>
-                    <div className="flex-1 h-px bg-gradient-to-r from-[var(--accent)]/20 to-transparent" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {STOCK_SYMBOLS.filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase())).map((s, i) => (
-                      <button
-                        key={s}
-                        onClick={() => { setSymbol(s); setExpiration(null); setLegacyGexData([]); setLegacySummary(null); setMultiGreekData([]); setMultiGreekSummary(null); setSymbolPopoverOpen(false); setSymbolSearch(''); }}
-                        className={`stagger-fade-up group flex items-center gap-2.5 px-3.5 py-2.5 text-xs rounded-xl text-left transition-all duration-200 ${
-                          symbol === s
-                            ? 'bg-[var(--accent)]/15 text-[var(--text-primary)] font-bold ring-1 ring-[var(--accent)]/30 shadow-sm'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:translate-x-0.5 hover:shadow-sm'
-                        }`}
-                        style={{ animationDelay: `${(i + ETF_SYMBOLS.length) * 0.04}s` }}
-                      >
-                        <span className={`w-2 h-2 rounded-full transition-all duration-300 ${symbol === s ? 'bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]' : 'bg-[var(--text-dimmed)] group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_4px_var(--accent)]'}`} />
-                        <span className="font-semibold tracking-wide">{s}</span>
-                        {symbol === s && (
-                          <svg className="ml-auto w-3.5 h-3.5 text-[var(--accent)] animate-popIn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="3 8 7 12 13 4" />
-                          </svg>
-                        )}
+            {symbolOpen && (
+              <div className="absolute top-full left-0 mt-1.5 z-[100] w-56 rounded-xl border border-[var(--border)] shadow-2xl overflow-hidden" style={{ background: '#0d1117' }}>
+                <div className="p-2 border-b border-[var(--border)]">
+                  <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest px-1 mb-1.5">ETF</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {ETF_SYMBOLS.map(s => (
+                      <button key={s} onClick={() => resetSymbol(s)}
+                        className={`px-2.5 py-1.5 text-xs rounded-lg text-left font-semibold transition-colors ${symbol === s ? 'bg-[var(--primary)]/20 text-[var(--primary)]' : 'text-[var(--text-secondary)] hover:bg-white/5'}`}>
+                        {s}
                       </button>
                     ))}
                   </div>
                 </div>
-
-                {/* Footer hint */}
-                <div className="px-3 py-2 border-t border-[var(--border)] flex items-center justify-between"
-                  style={{ background: 'linear-gradient(to right, var(--background), transparent)' }}>
-                  <span className="text-[9px] text-[var(--text-dimmed)] font-medium">
-                    {ETF_SYMBOLS.length + STOCK_SYMBOLS.length} symbols available
-                  </span>
-                  <span className="text-[9px] text-[var(--text-dimmed)] flex items-center gap-1.5">
-                    <kbd className="px-1.5 py-0.5 bg-[var(--surface)] rounded text-[8px] font-mono border border-[var(--border)]">ESC</kbd>
-                    <span>close</span>
-                  </span>
+                <div className="p-2">
+                  <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest px-1 mb-1.5">Stocks</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {STOCK_SYMBOLS.map(s => (
+                      <button key={s} onClick={() => resetSymbol(s)}
+                        className={`px-2.5 py-1.5 text-xs rounded-lg text-left font-semibold transition-colors ${symbol === s ? 'bg-[var(--primary)]/20 text-[var(--primary)]' : 'text-[var(--text-secondary)] hover:bg-white/5'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
           </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          {/* Greek Selector - Pill toggle */}
-          <div className="flex items-center bg-[var(--surface)] rounded-lg p-0.5 border border-[var(--border)]">
+          {/* Divider */}
+          <div className="h-4 w-px bg-[var(--border)]" />
+
+          {/* Greek tabs */}
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }}>
             {(['gex', 'vex', 'cex', 'dex'] as GreekType[]).map((g, i) => {
-              const meta = GREEK_META[g];
+              const m = GREEK_META[g];
               return (
-                <button
-                  key={g}
-                  onClick={() => setSelectedGreek(g)}
-                  className={`px-2.5 py-1 text-xs rounded font-medium transition-all duration-200 ${
-                    selectedGreek === g
-                      ? 'text-white shadow-lg scale-105'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                  }`}
-                  style={selectedGreek === g ? {
-                    backgroundColor: meta.color,
-                    boxShadow: `0 0 12px ${meta.color}40`,
-                  } : undefined}
-                  title={`${meta.fullName} (${i + 1})`}
-                >
-                  <span className="mr-1 opacity-70">{meta.symbol}</span>
-                  {meta.label}
+                <button key={g} onClick={() => setSelectedGreek(g)}
+                  title={`${m.fullName} (${i + 1})`}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${selectedGreek === g ? 'text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
+                  style={selectedGreek === g ? { background: m.color } : undefined}>
+                  {m.label}
                 </button>
               );
             })}
           </div>
 
-          {/* LIVE / SIM badge */}
-          <div className={`px-3 py-1 text-sm rounded-lg border flex items-center gap-2 ${
-            priceSource === 'yahoo-finance'
-              ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/30'
-              : 'bg-[var(--accent)]/15 text-[var(--accent-light)] border-[var(--accent-dark)]'
-          }`}>
-            <SimulationIcon size={16} color={priceSource === 'yahoo-finance' ? 'var(--success)' : 'var(--accent-light)'} />
-            <span>{priceSource === 'yahoo-finance' ? 'LIVE' : 'SIM'}</span>
-          </div>
-
-          {lastUpdate && (
-            <span className="text-[10px] text-[var(--text-muted)]">
-              {lastUpdate.toLocaleTimeString()}
+          {/* Spot price */}
+          {spotPrice > 0 && (
+            <span className="text-[12px] font-mono font-bold text-[var(--text-secondary)]">
+              ${spotPrice.toFixed(2)}
             </span>
           )}
+        </div>
 
-          <button
-            onClick={() => loadSimulatedData()}
-            disabled={isLoading}
-            className="p-1.5 bg-[var(--surface-elevated)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] rounded-lg border border-[var(--border-light)] transition-all duration-200 disabled:opacity-50 hover:scale-105 active:scale-95"
-          >
-            <RefreshIcon size={14} color="currentColor" className={isLoading ? 'animate-spin' : ''} />
+        {/* Right: status + refresh */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${dataSource === 'cboe' ? 'bg-green-500 animate-pulse' : 'bg-[var(--text-dimmed)]'}`} />
+            <span className="text-[10px] text-[var(--text-muted)]">
+              {dataSource === 'cboe' ? 'CBOE' : 'Loading'}
+              {lastUpdate && ` · ${lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+            </span>
+          </div>
+          <button onClick={loadLiveData} disabled={isLoading}
+            className="p-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)] transition-colors disabled:opacity-40">
+            <RefreshIcon size={13} color="currentColor" className={isLoading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      {/* ─── KPI Grid ─── */}
-      {multiGreekSummary && (
-        <div className="animate-slideUp stagger-2">
-          <GEXKPIGrid
-            summary={multiGreekSummary}
-            spotPrice={spotPrice}
-            history={historyRef.current}
-            totalCallOI={totalCallOI}
-            totalPutOI={totalPutOI}
-          />
-        </div>
-      )}
+      {/* ═══ BODY ════════════════════════════════════════════════════════════ */}
+      <div className="flex-1 flex overflow-hidden">
 
-      {/* ─── Controls Row ─── */}
-      <div className="flex flex-wrap items-center gap-3 animate-slideUp stagger-3">
-        {/* Expiration selector */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">EXP</span>
-          {expirations.slice(0, 6).map(exp => (
-            <button
-              key={exp}
-              onClick={() => setExpiration(exp)}
-              className={`px-2.5 py-1 text-[10px] rounded-lg whitespace-nowrap transition-colors ${
-                expiration === exp
-                  ? 'bg-[var(--primary-dark)] text-[var(--text-primary)]'
-                  : 'bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border)]'
-              }`}
-            >
-              {formatExpDate(exp)}
-            </button>
-          ))}
-        </div>
+        {/* ── LEFT PANEL (bias + levels) ──────────────────────────────────── */}
+        <div className="w-64 shrink-0 border-r border-[var(--border)] flex flex-col overflow-y-auto" style={{ background: 'var(--surface)' }}>
+          <div className="p-4 flex flex-col gap-0">
 
-        <div className="h-5 w-px bg-[var(--border)]" />
+            {/* BIAS */}
+            <div className="text-center pb-4 border-b border-[var(--border)]/50 mb-3">
+              <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest mb-2">Market Bias</p>
+              {bias ? (
+                <>
+                  <p className="text-2xl font-black tracking-tight" style={{ color: biasColor }}>{bias}</p>
+                  <p className="text-[9px] text-[var(--text-muted)] mt-1">
+                    {bias === 'BULLISH' ? '2+ bullish signals' : bias === 'BEARISH' ? '2+ bearish signals' : 'Mixed signals'}
+                  </p>
+                </>
+              ) : (
+                <div className="h-8 flex items-center justify-center">
+                  <span className="text-[11px] text-[var(--text-muted)]">Loading…</span>
+                </div>
+              )}
+            </div>
 
-        {/* View Mode Selector */}
-        <div className="flex items-center gap-0.5 bg-[var(--surface)] rounded-lg p-0.5 border border-[var(--border)]">
-          {(['bars', 'cumulative', 'heatmap2D', 'heatmap3D'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-2.5 py-1 text-[10px] rounded relative overflow-hidden transition-all duration-300 ${
-                viewMode === mode
-                  ? 'bg-[var(--primary-dark)] text-[var(--text-primary)] shadow-lg shadow-[var(--primary-glow)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
-              }`}
-            >
-              {mode === 'bars' ? 'Bars' : mode === 'cumulative' ? 'Cumulative' : mode === 'heatmap2D' ? '2D Heat' : '3D Surface'}
-            </button>
-          ))}
-        </div>
+            {/* KEY SIGNALS */}
+            {s && (
+              <>
+                <SectionLabel>Signals</SectionLabel>
+                <MetricRow
+                  label="Net GEX"
+                  value={`${s.netGEX >= 0 ? '+' : ''}${fmtBig(s.netGEX)}`}
+                  sub={s.regime === 'positive' ? 'dealers long' : 'dealers short'}
+                  bull={s.netGEX > 0}
+                />
+                <MetricRow
+                  label="Flow Ratio"
+                  value={s.flowRatio.toFixed(2)}
+                  sub={s.flowRatio >= 1 ? 'calls' : 'puts'}
+                  bull={s.flowRatio >= 1}
+                />
+                <MetricRow
+                  label="Spot vs ZeroΓ"
+                  value={`${spotPrice > zeroGamma ? '▲' : '▼'} $${zeroGamma.toFixed(0)}`}
+                  bull={spotPrice > zeroGamma}
+                />
 
-        <div className="h-5 w-px bg-[var(--border)]" />
+                {/* WALLS BAR */}
+                <div className="mt-4 mb-2">
+                  <div className="flex justify-between text-[9px] text-[var(--text-muted)] mb-1">
+                    <span className="text-red-400 font-bold">${putWall > 0 ? putWall.toFixed(0) : '—'}</span>
+                    <span className="text-[var(--text-secondary)] font-mono text-[10px]">${spotPrice > 0 ? spotPrice.toFixed(1) : '—'}</span>
+                    <span className="text-green-400 font-bold">${callWall > 0 ? callWall.toFixed(0) : '—'}</span>
+                  </div>
+                  <div className="relative h-2 rounded-full overflow-hidden bg-[var(--background)]">
+                    <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${wallBarPct}%`, background: 'linear-gradient(90deg,#ef4444,#eab308,#22c55e)' }} />
+                    <div className="absolute top-0 bottom-0 w-px bg-white/70" style={{ left: `${wallBarPct}%`, transform: 'translateX(-50%)' }} />
+                  </div>
+                  <div className="flex justify-between text-[9px] mt-1 text-[var(--text-muted)]">
+                    <span className="text-red-400">{putWall > 0 && spotPrice > 0 ? pct(putWall, spotPrice) : ''}</span>
+                    <span>Put → Spot → Call</span>
+                    <span className="text-green-400">{callWall > 0 && spotPrice > 0 ? `+${pct(callWall, spotPrice).replace('-', '')}` : ''}</span>
+                  </div>
+                </div>
 
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[var(--text-muted)]">ZOOM</span>
-          <div className="flex items-center gap-0.5 bg-[var(--surface)] rounded-lg p-0.5 border border-[var(--border)]">
-            {(['full', 'atm', 'tight'] as const).map(preset => (
-              <button
-                key={preset}
-                onClick={() => setZoomPreset(preset)}
-                className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
-                  (preset === 'full' && priceZoom.min === 0 && priceZoom.max === 100) ||
-                  (preset === 'atm' && priceZoom.min === 35) ||
-                  (preset === 'tight' && priceZoom.min === 45)
-                    ? 'bg-[var(--primary-dark)] text-[var(--text-primary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {preset === 'full' ? 'Full' : preset === 'atm' ? 'ATM' : 'Tight'}
-              </button>
-            ))}
+                {/* KEY LEVELS */}
+                <SectionLabel>Key Levels</SectionLabel>
+                <MetricRow label="Call Wall" value={`$${callWall > 0 ? callWall.toFixed(0) : '—'}`} sub={callWall > 0 && spotPrice > 0 ? `+${((callWall - spotPrice) / spotPrice * 100).toFixed(1)}%` : ''} />
+                <MetricRow label="Put Wall" value={`$${putWall > 0 ? putWall.toFixed(0) : '—'}`} sub={putWall > 0 && spotPrice > 0 ? `${((putWall - spotPrice) / spotPrice * 100).toFixed(1)}%` : ''} />
+                <MetricRow label="Zero Gamma" value={`$${zeroGamma > 0 ? zeroGamma.toFixed(0) : '—'}`} />
+                <MetricRow label="Max Pain" value={`$${s.maxPain > 0 ? s.maxPain.toFixed(0) : '—'}`} />
+
+                {/* OPTIONS METRICS */}
+                <SectionLabel>Options</SectionLabel>
+                <MetricRow label="GEX Ratio" value={s.gexRatio.toFixed(2)} />
+                <MetricRow label="IV Skew" value={`${s.ivSkew > 0 ? '+' : ''}${s.ivSkew.toFixed(1)}%`} bull={s.ivSkew < 0} />
+                <MetricRow label="Call IV" value={`${(s.callIV * 100).toFixed(1)}%`} />
+                <MetricRow label="Put IV" value={`${(s.putIV * 100).toFixed(1)}%`} />
+                <MetricRow
+                  label="P/C OI"
+                  value={totalCallOI > 0 ? (totalPutOI / totalCallOI).toFixed(2) : '—'}
+                  bull={totalCallOI > totalPutOI}
+                />
+                <MetricRow
+                  label="Impl. Move"
+                  value={s.impliedMove > 0 ? `±$${s.impliedMove.toFixed(1)}` : '—'}
+                  sub={s.impliedMove > 0 && spotPrice > 0 ? `${(s.impliedMove / spotPrice * 100).toFixed(1)}%` : ''}
+                />
+                <MetricRow
+                  label="Net Flow"
+                  value={fmtBig(s.netFlow)}
+                  bull={s.netFlow > 0}
+                />
+              </>
+            )}
+
+            {/* EXPIRATION SELECTOR */}
+            {expirations.length > 0 && (
+              <>
+                <SectionLabel>Expiration</SectionLabel>
+                <div className="flex flex-col gap-1">
+                  {expirations.slice(0, 6).map(exp => {
+                    const label = new Date(exp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const dte = Math.max(0, Math.round((exp - Date.now() / 1000) / 86400));
+                    return (
+                      <button key={exp} onClick={() => setExpiration(exp)}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] transition-colors ${expiration === exp ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/3'}`}
+                        style={expiration === exp ? { background: 'var(--primary-dark)' } : undefined}>
+                        <span className="font-semibold">{label}</span>
+                        <span className="text-[10px] opacity-60">{dte}d</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* CBOE note */}
+            <p className="text-[9px] text-[var(--text-dimmed)] text-center mt-4 leading-relaxed">
+              CBOE delayed ~15min<br />OI = previous close · auto 30s
+            </p>
           </div>
         </div>
 
-        {/* Spot price badge */}
-        {spotPrice > 0 && (
-          <>
-            <div className="h-5 w-px bg-[var(--border)]" />
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[var(--info-bg)] border border-[var(--info)]/20 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--info)] animate-pulse" />
-              <span className="text-[10px] font-mono text-[var(--info)] font-medium">
-                {symbol} ${spotPrice.toFixed(2)}
+        {/* ── RIGHT AREA ─────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Chart toolbar */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
+            <div className="flex items-center gap-1 p-0.5 rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }}>
+              {(['bars', 'cumulative', 'heatmap2D', 'heatmap3D'] as const).map(m => (
+                <button key={m} onClick={() => setViewMode(m)}
+                  className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${viewMode === m ? 'bg-[var(--primary-dark)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}>
+                  {m === 'bars' ? 'Bars' : m === 'cumulative' ? 'Cumulative' : m === 'heatmap2D' ? '2D Heat' : '3D'}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[var(--text-muted)]">Zoom</span>
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }}>
+                {(['full', 'atm', 'tight'] as const).map(z => (
+                  <button key={z} onClick={() => setZoom(z)}
+                    className={`px-2 py-1 text-[11px] rounded-md transition-colors ${zoom === z ? 'bg-[var(--primary-dark)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}>
+                    {z === 'full' ? 'Full' : z === 'atm' ? 'ATM' : 'Tight'}
+                  </button>
+                ))}
+              </div>
+
+              <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                <span style={{ color: greekMeta.color }}>{greekMeta.symbol}</span> {greekMeta.label}
               </span>
             </div>
-          </>
-        )}
-      </div>
-
-      {/* ─── Chart Area ─── */}
-      <div className="flex-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] min-h-[350px] overflow-hidden flex flex-col animate-scaleIn stagger-4">
-        {isLoading ? (
-          <ChartSkeleton />
-        ) : error ? (
-          <EmptyState
-            icon="error"
-            title={error}
-            action={
-              <button
-                onClick={loadSimulatedData}
-                className="px-4 py-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
-              >
-                Retry
-              </button>
-            }
-          />
-        ) : adaptedLegacyData.length === 0 ? (
-          <EmptyState
-            icon="chart"
-            title="No data yet"
-            description="Select an expiration to view data"
-          />
-        ) : viewMode === 'bars' ? (
-          <div className="flex-1 min-h-0">
-            <GEXDashboard
-              symbol={`${symbol} ${greekMeta.label}`}
-              spotPrice={spotPrice}
-              gexData={zoomedGexData}
-              summary={adaptedLegacySummary}
-              height="auto"
-            />
-          </div>
-        ) : viewMode === 'cumulative' ? (
-          <div className="flex-1 min-h-0">
-            <CumulativeGEXChart
-              data={multiGreekData}
-              spotPrice={spotPrice}
-              symbol={symbol}
-              selectedGreek={selectedGreek}
-              zeroGammaLevel={multiGreekSummary?.zeroGammaLevel || spotPrice}
-              callWall={multiGreekSummary?.callWall || spotPrice}
-              putWall={multiGreekSummary?.putWall || spotPrice}
-              height="auto"
-            />
-          </div>
-        ) : (
-          <GEXHeatmap
-            gexData={zoomedGexData}
-            spotPrice={spotPrice}
-            symbol={`${symbol} ${greekMeta.label}`}
-            mode={viewMode === 'heatmap2D' ? '2D' : '3D'}
-            dataType="netGEX"
-            height={500}
-          />
-        )}
-      </div>
-
-      {/* ─── Intelligence Panel: Gauge + Narrative ─── */}
-      {multiGreekSummary && (
-        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-3 animate-slideUp stagger-5">
-          {/* Intensity Gauge */}
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 flex items-center justify-center">
-            <GEXIntensityGauge
-              value={multiGreekSummary.netGEX}
-              intensity={multiGreekSummary.gammaIntensity}
-              regime={multiGreekSummary.regime}
-              size={140}
-            />
           </div>
 
-          {/* Narrative */}
-          <GEXNarrativePanel
-            summary={multiGreekSummary}
-            spotPrice={spotPrice}
-          />
-        </div>
-      )}
+          {/* Chart */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {isLoading && !adaptedLegacyData.length ? (
+              <ChartSkeleton />
+            ) : error ? (
+              <EmptyState icon="error" title={error}
+                action={<button onClick={loadLiveData} className="px-3 py-1.5 text-xs bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)]">Retry</button>}
+              />
+            ) : adaptedLegacyData.length === 0 ? (
+              <EmptyState icon="chart" title="No data" description="Select an expiration" />
+            ) : viewMode === 'bars' ? (
+              <GEXDashboard symbol={`${symbol} ${greekMeta.label}`} spotPrice={effectiveSpot} gexData={zoomedData} summary={adaptedLegacySummary} height="auto" />
+            ) : viewMode === 'cumulative' ? (
+              <CumulativeGEXChart data={multiGreekData} spotPrice={effectiveSpot} symbol={symbol} selectedGreek={selectedGreek} zeroGammaLevel={s?.zeroGammaLevel || effectiveSpot} callWall={s?.callWall || effectiveSpot} putWall={s?.putWall || effectiveSpot} height="auto" />
+            ) : (
+              <GEXHeatmap gexData={zoomedData} spotPrice={effectiveSpot} symbol={`${symbol} ${greekMeta.label}`} mode={viewMode === 'heatmap2D' ? '2D' : '3D'} dataType="netGEX" height={500} />
+            )}
+          </div>
 
-      {/* ─── Legend ─── */}
-      <div className="flex items-center justify-center gap-4 text-[10px] text-[var(--text-muted)] bg-[var(--surface)] rounded-xl py-2 px-4 border border-[var(--border)] animate-fadeIn stagger-6">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded shadow-sm" style={{ background: 'var(--bull)', boxShadow: '0 1px 3px var(--bull-bg)' }} />
-          <span>Positive {greekMeta.label}</span>
+          {/* Flow panels */}
+          {netFlowByStrike.length > 0 && (
+            <div className="border-t border-[var(--border)] shrink-0" style={{ height: 380 }}>
+              <OptionsFlowPanel
+                netFlowByStrike={netFlowByStrike}
+                oiByStrike={oiByStrike}
+                topContracts={topContracts}
+                gexByExpiry={gexByExpiry}
+                spotPrice={effectiveSpot}
+                liveSpot={liveSpot}
+                symbol={symbol}
+              />
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded shadow-sm" style={{ background: 'var(--bear)', boxShadow: '0 1px 3px var(--bear-bg)' }} />
-          <span>Negative {greekMeta.label}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-0.5 rounded-full" style={{ background: 'var(--warning)' }} />
-          <span>Zero Gamma</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-0.5 rounded-full" style={{ background: 'var(--info)' }} />
-          <span>Spot</span>
-        </div>
-        <span className="text-[var(--border-light)]">|</span>
-        <span className="text-[var(--text-muted)] opacity-60">
-          Shortcuts: 1-4 switch Greek, R refresh
-        </span>
-        <span className="text-[var(--border-light)]">|</span>
-        <span style={{ color: priceSource === 'yahoo-finance' ? 'var(--bull)' : 'var(--primary-light)' }}>
-          {priceSource === 'yahoo-finance' ? 'Live Price' : 'Simulated'}
-        </span>
       </div>
     </div>
   );

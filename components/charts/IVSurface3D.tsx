@@ -59,7 +59,7 @@ export default function IVSurface3D({
   const [dimensions, setDimensions] = useState({ width: 800, height });
   const [tooltip, setTooltip] = useState<{ x: number; y: number; strike: number; expiry: number; iv: number } | null>(null);
 
-  const data = useMemo(() => surfaceData || generateSurfaceData(spotPrice || 450), [surfaceData, spotPrice]);
+  const data = useMemo(() => (surfaceData && surfaceData.length > 0) ? surfaceData : generateSurfaceData(spotPrice || 450), [surfaceData, spotPrice]);
 
   // Precompute unique strikes and expirations
   const { strikes, expirations } = useMemo(() => {

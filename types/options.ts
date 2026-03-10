@@ -107,6 +107,13 @@ export interface MultiGreekSummary {
   impliedMove: number; // Expected move from ATM straddle
   regime: 'positive' | 'negative';
   gammaIntensity: number; // 0-100 percentile vs history
+  // GEXStream metrics
+  netFlow: number;     // Net premium flow: (call$ - put$) × multiplier
+  flowRatio: number;   // Call volume / put volume
+  gexRatio: number;    // |callGEX / putGEX|
+  callIV: number;      // ATM call IV (decimal, e.g. 0.25 = 25%)
+  putIV: number;       // ATM put IV (decimal)
+  ivSkew: number;      // Put IV - Call IV (percentage points)
 }
 
 /** A point-in-time snapshot for history tracking */

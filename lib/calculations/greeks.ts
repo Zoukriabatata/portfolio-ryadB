@@ -273,6 +273,12 @@ export function calculateMultiGreekSummary(
     impliedMove,
     regime,
     gammaIntensity,
+    netFlow: 0,
+    flowRatio: 1,
+    gexRatio: 0,
+    callIV: 0,
+    putIV: 0,
+    ivSkew: 0,
   };
 }
 
