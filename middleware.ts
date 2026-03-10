@@ -149,6 +149,33 @@ const PUBLIC_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ─── PRIVATE ACCESS: Basic Auth (set BASIC_AUTH_USER + BASIC_AUTH_PASS in Vercel env) ─────
+  const basicUser = process.env.BASIC_AUTH_USER;
+  const basicPass = process.env.BASIC_AUTH_PASS;
+  if (basicUser && basicPass) {
+    // Skip basic auth for Next.js internals and static assets
+    const skip =
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/favicon') ||
+      pathname.includes('.');
+    if (!skip) {
+      const authHeader = request.headers.get('authorization');
+      let authenticated = false;
+      if (authHeader?.startsWith('Basic ')) {
+        const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');
+        const [u, ...rest] = decoded.split(':');
+        const p = rest.join(':');
+        authenticated = u === basicUser && p === basicPass;
+      }
+      if (!authenticated) {
+        return new NextResponse('Access denied', {
+          status: 401,
+          headers: { 'WWW-Authenticate': 'Basic realm="Private"' },
+        });
+      }
+    }
+  }
+
   // DEV MODE: Skip all auth in development when DB is not configured
   if (process.env.NODE_ENV === 'development' && process.env.SKIP_AUTH === '1') {
     return NextResponse.next();
