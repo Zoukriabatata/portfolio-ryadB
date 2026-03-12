@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -52,6 +53,7 @@
       cursor: pointer; white-space: nowrap; transition: background .2s, transform .15s;
     }
     .btn-print:hover { background: #1d4ed8; transform: translateY(-1px); }
+    .btn-print:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 
     /* ── Page ── */
     .wrap { padding: 52px 16px 32px; }
@@ -186,8 +188,8 @@
     <a href="/" class="btn-back">← Portfolio</a>
     <p><strong>CV Maison de Négoce</strong> · Ryad Bouderga</p>
   </div>
-  <button class="btn-print" onclick="window.print()">
-    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+  <button class="btn-print" id="dlBtn" onclick="downloadPDF()">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
     Télécharger en PDF
   </button>
 </div>
@@ -368,8 +370,24 @@
 </div></div>
 
 <script>
-  if (new URLSearchParams(location.search).has('print')) {
-    window.addEventListener('load', () => setTimeout(() => window.print(), 400));
+  function downloadPDF() {
+    const btn = document.getElementById('dlBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Génération…';
+
+    const el = document.querySelector('.page');
+    const opt = {
+      margin:      0,
+      filename:    'CV_Ryad_Bouderga_Negoce.pdf',
+      image:       { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2.5, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(el).save().then(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Télécharger en PDF';
+    });
   }
 </script>
 </body>
