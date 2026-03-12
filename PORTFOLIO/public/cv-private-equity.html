@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV — Ryad Bouderga — Private Equity</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      font-size: 9.5pt;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      background: #fff;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #0f172a;
+      color: #fff;
+      padding: 28px 36px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+    }
+    .header-left h1 {
+      font-size: 22pt;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+    .header-left .subtitle {
+      margin-top: 4px;
+      font-size: 10pt;
+      color: #94a3b8;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+    .header-left .target {
+      margin-top: 8px;
+      display: inline-block;
+      background: #0ea5e9;
+      color: #fff;
+      font-size: 7.5pt;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      font-size: 8.5pt;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+    .header-right a { color: #7dd3fc; text-decoration: none; }
+
+    /* ── Body ── */
+    .body {
+      display: flex;
+      flex: 1;
+    }
+
+    /* ── Left column ── */
+    .left {
+      width: 68mm;
+      background: #f8fafc;
+      border-right: 1px solid #e2e8f0;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    /* ── Right column ── */
+    .right {
+      flex: 1;
+      padding: 22px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Section ── */
+    .section-title {
+      font-size: 7pt;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #0ea5e9;
+      border-bottom: 1.5px solid #e0f2fe;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+
+    /* ── Profile ── */
+    .profile-text {
+      font-size: 8.5pt;
+      color: #475569;
+      line-height: 1.6;
+    }
+
+    /* ── Skills ── */
+    .skill-group { margin-bottom: 10px; }
+    .skill-group-title {
+      font-size: 7.5pt;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 5px;
+    }
+    .skill-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .skill-list li {
+      font-size: 8pt;
+      color: #475569;
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+    }
+    .skill-list li::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #0ea5e9;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    /* ── Tag pills ── */
+    .tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .tag {
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 7pt;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 12px;
+    }
+
+    /* ── Experience ── */
+    .exp-item { margin-bottom: 14px; }
+    .exp-item:last-child { margin-bottom: 0; }
+    .exp-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .exp-title { font-size: 9pt; font-weight: 700; color: #0f172a; }
+    .exp-company { font-size: 8pt; font-weight: 600; color: #0ea5e9; margin-top: 1px; }
+    .exp-meta { font-size: 7.5pt; color: #94a3b8; margin-top: 1px; }
+    .exp-period {
+      font-size: 7.5pt;
+      font-weight: 600;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .exp-points {
+      list-style: none;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .exp-points li {
+      font-size: 8pt;
+      color: #475569;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      line-height: 1.5;
+    }
+    .exp-points li::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #0ea5e9;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    /* ── Education ── */
+    .edu-item { margin-bottom: 8px; }
+    .edu-item:last-child { margin-bottom: 0; }
+    .edu-degree { font-size: 8.5pt; font-weight: 600; color: #0f172a; }
+    .edu-school { font-size: 8pt; color: #475569; }
+    .edu-year { font-size: 7.5pt; color: #94a3b8; }
+
+    /* ── Languages ── */
+    .lang-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8pt;
+      color: #475569;
+      padding: 3px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .lang-item:last-child { border-bottom: none; }
+    .lang-name { font-weight: 600; color: #1e293b; }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; font-size: 9pt; }
+      .page { margin: 0; box-shadow: none; width: 100%; min-height: 297mm; }
+      a { color: inherit !important; text-decoration: none !important; }
+    }
+
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Ryad Bouderga</h1>
+      <p class="subtitle">Finance · Analyse d'investissement · Évaluation d'entreprises</p>
+      <span class="target">Recherche Stage — Private Equity / Analyse Financière</span>
+    </div>
+    <div class="header-right">
+      <span>Cergy, France</span>
+      <span>06 01 77 72 35</span>
+      <a href="mailto:ryad.bouderga78@gmail.com">ryad.bouderga78@gmail.com</a>
+      <a href="https://linkedin.com/in/ryad-bouderga">linkedin.com/in/ryad-bouderga</a>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- LEFT -->
+    <div class="left">
+
+      <!-- Profil -->
+      <div>
+        <div class="section-title">Profil</div>
+        <p class="profile-text">
+          Étudiant en Bachelor Finance & Business à Financia Business School, avec un fort
+          intérêt pour l'analyse financière et l'investissement. Rigoureux et analytique,
+          je développe des compétences concrètes en analyse de performance, modélisation
+          sur Excel et compréhension des dynamiques d'entreprise.
+          <br/><br/>
+          Je recherche un stage en <strong>Private Equity</strong> afin d'approfondir mes
+          compétences en analyse d'investissement, due diligence et évaluation d'entreprises.
+          Disponible pour un stage rémunéré ou non rémunéré.
+        </p>
+      </div>
+
+      <!-- Compétences -->
+      <div>
+        <div class="section-title">Compétences</div>
+
+        <div class="skill-group">
+          <p class="skill-group-title">Analyse financière</p>
+          <ul class="skill-list">
+            <li>Financial analysis & business valuation</li>
+            <li>Analyse de bilans et comptes de résultat</li>
+            <li>Ratios financiers : rentabilité, liquidité, solvabilité</li>
+            <li>Market research & benchmarking sectoriel</li>
+            <li>Lecture de rapports annuels</li>
+          </ul>
+        </div>
+
+        <div class="skill-group">
+          <p class="skill-group-title">Excel & Modélisation</p>
+          <ul class="skill-list">
+            <li>Maîtrise Excel : formules avancées, TCD, dashboards</li>
+            <li>Excel modeling : suivi de performance, KPIs</li>
+            <li>Google Sheets : automatisation, collaboration</li>
+            <li>Construction de tableaux de bord financiers</li>
+          </ul>
+        </div>
+
+        <div class="skill-group">
+          <p class="skill-group-title">Marchés & Risque</p>
+          <ul class="skill-list">
+            <li>Risk management : R/R, sizing, drawdown</li>
+            <li>Compréhension des marchés financiers</li>
+            <li>Suivi de performance et analyse statistique</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Outils -->
+      <div>
+        <div class="section-title">Outils</div>
+        <div class="tag-row">
+          <span class="tag">Excel</span>
+          <span class="tag">Google Sheets</span>
+          <span class="tag">TradingView</span>
+          <span class="tag">MT5</span>
+          <span class="tag">Bloomberg (notions)</span>
+        </div>
+      </div>
+
+      <!-- Langues -->
+      <div>
+        <div class="section-title">Langues</div>
+        <div class="lang-item">
+          <span class="lang-name">Français</span>
+          <span>Natif</span>
+        </div>
+        <div class="lang-item">
+          <span class="lang-name">Anglais</span>
+          <span>Intermédiaire — B1/B2</span>
+        </div>
+        <p style="font-size:7.5pt;color:#94a3b8;margin-top:4px;">Préparation TOEIC en cours (objectif B2)</p>
+      </div>
+
+      <!-- Centres d'intérêt -->
+      <div>
+        <div class="section-title">Centres d'intérêt</div>
+        <div class="tag-row">
+          <span class="tag">Finance d'entreprise</span>
+          <span class="tag">Analyse économique</span>
+          <span class="tag">Marchés financiers</span>
+          <span class="tag">Nouvelles technologies</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+
+      <!-- Expériences -->
+      <div>
+        <div class="section-title">Expériences professionnelles</div>
+
+        <!-- Exp 1 : Admin Finance -->
+        <div class="exp-item">
+          <div class="exp-header">
+            <div>
+              <p class="exp-title">Assistant Administratif & Finance</p>
+              <p class="exp-company">SC Formation / L3M / Green Cottage</p>
+              <p class="exp-meta">Cergy, France · Hybride</p>
+            </div>
+            <span class="exp-period">2023 – 2025</span>
+          </div>
+          <ul class="exp-points">
+            <li>Gestion et organisation de documents fiscaux et administratifs (CFE, tableaux de suivi)</li>
+            <li>Mise à jour et suivi de tableaux financiers sur Excel — construction de dashboards de reporting</li>
+            <li>Participation au suivi de facturation, rapprochements et archivage comptable</li>
+            <li>Support administratif dans la gestion financière courante des structures</li>
+          </ul>
+        </div>
+
+        <!-- Exp 2 : Trading -->
+        <div class="exp-item">
+          <div class="exp-header">
+            <div>
+              <p class="exp-title">Trader Indépendant — Marchés financiers</p>
+              <p class="exp-company">Comptes financés — Apex Trader Funding (6 challenges réussis)</p>
+              <p class="exp-meta">Intraday · Futures · Crypto · À distance</p>
+            </div>
+            <span class="exp-period">2024 – Présent</span>
+          </div>
+          <ul class="exp-points">
+            <li>Analyse de données de marché, suivi des performances et gestion du risque en conditions réelles sur comptes jusqu'à 50K$</li>
+            <li>Suivi de performance via dashboards Excel : winrate, R/R, equity curve, analyse hebdomadaire</li>
+            <li>Développement d'une discipline analytique rigoureuse appliquée à la prise de décision sous pression</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Formation -->
+      <div>
+        <div class="section-title">Formation</div>
+
+        <div class="edu-item">
+          <p class="edu-degree">Bachelor Finance & Business — B1</p>
+          <p class="edu-school">Financia Business School, Paris</p>
+          <p class="edu-year">2024 – Présent</p>
+        </div>
+
+        <div class="edu-item">
+          <p class="edu-degree">Enseignement secondaire</p>
+          <p class="edu-school">CNED — Formation à distance</p>
+          <p class="edu-year">Complété</p>
+        </div>
+
+        <div class="edu-item">
+          <p class="edu-degree">Préparation TOEIC — Objectif B2</p>
+          <p class="edu-school">Niveau actuel B1 · En cours de progression</p>
+        </div>
+      </div>
+
+      <!-- Objectifs & Valeur ajoutée -->
+      <div>
+        <div class="section-title">Valeur ajoutée</div>
+        <div style="background:#f0f9ff;border-left:3px solid #0ea5e9;padding:10px 14px;border-radius:0 8px 8px 0;">
+          <p style="font-size:8pt;color:#0369a1;font-weight:600;margin-bottom:4px;">Pourquoi Private Equity ?</p>
+          <p style="font-size:8pt;color:#475569;line-height:1.6;">
+            L'analyse d'entreprises et l'évaluation d'investissements constituent le cœur de
+            mon intérêt pour la finance. Ma pratique du trading m'a formé à la rigueur analytique,
+            à la gestion du risque et à la prise de décision basée sur les données — des
+            compétences directement applicables en Private Equity, due diligence et financial
+            modeling. Je vise également des fonds <strong>small cap</strong> et <strong>growth</strong>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Compétences clés PE -->
+      <div>
+        <div class="section-title">Mots-clés Finance</div>
+        <div class="tag-row">
+          <span class="tag">Financial Analysis</span>
+          <span class="tag">Excel Modeling</span>
+          <span class="tag">Business Valuation</span>
+          <span class="tag">Due Diligence</span>
+          <span class="tag">Market Research</span>
+          <span class="tag">Risk Management</span>
+          <span class="tag">KPIs & Reporting</span>
+          <span class="tag">P&L Analysis</span>
+          <span class="tag">Capital Investissement</span>
+          <span class="tag">Small Cap</span>
+          <span class="tag">Investment Analysis</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;margin:16px;font-size:8pt;color:#94a3b8;">
+  Appuyez sur <strong>Ctrl + P</strong> → Enregistrer en PDF pour obtenir le fichier PDF
+</div>
+
+</body>
+</html>
