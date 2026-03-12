@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CV — Ryad Bouderga — Maison de Négoce</title>
+  <title>CV — Ryad Bouderga — Trading House</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -12,19 +12,20 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --navy:  #0b1426;
-      --blue:  #2563eb;
+      --blue:  #1e40af;
+      --blue2: #2563eb;
       --bs:    #eff6ff;
       --bt:    #1d4ed8;
       --white: #ffffff;
-      --bg:    #f8fafc;
+      --bg:    #f7f9fc;
       --bdr:   #e2e8f0;
-      --txt:   #1e293b;
-      --mid:   #475569;
-      --muted: #64748b;
-      --light: #94a3b8;
+      --txt:   #111827;
+      --mid:   #374151;
+      --muted: #6b7280;
+      --light: #9ca3af;
     }
     html { font-family: 'Inter', Arial, sans-serif; font-size: 9.5pt; color: var(--txt); }
-    body { background: #dde1e7; }
+    body { background: #d1d5db; }
 
     /* ── Print bar ── */
     .bar {
@@ -33,24 +34,24 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: 10px 20px; gap: 12px;
     }
-    .bar-info { display: flex; align-items: center; gap: 12px; }
+    .bar-l { display: flex; align-items: center; gap: 12px; }
     .bar p { font-size: 12px; color: #cbd5e1; }
     .bar strong { color: #fff; }
     .btn-back {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 16px;
-      background: rgba(255,255,255,0.07); color: #cbd5e1;
+      padding: 8px 14px; background: rgba(255,255,255,0.07); color: #cbd5e1;
       border: 1px solid rgba(255,255,255,0.14); border-radius: 100px;
       font-family: inherit; font-size: 12px; font-weight: 500;
       text-decoration: none; transition: background .2s;
     }
     .btn-back:hover { background: rgba(255,255,255,0.13); }
     .btn-print {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 9px 22px; background: var(--blue); color: #fff;
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 22px; background: var(--blue2); color: #fff;
       border: none; border-radius: 100px;
       font-family: inherit; font-size: 13px; font-weight: 700;
-      cursor: pointer; white-space: nowrap; transition: background .2s, transform .15s;
+      cursor: pointer; white-space: nowrap; min-width: 180px; justify-content: center;
+      transition: background .2s, transform .15s;
     }
     .btn-print:hover { background: #1d4ed8; transform: translateY(-1px); }
     .btn-print:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
@@ -60,123 +61,150 @@
     .page {
       width: 210mm; min-height: 297mm;
       margin: 0 auto; background: var(--white);
-      box-shadow: 0 8px 40px rgba(0,0,0,0.16);
-      border-radius: 3px; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.15);
       display: flex; flex-direction: column;
     }
 
     /* ── HEADER ── */
-    .hd { background: var(--navy); padding: 26px 30px 22px; }
-    .hd-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
-    .hd-name { font-size: 26pt; font-weight: 900; color: #fff; letter-spacing: 1.5px; text-transform: uppercase; line-height: 1; }
-    .hd-title { margin-top: 7px; font-size: 10pt; color: #93c5fd; font-weight: 500; letter-spacing: 0.3px; }
-    .hd-badge {
-      display: inline-block; margin-top: 10px;
-      background: var(--blue); color: #fff;
-      font-size: 7pt; font-weight: 700; letter-spacing: 1px;
-      text-transform: uppercase; padding: 4px 12px; border-radius: 20px;
+    .hd { background: var(--navy); padding: 24px 28px 20px; }
+    .hd-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .hd-name {
+      font-size: 28pt; font-weight: 900; color: #fff;
+      letter-spacing: 2px; text-transform: uppercase; line-height: 1;
     }
-    .hd-contact { text-align: right; }
-    .hd-contact p { font-size: 8.5pt; color: #cbd5e1; margin-bottom: 3px; }
-    .hd-contact a { font-size: 8.5pt; color: #7dd3fc; text-decoration: none; display: block; margin-bottom: 3px; }
-    .hd-sep { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 14px 0 0; }
+    .hd-title { margin-top: 6px; font-size: 9.5pt; color: #93c5fd; font-weight: 500; letter-spacing: 0.2px; }
+    .hd-badge {
+      display: inline-block; margin-top: 9px;
+      background: var(--blue2); color: #fff;
+      font-size: 7pt; font-weight: 700; letter-spacing: 0.9px;
+      text-transform: uppercase; padding: 3px 11px; border-radius: 20px;
+    }
+    .hd-contact { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+    .hd-contact p { font-size: 8pt; color: #cbd5e1; }
+    .hd-contact a { font-size: 8pt; color: #7dd3fc; text-decoration: none; }
+    .hd-sep { border: none; border-top: 1px solid rgba(255,255,255,0.10); margin-top: 14px; }
 
     /* ── Body ── */
     .bd { display: flex; flex: 1; }
 
     /* ── Sidebar ── */
-    .sb { width: 62mm; background: var(--bg); border-right: 1px solid var(--bdr); padding: 20px 15px; }
+    .sb { width: 60mm; background: var(--bg); border-right: 1.5px solid var(--bdr); padding: 18px 14px; }
 
     /* ── Main ── */
-    .mn { flex: 1; padding: 20px 22px; }
+    .mn { flex: 1; padding: 18px 20px; }
 
-    /* ── Section title ── */
+    /* ── Section titles ── */
     .st {
-      font-size: 6.8pt; font-weight: 800; letter-spacing: 1.4px;
-      text-transform: uppercase; color: var(--bt);
+      font-size: 6.5pt; font-weight: 800; letter-spacing: 1.6px;
+      text-transform: uppercase; color: var(--blue);
       border-bottom: 1.5px solid #dbeafe;
-      padding-bottom: 4px; margin-bottom: 10px; margin-top: 18px;
+      padding-bottom: 3px; margin-bottom: 9px; margin-top: 16px;
     }
     .st0 { margin-top: 0; }
 
     /* ── Profile ── */
-    .profile { font-size: 8.5pt; color: var(--muted); line-height: 1.65; }
+    .profile-line { font-size: 8pt; color: var(--muted); line-height: 1.65; margin-bottom: 4px; }
+    .profile-line:last-child { margin-bottom: 0; }
+    .profile-line strong { color: var(--txt); font-weight: 600; }
 
-    /* ── Skills ── */
-    .sk { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4.5px; }
-    .sk-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--blue); margin-top: 4px; flex-shrink: 0; }
-    .sk span { font-size: 8pt; color: var(--mid); line-height: 1.4; }
+    /* ── Skill group ── */
+    .sg-title { font-size: 7.5pt; font-weight: 700; color: var(--mid); margin: 10px 0 5px; }
+    .sg-title:first-child { margin-top: 0; }
+    .sk { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 4px; }
+    .sk-dot { width: 3.5px; height: 3.5px; border-radius: 50%; background: var(--blue2); margin-top: 4.5px; flex-shrink: 0; }
+    .sk span { font-size: 7.8pt; color: var(--muted); line-height: 1.4; }
 
-    /* ── Tool pills ── */
-    .tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-    .tool {
+    /* ── Tools grid ── */
+    .tools { display: flex; flex-wrap: wrap; gap: 3.5px; margin-top: 4px; }
+    .tool-dark {
       background: #0f172a; color: #93c5fd;
-      font-size: 7.5pt; font-weight: 600;
-      padding: 3px 9px; border-radius: 10px;
+      font-size: 7pt; font-weight: 700;
+      padding: 2.5px 8px; border-radius: 8px;
     }
     .tool-light {
       background: var(--bs); color: var(--bt);
-      font-size: 7.5pt; font-weight: 600;
-      padding: 3px 9px; border-radius: 10px;
+      font-size: 7pt; font-weight: 600;
+      padding: 2.5px 8px; border-radius: 8px;
       border: 1px solid #dbeafe;
     }
 
-    /* ── Tags ── */
-    .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-    .tag { background: var(--bs); color: var(--bt); font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px; border: 1px solid #dbeafe; }
+    /* ── Markets traded ── */
+    .markets { margin-top: 4px; }
+    .market-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 2.5px 0;
+    }
+    .market-ticker {
+      font-size: 7.5pt; font-weight: 800; color: var(--blue2);
+      min-width: 22px;
+    }
+    .market-name { font-size: 7.5pt; color: var(--muted); }
 
     /* ── Lang ── */
-    .lang { display: flex; justify-content: space-between; font-size: 8pt; padding: 3.5px 0; border-bottom: 1px solid #f1f5f9; }
-    .lang:last-child { border-bottom: none; }
-    .lang strong { color: var(--txt); }
-    .lang span { color: var(--muted); }
-    .lang-note { font-size: 7pt; color: var(--light); margin-top: 3px; }
-
-    /* ── KEY SKILLS BOX ── */
-    .ks-box {
-      background: #f0f7ff; border: 1px solid #dbeafe;
-      border-left: 3px solid var(--blue);
-      border-radius: 0 8px 8px 0;
-      padding: 10px 14px; margin-bottom: 18px;
-    }
-    .ks-title { font-size: 7pt; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--bt); margin-bottom: 8px; }
-    .ks-grid { display: flex; flex-wrap: wrap; gap: 5px; }
-    .ks-item { background: var(--blue); color: #fff; font-size: 7.5pt; font-weight: 700; padding: 3px 10px; border-radius: 10px; }
-
-    /* ── Certification badge ── */
-    .cert {
-      background: #0f172a; border-radius: 8px;
-      padding: 11px 14px; margin-top: 8px;
-    }
-    .cert-title { font-size: 9pt; font-weight: 800; color: #7dd3fc; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
-    .cert-sub   { font-size: 8pt; color: #60a5fa; margin-bottom: 5px; }
-    .cert-body  { font-size: 7.5pt; color: #cbd5e1; line-height: 1.55; }
-
-    /* ── Experience ── */
-    .exp { margin-bottom: 15px; }
-    .exp-hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-    .exp-left { flex: 1; }
-    .exp-title { font-size: 9pt; font-weight: 800; color: var(--txt); letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.25; }
-    .exp-co { font-size: 8pt; font-weight: 600; color: var(--blue); margin-top: 2px; }
-    .exp-loc { font-size: 7.5pt; color: var(--light); margin-top: 1px; }
-    .exp-period { font-size: 7.5pt; font-weight: 700; color: var(--muted); background: #f1f5f9; padding: 3px 9px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
-    .exp-sep { border: none; border-top: 1px solid var(--bdr); margin: 8px 0; }
-    .pt { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; }
-    .pt-dot { width: 3.5px; height: 3.5px; border-radius: 50%; background: #60a5fa; margin-top: 5px; flex-shrink: 0; }
-    .pt span { font-size: 8pt; color: var(--mid); line-height: 1.55; }
+    .lang-row { display: flex; justify-content: space-between; align-items: center; font-size: 8pt; padding: 3.5px 0; border-bottom: 1px solid #f1f5f9; }
+    .lang-row:last-of-type { border-bottom: none; }
+    .lang-name { font-weight: 700; color: var(--txt); }
+    .lang-level { color: var(--muted); }
 
     /* ── Education ── */
     .edu { margin-bottom: 9px; }
-    .edu-deg { font-size: 8.5pt; font-weight: 700; color: var(--txt); }
-    .edu-sch { font-size: 8pt; color: var(--muted); margin-top: 1px; }
-    .edu-yr  { font-size: 7.5pt; color: var(--light); margin-top: 1px; }
+    .edu-deg { font-size: 8pt; font-weight: 700; color: var(--txt); line-height: 1.3; }
+    .edu-sch { font-size: 7.5pt; color: var(--muted); margin-top: 1px; }
+    .edu-yr  { font-size: 7pt; color: var(--light); margin-top: 1px; }
+
+    /* ── KEY SKILLS box ── */
+    .ks {
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-left: 3px solid var(--blue2);
+      border-radius: 0 6px 6px 0;
+      padding: 9px 12px; margin-bottom: 16px;
+    }
+    .ks-label { font-size: 6.5pt; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--bt); margin-bottom: 7px; }
+    .ks-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+    .ks-pill {
+      background: var(--blue2); color: #fff;
+      font-size: 7.5pt; font-weight: 700;
+      padding: 3px 10px; border-radius: 9px;
+    }
+
+    /* ── Summary ── */
+    .summary { border-left: 2px solid #dbeafe; padding: 0 0 0 11px; margin-bottom: 16px; }
+    .summary p { font-size: 8.5pt; color: var(--muted); line-height: 1.7; margin-bottom: 3px; }
+    .summary p:last-child { margin-bottom: 0; }
+    .summary strong { color: var(--txt); font-weight: 600; }
+
+    /* ── Cert badge ── */
+    .cert {
+      background: #0f172a; border-radius: 7px;
+      padding: 10px 13px; margin-top: 6px;
+    }
+    .cert-title { font-size: 8.5pt; font-weight: 800; color: #7dd3fc; text-transform: uppercase; letter-spacing: 0.4px; }
+    .cert-sub   { font-size: 7.5pt; color: #60a5fa; margin: 2px 0 5px; }
+    .cert-body  { font-size: 7.5pt; color: #cbd5e1; line-height: 1.55; }
+
+    /* ── Experience ── */
+    .exp { margin-bottom: 14px; }
+    .exp-hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+    .exp-left { flex: 1; }
+    .exp-title { font-size: 8.5pt; font-weight: 800; color: var(--txt); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2; }
+    .exp-co    { font-size: 8pt; font-weight: 600; color: var(--blue2); margin-top: 2px; }
+    .exp-loc   { font-size: 7pt; color: var(--light); margin-top: 1.5px; }
+    .exp-period { font-size: 7.5pt; font-weight: 700; color: var(--muted); background: #f1f5f9; padding: 2.5px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
+    .pt { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3.5px; }
+    .pt-dot { width: 3px; height: 3px; border-radius: 50%; background: #60a5fa; margin-top: 5.5px; flex-shrink: 0; }
+    .pt span { font-size: 8pt; color: var(--mid); line-height: 1.55; }
+    .pt strong { font-weight: 600; color: var(--txt); }
+
+    /* ── ATS keywords ── */
+    .ats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+    .ats-tag { background: #f1f5f9; color: var(--muted); font-size: 7pt; font-weight: 600; padding: 2px 7px; border-radius: 8px; }
 
     /* ── Print ── */
     @media print {
       body { background: #fff; }
       .bar { display: none !important; }
       .wrap { padding: 0; }
-      .page { box-shadow: none; border-radius: 0; width: 100%; min-height: 297mm; margin: 0; }
+      .page { box-shadow: none; width: 100%; min-height: 297mm; margin: 0; }
     }
     @page { size: A4; margin: 0; }
   </style>
@@ -184,9 +212,9 @@
 <body>
 
 <div class="bar">
-  <div class="bar-info">
+  <div class="bar-l">
     <a href="/" class="btn-back">← Portfolio</a>
-    <p><strong>CV Maison de Négoce</strong> · Ryad Bouderga</p>
+    <p><strong>CV — Trading House</strong> · Ryad Bouderga</p>
   </div>
   <button class="btn-print" id="dlBtn" onclick="downloadPDF()">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -198,14 +226,15 @@
 
   <!-- HEADER -->
   <div class="hd">
-    <div class="hd-top">
+    <div class="hd-row">
       <div>
         <p class="hd-name">Ryad Bouderga</p>
-        <p class="hd-title">Trader Intraday &nbsp;|&nbsp; Order Flow &nbsp;|&nbsp; Futures &amp; Commodities</p>
-        <span class="hd-badge">Recherche Stage — Rémunéré ou Non Rémunéré</span>
+        <p class="hd-title">Futures Trader &nbsp;|&nbsp; Order Flow &amp; Market Microstructure &nbsp;|&nbsp; Commodities</p>
+        <span class="hd-badge">Seeking Trading Internship — Paid or Unpaid</span>
       </div>
       <div class="hd-contact">
-        <p>Cergy, France &nbsp;·&nbsp; 06 01 77 72 35</p>
+        <p>Cergy, France</p>
+        <p>+33 6 01 77 72 35</p>
         <a href="mailto:ryad.bouderga78@gmail.com">ryad.bouderga78@gmail.com</a>
         <a href="https://linkedin.com/in/ryad-bouderga">linkedin.com/in/ryad-bouderga</a>
       </div>
@@ -216,152 +245,153 @@
   <!-- BODY -->
   <div class="bd">
 
-    <!-- SIDEBAR -->
+    <!-- ── SIDEBAR ── -->
     <div class="sb">
 
-      <p class="st st0">Profil</p>
-      <p class="profile">
-        Étudiant en Bachelor Finance &amp; Business et trader intraday indépendant spécialisé
-        dans les marchés Futures et crypto. Expérience pratique dans l'analyse des flux de
-        marché, la gestion du risque et l'utilisation d'outils professionnels.
-        <br><br>
-        Je souhaite rejoindre une <strong>maison de négoce</strong> afin de développer une
-        compréhension professionnelle du trading et des marchés de matières premières.
-      </p>
+      <!-- Profile -->
+      <p class="st st0">Profile</p>
+      <p class="profile-line">Finance student at Financia Business School and independent intraday trader specialized in <strong>futures and market microstructure</strong>.</p>
+      <p class="profile-line">Experience analyzing market flows, liquidity dynamics and risk using order flow tools (ATAS, DOM, Footprint, GEX).</p>
+      <p class="profile-line">Seeking a trading internship within a <strong>commodities trading house</strong> or prop firm.</p>
 
-      <!-- Compétences (regroupé) -->
-      <p class="st">Compétences</p>
-      <div class="sk"><span class="sk-dot"></span><span>Order Flow analysis &amp; microstructure</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>DOM — Depth of Market</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>GEX / Skew / Volatilité implicite</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Risk management : R/R, sizing, drawdown</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Excel — dashboards, winrate, equity curve</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Suivi statistique des performances</span></div>
+      <!-- Key Trading Skills -->
+      <p class="st">Key Trading Skills</p>
+      <div class="sk"><span class="sk-dot"></span><span>Order Flow analysis &amp; DOM reading</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Market microstructure &amp; liquidity dynamics</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>GEX / Skew / Implied volatility</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Risk management (R/R, sizing, drawdown)</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Statistical performance tracking</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Excel dashboards &amp; reporting</span></div>
 
-      <!-- Technical Tools -->
+      <!-- Technical Tools (just below skills) -->
       <p class="st">Technical Tools</p>
       <div class="tools">
-        <span class="tool">ATAS</span>
-        <span class="tool">GEXstream</span>
-        <span class="tool">Tradovate</span>
-        <span class="tool">TradingView</span>
-        <span class="tool">MT5</span>
+        <span class="tool-dark">ATAS</span>
+        <span class="tool-dark">GEXstream</span>
+        <span class="tool-dark">Tradovate</span>
+        <span class="tool-dark">TradingView</span>
+        <span class="tool-dark">MT5</span>
         <span class="tool-light">Excel</span>
         <span class="tool-light">Notion</span>
       </div>
 
-      <!-- Langues -->
-      <p class="st">Langues</p>
-      <div class="lang"><strong>Français</strong><span>Natif</span></div>
-      <div class="lang"><strong>Anglais</strong><span>B1 → B2</span></div>
-      <p class="lang-note">Préparation TOEIC en cours</p>
+      <!-- Markets traded -->
+      <p class="st">Markets Traded</p>
+      <div class="markets">
+        <div class="market-row"><span class="market-ticker">NQ</span><span class="market-name">NASDAQ 100 Futures</span></div>
+        <div class="market-row"><span class="market-ticker">MNQ</span><span class="market-name">Micro NASDAQ Futures</span></div>
+        <div class="market-row"><span class="market-ticker">ES</span><span class="market-name">S&amp;P 500 Futures</span></div>
+        <div class="market-row"><span class="market-ticker">CL</span><span class="market-name">Crude Oil Futures</span></div>
+        <div class="market-row"><span class="market-ticker">BTC</span><span class="market-name">Bitcoin Perpetual</span></div>
+      </div>
 
-      <!-- Formation -->
-      <p class="st">Formation</p>
+      <!-- Languages -->
+      <p class="st">Languages</p>
+      <div class="lang-row"><span class="lang-name">French</span><span class="lang-level">Native</span></div>
+      <div class="lang-row"><span class="lang-name">English</span><span class="lang-level">Intermediate (B1→B2)</span></div>
+      <p style="font-size:7pt;color:var(--light);margin-top:3px;">TOEIC preparation in progress</p>
+
+      <!-- Education -->
+      <p class="st">Education</p>
       <div class="edu">
         <p class="edu-deg">Bachelor Finance &amp; Business — B1</p>
         <p class="edu-sch">Financia Business School, Paris</p>
-        <p class="edu-yr">2024 – Présent</p>
+        <p class="edu-yr">2024 – Present</p>
       </div>
       <div class="edu">
-        <p class="edu-deg">Enseignement secondaire</p>
-        <p class="edu-sch">CNED — Formation à distance</p>
-      </div>
-      <div class="edu">
-        <p class="edu-deg">TOEIC — Objectif B2</p>
-        <p class="edu-sch">Niveau B1 · En progression</p>
+        <p class="edu-deg">Secondary Education</p>
+        <p class="edu-sch">CNED — Distance Learning</p>
       </div>
 
-      <!-- Centres d'intérêt -->
-      <p class="st">Centres d'intérêt</p>
-      <p style="font-size:8pt;color:var(--muted);line-height:1.55;">
-        Marchés financiers · Commodities · Analyse économique · Nouvelles technologies
+      <!-- Interests -->
+      <p class="st">Interests</p>
+      <p style="font-size:7.8pt;color:var(--muted);line-height:1.6;">
+        Commodities Markets · Market Microstructure · Quantitative Analysis · Technology
       </p>
 
     </div>
 
-    <!-- MAIN -->
+    <!-- ── MAIN ── -->
     <div class="mn">
 
-      <!-- KEY TRADING SKILLS block -->
-      <div class="ks-box">
-        <p class="ks-title">Key Trading Skills</p>
+      <!-- Professional Summary -->
+      <p class="st st0">Professional Summary</p>
+      <div class="summary">
+        <p>Independent intraday futures trader with hands-on experience in <strong>order flow analysis</strong>, liquidity reading and disciplined risk management.</p>
+        <p>Passed <strong>6 consecutive Apex Trader Funding challenges</strong> on $50K funded accounts, demonstrating consistency and execution quality in live markets.</p>
+        <p>Market microstructure enthusiast seeking to apply analytical skills in a professional trading environment.</p>
+      </div>
+
+      <!-- KEY TRADING SKILLS -->
+      <div class="ks">
+        <p class="ks-label">Key Trading Skills</p>
         <div class="ks-grid">
-          <span class="ks-item">Order Flow</span>
-          <span class="ks-item">Market Microstructure</span>
-          <span class="ks-item">Risk Management</span>
-          <span class="ks-item">Futures Trading</span>
-          <span class="ks-item">Commodities</span>
-          <span class="ks-item">GEX / Volatility</span>
+          <span class="ks-pill">Order Flow</span>
+          <span class="ks-pill">Market Microstructure</span>
+          <span class="ks-pill">Futures Trading</span>
+          <span class="ks-pill">Risk Management</span>
+          <span class="ks-pill">Commodities</span>
         </div>
       </div>
 
-      <!-- Expériences -->
-      <p class="st st0">Expériences Professionnelles</p>
+      <!-- Experience -->
+      <p class="st">Professional Experience</p>
 
       <!-- Trading FIRST -->
       <div class="exp">
         <div class="exp-hd">
           <div class="exp-left">
-            <p class="exp-title">Trader Indépendant — Intraday Futures &amp; Crypto</p>
-            <p class="exp-co">Apex Trader Funding — 6 challenges réussis &nbsp;·&nbsp; À distance</p>
-            <p class="exp-loc">MNQ · ES · NQ · BTC · ETH · Commodities</p>
+            <p class="exp-title">Independent Intraday Trader — Futures &amp; Crypto</p>
+            <p class="exp-co">Apex Trader Funding — 6 funded challenges passed &nbsp;·&nbsp; Remote</p>
+            <p class="exp-loc">NQ · MNQ · ES · CL · BTC · ETH</p>
           </div>
-          <span class="exp-period">2024 – Présent</span>
+          <span class="exp-period">2024 – Present</span>
         </div>
-        <hr class="exp-sep">
-        <div class="pt"><span class="pt-dot"></span><span>Trading en réel sur comptes financés jusqu'à 50K$ — <strong>6 challenges Apex Trader Funding réussis</strong></span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Analyse des flux de marché et lecture de la liquidité via Order Flow, DOM, Footprint Chart</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Maîtrise des outils professionnels : ATAS, GEXstream, GEX, Skew, Volatilité implicite</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Gestion du risque disciplinée : R/R, sizing, contrôle strict du drawdown</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Suivi de performance via dashboards Excel : winrate, equity curve, analyse hebdomadaire</span></div>
+        <div class="pt"><span class="pt-dot"></span><span><strong>Market flow analysis</strong> and liquidity tracking using Order Flow, DOM and Footprint Chart</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Futures intraday trading with disciplined risk management (R/R, sizing, strict drawdown control)</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Statistical tracking of performance via Excel dashboards: winrate, equity curve, weekly P&amp;L review</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Analysis of volatility and liquidity conditions using GEX, Skew and implied volatility data</span></div>
+        <div class="pt"><span class="pt-dot"></span><span><strong>Market microstructure analysis</strong>: identification of absorption zones, imbalances and order clusters</span></div>
       </div>
 
       <!-- Admin Finance -->
       <div class="exp">
         <div class="exp-hd">
           <div class="exp-left">
-            <p class="exp-title">Assistant Administratif &amp; Finance</p>
+            <p class="exp-title">Administrative &amp; Finance Assistant</p>
             <p class="exp-co">SC Formation / L3M / Green Cottage &nbsp;·&nbsp; Cergy, France</p>
           </div>
           <span class="exp-period">2023 – 2025</span>
         </div>
-        <hr class="exp-sep">
-        <div class="pt"><span class="pt-dot"></span><span>Organisation et gestion de documents financiers et fiscaux</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Suivi et mise à jour de données financières sur Excel — tableaux de reporting</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Gestion administrative et suivi de facturation</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Organisation and monitoring of financial and fiscal documentation</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Updating financial reporting tables using Excel dashboards</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Support in invoicing tracking and administrative financial management</span></div>
       </div>
 
-      <!-- Certification Apex -->
+      <!-- Certification -->
       <p class="st">Certification &amp; Track Record</p>
       <div class="cert">
-        <p class="cert-title">Apex Trader Funding — 6 Challenges Réussis</p>
-        <p class="cert-sub">Comptes financés jusqu'à 50K$ · Futures intraday</p>
+        <p class="cert-title">Apex Trader Funding — 6 Challenges Passed</p>
+        <p class="cert-sub">Funded accounts up to $50K · Futures intraday</p>
         <p class="cert-body">
-          Validation de la discipline, de la gestion du risque et de la régularité
-          des performances en conditions réelles sur 6 challenges consécutifs.
+          Consistent profitability across 6 consecutive funded challenges in live market conditions.
+          Demonstrates discipline, risk control and repeatability of execution — key attributes for a trading desk environment.
         </p>
       </div>
 
-      <!-- Key Skills Négoce -->
-      <p class="st">Key Skills — Maison de Négoce</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:2px;">
-        <div class="sk"><span class="sk-dot"></span><span>Order Flow Analysis</span></div>
-        <div class="sk"><span class="sk-dot"></span><span>Market Microstructure</span></div>
-        <div class="sk"><span class="sk-dot"></span><span>Risk Management</span></div>
-        <div class="sk"><span class="sk-dot"></span><span>Futures Trading</span></div>
-        <div class="sk"><span class="sk-dot"></span><span>GEX / Skew / Volatility</span></div>
-        <div class="sk"><span class="sk-dot"></span><span>Performance Tracking</span></div>
-      </div>
-
-      <!-- Mots-clés réduits -->
-      <p class="st">Mots-clés</p>
-      <div class="tags">
-        <span class="tag">Order Flow</span>
-        <span class="tag">Risk Management</span>
-        <span class="tag">Futures Trading</span>
-        <span class="tag">Commodities</span>
-        <span class="tag">Excel Modeling</span>
+      <!-- ATS Keywords -->
+      <p class="st">Keywords — ATS</p>
+      <div class="ats">
+        <span class="ats-tag">Order Flow</span>
+        <span class="ats-tag">Market Microstructure</span>
+        <span class="ats-tag">Liquidity Dynamics</span>
+        <span class="ats-tag">Futures Trading</span>
+        <span class="ats-tag">Commodities</span>
+        <span class="ats-tag">Risk Management</span>
+        <span class="ats-tag">GEX / Volatility</span>
+        <span class="ats-tag">Performance Tracking</span>
+        <span class="ats-tag">Excel Modeling</span>
+        <span class="ats-tag">Trading Firm</span>
       </div>
 
     </div>
