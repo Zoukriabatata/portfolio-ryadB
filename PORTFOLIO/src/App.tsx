@@ -15,6 +15,9 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { CVPrivateEquity } from "./CVPrivateEquity";
+import { CVNegoce } from "./CVNegoce";
 
 /* ─────────────────────────────────────────────
    TOOL LOGO SVGs (brand colors)
@@ -438,14 +441,30 @@ export default function App() {
               </p>
 
               <div className="anim-4 flex flex-wrap gap-3">
-                <a href="/assets/CV_Ryad_Bouderga_PrivateEquity.pdf" target="_blank" rel="noreferrer" className="btn-primary">
-                  <Download className="h-4 w-4" />
-                  CV Private Equity
-                </a>
-                <a href="/assets/CV_Ryad_Bouderga_Negoce.pdf" target="_blank" rel="noreferrer" className="btn-outline">
-                  <Download className="h-4 w-4" />
-                  CV Maison de Négoce
-                </a>
+                <PDFDownloadLink
+                  document={<CVPrivateEquity />}
+                  fileName="CV_Ryad_Bouderga_PrivateEquity.pdf"
+                  className="btn-primary"
+                >
+                  {({ loading }) => (
+                    <>
+                      <Download className="h-4 w-4" />
+                      {loading ? "Génération..." : "CV Private Equity"}
+                    </>
+                  )}
+                </PDFDownloadLink>
+                <PDFDownloadLink
+                  document={<CVNegoce />}
+                  fileName="CV_Ryad_Bouderga_Negoce.pdf"
+                  className="btn-outline"
+                >
+                  {({ loading }) => (
+                    <>
+                      <Download className="h-4 w-4" />
+                      {loading ? "Génération..." : "CV Maison de Négoce"}
+                    </>
+                  )}
+                </PDFDownloadLink>
                 <a href="#contact" className="btn-outline">
                   <Send className="h-4 w-4" />
                   Me contacter
@@ -763,31 +782,91 @@ export default function App() {
 
       {/* ═══════════════════════════════ PROJECTS ═══════════════════════════════ */}
       <SectionWrapper id="projects" label="Projets" title="Réalisations">
-        <div className="reveal card overflow-hidden max-w-2xl">
-          <div className="h-48 overflow-hidden">
-            <img
-              src="/assets/IMAGE%20SUIVIE%20DE%20TRADE.jpg"
-              alt="Dashboard de suivi des trades"
-              className="h-full w-full object-cover transition duration-500 hover:scale-105"
-            />
+        <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
+
+          {/* Card 1 — Dashboard trades */}
+          <div className="reveal card overflow-hidden flex flex-col">
+            <div className="h-44 overflow-hidden bg-slate-100 relative">
+              <img
+                src="/assets/IMAGE%20SUIVIE%20DE%20TRADE.jpg"
+                alt="Dashboard de suivi des trades"
+                className="h-full w-full object-cover transition duration-500 hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-slate-800">
+                Excel · Finance
+              </span>
+            </div>
+            <div className="flex flex-col flex-1 p-5 gap-3">
+              <div>
+                <h3 className="text-[15px] font-bold text-slate-900">Dashboard Suivi des Trades</h3>
+                <p className="mt-1.5 text-[13px] text-slate-500 leading-relaxed">
+                  Tableau de bord complet construit sur Excel : winrate, risk/reward,
+                  equity curve, statistiques journalières et hebdomadaires.
+                  Structure identique à un reporting de fonds.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-auto pt-2">
+                {["Winrate", "Risk/Reward", "Equity Curve", "Drawdown", "Stats hebdo"].map((t) => (
+                  <span key={t} className="tag text-[10.5px]">{t}</span>
+                ))}
+              </div>
+              <a
+                href="/assets/Trades_Ryad_Filled_Stats_Clean.pdf"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-blue-600 hover:text-blue-700 transition"
+              >
+                Voir le rapport PDF
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </div>
           </div>
-          <div className="p-6">
-            <span className="tag mb-3 inline-block">Excel · Finance</span>
-            <h3 className="text-[16px] font-bold text-slate-900">Dashboard de Suivi des Trades</h3>
-            <p className="mt-2 text-[13.5px] text-slate-600 leading-relaxed">
-              Fichier Excel structuré : winrate, risk/reward, equity curve, statistiques
-              journalières et hebdomadaires. Même logique qu'un reporting de fonds.
-            </p>
-            <a
-              href="/assets/Trades_Ryad_Filled_Stats_Clean.pdf"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-flex items-center gap-2 text-[13.5px] font-semibold text-blue-600 hover:text-blue-700"
-            >
-              Ouvrir le PDF
-              <ExternalLink className="h-4 w-4" />
-            </a>
+
+          {/* Card 2 — Apex Track record */}
+          <div className="reveal reveal-delay-1 rounded-2xl overflow-hidden flex flex-col" style={{ background: "#0b1426", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div className="p-5 flex-1 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
+                  <TrendingUp className="h-5 w-5 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold text-white">Track Record — Apex Funding</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Prop Trading · Futures</p>
+                </div>
+              </div>
+              <p className="text-[13px] text-slate-400 leading-relaxed">
+                Réussite de <strong className="text-white">6 challenges consécutifs</strong> sur
+                comptes financés jusqu'à 50K$. Validation de la discipline, de la gestion du
+                risque et de la régularité en conditions réelles.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { v: "6×", l: "Challenges" },
+                  { v: "50K$", l: "Compte max" },
+                  { v: "MNQ/NQ", l: "Marchés" },
+                ].map((s) => (
+                  <div key={s.l} className="rounded-xl bg-white/5 p-3 text-center">
+                    <p className="text-[15px] font-bold text-white">{s.v}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-auto">
+                {["Discipline", "Risk Management", "Order Flow", "Consistency"].map((t) => (
+                  <span key={t} className="tag tag-dark text-[10.5px]">{t}</span>
+                ))}
+              </div>
+              <button
+                onClick={() => {}}
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-blue-300 hover:text-blue-200 transition"
+              >
+                Voir la certification
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+
         </div>
       </SectionWrapper>
 
@@ -852,12 +931,26 @@ export default function App() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <a href="/assets/CV_Ryad_Bouderga_PrivateEquity.pdf" target="_blank" rel="noreferrer" className="btn-primary" style={{ fontSize: "12.5px", padding: "8px 16px" }}>
-                <Download className="h-3.5 w-3.5" /> CV Private Equity
-              </a>
-              <a href="/assets/CV_Ryad_Bouderga_Negoce.pdf" target="_blank" rel="noreferrer" className="btn-outline" style={{ fontSize: "12.5px", padding: "8px 16px" }}>
-                <Download className="h-3.5 w-3.5" /> CV Négoce
-              </a>
+              <PDFDownloadLink
+                document={<CVPrivateEquity />}
+                fileName="CV_Ryad_Bouderga_PrivateEquity.pdf"
+                className="btn-primary"
+                style={{ fontSize: "12.5px", padding: "8px 16px" }}
+              >
+                {({ loading }) => (
+                  <><Download className="h-3.5 w-3.5" /> {loading ? "..." : "CV Private Equity"}</>
+                )}
+              </PDFDownloadLink>
+              <PDFDownloadLink
+                document={<CVNegoce />}
+                fileName="CV_Ryad_Bouderga_Negoce.pdf"
+                className="btn-outline"
+                style={{ fontSize: "12.5px", padding: "8px 16px" }}
+              >
+                {({ loading }) => (
+                  <><Download className="h-3.5 w-3.5" /> {loading ? "..." : "CV Négoce"}</>
+                )}
+              </PDFDownloadLink>
             </div>
           </div>
 
