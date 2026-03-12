@@ -17,6 +17,115 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /* ─────────────────────────────────────────────
+   TOOL LOGO SVGs (brand colors)
+───────────────────────────────────────────── */
+
+function LogoATAS() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      <rect width="48" height="48" rx="10" fill="#0a1628"/>
+      <rect width="48" height="48" rx="10" fill="url(#atas-g)"/>
+      <text x="24" y="20" textAnchor="middle" fill="#4fc3f7" fontSize="9" fontWeight="700" fontFamily="Inter,Arial,sans-serif" letterSpacing="1">ADVANCED</text>
+      <text x="24" y="33" textAnchor="middle" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter,Arial,sans-serif" letterSpacing="1.5">ATAS</text>
+      <defs>
+        <linearGradient id="atas-g" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#0d2140"/>
+          <stop offset="1" stopColor="#0a1628"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function LogoGEXStream() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      <rect width="48" height="48" rx="10" fill="#1a0533"/>
+      <rect x="6" y="30" width="5" height="12" rx="1.5" fill="#a855f7"/>
+      <rect x="14" y="22" width="5" height="20" rx="1.5" fill="#c084fc"/>
+      <rect x="22" y="14" width="5" height="28" rx="1.5" fill="#e879f9"/>
+      <rect x="30" y="18" width="5" height="24" rx="1.5" fill="#c084fc"/>
+      <rect x="38" y="10" width="5" height="32" rx="1.5" fill="#a855f7"/>
+      <text x="24" y="10" textAnchor="middle" fill="#e879f9" fontSize="8" fontWeight="800" fontFamily="Inter,Arial,sans-serif" letterSpacing="1">GEXstream</text>
+    </svg>
+  );
+}
+
+function LogoTradingView() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      <rect width="48" height="48" rx="10" fill="#131722"/>
+      <rect x="5" y="28" width="6" height="14" rx="1.5" fill="#2962ff"/>
+      <rect x="14" y="20" width="6" height="22" rx="1.5" fill="#2962ff"/>
+      <rect x="23" y="12" width="6" height="30" rx="1.5" fill="#2962ff"/>
+      <rect x="32" y="17" width="6" height="25" rx="1.5" fill="#2962ff"/>
+      <polyline points="8,22 17,14 26,8 35,13" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <circle cx="35" cy="13" r="2.5" fill="white"/>
+    </svg>
+  );
+}
+
+function LogoApex() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      <rect width="48" height="48" rx="10" fill="#0f172a"/>
+      <polygon points="24,6 44,38 4,38" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinejoin="round"/>
+      <polygon points="24,14 38,36 10,36" fill="#f97316" fillOpacity="0.12"/>
+      <text x="24" y="35" textAnchor="middle" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Inter,Arial,sans-serif" letterSpacing="1.5">APEX</text>
+    </svg>
+  );
+}
+
+function LogoTradovate() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      <rect width="48" height="48" rx="10" fill="#0052cc"/>
+      <rect width="48" height="48" rx="10" fill="url(#trad-g)"/>
+      <text x="24" y="31" textAnchor="middle" fill="white" fontSize="24" fontWeight="900" fontFamily="Inter,Arial,sans-serif">T</text>
+      <text x="24" y="42" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="7" fontWeight="600" fontFamily="Inter,Arial,sans-serif" letterSpacing="0.5">TRADOVATE</text>
+      <defs>
+        <linearGradient id="trad-g" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#1a6ef5"/>
+          <stop offset="1" stopColor="#0044bb"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function LogoExcel() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      <rect width="48" height="48" rx="10" fill="#185c37"/>
+      <rect x="22" y="4" width="22" height="40" rx="3" fill="#21a366"/>
+      <rect x="22" y="4" width="22" height="40" rx="3" fill="url(#xl-g)" fillOpacity="0.3"/>
+      <line x1="22" y1="16" x2="44" y2="16" stroke="#185c37" strokeWidth="0.8" opacity="0.4"/>
+      <line x1="22" y1="24" x2="44" y2="24" stroke="#185c37" strokeWidth="0.8" opacity="0.4"/>
+      <line x1="22" y1="32" x2="44" y2="32" stroke="#185c37" strokeWidth="0.8" opacity="0.4"/>
+      <line x1="33" y1="4" x2="33" y2="44" stroke="#185c37" strokeWidth="0.8" opacity="0.4"/>
+      <path d="M3 10 L19 10 L19 38 L3 38 Z" rx="2" fill="#107c41"/>
+      <text x="11" y="29" textAnchor="middle" fill="white" fontSize="16" fontWeight="900" fontFamily="Inter,Arial,sans-serif">X</text>
+      <defs>
+        <linearGradient id="xl-g" x1="22" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          <stop stopColor="white"/>
+          <stop offset="1" stopColor="white" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function LogoNotion() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+      <rect width="48" height="48" rx="10" fill="#ffffff" stroke="#e5e7eb" strokeWidth="1"/>
+      <path d="M13 10 C13 10 16 9.5 18.5 11 L35 22 C36.5 23 37 24 37 25.5 L37 38 C37 39.5 35.8 40.5 34.5 40 L14 37 C12.5 36.5 11 35 11 33.5 L11 12 C11 10.8 12 10 13 10 Z" fill="#1a1a1a"/>
+      <path d="M18 15 L18 34 M18 15 L30 30 M30 15 L30 34" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+/* ─────────────────────────────────────────────
    DATA
 ───────────────────────────────────────────── */
 
@@ -112,6 +221,79 @@ const tradingTools = [
   { name: "MT5", desc: "Exécution" },
 ];
 
+const stackTools = [
+  {
+    Logo: LogoATAS,
+    name: "ATAS",
+    fullName: "Advanced Time & Sales",
+    category: "Order Flow",
+    desc: "Plateforme professionnelle d'analyse Order Flow, Footprint Chart et DOM.",
+    tags: ["Order Flow", "Footprint", "DOM"],
+    color: "#4fc3f7",
+    bg: "#0a1628",
+  },
+  {
+    Logo: LogoGEXStream,
+    name: "GEXstream",
+    fullName: "Gamma Exposure Stream",
+    category: "Options Flow",
+    desc: "Outil de visualisation du GEX, Skew et flux de volatilité sur les options.",
+    tags: ["GEX", "Skew", "Vol implicite"],
+    color: "#e879f9",
+    bg: "#1a0533",
+  },
+  {
+    Logo: LogoTradingView,
+    name: "TradingView",
+    fullName: "TradingView Charts",
+    category: "Charting",
+    desc: "Analyse technique avancée, indicateurs personnalisés et suivi des marchés.",
+    tags: ["Analyse technique", "Screener", "Alertes"],
+    color: "#2962ff",
+    bg: "#131722",
+  },
+  {
+    Logo: LogoApex,
+    name: "Apex",
+    fullName: "Apex Trader Funding",
+    category: "Prop Trading",
+    desc: "6 challenges réussis — comptes financés jusqu'à 50K$ en conditions réelles.",
+    tags: ["Funded 50K$", "6× réussis", "Prop firm"],
+    color: "#f97316",
+    bg: "#0f172a",
+  },
+  {
+    Logo: LogoTradovate,
+    name: "Tradovate",
+    fullName: "Tradovate Futures",
+    category: "Exécution",
+    desc: "Broker Futures — exécution rapide sur MNQ, ES, NQ et autres contrats.",
+    tags: ["Futures", "MNQ / NQ", "Exécution"],
+    color: "#60a5fa",
+    bg: "#0052cc",
+  },
+  {
+    Logo: LogoExcel,
+    name: "Excel",
+    fullName: "Microsoft Excel",
+    category: "Modélisation",
+    desc: "Maîtrise avancée : dashboards financiers, TCD, formules complexes, equity curve.",
+    tags: ["Dashboards", "TCD", "Modélisation"],
+    color: "#21a366",
+    bg: "#185c37",
+  },
+  {
+    Logo: LogoNotion,
+    name: "Notion",
+    fullName: "Notion Workspace",
+    category: "Organisation",
+    desc: "Journal de trading structuré, base de connaissances et suivi des objectifs.",
+    tags: ["Journal trading", "Notes", "Planification"],
+    color: "#1a1a1a",
+    bg: "#f5f5f5",
+  },
+];
+
 const education = [
   {
     degree: "Bachelor Finance & Business — B1",
@@ -138,6 +320,7 @@ const navLinks = [
   { href: "#skills", label: "Compétences" },
   { href: "#experience", label: "Expériences" },
   { href: "#trading", label: "Order Flow" },
+  { href: "#stack", label: "Stack" },
   { href: "#education", label: "Formation" },
   { href: "#contact", label: "Contact" },
 ];
@@ -537,6 +720,44 @@ export default function App() {
               </div>
             </div>
           </div>
+        </div>
+      </SectionWrapper>
+
+      {/* ═══════════════════════════════ STACK & OUTILS ═══════════════════════════════ */}
+      <SectionWrapper id="stack" label="Stack & Outils" title="Plateformes maîtrisées">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {stackTools.map((tool, i) => (
+            <div
+              key={tool.name}
+              className={`reveal reveal-delay-${(i % 4) + 1} card group flex flex-col gap-4 p-5 cursor-default`}
+            >
+              {/* Logo + header */}
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 shrink-0 rounded-xl overflow-hidden shadow-sm">
+                  <tool.Logo />
+                </div>
+                <div>
+                  <p className="font-bold text-[14px] text-slate-900 leading-tight">{tool.name}</p>
+                  <span
+                    className="inline-block mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ background: `${tool.color}18`, color: tool.color }}
+                  >
+                    {tool.category}
+                  </span>
+                </div>
+              </div>
+              {/* Description */}
+              <p className="text-[12.5px] text-slate-500 leading-relaxed flex-1">
+                {tool.desc}
+              </p>
+              {/* Tags */}
+              <div className="flex flex-wrap gap-1.5">
+                {tool.tags.map((tag) => (
+                  <span key={tag} className="tag text-[10.5px]">{tag}</span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </SectionWrapper>
 
