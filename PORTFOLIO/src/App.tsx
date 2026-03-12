@@ -15,9 +15,6 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { CVPrivateEquity } from "./CVPrivateEquity";
-import { CVNegoce } from "./CVNegoce";
 
 /* ─────────────────────────────────────────────
    TOOL LOGO SVGs (brand colors)
@@ -441,30 +438,14 @@ export default function App() {
               </p>
 
               <div className="anim-4 flex flex-wrap gap-3">
-                <PDFDownloadLink
-                  document={<CVPrivateEquity />}
-                  fileName="CV_Ryad_Bouderga_PrivateEquity.pdf"
-                  className="btn-primary"
-                >
-                  {({ loading }) => (
-                    <>
-                      <Download className="h-4 w-4" />
-                      {loading ? "Génération..." : "CV Private Equity"}
-                    </>
-                  )}
-                </PDFDownloadLink>
-                <PDFDownloadLink
-                  document={<CVNegoce />}
-                  fileName="CV_Ryad_Bouderga_Negoce.pdf"
-                  className="btn-outline"
-                >
-                  {({ loading }) => (
-                    <>
-                      <Download className="h-4 w-4" />
-                      {loading ? "Génération..." : "CV Maison de Négoce"}
-                    </>
-                  )}
-                </PDFDownloadLink>
+                <a href="/cv-private-equity.html" target="_blank" rel="noreferrer" className="btn-primary">
+                  <Download className="h-4 w-4" />
+                  CV Private Equity
+                </a>
+                <a href="/cv-maison-negoce.html" target="_blank" rel="noreferrer" className="btn-outline">
+                  <Download className="h-4 w-4" />
+                  CV Maison de Négoce
+                </a>
                 <a href="#contact" className="btn-outline">
                   <Send className="h-4 w-4" />
                   Me contacter
@@ -931,26 +912,12 @@ export default function App() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <PDFDownloadLink
-                document={<CVPrivateEquity />}
-                fileName="CV_Ryad_Bouderga_PrivateEquity.pdf"
-                className="btn-primary"
-                style={{ fontSize: "12.5px", padding: "8px 16px" }}
-              >
-                {({ loading }) => (
-                  <><Download className="h-3.5 w-3.5" /> {loading ? "..." : "CV Private Equity"}</>
-                )}
-              </PDFDownloadLink>
-              <PDFDownloadLink
-                document={<CVNegoce />}
-                fileName="CV_Ryad_Bouderga_Negoce.pdf"
-                className="btn-outline"
-                style={{ fontSize: "12.5px", padding: "8px 16px" }}
-              >
-                {({ loading }) => (
-                  <><Download className="h-3.5 w-3.5" /> {loading ? "..." : "CV Négoce"}</>
-                )}
-              </PDFDownloadLink>
+              <a href="/cv-private-equity.html" target="_blank" rel="noreferrer" className="btn-primary" style={{ fontSize: "12.5px", padding: "8px 16px" }}>
+                <Download className="h-3.5 w-3.5" /> CV Private Equity
+              </a>
+              <a href="/cv-maison-negoce.html" target="_blank" rel="noreferrer" className="btn-outline" style={{ fontSize: "12.5px", padding: "8px 16px" }}>
+                <Download className="h-3.5 w-3.5" /> CV Négoce
+              </a>
             </div>
           </div>
 
