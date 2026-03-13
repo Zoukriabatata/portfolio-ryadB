@@ -188,9 +188,20 @@ export default function LiquidityPageContent() {
 
           {/* CME controls */}
           {dataSource === 'cme' && (
-            <div className="px-2.5 py-1 rounded text-[10px] font-medium border bg-[var(--info-bg)] text-[var(--info)] border-[var(--info-bg)]">
-              IB Gateway
-            </div>
+            <>
+              <select
+                value={ibSymbol}
+                onChange={(e) => setIBSymbol(e.target.value)}
+                className="bg-[var(--surface-elevated)] border border-[var(--border-light)] rounded px-2 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+              >
+                {CME_SYMBOLS.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <div className="px-2.5 py-1 rounded text-[10px] font-medium border bg-[var(--info-bg)] text-[var(--info)] border-[var(--info-bg)]">
+                Rithmic
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -34,6 +34,7 @@ import {
 } from '@/lib/tools/InteractionController';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
 import { getIBConnectionManager } from '@/lib/ib/ConnectionManager';
+import { getRithmicLiveWS } from '@/lib/live/RithmicLiveWS';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
 import {
   getFootprintDataService,
@@ -2222,11 +2223,73 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           });
 
         } else {
-          // CME without IB Gateway - show connection prompt
-          console.log(`[FootprintChartPro] CME symbol ${symbol} requires IB Gateway`);
-          setStatus('disconnected');
+          // ═══════════════════════════════════════════════════════════════
+          // RITHMIC MODE - Real CME data via local Python bridge
+          // ═══════════════════════════════════════════════════════════════
+          console.log(`[FootprintChartPro] CME symbol ${symbol} — connecting via Rithmic bridge`);
+
+          const rithmicWS = getRithmicLiveWS();
+          const footprintService = getOptimizedFootprintService();
+
           setIsLoading(false);
-          setLoadError('CME data requires IB Gateway connection. Go to Settings > Broker to connect.');
+
+          // Status
+          const unsubRithmicStatus = rithmicWS.onStatus((s) => {
+            if (!isMounted) return;
+            setStatus(s);
+            if (statusDotRef.current) {
+              statusDotRef.current.style.backgroundColor =
+                s === 'connected'   ? settings.colors.deltaPositive :
+                s === 'connecting'  ? '#eab308' :
+                settings.colors.deltaNegative;
+            }
+          });
+          unsubscribersRef.current.push(unsubRithmicStatus);
+
+          // Live ticks — same pipeline as Binance
+          const unsubRithmicTick = rithmicWS.onTick((tick) => {
+            if (!isMounted) return;
+            if (replayStateRef.current.active) return;
+
+            currentPriceRef.current = tick.price;
+            useAlertsStore.getState().checkAlerts(symbol, tick.price);
+            if (priceRef.current) {
+              priceRef.current.textContent = tick.price.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+            }
+
+            try {
+              const updatedCandle = footprintService.processLiveTrade({
+                price: tick.price,
+                quantity: tick.quantity,
+                time: tick.timestamp,
+                isBuyerMaker: tick.isBuyerMaker,
+              });
+              if (updatedCandle) {
+                candlesRef.current = footprintService.getCandlesArray();
+              }
+            } catch {
+              // ignore — no history loaded for CME yet
+            }
+
+            if (candlesRef.current.length > MAX_CANDLES) {
+              candlesRef.current = candlesRef.current.slice(-MAX_CANDLES);
+            }
+
+            // Update delta display
+            const lastCandle = candlesRef.current[candlesRef.current.length - 1];
+            if (lastCandle && deltaRef.current) {
+              const delta = lastCandle.totalDelta;
+              deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
+              deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
+            }
+          });
+          unsubscribersRef.current.push(unsubRithmicTick);
+
+          // Connect (idempotent)
+          rithmicWS.connect(symbol);
         }
 
         return; // Exit early for CME - don't run Binance logic
@@ -3042,14 +3105,16 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       // Binance: Connect to live WebSocket
       getBinanceLiveWS().changeSymbol(newSymbol);
     } else {
-      // CME: Disconnect Binance WS
+      // CME: Disconnect Binance WS, switch Rithmic symbol
       getBinanceLiveWS().disconnect();
       resetDxFeedFootprintEngine();
 
-      // If IB is connected, change symbol on IB adapter
       const ibMgr = getIBConnectionManager();
       if (ibMgr.isConnected()) {
         ibMgr.changeSymbol(newSymbol);
+      } else {
+        // Rithmic path
+        getRithmicLiveWS().changeSymbol(newSymbol);
       }
 
       console.log(`[FootprintChartPro] CME symbol selected: ${newSymbol}`);
@@ -3506,7 +3571,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
               color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : '#3b82f6',
             }}
           >
-            {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME')}
+            {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME Rithmic')}
           </span>
 
           <span ref={priceRef} className="text-xl font-mono font-bold" style={{ color: settings.colors.textPrimary }}>

@@ -7,7 +7,7 @@ import {
   type TimeframeSeconds,
 } from '@/lib/live/HierarchicalAggregator';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
-import { getIBLiveWS } from '@/lib/live/IBLiveWS';
+import { getRithmicLiveWS } from '@/lib/live/RithmicLiveWS';
 import { isCMESymbol } from '@/lib/utils/symbolUtils';
 import { useAlertsStore } from '@/stores/useAlertsStore';
 import { useTradingStore } from '@/stores/useTradingStore';
@@ -238,7 +238,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
 
       // Connect WebSocket (IB for CME, Binance for crypto)
       const isCME = isCMESymbol(symbol);
-      const ws = isCME ? getIBLiveWS() : getBinanceLiveWS();
+      const ws = isCME ? getRithmicLiveWS() : getBinanceLiveWS();
       const aggregator = getAggregator();
 
       // Disconnect previous WebSocket to ensure clean reconnect with new symbol
