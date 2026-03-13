@@ -254,10 +254,11 @@ export class FootprintEngine {
   }
 
   /**
-   * Round price to tick size
+   * Snap price to tick size using Math.floor (ATAS convention).
+   * All prices in [N*tick, (N+1)*tick) belong to level N*tick.
    */
   private roundPrice(price: number): number {
-    return Math.round(price / this.config.tickSize) * this.config.tickSize;
+    return Math.floor(price / this.config.tickSize) * this.config.tickSize;
   }
 
   // ============ CALCULATIONS ============

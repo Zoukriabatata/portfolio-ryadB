@@ -345,7 +345,8 @@ export class FootprintDataService {
     existingCandles: FootprintCandle[]
   ): FootprintCandle[] {
     const candleTime = Math.floor(trade.time / 1000 / timeframe) * timeframe;
-    const priceLevel = Math.round(trade.price / tickSize) * tickSize;
+    // Math.floor (not Math.round) — prices in [N*step, (N+1)*step) all belong to level N*step
+    const priceLevel = Math.floor(trade.price / tickSize) * tickSize;
 
     let candle = existingCandles.find(c => c.time === candleTime);
     const isNewCandle = !candle;

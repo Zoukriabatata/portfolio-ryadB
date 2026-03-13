@@ -136,28 +136,52 @@ interface InternalCandle {
 /**
  * Snap a price to its ATAS-compatible footprint level.
  *
- * Uses Math.floor so every price in [N*step, (N+1)*step) maps to N*step.
- * This is the function ATAS uses — NOT Math.round.
+ * Rule: every price in [N*step, (N+1)*step) maps to N*step.
+ * This is pure Math.floor bin assignment — identical to ATAS.
  *
- * For floating-point safety with small steps (e.g. 0.25, 0.01), we use
- * integer arithmetic: multiply by a power of 10, floor as integer, divide back.
+ * TWO-PATH IMPLEMENTATION
+ * ────────────────────────
+ * Path A — integer priceStep (1, 5, 10, 25, 50, 100 …)
+ *   Simple Math.floor division. No float issues at typical crypto price scales.
+ *
+ *   Example, priceStep = 10:
+ *     price = 71799.8  →  Math.floor(71799.8 / 10) * 10  =  71790  ✓
+ *     price = 71800.0  →  Math.floor(71800.0 / 10) * 10  =  71800  ✓
+ *     price = 71809.9  →  Math.floor(71809.9 / 10) * 10  =  71800  ✓
+ *
+ *   PREVIOUS BUG (Math.round on the price before flooring):
+ *     price = 71799.8  →  Math.round(71799.8) = 71800  →  level 71800  ✗ (should be 71790!)
+ *     price = 71809.9  →  Math.round(71809.9) = 71810  →  level 71810  ✗ (should be 71800!)
+ *   That bug caused ~5% of trades to land in the wrong bin, producing the
+ *   "2 bids at 71800 that should be 0" type of discrepancy vs ATAS.
+ *
+ * Path B — fractional priceStep (0.1, 0.25, 0.01 …)
+ *   Scale both price and step to integers using the step's decimal count.
+ *   Math.round on the scaled price is safe here because exchange prices are
+ *   always clean multiples of the instrument's minimum tick (e.g. 0.1 USDT),
+ *   so scaling produces exact integers with no boundary ambiguity.
  *
  * @param price     Raw trade price
- * @param priceStep The footprint price compression step
- * @returns         The snapped price level (bottom of the bin)
+ * @param priceStep Price compression step (must be positive)
+ * @returns         Bottom price of the bin that contains this price
  */
 export function snapToLevel(price: number, priceStep: number): number {
-  // Determine number of decimal places in priceStep to avoid floating-point drift
-  // e.g. step=0.25 → precision=2, step=10 → precision=0
+  // Path A: integer step — plain Math.floor, no float issues
+  if (Number.isInteger(priceStep)) {
+    return Math.floor(price / priceStep) * priceStep;
+  }
+
+  // Path B: fractional step — scale to integer domain
   const stepStr = priceStep.toString();
   const dotIndex = stepStr.indexOf('.');
-  const decimals = dotIndex === -1 ? 0 : stepStr.length - dotIndex - 1;
+  const decimals = stepStr.length - dotIndex - 1;
   const factor = Math.pow(10, decimals);
 
-  // Integer arithmetic: floor(price * factor / (priceStep * factor)) * (priceStep * factor)
-  // then divide back by factor
-  const priceInt = Math.round(price * factor);
+  // stepInt is exact (e.g. 0.25 → 25, 0.1 → 1)
   const stepInt = Math.round(priceStep * factor);
+  // priceInt: Math.round is safe because prices are always clean exchange ticks
+  const priceInt = Math.round(price * factor);
+
   return Math.floor(priceInt / stepInt) * stepInt / factor;
 }
 

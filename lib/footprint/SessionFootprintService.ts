@@ -370,8 +370,9 @@ export class SessionFootprintService {
     candle.low = Math.min(candle.low, trade.price);
     candle.close = trade.price;
 
-    // Calculate price level (round to tick size)
-    const priceLevel = Math.round(trade.price / tickSize) * tickSize;
+    // Snap to price level: Math.floor (ATAS convention, not Math.round)
+    // Math.round shifts boundary trades to the wrong bin (e.g. 71799.8 → 71800 instead of 71790)
+    const priceLevel = Math.floor(trade.price / tickSize) * tickSize;
 
     // Get or create level
     let level = candle.levels.get(priceLevel);
