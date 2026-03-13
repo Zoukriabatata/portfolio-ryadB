@@ -135,7 +135,7 @@ export class FootprintDataService {
     const allTrades: Trade[] = [];
     let currentStart = startTimeMs;
     let requestCount = 0;
-    const MAX_REQUESTS = 500; // Safety limit
+    const MAX_REQUESTS = 10; // Hard cap — 10 requests × 1000 trades = 10 000 trades max
 
     while (currentStart < endTimeMs && requestCount < MAX_REQUESTS) {
       try {

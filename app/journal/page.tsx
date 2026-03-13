@@ -1,14 +1,26 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useJournalStore } from '@/stores/useJournalStore';
 import JournalHeader from '@/components/journal/JournalHeader';
-import DashboardTab from '@/components/journal/DashboardTab';
-import TradesTab from '@/components/journal/TradesTab';
-import CalendarTab from '@/components/journal/CalendarTab';
-import PlaybookTab from '@/components/journal/PlaybookTab';
-import DailyNotesTab from '@/components/journal/DailyNotesTab';
-import TradeFormModal from '@/components/journal/TradeFormModal';
+
+// Lazy-load heavy tab components — only the active tab is ever rendered,
+// so there's no reason to bundle all 5 tabs on initial page load.
+const TabSkeleton = () => (
+  <div className="p-6 space-y-4 animate-pulse">
+    <div className="h-6 w-48 rounded bg-[var(--surface-elevated)]" />
+    <div className="h-32 rounded-xl bg-[var(--surface-elevated)]" />
+    <div className="h-32 rounded-xl bg-[var(--surface-elevated)]" />
+  </div>
+);
+
+const DashboardTab  = dynamic(() => import('@/components/journal/DashboardTab'),  { loading: () => <TabSkeleton /> });
+const TradesTab     = dynamic(() => import('@/components/journal/TradesTab'),     { loading: () => <TabSkeleton /> });
+const CalendarTab   = dynamic(() => import('@/components/journal/CalendarTab'),   { loading: () => <TabSkeleton /> });
+const PlaybookTab   = dynamic(() => import('@/components/journal/PlaybookTab'),   { loading: () => <TabSkeleton /> });
+const DailyNotesTab = dynamic(() => import('@/components/journal/DailyNotesTab'), { loading: () => <TabSkeleton /> });
+const TradeFormModal = dynamic(() => import('@/components/journal/TradeFormModal'), { ssr: false });
 
 export default function JournalPage() {
   const { activeTab, setActiveTab } = useJournalStore();

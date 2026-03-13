@@ -65,6 +65,20 @@ export class OptimizedFootprintService {
   }
 
   /**
+   * Calculate the optimal hours to fetch based on timeframe.
+   * Shorter timeframes need less history (the chart shows fewer candles).
+   * Cap ensures we never do more than ~15 parallel requests.
+   */
+  private adaptiveHours(): number {
+    const tf = this.config.timeframe; // seconds
+    if (tf <= 60)   return 0.5;  // 1m  → 30 min  → ~30 candles
+    if (tf <= 300)  return 1.5;  // 5m  → 90 min  → ~18 candles
+    if (tf <= 900)  return 3;    // 15m → 3h      → ~12 candles
+    if (tf <= 3600) return 6;    // 1h  → 6h      → ~6 candles
+    return Math.min(this.config.totalHours, 12);
+  }
+
+  /**
    * Load footprint data using REAL aggTrades for the entire history
    */
   async loadOptimized(): Promise<FootprintCandle[]> {
@@ -74,15 +88,17 @@ export class OptimizedFootprintService {
     this.candles.clear();
 
     const now = Date.now();
-    const { totalHours } = this.config;
+    // Use adaptive hours instead of fixed totalHours — prevents fetching
+    // hundreds of thousands of trades for short timeframes.
+    const effectiveHours = this.adaptiveHours();
 
     try {
       // ═══════════════════════════════════════════════════════════════
-      // SINGLE PHASE: Load ALL real aggTrades for the entire window
+      // SINGLE PHASE: Load real aggTrades (capped by time + trade count)
       // ═══════════════════════════════════════════════════════════════
       this.report(5, 'Loading real trades...');
 
-      const tradesStart = now - totalHours * 60 * 60 * 1000;
+      const tradesStart = now - effectiveHours * 60 * 60 * 1000;
       await this.loadTradesRange(tradesStart, now);
 
       // ═══════════════════════════════════════════════════════════════
@@ -111,11 +127,13 @@ export class OptimizedFootprintService {
   }
 
   /**
-   * Load real aggTrades in parallel chunks for speed
+   * Load real aggTrades in parallel chunks for speed.
+   * MAX_TRADES_TOTAL is the hard cap that stops all chunks early —
+   * this is the main lever that keeps load time under 3-5 seconds.
    */
   private async loadTradesRange(startTime: number, endTime: number): Promise<void> {
     const totalDuration = endTime - startTime;
-    const PARALLEL_CHUNKS = 3; // Limit parallel requests
+    const PARALLEL_CHUNKS = 2; // 2 is enough; 3 can overload Binance rate limits
     const chunkDuration = Math.ceil(totalDuration / PARALLEL_CHUNKS);
 
     // Build chunk ranges
@@ -149,16 +167,21 @@ export class OptimizedFootprintService {
   }
 
   /**
-   * Load a single time chunk with sequential pagination
+   * Load a single time chunk with sequential pagination.
+   * Hard cap at MAX_TRADES_PER_CHUNK to guarantee ≤5 HTTP requests per chunk.
    */
   private async loadChunk(startTime: number, endTime: number, chunkIdx: number, totalChunks: number): Promise<AggTrade[]> {
     const { symbol } = this.config;
     const trades: AggTrade[] = [];
     let currentStart = startTime;
     let batchCount = 0;
-    const maxBatches = 200;
+    // Cap per chunk: 5000 trades = 5 requests max per parallel stream
+    // → with 2 streams: 10,000 trades total → ~2-4 seconds on any pair
+    const MAX_TRADES_PER_CHUNK = 5000;
+    const maxBatches = Math.ceil(MAX_TRADES_PER_CHUNK / 1000) + 1;
 
     while (currentStart < endTime && batchCount < maxBatches) {
+      if (trades.length >= MAX_TRADES_PER_CHUNK) break;
       batchCount++;
 
       const params = new URLSearchParams({

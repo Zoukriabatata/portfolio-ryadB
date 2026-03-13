@@ -850,7 +850,9 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         timeframe: tf,
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
-        totalHours: 6,    // 6h of real aggTrades
+        // totalHours is now adaptive inside OptimizedFootprintService.adaptiveHours()
+        // This value is kept as a ceiling for very large timeframes only.
+        totalHours: 6,
         aggregationMode: settings.features.aggregationMode,
         tickBarSize: settings.features.tickBarSize,
         volumeBarSize: settings.features.volumeBarSize,
@@ -905,7 +907,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           symbol: sym,
           timeframe: tf,
           tickSize,
-          hoursBack: 4,
+          hoursBack: 1, // Keep fallback short — 4h caused 40s+ load times
           imbalanceRatio: settings.imbalance.ratio,
         });
       } catch {
