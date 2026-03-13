@@ -100,13 +100,34 @@
       margin-bottom: 0;
     }
 
+    .btn-download {
+      display: block;
+      width: fit-content;
+      margin: 16px auto 0;
+      padding: 10px 28px;
+      background: #000;
+      color: #fff;
+      font-family: Calibri, Arial, sans-serif;
+      font-size: 11pt;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-download:hover { background: #333; }
+
     @media print {
       body { background: #fff; }
+      .btn-download { display: none; }
       .page { margin: 0; padding: 2cm 2.5cm; }
     }
   </style>
 </head>
 <body>
+
+<button class="btn-download" onclick="window.print()">⬇ Télécharger en PDF</button>
+
 <div class="page">
 
   <div class="header">
