@@ -25,7 +25,9 @@ export async function POST(req: NextRequest) {
     // Route to provider-specific test
     switch (providerUpper) {
       case 'TRADOVATE':
-        return await testTradovate(username, password);
+        return await testTradovate(username, password, host);
+      case 'DATABENTO':
+        return await testDatabento(apiKey);
       case 'BINANCE':
       case 'BYBIT':
       case 'DERIBIT':
@@ -48,15 +50,15 @@ export async function POST(req: NextRequest) {
 }
 
 // ── Tradovate: Real API auth test ──
-async function testTradovate(username?: string, password?: string) {
+// host is repurposed to store 'demo' | 'live' mode
+async function testTradovate(username?: string, password?: string, mode?: string) {
   if (!username || !password) {
     return NextResponse.json({ success: false, error: 'Username and password are required' }, { status: 400 });
   }
 
   const start = Date.now();
   try {
-    // Try demo API first, then live
-    const isDemo = process.env.TRADOVATE_DEMO !== 'false';
+    const isDemo = mode !== 'live';
     const apiUrl = isDemo ? TRADOVATE_DEMO_API : TRADOVATE_LIVE_API;
 
     const response = await fetch(`${apiUrl}/auth/accesstokenrequest`, {
@@ -172,6 +174,35 @@ async function testDxFeed(apiKey?: string) {
     latency: 0,
     message: 'API key saved. Connection will be verified when market data is requested.',
   });
+}
+
+// ── Databento: real API key test ──
+async function testDatabento(apiKey?: string) {
+  if (!apiKey) {
+    return NextResponse.json({ success: false, error: 'API key is required' }, { status: 400 });
+  }
+
+  const start = Date.now();
+  try {
+    // Databento metadata endpoint — lightweight, requires valid API key
+    const res = await fetch('https://hist.databento.com/v0/metadata.list_publishers', {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`,
+      },
+      signal: AbortSignal.timeout(6000),
+    });
+    const latency = Date.now() - start;
+
+    if (res.ok) {
+      return NextResponse.json({ success: true, latency, message: 'Databento API key verified' });
+    }
+    if (res.status === 401) {
+      return NextResponse.json({ success: false, error: 'Invalid API key — check your Databento account' });
+    }
+    return NextResponse.json({ success: false, error: `Databento returned ${res.status}` });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Cannot reach Databento API — check your network' });
+  }
 }
 
 // ── Interactive Brokers: TWS Gateway check ──

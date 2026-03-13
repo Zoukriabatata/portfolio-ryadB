@@ -7,14 +7,18 @@
 import type { ComponentType } from 'react';
 import type { DataFeedProvider } from '@/stores/useDataFeedStore';
 
+// Re-export for convenience
+export type { DataFeedProvider };
+
 export type ProviderCategory = 'crypto' | 'futures' | 'multi-asset';
 export type ProviderTier = 'FREE' | 'ULTRA';
 
 export interface ProviderField {
   key: string;
   label: string;
-  type: 'text' | 'password';
+  type: 'text' | 'password' | 'select';
   placeholder: string;
+  options?: { value: string; label: string }[];
 }
 
 export interface DataFeedProviderInfo {
@@ -116,12 +120,22 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     markets: ['CME', 'ICE'],
     features: ['Real-time quotes', 'Depth of market', 'Historical charts', 'Order management', 'Account data'],
     connectionType: 'REST + WebSocket',
-    pricingNote: 'Free with Tradovate account',
+    pricingNote: 'Free with Tradovate account — paper trading available',
     docsUrl: 'https://api.tradovate.com/',
     requiresCredentials: true,
     fields: [
       { key: 'username', label: 'Username', type: 'text', placeholder: 'Tradovate username' },
       { key: 'password', label: 'Password', type: 'password', placeholder: 'Tradovate password' },
+      {
+        key: 'host',
+        label: 'Account Mode',
+        type: 'select',
+        placeholder: 'demo',
+        options: [
+          { value: 'demo', label: 'Demo (Paper Trading)' },
+          { value: 'live', label: 'Live (Real Money)' },
+        ],
+      },
     ],
   },
   {
@@ -152,12 +166,13 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     description: 'Financial market data provider for futures, equities, and indices with global coverage.',
     markets: ['CME', 'NYSE', 'NASDAQ', 'CBOE'],
     features: ['Real-time streaming', 'Historical data', 'Market events', 'Indices & ETFs', 'Options analytics'],
-    connectionType: 'API Key',
-    pricingNote: 'From $30/mo — varies by data package',
+    connectionType: 'WebSocket (dxLink)',
+    pricingNote: 'From $30/mo — subscribe directly at dxfeed.com',
     docsUrl: 'https://docs.dxfeed.com/',
     requiresCredentials: true,
     fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Your dxFeed API key' },
+      { key: 'apiKey', label: 'API Token', type: 'password', placeholder: 'Your dxFeed API token' },
+      { key: 'host', label: 'Endpoint (optional)', type: 'text', placeholder: 'wss://demo.dxfeed.com/dxlink-ws' },
     ],
   },
   {
@@ -176,6 +191,25 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     fields: [
       { key: 'username', label: 'Username', type: 'text', placeholder: 'AMP username' },
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'AMP API key' },
+    ],
+  },
+
+  {
+    id: 'databento',
+    name: 'Databento',
+    category: 'futures',
+    tier: 'FREE',
+    color: '#6366F1',
+    iconName: 'DatabentoIcon',
+    description: 'Modern pay-per-use market data. CME, NYSE, CBOE, Nasdaq. No monthly subscription needed.',
+    markets: ['CME', 'NYSE', 'CBOE', 'NASDAQ', 'ICE'],
+    features: ['Pay-per-use pricing', 'Tick-by-tick data', 'Historical data API', 'Options chains', 'Order book snapshots'],
+    connectionType: 'REST + WebSocket',
+    pricingNote: 'Pay-per-use — from $0/mo, subscribe at databento.com',
+    docsUrl: 'https://databento.com/docs',
+    requiresCredentials: true,
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'db-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' },
     ],
   },
 

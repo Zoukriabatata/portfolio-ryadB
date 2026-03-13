@@ -7,12 +7,12 @@ import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import {
   BinanceIcon, BybitIcon, DeribitIcon, RithmicIcon,
-  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon,
+  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon, DatabentoIcon,
 } from '@/components/ui/Icons';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   BinanceIcon, BybitIcon, DeribitIcon, RithmicIcon,
-  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon,
+  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon, DatabentoIcon,
 };
 
 type ModalState = 'idle' | 'connecting' | 'success' | 'error';
@@ -263,14 +263,27 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
                     <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                       {field.label}
                     </label>
-                    <input
-                      type={field.type}
-                      value={fields[field.key] || ''}
-                      onChange={e => updateField(field.key, e.target.value)}
-                      placeholder={field.placeholder}
-                      className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus-glow"
-                      style={inputStyle}
-                    />
+                    {field.type === 'select' ? (
+                      <select
+                        value={fields[field.key] || field.options?.[0]?.value || ''}
+                        onChange={e => updateField(field.key, e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus-glow"
+                        style={inputStyle}
+                      >
+                        {field.options?.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type}
+                        value={fields[field.key] || ''}
+                        onChange={e => updateField(field.key, e.target.value)}
+                        placeholder={field.placeholder}
+                        className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus-glow"
+                        style={inputStyle}
+                      />
+                    )}
                   </div>
                 ))}
 

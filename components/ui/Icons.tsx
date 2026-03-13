@@ -1680,6 +1680,16 @@ export function AMPIcon({ size = 18, className = '', color = 'currentColor' }: I
   );
 }
 
+export function DatabentoIcon({ size = 18, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="5" fill="#6366f115" stroke="#6366f140" strokeWidth="1.2" />
+      <path d="M7 12h10M7 8h6M7 16h8" stroke="#6366f1" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="18" cy="8" r="1.5" fill="#6366f1" />
+    </svg>
+  );
+}
+
 // Account page icons
 export function UserIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (

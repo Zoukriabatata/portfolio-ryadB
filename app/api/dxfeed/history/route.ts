@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
+import { prisma } from '@/lib/db';
 
 /**
  * DXFEED Historical Data API Proxy
  *
- * Proxies requests to dxFeed REST API for historical candle data
- * FREE with 15-minute delay
+ * Uses the user's own dxFeed API token (saved in /boutique).
+ * Falls back to the public endpoint (15-min delayed) if no token configured.
  *
- * ✅ SECURED: Requires authentication + rate limiting
+ * ✅ SECURED: Requires authentication
  *
  * Usage:
  * GET /api/dxfeed/history?symbol=/NQ&timeframe=60
@@ -39,13 +40,27 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // ✅ TIER VALIDATION - Futures data requires ULTRA
-  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
-  if (tierCheck) {
-    return NextResponse.json(
-      { error: tierCheck.error },
-      { status: tierCheck.status }
-    );
+  // ✅ TIER VALIDATION - Futures data requires ULTRA (unless user has own dxFeed key)
+  let userDxFeedToken: string | null = null;
+  try {
+    const cfg = await prisma.dataFeedConfig.findFirst({
+      where: { userId: authResult.user.id, provider: 'DXFEED' },
+      select: { apiKey: true },
+    });
+    userDxFeedToken = cfg?.apiKey ?? null;
+  } catch {
+    // ignore — fall through to tier check
+  }
+
+  if (!userDxFeedToken) {
+    // No personal token → require ULTRA tier for server-side public feed
+    const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+    if (tierCheck) {
+      return NextResponse.json(
+        { error: tierCheck.error, requiresKey: true },
+        { status: tierCheck.status }
+      );
+    }
   }
 
   const { searchParams } = request.nextUrl;
@@ -78,12 +93,17 @@ export async function GET(request: NextRequest) {
 
     console.log(`[dxFeed API] Fetching: ${url}`);
 
+    const authHeader: Record<string, string> = userDxFeedToken
+      ? { Authorization: `Bearer ${userDxFeedToken}` }
+      : {};
+
     const response = await fetch(url.toString(), {
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'OrderFlow-Platform/1.0',
+        ...authHeader,
       },
-      next: { revalidate: 60 }, // Cache for 1 minute
+      next: { revalidate: userDxFeedToken ? 5 : 60 }, // user key = near-realtime; public = 1min cache
     });
 
     if (!response.ok) {

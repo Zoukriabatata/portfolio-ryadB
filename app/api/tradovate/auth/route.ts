@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   // 1. Try user's saved credentials from DB (set via /boutique)
   let username = process.env.TRADOVATE_USERNAME;
   let password = process.env.TRADOVATE_PASSWORD;
+  let isDemo = process.env.TRADOVATE_DEMO !== 'false'; // default from env
 
   try {
     const config = await prisma.dataFeedConfig.findFirst({
@@ -24,6 +25,9 @@ export async function GET(req: NextRequest) {
       username = config.username;
       password = config.apiKey; // ConfigureModal stores password as apiKey
     }
+    // host column repurposed to store 'demo' | 'live' mode chosen by user
+    if (config?.host === 'live') isDemo = false;
+    else if (config?.host === 'demo') isDemo = true;
   } catch {
     // DB read failed — fall through to env vars
   }
@@ -32,7 +36,6 @@ export async function GET(req: NextRequest) {
   const appVersion = process.env.TRADOVATE_APP_VERSION || '1.0.0';
   const cid = process.env.TRADOVATE_CID;
   const sec = process.env.TRADOVATE_SECRET;
-  const isDemo = process.env.TRADOVATE_DEMO !== 'false';
 
   if (!username || !password) {
     return NextResponse.json({
