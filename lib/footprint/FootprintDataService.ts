@@ -194,7 +194,8 @@ export class FootprintDataService {
 
     for (const trade of trades) {
       const candleTime = Math.floor(trade.time / 1000 / timeframe) * timeframe;
-      const priceLevel = Math.round(trade.price / tickSize) * tickSize;
+      // Math.floor matches ATAS convention (not Math.round — see ATASFootprintEngine.ts)
+      const priceLevel = Math.floor(trade.price / tickSize) * tickSize;
       const normalizedPrice = Math.round(priceLevel * 1000000) / 1000000;
 
       let candle = candleMap.get(candleTime);

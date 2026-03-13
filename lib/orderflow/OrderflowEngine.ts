@@ -205,8 +205,10 @@ export class OrderflowEngine {
   private updateCandleWithTick(candle: FootprintCandle, tick: Tick): void {
     const { tickSize, imbalanceRatio } = this.config;
 
-    // Arrondit le prix au tick size
-    const priceLevel = Math.round(tick.price / tickSize) * tickSize;
+    // Snap price to tick size using Math.floor (ATAS convention).
+    // Math.round is WRONG: price=71635, step=10 → round gives 71640 (incorrect bin).
+    // Math.floor: price=71635, step=10 → 71630 (correct: every price in [71630,71640) → 71630).
+    const priceLevel = Math.floor(tick.price / tickSize) * tickSize;
 
     // OHLC
     candle.high = Math.max(candle.high, tick.price);

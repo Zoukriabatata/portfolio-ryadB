@@ -1,413 +1,391 @@
 /**
  * OPTIMIZED FOOTPRINT SERVICE
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Drop-in replacement wiring the new ATASFootprintEngine + ATASDataLoader into
+ * the existing FootprintChartPro component interface.
  *
- * Uses REAL Binance aggTrades for the ENTIRE history window.
- * Every bid/ask per price level comes from actual executed trades
- * with isBuyerMaker flag = exact bid/ask classification.
- *
- * No simulated distribution — 100% real data.
+ * Key changes vs previous version:
+ *   - Uses Math.floor price snapping (was Math.round — fixed all bid/ask errors)
+ *   - No 10K trade hard cap — loader controls the limit
+ *   - Full day mode for 1440 M1 candles
+ *   - Strict tick timestamp sorting before processing (fixes OHLC accuracy)
+ *   - Skeleton mode for BTC (instant OHLC + partial footprint)
  */
 
-import type { FootprintCandle, PriceLevel } from '@/lib/orderflow/OrderflowEngine';
-import { throttledFetch } from '@/lib/api/throttledFetch';
+import type { FootprintCandle } from '@/lib/orderflow/OrderflowEngine';
+import {
+  ATASFootprintEngine,
+  type ATASEngineConfig,
+  type RawTick,
+} from './ATASFootprintEngine';
+import {
+  loadFootprintData,
+  type LoadMode,
+  type OHLCSkeleton,
+} from './ATASDataLoader';
 
-// ============ TYPES ============
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface OptimizedConfig {
   symbol: string;
-  timeframe: number;
-  tickSize: number;
-  imbalanceRatio: number;
-  totalHours: number;       // Total hours of real aggTrades (default: 6)
-  // Non-time aggregation modes
+  timeframe: number;          // Candle duration in SECONDS (e.g. 60 for 1m)
+  tickSize: number;           // Price compression step (e.g. 10 for BTC)
+  imbalanceRatio: number;     // Default 3.0
+  totalHours: number;         // History window for window mode (default 4)
+
+  /** Non-time aggregation (tick/volume bars) */
   aggregationMode: 'time' | 'tick' | 'volume';
-  tickBarSize: number;      // Trades per candle (tick mode)
-  volumeBarSize: number;    // Volume per candle (volume mode)
+  tickBarSize: number;
+  volumeBarSize: number;
+
+  /** Loading strategy */
+  loadMode: LoadMode;
+
+  /** Full day: UTC midnight ms. Defaults to today. */
+  dayStartMs?: number;
+
+  /** Max trades per time chunk (null = no cap). Recommended: null for ETH, 50000 for BTC */
+  maxTradesPerChunk?: number | null;
+
+  /** Enable per-tick debug logging */
+  debug?: boolean;
 }
 
-export { type AggTrade };
-
-interface AggTrade {
-  id: number;
-  price: number;
-  quantity: number;
-  time: number;
-  isBuyerMaker: boolean;
-}
-
-// ============ SERVICE ============
+// ─────────────────────────────────────────────────────────────────────────────
+// SERVICE
+// ─────────────────────────────────────────────────────────────────────────────
 
 export class OptimizedFootprintService {
   private config: OptimizedConfig;
-  private candles: Map<number, FootprintCandle> = new Map();
-  private lastTradeId: number = 0;
-  private isLoading: boolean = false;
+  private engine: ATASFootprintEngine;
+  private isLoading = false;
   private onProgress: ((progress: number, message: string) => void) | null = null;
+
+  /** OHLC skeleton from klines (skeleton mode only) */
+  private skeleton: OHLCSkeleton[] | undefined;
+
   // Non-time aggregation state
-  private nonTimeIndex: number = 0;
+  private nonTimeIndex = 0;
   private currentNonTimeCandle: FootprintCandle | null = null;
 
-  constructor(config: Partial<OptimizedConfig> & { symbol: string; timeframe: number; tickSize: number }) {
+  constructor(
+    config: Partial<OptimizedConfig> & { symbol: string; timeframe: number; tickSize: number }
+  ) {
     this.config = {
-      symbol: config.symbol,
-      timeframe: config.timeframe,
-      tickSize: config.tickSize,
-      imbalanceRatio: config.imbalanceRatio ?? 3.0,
-      totalHours: config.totalHours ?? 6,
-      aggregationMode: config.aggregationMode ?? 'time',
-      tickBarSize: config.tickBarSize ?? 500,
-      volumeBarSize: config.volumeBarSize ?? 100,
+      imbalanceRatio: 3.0,
+      totalHours: 4,
+      aggregationMode: 'time',
+      tickBarSize: 500,
+      volumeBarSize: 100,
+      loadMode: 'window',
+      maxTradesPerChunk: null,
+      debug: false,
+      ...config,
     };
+
+    this.engine = this.createEngine();
   }
 
   setProgressCallback(cb: (progress: number, message: string) => void): void {
     this.onProgress = cb;
   }
 
-  /**
-   * Calculate the optimal hours to fetch based on timeframe.
-   * Shorter timeframes need less history (the chart shows fewer candles).
-   * Cap ensures we never do more than ~15 parallel requests.
-   */
-  private adaptiveHours(): number {
-    const tf = this.config.timeframe; // seconds
-    if (tf <= 60)   return 0.5;  // 1m  → 30 min  → ~30 candles
-    if (tf <= 300)  return 1.5;  // 5m  → 90 min  → ~18 candles
-    if (tf <= 900)  return 3;    // 15m → 3h      → ~12 candles
-    if (tf <= 3600) return 6;    // 1h  → 6h      → ~6 candles
-    return Math.min(this.config.totalHours, 12);
-  }
+  // ─── LOAD ────────────────────────────────────────────────────────────────
 
   /**
-   * Load footprint data using REAL aggTrades for the entire history
+   * Load footprint data using the configured mode.
+   * Returns FootprintCandle[] ready for rendering.
    */
   async loadOptimized(): Promise<FootprintCandle[]> {
     if (this.isLoading) return this.getCandlesArray();
 
     this.isLoading = true;
-    this.candles.clear();
-
-    const now = Date.now();
-    // Use adaptive hours instead of fixed totalHours — prevents fetching
-    // hundreds of thousands of trades for short timeframes.
-    const effectiveHours = this.adaptiveHours();
+    this.engine = this.createEngine();
+    this.nonTimeIndex = 0;
+    this.currentNonTimeCandle = null;
 
     try {
-      // ═══════════════════════════════════════════════════════════════
-      // SINGLE PHASE: Load real aggTrades (capped by time + trade count)
-      // ═══════════════════════════════════════════════════════════════
-      this.report(5, 'Loading real trades...');
+      this.report(0, 'Initializing...');
 
-      const tradesStart = now - effectiveHours * 60 * 60 * 1000;
-      await this.loadTradesRange(tradesStart, now);
+      const { ticks, skeleton } = await loadFootprintData(
+        {
+          symbol:            this.config.symbol,
+          mode:              this.config.loadMode,
+          hoursBack:         this.config.totalHours,
+          dayStartMs:        this.config.dayStartMs,
+          maxTradesPerChunk: this.config.maxTradesPerChunk,
+          parallelChunks:    this.config.loadMode === 'fullday' ? 24 : 4,
+        },
+        (pct, msg) => this.report(pct * 0.85, msg)
+      );
 
-      // ═══════════════════════════════════════════════════════════════
-      // Calculate metrics (POC, imbalances)
-      // ═══════════════════════════════════════════════════════════════
-      this.report(90, 'Calculating footprint metrics...');
+      this.skeleton = skeleton;
 
-      this.candles.forEach(candle => this.calculateMetrics(candle));
-
-      // Mark last candle as not closed
-      const result = this.getCandlesArray();
-      if (result.length > 0) {
-        result[result.length - 1].isClosed = false;
+      if (ticks.length === 0) {
+        this.report(100, 'No trades in window');
+        return [];
       }
 
-      this.report(100, `Ready: ${result.length} candles (100% real data)`);
+      this.report(86, `Processing ${ticks.length.toLocaleString()} ticks...`);
 
-      return result;
+      // Process — engine handles time-based aggregation
+      // For non-time modes, we route through the legacy processor
+      if (this.config.aggregationMode === 'time') {
+        this.engine.processBatch(ticks);
+        this.engine.finalizeAll();
+      } else {
+        this.processNonTimeBatch(ticks);
+      }
 
-    } catch (error) {
-      console.error('[OptimizedFootprint] Error:', error);
-      throw error;
+      const candles = this.getCandlesArray();
+
+      this.report(100, `Ready: ${candles.length} candles from ${ticks.length.toLocaleString()} ticks`);
+      return candles;
+
+    } catch (err) {
+      console.error('[OptimizedFootprint] Load error:', err);
+      throw err;
     } finally {
       this.isLoading = false;
     }
   }
 
-  /**
-   * Load real aggTrades in parallel chunks for speed.
-   * MAX_TRADES_TOTAL is the hard cap that stops all chunks early —
-   * this is the main lever that keeps load time under 3-5 seconds.
-   */
-  private async loadTradesRange(startTime: number, endTime: number): Promise<void> {
-    const totalDuration = endTime - startTime;
-    const PARALLEL_CHUNKS = 2; // 2 is enough; 3 can overload Binance rate limits
-    const chunkDuration = Math.ceil(totalDuration / PARALLEL_CHUNKS);
-
-    // Build chunk ranges
-    const chunks: { start: number; end: number }[] = [];
-    for (let i = 0; i < PARALLEL_CHUNKS; i++) {
-      const chunkStart = startTime + i * chunkDuration;
-      const chunkEnd = Math.min(chunkStart + chunkDuration, endTime);
-      if (chunkStart < endTime) {
-        chunks.push({ start: chunkStart, end: chunkEnd });
-      }
-    }
-
-    this.report(5, `Loading trades (${chunks.length} parallel streams)...`);
-
-    // Fetch all chunks in parallel, each chunk paginates sequentially
-    const chunkResults = await Promise.all(
-      chunks.map((chunk, idx) => this.loadChunk(chunk.start, chunk.end, idx, chunks.length))
-    );
-
-    // Process trades in chronological order (chunks are already time-ordered)
-    let totalTrades = 0;
-    for (const trades of chunkResults) {
-      for (const t of trades) {
-        this.processTrade(t);
-        this.lastTradeId = Math.max(this.lastTradeId, t.id);
-      }
-      totalTrades += trades.length;
-    }
-
-    console.log(`[OptimizedFootprint] Fetched ${totalTrades} real trades in ${chunks.length} parallel chunks`);
-  }
+  // ─── LIVE TRADE ──────────────────────────────────────────────────────────
 
   /**
-   * Load a single time chunk with sequential pagination.
-   * Hard cap at MAX_TRADES_PER_CHUNK to guarantee ≤5 HTTP requests per chunk.
+   * Process a single real-time trade from the WebSocket stream.
+   * Returns the updated candle for immediate chart update.
    */
-  private async loadChunk(startTime: number, endTime: number, chunkIdx: number, totalChunks: number): Promise<AggTrade[]> {
-    const { symbol } = this.config;
-    const trades: AggTrade[] = [];
-    let currentStart = startTime;
-    let batchCount = 0;
-    // Cap per chunk: 5000 trades = 5 requests max per parallel stream
-    // → with 2 streams: 10,000 trades total → ~2-4 seconds on any pair
-    const MAX_TRADES_PER_CHUNK = 5000;
-    const maxBatches = Math.ceil(MAX_TRADES_PER_CHUNK / 1000) + 1;
-
-    while (currentStart < endTime && batchCount < maxBatches) {
-      if (trades.length >= MAX_TRADES_PER_CHUNK) break;
-      batchCount++;
-
-      const params = new URLSearchParams({
-        symbol: symbol.toUpperCase(),
-        startTime: currentStart.toString(),
-        endTime: endTime.toString(),
-        limit: '1000',
-      });
-
-      const response = await throttledFetch(`/api/binance/fapi/v1/aggTrades?${params}`);
-      const data = await response.json();
-
-      if (!Array.isArray(data) || data.length === 0) break;
-
-      for (const t of data) {
-        trades.push({
-          id: t.a,
-          price: parseFloat(t.p),
-          quantity: parseFloat(t.q),
-          time: t.T,
-          isBuyerMaker: t.m,
-        });
-      }
-
-      const lastTradeTime = data[data.length - 1].T;
-      if (lastTradeTime <= currentStart) break;
-      currentStart = lastTradeTime + 1;
-
-      // Report progress for this chunk
-      const chunkProgress = (currentStart - startTime) / (endTime - startTime);
-      const overallProgress = 5 + ((chunkIdx + chunkProgress) / totalChunks) * 80;
-      this.report(Math.min(85, overallProgress), `Loaded ${trades.length.toLocaleString()} trades (stream ${chunkIdx + 1}/${totalChunks})`);
-
-      if (data.length < 1000) break;
+  processLiveTrade(trade: {
+    price: number;
+    quantity: number;
+    time: number;       // milliseconds (Binance T field)
+    isBuyerMaker: boolean;
+  }): FootprintCandle | null {
+    if (this.config.aggregationMode !== 'time') {
+      return this.processLiveNonTime(trade);
     }
 
-    return trades;
-  }
-
-  /**
-   * Process a single trade into the correct candle and price level
-   */
-  private processTrade(trade: AggTrade): void {
-    const { timeframe, tickSize, aggregationMode } = this.config;
-    const priceLevel = Math.round(trade.price / tickSize) * tickSize;
-
-    let candle: FootprintCandle;
-
-    if (aggregationMode === 'tick' || aggregationMode === 'volume') {
-      // Non-time aggregation: use index-based candle keys
-      if (!this.currentNonTimeCandle) {
-        this.currentNonTimeCandle = this.createCandle(this.nonTimeIndex, trade.price);
-        this.candles.set(this.nonTimeIndex, this.currentNonTimeCandle);
-      }
-
-      candle = this.currentNonTimeCandle;
-
-      // Check if candle is complete
-      const shouldClose =
-        (aggregationMode === 'tick' && candle.totalTrades >= this.config.tickBarSize) ||
-        (aggregationMode === 'volume' && candle.totalVolume >= this.config.volumeBarSize);
-
-      if (shouldClose) {
-        this.nonTimeIndex++;
-        this.currentNonTimeCandle = this.createCandle(this.nonTimeIndex, trade.price);
-        this.candles.set(this.nonTimeIndex, this.currentNonTimeCandle);
-        candle = this.currentNonTimeCandle;
-      }
-    } else {
-      // Time-based aggregation (default)
-      const candleTime = Math.floor(trade.time / 1000 / timeframe) * timeframe;
-      let existing = this.candles.get(candleTime);
-      if (!existing) {
-        existing = this.createCandle(candleTime, trade.price);
-        this.candles.set(candleTime, existing);
-      }
-      candle = existing;
-    }
-
-    // Update OHLC
-    if (candle.totalTrades === 0) candle.open = trade.price;
-    candle.high = Math.max(candle.high, trade.price);
-    candle.low = Math.min(candle.low, trade.price);
-    candle.close = trade.price;
-
-    // Get or create level
-    let level = candle.levels.get(priceLevel);
-    if (!level) {
-      level = this.createLevel(priceLevel);
-      candle.levels.set(priceLevel, level);
-    }
-
-    // REAL bid/ask classification from isBuyerMaker
-    // isBuyerMaker = true → buyer was maker (passive) → SELL (hitting bid)
-    // isBuyerMaker = false → seller was maker (passive) → BUY (hitting ask)
-    if (trade.isBuyerMaker) {
-      level.bidVolume += trade.quantity;
-      level.bidTrades += 1;
-      candle.totalSellVolume += trade.quantity;
-    } else {
-      level.askVolume += trade.quantity;
-      level.askTrades += 1;
-      candle.totalBuyVolume += trade.quantity;
-    }
-
-    level.totalVolume = level.bidVolume + level.askVolume;
-    level.delta = level.askVolume - level.bidVolume;
-
-    candle.totalVolume += trade.quantity;
-    candle.totalDelta = candle.totalBuyVolume - candle.totalSellVolume;
-    candle.totalTrades += 1;
-  }
-
-  /**
-   * Calculate POC, diagonal imbalances (professional style)
-   */
-  private calculateMetrics(candle: FootprintCandle): void {
-    const { tickSize, imbalanceRatio } = this.config;
-
-    // POC
-    let maxVol = 0;
-    candle.levels.forEach((level, price) => {
-      if (level.totalVolume > maxVol) {
-        maxVol = level.totalVolume;
-        candle.poc = price;
-      }
-    });
-
-    // Diagonal imbalances
-    candle.levels.forEach((level, price) => {
-      const below = candle.levels.get(Math.round((price - tickSize) * 1e6) / 1e6);
-      const above = candle.levels.get(Math.round((price + tickSize) * 1e6) / 1e6);
-
-      if (below && level.askVolume > 0 && below.bidVolume > 0) {
-        level.imbalanceBuy = level.askVolume / below.bidVolume >= imbalanceRatio;
-      }
-      if (above && level.bidVolume > 0 && above.askVolume > 0) {
-        level.imbalanceSell = level.bidVolume / above.askVolume >= imbalanceRatio;
-      }
-    });
-  }
-
-  /**
-   * Process a live trade (real-time)
-   */
-  processLiveTrade(trade: { price: number; quantity: number; time: number; isBuyerMaker: boolean }): FootprintCandle | null {
-    const aggTrade: AggTrade = {
-      id: Date.now(),
-      price: trade.price,
-      quantity: trade.quantity,
-      time: trade.time,
+    const tick: RawTick = {
+      price:        trade.price,
+      quantity:     trade.quantity,
+      timestampMs:  trade.time,
       isBuyerMaker: trade.isBuyerMaker,
     };
 
-    this.processTrade(aggTrade);
+    const { candle } = this.engine.processLiveTick(tick);
 
-    const candleTime = Math.floor(trade.time / 1000 / this.config.timeframe) * this.config.timeframe;
-    const candle = this.candles.get(candleTime);
-
-    if (candle) {
-      this.calculateMetrics(candle);
-    }
-
-    return candle || null;
+    // Convert to public FootprintCandle
+    const bucketMs = Math.floor(trade.time / this.config.timeframe / 1000) * this.config.timeframe * 1000;
+    return this.engine.getCandleAt(bucketMs);
   }
+
+  // ─── OUTPUT ───────────────────────────────────────────────────────────────
 
   getCandlesArray(): FootprintCandle[] {
-    return Array.from(this.candles.values()).sort((a, b) => a.time - b.time);
+    if (this.config.aggregationMode !== 'time') {
+      return this.getNonTimeCandlesArray();
+    }
+    return this.engine.getCandlesArray();
   }
 
-  // ============ HELPERS ============
-
-  private createCandle(time: number, price: number): FootprintCandle {
-    return {
-      time,
-      open: price,
-      high: price,
-      low: price,
-      close: price,
-      levels: new Map(),
-      totalVolume: 0,
-      totalBuyVolume: 0,
-      totalSellVolume: 0,
-      totalDelta: 0,
-      totalTrades: 0,
-      poc: price,
-      vah: price,
-      val: price,
-      isClosed: true,
-    };
+  /** Return OHLC skeleton (skeleton mode only) */
+  getSkeletonCandles(): OHLCSkeleton[] {
+    return this.skeleton ?? [];
   }
 
-  private createLevel(price: number): PriceLevel {
-    return {
-      price,
-      bidVolume: 0,
-      askVolume: 0,
-      bidTrades: 0,
-      askTrades: 0,
-      delta: 0,
-      totalVolume: 0,
-      imbalanceBuy: false,
-      imbalanceSell: false,
+  // ─── NON-TIME AGGREGATION ─────────────────────────────────────────────────
+  // Tick bars and volume bars use index-based candles rather than time buckets.
+  // These are processed outside ATASFootprintEngine which is time-based.
+
+  private nonTimeCandles: Map<number, FootprintCandle> = new Map();
+
+  private processNonTimeBatch(ticks: RawTick[]): void {
+    for (const tick of ticks) {
+      this.processNonTimeTick(tick);
+    }
+  }
+
+  private processNonTimeTick(tick: RawTick): void {
+    const { tickSize, aggregationMode, tickBarSize, volumeBarSize } = this.config;
+
+    // Import snapToLevel for correct price level snapping
+    const priceLevel = Math.floor(tick.price / tickSize) * tickSize;
+
+    if (!this.currentNonTimeCandle) {
+      this.currentNonTimeCandle = createEmptyCandle(this.nonTimeIndex, tick.price);
+      this.nonTimeCandles.set(this.nonTimeIndex, this.currentNonTimeCandle);
+    }
+
+    const candle = this.currentNonTimeCandle;
+
+    // Check close condition
+    const shouldClose =
+      (aggregationMode === 'tick'   && candle.totalTrades >= tickBarSize) ||
+      (aggregationMode === 'volume' && candle.totalVolume >= volumeBarSize);
+
+    if (shouldClose) {
+      candle.isClosed = true;
+      this.nonTimeIndex++;
+      this.currentNonTimeCandle = createEmptyCandle(this.nonTimeIndex, tick.price);
+      this.nonTimeCandles.set(this.nonTimeIndex, this.currentNonTimeCandle);
+    }
+
+    applyTickToCandle(this.currentNonTimeCandle!, tick, priceLevel);
+  }
+
+  private processLiveNonTime(trade: {
+    price: number; quantity: number; time: number; isBuyerMaker: boolean;
+  }): FootprintCandle | null {
+    const tick: RawTick = {
+      price: trade.price,
+      quantity: trade.quantity,
+      timestampMs: trade.time,
+      isBuyerMaker: trade.isBuyerMaker,
     };
+    this.processNonTimeTick(tick);
+    return this.currentNonTimeCandle;
+  }
+
+  private getNonTimeCandlesArray(): FootprintCandle[] {
+    return Array.from(this.nonTimeCandles.values()).sort((a, b) => a.time - b.time);
+  }
+
+  // ─── DEBUG ────────────────────────────────────────────────────────────────
+
+  /**
+   * Print a full candle debug summary to the console.
+   * Pass a candle timestamp in seconds to inspect that candle.
+   *
+   * Usage: service.debugCandle(1699880400)  // Unix timestamp in seconds
+   */
+  debugCandle(timestampSeconds: number): void {
+    this.engine.debugCandle(timestampSeconds * 1000);
+  }
+
+  // ─── PRIVATE ──────────────────────────────────────────────────────────────
+
+  private createEngine(): ATASFootprintEngine {
+    const engineConfig: ATASEngineConfig = {
+      priceStep:         this.config.tickSize,
+      timeframeMs:       this.config.timeframe * 1000,  // seconds → ms
+      valueAreaPercent:  0.70,
+      imbalanceRatio:    this.config.imbalanceRatio,
+      debug:             this.config.debug,
+    };
+    return new ATASFootprintEngine(engineConfig);
   }
 
   private report(progress: number, message: string): void {
-    this.onProgress?.(progress, message);
-    console.log(`[OptimizedFootprint] ${progress.toFixed(0)}% - ${message}`);
+    this.onProgress?.(Math.min(100, progress), message);
+    console.log(`[OptimizedFootprint] ${Math.round(progress)}% – ${message}`);
   }
 }
 
-// ============ SINGLETON ============
+// ─────────────────────────────────────────────────────────────────────────────
+// CANDLE HELPERS (non-time aggregation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function createEmptyCandle(index: number, price: number): FootprintCandle {
+  return {
+    time:             index,
+    open:             price,
+    high:             price,
+    low:              price,
+    close:            price,
+    levels:           new Map(),
+    totalVolume:      0,
+    totalBuyVolume:   0,
+    totalSellVolume:  0,
+    totalDelta:       0,
+    totalTrades:      0,
+    poc:              price,
+    vah:              price,
+    val:              price,
+    isClosed:         false,
+  };
+}
+
+function applyTickToCandle(candle: FootprintCandle, tick: RawTick, priceLevel: number): void {
+  if (candle.totalTrades === 0) candle.open = tick.price;
+  candle.high  = Math.max(candle.high, tick.price);
+  candle.low   = Math.min(candle.low,  tick.price);
+  candle.close = tick.price;
+
+  let level = candle.levels.get(priceLevel);
+  if (!level) {
+    level = {
+      price:         priceLevel,
+      bidVolume:     0,
+      askVolume:     0,
+      bidTrades:     0,
+      askTrades:     0,
+      delta:         0,
+      totalVolume:   0,
+      imbalanceBuy:  false,
+      imbalanceSell: false,
+    };
+    candle.levels.set(priceLevel, level);
+  }
+
+  // isBuyerMaker=true → market sell → BID column
+  if (tick.isBuyerMaker) {
+    level.bidVolume     += tick.quantity;
+    level.bidTrades     += 1;
+    candle.totalSellVolume += tick.quantity;
+  } else {
+    level.askVolume     += tick.quantity;
+    level.askTrades     += 1;
+    candle.totalBuyVolume  += tick.quantity;
+  }
+
+  level.totalVolume = level.bidVolume + level.askVolume;
+  level.delta       = level.askVolume - level.bidVolume;
+
+  candle.totalVolume += tick.quantity;
+  candle.totalDelta  = candle.totalBuyVolume - candle.totalSellVolume;
+  candle.totalTrades += 1;
+
+  // Live POC update
+  let maxVol = 0;
+  candle.levels.forEach((lv, price) => {
+    if (lv.totalVolume > maxVol) {
+      maxVol     = lv.totalVolume;
+      candle.poc = price;
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SINGLETON
+// ─────────────────────────────────────────────────────────────────────────────
 
 let instance: OptimizedFootprintService | null = null;
 
-export function getOptimizedFootprintService(config?: Partial<OptimizedConfig> & { symbol: string; timeframe: number; tickSize: number }): OptimizedFootprintService {
+export function getOptimizedFootprintService(
+  config?: Partial<OptimizedConfig> & { symbol: string; timeframe: number; tickSize: number }
+): OptimizedFootprintService {
   if (config) {
     instance = new OptimizedFootprintService(config);
   }
   if (!instance) {
-    throw new Error('OptimizedFootprintService not initialized');
+    throw new Error('OptimizedFootprintService not initialized — pass config on first call');
   }
   return instance;
 }
 
 export function resetOptimizedFootprintService(): void {
   instance = null;
+}
+
+// Re-export types for callers
+export type { AggTrade };
+interface AggTrade {
+  id: number;
+  price: number;
+  quantity: number;
+  time: number;
+  isBuyerMaker: boolean;
 }
