@@ -7,7 +7,14 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
 
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'] });
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  preload: true,
+  adjustFontFallback: true,
+  variable: '--font-space-grotesk',
+  fallback: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+});
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://senzoukria.com';
 const SITE_NAME = 'Senzoukria';
@@ -68,6 +75,22 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Preconnect to Google Fonts CDN — reduces font LCP latency */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* DNS prefetch for key external services */}
+        <link rel="dns-prefetch" href="https://fstream.binance.com" />
+        <link rel="dns-prefetch" href="https://stream.bybit.com" />
+        {/*
+          Blocking theme init script — reads saved theme from localStorage and
+          applies CSS variables BEFORE first paint to eliminate theme-swap CLS.
+          Must be render-blocking (no defer/async) to run before any paint.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=JSON.parse(localStorage.getItem('senzoukria-ui-theme')||'{}');var t=s.state&&s.state.activeTheme;if(t&&t!=='default'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})();`,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `

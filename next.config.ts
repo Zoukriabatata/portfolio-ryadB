@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
-    optimizePackageImports: ['@sentry/nextjs', 'lightweight-charts', 'regl', 'zustand', 'zod'],
+    optimizePackageImports: ['@sentry/nextjs', 'lightweight-charts', 'regl', 'zustand', 'zod', 'lucide-react'],
   },
 
   async headers() {

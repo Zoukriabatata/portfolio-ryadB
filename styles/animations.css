@@ -16,7 +16,11 @@ button, a, input, select, textarea,
   transition-duration: 150ms;
 }
 
-html { scroll-behavior: smooth; }
+/* scroll-behavior: smooth applied only to scroll containers, not html root —
+   html-level smooth scroll delays LCP measurement in Chrome */
+@media (prefers-reduced-motion: no-preference) {
+  [data-scroll-root] { scroll-behavior: smooth; }
+}
 
 /* =============================================
    0b. THEME TRANSITION LAYER
