@@ -3,12 +3,14 @@
 /**
  * VOLUME PROFILE PANEL — Right-side canvas overlay for /live
  *
- * Renders a professional Volume Profile directly on the chart:
- * - Bid/Ask separated horizontal bars (red left / green right)
- * - Delta color coding per level
- * - POC (Point of Control) highlighted line
- * - Value Area (VAH/VAL) zone with subtle highlight
- * - Synced with chart viewport (priceMin/priceMax)
+ * Visual style matches FootprintCanvasRenderer.ts exactly:
+ * - Left-aligned bid+ask split bars (bid left portion, ask right portion)
+ * - VA-aware opacity (inside VA brighter, outside dimmer)
+ * - POC arrow triangle marker on left edge
+ * - Dashed VAH/VAL lines with pill labels
+ * - POC glow background + outline
+ * - Thin separator between bid/ask
+ * - Colors: bid #ef5350 / ask #26a69a / POC #e2b93b / VA line #7c85f6
  */
 
 import { useRef, useEffect, useCallback, useState } from 'react';
@@ -39,19 +41,14 @@ const DEFAULT_THEME = {
   textMuted: '#555555',
 };
 
+// Match FootprintCanvasRenderer colors exactly
 const VP_COLORS = {
-  bid: '#ef4444',        // Red — sell aggressor (hit bid)
-  ask: '#22c55e',        // Green — buy aggressor (lifted ask)
-  bidAlpha: 'rgba(239, 68, 68, 0.6)',
-  askAlpha: 'rgba(34, 197, 94, 0.6)',
-  poc: '#f59e0b',        // Amber — POC line
-  pocFill: 'rgba(245, 158, 11, 0.15)',
-  vah: '#3b82f6',        // Blue — VAH
-  val: '#3b82f6',        // Blue — VAL
-  vaFill: 'rgba(59, 130, 246, 0.06)',
-  deltaPositive: '#22c55e',
-  deltaNegative: '#ef4444',
-  hoverBg: 'rgba(255, 255, 255, 0.04)',
+  bid: '#ef5350',
+  ask: '#26a69a',
+  poc: '#e2b93b',
+  vaFill: '#5e7ce2',
+  vahValLine: '#7c85f6',
+  separator: '#0a0a0a',
 };
 
 export default function VolumeProfilePanel({
@@ -63,13 +60,11 @@ export default function VolumeProfilePanel({
   theme = DEFAULT_THEME,
   vpColors,
   vpBackground,
-  vpGradient,
 }: VolumeProfilePanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredBinRef = useRef<PriceBin | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // Track DPR for sharp rendering at all zoom levels
   const [currentDpr, setCurrentDpr] = useState(
     typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
   );
@@ -95,7 +90,6 @@ export default function VolumeProfilePanel({
     return ((priceMax - price) / (priceMax - priceMin)) * chartHeight;
   }, [priceMin, priceMax, chartHeight]);
 
-  // Render the volume profile on canvas
   const renderProfile = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -113,18 +107,13 @@ export default function VolumeProfilePanel({
     if (!ctx) return;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // Clear
     ctx.clearRect(0, 0, w, h);
-
-    // Safety: ensure compositing is correct
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
 
-    // Dynamic colors from props (fallback to hardcoded defaults)
     const bidColor = vpColors?.bid || VP_COLORS.bid;
     const askColor = vpColors?.ask || VP_COLORS.ask;
-    const barOpacity = vpColors?.opacity ?? 0.6;
+    const vpOpacity = vpColors?.opacity ?? 0.7;
 
     // Background
     if (vpBackground?.show) {
@@ -136,7 +125,6 @@ export default function VolumeProfilePanel({
 
     const { bins, valueArea } = data;
     if (bins.length === 0) {
-      // "No data" label
       ctx.fillStyle = theme.textMuted;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textAlign = 'center';
@@ -147,30 +135,23 @@ export default function VolumeProfilePanel({
     const priceRange = priceMax - priceMin;
     if (priceRange <= 0) return;
 
-    // Determine tick size from bins for bar height
+    // Determine tick size from bins
     let tickSize = 1;
     if (bins.length >= 2) {
       const prices = bins.map(b => b.price).sort((a, b) => a - b);
       for (let i = 1; i < prices.length; i++) {
         const diff = prices[i] - prices[i - 1];
-        if (diff > 0) {
-          tickSize = diff;
-          break;
-        }
+        if (diff > 0) { tickSize = diff; break; }
       }
     }
 
-    const barHeight = Math.max(1, (tickSize / priceRange) * chartHeight - 1);
+    const barHeight = Math.max(2, Math.min((tickSize / priceRange) * chartHeight * 0.75, 14));
+    const barGap = 0;  // packed bars like footprint
+    void barGap;
 
-    // ═══ VIEWPORT-AWARE maxBinVolume ═══
-    // Recalculate from ONLY visible bins — prevents fade when POC is off-screen
-    const viewportPadding = tickSize * 2;
-    const visibleBins = bins.filter(b =>
-      b.price >= priceMin - viewportPadding && b.price <= priceMax + viewportPadding
-    );
-    const visibleMaxVolume = visibleBins.reduce((max, b) => Math.max(max, b.totalVolume), 0);
-
-    if (visibleMaxVolume === 0) {
+    // Use global maxBinVolume (not viewport-aware) — matches footprint approach
+    const maxVolume = data.maxBinVolume;
+    if (maxVolume === 0) {
       ctx.fillStyle = theme.textMuted;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textAlign = 'center';
@@ -178,84 +159,180 @@ export default function VolumeProfilePanel({
       return;
     }
 
-    // Draw Value Area zone
-    const vahY = priceToY(valueArea.vah);
-    const valY = priceToY(valueArea.val);
+    // Build value area price set
+    const vahPrice = valueArea.vah;
+    const valPrice = valueArea.val;
+    const pocPrice = valueArea.poc;
+
+    const barLeft = 4;
+    const barMaxWidth = w - 12;
+
+    // ── Value Area shading band ──
+    const vahY = priceToY(vahPrice);
+    const valY = priceToY(valPrice);
+    const vaTop = Math.min(vahY, valY);
+    const vaBottom = Math.max(vahY, valY);
     ctx.fillStyle = VP_COLORS.vaFill;
-    ctx.fillRect(1, vahY, w - 1, valY - vahY);
-
-    // Calculate bar metrics
-    const barMaxWidth = w - 12; // 6px margin each side
-    const centerX = w / 2;
-
-    // Gradient settings
-    const gradEnabled = vpGradient?.enabled ?? false;
-    const gradAskEnd = vpGradient?.askEnd || '#0a3d1a';
-    const gradBidEnd = vpGradient?.bidEnd || '#3d0a0a';
-
-    // Draw bars — each bar uses per-bar opacity, never distance-from-price-based
-    for (const bin of visibleBins) {
-      const y = priceToY(bin.price);
-
-      // Skip bins outside canvas bounds
-      if (y < -barHeight || y > h + barHeight) continue;
-
-      // Scale against VISIBLE max, not global max
-      const bidRatio = bin.bidVolume / visibleMaxVolume;
-      const askRatio = bin.askVolume / visibleMaxVolume;
-      const totalIntensity = bin.totalVolume / visibleMaxVolume;
-
-      const bidBarWidth = (bidRatio * barMaxWidth) / 2;
-      const askBarWidth = (askRatio * barMaxWidth) / 2;
-
-      // Bid bar (left from center, red)
-      if (bidBarWidth > 0.5) {
-        ctx.fillStyle = gradEnabled ? interpolateHex(gradBidEnd, bidColor, totalIntensity) : bidColor;
-        ctx.globalAlpha = barOpacity;
-        ctx.fillRect(centerX - bidBarWidth, y - barHeight / 2, bidBarWidth, Math.max(1, barHeight));
-      }
-
-      // Ask bar (right from center, green)
-      if (askBarWidth > 0.5) {
-        ctx.fillStyle = gradEnabled ? interpolateHex(gradAskEnd, askColor, totalIntensity) : askColor;
-        ctx.globalAlpha = barOpacity;
-        ctx.fillRect(centerX, y - barHeight / 2, askBarWidth, Math.max(1, barHeight));
-      }
-
-      // Delta border indicator
-      if (bin.delta !== 0 && barHeight >= 2) {
-        const deltaColor = bin.delta > 0 ? askColor : bidColor;
-        ctx.fillStyle = deltaColor;
-        ctx.globalAlpha = 0.5;
-        ctx.fillRect(centerX - 0.5, y - barHeight / 2, 1, Math.max(1, barHeight));
-      }
-    }
-
-    // Reset alpha after bar loop
+    ctx.globalAlpha = 0.04 * vpOpacity;
+    ctx.fillRect(0, vaTop, w, vaBottom - vaTop);
     ctx.globalAlpha = 1;
 
-    // POC highlight bar (subtle indicator within VP bars)
-    const pocY = priceToY(valueArea.poc);
-    if (pocY >= 0 && pocY <= h) {
-      ctx.fillStyle = VP_COLORS.pocFill;
-      ctx.fillRect(1, pocY - Math.max(barHeight / 2, 2), w - 1, Math.max(barHeight, 4));
+    // ── Per-tick bid/ask split bars ──
+    const viewportPadding = tickSize * 2;
+    const visibleBins = bins.filter(b =>
+      b.price >= priceMin - viewportPadding && b.price <= priceMax + viewportPadding
+    );
+
+    for (const bin of visibleBins) {
+      const y = priceToY(bin.price);
+      if (y < -barHeight || y > h + barHeight) continue;
+
+      const isPOC = bin.price === pocPrice;
+      const isValueArea = bin.price >= valPrice && bin.price <= vahPrice;
+      const intensity = bin.totalVolume / maxVolume;
+      const totalBarW = intensity * barMaxWidth;
+      const barY = y - barHeight / 2;
+
+      // Bid portion (left), Ask portion (right)
+      const bidW = bin.totalVolume > 0 ? (bin.bidVolume / bin.totalVolume) * totalBarW : 0;
+      const askW = bin.totalVolume > 0 ? (bin.askVolume / bin.totalVolume) * totalBarW : 0;
+
+      // ── POC highlight glow background ──
+      if (isPOC) {
+        ctx.fillStyle = VP_COLORS.poc;
+        ctx.globalAlpha = 0.12 * vpOpacity;
+        ctx.fillRect(barLeft - 1, barY - 2, totalBarW + 6, barHeight + 4);
+        ctx.globalAlpha = 1;
+      }
+
+      // ── Bid bar (left portion) ──
+      if (bidW > 0.5) {
+        if (isPOC) {
+          ctx.fillStyle = VP_COLORS.poc;
+          ctx.globalAlpha = 0.85 * vpOpacity;
+        } else if (isValueArea) {
+          ctx.fillStyle = bidColor;
+          ctx.globalAlpha = (0.35 + intensity * 0.5) * vpOpacity;
+        } else {
+          ctx.fillStyle = bidColor;
+          ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
+        }
+        ctx.fillRect(barLeft, barY, bidW, barHeight);
+      }
+
+      // ── Ask bar (right portion) ──
+      if (askW > 0.5) {
+        if (isPOC) {
+          ctx.fillStyle = VP_COLORS.poc;
+          ctx.globalAlpha = 0.7 * vpOpacity;
+        } else if (isValueArea) {
+          ctx.fillStyle = askColor;
+          ctx.globalAlpha = (0.35 + intensity * 0.5) * vpOpacity;
+        } else {
+          ctx.fillStyle = askColor;
+          ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
+        }
+        ctx.fillRect(barLeft + bidW, barY, askW, barHeight);
+      }
+
+      // ── Thin separator between bid/ask ──
+      if (bidW > 1 && askW > 1) {
+        ctx.fillStyle = VP_COLORS.separator;
+        ctx.globalAlpha = 0.6;
+        ctx.fillRect(barLeft + bidW - 0.5, barY, 1, barHeight);
+      }
+
+      // ── POC outline ──
+      if (isPOC && totalBarW > 2) {
+        ctx.strokeStyle = VP_COLORS.poc;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.9 * vpOpacity;
+        ctx.strokeRect(barLeft, barY, totalBarW, barHeight);
+      }
+
+      // ── Volume text for significant levels ──
+      if (barHeight >= 8 && totalBarW > 30 && intensity > 0.15) {
+        ctx.globalAlpha = isPOC ? 0.95 : 0.7;
+        ctx.fillStyle = isPOC ? '#ffffff' : theme.textMuted;
+        ctx.font = `${isPOC ? 'bold ' : ''}${barHeight >= 12 ? 8 : 7}px "Consolas", monospace`;
+        ctx.textAlign = 'left';
+        const volText = bin.totalVolume >= 1000
+          ? `${(bin.totalVolume / 1000).toFixed(1)}K`
+          : Math.round(bin.totalVolume).toString();
+        const textX = barLeft + totalBarW + 3;
+        if (textX + 30 < w) {
+          ctx.fillText(volText, textX, y + 3);
+        }
+      }
+
+      ctx.globalAlpha = 1;
     }
 
-    // Stats summary at bottom
-    const statsY = h - 8;
-    ctx.fillStyle = theme.textMuted;
-    ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.textAlign = 'center';
+    // ── POC arrow marker (triangle on left edge) ──
+    const pocY = priceToY(pocPrice);
+    if (pocY >= 0 && pocY <= h) {
+      ctx.save();
+      ctx.fillStyle = VP_COLORS.poc;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(0, pocY - 4);
+      ctx.lineTo(5, pocY);
+      ctx.lineTo(0, pocY + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
 
-    const totalVol = data.totalVolume;
-    const volStr = totalVol >= 1_000_000
-      ? `${(totalVol / 1_000_000).toFixed(1)}M`
-      : totalVol >= 1_000
-        ? `${(totalVol / 1_000).toFixed(1)}K`
-        : totalVol.toFixed(0);
-    ctx.fillText(`Vol: ${volStr}`, w / 2, statsY);
+    // ── VAH / VAL dashed lines ──
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = VP_COLORS.vahValLine;
+    ctx.globalAlpha = 0.6 * vpOpacity;
 
-    // Delta at top
+    if (vahY >= 0 && vahY <= h) {
+      ctx.beginPath();
+      ctx.moveTo(0, vahY);
+      ctx.lineTo(w, vahY);
+      ctx.stroke();
+    }
+    if (valY >= 0 && valY <= h) {
+      ctx.beginPath();
+      ctx.moveTo(0, valY);
+      ctx.lineTo(w, valY);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    // ── Pill labels ──
+    const c = ctx;
+    function renderPillLabel(text: string, x: number, y: number, color: string) {
+      c.font = 'bold 7px "Consolas", monospace';
+      const tw = c.measureText(text).width;
+      const pw = tw + 6;
+      const ph = 10;
+      c.fillStyle = color;
+      c.globalAlpha = 0.18;
+      roundRect(c, x, y, pw, ph, 2);
+      c.fill();
+      c.globalAlpha = 0.9;
+      c.fillStyle = color;
+      c.textAlign = 'left';
+      c.fillText(text, x + 3, y + 7.5);
+      c.globalAlpha = 1;
+    }
+
+    if (vahY >= 0 && vahY <= h) {
+      renderPillLabel('VAH', barLeft, vahY - 10, VP_COLORS.vahValLine);
+    }
+    if (valY >= 0 && valY <= h) {
+      renderPillLabel('VAL', barLeft, valY + 1, VP_COLORS.vahValLine);
+    }
+    if (pocY >= 0 && pocY <= h) {
+      renderPillLabel('POC', barLeft + 6, pocY - 5, VP_COLORS.poc);
+    }
+
+    // ── Stats: delta top, vol bottom ──
     const deltaStr = data.totalDelta >= 0
       ? `+${formatCompact(data.totalDelta)}`
       : formatCompact(data.totalDelta);
@@ -263,9 +340,19 @@ export default function VolumeProfilePanel({
     ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`Δ ${deltaStr}`, w / 2, 12);
-  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr, vpColors, vpBackground, vpGradient]);
 
-  // Handle mouse hover for tooltip
+    const totalVol = data.totalVolume;
+    const volStr = totalVol >= 1_000_000
+      ? `${(totalVol / 1_000_000).toFixed(1)}M`
+      : totalVol >= 1_000
+        ? `${(totalVol / 1_000).toFixed(1)}K`
+        : totalVol.toFixed(0);
+    ctx.fillStyle = theme.textMuted;
+    ctx.fillText(`Vol: ${volStr}`, w / 2, h - 8);
+
+  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr, vpColors, vpBackground]);
+
+  // Hover tooltip
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -275,15 +362,11 @@ export default function VolumeProfilePanel({
       const mouseY = e.clientY - rect.top;
       const price = priceMax - (mouseY / chartHeight) * (priceMax - priceMin);
 
-      // Find closest bin
       let closest: PriceBin | null = null;
       let minDist = Infinity;
       for (const bin of data.bins) {
         const dist = Math.abs(bin.price - price);
-        if (dist < minDist) {
-          minDist = dist;
-          closest = bin;
-        }
+        if (dist < minDist) { minDist = dist; closest = bin; }
       }
 
       hoveredBinRef.current = closest;
@@ -296,7 +379,7 @@ export default function VolumeProfilePanel({
           <div style="font-weight:600;color:#e5e7eb;margin-bottom:2px">${closest.price.toFixed(2)}</div>
           <div style="color:${VP_COLORS.ask}">Ask: ${formatCompact(closest.askVolume)}</div>
           <div style="color:${VP_COLORS.bid}">Bid: ${formatCompact(closest.bidVolume)}</div>
-          <div style="color:${closest.delta >= 0 ? VP_COLORS.deltaPositive : VP_COLORS.deltaNegative}">Δ: ${closest.delta >= 0 ? '+' : ''}${formatCompact(closest.delta)}</div>
+          <div style="color:${closest.delta >= 0 ? VP_COLORS.ask : VP_COLORS.bid}">Δ: ${closest.delta >= 0 ? '+' : ''}${formatCompact(closest.delta)}</div>
           <div style="color:#9ca3af">Trades: ${closest.tradeCount}</div>
         `;
       }
@@ -304,9 +387,7 @@ export default function VolumeProfilePanel({
 
     const handleMouseLeave = () => {
       hoveredBinRef.current = null;
-      if (tooltipRef.current) {
-        tooltipRef.current.style.display = 'none';
-      }
+      if (tooltipRef.current) tooltipRef.current.style.display = 'none';
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
@@ -317,7 +398,6 @@ export default function VolumeProfilePanel({
     };
   }, [data.bins, priceMin, priceMax, chartHeight]);
 
-  // Re-render when data or viewport changes
   useEffect(() => {
     renderProfile();
   }, [renderProfile]);
@@ -328,7 +408,6 @@ export default function VolumeProfilePanel({
         ref={canvasRef}
         style={{ width, height: chartHeight, cursor: 'crosshair' }}
       />
-      {/* Hover tooltip */}
       <div
         ref={tooltipRef}
         className="absolute pointer-events-none z-10 hidden"
@@ -356,15 +435,16 @@ function formatCompact(n: number): string {
   return n.toFixed(0);
 }
 
-function interpolateHex(startHex: string, endHex: string, t: number): string {
-  const r1 = parseInt(startHex.slice(1, 3), 16);
-  const g1 = parseInt(startHex.slice(3, 5), 16);
-  const b1 = parseInt(startHex.slice(5, 7), 16);
-  const r2 = parseInt(endHex.slice(1, 3), 16);
-  const g2 = parseInt(endHex.slice(3, 5), 16);
-  const b2 = parseInt(endHex.slice(5, 7), 16);
-  const r = Math.round(r1 + (r2 - r1) * t);
-  const g = Math.round(g1 + (g2 - g1) * t);
-  const b = Math.round(b1 + (b2 - b1) * t);
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
