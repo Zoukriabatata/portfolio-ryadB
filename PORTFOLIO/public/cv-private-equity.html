@@ -1,395 +1,217 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CV — Ryad Bouderga — Private Equity</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <title>CV – Ryad Bouderga</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --navy:  #0b1426;
-      --blue:  #1e40af;
-      --blue2: #2563eb;
-      --bs:    #eff6ff;
-      --bt:    #1d4ed8;
-      --white: #ffffff;
-      --bg:    #f7f9fc;
-      --bdr:   #e2e8f0;
-      --txt:   #111827;
-      --mid:   #374151;
-      --muted: #6b7280;
-      --light: #9ca3af;
-    }
-    html { font-family: 'Inter', Arial, sans-serif; font-size: 9.5pt; color: var(--txt); }
-    body { background: #d1d5db; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    /* ── Print bar ── */
-    .bar {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      background: var(--navy);
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 20px; gap: 12px;
+    body {
+      font-family: Calibri, Arial, sans-serif;
+      font-size: 11pt;
+      color: #000;
+      background: #fff;
     }
-    .bar-l { display: flex; align-items: center; gap: 12px; }
-    .bar p { font-size: 12px; color: #cbd5e1; }
-    .bar strong { color: #fff; }
-    .btn-back {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 14px; background: rgba(255,255,255,0.07); color: #cbd5e1;
-      border: 1px solid rgba(255,255,255,0.14); border-radius: 100px;
-      font-family: inherit; font-size: 12px; font-weight: 500;
-      text-decoration: none; transition: background .2s;
-    }
-    .btn-back:hover { background: rgba(255,255,255,0.13); }
-    .btn-print {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 9px 22px; background: var(--blue2); color: #fff;
-      border: none; border-radius: 100px;
-      font-family: inherit; font-size: 13px; font-weight: 700;
-      cursor: pointer; white-space: nowrap; transition: background .2s, transform .15s;
-      min-width: 180px; justify-content: center;
-    }
-    .btn-print:hover { background: #1d4ed8; transform: translateY(-1px); }
-    .btn-print:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 
-    /* ── Page ── */
-    .wrap { padding: 52px 16px 32px; }
     .page {
-      width: 210mm; min-height: 297mm;
-      margin: 0 auto; background: var(--white);
-      box-shadow: 0 8px 40px rgba(0,0,0,0.15);
-      display: flex; flex-direction: column;
+      width: 21cm;
+      min-height: 29.7cm;
+      margin: 0 auto;
+      padding: 2cm 2.5cm;
     }
 
-    /* ── HEADER ── */
-    .hd { background: var(--navy); padding: 24px 28px 20px; }
-    .hd-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-    .hd-name {
-      font-size: 28pt; font-weight: 900; color: #fff;
-      letter-spacing: 2px; text-transform: uppercase; line-height: 1;
-    }
-    .hd-title { margin-top: 6px; font-size: 9.5pt; color: #93c5fd; font-weight: 500; letter-spacing: 0.2px; }
-    .hd-badge {
-      display: inline-block; margin-top: 9px;
-      background: var(--blue2); color: #fff;
-      font-size: 7pt; font-weight: 700; letter-spacing: 0.9px;
-      text-transform: uppercase; padding: 3px 11px; border-radius: 20px;
-    }
-    .hd-contact { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
-    .hd-contact p { font-size: 8pt; color: #cbd5e1; }
-    .hd-contact a { font-size: 8pt; color: #7dd3fc; text-decoration: none; }
-    .hd-sep { border: none; border-top: 1px solid rgba(255,255,255,0.10); margin-top: 14px; }
-
-    /* ── Body ── */
-    .bd { display: flex; flex: 1; }
-
-    /* ── Sidebar ── */
-    .sb { width: 60mm; background: var(--bg); border-right: 1.5px solid var(--bdr); padding: 18px 14px; }
-
-    /* ── Main ── */
-    .mn { flex: 1; padding: 18px 20px; }
-
-    /* ── Section titles ── */
-    .st {
-      font-size: 6.5pt; font-weight: 800; letter-spacing: 1.6px;
-      text-transform: uppercase; color: var(--blue);
-      border-bottom: 1.5px solid #dbeafe;
-      padding-bottom: 3px; margin-bottom: 9px; margin-top: 16px;
-    }
-    .st0 { margin-top: 0; }
-
-    /* ── Profile (sidebar) ── */
-    .profile-line { font-size: 8pt; color: var(--muted); line-height: 1.65; margin-bottom: 4px; }
-    .profile-line:last-child { margin-bottom: 0; }
-
-    /* ── Technical skills ── */
-    .skill-group-title { font-size: 7.5pt; font-weight: 700; color: var(--mid); margin: 10px 0 5px; }
-    .skill-group-title:first-child { margin-top: 0; }
-    .sk { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 4px; }
-    .sk-dot { width: 3.5px; height: 3.5px; border-radius: 50%; background: var(--blue2); margin-top: 4.5px; flex-shrink: 0; }
-    .sk span { font-size: 7.8pt; color: var(--muted); line-height: 1.4; }
-
-    /* ── Tools grid ── */
-    .tools { display: flex; flex-wrap: wrap; gap: 3.5px; margin-top: 2px; }
-    .tool {
-      background: var(--bs); color: var(--bt);
-      font-size: 7pt; font-weight: 600;
-      padding: 2.5px 8px; border-radius: 8px;
-      border: 1px solid #dbeafe;
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
     }
 
-    /* ── Lang ── */
-    .lang-row { display: flex; justify-content: space-between; align-items: center; font-size: 8pt; padding: 3.5px 0; border-bottom: 1px solid #f1f5f9; }
-    .lang-row:last-of-type { border-bottom: none; }
-    .lang-name { font-weight: 700; color: var(--txt); }
-    .lang-level { color: var(--muted); }
-
-    /* ── Education (sidebar) ── */
-    .edu { margin-bottom: 9px; }
-    .edu-deg { font-size: 8pt; font-weight: 700; color: var(--txt); line-height: 1.3; }
-    .edu-sch { font-size: 7.5pt; color: var(--muted); margin-top: 1px; }
-    .edu-yr  { font-size: 7pt; color: var(--light); margin-top: 1px; }
-
-    /* ── KEY FINANCE SKILLS box ── */
-    .ks {
-      background: #eff6ff; border: 1px solid #bfdbfe;
-      border-left: 3px solid var(--blue2);
-      border-radius: 0 6px 6px 0;
-      padding: 9px 12px; margin-bottom: 16px;
-    }
-    .ks-label { font-size: 6.5pt; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--bt); margin-bottom: 7px; }
-    .ks-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-    .ks-pill {
-      background: var(--blue2); color: #fff;
-      font-size: 7.5pt; font-weight: 700;
-      padding: 3px 10px; border-radius: 9px;
+    .header h1 {
+      font-size: 16pt;
+      font-weight: bold;
+      margin-bottom: 4px;
     }
 
-    /* ── Profile summary (main) ── */
-    .summary { border-left: 2px solid #dbeafe; padding: 0 0 0 11px; margin-bottom: 16px; }
-    .summary p { font-size: 8.5pt; color: var(--muted); line-height: 1.7; margin-bottom: 3px; }
-    .summary p:last-child { margin-bottom: 0; }
-    .summary strong { color: var(--txt); font-weight: 600; }
+    .header p {
+      font-size: 10.5pt;
+      line-height: 1.6;
+    }
 
-    /* ── Experience ── */
-    .exp { margin-bottom: 14px; }
-    .exp-hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
-    .exp-left { flex: 1; }
-    .exp-title { font-size: 8.5pt; font-weight: 800; color: var(--txt); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2; }
-    .exp-co { font-size: 8pt; font-weight: 600; color: var(--blue2); margin-top: 2px; }
-    .exp-loc { font-size: 7pt; color: var(--light); margin-top: 1.5px; }
-    .exp-period { font-size: 7.5pt; font-weight: 700; color: var(--muted); background: #f1f5f9; padding: 2.5px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
-    .pt { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3.5px; }
-    .pt-dot { width: 3px; height: 3px; border-radius: 50%; background: #60a5fa; margin-top: 5.5px; flex-shrink: 0; }
-    .pt span { font-size: 8pt; color: var(--mid); line-height: 1.55; }
+    hr {
+      border: none;
+      border-top: 1px solid #000;
+      margin: 10px 0;
+    }
 
-    /* ── Projects ── */
-    .proj { margin-bottom: 11px; padding-bottom: 11px; border-bottom: 1px solid #f1f5f9; }
-    .proj:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .proj-title { font-size: 8.5pt; font-weight: 700; color: var(--txt); }
-    .proj-sub { font-size: 7.5pt; color: var(--blue2); font-weight: 600; margin-bottom: 5px; margin-top: 1px; }
+    .section {
+      margin-bottom: 14px;
+    }
 
-    /* ── ATS keywords (bottom, small) ── */
-    .ats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
-    .ats-tag { background: #f1f5f9; color: var(--muted); font-size: 7pt; font-weight: 600; padding: 2px 7px; border-radius: 8px; }
+    .section-title {
+      font-size: 11pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      border-bottom: 1px solid #000;
+      padding-bottom: 2px;
+      margin-bottom: 8px;
+    }
 
-    /* ── Print ── */
+    .block {
+      margin-bottom: 10px;
+    }
+
+    .block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .block-title {
+      font-weight: bold;
+      font-size: 11pt;
+    }
+
+    .block-date {
+      font-size: 10.5pt;
+    }
+
+    .block-sub {
+      font-style: italic;
+      font-size: 10.5pt;
+      margin-bottom: 3px;
+    }
+
+    ul {
+      padding-left: 18px;
+      margin-top: 3px;
+    }
+
+    ul li {
+      font-size: 10.5pt;
+      line-height: 1.55;
+    }
+
+    .two-col {
+      display: flex;
+      gap: 40px;
+    }
+
+    .two-col .section {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
     @media print {
       body { background: #fff; }
-      .bar { display: none !important; }
-      .wrap { padding: 0; }
-      .page { box-shadow: none; width: 100%; min-height: 297mm; margin: 0; }
+      .page { margin: 0; padding: 2cm 2.5cm; }
     }
-    @page { size: A4; margin: 0; }
   </style>
 </head>
 <body>
+<div class="page">
 
-<div class="bar">
-  <div class="bar-l">
-    <a href="/" class="btn-back">← Portfolio</a>
-    <p><strong>CV — Private Equity</strong> · Ryad Bouderga</p>
+  <div class="header">
+    <h1>Ryad Bouderga</h1>
+    <p>Cergy, France &nbsp;|&nbsp; 06 01 77 72 35 &nbsp;|&nbsp; ryad.bouderga78@gmail.com</p>
   </div>
-  <button class="btn-print" id="dlBtn" onclick="downloadPDF()">
-    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-    Télécharger en PDF
-  </button>
+
+  <hr>
+
+  <div class="section">
+    <div class="section-title">Profil</div>
+    <p style="font-size:10.5pt; line-height:1.6;">
+      Jeune étudiant intéressé par les marchés financiers, l'analyse financière et l'investissement.
+      Actuellement en année sabbatique afin de développer de nouvelles compétences,
+      acquérir de l'expérience professionnelle et renforcer mon autonomie.
+      Profil sérieux, rigoureux et motivé.
+    </p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Formation</div>
+    <div class="block">
+      <div class="block-header">
+        <span class="block-title">Études en Finance et Business</span>
+        <span class="block-date">2023 – 2024</span>
+      </div>
+      <div class="block-sub">Niveau Bachelor – Première année</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Expériences Professionnelles</div>
+
+    <div class="block">
+      <div class="block-header">
+        <span class="block-title">Coach Sportif – Boxe (Enfants)</span>
+        <span class="block-date">2024 – 2025</span>
+      </div>
+      <div class="block-sub">Club de boxe, Cergy</div>
+      <ul>
+        <li>Encadrement et initiation à la boxe pour enfants</li>
+        <li>Organisation et animation des séances d'entraînement</li>
+        <li>Transmission de la discipline, de la rigueur et de l'esprit d'équipe</li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <div class="block-header">
+        <span class="block-title">Responsable de Site – Société de Nettoyage</span>
+        <span class="block-date">2023 – 2024</span>
+      </div>
+      <div class="block-sub">Secteur des services, région Île-de-France</div>
+      <ul>
+        <li>Gestion et organisation des opérations sur site</li>
+        <li>Coordination des tâches et suivi du travail des équipes</li>
+        <li>Respect des délais et maintien des standards de qualité</li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <div class="block-header">
+        <span class="block-title">Assistant Administratif et Financier</span>
+        <span class="block-date">2022 – 2023</span>
+      </div>
+      <div class="block-sub">SC Formation / L3M / Green Cottage, Cergy</div>
+      <ul>
+        <li>Organisation et classement de documents administratifs et financiers</li>
+        <li>Mise à jour de tableaux de suivi et reporting sur Excel</li>
+        <li>Suivi de la facturation et gestion administrative courante</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="two-col">
+
+    <div class="section">
+      <div class="section-title">Compétences</div>
+      <ul>
+        <li>Excel (tableaux de bord, reporting)</li>
+        <li>Analyse financière et suivi de données</li>
+        <li>Organisation et gestion administrative</li>
+        <li>Autonomie et sens des responsabilités</li>
+        <li>Encadrement et pédagogie</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Langues</div>
+      <ul>
+        <li><strong>Français :</strong> Langue maternelle</li>
+        <li><strong>Anglais :</strong> Niveau intermédiaire (B1)</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="section" style="margin-top:14px;">
+    <div class="section-title">Centres d'Intérêt</div>
+    <ul style="list-style:none; padding-left:0; columns:3;">
+      <li>Marchés financiers</li>
+      <li>Sport (boxe)</li>
+      <li>Développement personnel</li>
+    </ul>
+  </div>
+
 </div>
-
-<div class="wrap"><div class="page">
-
-  <!-- HEADER -->
-  <div class="hd">
-    <div class="hd-row">
-      <div>
-        <p class="hd-name">Ryad Bouderga</p>
-        <p class="hd-title">Finance Student &nbsp;|&nbsp; Investment Analysis &amp; Business Valuation</p>
-        <span class="hd-badge">Seeking Private Equity Internship — Paid or Unpaid</span>
-      </div>
-      <div class="hd-contact">
-        <p>Cergy, France</p>
-        <p>+33 6 01 77 72 35</p>
-        <a href="mailto:ryad.bouderga78@gmail.com">ryad.bouderga78@gmail.com</a>
-        <a href="https://linkedin.com/in/ryad-bouderga">linkedin.com/in/ryad-bouderga</a>
-      </div>
-    </div>
-    <hr class="hd-sep">
-  </div>
-
-  <!-- BODY -->
-  <div class="bd">
-
-    <!-- ── SIDEBAR ── -->
-    <div class="sb">
-
-      <!-- Profile -->
-      <p class="st st0">Profile</p>
-      <p class="profile-line">Finance student at Financia Business School with strong interest in investment analysis and private equity.</p>
-      <p class="profile-line">Experience in financial analysis, Excel reporting and market research through academic and personal work.</p>
-      <p class="profile-line">Seeking a <strong>Private Equity internship</strong> to develop skills in company analysis and deal evaluation.</p>
-
-      <!-- Technical Skills -->
-      <p class="st">Technical Skills</p>
-
-      <p class="skill-group-title">Finance</p>
-      <div class="sk"><span class="sk-dot"></span><span>Financial Analysis</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Business Valuation (theoretical)</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Market Research</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>KPI &amp; Financial Reporting</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Investment Analysis</span></div>
-
-      <p class="skill-group-title">Tools</p>
-      <div class="sk"><span class="sk-dot"></span><span>Excel / Google Sheets</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Financial dashboards &amp; modeling</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>TradingView &nbsp;·&nbsp; MT5</span></div>
-
-      <p class="skill-group-title">Market Knowledge</p>
-      <div class="sk"><span class="sk-dot"></span><span>Market microstructure</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Risk management (R/R, sizing)</span></div>
-      <div class="sk"><span class="sk-dot"></span><span>Performance tracking</span></div>
-
-      <!-- Languages -->
-      <p class="st">Languages</p>
-      <div class="lang-row"><span class="lang-name">French</span><span class="lang-level">Native</span></div>
-      <div class="lang-row"><span class="lang-name">English</span><span class="lang-level">Intermediate (B1→B2)</span></div>
-      <p style="font-size:7pt;color:var(--light);margin-top:3px;">TOEIC preparation in progress</p>
-
-      <!-- Education -->
-      <p class="st">Education</p>
-      <div class="edu">
-        <p class="edu-deg">Bachelor Finance &amp; Business — B1</p>
-        <p class="edu-sch">Financia Business School, Paris</p>
-        <p class="edu-yr">2024 – Present</p>
-      </div>
-      <div class="edu">
-        <p class="edu-deg">Secondary Education</p>
-        <p class="edu-sch">CNED — Distance Learning</p>
-      </div>
-
-      <!-- Interests -->
-      <p class="st">Interests</p>
-      <p style="font-size:7.8pt;color:var(--muted);line-height:1.6;">
-        Finance &amp; Economics · Capital Markets · Business Analysis · Technology
-      </p>
-
-    </div>
-
-    <!-- ── MAIN ── -->
-    <div class="mn">
-
-      <!-- Professional Summary -->
-      <p class="st st0">Professional Summary</p>
-      <div class="summary">
-        <p>Finance student at Financia Business School with a strong interest in <strong>investment analysis</strong> and <strong>private equity</strong>.</p>
-        <p>Developed analytical skills through hands-on Excel modeling, performance tracking, and market data analysis.</p>
-        <p>Proactive, detail-oriented, and able to work autonomously. Available for internship — paid or unpaid.</p>
-      </div>
-
-      <!-- KEY FINANCE SKILLS -->
-      <div class="ks">
-        <p class="ks-label">Key Finance Skills</p>
-        <div class="ks-grid">
-          <span class="ks-pill">Financial Analysis</span>
-          <span class="ks-pill">Business Valuation</span>
-          <span class="ks-pill">Excel Modeling</span>
-          <span class="ks-pill">Market Research</span>
-          <span class="ks-pill">KPI Reporting</span>
-          <span class="ks-pill">Investment Analysis</span>
-        </div>
-      </div>
-
-      <!-- Experience -->
-      <p class="st">Professional Experience</p>
-
-      <div class="exp">
-        <div class="exp-hd">
-          <div class="exp-left">
-            <p class="exp-title">Administrative &amp; Finance Assistant</p>
-            <p class="exp-co">SC Formation / L3M / Green Cottage &nbsp;·&nbsp; Cergy, France</p>
-          </div>
-          <span class="exp-period">2023 – 2025</span>
-        </div>
-        <div class="pt"><span class="pt-dot"></span><span>Organisation and monitoring of financial and fiscal documentation</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Updating financial reporting tables using Excel dashboards</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Support in invoicing tracking, reconciliation and administrative financial management</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Archiving and classification of accounting and tax documents</span></div>
-      </div>
-
-      <div class="exp">
-        <div class="exp-hd">
-          <div class="exp-left">
-            <p class="exp-title">Independent Market Analyst — Financial Markets</p>
-            <p class="exp-co">Apex Trader Funding — 6 funded challenges passed &nbsp;·&nbsp; Remote</p>
-          </div>
-          <span class="exp-period">2024 – Present</span>
-        </div>
-        <div class="pt"><span class="pt-dot"></span><span>Market data analysis and performance tracking in live market conditions (funded accounts up to $50K)</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Statistical monitoring of trading performance: winrate, risk/reward ratio, equity curve</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Risk management and decision-making under uncertainty — strict drawdown control</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Built Excel dashboards for weekly performance review and continuous improvement tracking</span></div>
-      </div>
-
-      <!-- Projects -->
-      <p class="st">Projects</p>
-
-      <div class="proj">
-        <p class="proj-title">Trading Performance Analysis Tool — Excel</p>
-        <p class="proj-sub">Personal Project · 2024 – Present</p>
-        <div class="pt"><span class="pt-dot"></span><span>Built an Excel dashboard to track trading statistics: winrate, risk/reward, equity curve, weekly P&amp;L</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Performance monitoring and statistical analysis of results — structure similar to a fund reporting tool</span></div>
-      </div>
-
-      <div class="proj">
-        <p class="proj-title">Financial Tracking Dashboard — Excel</p>
-        <p class="proj-sub">Professional Context · 2023 – 2025</p>
-        <div class="pt"><span class="pt-dot"></span><span>Excel tool used to track fiscal payments, financial documents and invoicing data</span></div>
-        <div class="pt"><span class="pt-dot"></span><span>Automated data entry and reporting to improve accuracy and efficiency</span></div>
-      </div>
-
-      <!-- ATS Keywords -->
-      <p class="st">Keywords — ATS</p>
-      <div class="ats">
-        <span class="ats-tag">Financial Analysis</span>
-        <span class="ats-tag">Business Valuation</span>
-        <span class="ats-tag">Excel Modeling</span>
-        <span class="ats-tag">Market Research</span>
-        <span class="ats-tag">Due Diligence</span>
-        <span class="ats-tag">Investment Analysis</span>
-        <span class="ats-tag">KPI Reporting</span>
-        <span class="ats-tag">Private Equity</span>
-        <span class="ats-tag">Small Cap</span>
-        <span class="ats-tag">Performance Analysis</span>
-      </div>
-
-    </div>
-  </div>
-
-</div></div>
-
-<script>
-  async function downloadPDF() {
-    const btn = document.getElementById('dlBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Génération…';
-
-    const { jsPDF } = window.jspdf;
-    const el = document.querySelector('.page');
-    const canvas = await html2canvas(el, { scale: 2.5, useCORS: true, backgroundColor: '#ffffff', logging: false });
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-    pdf.save('CV_Ryad_Bouderga_PrivateEquity.pdf');
-
-    btn.disabled = false;
-    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Télécharger en PDF';
-  }
-</script>
 </body>
 </html>
