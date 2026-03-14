@@ -383,7 +383,7 @@ export class VwapTwapEngine {
  *   cp1 = P[i]   + tension * (P[i+1] - P[i-1]) / 6
  *   cp2 = P[i+1] - tension * (P[i+2] - P[i])   / 6
  */
-function catmullRomSpline(
+export function catmullRomSpline(
   ctx:     CanvasRenderingContext2D,
   points:  { x: number; y: number }[],
   tension: number = 0.4

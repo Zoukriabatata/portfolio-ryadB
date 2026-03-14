@@ -21,6 +21,7 @@ import type {
 } from '@/stores/useFootprintSettingsStore';
 import type { LODState } from '@/lib/rendering';
 import type { RenderContext } from '@/lib/tools/ToolsRenderer';
+import { catmullRomSpline } from '@/lib/indicators/VwapTwap';
 
 // ============ TYPES ============
 
@@ -694,6 +695,8 @@ export class FootprintCanvasRenderer {
       }
     });
 
+    const splineTension = 0.4;
+
     // Draw VWAP
     if (showVWAP && vwapPoints.length > 1) {
       // Glow
@@ -701,21 +704,25 @@ export class FootprintCanvasRenderer {
       ctx.strokeStyle = vwapColor;
       ctx.lineWidth = vwapLW * 2.4;
       ctx.globalAlpha = 0.12;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.moveTo(vwapPoints[0].x, vwapPoints[0].y);
-      for (let i = 1; i < vwapPoints.length; i++) ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
+      catmullRomSpline(ctx, vwapPoints, splineTension);
       ctx.stroke();
       ctx.restore();
 
       // Main line
+      ctx.save();
       ctx.strokeStyle = vwapColor;
       ctx.lineWidth = vwapLW;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.moveTo(vwapPoints[0].x, vwapPoints[0].y);
-      for (let i = 1; i < vwapPoints.length; i++) ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
+      catmullRomSpline(ctx, vwapPoints, splineTension);
       ctx.stroke();
+      ctx.restore();
 
       // Label
       if (features.vwapShowLabel !== false) {
@@ -755,35 +762,38 @@ export class FootprintCanvasRenderer {
           }
 
           if (upperPoints.length > 1) {
-            // Filled band between upper and lower
+            // Filled band between upper and lower (spline fill)
             ctx.save();
             ctx.fillStyle = bandColor;
             ctx.globalAlpha = bandOpacity;
             ctx.beginPath();
-            ctx.moveTo(upperPoints[0].x, upperPoints[0].y);
-            for (let i = 1; i < upperPoints.length; i++) ctx.lineTo(upperPoints[i].x, upperPoints[i].y);
-            for (let i = lowerPoints.length - 1; i >= 0; i--) ctx.lineTo(lowerPoints[i].x, lowerPoints[i].y);
+            catmullRomSpline(ctx, upperPoints, splineTension);
+            // Trace back along lower points in reverse for closed fill
+            const lowerRev = [...lowerPoints].reverse();
+            // Continue path: move to last lower point then spline backwards
+            ctx.lineTo(lowerRev[0].x, lowerRev[0].y);
+            for (let i = 1; i < lowerRev.length; i++) ctx.lineTo(lowerRev[i].x, lowerRev[i].y);
             ctx.closePath();
             ctx.fill();
             ctx.restore();
 
-            // Dashed lines for upper and lower bounds
+            // Dashed spline lines for upper and lower bounds
             ctx.save();
             ctx.strokeStyle = bandColor;
             ctx.lineWidth = 1;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             ctx.globalAlpha = 0.35;
             ctx.setLineDash([4, 4]);
 
             // Upper band
             ctx.beginPath();
-            ctx.moveTo(upperPoints[0].x, upperPoints[0].y);
-            for (let i = 1; i < upperPoints.length; i++) ctx.lineTo(upperPoints[i].x, upperPoints[i].y);
+            catmullRomSpline(ctx, upperPoints, splineTension);
             ctx.stroke();
 
             // Lower band
             ctx.beginPath();
-            ctx.moveTo(lowerPoints[0].x, lowerPoints[0].y);
-            for (let i = 1; i < lowerPoints.length; i++) ctx.lineTo(lowerPoints[i].x, lowerPoints[i].y);
+            catmullRomSpline(ctx, lowerPoints, splineTension);
             ctx.stroke();
 
             ctx.setLineDash([]);
@@ -823,25 +833,31 @@ export class FootprintCanvasRenderer {
 
     // Draw TWAP
     if (showTWAP && twapPoints.length > 1) {
+      // Glow
       ctx.save();
       ctx.strokeStyle = twapColor;
       ctx.lineWidth = twapLW * 2.5;
       ctx.globalAlpha = 0.1;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.moveTo(twapPoints[0].x, twapPoints[0].y);
-      for (let i = 1; i < twapPoints.length; i++) ctx.lineTo(twapPoints[i].x, twapPoints[i].y);
+      catmullRomSpline(ctx, twapPoints, splineTension);
       ctx.stroke();
       ctx.restore();
 
+      // Main line (dashed spline)
+      ctx.save();
       ctx.strokeStyle = twapColor;
       ctx.lineWidth = twapLW;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.setLineDash([6, 3]);
       ctx.beginPath();
-      ctx.moveTo(twapPoints[0].x, twapPoints[0].y);
-      for (let i = 1; i < twapPoints.length; i++) ctx.lineTo(twapPoints[i].x, twapPoints[i].y);
+      catmullRomSpline(ctx, twapPoints, splineTension);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
 
       // Label
       if (features.twapShowLabel !== false) {
