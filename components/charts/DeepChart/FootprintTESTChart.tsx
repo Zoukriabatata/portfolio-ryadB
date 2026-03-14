@@ -584,7 +584,7 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Volume bars — right-anchored, growing leftward
+    // Volume bars — left-anchored, growing rightward
     totalVol.forEach((vol, price) => {
       const y = toY(price);
       if (y < chartY || y > chartY + chartH) return;
@@ -595,17 +595,17 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
 
       ctx.globalAlpha = isPOC ? 0.70 : isVA ? 0.38 : 0.22;
       ctx.fillStyle   = isPOC ? C.poc : isVA ? '#4a7abf' : '#2a4870';
-      ctx.fillRect(chartW - barW, y - halfCell, barW, barH);
+      ctx.fillRect(0, y - halfCell, barW, barH);
       ctx.globalAlpha = 1;
     });
 
-    // VAH / VAL labels (right edge)
+    // VAH / VAL labels (left edge)
     ctx.font      = `bold 7px ${FONT}`;
-    ctx.textAlign = 'right';
+    ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(100,150,220,0.55)';
     const vahY = toY(vaH); const valY = toY(vaL);
-    if (vahY > chartY + 10)          ctx.fillText('VAH', chartW - barMaxW - 3, vahY - 2);
-    if (valY < chartY + chartH - 4)  ctx.fillText('VAL', chartW - barMaxW - 3, valY + 8);
+    if (vahY > chartY + 10)          ctx.fillText('VAH', barMaxW + 3, vahY - 2);
+    if (valY < chartY + chartH - 4)  ctx.fillText('VAL', barMaxW + 3, valY + 8);
   }
 
   // ─── Price scale ─────────────────────────────────────────────────────────────
