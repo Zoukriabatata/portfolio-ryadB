@@ -464,7 +464,7 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     ctx.lineJoin    = 'round';
     ctx.lineCap     = 'round';
     ctx.globalAlpha = 0.85;
-    ctx.setLineDash([6, 3]);
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length - 1; i++) {
@@ -474,7 +474,6 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     }
     ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
     ctx.stroke();
-    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
     ctx.restore();
 
