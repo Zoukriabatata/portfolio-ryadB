@@ -64,6 +64,7 @@ class BinanceWebSocket {
   private klineHandlers: Map<string, Set<KlineHandler>> = new Map();
   private tradeHandlers: Map<string, Set<TradeHandler>> = new Map();
   private depthHandlers: Map<string, Set<DepthHandler>> = new Map();
+  private depth20Handlers: Map<string, Set<(snap: { bids: [string, string][]; asks: [string, string][] }) => void>> = new Map();
   private messageUnsubscribers: Map<string, () => void> = new Map(); // exchangeId -> unsub fn
   private subRequestId = 1; // Incrementing ID for SUBSCRIBE/UNSUBSCRIBE requests
 
@@ -244,10 +245,42 @@ class BinanceWebSocket {
     this.messageUnsubscribers.set(exchangeId, unsub);
   }
 
+  /** Subscribe to Binance partial book depth snapshot stream (20 levels, full snapshot each update) */
+  subscribeDepth20(
+    symbol: string,
+    handler: (snap: { bids: [string, string][]; asks: [string, string][] }) => void,
+    market: BinanceMarket = 'futures',
+    updateSpeed: '100ms' | '500ms' = '100ms',
+  ): () => void {
+    const stream = `${symbol.toLowerCase()}@depth20@${updateSpeed}`;
+    const exchangeId = `binance-${market}`;
+
+    if (!this.depth20Handlers.has(stream)) {
+      this.depth20Handlers.set(stream, new Set());
+    }
+    this.depth20Handlers.get(stream)!.add(handler);
+    this.addStreamDynamic(exchangeId, stream, market);
+
+    return () => {
+      this.depth20Handlers.get(stream)?.delete(handler);
+      if (this.depth20Handlers.get(stream)?.size === 0) {
+        this.removeStreamDynamic(exchangeId, stream, market);
+      }
+    };
+  }
+
   private handleMessage(message: BinanceStreamMessage): void {
     if (!message.stream || !message.data) return;
 
     const { stream, data } = message;
+
+    // Partial book depth snapshot (no `e` field, has `lastUpdateId` + bids + asks directly)
+    if ('lastUpdateId' in data && !('e' in data)) {
+      const snap = data as unknown as { lastUpdateId: number; bids: [string, string][]; asks: [string, string][] };
+      const handlers = this.depth20Handlers.get(stream);
+      if (handlers) { handlers.forEach(h => h(snap)); }
+      return;
+    }
 
     if (data.e === 'kline') {
       this.handleKlineMessage(stream, data as BinanceKlineMessage);
