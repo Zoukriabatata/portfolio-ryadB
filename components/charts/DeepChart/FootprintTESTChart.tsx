@@ -135,8 +135,8 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     );
   }
 
-  // ── Mouse handlers ────────────────────────────────────────────────────────
-  const onWheel = useCallback((e: React.WheelEvent) => {
+  // ── Mouse handlers (native DOM — avoids React passive-event limitations) ──
+  const onWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     const state  = stateRef.current;
     const canvas = canvasRef.current;
@@ -147,11 +147,11 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
 
     if (e.ctrlKey || e.metaKey) {
       // Zoom candleW anchored to mouse
-      const factor    = e.deltaY > 0 ? 0.88 : 1.14;
+      const factor     = e.deltaY > 0 ? 0.88 : 1.14;
       const newCandleW = Math.max(28, Math.min(260, state.candleW * factor));
-      const anchor    = (mouseX + state.offsetX) / state.candleW;
-      state.offsetX   = anchor * newCandleW - mouseX;
-      state.candleW   = newCandleW;
+      const anchor     = (mouseX + state.offsetX) / state.candleW;
+      state.offsetX    = anchor * newCandleW - mouseX;
+      state.candleW    = newCandleW;
     } else if (e.shiftKey) {
       // Zoom rowH
       const factor = e.deltaY > 0 ? 0.9 : 1.12;
@@ -164,11 +164,11 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     dirtyRef.current = true;
   }, []);
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
+  const onMouseDown = useCallback((e: MouseEvent) => {
     dragRef.current = { active: true, startX: e.clientX, startOff: stateRef.current.offsetX };
   }, []);
 
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
+  const onMouseMove = useCallback((e: MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     hoverRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -181,8 +181,28 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     dirtyRef.current = true;
   }, []);
 
-  const onMouseUp   = useCallback(() => { dragRef.current.active = false; }, []);
-  const onMouseLeave = useCallback(() => { hoverRef.current = null; dragRef.current.active = false; dirtyRef.current = true; }, []);
+  const onMouseUp = useCallback(() => {
+    dragRef.current.active = false;
+    dirtyRef.current = true;
+  }, []);
+
+  // ── Native event binding ───────────────────────────────────────────────────
+  // wheel needs { passive: false } so preventDefault() works;
+  // move/up on window so drag tracks correctly outside the canvas.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.addEventListener('wheel',     onWheel,     { passive: false });
+    canvas.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup',   onMouseUp);
+    return () => {
+      canvas.removeEventListener('wheel',     onWheel);
+      canvas.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup',   onMouseUp);
+    };
+  }, [onWheel, onMouseDown, onMouseMove, onMouseUp]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -747,12 +767,7 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
   return (
     <canvas
       ref={canvasRef}
-      style={{ width: '100%', height: '100%', display: 'block', cursor: dragRef.current.active ? 'grabbing' : 'crosshair' }}
-      onWheel={onWheel}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
+      style={{ width: '100%', height: '100%', display: 'block', cursor: 'crosshair' }}
     />
   );
 }
