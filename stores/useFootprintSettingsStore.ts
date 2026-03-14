@@ -157,6 +157,29 @@ export interface FootprintFeatures {
   aggregationMode: 'time' | 'tick' | 'volume';
   tickBarSize: number;
   volumeBarSize: number;
+
+  // ── NEW: Professional orderflow features ───────────────────────────────────
+
+  // Volume Profile visualization mode (Delta Profile is now a sub-mode here)
+  volumeProfileMode: 'volume' | 'bidask' | 'delta' | 'trades' | 'time';
+
+  // Absorption detection — large passive orders absorbing aggression
+  absorptionEnabled: boolean;
+  absorptionThreshold: number;       // Multiplier vs avg level volume (1.0–5.0)
+  absorptionHighlightColor: string;
+
+  // Exhaustion detection — clusters with falling volume near highs/lows
+  exhaustionEnabled: boolean;
+  exhaustionSensitivity: number;     // 1 (loose) → 5 (strict)
+  exhaustionColor: string;
+
+  // Iceberg detection — repeated prints at same price suggesting hidden orders
+  icebergEnabled: boolean;
+  icebergRepeatedPrints: number;     // Min consecutive identical prints (2–5)
+
+  // Cluster filters — hide noise below threshold
+  clusterMinVolume: number;          // 0 = show all
+  clusterMinTrades: number;          // 0 = show all
 }
 
 // Passive Liquidity Settings (Simulation mode)
@@ -355,6 +378,19 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   aggregationMode: 'time' as const,
   tickBarSize: 500,
   volumeBarSize: 100,
+
+  // ── Professional orderflow features ───────────────────────────────────────
+  volumeProfileMode: 'volume' as const,
+  absorptionEnabled: false,
+  absorptionThreshold: 2.0,
+  absorptionHighlightColor: '#ff9800',
+  exhaustionEnabled: false,
+  exhaustionSensitivity: 3,
+  exhaustionColor: '#9c27b0',
+  icebergEnabled: false,
+  icebergRepeatedPrints: 3,
+  clusterMinVolume: 0,
+  clusterMinTrades: 0,
 };
 
 const DEFAULT_PASSIVE_LIQUIDITY: PassiveLiquiditySettings = {
@@ -486,7 +522,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
     }),
     {
       name: 'footprint-settings',
-      version: 5, // v5: Phase 2+3 features (heatmap cells, developing POC, large trade highlight, indicators)
+      version: 6, // v6: Professional orderflow features (absorption, exhaustion, iceberg, volume profile mode)
       partialize: (state) => ({
         colors: state.colors,
         fonts: state.fonts,
@@ -502,7 +538,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
       // Migration function for version upgrades
       migrate: (persistedState: any, version: number) => {
         // If stored version is older than current, migrate it
-        if (version < 5) {
+        if (version < 6) {
           const state = persistedState as Partial<FootprintSettings>;
           return {
             ...state,
