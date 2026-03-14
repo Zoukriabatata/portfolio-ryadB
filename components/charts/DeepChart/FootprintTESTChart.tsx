@@ -257,14 +257,10 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     const pRange   = priceMax - priceMin || 1;
     const toY = (p: number) => chartY + chartH - ((p - priceMin) / pRange) * chartH;
 
-    // ── Session aggregation (for volume profile overlay) ─────────────────────
-    let sessionStartIdx = 0;
-    for (let i = candles.length - 1; i >= 1; i--) {
-      if (candles[i].sessionStart) { sessionStartIdx = i; break; }
-    }
+    // ── Session aggregation (full day — all candles) ──────────────────────────
     const sessionBid = new Map<number, number>();
     const sessionAsk = new Map<number, number>();
-    for (let i = sessionStartIdx; i < candles.length; i++) {
+    for (let i = 0; i < candles.length; i++) {
       for (const lv of candles[i].levels) {
         sessionBid.set(lv.price, (sessionBid.get(lv.price) ?? 0) + lv.bidVol);
         sessionAsk.set(lv.price, (sessionAsk.get(lv.price) ?? 0) + lv.askVol);
