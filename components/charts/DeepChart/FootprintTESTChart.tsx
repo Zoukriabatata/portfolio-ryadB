@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { generateSimCandles, type SimCandle } from './SimulationEngine';
+import { binanceWS } from '@/lib/websocket/BinanceWS';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,22 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
   const dragRef    = useRef<{ active: boolean; startX: number; startOff: number }>({ active: false, startX: 0, startOff: 0 });
   const dirtyRef   = useRef(true);
   const rafRef     = useRef(0);
+  const domBidsRef = useRef<Map<number, number>>(new Map());
+  const domAsksRef = useRef<Map<number, number>>(new Map());
+
+  // ── DOM subscription ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = binanceWS.subscribeDepth20(symbol.toLowerCase(), (snap) => {
+      const bids = new Map<number, number>();
+      const asks = new Map<number, number>();
+      snap.bids.forEach(([p, q]) => { const qty = parseFloat(q); if (qty > 0) bids.set(parseFloat(p), qty); });
+      snap.asks.forEach(([p, q]) => { const qty = parseFloat(q); if (qty > 0) asks.set(parseFloat(p), qty); });
+      domBidsRef.current = bids;
+      domAsksRef.current = asks;
+      dirtyRef.current = true;
+    }, 'futures', '100ms');
+    return unsub;
+  }, [symbol]);
 
   // Generate simulation data once per symbol/tickSize
   const candles = useMemo(() => generateSimCandles(60, 95000, tickSize, 300), [symbol, tickSize]);
@@ -410,7 +427,7 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     renderVWAP(ctx, candles, firstIdx, lastIdx, offsetX, candleW, chartY, chartH, priceMin, pRange, chartW);
 
     // ── Price scale ───────────────────────────────────────────────────────────
-    renderPriceScale(ctx, W, chartY, chartH, gridStart, gridStep, priceMax, toY, tickSize);
+    renderPriceScale(ctx, W, chartY, chartH, gridStart, gridStep, priceMax, toY, tickSize, priceMin, pRange, domBidsRef.current, domAsksRef.current);
 
     // ── CVD panel ─────────────────────────────────────────────────────────────
     renderCVD(ctx, candles, firstIdx, lastIdx, offsetX, candleW, chartW, cvdY, CVD_H);
@@ -494,11 +511,18 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     W: number, chartY: number, chartH: number,
     gridStart: number, gridStep: number, priceMax: number,
     toY: (p: number) => number, tick: number,
+    priceMin: number, pRange: number,
+    domBids: Map<number, number>, domAsks: Map<number, number>,
   ) {
-    const scaleX = W - PRICE_W;
+    const scaleX  = W - PRICE_W;
+    const cellH   = Math.max(2, (tick / pRange) * chartH);
+    const halfCell = cellH / 2;
+
+    // Background
     ctx.fillStyle = C.surface;
     ctx.fillRect(scaleX, chartY - 2, PRICE_W, chartH + 4);
 
+    // Left border
     ctx.strokeStyle = C.grid;
     ctx.lineWidth   = 0.5;
     ctx.beginPath();
@@ -506,18 +530,57 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     ctx.lineTo(scaleX, chartY + chartH);
     ctx.stroke();
 
+    // ── DOM bars (rendered behind price labels) ──────────────────────────────
+    if (domBids.size > 0 || domAsks.size > 0) {
+      // Max qty across visible price range for normalization
+      let maxQty = 1;
+      domBids.forEach((qty, price) => { if (price >= priceMin && price <= priceMax) maxQty = Math.max(maxQty, qty); });
+      domAsks.forEach((qty, price) => { if (price >= priceMin && price <= priceMax) maxQty = Math.max(maxQty, qty); });
+
+      const barMaxW = PRICE_W - 1;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(scaleX, chartY, PRICE_W, chartH);
+      ctx.clip();
+
+      // Bid bars — left → right (red)
+      ctx.fillStyle = C.bid;
+      ctx.globalAlpha = 0.50;
+      domBids.forEach((qty, price) => {
+        const y = toY(price);
+        if (y < chartY || y > chartY + chartH) return;
+        const barW = Math.max(2, (qty / maxQty) * barMaxW);
+        ctx.fillRect(scaleX, y - halfCell, barW, Math.max(2, cellH - 1));
+      });
+
+      // Ask bars — right → left (teal)
+      ctx.fillStyle = C.ask;
+      ctx.globalAlpha = 0.50;
+      domAsks.forEach((qty, price) => {
+        const y = toY(price);
+        if (y < chartY || y > chartY + chartH) return;
+        const barW = Math.max(2, (qty / maxQty) * barMaxW);
+        ctx.fillRect(scaleX + PRICE_W - barW, y - halfCell, barW, Math.max(2, cellH - 1));
+      });
+
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Price labels (on top of bars) ────────────────────────────────────────
     ctx.font      = `9px ${FONT}`;
-    ctx.fillStyle  = C.text;
     ctx.textAlign  = 'left';
     for (let p = gridStart; p <= priceMax; p += gridStep) {
       const y = toY(p);
       if (y < chartY || y > chartY + chartH) continue;
-      // Tick mark
       ctx.strokeStyle = C.grid;
+      ctx.lineWidth   = 0.5;
       ctx.beginPath();
       ctx.moveTo(scaleX, y);
       ctx.lineTo(scaleX + 4, y);
       ctx.stroke();
+      ctx.fillStyle = C.text;
       ctx.fillText(fmtPrice(p, tick), scaleX + 7, y + 3);
     }
   }
