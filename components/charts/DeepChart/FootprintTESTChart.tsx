@@ -145,22 +145,18 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     const rect   = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
 
-    if (e.ctrlKey || e.metaKey) {
-      // Zoom candleW anchored to mouse
+    if (e.shiftKey) {
+      // Shift+scroll → zoom row height
+      const factor = e.deltaY > 0 ? 0.9 : 1.12;
+      state.rowH   = Math.max(7, Math.min(32, state.rowH * factor));
+    } else {
+      // Plain scroll → zoom candle width, anchored to mouse position
       const factor     = e.deltaY > 0 ? 0.88 : 1.14;
       const newCandleW = Math.max(28, Math.min(260, state.candleW * factor));
       const anchor     = (mouseX + state.offsetX) / state.candleW;
       state.offsetX    = anchor * newCandleW - mouseX;
       state.candleW    = newCandleW;
-    } else if (e.shiftKey) {
-      // Zoom rowH
-      const factor = e.deltaY > 0 ? 0.9 : 1.12;
-      state.rowH   = Math.max(7, Math.min(32, state.rowH * factor));
-    } else {
-      // Pan horizontal
-      state.offsetX += e.deltaX !== 0 ? e.deltaX : e.deltaY * 0.6;
     }
-    clampOffset(chartW);
     dirtyRef.current = true;
   }, []);
 
@@ -176,7 +172,6 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     if (dragRef.current.active) {
       const dx = e.clientX - dragRef.current.startX;
       stateRef.current.offsetX = dragRef.current.startOff - dx;
-      clampOffset(rect.width - PRICE_W);
     }
     dirtyRef.current = true;
   }, []);
