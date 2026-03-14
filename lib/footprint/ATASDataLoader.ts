@@ -96,6 +96,18 @@ export interface LoadConfig {
    * AbortSignal to cancel an in-progress load.
    */
   signal?: AbortSignal;
+
+  /**
+   * SKELETON mode: Binance kline interval string ('1m', '5m', '15m', '1h', …)
+   * Defaults to '1m'.
+   */
+  intervalStr?: string;
+
+  /**
+   * SKELETON mode: number of kline candles to fetch.
+   * Defaults to 1440 (full day at 1m).
+   */
+  skeletonLimit?: number;
 }
 
 export type ProgressCallback = (
@@ -454,6 +466,8 @@ export async function loadFootprintData(
     maxTradesPerChunk = null,
     parallelChunks = 4,
     signal,
+    intervalStr = '1m',
+    skeletonLimit = 1440,
   } = config;
 
   const loaderConfig = { maxTradesPerChunk, parallelChunks, signal };
@@ -478,7 +492,7 @@ export async function loadFootprintData(
       // Phase 1: Load OHLC skeleton instantly from klines
       onProgress?.(5, `Loading OHLC skeleton for ${symbol}...`);
       const dayStart = dayStartMs ?? getTodayUTCMidnight();
-      skeleton = await loadOHLCSkeleton(symbol, dayStart, '1m', 1440, signal);
+      skeleton = await loadOHLCSkeleton(symbol, dayStart, intervalStr, skeletonLimit, signal);
       onProgress?.(15, `OHLC skeleton: ${skeleton.length} candles loaded`);
 
       // Phase 2: Load recent tick data for footprint detail

@@ -25,6 +25,22 @@ import {
 } from './ATASDataLoader';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TIMEFRAME HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Map a timeframe in seconds to the matching Binance kline interval + candle limit for a full day. */
+function timeframeToSkeletonParams(seconds: number): { intervalStr: string; skeletonLimit: number } {
+  if (seconds <= 60)   return { intervalStr: '1m',  skeletonLimit: 1440 };
+  if (seconds <= 180)  return { intervalStr: '3m',  skeletonLimit: 480  };
+  if (seconds <= 300)  return { intervalStr: '5m',  skeletonLimit: 288  };
+  if (seconds <= 900)  return { intervalStr: '15m', skeletonLimit: 96   };
+  if (seconds <= 1800) return { intervalStr: '30m', skeletonLimit: 48   };
+  if (seconds <= 3600) return { intervalStr: '1h',  skeletonLimit: 24   };
+  if (seconds <= 14400)return { intervalStr: '4h',  skeletonLimit: 6    };
+  return                      { intervalStr: '1d',  skeletonLimit: 2    };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -109,6 +125,8 @@ export class OptimizedFootprintService {
     try {
       this.report(0, 'Initializing...');
 
+      const { intervalStr, skeletonLimit } = timeframeToSkeletonParams(this.config.timeframe);
+
       const { ticks, skeleton } = await loadFootprintData(
         {
           symbol:            this.config.symbol,
@@ -117,6 +135,8 @@ export class OptimizedFootprintService {
           dayStartMs:        this.config.dayStartMs,
           maxTradesPerChunk: this.config.maxTradesPerChunk,
           parallelChunks:    this.config.loadMode === 'fullday' ? 24 : 4,
+          intervalStr,
+          skeletonLimit,
         },
         (pct, msg) => this.report(pct * 0.85, msg)
       );
@@ -194,6 +214,49 @@ export class OptimizedFootprintService {
   /** Return OHLC skeleton (skeleton mode only) */
   getSkeletonCandles(): OHLCSkeleton[] {
     return this.skeleton ?? [];
+  }
+
+  /**
+   * Merge OHLC skeleton candles with real tick-based footprint candles.
+   *
+   * For each skeleton candle:
+   *   - If tick data exists for that timestamp → use the real footprint candle
+   *   - Otherwise → create an OHLC-only candle (levels = empty Map, no fake bid/ask)
+   *
+   * Result is sorted by time ascending, ready for rendering.
+   */
+  mergeWithSkeleton(tickCandles: FootprintCandle[]): FootprintCandle[] {
+    const skeleton = this.skeleton;
+    if (!skeleton || skeleton.length === 0) return tickCandles;
+
+    const tickMap = new Map<number, FootprintCandle>(tickCandles.map(c => [c.time, c]));
+
+    const merged: FootprintCandle[] = skeleton.map(sk => {
+      const real = tickMap.get(sk.time);
+      if (real) return real;
+
+      // OHLC-only candle — no fake bid/ask data
+      return {
+        time:             sk.time,
+        open:             sk.open,
+        high:             sk.high,
+        low:              sk.low,
+        close:            sk.close,
+        levels:           new Map(),
+        totalVolume:      sk.volume,
+        totalBuyVolume:   0,
+        totalSellVolume:  0,
+        totalDelta:       0,
+        totalTrades:      0,
+        poc:              0,   // 0 = no footprint data, renderer must skip POC line
+        vah:              0,
+        val:              0,
+        isClosed:         true,
+      } as FootprintCandle;
+    });
+
+    merged.sort((a, b) => a.time - b.time);
+    return merged;
   }
 
   // ─── NON-TIME AGGREGATION ─────────────────────────────────────────────────

@@ -851,12 +851,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         timeframe: tf,
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
-        // totalHours is now adaptive inside OptimizedFootprintService.adaptiveHours()
-        // This value is kept as a ceiling for very large timeframes only.
-        totalHours: 6,
+        totalHours: 4,
         aggregationMode: settings.features.aggregationMode,
         tickBarSize: settings.features.tickBarSize,
         volumeBarSize: settings.features.volumeBarSize,
+        // Skeleton mode: instant OHLC for all historical candles (from klines),
+        // real bid/ask footprint only for the last 4 hours (from aggTrades).
+        // Avoids fake data caused by Binance rate-limiting cutting tick loads short.
+        loadMode: 'skeleton',
       });
 
       service.setProgressCallback((progress, message) => {
@@ -868,7 +870,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
       console.log(`[FootprintChartPro] Loading footprint for ${sym}...`);
 
-      const candles = await service.loadOptimized();
+      const tickCandles = await service.loadOptimized();
 
       // Guard: if symbol/timeframe changed during load, discard results
       if (loadGenerationRef.current !== generation) {
@@ -876,7 +878,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         return [];
       }
 
-      console.log(`[FootprintChartPro] ✓ Loaded ${candles.length} candles`);
+      // Merge skeleton OHLC (full day) with real tick-based footprint candles (last 4h).
+      // Candles outside the tick window get OHLC only (levels = empty Map) — no fake bid/ask.
+      const candles = service.mergeWithSkeleton(tickCandles);
+
+      console.log(
+        `[FootprintChartPro] ✓ ${candles.length} candles total` +
+        ` (${tickCandles.length} with real footprint, ${candles.length - tickCandles.length} OHLC-only)`
+      );
 
       // Cache closed candles for faster subsequent loads
       if (candles.length > 0) {

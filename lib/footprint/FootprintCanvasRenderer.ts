@@ -325,6 +325,9 @@ export class FootprintCanvasRenderer {
       }
 
       // === FOOTPRINT CELLS — SINGLE PASS (bars + text combined) ===
+      // Skip entirely for OHLC-only candles (skeleton mode — no real tick data)
+      if (candle.levels.size === 0) return;
+
       const cellStartX = fpX + (features.showOHLC ? ohlcWidth : 0);
       const centerX = cellStartX + fpWidth / 2;
       const isBullish = candle.close >= candle.open;
