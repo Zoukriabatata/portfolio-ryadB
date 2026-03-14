@@ -15,8 +15,11 @@ const FootprintTESTChart = dynamic(
 
 const DOM_DEFAULT_W = 210;
 
-// Symbol → tickSize (Binance futures)
+// Symbol → tickSize
 const TICK: Record<string, number> = {
+  // CME micro futures
+  mnq: 0.25, mes: 0.25, mym: 1, m2k: 0.1,
+  // Binance futures
   btcusdt: 10, ethusdt: 1, solusdt: 0.1, bnbusdt: 1,
   xrpusdt: 0.001, adausdt: 0.001, dogeusdt: 0.0001,
   avaxusdt: 0.1, linkusdt: 0.01, arbusdt: 0.001,

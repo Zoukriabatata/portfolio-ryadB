@@ -12,7 +12,7 @@ const DeepChart = dynamic(
 
 export default function FootprintTESTPageContent() {
   const { tradingSymbol, setTradingSymbol } = useTradingStore();
-  const sym = tradingSymbol?.toLowerCase() ?? 'btcusdt';
+  const sym = 'mnq'; // demo symbol — MNQ (Micro E-mini NASDAQ)
 
   return (
     <ChartPageShell

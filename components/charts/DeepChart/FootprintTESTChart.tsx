@@ -100,7 +100,10 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
   }, [symbol]);
 
   // Generate simulation data once per symbol/tickSize
-  const candles = useMemo(() => generateSimCandles(60, 95000, tickSize, 300), [symbol, tickSize]);
+  const startPrice = symbol.toUpperCase().startsWith('MNQ') ? 21500
+    : symbol.toUpperCase().startsWith('MES') ? 5400
+    : 95000;
+  const candles = useMemo(() => generateSimCandles(60, startPrice, tickSize, 300), [symbol, tickSize]);
   useEffect(() => {
     candlesRef.current = candles;
     // Start scrolled to the newest candles
