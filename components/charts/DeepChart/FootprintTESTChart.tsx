@@ -1,16 +1,16 @@
 'use client';
 
 /**
- * FootprintTEST Chart — New design, simulation mode
+ * FootprintTEST Chart — DeepChart style
  *
- * Visual concept:
- *  • Heatmap cells: background blended bid(red)/ask(teal) by dominance ratio
- *  • POC: gold left-border accent
- *  • Delta bar: thin colored stripe above each candle column
- *  • Delta label: colored number above highest price level
- *  • VWAP: quadratic-spline gold line
+ * Visual concept (DeepChart / ATAS):
+ *  • Split bid/ask bars: bid fills from LEFT edge, ask from RIGHT edge
+ *  • Text-first: bright numbers (bid | price | ask) over bar backgrounds
+ *  • POC: full-width gold horizontal line at cell bottom
+ *  • Imbalance triangles: ▶/◀ on cells with ratio > 3:1
+ *  • Delta + volume callout above each candle
+ *  • VWAP: quadratic-spline gold dashed line
  *  • CVD panel: area chart at bottom
- *  • Price scale: right side with mid-price marker
  *  • Mouse: scroll (pan) | ctrl+wheel (zoom candleW) | shift+wheel (zoom rowH) | drag (pan)
  */
 
@@ -20,20 +20,20 @@ import { generateSimCandles, type SimCandle } from './SimulationEngine';
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
-  bg        : '#06080f',
-  surface   : '#09111e',
-  grid      : '#0d1525',
-  bid       : '#d94f5e',
-  ask       : '#1eb896',
-  poc       : '#c89020',
-  deltaPos  : '#2ddba6',
-  deltaNeg  : '#ff556a',
+  bg        : '#080b14',   // deep blue-black
+  surface   : '#0a1220',
+  grid      : '#0e1628',
+  bid       : '#ef5350',   // ATAS standard red
+  ask       : '#26a69a',   // ATAS standard teal
+  poc       : '#c89020',   // gold
+  deltaPos  : '#26a69a',   // same as ask for consistency
+  deltaNeg  : '#ef5350',   // same as bid for consistency
   vwap      : '#ffab38',
   text      : '#7a9fc0',
-  textMuted : '#233050',
+  textMuted : '#283850',
   price     : '#c8dff8',
-  separator : 'rgba(90,110,180,0.25)',
-  cvdBg     : '#070c18',
+  separator : 'rgba(90,110,180,0.28)',
+  cvdBg     : '#07090f',
 };
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -42,7 +42,6 @@ const PRICE_W = 68;
 const TIME_H  = 22;
 const CVD_H   = 54;
 const HDR_H   = 30;
-const DELTA_H = 5;   // colored stripe per candle
 const FONT    = '"Consolas","Monaco",monospace';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -236,7 +235,7 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     // ── Clip to chart area ────────────────────────────────────────────────────
     ctx.save();
     ctx.beginPath();
-    ctx.rect(chartX, chartY, chartW, chartH + DELTA_H + 2);
+    ctx.rect(chartX, chartY, chartW, chartH);
     ctx.clip();
 
     // ── Max volume for normalization ──────────────────────────────────────────
@@ -244,7 +243,6 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     visible.forEach(c => c.levels.forEach(l => {
       maxLevelVol = Math.max(maxLevelVol, l.bidVol + l.askVol);
     }));
-    const maxAbsDelta = Math.max(...visible.map(c => Math.abs(c.delta)), 1);
 
     // ── Render each candle ────────────────────────────────────────────────────
     for (let i = firstIdx; i <= lastIdx; i++) {
@@ -264,13 +262,6 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
         ctx.setLineDash([]);
       }
 
-      // Delta intensity stripe (top of candle column)
-      const dIntensity = Math.min(1, Math.abs(c.delta) / maxAbsDelta);
-      ctx.fillStyle = c.delta >= 0 ? C.deltaPos : C.deltaNeg;
-      ctx.globalAlpha = 0.5 + dIntensity * 0.5;
-      ctx.fillRect(cx + 1, chartY, cw, DELTA_H);
-      ctx.globalAlpha = 1;
-
       // ── Price level cells ─────────────────────────────────────────────────
       for (const lv of c.levels) {
         const y1   = toY(lv.price + tickSize);
@@ -279,46 +270,64 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
         if (cellH < 1) continue;
         if (y1 + cellH < chartY || y1 > chartY + chartH) continue;
 
-        const total     = lv.bidVol + lv.askVol;
-        const volRatio  = total / maxLevelVol;      // 0-1
-        const askRatio  = lv.askVol / (total || 1); // 0-1
-        const isPOC     = lv.price === c.poc;
+        const isPOC = lv.price === c.poc;
 
-        // Heatmap background
-        if (askRatio > 0.53) {
-          ctx.fillStyle  = C.ask;
-          ctx.globalAlpha = volRatio * (isPOC ? 0.55 : 0.32) * (askRatio - 0.5) * 2;
-        } else if (askRatio < 0.47) {
-          ctx.fillStyle  = C.bid;
-          ctx.globalAlpha = volRatio * (isPOC ? 0.55 : 0.32) * (0.5 - askRatio) * 2;
-        } else {
-          // Near-balanced: subtle neutral glow
-          ctx.fillStyle  = '#2a3870';
-          ctx.globalAlpha = volRatio * 0.18;
+        // POC background tint
+        if (isPOC) {
+          ctx.fillStyle = C.poc;
+          ctx.globalAlpha = 0.06;
+          ctx.fillRect(cx + 1, y1, cw, cellH);
+          ctx.globalAlpha = 1;
         }
-        ctx.fillRect(cx + 1, y1, cw, cellH);
+
+        // Bid bar — from LEFT edge inward
+        const bidBarW = Math.max(1, (lv.bidVol / maxLevelVol) * cw);
+        ctx.fillStyle = C.bid;
+        ctx.globalAlpha = 0.50;
+        ctx.fillRect(cx + 1, y1, bidBarW, cellH);
         ctx.globalAlpha = 1;
 
-        // Imbalance: strong ask-side bar (right-side accent)
-        if (askRatio > 0.7 && cw >= 30) {
-          const barW = Math.round(cw * (askRatio - 0.5) * 0.6);
-          ctx.fillStyle = C.ask;
-          ctx.globalAlpha = volRatio * 0.55;
-          ctx.fillRect(cx + cw - barW, y1 + 1, barW, Math.max(1, cellH - 2));
-          ctx.globalAlpha = 1;
-        } else if (askRatio < 0.3 && cw >= 30) {
-          const barW = Math.round(cw * (0.5 - askRatio) * 0.6);
-          ctx.fillStyle = C.bid;
-          ctx.globalAlpha = volRatio * 0.55;
-          ctx.fillRect(cx + 1, y1 + 1, barW, Math.max(1, cellH - 2));
+        // Ask bar — from RIGHT edge inward
+        const askBarW = Math.max(1, (lv.askVol / maxLevelVol) * cw);
+        ctx.fillStyle = C.ask;
+        ctx.globalAlpha = 0.50;
+        ctx.fillRect(cx + cw - askBarW, y1, askBarW, cellH);
+        ctx.globalAlpha = 1;
+
+        // POC: full-width gold horizontal line at cell bottom
+        if (isPOC) {
+          ctx.fillStyle = C.poc;
+          ctx.globalAlpha = 0.85;
+          ctx.fillRect(cx + 1, y2 - 1.5, cw - 1, 1.5);
           ctx.globalAlpha = 1;
         }
 
-        // POC accent: gold left strip
-        if (isPOC) {
-          ctx.fillStyle  = C.poc;
+        // Imbalance triangle on dominant side (ratio > 3:1)
+        const imbalRatio = lv.bidVol > lv.askVol
+          ? lv.bidVol / Math.max(lv.askVol, 0.001)
+          : lv.askVol / Math.max(lv.bidVol, 0.001);
+        if (imbalRatio > 3 && cellH >= 9 && cw >= 22) {
+          const my = y1 + cellH / 2;
           ctx.globalAlpha = 0.85;
-          ctx.fillRect(cx + 1, y1, 3, cellH);
+          if (lv.bidVol > lv.askVol) {
+            // Bid dominant: red ▶ at left
+            ctx.fillStyle = C.bid;
+            ctx.beginPath();
+            ctx.moveTo(cx + 4, my - 4);
+            ctx.lineTo(cx + 4, my + 4);
+            ctx.lineTo(cx + 9, my);
+            ctx.closePath();
+            ctx.fill();
+          } else {
+            // Ask dominant: teal ◀ at right
+            ctx.fillStyle = C.ask;
+            ctx.beginPath();
+            ctx.moveTo(cx + cw - 4, my - 4);
+            ctx.lineTo(cx + cw - 4, my + 4);
+            ctx.lineTo(cx + cw - 9, my);
+            ctx.closePath();
+            ctx.fill();
+          }
           ctx.globalAlpha = 1;
         }
 
@@ -332,50 +341,41 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
         ctx.stroke();
         ctx.globalAlpha = 1;
 
-        // Text (bid | price | ask) when cell is wide + tall enough
-        if (cw >= 68 && cellH >= 9) {
+        // Text layout: wide=bid|price|ask, medium=bid|ask, narrow=none
+        if (cw >= 72 && cellH >= 9) {
           const fs = Math.min(9, cellH - 2);
           const ty = y1 + cellH * 0.5 + fs * 0.38;
-          ctx.font      = `${fs}px ${FONT}`;
+          ctx.font = `${fs}px ${FONT}`;
           ctx.textAlign = 'center';
-
-          // Bid
-          ctx.fillStyle  = C.bid;
-          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = C.bid;
           ctx.fillText(fmtVol(lv.bidVol), cx + cw * 0.2, ty);
-
-          // Price (center)
-          ctx.fillStyle  = isPOC ? C.poc : C.text;
-          ctx.globalAlpha = isPOC ? 1 : 0.65;
+          ctx.fillStyle = isPOC ? C.poc : '#ffffff';
           ctx.fillText(fmtPrice(lv.price, tickSize), cx + cw * 0.5, ty);
-
-          // Ask
-          ctx.fillStyle  = C.ask;
-          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = C.ask;
           ctx.fillText(fmtVol(lv.askVol), cx + cw * 0.8, ty);
-
-          ctx.globalAlpha = 1;
-        } else if (cw >= 34 && cellH >= 9) {
-          // Only delta number
-          const fs  = Math.min(8, cellH - 1);
-          const dv  = lv.askVol - lv.bidVol;
-          ctx.font      = `${fs}px ${FONT}`;
+        } else if (cw >= 36 && cellH >= 9) {
+          const fs = Math.min(8, cellH - 2);
+          const ty = y1 + cellH * 0.5 + fs * 0.38;
+          ctx.font = `${fs}px ${FONT}`;
           ctx.textAlign = 'center';
-          ctx.fillStyle  = dv >= 0 ? C.ask : C.bid;
-          ctx.globalAlpha = 0.75;
-          ctx.fillText(fmtVol(Math.abs(dv)), cx + cw * 0.5, y1 + cellH * 0.5 + fs * 0.38);
-          ctx.globalAlpha = 1;
+          ctx.fillStyle = C.bid;
+          ctx.fillText(fmtVol(lv.bidVol), cx + cw * 0.28, ty);
+          ctx.fillStyle = C.ask;
+          ctx.fillText(fmtVol(lv.askVol), cx + cw * 0.72, ty);
         }
       }
 
-      // Delta label above candle
+      // Delta + volume callout above candle
       if (cw >= 38) {
-        const highY = toY(c.high);
-        const labelY = Math.max(chartY + 20, highY - 5);
-        ctx.font      = `bold 9px ${FONT}`;
+        const highY  = toY(c.high);
+        const labelY = Math.max(chartY + 22, highY - 6);
         ctx.textAlign = 'center';
-        ctx.fillStyle  = c.delta >= 0 ? C.deltaPos : C.deltaNeg;
+        ctx.font      = `bold 9px ${FONT}`;
+        ctx.fillStyle = c.delta >= 0 ? C.deltaPos : C.deltaNeg;
         ctx.fillText((c.delta >= 0 ? '+' : '') + fmtVol(c.delta), cx + cw * 0.5, labelY);
+        ctx.font      = `7px ${FONT}`;
+        ctx.fillStyle = C.textMuted;
+        ctx.fillText(fmtVol(c.totalVol), cx + cw * 0.5, labelY + 10);
       }
 
       // Candle separator
