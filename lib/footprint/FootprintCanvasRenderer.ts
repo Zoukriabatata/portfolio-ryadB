@@ -2601,6 +2601,225 @@ export class FootprintCanvasRenderer {
 
     ctx.restore();
   }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════
+   * OrderflowEngine — Cluster Statistic Panel
+   * Rows: Time / Ask / Bid / Delta / Volume
+   * Reads ClusterStatConfig for row visibility, colors, font, row height
+   * ═══════════════════════════════════════════════════════════════
+   */
+  renderClusterStatPanel(
+    ctx: CanvasRenderingContext2D,
+    layout: FootprintLayoutEngine,
+    metrics: LayoutMetrics,
+    features: FootprintFeatures,
+    colors: FootprintColors,
+    width: number,
+    panelY: number,
+    ohlcWidth: number,
+    fpWidth: number,
+    clusterStatConfig?: ClusterStatConfig,
+    formatTimeFn?: (ts: number, mode: 'time' | 'datetime' | 'full') => string,
+  ): void {
+    if (metrics.visibleCandles.length === 0) return;
+
+    // Config with fallbacks to features flags
+    const cfg = clusterStatConfig;
+    const rowH = cfg?.rowHeight ?? 16;
+    const showTime = cfg?.showTime ?? features.showHourMarkers ?? false;
+    const showAsks = cfg?.showAsks ?? true;
+    const showBids = cfg?.showBids ?? true;
+    const showDelta = cfg?.showDelta ?? true;
+    const showVolume = cfg?.showVolume ?? true;
+    const bgColor = cfg?.backgroundColor ?? colors.background ?? '#0a0a0f';
+    const gridColor = cfg?.gridColor ?? colors.gridColor ?? '#1e1e1e';
+    const askColor = cfg?.askColor ?? colors.askTextColor ?? '#26a69a';
+    const bidColor = cfg?.bidColor ?? colors.bidTextColor ?? '#ef5350';
+    const textColor = cfg?.textColor ?? colors.textMuted ?? '#9e9e9e';
+    const headerColor = cfg?.headerColor ?? colors.textMuted ?? '#9e9e9e';
+    const hideHeaders = cfg?.hideHeaders ?? false;
+    const font = cfg?.font ?? 'Consolas';
+
+    // Build active row list
+    const rows: Array<{ label: string; type: string }> = [];
+    if (showTime) rows.push({ label: 'Time', type: 'time' });
+    if (showAsks) rows.push({ label: 'Ask', type: 'ask' });
+    if (showBids) rows.push({ label: 'Bid', type: 'bid' });
+    if (showDelta) rows.push({ label: 'Delta', type: 'delta' });
+    if (showVolume) rows.push({ label: 'Vol', type: 'vol' });
+
+    if (rows.length === 0) return;
+
+    const numRows = rows.length;
+    const labelWidth = hideHeaders ? 0 : 50;
+    const panelHeight = rowH * numRows;
+
+    // Panel background
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, panelY, width, panelHeight);
+
+    // Row separator lines + labels
+    ctx.font = `9px "${font}", "Monaco", monospace`;
+    ctx.textAlign = 'left';
+
+    if (!hideHeaders) {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, panelY, labelWidth, panelHeight);
+
+      rows.forEach(({ label }, i) => {
+        ctx.fillStyle = headerColor;
+        ctx.fillText(label, 4, panelY + rowH * i + rowH - 4);
+
+        ctx.strokeStyle = gridColor;
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, panelY + rowH * (i + 1));
+        ctx.lineTo(width, panelY + rowH * (i + 1));
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+
+      // Vertical separator
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(labelWidth, panelY);
+      ctx.lineTo(labelWidth, panelY + panelHeight);
+      ctx.stroke();
+    }
+
+    // Compute max values for color normalization
+    let maxAsk = 1, maxBid = 1, maxDelta = 1, maxVolume = 1;
+    metrics.visibleCandles.forEach(candle => {
+      let totalAsk = 0, totalBid = 0;
+      candle.levels.forEach(l => { totalAsk += l.askVolume; totalBid += l.bidVolume; });
+      maxAsk = Math.max(maxAsk, totalAsk);
+      maxBid = Math.max(maxBid, totalBid);
+      maxDelta = Math.max(maxDelta, Math.abs(candle.totalDelta));
+      maxVolume = Math.max(maxVolume, candle.totalVolume);
+    });
+
+    // Render each candle column
+    metrics.visibleCandles.forEach((candle, idx) => {
+      const fpX = layout.getFootprintX(idx, metrics);
+      const totalFpW = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
+      const cellX = fpX;
+      const cellW = totalFpW;
+      const centerX = cellX + cellW / 2;
+      const showValues = cellW >= 40;
+
+      let totalAsk = 0, totalBid = 0;
+      candle.levels.forEach(l => { totalAsk += l.askVolume; totalBid += l.bidVolume; });
+      const delta = candle.totalDelta;
+      const volume = candle.totalVolume;
+
+      const isNarrowCell = cellW < 60;
+      const fontSize = isNarrowCell ? 7 : 8;
+      const formatVal = isNarrowCell
+        ? (v: number) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(Math.round(v))
+        : formatVolCluster;
+
+      // Clip to cell
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cellX, panelY, cellW, panelHeight);
+      ctx.clip();
+
+      rows.forEach(({ type }, i) => {
+        const rowY = panelY + rowH * i;
+
+        if (!showValues) {
+          // Color-only mode
+          if (type === 'ask') {
+            ctx.fillStyle = askColor;
+            ctx.globalAlpha = 0.15 + (totalAsk / maxAsk) * 0.55;
+            ctx.fillRect(cellX + 1, rowY + 1, cellW - 2, rowH - 1);
+            ctx.globalAlpha = 1;
+          } else if (type === 'bid') {
+            ctx.fillStyle = bidColor;
+            ctx.globalAlpha = 0.15 + (totalBid / maxBid) * 0.55;
+            ctx.fillRect(cellX + 1, rowY + 1, cellW - 2, rowH - 1);
+            ctx.globalAlpha = 1;
+          } else if (type === 'delta') {
+            const intensity = Math.abs(delta) / maxDelta;
+            const baseOp = colors.clusterDeltaOpacity ?? 0.35;
+            ctx.fillStyle = delta >= 0
+              ? (colors.clusterDeltaPositive ?? colors.deltaPositive)
+              : (colors.clusterDeltaNegative ?? colors.deltaNegative);
+            ctx.globalAlpha = baseOp * 0.5 + intensity * baseOp;
+            ctx.fillRect(cellX + 1, rowY + 1, cellW - 2, rowH - 1);
+            ctx.globalAlpha = 1;
+          } else if (type === 'vol') {
+            ctx.fillStyle = '#787882';
+            ctx.globalAlpha = 0.15 + (volume / maxVolume) * 0.45;
+            ctx.fillRect(cellX + 1, rowY + 1, cellW - 2, rowH - 1);
+            ctx.globalAlpha = 1;
+          }
+          return;
+        }
+
+        // Values mode
+        ctx.font = `${fontSize}px "${font}", "Monaco", monospace`;
+        ctx.textAlign = 'center';
+
+        if (type === 'time') {
+          const date = new Date(candle.time * 1000);
+          const isHourBoundary = date.getMinutes() === 0 && date.getSeconds() === 0;
+          if (isHourBoundary) {
+            ctx.fillStyle = 'rgba(100, 150, 200, 0.15)';
+            ctx.fillRect(cellX, rowY, cellW, rowH);
+          }
+          if (formatTimeFn) {
+            const timeLabel = formatTimeFn(candle.time, 'time');
+            ctx.font = isHourBoundary
+              ? `bold 8px "${font}", monospace`
+              : `8px "${font}", monospace`;
+            ctx.fillStyle = isHourBoundary ? (colors.textPrimary ?? '#e0e0e0') : textColor;
+            ctx.fillText(timeLabel, centerX, rowY + rowH - 4);
+          }
+        } else if (type === 'ask') {
+          // Delta background for ask cell
+          ctx.fillStyle = askColor;
+          ctx.fillText(formatVal(totalAsk), centerX, rowY + rowH - 4);
+        } else if (type === 'bid') {
+          ctx.fillStyle = bidColor;
+          ctx.fillText(formatVal(totalBid), centerX, rowY + rowH - 4);
+        } else if (type === 'delta') {
+          const deltaIntensity = Math.min(1, Math.abs(delta) / Math.max(1, volume) * 2);
+          const deltaOp = (colors.clusterDeltaOpacity ?? 0.35) * deltaIntensity;
+          if (delta !== 0) {
+            ctx.fillStyle = delta > 0
+              ? (colors.clusterDeltaPositive ?? colors.deltaPositive)
+              : (colors.clusterDeltaNegative ?? colors.deltaNegative);
+            ctx.globalAlpha = deltaOp;
+            ctx.fillRect(cellX + 1, rowY + 1, cellW - 2, rowH - 1);
+            ctx.globalAlpha = 1;
+          }
+          ctx.fillStyle = delta >= 0 ? colors.deltaPositive : colors.deltaNegative;
+          ctx.font = `bold ${fontSize}px "${font}", "Monaco", monospace`;
+          ctx.fillText(formatVal(delta), centerX, rowY + rowH - 4);
+        } else if (type === 'vol') {
+          ctx.fillStyle = textColor;
+          ctx.font = `${fontSize}px "${font}", "Monaco", monospace`;
+          ctx.fillText(formatVal(volume), centerX, rowY + rowH - 4);
+        }
+
+        // Vertical cell separator
+        ctx.strokeStyle = gridColor;
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(cellX + cellW, rowY);
+        ctx.lineTo(cellX + cellW, rowY + rowH);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+
+      ctx.restore();
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

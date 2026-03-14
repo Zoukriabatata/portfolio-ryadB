@@ -1509,7 +1509,9 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       ctx.restore();
     }
 
-    // Render candles — modular renderer with single-pass cells + cached string formatting
+    // ═══════════════════════════════════════════════════════════════
+    // CHART ENGINE — Layer 1: FootprintEngine (candles, POC, imbalances)
+    // ═══════════════════════════════════════════════════════════════
     const fpRenderer = getFootprintRenderer();
     if (isFootprintMode) {
       fpRenderer.renderFootprintCandles({
@@ -1577,6 +1579,10 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     // MODULAR RENDERING — Uses cached profile data (single pass)
     // ═══════════════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════════════
+    // CHART ENGINE — Layer 2: AveragePriceEngine (VWAP/TWAP + bubbles)
+    // ═══════════════════════════════════════════════════════════════
+
     // Volume Bubbles (rendered behind indicators)
     if (features.showVolumeBubbles && metrics.visibleCandles.length > 0) {
       fpRenderer.renderVolumeBubbles(ctx, layout, metrics, colors, features, fpWidth, isFootprintMode);
@@ -1584,6 +1590,10 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
     // VWAP/TWAP lines
     fpRenderer.renderVWAPTWAP(ctx, layout, metrics, features, ohlcWidth, fpWidth);
+
+    // ═══════════════════════════════════════════════════════════════
+    // CHART ENGINE — Layer 3: ProfileEngine (delta/volume/TPO profiles)
+    // ═══════════════════════════════════════════════════════════════
 
     // Compute profile caches once (shared by delta profile + volume profile)
     const profileCaches = fpRenderer.getProfileCaches(candles, metrics);
@@ -1673,12 +1683,15 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // CLUSTER STATIC PANEL - Bottom panel with Time/Ask/Bid/Delta/Volume
-    // Time markers integrated as first row
+    // CHART ENGINE — Layer 4: OrderflowEngine (CVD, Cluster Stat, DOM)
     // ═══════════════════════════════════════════════════════════════
-    const clusterRowH = 16; // Height per row (compact)
-    const numRows = features.showHourMarkers ? 5 : 4; // Time + Ask/Bid/Delta/Volume
-    const clusterStaticHeight = features.showClusterStatic ? (clusterRowH * numRows + 4) : 0;
+    const clst = settings.clusterStatConfig;
+    const clusterEnabled = clst ? clst.enabled : features.showClusterStatic;
+    const clusterRowH = clst?.rowHeight ?? 16;
+    const clusterNumRows = clusterEnabled
+      ? [clst?.showTime ?? features.showHourMarkers, clst?.showAsks ?? true, clst?.showBids ?? true, clst?.showDelta ?? true, clst?.showVolume ?? true].filter(Boolean).length
+      : 0;
+    const clusterStaticHeight = clusterEnabled ? (clusterRowH * clusterNumRows + 4) : 0;
     const cvdEnabled = settings.cvdConfig ? settings.cvdConfig.enabled : features.showCVDPanel;
     const cvdPanelH = cvdEnabled ? (settings.cvdConfig?.panelHeight || features.cvdPanelHeight || 70) : 0;
     const footerHeight = clusterStaticHeight + cvdPanelH + 6;
@@ -1696,222 +1709,15 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     ctx.lineTo(width, footerY);
     ctx.stroke();
 
-    if (features.showClusterStatic && metrics.visibleCandles.length > 0) {
-      const labelWidth = 50; // Width for row labels
-      const clusterY = footerY + 2;
-      const visibleCount = metrics.visibleCandles.length;
-
-      // Calculate cell width to determine display mode
-      const sampleFpX = layout.getFootprintX(0, metrics);
-      const sampleFpX2 = metrics.visibleCandles.length > 1 ? layout.getFootprintX(1, metrics) : sampleFpX + fpWidth;
-      const cellWidth = sampleFpX2 - sampleFpX;
-
-      // Determine display mode based on cell width (more reliable than candle count)
-      // showValues when cell is wide enough for text (~40px minimum)
-      const showValues = cellWidth >= 40;
-
-      // Row labels
-      const rowLabels = features.showHourMarkers ? ['Time', 'Ask', 'Bid', 'Delta', 'Vol'] : ['Ask', 'Bid', 'Delta', 'Vol'];
-      ctx.font = '9px "Consolas", "Monaco", monospace';
-      ctx.textAlign = 'left';
-
-      // Row labels background
-      ctx.fillStyle = colors.background;
-      ctx.fillRect(0, clusterY, labelWidth, clusterRowH * numRows);
-
-      rowLabels.forEach((label, i) => {
-        ctx.fillStyle = colors.textMuted;
-        ctx.fillText(label, 4, clusterY + clusterRowH * i + 11);
-
-        // Row separator
-        ctx.strokeStyle = colors.gridColor;
-        ctx.globalAlpha = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(0, clusterY + clusterRowH * (i + 1));
-        ctx.lineTo(width, clusterY + clusterRowH * (i + 1));
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      });
-
-      // Vertical separator after labels
-      ctx.strokeStyle = colors.gridColor;
-      ctx.beginPath();
-      ctx.moveTo(labelWidth, clusterY);
-      ctx.lineTo(labelWidth, clusterY + clusterRowH * numRows);
-      ctx.stroke();
-
-      // Calculate max values for color normalization
-      let maxAsk = 1, maxBid = 1, maxDelta = 1, maxVolume = 1;
-      metrics.visibleCandles.forEach(candle => {
-        let totalAsk = 0, totalBid = 0;
-        candle.levels.forEach(level => {
-          totalAsk += level.askVolume;
-          totalBid += level.bidVolume;
-        });
-        maxAsk = Math.max(maxAsk, totalAsk);
-        maxBid = Math.max(maxBid, totalBid);
-        maxDelta = Math.max(maxDelta, Math.abs(candle.totalDelta));
-        maxVolume = Math.max(maxVolume, candle.totalVolume);
-      });
-
-      // Row offsets (different if time row is included)
-      const timeRowOffset = features.showHourMarkers ? 0 : -1;
-      const askRowY = clusterY + clusterRowH * (1 + timeRowOffset);
-      const bidRowY = clusterY + clusterRowH * (2 + timeRowOffset);
-      const deltaRowY = clusterY + clusterRowH * (3 + timeRowOffset);
-      const volRowY = clusterY + clusterRowH * (4 + timeRowOffset);
-
-      // Render cluster data for each candle
-      metrics.visibleCandles.forEach((candle, idx) => {
-        const fpX = layout.getFootprintX(idx, metrics);
-        const totalFpW = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
-        const cellX = fpX;
-        const cellW = totalFpW;
-        const centerX = cellX + cellW / 2;
-
-        // Calculate totals for this candle
-        let totalAsk = 0;
-        let totalBid = 0;
-        candle.levels.forEach(level => {
-          totalAsk += level.askVolume;
-          totalBid += level.bidVolume;
-        });
-        const delta = candle.totalDelta;
-        const volume = candle.totalVolume;
-
-        // Time row (if enabled) - FIXED: Uses timezone store for formatting
-        if (features.showHourMarkers) {
-          const date = new Date(candle.time * 1000);
-          const isHourBoundary = date.getMinutes() === 0 && date.getSeconds() === 0;
-
-          // Time row background for hour boundaries
-          if (isHourBoundary) {
-            ctx.fillStyle = 'rgba(100, 150, 200, 0.15)';
-            ctx.fillRect(cellX, clusterY, cellW, clusterRowH);
-          }
-
-          if (showValues) {
-            // Show time text - use timezone-aware formatting
-            const timeLabel = formatTime(candle.time, 'time');
-            ctx.font = isHourBoundary ? 'bold 8px "Consolas", monospace' : '8px "Consolas", monospace';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = isHourBoundary ? colors.textPrimary : colors.textMuted;
-            ctx.fillText(timeLabel, centerX, clusterY + 11);
-          }
-        }
-
-        // Cell padding to prevent overlap with borders
-        const cellPadding = 1;
-        const paddedCellX = cellX + cellPadding;
-        const paddedCellW = Math.max(1, cellW - cellPadding * 2);
-        const paddedRowH = clusterRowH - 1;
-
-        // FIXED: Clip all cell rendering to prevent overlap
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(cellX, clusterY, cellW, clusterRowH * numRows);
-        ctx.clip();
-
-        if (showValues) {
-          // ═══════════════════════════════════════════════════════════════
-          // VALUES MODE - Show numbers when cells are wide enough
-          // ═══════════════════════════════════════════════════════════════
-
-          // Delta row background color - using cluster delta colors from settings
-          const deltaIntensity = Math.min(1, Math.abs(delta) / Math.max(1, volume) * 2);
-          const deltaOpacity = (colors.clusterDeltaOpacity || 0.35) * deltaIntensity;
-          if (delta > 0) {
-            ctx.fillStyle = colors.clusterDeltaPositive || colors.deltaPositive;
-            ctx.globalAlpha = deltaOpacity;
-          } else if (delta < 0) {
-            ctx.fillStyle = colors.clusterDeltaNegative || colors.deltaNegative;
-            ctx.globalAlpha = deltaOpacity;
-          }
-          if (delta !== 0) {
-            ctx.fillRect(paddedCellX, deltaRowY + 1, paddedCellW, paddedRowH);
-            ctx.globalAlpha = 1;
-          }
-
-          // Draw vertical separator
-          ctx.strokeStyle = colors.gridColor;
-          ctx.globalAlpha = 0.4;
-          ctx.beginPath();
-          ctx.moveTo(cellX + cellW, clusterY);
-          ctx.lineTo(cellX + cellW, clusterY + clusterRowH * numRows);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-
-          // FIXED: Use smaller font when cells are narrow, adaptive sizing
-          const isNarrowCell = cellW < 60;
-          const fontSize = isNarrowCell ? 7 : 8;
-          ctx.font = `${fontSize}px "Consolas", "Monaco", monospace`;
-          ctx.textAlign = 'center';
-
-          // FIXED: Use abbreviated format for narrow cells
-          const formatVal = isNarrowCell
-            ? (v: number) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(Math.round(v))
-            : formatVolCluster;
-
-          // Ask row
-          ctx.fillStyle = colors.askTextColor;
-          ctx.fillText(formatVal(totalAsk), centerX, askRowY + 11);
-
-          // Bid row
-          ctx.fillStyle = colors.bidTextColor;
-          ctx.fillText(formatVal(totalBid), centerX, bidRowY + 11);
-
-          // Delta row
-          ctx.fillStyle = delta >= 0 ? colors.deltaPositive : colors.deltaNegative;
-          ctx.font = `bold ${fontSize}px "Consolas", "Monaco", monospace`;
-          ctx.fillText(formatVal(delta), centerX, deltaRowY + 11);
-
-          // Volume row
-          ctx.fillStyle = colors.textMuted;
-          ctx.font = `${fontSize}px "Consolas", "Monaco", monospace`;
-          ctx.fillText(formatVal(volume), centerX, volRowY + 11);
-
-        } else {
-          // ═══════════════════════════════════════════════════════════════
-          // COLORS MODE - Show colored cells only (no text)
-          // ═══════════════════════════════════════════════════════════════
-
-          // Ask row - green intensity
-          const askIntensity = totalAsk / maxAsk;
-          ctx.fillStyle = colors.askColor;
-          ctx.globalAlpha = 0.15 + askIntensity * 0.55;
-          ctx.fillRect(paddedCellX, askRowY + 1, paddedCellW, paddedRowH);
-          ctx.globalAlpha = 1;
-
-          // Bid row - red intensity
-          const bidIntensity = totalBid / maxBid;
-          ctx.fillStyle = colors.bidColor;
-          ctx.globalAlpha = 0.15 + bidIntensity * 0.55;
-          ctx.fillRect(paddedCellX, bidRowY + 1, paddedCellW, paddedRowH);
-          ctx.globalAlpha = 1;
-
-          // Delta row - green/red based on sign with cluster delta colors
-          const deltaIntensity = Math.abs(delta) / maxDelta;
-          const baseOpacity = colors.clusterDeltaOpacity || 0.35;
-          if (delta >= 0) {
-            ctx.fillStyle = colors.clusterDeltaPositive || colors.deltaPositive;
-          } else {
-            ctx.fillStyle = colors.clusterDeltaNegative || colors.deltaNegative;
-          }
-          ctx.globalAlpha = baseOpacity * 0.5 + deltaIntensity * baseOpacity;
-          ctx.fillRect(paddedCellX, deltaRowY + 1, paddedCellW, paddedRowH);
-          ctx.globalAlpha = 1;
-
-          // Volume row - gray intensity
-          const volIntensity = volume / maxVolume;
-          ctx.fillStyle = '#787882';
-          ctx.globalAlpha = 0.15 + volIntensity * 0.45;
-          ctx.fillRect(paddedCellX, volRowY + 1, paddedCellW, paddedRowH);
-          ctx.globalAlpha = 1;
-        }
-
-        // FIXED: Restore clipping state
-        ctx.restore();
-      });
+    // Cluster Statistic panel
+    if (clusterEnabled && metrics.visibleCandles.length > 0) {
+      fpRenderer.renderClusterStatPanel(
+        ctx, layout, metrics, features, colors,
+        width, footerY + 2,
+        ohlcWidth, fpWidth,
+        settings.clusterStatConfig,
+        formatTime,
+      );
     }
 
     // CVD Oscillator Panel
