@@ -39,11 +39,12 @@ const C = {
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
-const PRICE_W = 68;
-const TIME_H  = 22;
-const CVD_H   = 54;
-const HDR_H   = 30;
-const FONT    = '"Consolas","Monaco",monospace';
+const PRICE_W   = 68;
+const SESSION_W = 72;   // daily session footprint profile strip
+const TIME_H    = 22;
+const CVD_H     = 54;
+const HDR_H     = 30;
+const FONT      = '"Consolas","Monaco",monospace';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -224,12 +225,13 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     const { candleW, rowH, offsetX } = stateRef.current;
     const candles = candlesRef.current;
 
-    const chartX = 0;
-    const chartY = HDR_H;
-    const chartW = W - PRICE_W;
-    const chartH = H - HDR_H - CVD_H - TIME_H;
-    const cvdY   = HDR_H + chartH;
-    const timeY  = cvdY + CVD_H;
+    const chartX    = 0;
+    const chartY    = HDR_H;
+    const chartW    = W - PRICE_W - SESSION_W;
+    const chartH    = H - HDR_H - CVD_H - TIME_H;
+    const cvdY      = HDR_H + chartH;
+    const timeY     = cvdY + CVD_H;
+    const sessionX  = chartW;   // session profile starts right after chart area
 
     // ── Background ──────────────────────────────────────────────────────────
     ctx.fillStyle = C.bg;
@@ -426,6 +428,27 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     // ── VWAP ─────────────────────────────────────────────────────────────────
     renderVWAP(ctx, candles, firstIdx, lastIdx, offsetX, candleW, chartY, chartH, priceMin, pRange, chartW);
 
+    // ── Session profile ───────────────────────────────────────────────────────
+    // Find the last session start, aggregate bid/ask from there to end
+    let sessionStartIdx = 0;
+    for (let i = candles.length - 1; i >= 1; i--) {
+      if (candles[i].sessionStart) { sessionStartIdx = i; break; }
+    }
+    const sessionBid = new Map<number, number>();
+    const sessionAsk = new Map<number, number>();
+    for (let i = sessionStartIdx; i < candles.length; i++) {
+      for (const lv of candles[i].levels) {
+        sessionBid.set(lv.price, (sessionBid.get(lv.price) ?? 0) + lv.bidVol);
+        sessionAsk.set(lv.price, (sessionAsk.get(lv.price) ?? 0) + lv.askVol);
+      }
+    }
+    let sessionPOC = 0; let maxSessionVol = 0;
+    sessionBid.forEach((bid, price) => {
+      const total = bid + (sessionAsk.get(price) ?? 0);
+      if (total > maxSessionVol) { maxSessionVol = total; sessionPOC = price; }
+    });
+    renderSessionProfile(ctx, sessionX, chartY, SESSION_W, chartH, sessionBid, sessionAsk, sessionPOC, priceMin, pRange, tickSize, toY);
+
     // ── Price scale ───────────────────────────────────────────────────────────
     renderPriceScale(ctx, W, chartY, chartH, gridStart, gridStep, priceMax, toY, tickSize, priceMin, pRange, domBidsRef.current, domAsksRef.current);
 
@@ -502,6 +525,91 @@ export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }
     ctx.textAlign  = 'left';
     ctx.fillText('VWAP', Math.min(last.x + 4, chartW - 36), last.y - 3);
     ctx.globalAlpha = 1;
+  }
+
+  // ─── Session profile ─────────────────────────────────────────────────────────
+
+  function renderSessionProfile(
+    ctx: CanvasRenderingContext2D,
+    sx: number, chartY: number, sw: number, chartH: number,
+    bid: Map<number, number>, ask: Map<number, number>,
+    poc: number,
+    priceMin: number, pRange: number, tick: number,
+    toY: (p: number) => number,
+  ) {
+    // Background + borders
+    ctx.fillStyle = C.surface;
+    ctx.fillRect(sx, chartY, sw, chartH);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(sx, chartY); ctx.lineTo(sx, chartY + chartH);
+    ctx.moveTo(sx + sw, chartY); ctx.lineTo(sx + sw, chartY + chartH);
+    ctx.stroke();
+
+    // Title
+    ctx.font      = `bold 7px ${FONT}`;
+    ctx.fillStyle = C.textMuted;
+    ctx.textAlign = 'center';
+    ctx.fillText('SESSION', sx + sw / 2, chartY + 10);
+
+    // Cell height for one tick
+    const cellH   = Math.max(2, (tick / pRange) * chartH);
+    const halfCell = cellH / 2;
+    const barMaxW  = sw - 2;
+
+    // Max volume for normalization
+    let maxVol = 1;
+    bid.forEach((v, p) => { if (p >= priceMin && p <= priceMin + pRange) maxVol = Math.max(maxVol, v + (ask.get(p) ?? 0)); });
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(sx, chartY, sw, chartH);
+    ctx.clip();
+
+    bid.forEach((bidVol, price) => {
+      const askVol = ask.get(price) ?? 0;
+      const total  = bidVol + askVol;
+      const y      = toY(price);
+      if (y < chartY || y > chartY + chartH) return;
+
+      const isPOC  = price === poc;
+      const bidW   = Math.max(1, (bidVol / maxVol) * barMaxW);
+      const askW   = Math.max(1, (askVol / maxVol) * barMaxW);
+      const barH   = Math.max(2, cellH - 1);
+
+      // Bid bar — left → right
+      ctx.fillStyle   = C.bid;
+      ctx.globalAlpha = isPOC ? 0.65 : 0.42;
+      ctx.fillRect(sx + 1, y - halfCell, bidW, barH);
+
+      // Ask bar — right → left
+      ctx.fillStyle   = C.ask;
+      ctx.globalAlpha = isPOC ? 0.65 : 0.42;
+      ctx.fillRect(sx + sw - 1 - askW, y - halfCell, askW, barH);
+
+      ctx.globalAlpha = 1;
+
+      // POC gold line
+      if (isPOC) {
+        ctx.fillStyle   = C.poc;
+        ctx.globalAlpha = 0.90;
+        ctx.fillRect(sx + 1, y + halfCell - 1.5, sw - 2, 1.5);
+        ctx.globalAlpha = 1;
+      }
+
+      // Volume text in wide cells
+      if (cellH >= 9 && sw >= 56) {
+        const fs = Math.min(8, cellH - 2);
+        const ty = y - halfCell + cellH * 0.5 + fs * 0.38;
+        ctx.font      = `${fs}px ${FONT}`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = isPOC ? C.poc : C.textMuted;
+        ctx.fillText(fmtVol(total), sx + sw / 2, ty);
+      }
+    });
+
+    ctx.restore();
   }
 
   // ─── Price scale ─────────────────────────────────────────────────────────────
