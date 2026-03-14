@@ -68,7 +68,7 @@ import { useAutoTrackTrades } from '@/hooks/useAutoTrackTrades';
 // Only `display` toggles — no unmount/remount, no data loss.
 // ============================================================
 
-const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility', '/bias', '/flow'] as const;
+const CHART_ROUTES = ['/live', '/footprint', '/footprintTEST', '/liquidity', '/gex', '/volatility', '/bias', '/flow'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
 function ChartLoadingFallback({ label }: { label: string }) {
@@ -119,6 +119,10 @@ const FootprintPageContent = dynamic(() => import('@/components/pages/FootprintP
   ssr: false,
   loading: () => <ChartLoadingFallback label="Footprint" />,
 });
+const FootprintTESTPageContent = dynamic(() => import('@/components/pages/FootprintTESTPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="FootprintTEST" />,
+});
 const LiquidityPageContent = dynamic(() => import('@/components/pages/LiquidityPageContent'), {
   ssr: false,
   loading: () => <ChartLoadingFallback label="Heatmap" />,
@@ -143,6 +147,7 @@ const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
   '/footprint': FootprintPageContent,
+  '/footprintTEST': FootprintTESTPageContent,
   '/liquidity': LiquidityPageContent,
   '/gex': GEXPageContent,
   '/volatility': VolatilityPageContent,
