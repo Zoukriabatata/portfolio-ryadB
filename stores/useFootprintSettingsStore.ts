@@ -180,6 +180,137 @@ export interface FootprintFeatures {
   // Cluster filters — hide noise below threshold
   clusterMinVolume: number;          // 0 = show all
   clusterMinTrades: number;          // 0 = show all
+
+  // ── VWAP Advanced (full ATAS spec) ────────────────────────────────────────
+  vwapPeriod: 'daily' | 'weekly' | 'monthly' | 'anchored' | 'custom';
+  vwapSource: 'hlc3' | 'hl2' | 'close' | 'ohlc4' | 'open';
+  vwapVolumeType: 'total' | 'bid' | 'ask';
+  vwapColoredDirection: boolean;
+  vwapBullishColor: string;
+  vwapBearishColor: string;
+  vwapSessionStartHour: number;
+  vwapSessionStartMinute: number;
+  vwapSessionEndHour: number;
+  vwapSessionEndMinute: number;
+  vwapShowFirstPartialPeriod: boolean;
+  vwapSplineTension: number;         // 0-1, default 0.4
+  vwapShowBand1: boolean;
+  vwapShowBand2: boolean;
+  vwapShowBand3: boolean;
+  vwapBandMult1: number;             // default 1.0
+  vwapBandMult2: number;             // default 2.0
+  vwapBandMult3: number;             // default 3.0
+  vwapBand1Color: string;
+  vwapBand2Color: string;
+  vwapBand3Color: string;
+  vwapBandLineWidth: number;
+  vwapShowFills: boolean;
+  vwapFillOpacityInner: number;
+  vwapFillOpacityMiddle: number;
+  vwapFillOpacityOuter: number;
+  twapPeriodSeconds: number;         // TWAP granularity, default 60
+}
+
+// ── CVD Config (ATAS-grade) ────────────────────────────────────────────────
+
+export interface CVDConfig {
+  enabled: boolean;
+  panelHeight: number;               // 40-150px
+  // Rows
+  showAsks: boolean;
+  showBids: boolean;
+  showDelta: boolean;
+  showDeltaVolume: boolean;
+  showSessionDelta: boolean;
+  showSessionDeltaVolume: boolean;
+  showVolume: boolean;
+  showVolumePerSecond: boolean;
+  showSessionVolume: boolean;
+  showTradesCount: boolean;
+  showTime: boolean;
+  showDuration: boolean;
+  // Visualization
+  backgroundColor: string;
+  gridColor: string;
+  volumeColor: string;
+  askColor: string;
+  bidColor: string;
+  textColor: string;
+  font: string;
+  centerAlign: boolean;
+  headerColor: string;
+  hideHeaders: boolean;
+  // Alerts
+  volumeAlertEnabled: boolean;
+  volumeAlertThreshold: number;
+  deltaAlertEnabled: boolean;
+  deltaAlertThreshold: number;
+}
+
+// ── Cluster Statistic Config (ATAS-grade) ─────────────────────────────────
+
+export interface ClusterStatConfig {
+  enabled: boolean;
+  rowHeight: number;                 // 12-24px
+  // Rows
+  showAsks: boolean;
+  showBids: boolean;
+  showDelta: boolean;
+  showDeltaVolume: boolean;
+  showSessionDelta: boolean;
+  showSessionDeltaVolume: boolean;
+  showVolume: boolean;
+  showVolumePerSecond: boolean;
+  showSessionVolume: boolean;
+  showTradesCount: boolean;
+  showTime: boolean;
+  showDuration: boolean;
+  // Visualization
+  backgroundColor: string;
+  gridColor: string;
+  volumeColor: string;
+  askColor: string;
+  bidColor: string;
+  textColor: string;
+  font: string;
+  centerAlign: boolean;
+  headerColor: string;
+  hideHeaders: boolean;
+  // Alerts
+  volumeAlertEnabled: boolean;
+  volumeAlertThreshold: number;
+  deltaAlertEnabled: boolean;
+  deltaAlertThreshold: number;
+}
+
+// ── DOM Config (ATAS-grade) ────────────────────────────────────────────────
+
+export interface DOMConfig {
+  enabled: boolean;
+  visualMode: 'levels' | 'heatmap';
+  useAutoSize: boolean;
+  proportionVolume: boolean;
+  width: number;                     // px
+  rightToLeft: boolean;
+  // Levels Mode colors
+  bidRowColor: string;
+  bidTextColor: string;
+  askRowColor: string;
+  bidBackground: string;
+  askBackground: string;
+  bestBidBackground: string;
+  bestAskBackground: string;
+  // Cumulative Mode
+  cumulativeAskColor: string;
+  cumulativeBidColor: string;
+  showCumulativeValues: boolean;
+  // Filters
+  focusTicks: number;
+  showOnlyPersistent: boolean;
+  // Scale
+  useCustomScale: boolean;
+  customScale: number;
+  customHeightPerLevel: number;
 }
 
 // Passive Liquidity Settings (Simulation mode)
@@ -211,13 +342,16 @@ export interface FootprintSettings {
   features: FootprintFeatures;
   imbalance: ImbalanceSettings;
   passiveLiquidity: PassiveLiquiditySettings;
+  cvdConfig: CVDConfig;
+  clusterStatConfig: ClusterStatConfig;
+  domConfig: DOMConfig;
 
   // Layout
   footprintWidth: number;
   rowHeight: number;
   maxVisibleFootprints: number;
   deltaProfilePosition: 'left' | 'right';
-  candleGap: number; // Gap between candles for readability
+  candleGap: number;
 
   // Actions
   setColors: (colors: Partial<FootprintColors>) => void;
@@ -225,6 +359,9 @@ export interface FootprintSettings {
   setFeatures: (features: Partial<FootprintFeatures>) => void;
   setImbalance: (imbalance: Partial<ImbalanceSettings>) => void;
   setPassiveLiquidity: (settings: Partial<PassiveLiquiditySettings>) => void;
+  setCVDConfig: (c: Partial<CVDConfig>) => void;
+  setClusterStatConfig: (c: Partial<ClusterStatConfig>) => void;
+  setDOMConfig: (c: Partial<DOMConfig>) => void;
   setLayout: (layout: { footprintWidth?: number; rowHeight?: number; maxVisibleFootprints?: number; deltaProfilePosition?: 'left' | 'right'; candleGap?: number }) => void;
   resetToDefaults: () => void;
   exportSettings: () => string;
@@ -391,6 +528,121 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   icebergRepeatedPrints: 3,
   clusterMinVolume: 0,
   clusterMinTrades: 0,
+
+  // ── VWAP Advanced ─────────────────────────────────────────────────────────
+  vwapPeriod: 'daily' as const,
+  vwapSource: 'hlc3' as const,
+  vwapVolumeType: 'total' as const,
+  vwapColoredDirection: false,
+  vwapBullishColor: '#26a69a',
+  vwapBearishColor: '#ef5350',
+  vwapSessionStartHour: 0,
+  vwapSessionStartMinute: 0,
+  vwapSessionEndHour: 23,
+  vwapSessionEndMinute: 59,
+  vwapShowFirstPartialPeriod: true,
+  vwapSplineTension: 0.4,
+  vwapShowBand1: true,
+  vwapShowBand2: true,
+  vwapShowBand3: false,
+  vwapBandMult1: 1.0,
+  vwapBandMult2: 2.0,
+  vwapBandMult3: 3.0,
+  vwapBand1Color: '#e2b93b',
+  vwapBand2Color: '#e2b93b',
+  vwapBand3Color: '#e2b93b',
+  vwapBandLineWidth: 1,
+  vwapShowFills: true,
+  vwapFillOpacityInner: 0.08,
+  vwapFillOpacityMiddle: 0.04,
+  vwapFillOpacityOuter: 0.02,
+  twapPeriodSeconds: 60,
+};
+
+const DEFAULT_CVD_CONFIG: CVDConfig = {
+  enabled: false,
+  panelHeight: 70,
+  showAsks: true,
+  showBids: true,
+  showDelta: true,
+  showDeltaVolume: false,
+  showSessionDelta: false,
+  showSessionDeltaVolume: false,
+  showVolume: false,
+  showVolumePerSecond: false,
+  showSessionVolume: false,
+  showTradesCount: false,
+  showTime: false,
+  showDuration: false,
+  backgroundColor: '#0a0a0f',
+  gridColor: '#1e1e1e',
+  volumeColor: '#5eaeff',
+  askColor: '#26a69a',
+  bidColor: '#ef5350',
+  textColor: '#e0e0e0',
+  font: 'Consolas',
+  centerAlign: true,
+  headerColor: '#9e9e9e',
+  hideHeaders: false,
+  volumeAlertEnabled: false,
+  volumeAlertThreshold: 0,
+  deltaAlertEnabled: false,
+  deltaAlertThreshold: 0,
+};
+
+const DEFAULT_CLUSTER_STAT_CONFIG: ClusterStatConfig = {
+  enabled: true,
+  rowHeight: 16,
+  showAsks: true,
+  showBids: true,
+  showDelta: true,
+  showDeltaVolume: false,
+  showSessionDelta: false,
+  showSessionDeltaVolume: false,
+  showVolume: true,
+  showVolumePerSecond: false,
+  showSessionVolume: false,
+  showTradesCount: false,
+  showTime: true,
+  showDuration: false,
+  backgroundColor: '#0a0a0f',
+  gridColor: '#1e1e1e',
+  volumeColor: '#5eaeff',
+  askColor: '#26a69a',
+  bidColor: '#ef5350',
+  textColor: '#e0e0e0',
+  font: 'Consolas',
+  centerAlign: true,
+  headerColor: '#9e9e9e',
+  hideHeaders: false,
+  volumeAlertEnabled: false,
+  volumeAlertThreshold: 0,
+  deltaAlertEnabled: false,
+  deltaAlertThreshold: 0,
+};
+
+const DEFAULT_DOM_CONFIG: DOMConfig = {
+  enabled: true,
+  visualMode: 'levels',
+  useAutoSize: true,
+  proportionVolume: true,
+  width: 120,
+  rightToLeft: false,
+  bidRowColor: '#ef5350',
+  bidTextColor: '#f48fb1',
+  askRowColor: '#26a69a',
+  bidBackground: 'rgba(239,83,80,0.08)',
+  askBackground: 'rgba(38,166,154,0.08)',
+  bestBidBackground: 'rgba(239,83,80,0.20)',
+  bestAskBackground: 'rgba(38,166,154,0.20)',
+  cumulativeAskColor: '#26a69a',
+  cumulativeBidColor: '#ef5350',
+  showCumulativeValues: false,
+  focusTicks: 0,
+  showOnlyPersistent: true,
+  useCustomScale: false,
+  customScale: 1.0,
+  customHeightPerLevel: 16,
 };
 
 const DEFAULT_PASSIVE_LIQUIDITY: PassiveLiquiditySettings = {
@@ -425,6 +677,9 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
       features: DEFAULT_FEATURES,
       imbalance: DEFAULT_IMBALANCE,
       passiveLiquidity: DEFAULT_PASSIVE_LIQUIDITY,
+      cvdConfig: DEFAULT_CVD_CONFIG,
+      clusterStatConfig: DEFAULT_CLUSTER_STAT_CONFIG,
+      domConfig: DEFAULT_DOM_CONFIG,
 
       footprintWidth: 70,
       rowHeight: 16,
@@ -457,6 +712,21 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
           passiveLiquidity: { ...state.passiveLiquidity, ...settings },
         })),
 
+      setCVDConfig: (c) =>
+        set((state) => ({
+          cvdConfig: { ...state.cvdConfig, ...c },
+        })),
+
+      setClusterStatConfig: (c) =>
+        set((state) => ({
+          clusterStatConfig: { ...state.clusterStatConfig, ...c },
+        })),
+
+      setDOMConfig: (c) =>
+        set((state) => ({
+          domConfig: { ...state.domConfig, ...c },
+        })),
+
       setLayout: (layout) =>
         set((state) => ({
           ...state,
@@ -470,6 +740,9 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
           features: DEFAULT_FEATURES,
           imbalance: DEFAULT_IMBALANCE,
           passiveLiquidity: DEFAULT_PASSIVE_LIQUIDITY,
+          cvdConfig: DEFAULT_CVD_CONFIG,
+          clusterStatConfig: DEFAULT_CLUSTER_STAT_CONFIG,
+          domConfig: DEFAULT_DOM_CONFIG,
           footprintWidth: 70,
           rowHeight: 16,
           maxVisibleFootprints: 100,
@@ -522,73 +795,50 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
     }),
     {
       name: 'footprint-settings',
-      version: 6, // v6: Professional orderflow features (absorption, exhaustion, iceberg, volume profile mode)
+      version: 7, // v7: CVDConfig, ClusterStatConfig, DOMConfig, VWAP advanced fields
       partialize: (state) => ({
         colors: state.colors,
         fonts: state.fonts,
         features: state.features,
         imbalance: state.imbalance,
         passiveLiquidity: state.passiveLiquidity,
+        cvdConfig: state.cvdConfig,
+        clusterStatConfig: state.clusterStatConfig,
+        domConfig: state.domConfig,
         footprintWidth: state.footprintWidth,
         rowHeight: state.rowHeight,
         maxVisibleFootprints: state.maxVisibleFootprints,
         deltaProfilePosition: state.deltaProfilePosition,
         candleGap: state.candleGap,
       }),
-      // Migration function for version upgrades
       migrate: (persistedState: any, version: number) => {
-        // If stored version is older than current, migrate it
-        if (version < 6) {
+        if (version < 7) {
           const state = persistedState as Partial<FootprintSettings>;
           return {
             ...state,
-            features: {
-              ...DEFAULT_FEATURES,
-              ...(state?.features || {}),
-            },
-            colors: {
-              ...DEFAULT_COLORS,
-              ...(state?.colors || {}),
-            },
-            fonts: {
-              ...DEFAULT_FONTS,
-              ...(state?.fonts || {}),
-            },
+            features: { ...DEFAULT_FEATURES, ...(state?.features || {}) },
+            colors:   { ...DEFAULT_COLORS,   ...(state?.colors   || {}) },
+            fonts:    { ...DEFAULT_FONTS,     ...(state?.fonts    || {}) },
+            cvdConfig: DEFAULT_CVD_CONFIG,
+            clusterStatConfig: DEFAULT_CLUSTER_STAT_CONFIG,
+            domConfig: DEFAULT_DOM_CONFIG,
           };
         }
         return persistedState;
       },
-      // Merge stored state with defaults to handle new features
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<FootprintSettings>;
         return {
           ...currentState,
           ...persisted,
-          // Deep merge features to ensure new defaults are applied
-          features: {
-            ...DEFAULT_FEATURES,
-            ...(persisted?.features || {}),
-          },
-          // Deep merge colors
-          colors: {
-            ...DEFAULT_COLORS,
-            ...(persisted?.colors || {}),
-          },
-          // Deep merge fonts
-          fonts: {
-            ...DEFAULT_FONTS,
-            ...(persisted?.fonts || {}),
-          },
-          // Deep merge imbalance
-          imbalance: {
-            ...DEFAULT_IMBALANCE,
-            ...(persisted?.imbalance || {}),
-          },
-          // Deep merge passiveLiquidity
-          passiveLiquidity: {
-            ...DEFAULT_PASSIVE_LIQUIDITY,
-            ...(persisted?.passiveLiquidity || {}),
-          },
+          features:         { ...DEFAULT_FEATURES,          ...(persisted?.features          || {}) },
+          colors:           { ...DEFAULT_COLORS,            ...(persisted?.colors            || {}) },
+          fonts:            { ...DEFAULT_FONTS,             ...(persisted?.fonts             || {}) },
+          imbalance:        { ...DEFAULT_IMBALANCE,         ...(persisted?.imbalance         || {}) },
+          passiveLiquidity: { ...DEFAULT_PASSIVE_LIQUIDITY, ...(persisted?.passiveLiquidity  || {}) },
+          cvdConfig:        { ...DEFAULT_CVD_CONFIG,        ...(persisted?.cvdConfig         || {}) },
+          clusterStatConfig:{ ...DEFAULT_CLUSTER_STAT_CONFIG,...(persisted?.clusterStatConfig|| {}) },
+          domConfig:        { ...DEFAULT_DOM_CONFIG,        ...(persisted?.domConfig         || {}) },
         };
       },
     }

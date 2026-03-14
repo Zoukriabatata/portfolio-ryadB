@@ -716,7 +716,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                   <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border shadow-xl z-50 py-1" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
                     <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>Indicators</div>
                     {indicatorConfigs.map(ind => {
-                      const label = ind.type === 'SMA' || ind.type === 'EMA' ? `${ind.type} ${ind.params.period}` : ind.type === 'BollingerBands' ? 'Bollinger Bands' : ind.type;
+                      const label = ind.type;
                       return (
                         <div key={ind.id} className="flex items-center hover:bg-[var(--surface-hover)] transition-colors">
                           <button onClick={() => toggleIndicatorConfig(ind.id)} className="flex-1 flex items-center gap-2 px-3 py-1.5 text-xs" style={{ color: ind.enabled ? theme.colors.text : theme.colors.textMuted }}>

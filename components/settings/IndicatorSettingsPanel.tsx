@@ -3,21 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import { DEFAULT_INDICATORS } from '@/types/charts';
-import type { IndicatorConfig, IndicatorLineStyle, IndicatorSource } from '@/types/charts';
+import type { IndicatorConfig, IndicatorLineStyle } from '@/types/charts';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 
 import { INDICATOR_PRESETS } from '@/lib/utils/colorPresets';
 const COLOR_PRESETS = INDICATOR_PRESETS;
-
-const SOURCE_OPTIONS: { value: IndicatorSource; label: string }[] = [
-  { value: 'close', label: 'Close' },
-  { value: 'open', label: 'Open' },
-  { value: 'high', label: 'High' },
-  { value: 'low', label: 'Low' },
-  { value: 'hl2', label: 'HL/2' },
-  { value: 'hlc3', label: 'HLC/3' },
-  { value: 'ohlc4', label: 'OHLC/4' },
-];
 
 const LINE_STYLES: { value: IndicatorLineStyle; label: string; preview: string }[] = [
   { value: 'solid', label: 'Solide', preview: '━━━━' },
@@ -101,12 +91,7 @@ export default function IndicatorSettingsPanel({ indicatorId, onClose, position 
     }
   };
 
-  const label = indicator.type === 'SMA' || indicator.type === 'EMA'
-    ? `${indicator.type} (${indicator.params.period || 20})`
-    : indicator.type === 'BollingerBands' ? 'Bollinger Bands'
-    : indicator.type;
-
-  const hasSource = indicator.type === 'SMA' || indicator.type === 'EMA' || indicator.type === 'BollingerBands';
+  const label = indicator.type;
   const hasLineStyle = true;
 
   return (
@@ -225,84 +210,6 @@ export default function IndicatorSettingsPanel({ indicatorId, onClose, position 
             unit="%"
             onChange={(v) => updateStyle({ opacity: v / 100 })}
           />
-
-          {/* Source - for SMA/EMA/BB */}
-          {hasSource && (
-            <Section label="Source">
-              <div className="grid grid-cols-4 gap-1">
-                {SOURCE_OPTIONS.map(src => (
-                  <button
-                    key={src.value}
-                    onClick={() => updateStyle({ source: src.value })}
-                    className="py-1 rounded text-[9px] font-mono transition-all"
-                    style={{
-                      backgroundColor: (indicator.style.source || 'close') === src.value ? 'var(--primary)' : 'var(--background)',
-                      color: (indicator.style.source || 'close') === src.value ? '#fff' : 'var(--text-muted)',
-                      border: `1px solid ${(indicator.style.source || 'close') === src.value ? 'var(--primary)' : 'var(--border)'}`,
-                    }}
-                  >
-                    {src.label}
-                  </button>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          {/* Period - for SMA, EMA, BB */}
-          {(indicator.type === 'SMA' || indicator.type === 'EMA' || indicator.type === 'BollingerBands') && (
-            <>
-              <Slider
-                label="Periode"
-                value={indicator.params.period || 20}
-                min={2}
-                max={500}
-                step={1}
-                onChange={(v) => updateParams({ period: v })}
-              />
-              <div className="flex gap-1">
-                {(indicator.type === 'SMA' || indicator.type === 'EMA'
-                  ? [5, 9, 14, 21, 50, 100, 200]
-                  : [10, 15, 20, 25, 30]
-                ).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => updateParams({ period: p })}
-                    className="flex-1 py-0.5 rounded text-[9px] font-mono transition-colors"
-                    style={{
-                      backgroundColor: (indicator.params.period || 20) === p ? 'var(--primary)' : 'var(--background)',
-                      color: (indicator.params.period || 20) === p ? '#fff' : 'var(--text-muted)',
-                      border: `1px solid ${(indicator.params.period || 20) === p ? 'var(--primary)' : 'var(--border)'}`,
-                    }}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Bollinger StdDev + Fill */}
-          {indicator.type === 'BollingerBands' && (
-            <>
-              <Slider
-                label="Ecart type (σ)"
-                value={indicator.params.stdDev || 2}
-                min={0.5}
-                max={4}
-                step={0.5}
-                onChange={(v) => updateParams({ stdDev: v })}
-              />
-              <Slider
-                label="Remplissage bandes"
-                value={Math.round((indicator.style.fillOpacity ?? 0.05) * 100)}
-                min={0}
-                max={30}
-                step={1}
-                unit="%"
-                onChange={(v) => updateStyle({ fillOpacity: v / 100 })}
-              />
-            </>
-          )}
 
           {/* VWAP bands */}
           {indicator.type === 'VWAP' && (

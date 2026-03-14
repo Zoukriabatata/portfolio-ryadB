@@ -16,7 +16,7 @@ import { useTradingStore, type Position } from '@/stores/useTradingStore';
 import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import { getSoundManager } from '@/lib/audio/SoundManager';
-import { computeSMA, computeEMA, drawIndicatorLine, getSourceValues, lineStyleToDash } from '../utils/indicators';
+import { drawIndicatorLine, getSourceValues, lineStyleToDash } from '../utils/indicators';
 import { TOOL_TYPE_MAPPING } from '../constants/tools';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
@@ -683,38 +683,11 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
     const enabledIndicators = indicatorConfigsRef.current.filter(i => i.enabled);
     for (const indicator of enabledIndicators) {
-      // --- Line indicators (SMA, EMA, Bollinger, VWAP, TWAP) ---
-      const source = indicator.style.source || 'close';
-      const srcValues = getSourceValues(candles as { open: number; high: number; low: number; close: number }[], source);
       let values: number[] = [];
-      let upperBand: number[] | null = null;
-      let lowerBand: number[] | null = null;
-
-      const period = indicator.params.period || 20;
       const dash = lineStyleToDash(indicator.style.lineStyle);
       const opacity = indicator.style.opacity ?? 0.85;
 
-      if (indicator.type === 'SMA') {
-        values = computeSMA(srcValues, period);
-      } else if (indicator.type === 'EMA') {
-        values = computeEMA(srcValues, period);
-      } else if (indicator.type === 'BollingerBands') {
-        const stdDev = indicator.params.stdDev || 2;
-        const sma = computeSMA(srcValues, period);
-        values = sma;
-        upperBand = sma.map((v, i) => {
-          if (v === 0) return 0;
-          const slice = srcValues.slice(Math.max(0, i - period + 1), i + 1);
-          const std = Math.sqrt(slice.reduce((s, x) => s + (x - v) ** 2, 0) / slice.length);
-          return v + std * stdDev;
-        });
-        lowerBand = sma.map((v, i) => {
-          if (v === 0) return 0;
-          const slice = srcValues.slice(Math.max(0, i - period + 1), i + 1);
-          const std = Math.sqrt(slice.reduce((s, x) => s + (x - v) ** 2, 0) / slice.length);
-          return v - std * stdDev;
-        });
-      } else if (indicator.type === 'VWAP') {
+      if (indicator.type === 'VWAP') {
         // VWAP + optional standard deviation bands
         let cumTPV = 0, cumVol = 0, cumTP2V = 0;
         const vwapValues: number[] = [];
@@ -794,9 +767,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
           const lx = ((lastIdx - startIndex) / (endIndex - startIndex)) * chartWidth;
           const ly = ((priceMax - values[lastIdx]) / (priceMax - priceMin)) * chartHeight;
           if (lx > 0 && lx < chartWidth && ly > 0 && ly < chartHeight) {
-            const labelText = indicator.type === 'SMA' || indicator.type === 'EMA'
-              ? `${indicator.type}${indicator.params.period || 20}`
-              : indicator.type;
+            const labelText = indicator.type;
             ctx.save();
             ctx.font = 'bold 9px sans-serif';
             const tw = ctx.measureText(labelText).width;
@@ -813,32 +784,6 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
         }
       }
 
-      if (upperBand && lowerBand) {
-        const bbFill = indicator.style.fillOpacity ?? 0.05;
-        ctx.save();
-        ctx.globalAlpha = bbFill;
-        ctx.fillStyle = indicator.style.color;
-        ctx.beginPath();
-        let started = false;
-        for (let i = startIndex; i < Math.min(endIndex, upperBand.length); i++) {
-          if (upperBand[i] === 0) continue;
-          const x = ((i - startIndex) / (endIndex - startIndex)) * chartWidth;
-          const y = ((priceMax - upperBand[i]) / (priceMax - priceMin)) * chartHeight;
-          if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
-        }
-        for (let i = Math.min(endIndex, lowerBand.length) - 1; i >= startIndex; i--) {
-          if (lowerBand[i] === 0) continue;
-          const x = ((i - startIndex) / (endIndex - startIndex)) * chartWidth;
-          const y = ((priceMax - lowerBand[i]) / (priceMax - priceMin)) * chartHeight;
-          ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-
-        drawIndicatorLine(ctx, upperBand, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 1, [4, 3], opacity * 0.6);
-        drawIndicatorLine(ctx, lowerBand, candles, startIndex, endIndex, chartWidth, chartHeight, priceMin, priceMax, indicator.style.color, 1, [4, 3], opacity * 0.6);
-      }
     }
 
     // Restore clip

@@ -1679,7 +1679,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     const clusterRowH = 16; // Height per row (compact)
     const numRows = features.showHourMarkers ? 5 : 4; // Time + Ask/Bid/Delta/Volume
     const clusterStaticHeight = features.showClusterStatic ? (clusterRowH * numRows + 4) : 0;
-    const cvdPanelH = features.showCVDPanel ? (features.cvdPanelHeight || 70) : 0;
+    const cvdEnabled = settings.cvdConfig ? settings.cvdConfig.enabled : features.showCVDPanel;
+    const cvdPanelH = cvdEnabled ? (settings.cvdConfig?.panelHeight || features.cvdPanelHeight || 70) : 0;
     const footerHeight = clusterStaticHeight + cvdPanelH + 6;
     const footerY = height - footerHeight;
 
@@ -1914,12 +1915,13 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     }
 
     // CVD Oscillator Panel
-    if (features.showCVDPanel && cvdPanelH > 0) {
+    if (cvdEnabled && cvdPanelH > 0) {
       const cvdPanelY = footerY + clusterStaticHeight + 6;
       fpRenderer.renderCVDPanel(
         ctx, layout, metrics, features, colors,
         width, cvdPanelY - cvdPanelH, cvdPanelH,
         ohlcWidth, fpWidth,
+        settings.cvdConfig,
       );
     }
 

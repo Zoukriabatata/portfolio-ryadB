@@ -21,6 +21,9 @@ import {
   useFootprintSettingsStore,
   COLOR_PRESETS,
   THEME_LABELS,
+  type CVDConfig,
+  type ClusterStatConfig,
+  type DOMConfig,
 } from '@/stores/useFootprintSettingsStore';
 import { useCrosshairStore, type CrosshairLineStyle, type MagnetMode } from '@/stores/useCrosshairStore';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
@@ -359,6 +362,12 @@ export default function FootprintAdvancedSettings({
   const sf = (patch: Parameters<typeof s.setFeatures>[0]) => s.setFeatures(patch);
   const sc = (patch: Parameters<typeof s.setColors>[0]) => s.setColors(patch);
   const sl = (patch: Parameters<typeof s.setLayout>[0]) => s.setLayout(patch);
+  const cvd = s.cvdConfig;
+  const scd = (patch: Partial<CVDConfig>) => s.setCVDConfig(patch);
+  const clst = s.clusterStatConfig;
+  const sclst = (patch: Partial<ClusterStatConfig>) => s.setClusterStatConfig(patch);
+  const dom = s.domConfig;
+  const sdom = (patch: Partial<DOMConfig>) => s.setDOMConfig(patch);
 
   return (
     <div
@@ -719,12 +728,47 @@ export default function FootprintAdvancedSettings({
                 <Row label="Highlight Color"><InlineColorSwatch value={f.largeTradeColor ?? '#ffd700'} onChange={c => sf({ largeTradeColor: c })} /></Row>
               </Section>
 
-              {/* CVD Panel */}
+              {/* CVD Panel — full ATAS parameter set */}
               <Section title="Cumulative Delta (CVD)" accent="#22c55e" defaultOpen={false}
-                enabled={f.showCVDPanel} onToggle={v => sf({ showCVDPanel: v })} toggleAccent="emerald"
+                enabled={cvd.enabled} onToggle={v => scd({ enabled: v })} toggleAccent="emerald"
               >
-                <Slider label="Panel Height" value={f.cvdPanelHeight ?? 70} min={40} max={150} onChange={v => sf({ cvdPanelHeight: v })} fmt={v => `${v}px`} accent="emerald" />
-                <Row label="Line Color"><InlineColorSwatch value={f.cvdLineColor ?? '#22c55e'} onChange={c => sf({ cvdLineColor: c })} /></Row>
+                <Slider label="Panel Height" value={cvd.panelHeight} min={40} max={150} onChange={v => scd({ panelHeight: v })} fmt={v => `${v}px`} accent="emerald" />
+                <SepLabel>Rows</SepLabel>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <Row label="Ask"><Toggle value={cvd.showAsks} onChange={v => scd({ showAsks: v })} accent="emerald" /></Row>
+                  <Row label="Bid"><Toggle value={cvd.showBids} onChange={v => scd({ showBids: v })} accent="emerald" /></Row>
+                  <Row label="Delta"><Toggle value={cvd.showDelta} onChange={v => scd({ showDelta: v })} accent="emerald" /></Row>
+                  <Row label="Delta/Vol"><Toggle value={cvd.showDeltaVolume} onChange={v => scd({ showDeltaVolume: v })} accent="emerald" /></Row>
+                  <Row label="Session Delta"><Toggle value={cvd.showSessionDelta} onChange={v => scd({ showSessionDelta: v })} accent="emerald" /></Row>
+                  <Row label="Session Δ/Vol"><Toggle value={cvd.showSessionDeltaVolume} onChange={v => scd({ showSessionDeltaVolume: v })} accent="emerald" /></Row>
+                  <Row label="Volume"><Toggle value={cvd.showVolume} onChange={v => scd({ showVolume: v })} accent="emerald" /></Row>
+                  <Row label="Vol/sec"><Toggle value={cvd.showVolumePerSecond} onChange={v => scd({ showVolumePerSecond: v })} accent="emerald" /></Row>
+                  <Row label="Session Vol"><Toggle value={cvd.showSessionVolume} onChange={v => scd({ showSessionVolume: v })} accent="emerald" /></Row>
+                  <Row label="Trades"><Toggle value={cvd.showTradesCount} onChange={v => scd({ showTradesCount: v })} accent="emerald" /></Row>
+                  <Row label="Time"><Toggle value={cvd.showTime} onChange={v => scd({ showTime: v })} accent="emerald" /></Row>
+                  <Row label="Duration"><Toggle value={cvd.showDuration} onChange={v => scd({ showDuration: v })} accent="emerald" /></Row>
+                </div>
+                <SepLabel>Visualization</SepLabel>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <Row label="Background"><InlineColorSwatch value={cvd.backgroundColor} onChange={c => scd({ backgroundColor: c })} /></Row>
+                  <Row label="Grid"><InlineColorSwatch value={cvd.gridColor} onChange={c => scd({ gridColor: c })} /></Row>
+                  <Row label="Volume"><InlineColorSwatch value={cvd.volumeColor} onChange={c => scd({ volumeColor: c })} /></Row>
+                  <Row label="Ask"><InlineColorSwatch value={cvd.askColor} onChange={c => scd({ askColor: c })} /></Row>
+                  <Row label="Bid"><InlineColorSwatch value={cvd.bidColor} onChange={c => scd({ bidColor: c })} /></Row>
+                  <Row label="Text"><InlineColorSwatch value={cvd.textColor} onChange={c => scd({ textColor: c })} /></Row>
+                  <Row label="Header"><InlineColorSwatch value={cvd.headerColor} onChange={c => scd({ headerColor: c })} /></Row>
+                </div>
+                <Row label="Center Align"><Toggle value={cvd.centerAlign} onChange={v => scd({ centerAlign: v })} /></Row>
+                <Row label="Hide Headers"><Toggle value={cvd.hideHeaders} onChange={v => scd({ hideHeaders: v })} /></Row>
+                <SepLabel>Alerts</SepLabel>
+                <Row label="Volume Alert"><Toggle value={cvd.volumeAlertEnabled} onChange={v => scd({ volumeAlertEnabled: v })} accent="emerald" /></Row>
+                {cvd.volumeAlertEnabled && (
+                  <Slider label="Volume Threshold" value={cvd.volumeAlertThreshold} min={0} max={10000} step={100} onChange={v => scd({ volumeAlertThreshold: v })} accent="emerald" />
+                )}
+                <Row label="Delta Alert"><Toggle value={cvd.deltaAlertEnabled} onChange={v => scd({ deltaAlertEnabled: v })} accent="emerald" /></Row>
+                {cvd.deltaAlertEnabled && (
+                  <Slider label="Delta Threshold" value={cvd.deltaAlertThreshold} min={0} max={5000} step={50} onChange={v => scd({ deltaAlertThreshold: v })} accent="emerald" />
+                )}
               </Section>
 
               {/* Absorption Events (legacy toggle) */}
@@ -874,58 +918,132 @@ export default function FootprintAdvancedSettings({
                 Session benchmark prices — VWAP and TWAP anchored to the current trading session.
               </div>
 
-              {/* VWAP */}
+              {/* VWAP — full ATAS parameter set */}
               <Section title="VWAP — Volume Weighted Avg Price" accent="#f59e0b" defaultOpen
                 enabled={f.showVWAP !== false} onToggle={v => sf({ showVWAP: v })} toggleAccent="amber"
               >
-                <Row label="Color"><InlineColorSwatch value={f.vwapColor ?? '#e2b93b'} onChange={c => sf({ vwapColor: c })} /></Row>
+                {/* Calculation */}
+                <SepLabel>Calculation</SepLabel>
+                <div>
+                  <span className="text-[11px] text-[var(--text-muted)] block mb-1.5">Period</span>
+                  <BtnGroup
+                    options={[
+                      { value: 'daily',    label: 'Daily' },
+                      { value: 'weekly',   label: 'Weekly' },
+                      { value: 'monthly',  label: 'Monthly' },
+                      { value: 'anchored', label: 'Anchored' },
+                      { value: 'custom',   label: 'Custom' },
+                    ]}
+                    value={f.vwapPeriod ?? 'daily'}
+                    onChange={v => sf({ vwapPeriod: v as typeof f.vwapPeriod })}
+                    accent="amber"
+                  />
+                </div>
+                <div>
+                  <span className="text-[11px] text-[var(--text-muted)] block mb-1.5">Source</span>
+                  <BtnGroup
+                    options={[
+                      { value: 'hlc3',  label: 'HLC/3' },
+                      { value: 'hl2',   label: 'HL/2' },
+                      { value: 'close', label: 'Close' },
+                      { value: 'ohlc4', label: 'OHLC/4' },
+                      { value: 'open',  label: 'Open' },
+                    ]}
+                    value={f.vwapSource ?? 'hlc3'}
+                    onChange={v => sf({ vwapSource: v as typeof f.vwapSource })}
+                    accent="amber"
+                  />
+                </div>
+                <div>
+                  <span className="text-[11px] text-[var(--text-muted)] block mb-1.5">Volume Type</span>
+                  <BtnGroup
+                    options={[
+                      { value: 'total', label: 'Total' },
+                      { value: 'bid',   label: 'Bid' },
+                      { value: 'ask',   label: 'Ask' },
+                    ]}
+                    value={f.vwapVolumeType ?? 'total'}
+                    onChange={v => sf({ vwapVolumeType: v as typeof f.vwapVolumeType })}
+                    accent="amber"
+                  />
+                </div>
+                <Row label="Show First Partial Period">
+                  <Toggle value={f.vwapShowFirstPartialPeriod ?? true} onChange={v => sf({ vwapShowFirstPartialPeriod: v })} accent="amber" />
+                </Row>
+
+                {/* Visualization */}
+                <SepLabel>Drawing</SepLabel>
+                <Row label="Line Color"><InlineColorSwatch value={f.vwapColor ?? '#e2b93b'} onChange={c => sf({ vwapColor: c })} /></Row>
                 <Slider label="Line Width" value={f.vwapLineWidth ?? 2.5} min={1} max={5} step={0.5} onChange={v => sf({ vwapLineWidth: v })} fmt={v => `${v}px`} accent="amber" />
                 <Row label="Show Label">
                   <Toggle value={f.vwapShowLabel !== false} onChange={v => sf({ vwapShowLabel: v })} accent="amber" />
                 </Row>
+                <Row label="Colored Direction">
+                  <Toggle value={f.vwapColoredDirection ?? false} onChange={v => sf({ vwapColoredDirection: v })} accent="amber" />
+                </Row>
+                {f.vwapColoredDirection && (
+                  <div className="grid grid-cols-2 gap-x-3">
+                    <Row label="Bullish"><InlineColorSwatch value={f.vwapBullishColor ?? '#26a69a'} onChange={c => sf({ vwapBullishColor: c })} /></Row>
+                    <Row label="Bearish"><InlineColorSwatch value={f.vwapBearishColor ?? '#ef5350'} onChange={c => sf({ vwapBearishColor: c })} /></Row>
+                  </div>
+                )}
+                <Slider label="Spline Smoothing" value={Math.round((f.vwapSplineTension ?? 0.4) * 100)} min={0} max={100} onChange={v => sf({ vwapSplineTension: v / 100 })} fmt={v => `${v}%`} accent="amber" />
 
                 {/* Std Dev Bands */}
-                <div className="border-t border-[var(--border)] pt-2 mt-1">
-                  <Row label="Std Dev Bands">
-                    <Toggle value={f.showVWAPBands ?? false} onChange={v => sf({ showVWAPBands: v })} accent="amber" />
+                <SepLabel>Std Dev Bands</SepLabel>
+                {/* Band 1 */}
+                <div className="border border-[var(--border)] rounded-lg p-2 space-y-1.5">
+                  <Row label="±1σ Band">
+                    <Toggle value={f.vwapShowBand1 ?? true} onChange={v => sf({ vwapShowBand1: v })} accent="amber" />
                   </Row>
-                  {f.showVWAPBands && (
-                    <div className="space-y-2.5 pt-2">
-                      <div>
-                        <span className="text-[11px] text-[var(--text-muted)] block mb-1.5">Active Bands</span>
-                        <div className="flex gap-1.5">
-                          {[1, 2, 3].map(n => {
-                            const mults = f.vwapBandMultipliers ?? [1, 2];
-                            const active = mults.includes(n);
-                            return (
-                              <button
-                                key={n}
-                                onClick={() => {
-                                  const next = active
-                                    ? mults.filter((m: number) => m !== n)
-                                    : [...mults, n].sort((a: number, b: number) => a - b);
-                                  sf({ vwapBandMultipliers: next });
-                                }}
-                                className={`flex-1 py-1.5 rounded-lg border text-[10px] font-semibold transition-all
-                                  ${active
-                                    ? 'border-amber-500 bg-amber-500/20 text-amber-400'
-                                    : 'border-[var(--border)] text-[var(--text-muted)]'
-                                  }`}
-                              >
-                                {n}σ
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <Slider label="Fill Opacity" value={Math.round((f.vwapBandOpacity ?? 0.06) * 100)} min={0} max={30} onChange={v => sf({ vwapBandOpacity: v / 100 })} fmt={v => `${v}%`} accent="amber" />
-                      <Row label="Band Color"><InlineColorSwatch value={f.vwapBandColor ?? f.vwapColor ?? '#e2b93b'} onChange={c => sf({ vwapBandColor: c })} /></Row>
-                    </div>
+                  {f.vwapShowBand1 && (
+                    <>
+                      <Slider label="Multiplier" value={f.vwapBandMult1 ?? 1.0} min={0.5} max={4} step={0.25} onChange={v => sf({ vwapBandMult1: v })} fmt={v => `${v}σ`} accent="amber" />
+                      <Row label="Color"><InlineColorSwatch value={f.vwapBand1Color ?? '#e2b93b'} onChange={c => sf({ vwapBand1Color: c })} /></Row>
+                    </>
                   )}
                 </div>
+                {/* Band 2 */}
+                <div className="border border-[var(--border)] rounded-lg p-2 space-y-1.5">
+                  <Row label="±2σ Band">
+                    <Toggle value={f.vwapShowBand2 ?? true} onChange={v => sf({ vwapShowBand2: v })} accent="amber" />
+                  </Row>
+                  {f.vwapShowBand2 && (
+                    <>
+                      <Slider label="Multiplier" value={f.vwapBandMult2 ?? 2.0} min={0.5} max={6} step={0.25} onChange={v => sf({ vwapBandMult2: v })} fmt={v => `${v}σ`} accent="amber" />
+                      <Row label="Color"><InlineColorSwatch value={f.vwapBand2Color ?? '#e2b93b'} onChange={c => sf({ vwapBand2Color: c })} /></Row>
+                    </>
+                  )}
+                </div>
+                {/* Band 3 */}
+                <div className="border border-[var(--border)] rounded-lg p-2 space-y-1.5">
+                  <Row label="±3σ Band">
+                    <Toggle value={f.vwapShowBand3 ?? false} onChange={v => sf({ vwapShowBand3: v })} accent="amber" />
+                  </Row>
+                  {f.vwapShowBand3 && (
+                    <>
+                      <Slider label="Multiplier" value={f.vwapBandMult3 ?? 3.0} min={0.5} max={8} step={0.25} onChange={v => sf({ vwapBandMult3: v })} fmt={v => `${v}σ`} accent="amber" />
+                      <Row label="Color"><InlineColorSwatch value={f.vwapBand3Color ?? '#e2b93b'} onChange={c => sf({ vwapBand3Color: c })} /></Row>
+                    </>
+                  )}
+                </div>
+                <Slider label="Band Line Width" value={f.vwapBandLineWidth ?? 1} min={0.5} max={3} step={0.5} onChange={v => sf({ vwapBandLineWidth: v })} fmt={v => `${v}px`} accent="amber" />
+
+                {/* Zone Fills */}
+                <SepLabel>Zone Fills</SepLabel>
+                <Row label="Show Fills">
+                  <Toggle value={f.vwapShowFills ?? true} onChange={v => sf({ vwapShowFills: v })} accent="amber" />
+                </Row>
+                {f.vwapShowFills && (
+                  <>
+                    <Slider label="Inner Fill (VWAP ↔ ±1σ)" value={Math.round((f.vwapFillOpacityInner ?? 0.08) * 100)} min={0} max={30} onChange={v => sf({ vwapFillOpacityInner: v / 100 })} fmt={v => `${v}%`} accent="amber" />
+                    <Slider label="Middle Fill (±1σ ↔ ±2σ)" value={Math.round((f.vwapFillOpacityMiddle ?? 0.04) * 100)} min={0} max={20} onChange={v => sf({ vwapFillOpacityMiddle: v / 100 })} fmt={v => `${v}%`} accent="amber" />
+                    <Slider label="Outer Fill (±2σ ↔ ±3σ)" value={Math.round((f.vwapFillOpacityOuter ?? 0.02) * 100)} min={0} max={10} onChange={v => sf({ vwapFillOpacityOuter: v / 100 })} fmt={v => `${v}%`} accent="amber" />
+                  </>
+                )}
               </Section>
 
-              {/* TWAP */}
+              {/* TWAP — Time Weighted Avg Price */}
               <Section title="TWAP — Time Weighted Avg Price" accent="#3b82f6" defaultOpen
                 enabled={f.showTWAP !== false} onToggle={v => sf({ showTWAP: v })} toggleAccent="blue"
               >
@@ -934,6 +1052,7 @@ export default function FootprintAdvancedSettings({
                 <Row label="Show Label">
                   <Toggle value={f.twapShowLabel !== false} onChange={v => sf({ twapShowLabel: v })} accent="blue" />
                 </Row>
+                <Slider label="TWAP Period (sec)" value={f.twapPeriodSeconds ?? 60} min={10} max={3600} step={10} onChange={v => sf({ twapPeriodSeconds: v })} fmt={v => v >= 60 ? `${Math.round(v/60)}min` : `${v}s`} accent="blue" />
               </Section>
             </>
           )}
@@ -953,9 +1072,6 @@ export default function FootprintAdvancedSettings({
 
               {/* Panels */}
               <Section title="Panels & Labels" accent="#6366f1" defaultOpen>
-                <Row label="Cluster Panel (Ask/Bid/Δ/Vol)">
-                  <Toggle value={f.showClusterStatic} onChange={v => sf({ showClusterStatic: v })} accent="indigo" />
-                </Row>
                 <Row label="OHLC Candle Bar">
                   <Toggle value={f.showOHLC} onChange={v => sf({ showOHLC: v })} accent="indigo" />
                 </Row>
@@ -976,36 +1092,95 @@ export default function FootprintAdvancedSettings({
                 </Row>
               </Section>
 
-              {/* Passive Liquidity */}
-              <Section title="Passive Liquidity (Orderbook)" accent="#06b6d4" defaultOpen={false}
-                enabled={s.passiveLiquidity.enabled} onToggle={v => s.setPassiveLiquidity({ enabled: v })} toggleAccent="cyan"
+              {/* Cluster Statistic — full ATAS parameter set */}
+              <Section title="Cluster Statistic" accent="#22c55e" defaultOpen={false}
+                enabled={clst.enabled} onToggle={v => sclst({ enabled: v })} toggleAccent="emerald"
               >
-                <Row label="Use Real Orderbook">
-                  <Toggle value={s.passiveLiquidity.useRealOrderbook} onChange={v => s.setPassiveLiquidity({ useRealOrderbook: v })} accent="cyan" />
-                </Row>
-                <Slider label="Intensity" value={Math.round(s.passiveLiquidity.intensity * 100)} min={10} max={100} onChange={v => s.setPassiveLiquidity({ intensity: v / 100 })} fmt={v => `${v}%`} accent="cyan" />
-                <Slider label="Opacity" value={Math.round(s.passiveLiquidity.opacity * 100)} min={10} max={80} onChange={v => s.setPassiveLiquidity({ opacity: v / 100 })} fmt={v => `${v}%`} accent="cyan" />
-                <Slider label="Focus (±ticks from price)" value={s.passiveLiquidity.focusTicks} min={0} max={50} onChange={v => s.setPassiveLiquidity({ focusTicks: v })} fmt={v => v === 0 ? 'All' : `±${v}`} accent="cyan" />
-                <Slider label="Max Bar Width" value={s.passiveLiquidity.maxBarWidth} min={30} max={200} step={5} onChange={v => s.setPassiveLiquidity({ maxBarWidth: v })} fmt={v => `${v}px`} accent="cyan" />
-                <div className="grid grid-cols-2 gap-2">
-                  <Row label="Bid Color"><InlineColorSwatch value={s.passiveLiquidity.bidColor} onChange={c => s.setPassiveLiquidity({ bidColor: c })} /></Row>
-                  <Row label="Ask Color"><InlineColorSwatch value={s.passiveLiquidity.askColor} onChange={c => s.setPassiveLiquidity({ askColor: c })} /></Row>
+                <Slider label="Row Height" value={clst.rowHeight} min={12} max={24} onChange={v => sclst({ rowHeight: v })} fmt={v => `${v}px`} accent="emerald" />
+                <SepLabel>Rows</SepLabel>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <Row label="Ask"><Toggle value={clst.showAsks} onChange={v => sclst({ showAsks: v })} accent="emerald" /></Row>
+                  <Row label="Bid"><Toggle value={clst.showBids} onChange={v => sclst({ showBids: v })} accent="emerald" /></Row>
+                  <Row label="Delta"><Toggle value={clst.showDelta} onChange={v => sclst({ showDelta: v })} accent="emerald" /></Row>
+                  <Row label="Delta/Vol"><Toggle value={clst.showDeltaVolume} onChange={v => sclst({ showDeltaVolume: v })} accent="emerald" /></Row>
+                  <Row label="Session Delta"><Toggle value={clst.showSessionDelta} onChange={v => sclst({ showSessionDelta: v })} accent="emerald" /></Row>
+                  <Row label="Session Δ/Vol"><Toggle value={clst.showSessionDeltaVolume} onChange={v => sclst({ showSessionDeltaVolume: v })} accent="emerald" /></Row>
+                  <Row label="Volume"><Toggle value={clst.showVolume} onChange={v => sclst({ showVolume: v })} accent="emerald" /></Row>
+                  <Row label="Vol/sec"><Toggle value={clst.showVolumePerSecond} onChange={v => sclst({ showVolumePerSecond: v })} accent="emerald" /></Row>
+                  <Row label="Session Vol"><Toggle value={clst.showSessionVolume} onChange={v => sclst({ showSessionVolume: v })} accent="emerald" /></Row>
+                  <Row label="Trades"><Toggle value={clst.showTradesCount} onChange={v => sclst({ showTradesCount: v })} accent="emerald" /></Row>
+                  <Row label="Time"><Toggle value={clst.showTime} onChange={v => sclst({ showTime: v })} accent="emerald" /></Row>
+                  <Row label="Duration"><Toggle value={clst.showDuration} onChange={v => sclst({ showDuration: v })} accent="emerald" /></Row>
                 </div>
+                <SepLabel>Visualization</SepLabel>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <Row label="Background"><InlineColorSwatch value={clst.backgroundColor} onChange={c => sclst({ backgroundColor: c })} /></Row>
+                  <Row label="Grid"><InlineColorSwatch value={clst.gridColor} onChange={c => sclst({ gridColor: c })} /></Row>
+                  <Row label="Volume"><InlineColorSwatch value={clst.volumeColor} onChange={c => sclst({ volumeColor: c })} /></Row>
+                  <Row label="Ask"><InlineColorSwatch value={clst.askColor} onChange={c => sclst({ askColor: c })} /></Row>
+                  <Row label="Bid"><InlineColorSwatch value={clst.bidColor} onChange={c => sclst({ bidColor: c })} /></Row>
+                  <Row label="Text"><InlineColorSwatch value={clst.textColor} onChange={c => sclst({ textColor: c })} /></Row>
+                  <Row label="Header"><InlineColorSwatch value={clst.headerColor} onChange={c => sclst({ headerColor: c })} /></Row>
+                </div>
+                <Row label="Center Align"><Toggle value={clst.centerAlign} onChange={v => sclst({ centerAlign: v })} /></Row>
+                <Row label="Hide Headers"><Toggle value={clst.hideHeaders} onChange={v => sclst({ hideHeaders: v })} /></Row>
+                <SepLabel>Alerts</SepLabel>
+                <Row label="Volume Alert"><Toggle value={clst.volumeAlertEnabled} onChange={v => sclst({ volumeAlertEnabled: v })} accent="emerald" /></Row>
+                {clst.volumeAlertEnabled && (
+                  <Slider label="Volume Threshold" value={clst.volumeAlertThreshold} min={0} max={10000} step={100} onChange={v => sclst({ volumeAlertThreshold: v })} accent="emerald" />
+                )}
+                <Row label="Delta Alert"><Toggle value={clst.deltaAlertEnabled} onChange={v => sclst({ deltaAlertEnabled: v })} accent="emerald" /></Row>
+                {clst.deltaAlertEnabled && (
+                  <Slider label="Delta Threshold" value={clst.deltaAlertThreshold} min={0} max={5000} step={50} onChange={v => sclst({ deltaAlertThreshold: v })} accent="emerald" />
+                )}
+              </Section>
+
+              {/* DOM / Depth of Market — full ATAS parameter set */}
+              <Section title="Depth of Market (DOM)" accent="#06b6d4" defaultOpen={false}
+                enabled={dom.enabled} onToggle={v => sdom({ enabled: v })} toggleAccent="cyan"
+              >
                 <div>
-                  <span className="text-[11px] text-[var(--text-muted)] block mb-1.5">Stability Filter</span>
+                  <span className="text-[11px] text-[var(--text-muted)] block mb-1.5">Visual Mode</span>
                   <BtnGroup
-                    options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }]}
-                    value={s.passiveLiquidity.stabilityLevel}
-                    onChange={v => s.setPassiveLiquidity({ stabilityLevel: v as 'low' | 'medium' | 'high' })}
+                    options={[{ value: 'levels', label: 'Levels' }, { value: 'heatmap', label: 'Heatmap' }]}
+                    value={dom.visualMode}
+                    onChange={v => sdom({ visualMode: v as 'levels' | 'heatmap' })}
                     accent="cyan"
                   />
                 </div>
-                <Row label="Only Persistent Orders">
-                  <Toggle value={s.passiveLiquidity.showOnlyPersistent} onChange={v => s.setPassiveLiquidity({ showOnlyPersistent: v })} accent="cyan" />
-                </Row>
-                <Row label="Show Stats Panel">
-                  <Toggle value={s.passiveLiquidity.showStats} onChange={v => s.setPassiveLiquidity({ showStats: v })} accent="cyan" />
-                </Row>
+                <Row label="Auto Size"><Toggle value={dom.useAutoSize} onChange={v => sdom({ useAutoSize: v })} accent="cyan" /></Row>
+                <Row label="Proportion to Volume"><Toggle value={dom.proportionVolume} onChange={v => sdom({ proportionVolume: v })} accent="cyan" /></Row>
+                {!dom.useAutoSize && (
+                  <Slider label="Width" value={dom.width} min={60} max={300} step={10} onChange={v => sdom({ width: v })} fmt={v => `${v}px`} accent="cyan" />
+                )}
+                <Row label="Right to Left"><Toggle value={dom.rightToLeft} onChange={v => sdom({ rightToLeft: v })} accent="cyan" /></Row>
+                <SepLabel>Levels Mode</SepLabel>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <Row label="Bid Row"><InlineColorSwatch value={dom.bidRowColor} onChange={c => sdom({ bidRowColor: c })} /></Row>
+                  <Row label="Bid Text"><InlineColorSwatch value={dom.bidTextColor} onChange={c => sdom({ bidTextColor: c })} /></Row>
+                  <Row label="Ask Row"><InlineColorSwatch value={dom.askRowColor} onChange={c => sdom({ askRowColor: c })} /></Row>
+                  <Row label="Bid BG"><InlineColorSwatch value={dom.bidBackground} onChange={c => sdom({ bidBackground: c })} /></Row>
+                  <Row label="Ask BG"><InlineColorSwatch value={dom.askBackground} onChange={c => sdom({ askBackground: c })} /></Row>
+                  <Row label="Best Bid BG"><InlineColorSwatch value={dom.bestBidBackground} onChange={c => sdom({ bestBidBackground: c })} /></Row>
+                  <Row label="Best Ask BG"><InlineColorSwatch value={dom.bestAskBackground} onChange={c => sdom({ bestAskBackground: c })} /></Row>
+                </div>
+                <SepLabel>Cumulative Mode</SepLabel>
+                <Row label="Show Cumulative Values"><Toggle value={dom.showCumulativeValues} onChange={v => sdom({ showCumulativeValues: v })} accent="cyan" /></Row>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <Row label="Cum Ask"><InlineColorSwatch value={dom.cumulativeAskColor} onChange={c => sdom({ cumulativeAskColor: c })} /></Row>
+                  <Row label="Cum Bid"><InlineColorSwatch value={dom.cumulativeBidColor} onChange={c => sdom({ cumulativeBidColor: c })} /></Row>
+                </div>
+                <SepLabel>Filters</SepLabel>
+                <Slider label="Focus (±ticks from price)" value={dom.focusTicks} min={0} max={50} onChange={v => sdom({ focusTicks: v })} fmt={v => v === 0 ? 'All' : `±${v}`} accent="cyan" />
+                <Row label="Only Persistent Orders"><Toggle value={dom.showOnlyPersistent} onChange={v => sdom({ showOnlyPersistent: v })} accent="cyan" /></Row>
+                <SepLabel>Scale</SepLabel>
+                <Row label="Custom Scale"><Toggle value={dom.useCustomScale} onChange={v => sdom({ useCustomScale: v })} accent="cyan" /></Row>
+                {dom.useCustomScale && (
+                  <>
+                    <Slider label="Scale Factor" value={dom.customScale} min={0.1} max={5} step={0.1} onChange={v => sdom({ customScale: v })} fmt={v => `${v}×`} accent="cyan" />
+                    <Slider label="Height per Level" value={dom.customHeightPerLevel} min={8} max={32} onChange={v => sdom({ customHeightPerLevel: v })} fmt={v => `${v}px`} accent="cyan" />
+                  </>
+                )}
               </Section>
 
               {/* Volume Bubbles */}

@@ -18,6 +18,8 @@ import type {
   FootprintFonts,
   FootprintFeatures,
   PassiveLiquiditySettings,
+  CVDConfig,
+  ClusterStatConfig,
 } from '@/stores/useFootprintSettingsStore';
 import type { LODState } from '@/lib/rendering';
 import type { RenderContext } from '@/lib/tools/ToolsRenderer';
@@ -695,7 +697,34 @@ export class FootprintCanvasRenderer {
       }
     });
 
-    const splineTension = 0.4;
+    const splineTension = features.vwapSplineTension ?? 0.4;
+
+    // ── Individual band configs ──
+    const bandDefs = [
+      {
+        show: features.vwapShowBand1 ?? features.showVWAPBands !== false,
+        mult: features.vwapBandMult1 ?? 1.0,
+        color: features.vwapBand1Color ?? vwapColor,
+        fillOpacity: features.vwapFillOpacityInner ?? 0.06,
+      },
+      {
+        show: features.vwapShowBand2 ?? features.showVWAPBands !== false,
+        mult: features.vwapBandMult2 ?? 2.0,
+        color: features.vwapBand2Color ?? vwapColor,
+        fillOpacity: features.vwapFillOpacityMiddle ?? 0.04,
+      },
+      {
+        show: features.vwapShowBand3 ?? false,
+        mult: features.vwapBandMult3 ?? 3.0,
+        color: features.vwapBand3Color ?? vwapColor,
+        fillOpacity: features.vwapFillOpacityOuter ?? 0.02,
+      },
+    ];
+    const bandLW = features.vwapBandLineWidth ?? 1;
+    const showFills = features.vwapShowFills ?? true;
+    const coloredDirection = features.vwapColoredDirection ?? false;
+    const bullishColor = features.vwapBullishColor ?? '#26a69a';
+    const bearishColor = features.vwapBearishColor ?? '#ef5350';
 
     // Draw VWAP
     if (showVWAP && vwapPoints.length > 1) {
@@ -712,17 +741,34 @@ export class FootprintCanvasRenderer {
       ctx.stroke();
       ctx.restore();
 
-      // Main line
-      ctx.save();
-      ctx.strokeStyle = vwapColor;
-      ctx.lineWidth = vwapLW;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      catmullRomSpline(ctx, vwapPoints, splineTension);
-      ctx.stroke();
-      ctx.restore();
+      if (coloredDirection && vwapPoints.length >= 2) {
+        // Colored direction mode: each segment colored by VWAP rising/falling
+        ctx.save();
+        ctx.lineWidth = vwapLW;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let i = 1; i < vwapPoints.length; i++) {
+          const rising = vwapPoints[i].y <= vwapPoints[i - 1].y; // Y decreases = price rising
+          ctx.strokeStyle = rising ? bullishColor : bearishColor;
+          ctx.beginPath();
+          ctx.moveTo(vwapPoints[i - 1].x, vwapPoints[i - 1].y);
+          ctx.lineTo(vwapPoints[i].x, vwapPoints[i].y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else {
+        // Main line (uniform color)
+        ctx.save();
+        ctx.strokeStyle = vwapColor;
+        ctx.lineWidth = vwapLW;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        catmullRomSpline(ctx, vwapPoints, splineTension);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Label
       if (features.vwapShowLabel !== false) {
@@ -740,74 +786,65 @@ export class FootprintCanvasRenderer {
         ctx.fillText('VWAP', lastVP.x + 8, lastVP.y + 2);
       }
 
-      // ─── VWAP Standard Deviation Bands ───
-      if (features.showVWAPBands !== false && vwapPoints.length > 1) {
-        const multipliers = features.vwapBandMultipliers || [1, 2];
-        const bandOpacity = features.vwapBandOpacity ?? 0.06;
-        const bandColor = features.vwapBandColor || vwapColor;
+      // ─── VWAP Standard Deviation Bands (individual config per band) ───
+      for (const band of bandDefs) {
+        if (!band.show) continue;
 
-        for (const mult of multipliers) {
-          const upperPoints: { x: number; y: number }[] = [];
-          const lowerPoints: { x: number; y: number }[] = [];
+        const upperPoints: { x: number; y: number }[] = [];
+        const lowerPoints: { x: number; y: number }[] = [];
 
-          for (const pt of vwapPoints) {
-            if (pt.stdDev <= 0) continue;
-            const offset = pt.stdDev * mult;
-            // Convert price offset to Y offset via layout
-            const vwapPrice = layout.yToPrice(pt.y, metrics);
-            const upperY = layout.priceToY(vwapPrice + offset, metrics);
-            const lowerY = layout.priceToY(vwapPrice - offset, metrics);
-            upperPoints.push({ x: pt.x, y: upperY });
-            lowerPoints.push({ x: pt.x, y: lowerY });
-          }
+        for (const pt of vwapPoints) {
+          if (pt.stdDev <= 0) continue;
+          const offset = pt.stdDev * band.mult;
+          const vwapPrice = layout.yToPrice(pt.y, metrics);
+          upperPoints.push({ x: pt.x, y: layout.priceToY(vwapPrice + offset, metrics) });
+          lowerPoints.push({ x: pt.x, y: layout.priceToY(vwapPrice - offset, metrics) });
+        }
 
-          if (upperPoints.length > 1) {
-            // Filled band between upper and lower (spline fill)
+        if (upperPoints.length > 1) {
+          // Zone fill
+          if (showFills) {
             ctx.save();
-            ctx.fillStyle = bandColor;
-            ctx.globalAlpha = bandOpacity;
+            ctx.fillStyle = band.color;
+            ctx.globalAlpha = band.fillOpacity;
             ctx.beginPath();
             catmullRomSpline(ctx, upperPoints, splineTension);
-            // Trace back along lower points in reverse for closed fill
             const lowerRev = [...lowerPoints].reverse();
-            // Continue path: move to last lower point then spline backwards
             ctx.lineTo(lowerRev[0].x, lowerRev[0].y);
             for (let i = 1; i < lowerRev.length; i++) ctx.lineTo(lowerRev[i].x, lowerRev[i].y);
             ctx.closePath();
             ctx.fill();
             ctx.restore();
-
-            // Dashed spline lines for upper and lower bounds
-            ctx.save();
-            ctx.strokeStyle = bandColor;
-            ctx.lineWidth = 1;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.globalAlpha = 0.35;
-            ctx.setLineDash([4, 4]);
-
-            // Upper band
-            ctx.beginPath();
-            catmullRomSpline(ctx, upperPoints, splineTension);
-            ctx.stroke();
-
-            // Lower band
-            ctx.beginPath();
-            catmullRomSpline(ctx, lowerPoints, splineTension);
-            ctx.stroke();
-
-            ctx.setLineDash([]);
-            ctx.restore();
-
-            // Band label at the right edge
-            const lastUP = upperPoints[upperPoints.length - 1];
-            ctx.font = '8px "Consolas", monospace';
-            ctx.fillStyle = bandColor;
-            ctx.globalAlpha = 0.5;
-            ctx.textAlign = 'left';
-            ctx.fillText(`${mult}σ`, lastUP.x + 4, lastUP.y + 3);
-            ctx.globalAlpha = 1;
           }
+
+          // Dashed spline band lines
+          ctx.save();
+          ctx.strokeStyle = band.color;
+          ctx.lineWidth = bandLW;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.globalAlpha = 0.45;
+          ctx.setLineDash([4, 4]);
+
+          ctx.beginPath();
+          catmullRomSpline(ctx, upperPoints, splineTension);
+          ctx.stroke();
+
+          ctx.beginPath();
+          catmullRomSpline(ctx, lowerPoints, splineTension);
+          ctx.stroke();
+
+          ctx.setLineDash([]);
+          ctx.restore();
+
+          // Band label
+          const lastUP = upperPoints[upperPoints.length - 1];
+          ctx.font = '8px "Consolas", monospace';
+          ctx.fillStyle = band.color;
+          ctx.globalAlpha = 0.5;
+          ctx.textAlign = 'left';
+          ctx.fillText(`${band.mult}σ`, lastUP.x + 4, lastUP.y + 3);
+          ctx.globalAlpha = 1;
         }
       }
     }
@@ -1669,17 +1706,21 @@ export class FootprintCanvasRenderer {
     panelHeight: number,
     ohlcWidth: number,
     fpWidth: number,
+    cvdConfig?: CVDConfig,
   ): void {
-    if (!features.showCVDPanel || metrics.visibleCandles.length === 0) return;
+    const enabled = cvdConfig ? cvdConfig.enabled : features.showCVDPanel;
+    if (!enabled || metrics.visibleCandles.length === 0) return;
 
-    const lineColor = features.cvdLineColor || '#22c55e';
+    const lineColor = cvdConfig?.askColor || features.cvdLineColor || '#22c55e';
+    const bgColor   = cvdConfig?.backgroundColor || 'rgba(10, 10, 15, 0.85)';
+    const gridColor = cvdConfig?.gridColor || 'rgba(100, 100, 120, 0.3)';
 
     // Background
-    ctx.fillStyle = 'rgba(10, 10, 15, 0.85)';
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, panelY, width, panelHeight);
 
     // Top border
-    ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth = 0.5;
     ctx.beginPath();
     ctx.moveTo(0, panelY);
