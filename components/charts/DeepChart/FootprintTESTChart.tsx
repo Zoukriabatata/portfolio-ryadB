@@ -1,0 +1,758 @@
+'use client';
+
+/**
+ * FootprintTEST Chart — New design, simulation mode
+ *
+ * Visual concept:
+ *  • Heatmap cells: background blended bid(red)/ask(teal) by dominance ratio
+ *  • POC: gold left-border accent
+ *  • Delta bar: thin colored stripe above each candle column
+ *  • Delta label: colored number above highest price level
+ *  • VWAP: quadratic-spline gold line
+ *  • CVD panel: area chart at bottom
+ *  • Price scale: right side with mid-price marker
+ *  • Mouse: scroll (pan) | ctrl+wheel (zoom candleW) | shift+wheel (zoom rowH) | drag (pan)
+ */
+
+import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { generateSimCandles, type SimCandle } from './SimulationEngine';
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+
+const C = {
+  bg        : '#06080f',
+  surface   : '#09111e',
+  grid      : '#0d1525',
+  bid       : '#d94f5e',
+  ask       : '#1eb896',
+  poc       : '#c89020',
+  deltaPos  : '#2ddba6',
+  deltaNeg  : '#ff556a',
+  vwap      : '#ffab38',
+  text      : '#7a9fc0',
+  textMuted : '#233050',
+  price     : '#c8dff8',
+  separator : 'rgba(90,110,180,0.25)',
+  cvdBg     : '#070c18',
+};
+
+// ─── Layout constants ─────────────────────────────────────────────────────────
+
+const PRICE_W = 68;
+const TIME_H  = 22;
+const CVD_H   = 54;
+const HDR_H   = 30;
+const DELTA_H = 5;   // colored stripe per candle
+const FONT    = '"Consolas","Monaco",monospace';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtVol(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (a >= 1e4) return `${Math.round(v / 1000)}K`;
+  if (a >= 1e3) return `${(v / 1000).toFixed(1)}K`;
+  return Math.round(v).toString();
+}
+
+function fmtTime(ts: number): string {
+  const d = new Date(ts * 1000);
+  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+
+function fmtPrice(p: number, tick: number): string {
+  const dec = tick < 0.01 ? 4 : tick < 1 ? 2 : tick < 10 ? 1 : 0;
+  return p.toFixed(dec);
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+interface Props {
+  symbol  ?: string;
+  tickSize?: number;
+}
+
+export default function FootprintTESTChart({ symbol = 'BTCUSDT', tickSize = 10 }: Props) {
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const candlesRef = useRef<SimCandle[]>([]);
+  const stateRef   = useRef({ candleW: 88, rowH: 13, offsetX: 0 });
+  const hoverRef   = useRef<{ x: number; y: number } | null>(null);
+  const dragRef    = useRef<{ active: boolean; startX: number; startOff: number }>({ active: false, startX: 0, startOff: 0 });
+  const dirtyRef   = useRef(true);
+  const rafRef     = useRef(0);
+
+  // Generate simulation data once per symbol/tickSize
+  const candles = useMemo(() => generateSimCandles(60, 95000, tickSize, 300), [symbol, tickSize]);
+  useEffect(() => {
+    candlesRef.current = candles;
+    // Start scrolled to the newest candles
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const chartW = canvas.clientWidth - PRICE_W;
+      const total  = candles.length * stateRef.current.candleW;
+      stateRef.current.offsetX = Math.max(0, total - chartW * 0.95);
+    }
+    dirtyRef.current = true;
+  }, [candles]);
+
+  // ── Render loop ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width  = Math.round(rect.width  * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      // Re-clamp offsetX after resize
+      clampOffset(rect.width - PRICE_W);
+      dirtyRef.current = true;
+    };
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    resize();
+
+    const loop = () => {
+      rafRef.current = requestAnimationFrame(loop);
+      if (!dirtyRef.current) return;
+      dirtyRef.current = false;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      renderAll(ctx, canvas.clientWidth, canvas.clientHeight);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
+  }, [tickSize]);
+
+  // ── Clamp ─────────────────────────────────────────────────────────────────
+  function clampOffset(chartW: number) {
+    const { candleW } = stateRef.current;
+    const total = candlesRef.current.length * candleW;
+    stateRef.current.offsetX = Math.max(
+      -(chartW * 0.15),
+      Math.min(total - chartW * 0.85, stateRef.current.offsetX)
+    );
+  }
+
+  // ── Mouse handlers ────────────────────────────────────────────────────────
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const state  = stateRef.current;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const chartW = canvas.clientWidth - PRICE_W;
+    const rect   = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+
+    if (e.ctrlKey || e.metaKey) {
+      // Zoom candleW anchored to mouse
+      const factor    = e.deltaY > 0 ? 0.88 : 1.14;
+      const newCandleW = Math.max(28, Math.min(260, state.candleW * factor));
+      const anchor    = (mouseX + state.offsetX) / state.candleW;
+      state.offsetX   = anchor * newCandleW - mouseX;
+      state.candleW   = newCandleW;
+    } else if (e.shiftKey) {
+      // Zoom rowH
+      const factor = e.deltaY > 0 ? 0.9 : 1.12;
+      state.rowH   = Math.max(7, Math.min(32, state.rowH * factor));
+    } else {
+      // Pan horizontal
+      state.offsetX += e.deltaX !== 0 ? e.deltaX : e.deltaY * 0.6;
+    }
+    clampOffset(chartW);
+    dirtyRef.current = true;
+  }, []);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    dragRef.current = { active: true, startX: e.clientX, startOff: stateRef.current.offsetX };
+  }, []);
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    hoverRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
+    if (dragRef.current.active) {
+      const dx = e.clientX - dragRef.current.startX;
+      stateRef.current.offsetX = dragRef.current.startOff - dx;
+      clampOffset(rect.width - PRICE_W);
+    }
+    dirtyRef.current = true;
+  }, []);
+
+  const onMouseUp   = useCallback(() => { dragRef.current.active = false; }, []);
+  const onMouseLeave = useCallback(() => { hoverRef.current = null; dragRef.current.active = false; dirtyRef.current = true; }, []);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function renderAll(ctx: CanvasRenderingContext2D, W: number, H: number) {
+    const { candleW, rowH, offsetX } = stateRef.current;
+    const candles = candlesRef.current;
+
+    const chartX = 0;
+    const chartY = HDR_H;
+    const chartW = W - PRICE_W;
+    const chartH = H - HDR_H - CVD_H - TIME_H;
+    const cvdY   = HDR_H + chartH;
+    const timeY  = cvdY + CVD_H;
+
+    // ── Background ──────────────────────────────────────────────────────────
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0, 0, W, H);
+
+    if (candles.length === 0) return;
+
+    // ── Visible range ────────────────────────────────────────────────────────
+    const firstIdx = Math.max(0, Math.floor(offsetX / candleW));
+    const lastIdx  = Math.min(candles.length - 1, Math.ceil((offsetX + chartW) / candleW));
+    const visible  = candles.slice(firstIdx, lastIdx + 1);
+
+    if (visible.length === 0) return;
+
+    // ── Price range ───────────────────────────────────────────────────────────
+    let priceMin =  Infinity;
+    let priceMax = -Infinity;
+    visible.forEach(c => { priceMin = Math.min(priceMin, c.low); priceMax = Math.max(priceMax, c.high); });
+    const pad      = (priceMax - priceMin) * 0.08;
+    priceMin -= pad;
+    priceMax += pad;
+    const pRange   = priceMax - priceMin || 1;
+    const toY = (p: number) => chartY + chartH - ((p - priceMin) / pRange) * chartH;
+
+    // ── Grid lines ────────────────────────────────────────────────────────────
+    const gridStep = Math.ceil(pRange / 8 / tickSize) * tickSize;
+    const gridStart = Math.ceil(priceMin / gridStep) * gridStep;
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 0.5;
+    for (let p = gridStart; p <= priceMax; p += gridStep) {
+      const y = toY(p);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(chartW, y); ctx.stroke();
+    }
+
+    // ── Clip to chart area ────────────────────────────────────────────────────
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(chartX, chartY, chartW, chartH + DELTA_H + 2);
+    ctx.clip();
+
+    // ── Max volume for normalization ──────────────────────────────────────────
+    let maxLevelVol = 1;
+    visible.forEach(c => c.levels.forEach(l => {
+      maxLevelVol = Math.max(maxLevelVol, l.bidVol + l.askVol);
+    }));
+    const maxAbsDelta = Math.max(...visible.map(c => Math.abs(c.delta)), 1);
+
+    // ── Render each candle ────────────────────────────────────────────────────
+    for (let i = firstIdx; i <= lastIdx; i++) {
+      const c  = candles[i];
+      const cx = Math.round(i * candleW - offsetX);
+      const cw = Math.max(1, candleW - 2);
+
+      // Session separator
+      if (c.sessionStart) {
+        ctx.strokeStyle = C.separator;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(cx, chartY);
+        ctx.lineTo(cx, chartY + chartH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Delta intensity stripe (top of candle column)
+      const dIntensity = Math.min(1, Math.abs(c.delta) / maxAbsDelta);
+      ctx.fillStyle = c.delta >= 0 ? C.deltaPos : C.deltaNeg;
+      ctx.globalAlpha = 0.5 + dIntensity * 0.5;
+      ctx.fillRect(cx + 1, chartY, cw, DELTA_H);
+      ctx.globalAlpha = 1;
+
+      // ── Price level cells ─────────────────────────────────────────────────
+      for (const lv of c.levels) {
+        const y1   = toY(lv.price + tickSize);
+        const y2   = toY(lv.price);
+        const cellH = y2 - y1 - 1;
+        if (cellH < 1) continue;
+        if (y1 + cellH < chartY || y1 > chartY + chartH) continue;
+
+        const total     = lv.bidVol + lv.askVol;
+        const volRatio  = total / maxLevelVol;      // 0-1
+        const askRatio  = lv.askVol / (total || 1); // 0-1
+        const isPOC     = lv.price === c.poc;
+
+        // Heatmap background
+        if (askRatio > 0.53) {
+          ctx.fillStyle  = C.ask;
+          ctx.globalAlpha = volRatio * (isPOC ? 0.55 : 0.32) * (askRatio - 0.5) * 2;
+        } else if (askRatio < 0.47) {
+          ctx.fillStyle  = C.bid;
+          ctx.globalAlpha = volRatio * (isPOC ? 0.55 : 0.32) * (0.5 - askRatio) * 2;
+        } else {
+          // Near-balanced: subtle neutral glow
+          ctx.fillStyle  = '#2a3870';
+          ctx.globalAlpha = volRatio * 0.18;
+        }
+        ctx.fillRect(cx + 1, y1, cw, cellH);
+        ctx.globalAlpha = 1;
+
+        // Imbalance: strong ask-side bar (right-side accent)
+        if (askRatio > 0.7 && cw >= 30) {
+          const barW = Math.round(cw * (askRatio - 0.5) * 0.6);
+          ctx.fillStyle = C.ask;
+          ctx.globalAlpha = volRatio * 0.55;
+          ctx.fillRect(cx + cw - barW, y1 + 1, barW, Math.max(1, cellH - 2));
+          ctx.globalAlpha = 1;
+        } else if (askRatio < 0.3 && cw >= 30) {
+          const barW = Math.round(cw * (0.5 - askRatio) * 0.6);
+          ctx.fillStyle = C.bid;
+          ctx.globalAlpha = volRatio * 0.55;
+          ctx.fillRect(cx + 1, y1 + 1, barW, Math.max(1, cellH - 2));
+          ctx.globalAlpha = 1;
+        }
+
+        // POC accent: gold left strip
+        if (isPOC) {
+          ctx.fillStyle  = C.poc;
+          ctx.globalAlpha = 0.85;
+          ctx.fillRect(cx + 1, y1, 3, cellH);
+          ctx.globalAlpha = 1;
+        }
+
+        // Row separator line
+        ctx.strokeStyle = C.grid;
+        ctx.lineWidth = 0.5;
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(cx, y2);
+        ctx.lineTo(cx + cw, y2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // Text (bid | price | ask) when cell is wide + tall enough
+        if (cw >= 68 && cellH >= 9) {
+          const fs = Math.min(9, cellH - 2);
+          const ty = y1 + cellH * 0.5 + fs * 0.38;
+          ctx.font      = `${fs}px ${FONT}`;
+          ctx.textAlign = 'center';
+
+          // Bid
+          ctx.fillStyle  = C.bid;
+          ctx.globalAlpha = 0.85;
+          ctx.fillText(fmtVol(lv.bidVol), cx + cw * 0.2, ty);
+
+          // Price (center)
+          ctx.fillStyle  = isPOC ? C.poc : C.text;
+          ctx.globalAlpha = isPOC ? 1 : 0.65;
+          ctx.fillText(fmtPrice(lv.price, tickSize), cx + cw * 0.5, ty);
+
+          // Ask
+          ctx.fillStyle  = C.ask;
+          ctx.globalAlpha = 0.85;
+          ctx.fillText(fmtVol(lv.askVol), cx + cw * 0.8, ty);
+
+          ctx.globalAlpha = 1;
+        } else if (cw >= 34 && cellH >= 9) {
+          // Only delta number
+          const fs  = Math.min(8, cellH - 1);
+          const dv  = lv.askVol - lv.bidVol;
+          ctx.font      = `${fs}px ${FONT}`;
+          ctx.textAlign = 'center';
+          ctx.fillStyle  = dv >= 0 ? C.ask : C.bid;
+          ctx.globalAlpha = 0.75;
+          ctx.fillText(fmtVol(Math.abs(dv)), cx + cw * 0.5, y1 + cellH * 0.5 + fs * 0.38);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Delta label above candle
+      if (cw >= 38) {
+        const highY = toY(c.high);
+        const labelY = Math.max(chartY + 20, highY - 5);
+        ctx.font      = `bold 9px ${FONT}`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle  = c.delta >= 0 ? C.deltaPos : C.deltaNeg;
+        ctx.fillText((c.delta >= 0 ? '+' : '') + fmtVol(c.delta), cx + cw * 0.5, labelY);
+      }
+
+      // Candle separator
+      ctx.strokeStyle = C.grid;
+      ctx.lineWidth   = 0.5;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(cx + candleW - 1, chartY);
+      ctx.lineTo(cx + candleW - 1, chartY + chartH);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore(); // end chart clip
+
+    // ── VWAP ─────────────────────────────────────────────────────────────────
+    renderVWAP(ctx, candles, firstIdx, lastIdx, offsetX, candleW, chartY, chartH, priceMin, pRange, chartW);
+
+    // ── Price scale ───────────────────────────────────────────────────────────
+    renderPriceScale(ctx, W, chartY, chartH, gridStart, gridStep, priceMax, toY, tickSize);
+
+    // ── CVD panel ─────────────────────────────────────────────────────────────
+    renderCVD(ctx, candles, firstIdx, lastIdx, offsetX, candleW, chartW, cvdY, CVD_H);
+
+    // ── Time axis ─────────────────────────────────────────────────────────────
+    renderTimeAxis(ctx, candles, firstIdx, lastIdx, offsetX, candleW, chartW, timeY);
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    renderHeader(ctx, W, symbol, visible);
+
+    // ── Crosshair ─────────────────────────────────────────────────────────────
+    renderCrosshair(ctx, W, H, chartW, chartY, chartH, priceMin, pRange, toY, tickSize, timeY);
+  }
+
+  // ─── VWAP ────────────────────────────────────────────────────────────────────
+
+  function renderVWAP(
+    ctx: CanvasRenderingContext2D,
+    candles: SimCandle[],
+    firstIdx: number, lastIdx: number,
+    offsetX: number, candleW: number,
+    chartY: number, chartH: number,
+    priceMin: number, pRange: number,
+    chartW: number,
+  ) {
+    let cumVol = 0, cumVwap = 0;
+    const pts: { x: number; y: number }[] = [];
+
+    for (let i = 0; i <= lastIdx; i++) {
+      const c = candles[i];
+      if (c.sessionStart && i > 0) { cumVol = 0; cumVwap = 0; }
+      const typical = (c.high + c.low + c.close) / 3;
+      cumVol  += c.totalVol;
+      cumVwap += typical * c.totalVol;
+      if (i < firstIdx) continue;
+      const vwap = cumVwap / (cumVol || 1);
+      const x = i * candleW - offsetX + candleW * 0.5;
+      const y = chartY + chartH - ((vwap - priceMin) / pRange) * chartH;
+      if (x >= 0 && x <= chartW) pts.push({ x, y });
+    }
+
+    if (pts.length < 2) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, chartY, chartW, chartH);
+    ctx.clip();
+
+    ctx.strokeStyle = C.vwap;
+    ctx.lineWidth   = 1.5;
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+    ctx.globalAlpha = 0.85;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2;
+      const my = (pts[i].y + pts[i + 1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // VWAP label
+    const last = pts[pts.length - 1];
+    ctx.font      = `bold 8px ${FONT}`;
+    ctx.fillStyle  = C.vwap;
+    ctx.globalAlpha = 0.9;
+    ctx.textAlign  = 'left';
+    ctx.fillText('VWAP', Math.min(last.x + 4, chartW - 36), last.y - 3);
+    ctx.globalAlpha = 1;
+  }
+
+  // ─── Price scale ─────────────────────────────────────────────────────────────
+
+  function renderPriceScale(
+    ctx: CanvasRenderingContext2D,
+    W: number, chartY: number, chartH: number,
+    gridStart: number, gridStep: number, priceMax: number,
+    toY: (p: number) => number, tick: number,
+  ) {
+    const scaleX = W - PRICE_W;
+    ctx.fillStyle = C.surface;
+    ctx.fillRect(scaleX, chartY - 2, PRICE_W, chartH + 4);
+
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth   = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(scaleX, chartY);
+    ctx.lineTo(scaleX, chartY + chartH);
+    ctx.stroke();
+
+    ctx.font      = `9px ${FONT}`;
+    ctx.fillStyle  = C.text;
+    ctx.textAlign  = 'left';
+    for (let p = gridStart; p <= priceMax; p += gridStep) {
+      const y = toY(p);
+      if (y < chartY || y > chartY + chartH) continue;
+      // Tick mark
+      ctx.strokeStyle = C.grid;
+      ctx.beginPath();
+      ctx.moveTo(scaleX, y);
+      ctx.lineTo(scaleX + 4, y);
+      ctx.stroke();
+      ctx.fillText(fmtPrice(p, tick), scaleX + 7, y + 3);
+    }
+  }
+
+  // ─── CVD panel ───────────────────────────────────────────────────────────────
+
+  function renderCVD(
+    ctx: CanvasRenderingContext2D,
+    candles: SimCandle[],
+    firstIdx: number, lastIdx: number,
+    offsetX: number, candleW: number,
+    chartW: number, cvdY: number, cvdH: number,
+  ) {
+    // Background
+    ctx.fillStyle = C.cvdBg;
+    ctx.fillRect(0, cvdY, chartW, cvdH);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, cvdY);
+    ctx.lineTo(chartW, cvdY);
+    ctx.stroke();
+
+    // Compute cumulative delta
+    let cumDelta = 0;
+    const pts: { x: number; v: number }[] = [];
+    for (let i = 0; i <= lastIdx; i++) {
+      const c = candles[i];
+      if (c.sessionStart && i > 0) cumDelta = 0;
+      cumDelta += c.delta;
+      if (i < firstIdx) continue;
+      const x = i * candleW - offsetX + candleW * 0.5;
+      if (x >= 0 && x <= chartW) pts.push({ x, v: cumDelta });
+    }
+    if (pts.length < 2) { renderCVDLabel(ctx, 0, cvdY, cvdH); return; }
+
+    let minV = Infinity, maxV = -Infinity;
+    pts.forEach(p => { minV = Math.min(minV, p.v); maxV = Math.max(maxV, p.v); });
+    const vRange = maxV - minV || 1;
+    const pad = 6;
+    const drawH = cvdH - pad * 2;
+    const toVY = (v: number) => cvdY + pad + drawH - ((v - minV) / vRange) * drawH;
+
+    // Zero line
+    const zeroY = toVY(0);
+    if (zeroY > cvdY + pad && zeroY < cvdY + cvdH - pad) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(0, zeroY);
+      ctx.lineTo(chartW, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Colored line segments + fill
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, cvdY, chartW, cvdH);
+    ctx.clip();
+
+    // Positive fill
+    ctx.fillStyle = C.ask;
+    ctx.globalAlpha = 0.07;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, Math.min(toVY(pts[0].v), zeroY));
+    pts.forEach(p => ctx.lineTo(p.x, Math.min(toVY(p.v), zeroY)));
+    ctx.lineTo(pts[pts.length - 1].x, zeroY);
+    ctx.lineTo(pts[0].x, zeroY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Negative fill
+    ctx.fillStyle = C.bid;
+    ctx.globalAlpha = 0.07;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, Math.max(toVY(pts[0].v), zeroY));
+    pts.forEach(p => ctx.lineTo(p.x, Math.max(toVY(p.v), zeroY)));
+    ctx.lineTo(pts[pts.length - 1].x, zeroY);
+    ctx.lineTo(pts[0].x, zeroY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Colored line
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin  = 'round';
+    for (let i = 1; i < pts.length; i++) {
+      ctx.strokeStyle = pts[i].v >= pts[i - 1].v ? C.ask : C.bid;
+      ctx.beginPath();
+      ctx.moveTo(pts[i - 1].x, toVY(pts[i - 1].v));
+      ctx.lineTo(pts[i].x, toVY(pts[i].v));
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    renderCVDLabel(ctx, pts[pts.length - 1].v, cvdY, cvdH);
+  }
+
+  function renderCVDLabel(ctx: CanvasRenderingContext2D, lastVal: number, cvdY: number, cvdH: number) {
+    ctx.font      = `bold 8px ${FONT}`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle  = 'rgba(255,255,255,0.25)';
+    ctx.fillText('CVD', 6, cvdY + 11);
+    ctx.fillStyle  = lastVal >= 0 ? C.ask : C.bid;
+    ctx.fillText(fmtVol(lastVal), 32, cvdY + 11);
+  }
+
+  // ─── Time axis ───────────────────────────────────────────────────────────────
+
+  function renderTimeAxis(
+    ctx: CanvasRenderingContext2D,
+    candles: SimCandle[],
+    firstIdx: number, lastIdx: number,
+    offsetX: number, candleW: number,
+    chartW: number, timeY: number,
+  ) {
+    ctx.fillStyle = C.surface;
+    ctx.fillRect(0, timeY, chartW, TIME_H);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, timeY);
+    ctx.lineTo(chartW, timeY);
+    ctx.stroke();
+
+    const minSpacing = 80;
+    const step = Math.max(1, Math.ceil(minSpacing / candleW));
+
+    ctx.font      = `8px ${FONT}`;
+    ctx.fillStyle  = C.text;
+    ctx.textAlign  = 'center';
+
+    for (let i = firstIdx; i <= lastIdx; i += step) {
+      const x = i * candleW - offsetX + candleW * 0.5;
+      if (x < 20 || x > chartW - 10) continue;
+      ctx.fillText(fmtTime(candles[i].time), x, timeY + 14);
+    }
+  }
+
+  // ─── Header ───────────────────────────────────────────────────────────────────
+
+  function renderHeader(
+    ctx: CanvasRenderingContext2D,
+    W: number, sym: string, visible: SimCandle[],
+  ) {
+    ctx.fillStyle = C.surface;
+    ctx.fillRect(0, 0, W, HDR_H);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, HDR_H);
+    ctx.lineTo(W, HDR_H);
+    ctx.stroke();
+
+    // Symbol
+    ctx.font      = `bold 11px ${FONT}`;
+    ctx.fillStyle  = C.price;
+    ctx.textAlign  = 'left';
+    ctx.fillText(sym.toUpperCase(), 10, 19);
+
+    // Timeframe badge
+    ctx.font      = `8px ${FONT}`;
+    ctx.fillStyle  = '#2a3a5a';
+    ctx.fillText('5M  SIM', 92, 19);
+
+    // Last candle stats
+    if (visible.length > 0) {
+      const last = visible[visible.length - 1];
+      const stats = [
+        { label: 'O', val: fmtPrice(last.open,  tickSize), color: C.text },
+        { label: 'H', val: fmtPrice(last.high,  tickSize), color: C.ask },
+        { label: 'L', val: fmtPrice(last.low,   tickSize), color: C.bid },
+        { label: 'C', val: fmtPrice(last.close, tickSize), color: last.close >= last.open ? C.ask : C.bid },
+        { label: 'VOL', val: fmtVol(last.totalVol), color: C.text },
+        { label: 'Δ',  val: (last.delta >= 0 ? '+' : '') + fmtVol(last.delta), color: last.delta >= 0 ? C.deltaPos : C.deltaNeg },
+      ];
+
+      let ox = 175;
+      for (const s of stats) {
+        ctx.font      = `8px ${FONT}`;
+        ctx.fillStyle  = C.textMuted;
+        ctx.textAlign  = 'left';
+        ctx.fillText(s.label, ox, 13);
+        ctx.font      = `9px ${FONT}`;
+        ctx.fillStyle  = s.color;
+        ctx.fillText(s.val, ox, 24);
+        ox += 68;
+      }
+    }
+  }
+
+  // ─── Crosshair ────────────────────────────────────────────────────────────────
+
+  function renderCrosshair(
+    ctx: CanvasRenderingContext2D,
+    W: number, _H: number,
+    chartW: number, chartY: number, chartH: number,
+    priceMin: number, pRange: number,
+    toY: (p: number) => number,
+    tick: number,
+    _timeY: number,
+  ) {
+    const pos = hoverRef.current;
+    if (!pos || pos.x > chartW || pos.y < chartY || pos.y > chartY + chartH) return;
+
+    ctx.strokeStyle = 'rgba(140,170,220,0.22)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([4, 4]);
+
+    ctx.beginPath();
+    ctx.moveTo(pos.x, chartY);
+    ctx.lineTo(pos.x, chartY + chartH);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, pos.y);
+    ctx.lineTo(chartW, pos.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    // Price tag on scale
+    const hPrice = priceMin + (1 - (pos.y - chartY) / chartH) * pRange;
+    const tagH   = 18;
+    const tagY   = pos.y - tagH / 2;
+    ctx.fillStyle = '#1a2a4a';
+    ctx.fillRect(chartW + 1, tagY, PRICE_W - 2, tagH);
+    ctx.strokeStyle = 'rgba(100,140,220,0.4)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(chartW + 1, tagY, PRICE_W - 2, tagH);
+    ctx.font      = `bold 9px ${FONT}`;
+    ctx.fillStyle  = C.price;
+    ctx.textAlign  = 'center';
+    ctx.fillText(fmtPrice(hPrice, tick), chartW + PRICE_W / 2, tagY + 12);
+  }
+
+  // ─── JSX ─────────────────────────────────────────────────────────────────────
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ width: '100%', height: '100%', display: 'block', cursor: dragRef.current.active ? 'grabbing' : 'crosshair' }}
+      onWheel={onWheel}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
+    />
+  );
+}

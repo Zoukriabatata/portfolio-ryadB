@@ -1,123 +1,80 @@
 'use client';
 
+/**
+ * DeepChart layout — FootprintTESTChart (left) + DOMPanel (right)
+ */
+
 import dynamic from 'next/dynamic';
-import { useRef, useState } from 'react';
-import { ChartSkeleton } from '@/components/ui/Skeleton';
+import { useState } from 'react';
 import DOMPanel from './DOMPanel';
 
-const FootprintChartPro = dynamic(
-  () => import('@/components/charts/FootprintChartPro'),
-  { ssr: false, loading: () => <ChartSkeleton /> }
+const FootprintTESTChart = dynamic(
+  () => import('./FootprintTESTChart'),
+  { ssr: false, loading: () => <div style={{ width: '100%', height: '100%', background: '#06080f' }} /> }
 );
 
-// ─── DOM panel width presets ─────────────────────────────────────────────────
+const DOM_DEFAULT_W = 210;
 
-const DOM_WIDTH_DEFAULT = 210; // px
-
-// ─── DeepChart ────────────────────────────────────────────────────────────────
+// Symbol → tickSize (Binance futures)
+const TICK: Record<string, number> = {
+  btcusdt: 10, ethusdt: 1, solusdt: 0.1, bnbusdt: 1,
+  xrpusdt: 0.001, adausdt: 0.001, dogeusdt: 0.0001,
+  avaxusdt: 0.1, linkusdt: 0.01, arbusdt: 0.001,
+  opusdt: 0.01, pepeusdt: 0.0000001,
+};
 
 interface Props {
-  symbol: string;
-  tickSize?: number;
-  onSymbolChange?: (s: string) => void;
+  symbol         ?: string;
+  onSymbolChange ?: (s: string) => void;
 }
 
-export default function DeepChart({ symbol, tickSize = 0.1, onSymbolChange }: Props) {
+export default function DeepChart({ symbol = 'btcusdt', onSymbolChange }: Props) {
   const [domVisible, setDomVisible] = useState(true);
-  const [domWidth]  = useState(DOM_WIDTH_DEFAULT);
-
-  // Derive tickSize from symbol if not passed
-  const resolvedTickSize = tickSize;
+  const sym      = symbol.toLowerCase();
+  const tickSize = TICK[sym] ?? 0.1;
 
   return (
-    <div className="flex h-full w-full overflow-hidden" style={{ background: '#0a0a0f' }}>
-      {/* ── Footprint chart (fills remaining space) ─────────────────────── */}
-      <div className="flex-1 min-w-0 h-full">
-        <FootprintChartPro className="h-full" onSymbolChange={onSymbolChange} />
+    <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', background: '#06080f' }}>
+
+      {/* ── New footprint chart ─────────────────────────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
+        <FootprintTESTChart symbol={sym.toUpperCase()} tickSize={tickSize} />
       </div>
 
-      {/* ── Resize handle ───────────────────────────────────────────────── */}
-      <div
-        style={{
-          width: 3,
-          cursor: 'col-resize',
-          background: '#1e1e2e',
-          flexShrink: 0,
-          transition: 'background 0.15s',
-        }}
-        onMouseEnter={e => ((e.target as HTMLElement).style.background = '#3a3a5a')}
-        onMouseLeave={e => ((e.target as HTMLElement).style.background = '#1e1e2e')}
-      />
+      {/* ── Divider ─────────────────────────────────────────────────────── */}
+      <div style={{ width: 2, background: '#0d1525', flexShrink: 0 }} />
 
       {/* ── DOM panel ───────────────────────────────────────────────────── */}
-      {domVisible && (
-        <div
-          style={{
-            width: domWidth,
-            flexShrink: 0,
-            height: '100%',
-            background: '#0a0a0f',
-            borderLeft: '1px solid #1e1e2e',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Panel title bar */}
-          <div
-            style={{
-              height: 22,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0 8px',
-              background: '#0d0d16',
-              borderBottom: '1px solid #1a1a28',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: 9, color: '#4a4a6a', fontFamily: 'Consolas, monospace', letterSpacing: 1 }}>
+      {domVisible ? (
+        <div style={{ width: DOM_DEFAULT_W, flexShrink: 0, height: '100%', display: 'flex', flexDirection: 'column', background: '#06080f', borderLeft: '1px solid #0d1525' }}>
+          {/* Title bar */}
+          <div style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', background: '#080c18', borderBottom: '1px solid #0d1525', flexShrink: 0 }}>
+            <span style={{ fontSize: 9, color: '#2a3a5a', fontFamily: 'Consolas, monospace', letterSpacing: '0.08em' }}>
               DEPTH OF MARKET
             </span>
             <button
               onClick={() => setDomVisible(false)}
-              style={{
-                background: 'none', border: 'none', color: '#3a3a5a',
-                cursor: 'pointer', fontSize: 11, padding: '0 2px', lineHeight: 1,
-              }}
+              style={{ background: 'none', border: 'none', color: '#2a3a5a', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
               title="Hide DOM"
-            >
-              ✕
-            </button>
+            >✕</button>
           </div>
-
-          {/* Canvas area */}
+          {/* Canvas */}
           <div style={{ flex: 1, overflow: 'hidden' }}>
-            <DOMPanel symbol={symbol} tickSize={resolvedTickSize} width={domWidth} />
+            <DOMPanel symbol={sym} tickSize={tickSize} width={DOM_DEFAULT_W} />
           </div>
         </div>
-      )}
-
-      {/* ── Show DOM button (when hidden) ───────────────────────────────── */}
-      {!domVisible && (
+      ) : (
+        /* Toggle button when hidden */
         <button
           onClick={() => setDomVisible(true)}
           style={{
-            width: 18,
-            flexShrink: 0,
-            background: '#0d0d16',
-            border: 'none',
-            borderLeft: '1px solid #1e1e2e',
-            color: '#3a3a5a',
-            cursor: 'pointer',
-            fontSize: 8,
-            writingMode: 'vertical-rl',
-            letterSpacing: 1,
+            width: 18, flexShrink: 0, background: '#080c18', border: 'none',
+            borderLeft: '1px solid #0d1525', color: '#2a3a5a', cursor: 'pointer',
+            fontSize: 8, writingMode: 'vertical-rl', letterSpacing: '0.08em',
             fontFamily: 'Consolas, monospace',
           }}
           title="Show DOM"
-        >
-          DOM ▶
-        </button>
+        >DOM ▶</button>
       )}
     </div>
   );
