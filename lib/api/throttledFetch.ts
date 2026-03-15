@@ -6,7 +6,7 @@
  * Max concurrent requests defaults to 6 (browser default per origin).
  */
 
-const MAX_CONCURRENT = 6;
+const MAX_CONCURRENT = 3; // Reduced to avoid Binance 429 rate limits
 
 let activeCount = 0;
 const queue: Array<{

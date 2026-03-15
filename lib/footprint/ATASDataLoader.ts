@@ -172,10 +172,25 @@ export async function loadOHLCSkeleton(
     limit: Math.min(limit, 1500).toString(),
   });
 
-  const response = await throttledFetch(`/api/binance/fapi/v1/klines?${params}`, { signal });
-  if (!response.ok) throw new Error(`Klines request failed: ${response.status}`);
-
-  const data = await response.json() as unknown[][];
+  let data: unknown[][] = [];
+  let retryCount = 0;
+  const MAX_RETRIES = 4;
+  while (retryCount <= MAX_RETRIES) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const response = await throttledFetch(`/api/binance/fapi/v1/klines?${params}`, { signal });
+    if (response.status === 429 || response.status === 418) {
+      const retryAfter = parseInt(response.headers.get('Retry-After') ?? '5', 10);
+      const baseWait   = response.status === 418 ? 30_000 : 2_000; // 418 = IP ban, wait longer
+      const waitMs     = Math.max(retryAfter * 1000, baseWait) * Math.pow(2, retryCount);
+      console.warn(`[ATASLoader] Klines ${response.status}, retry ${retryCount + 1}/${MAX_RETRIES} in ${waitMs}ms`);
+      await new Promise(r => setTimeout(r, waitMs));
+      retryCount++;
+      continue;
+    }
+    if (!response.ok) throw new Error(`Klines request failed: ${response.status}`);
+    data = await response.json() as unknown[][];
+    break;
+  }
 
   return data.map(k => ({
     time: Math.floor((k[0] as number) / 1000),
@@ -303,25 +318,47 @@ async function fetchChunk(
       limit: '1000',
     });
 
-    let data: BinanceAggTrade[];
+    let data: BinanceAggTrade[] = [];
 
-    try {
-      const response = await throttledFetch(
-        `/api/binance/fapi/v1/aggTrades?${params}`,
-        { signal }
-      );
+    // Retry loop for 429 rate-limit responses
+    let retryCount = 0;
+    const MAX_RETRIES = 4;
+    let fetchOk = false;
 
-      if (!response.ok) {
-        console.error(`[ATASLoader] HTTP ${response.status} fetching chunk`);
+    while (retryCount <= MAX_RETRIES) {
+      if (signal?.aborted) break;
+      try {
+        const response = await throttledFetch(
+          `/api/binance/fapi/v1/aggTrades?${params}`,
+          { signal }
+        );
+
+        if (response.status === 429 || response.status === 418) {
+          const retryAfter = parseInt(response.headers.get('Retry-After') ?? '5', 10);
+          const baseWait   = response.status === 418 ? 30_000 : 2_000;
+          const waitMs     = Math.max(retryAfter * 1000, baseWait) * Math.pow(2, retryCount);
+          console.warn(`[ATASLoader] aggTrades ${response.status}, retry ${retryCount + 1}/${MAX_RETRIES} in ${waitMs}ms`);
+          await new Promise(r => setTimeout(r, waitMs));
+          retryCount++;
+          continue;
+        }
+
+        if (!response.ok) {
+          console.error(`[ATASLoader] HTTP ${response.status} fetching chunk`);
+          break;
+        }
+
+        data = await response.json() as BinanceAggTrade[];
+        fetchOk = true;
+        break;
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') break;
+        console.error('[ATASLoader] Fetch error:', err);
         break;
       }
-
-      data = await response.json() as BinanceAggTrade[];
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') break;
-      console.error('[ATASLoader] Fetch error:', err);
-      break;
     }
+
+    if (!fetchOk) break;
 
     if (!Array.isArray(data) || data.length === 0) break;
 

@@ -335,11 +335,21 @@ export class FootprintCanvasRenderer {
       const centerX = cellStartX + fpWidth / 2;
       const isBullish = candle.close >= candle.open;
 
-      // Container
+      // Container — bounded by actual level range, not OHLC high/low.
+      // When 418 cuts tick loading short, OHLC high/low can span a large price range
+      // with only a few levels at the extremes, creating a large empty box (false gap).
+      let levelMinPrice = Infinity, levelMaxPrice = -Infinity;
+      candle.levels.forEach((_, p) => {
+        if (p < levelMinPrice) levelMinPrice = p;
+        if (p > levelMaxPrice) levelMaxPrice = p;
+      });
+      const boundLow  = levelMinPrice === Infinity ? candle.low  : levelMinPrice;
+      const boundHigh = levelMaxPrice === -Infinity ? candle.high : levelMaxPrice;
+
       const containerX = cellStartX + 2;
       const containerW = fpWidth - 4;
-      const containerTop = layout.priceToY(candle.high, metrics) - rowH / 2;
-      const containerBottom = layout.priceToY(candle.low, metrics) + rowH / 2;
+      const containerTop = layout.priceToY(boundHigh, metrics) - rowH / 2;
+      const containerBottom = layout.priceToY(boundLow, metrics) + rowH / 2;
       const containerH = containerBottom - containerTop;
 
       // Container background
@@ -379,6 +389,10 @@ export class FootprintCanvasRenderer {
       const volFilterThreshold = features.volumeFilterThreshold ?? 0;
       const volFilterMode = features.volumeFilterMode ?? 'relative';
 
+      // Compact mode: cells too small for text → bars only + per-candle delta label
+      // Threshold: need at least (fontSize + 4) px of row height for text to fit without overlap
+      const showCellText = rowH >= fontSize + 4;
+
       candle.levels.forEach((level, price) => {
         const y = layout.priceToY(price, metrics);
         if (y < footprintAreaY - rowH || y > footprintAreaY + footprintAreaHeight + rowH) return;
@@ -409,6 +423,9 @@ export class FootprintCanvasRenderer {
         }
 
         // ─── LAYER 1: Delta bars ───
+        // In compact mode (no text), bars are more opaque to carry the full visual signal
+        const barBaseAlpha  = showCellText ? 0.15 : 0.45;
+        const barRangeAlpha = showCellText ? 0.25 : 0.45;
         const clusterMode = features.clusterDisplayMode ?? 'bid-ask';
         if (clusterMode === 'bid-ask' || clusterMode === 'bid-ask-split') {
           // Two-sided bars (bid left, ask right)
@@ -416,7 +433,7 @@ export class FootprintCanvasRenderer {
             const intensity = level.bidVolume / maxLevelVol;
             const bidW = intensity * barMaxW;
             ctx.fillStyle = colors.bidColor;
-            ctx.globalAlpha = 0.15 + intensity * 0.25;
+            ctx.globalAlpha = barBaseAlpha + intensity * barRangeAlpha;
             ctx.fillRect(centerX - 2 - bidW, cellY + 1, bidW, barH);
             ctx.globalAlpha = 1;
           }
@@ -424,7 +441,7 @@ export class FootprintCanvasRenderer {
             const intensity = level.askVolume / maxLevelVol;
             const askW = intensity * barMaxW;
             ctx.fillStyle = colors.askColor;
-            ctx.globalAlpha = 0.15 + intensity * 0.25;
+            ctx.globalAlpha = barBaseAlpha + intensity * barRangeAlpha;
             ctx.fillRect(centerX + 2, cellY + 1, askW, barH);
             ctx.globalAlpha = 1;
           }
@@ -471,7 +488,8 @@ export class FootprintCanvasRenderer {
           ctx.globalAlpha = 1;
         }
 
-        // ─── LAYER 3: Text (bid, separator, ask) ───
+        // ─── LAYER 3: Text (bid, separator, ask) — skipped in compact mode ───
+        if (!showCellText) return; // cells too small: bars carry the signal, delta shown per-candle
         const isLargeTrade = largeTradeEnabled && totalVol > largeTradeMultiplier * avgLevelVol;
 
         if (clusterMode === 'bid-ask' || clusterMode === 'bid-ask-split') {
@@ -547,6 +565,41 @@ export class FootprintCanvasRenderer {
           ctx.fillText(volStr, centerX, textY);
         }
       });
+
+      // ─── Per-candle delta label (compact mode only) ────────────────────────
+      // In compact mode (no cell text), show the candle's total delta centered on the body.
+      // Positive delta → green, negative → red.  Shown only when body is tall enough.
+      if (!showCellText && candle.levels.size > 0) {
+        let candleDelta = 0;
+        candle.levels.forEach(l => { candleDelta += l.askVolume - l.bidVolume; });
+        const deltaStr  = (candleDelta >= 0 ? '+' : '') + this.formatVolCached(Math.abs(candleDelta), zoom);
+        const bodyTopY    = Math.min(layout.priceToY(candle.open, metrics), layout.priceToY(candle.close, metrics));
+        const bodyBottomY = Math.max(layout.priceToY(candle.open, metrics), layout.priceToY(candle.close, metrics));
+        const bodyH = bodyBottomY - bodyTopY;
+        const labelFontSize = Math.max(7, Math.min(10, fontSize));
+        if (bodyH >= labelFontSize + 2) {
+          // Label fits inside body — render centered
+          ctx.font         = `bold ${labelFontSize}px ${fontFamily}`;
+          ctx.textAlign    = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle    = candleDelta >= 0 ? colors.deltaPositive : colors.deltaNegative;
+          ctx.globalAlpha  = 0.95;
+          ctx.fillText(deltaStr, centerX, (bodyTopY + bodyBottomY) / 2);
+          ctx.globalAlpha  = 1;
+          ctx.textBaseline = 'alphabetic';
+        } else {
+          // Body too thin — render just above (bullish) or below (bearish) the body
+          const isBullish  = candle.close >= candle.open;
+          ctx.font         = `bold ${labelFontSize}px ${fontFamily}`;
+          ctx.textAlign    = 'center';
+          ctx.textBaseline = isBullish ? 'bottom' : 'top';
+          ctx.fillStyle    = candleDelta >= 0 ? colors.deltaPositive : colors.deltaNegative;
+          ctx.globalAlpha  = 0.85;
+          ctx.fillText(deltaStr, centerX, isBullish ? bodyTopY - 2 : bodyBottomY + 2);
+          ctx.globalAlpha  = 1;
+          ctx.textBaseline = 'alphabetic';
+        }
+      }
 
       // Vertical separator
       const totalFpWidth = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
@@ -1246,6 +1299,252 @@ export class FootprintCanvasRenderer {
       : Math.round(sessionStats.totalVolume).toString();
     ctx.fillText(`VP: ${totalStr}`, vpX + vpWidth / 2, footprintAreaY + 9);
     ctx.restore();
+  }
+
+  /**
+   * Render volume profile as a transparent left-anchored overlay on the chart area.
+   * Identical style to FootprintTESTChart: aggregates ALL session candles, cell-aligned
+   * bars anchored to the left, full-width VAH/VAL lines, POC gold line.
+   */
+  renderVolumeProfileOverlay(
+    ctx: CanvasRenderingContext2D,
+    layout: FootprintLayoutEngine,
+    metrics: LayoutMetrics,
+    allCandles: FootprintCandle[],
+    tickSize: number,
+    pocColor = '#e2b93b',
+  ): void {
+    const { footprintAreaX, footprintAreaY, footprintAreaHeight, footprintAreaWidth } = metrics;
+
+    if (allCandles.length === 0) return;
+
+    // ── Session aggregation — all candles, identical to footprintTEST ──────────
+    const sessionBid = new Map<number, number>();
+    const sessionAsk = new Map<number, number>();
+    for (const c of allCandles) {
+      c.levels.forEach((level, price) => {
+        sessionBid.set(price, (sessionBid.get(price) ?? 0) + level.bidVolume);
+        sessionAsk.set(price, (sessionAsk.get(price) ?? 0) + level.askVolume);
+      });
+    }
+    if (sessionBid.size === 0) return;
+
+    // total vol per level + maxVol + POC
+    const totalVol = new Map<number, number>();
+    let sessionTotal = 0;
+    let maxVol = 1;
+    let pocPrice = 0;
+    sessionBid.forEach((bid, price) => {
+      const t = bid + (sessionAsk.get(price) ?? 0);
+      totalVol.set(price, t);
+      sessionTotal += t;
+      if (t > maxVol) { maxVol = t; pocPrice = price; }
+    });
+
+    // Value area (70%) — identical logic to footprintTEST
+    const sorted = Array.from(totalVol.entries()).sort((a, b) => b[1] - a[1]);
+    let vaVol = 0; let vaH = pocPrice; let vaL = pocPrice;
+    const va70 = sessionTotal * 0.70;
+    for (const [price, vol] of sorted) {
+      vaVol += vol;
+      vaH = Math.max(vaH, price);
+      vaL = Math.min(vaL, price);
+      if (vaVol >= va70) break;
+    }
+
+    const barMaxW  = Math.min(footprintAreaWidth * 0.22, 120);
+    const areaRight = footprintAreaX + footprintAreaWidth;
+
+    ctx.save();
+
+    // ── VAH / VAL full-width solid lines ───────────────────────────────────────
+    const vahY = layout.priceToY(vaH, metrics);
+    const valY = layout.priceToY(vaL, metrics);
+    ctx.strokeStyle = 'rgba(100,150,220,0.35)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    if (vahY >= footprintAreaY && vahY <= footprintAreaY + footprintAreaHeight) {
+      ctx.moveTo(footprintAreaX, vahY); ctx.lineTo(areaRight, vahY);
+    }
+    if (valY >= footprintAreaY && valY <= footprintAreaY + footprintAreaHeight) {
+      ctx.moveTo(footprintAreaX, valY); ctx.lineTo(areaRight, valY);
+    }
+    ctx.stroke();
+
+    // ── POC full-width gold solid line ─────────────────────────────────────────
+    const pocY = layout.priceToY(pocPrice, metrics);
+    if (pocY >= footprintAreaY && pocY <= footprintAreaY + footprintAreaHeight) {
+      ctx.strokeStyle = pocColor;
+      ctx.lineWidth   = 1.5;
+      ctx.globalAlpha = 0.88;
+      ctx.beginPath();
+      ctx.moveTo(footprintAreaX, pocY); ctx.lineTo(areaRight, pocY);
+      ctx.stroke();
+      ctx.font         = 'bold 8px "Consolas", monospace';
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign    = 'left';
+      ctx.fillStyle    = pocColor;
+      ctx.globalAlpha  = 0.85;
+      ctx.fillText('POC', footprintAreaX + barMaxW + 3, pocY - 2);
+      ctx.globalAlpha  = 1;
+    }
+
+    // ── Volume bars — left-anchored, cell-aligned ──────────────────────────────
+    totalVol.forEach((vol, price) => {
+      const y1 = layout.priceToY(price + tickSize, metrics); // top of cell
+      const y2 = layout.priceToY(price, metrics);            // bottom of cell
+      if (y2 < footprintAreaY || y1 > footprintAreaY + footprintAreaHeight) return;
+      const barH = Math.max(1, y2 - y1 - 1);
+
+      const isPOC = price === pocPrice;
+      const isVA  = price >= vaL && price <= vaH;
+      const barW  = Math.max(2, (vol / maxVol) * barMaxW);
+
+      ctx.globalAlpha = isPOC ? 0.70 : isVA ? 0.38 : 0.22;
+      ctx.fillStyle   = isPOC ? pocColor : isVA ? '#4a7abf' : '#2a4870';
+      ctx.fillRect(footprintAreaX, y1, barW, barH);
+    });
+
+    // ── VAH / VAL labels ───────────────────────────────────────────────────────
+    ctx.globalAlpha  = 1;
+    ctx.font         = 'bold 7px "Consolas", monospace';
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'left';
+    ctx.fillStyle    = 'rgba(100,150,220,0.55)';
+    if (vahY > footprintAreaY + 10)
+      ctx.fillText('VAH', footprintAreaX + barMaxW + 3, vahY - 2);
+    if (valY < footprintAreaY + footprintAreaHeight - 4)
+      ctx.fillText('VAL', footprintAreaX + barMaxW + 3, valY + 8);
+
+    ctx.restore();
+  }
+
+  /**
+   * Render DOM overlay — right-anchored, exact port of FootprintTESTChart renderDOMOverlay.
+   * domBids/domAsks must already be pre-filtered (bids < currentPrice, asks > currentPrice).
+   */
+  renderDOMOverlay(
+    ctx: CanvasRenderingContext2D,
+    layout: FootprintLayoutEngine,
+    metrics: LayoutMetrics,
+    domBids: Map<number, number>,
+    domAsks: Map<number, number>,
+    currentPrice: number,
+    tickSize: number,
+  ): void {
+    if (domBids.size === 0 && domAsks.size === 0) return;
+
+    const { footprintAreaX, footprintAreaY, footprintAreaHeight, footprintAreaWidth } = metrics;
+    const areaRight = footprintAreaX + footprintAreaWidth;
+    const barMaxW   = Math.min(footprintAreaWidth * 0.28, 200);
+    const domLeft   = areaRight - barMaxW;
+
+    const bidEntries = Array.from(domBids.entries()).sort(([a], [b]) => b - a); // desc
+    const askEntries = Array.from(domAsks.entries()).sort(([a], [b]) => a - b); // asc
+
+    let maxBidQty = 1, maxAskQty = 1;
+    bidEntries.forEach(([, q]) => { maxBidQty = Math.max(maxBidQty, q); });
+    askEntries.forEach(([, q]) => { maxAskQty = Math.max(maxAskQty, q); });
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(domLeft, footprintAreaY, barMaxW, footprintAreaHeight);
+    ctx.clip();
+
+    // Dark background
+    ctx.fillStyle   = '#000000';
+    ctx.globalAlpha = 0.20;
+    ctx.fillRect(domLeft, footprintAreaY, barMaxW, footprintAreaHeight);
+    ctx.globalAlpha = 1;
+
+    const fmtQty = (q: number) => q >= 1000 ? `${(q / 1000).toFixed(1)}k` : `${Math.round(q)}`;
+    const cpY = layout.priceToY(currentPrice, metrics);
+
+    const drawSide = (
+      entries: [number, number][],
+      clr: string, nearClr: string,
+      maxQty: number, side: 'bid' | 'ask',
+    ) => {
+      entries.forEach(([price, qty], rank) => {
+        const y1 = layout.priceToY(price + tickSize, metrics);
+        const y2 = layout.priceToY(price, metrics);
+        // Price-based side guard (y-coord check breaks for large tickSizes like BTC's 10 USDT)
+        if (side === 'bid' && price >= currentPrice) return;
+        if (side === 'ask' && price <= currentPrice) return;
+        if (y2 < footprintAreaY || y1 > footprintAreaY + footprintAreaHeight) return;
+        const barH  = Math.max(1, y2 - y1 - 1);
+        const ratio = Math.min(1, qty / maxQty);
+        const barW  = Math.min(barMaxW, Math.max(3, Math.round(ratio * barMaxW)));
+        const isNear = rank < 2;
+
+        ctx.fillStyle   = isNear ? nearClr : clr;
+        ctx.globalAlpha = 1.0;
+        ctx.fillRect(areaRight - barW, y1, barW, barH);
+
+        if (isNear) {
+          ctx.strokeStyle = nearClr;
+          ctx.lineWidth   = 1.5;
+          ctx.globalAlpha = 1;
+          ctx.strokeRect(areaRight - barW + 0.5, y1 + 0.5, barW - 1, Math.max(1, barH - 1));
+        }
+
+        if (barH >= 7 && barW > 24) {
+          ctx.fillStyle    = '#ffffff';
+          ctx.globalAlpha  = 1.0;
+          ctx.font         = `${isNear ? 'bold ' : ''}${Math.min(10, barH - 1)}px "Consolas", monospace`;
+          ctx.textAlign    = 'right';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(fmtQty(qty), areaRight - 4, y1 + barH / 2);
+        }
+        ctx.globalAlpha = 1;
+      });
+    };
+
+    drawSide(bidEntries, '#ef5350', '#ff8a87', maxBidQty, 'bid');
+    drawSide(askEntries, '#26a69a', '#4ddecf', maxAskQty, 'ask');
+
+    // Current price divider
+    if (cpY >= footprintAreaY && cpY <= footprintAreaY + footprintAreaHeight) {
+      ctx.strokeStyle = 'rgba(200,215,255,0.55)';
+      ctx.lineWidth   = 1;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(domLeft, cpY);
+      ctx.lineTo(areaRight, cpY);
+      ctx.stroke();
+
+      if (askEntries[0]) {
+        ctx.font = 'bold 8px "Consolas", monospace';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#4ddecf'; ctx.globalAlpha = 0.95;
+        ctx.fillText(`A ${fmtQty(askEntries[0][1])}`, areaRight - 4, cpY - 2);
+      }
+      if (bidEntries[0]) {
+        ctx.font = 'bold 8px "Consolas", monospace';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+        ctx.fillStyle = '#ff8a87'; ctx.globalAlpha = 0.95;
+        ctx.fillText(`B ${fmtQty(bidEntries[0][1])}`, areaRight - 4, cpY + 2);
+      }
+    }
+
+    // Left-edge separator
+    ctx.strokeStyle = 'rgba(90,110,160,0.40)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(domLeft + 0.5, footprintAreaY);
+    ctx.lineTo(domLeft + 0.5, footprintAreaY + footprintAreaHeight);
+    ctx.stroke();
+
+    // "DOM" label
+    ctx.font = 'bold 7px "Consolas", monospace';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(160,185,220,0.55)'; ctx.globalAlpha = 1;
+    ctx.fillText('DOM', areaRight - 4, footprintAreaY + 3);
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 
   /**

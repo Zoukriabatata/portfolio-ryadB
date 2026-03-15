@@ -12,7 +12,6 @@ const DeepChart = dynamic(
 
 export default function FootprintTESTPageContent() {
   const { tradingSymbol, setTradingSymbol } = useTradingStore();
-  const sym = 'mnq'; // demo symbol — MNQ (Micro E-mini NASDAQ)
 
   return (
     <ChartPageShell
@@ -21,7 +20,7 @@ export default function FootprintTESTPageContent() {
     >
       <ChartErrorBoundary fallbackTitle="DeepChart Error">
         <div className="h-full">
-          <DeepChart symbol={sym} onSymbolChange={setTradingSymbol} />
+          <DeepChart symbol={tradingSymbol} onSymbolChange={setTradingSymbol} />
         </div>
       </ChartErrorBoundary>
     </ChartPageShell>

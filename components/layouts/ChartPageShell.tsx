@@ -1,7 +1,6 @@
 'use client';
 
 import ConnectionBanner from '@/components/ui/ConnectionBanner';
-import BottomWidgetsPanel from '@/components/widgets/BottomWidgetsPanel';
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -20,7 +19,8 @@ interface ChartPageShellProps {
 }
 
 export default function ChartPageShell({
-  symbol,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  symbol: _symbol,
   toolbarLeft,
   toolbarRight,
   tradeBarSlot,
@@ -64,8 +64,6 @@ export default function ChartPageShell({
         <div className="flex-1 min-h-0 relative">
           {children}
         </div>
-
-        <BottomWidgetsPanel symbol={symbol} />
       </div>
     </div>
   );

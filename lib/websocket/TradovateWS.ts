@@ -147,9 +147,9 @@ class TradovateWebSocket {
         }
       };
 
-      this.mdWs.onerror = (error) => {
-        console.error('[Tradovate MD] WebSocket error:', error);
-        reject(error);
+      this.mdWs.onerror = (event) => {
+        console.error('[Tradovate MD] WebSocket error:', event);
+        reject(new Error('[Tradovate MD] WebSocket connection failed'));
       };
 
       this.mdWs.onclose = () => {

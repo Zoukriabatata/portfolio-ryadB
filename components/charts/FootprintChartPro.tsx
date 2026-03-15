@@ -33,6 +33,7 @@ import {
   type InteractionMode,
 } from '@/lib/tools/InteractionController';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
+import { binanceWS } from '@/lib/websocket/BinanceWS';
 import { getIBConnectionManager } from '@/lib/ib/ConnectionManager';
 import { getRithmicLiveWS } from '@/lib/live/RithmicLiveWS';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
@@ -536,6 +537,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
   const candlesRef = useRef<FootprintCandle[]>([]);
   const currentPriceRef = useRef<number>(0);
 
+  // DOM overlay refs — same pattern as FootprintTESTChart
+  const domBidsRef    = useRef<Map<number, number>>(new Map());
+  const domAsksRef    = useRef<Map<number, number>>(new Map());
+  const hasRealDOMRef = useRef(false);
+
   // DEBUG: Direct trade tracking (bypasses candle logic)
   const debugTradesRef = useRef<Array<{ price: number; size: number; side: 'BID' | 'ASK'; time: number }>>([]);
   const debugTradeCountRef = useRef(0);
@@ -626,7 +632,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       maxVisibleFootprints: settings.maxVisibleFootprints,
       showOHLC: settings.features.showOHLC,
       showDeltaProfile: settings.features.showDeltaProfile,
-      showVolumeProfile: settings.features.showVolumeProfile,
+      showVolumeProfile: false, // VP rendered as overlay — no panel space needed
       deltaProfilePosition: settings.deltaProfilePosition,
       candleGap: settings.candleGap || 3,
     });
@@ -665,6 +671,26 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       layoutPersistence.stopAutoSave();
     };
   }, [symbol, timeframe, tickSize, settings]);
+
+  // ── DOM overlay — Binance depth subscription (non-CME symbols) ────────────
+  const CME_SYMS = useMemo(() => new Set(['mnq', 'mes', 'mym', 'm2k']), []);
+  useEffect(() => {
+    if (!settings.features.showPassiveLiquidity) return;
+    hasRealDOMRef.current = false;
+    domBidsRef.current = new Map();
+    domAsksRef.current = new Map();
+    if (CME_SYMS.has(symbol.toLowerCase())) return; // CME DOM populated from simulator each frame
+    const unsub = binanceWS.subscribeDepth20(symbol.toLowerCase(), (snap) => {
+      hasRealDOMRef.current = true;
+      const bids = new Map<number, number>();
+      const asks = new Map<number, number>();
+      snap.bids.forEach(([p, q]: [string, string]) => { const qty = parseFloat(q); if (qty > 0) bids.set(parseFloat(p), qty); });
+      snap.asks.forEach(([p, q]: [string, string]) => { const qty = parseFloat(q); if (qty > 0) asks.set(parseFloat(p), qty); });
+      domBidsRef.current = bids;
+      domAsksRef.current = asks;
+    }, 'futures', '100ms');
+    return unsub;
+  }, [symbol, settings.features.showPassiveLiquidity, CME_SYMS]);
 
   /**
    * Handle keyboard shortcuts
@@ -1131,17 +1157,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
     const isFootprintMode = lod.mode === 'footprint';
 
-    // ═══════════════════════════════════════════════════════════════
-    // INTELLIGENT PASSIVE LIQUIDITY - CORRÉLÉ AU FOOTPRINT
-    // ═══════════════════════════════════════════════════════════════
-    // - Couvre TOUTE la plage de prix visible
-    // - Chaque trade footprint CONSOMME le passif correspondant
-    // - Création forcée si trade sans passif
-    // ═══════════════════════════════════════════════════════════════
-    if (features.showPassiveLiquidity && settings.passiveLiquidity.enabled && isFootprintMode) {
+    // ── CME DOM: populate domBids/domAsks from simulator each frame ───────────
+    if (features.showPassiveLiquidity && CME_SYMS.has(symbol.toLowerCase())) {
       const simulator = getPassiveLiquiditySimulator();
 
-      // Calculate average trade volume from visible footprint data
+      // Calibrate simulator from visible footprint data
       let totalVolume = 0;
       let totalLevels = 0;
       let maxLevelVolume = 0;
@@ -1167,346 +1187,26 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         baseLiquidity: adaptiveBaseLiquidity,
       });
 
-      // In simulation mode: calibrate and generate fake levels
-      // In realtime mode: skip - real orderbook data is the source of truth
-      if (!simulator.isRealtimeMode()) {
-        simulator.calibrateFromFootprint(avgTradeVolume, maxLevelVolume);
-        simulator.setVisibleRange(metrics.visiblePriceMin, metrics.visiblePriceMax);
-      }
-
-      // Tick for status updates (animations, fades)
+      simulator.calibrateFromFootprint(avgTradeVolume, maxLevelVolume);
+      simulator.setVisibleRange(metrics.visiblePriceMin, metrics.visiblePriceMax);
       simulator.tick();
 
-      const plSettings = settings.passiveLiquidity;
+      // Extract bid/ask Maps for the footprintTEST-style DOM renderer
+      const simLevels = simulator.getLevelsInRange(metrics.visiblePriceMin, metrics.visiblePriceMax);
+      const simBids = new Map<number, number>();
+      const simAsks = new Map<number, number>();
+      for (const l of simLevels) {
+        if (l.remainingVolume > 0) {
+          if (l.side === 'bid') simBids.set(l.price, l.remainingVolume);
+          else simAsks.set(l.price, l.remainingVolume);
+        }
+      }
+      domBidsRef.current = simBids;
+      domAsksRef.current = simAsks;
 
-      // ═══════════════════════════════════════════════════════════════
-      // UNIFIED PASSIVE LIQUIDITY RENDERING
-      // ═══════════════════════════════════════════════════════════════
-      // RÈGLE: Toutes les barres partent du bord DROIT vers l'INTÉRIEUR
-      // - Même sens visuel pour bid et ask
-      // - Couleur différencie bid (cyan) / ask (red)
-      // - Le passif EXPLIQUE la footprint (pas décoratif)
-      // ═══════════════════════════════════════════════════════════════
+      // Old rendering removed — DOM drawn via renderDOMOverlay below (after candles)
 
-      const plSnapshot = simulator.getSnapshot();
-      const maxVolume = Math.max(plSnapshot.maxBidVolume || 1, plSnapshot.maxAskVolume || 1);
-      const maxBarWidth = plSettings.maxBarWidth * plSettings.intensity;
-      const barHeight = rowH * 0.7; // Taller bars for better visibility
-
-      // Position: Fixed to right edge, all bars extend LEFT (inward)
-      const rightEdge = footprintAreaX + footprintAreaWidth - 8;
-
-      ctx.save();
-
-      // Helper function for formatting volume
-      const formatPassiveVol = (vol: number): string => {
-        const abs = Math.abs(vol);
-        if (abs >= 1000) return `${(vol / 1000).toFixed(1)}K`;
-        if (abs >= 100) return Math.round(vol).toString();
-        return vol.toFixed(1);
-      };
-
-      // Get coherent levels directly from simulator (not legacy format)
-      const coherentLevels = simulator.getLevelsInRange(metrics.visiblePriceMin, metrics.visiblePriceMax);
-
-      // Clear and rebuild bounds for hover detection
       passiveLevelBoundsRef.current = [];
-
-      for (const level of coherentLevels) {
-        const y = layout.priceToY(level.price, metrics);
-        if (y < footprintAreaY - barHeight || y > footprintAreaY + footprintAreaHeight + barHeight) continue;
-
-        // Skip if no remaining volume or not visible
-        if (level.remainingVolume <= 0 || level.opacity < 0.05) continue;
-
-        // ═══════════════════════════════════════════════════════════════
-        // UNIFIED DIRECTION: All bars extend from RIGHT edge INWARD (left)
-        // ═══════════════════════════════════════════════════════════════
-        const volumeRatio = level.remainingVolume / maxVolume;
-        const barWidth = Math.min(maxBarWidth, volumeRatio * maxBarWidth);
-        const barX = rightEdge - barWidth; // Extend LEFT from right edge
-
-        // Color based on side and status
-        const baseColor = level.side === 'bid' ? plSettings.bidColor : plSettings.askColor;
-        let color = baseColor;
-        let opacityMod = 1.0;
-
-        if (level.status === 'absorbing') {
-          // Brighter color + pulse when absorbing
-          color = level.side === 'bid' ? '#00ffff' : '#ff6666';
-          const pulsePhase = (Date.now() % 400) / 400;
-          opacityMod = 0.7 + 0.3 * Math.sin(pulsePhase * Math.PI * 2);
-        } else if (level.status === 'executed') {
-          color = '#666666';
-          opacityMod = 0.3;
-        } else if (level.status === 'spoofed') {
-          color = '#ff0000';
-          opacityMod = 0.5;
-        }
-
-        // Calculate final opacity (simpler, more visible)
-        const intensity = level.remainingVolume / level.initialVolume;
-        const alpha = Math.min(0.9, plSettings.opacity * level.opacity * opacityMod * (0.6 + intensity * 0.4));
-
-        // Center bar on price line (since we only have one side per price now)
-        const barY = y - barHeight / 2;
-
-        // Store bounds for hover detection
-        passiveLevelBoundsRef.current.push({
-          level,
-          x: barX,
-          y: barY,
-          width: barWidth,
-          height: barHeight,
-        });
-
-        // Draw bar with subtle border for better visibility
-        ctx.fillStyle = color;
-        ctx.globalAlpha = alpha;
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-
-        // Add subtle border for contrast
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 0.5;
-        ctx.globalAlpha = Math.min(0.8, alpha * 1.2);
-        ctx.strokeRect(barX, barY, barWidth, barHeight);
-
-        // Absorption pulse effect (pulsing border)
-        if (level.status === 'absorbing') {
-          const pulsePhase = (Date.now() % 250) / 250;
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.5 + pulsePhase * 2;
-          ctx.globalAlpha = (1 - pulsePhase) * 0.9;
-          ctx.strokeRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
-        }
-
-        // Volume label (to the left of bar)
-        if (level.remainingVolume > 0.5) {
-          ctx.fillStyle = color;
-          ctx.globalAlpha = Math.min(0.9, alpha * 1.5);
-          ctx.font = 'bold 9px "Consolas", monospace';
-          ctx.textAlign = 'right';
-          ctx.fillText(formatPassiveVol(level.remainingVolume), barX - 3, y + 3);
-        }
-
-        // Spoofing indicator (red X)
-        if (level.status === 'spoofed') {
-          ctx.strokeStyle = '#ff0000';
-          ctx.lineWidth = 1.5;
-          ctx.globalAlpha = 0.8;
-          const xSize = barHeight * 0.5;
-          const xCenter = barX + barWidth / 2;
-          ctx.beginPath();
-          ctx.moveTo(xCenter - xSize, y - xSize);
-          ctx.lineTo(xCenter + xSize, y + xSize);
-          ctx.moveTo(xCenter + xSize, y - xSize);
-          ctx.lineTo(xCenter - xSize, y + xSize);
-          ctx.stroke();
-        }
-
-        // Iceberg indicator (diamond/ice symbol + hidden volume indicator)
-        if (level.isIceberg && level.hiddenVolume > 0) {
-          ctx.globalAlpha = 0.9;
-
-          // Draw small diamond icon at the right edge of bar
-          const iconSize = 4;
-          const iconX = barX + barWidth + 3;
-          const iconY = y; // Centered on price line
-
-          // Diamond shape (iceberg symbol)
-          ctx.fillStyle = '#60a5fa'; // Light blue for "ice"
-          ctx.beginPath();
-          ctx.moveTo(iconX, iconY - iconSize);
-          ctx.lineTo(iconX + iconSize, iconY);
-          ctx.lineTo(iconX, iconY + iconSize);
-          ctx.lineTo(iconX - iconSize, iconY);
-          ctx.closePath();
-          ctx.fill();
-
-          // Small "H" indicator for hidden volume
-          ctx.fillStyle = '#93c5fd';
-          ctx.font = 'bold 6px "Consolas", monospace';
-          ctx.textAlign = 'left';
-          ctx.fillText(`+${formatPassiveVol(level.hiddenVolume)}`, iconX + iconSize + 2, iconY + 2);
-
-          // Show refill count if > 0
-          if (level.refillCount > 0) {
-            ctx.fillStyle = '#fbbf24'; // Amber for refills
-            ctx.fillText(`(${level.refillCount}x)`, iconX + iconSize + 25, iconY + 2);
-          }
-        }
-      }
-
-      // ═══════════════════════════════════════════════════════════════
-      // DEBUG HOVER TOOLTIP
-      // ═══════════════════════════════════════════════════════════════
-      if (hoveredPassiveLevelRef.current) {
-        const hl = hoveredPassiveLevelRef.current;
-        const tooltipWidth = 180;
-        const isIcebergLevel = hl.isIceberg && (hl.hiddenVolume > 0 || hl.refillCount > 0);
-        const tooltipHeight = isIcebergLevel ? 115 : 85; // Taller for icebergs
-        const padding = 8;
-        const lineHeight = 14;
-
-        // Position tooltip near mouse but keep in bounds
-        const mp = mousePositionRef.current;
-        let tooltipX = mp ? mp.x + 15 : footprintAreaX + 100;
-        let tooltipY = mp ? mp.y - tooltipHeight - 10 : footprintAreaY + 50;
-
-        // Keep in bounds
-        if (tooltipX + tooltipWidth > width - 60) tooltipX = width - 60 - tooltipWidth - 10;
-        if (tooltipY < footprintAreaY) tooltipY = footprintAreaY + 10;
-
-        // Draw tooltip background
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = 'rgba(15, 18, 25, 0.95)';
-        ctx.strokeStyle = isIcebergLevel ? '#60a5fa' : (hl.side === 'bid' ? '#22d3ee' : '#ef4444');
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 6);
-        ctx.fill();
-        ctx.stroke();
-
-        // Title (with iceberg badge if applicable)
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px "Consolas", monospace';
-        ctx.textAlign = 'left';
-        const titleText = isIcebergLevel
-          ? `ICEBERG ${hl.side.toUpperCase()} @ ${hl.price.toFixed(2)}`
-          : `PASSIVE ${hl.side.toUpperCase()} @ ${hl.price.toFixed(2)}`;
-        ctx.fillText(titleText, tooltipX + padding, tooltipY + padding + 10);
-
-        // Status indicator
-        const statusColors: Record<string, string> = {
-          active: '#4ade80',
-          absorbing: '#fbbf24',
-          executed: '#94a3b8',
-          spoofed: '#ef4444',
-        };
-        ctx.fillStyle = statusColors[hl.status] || '#9ca3af';
-        ctx.font = '9px "Consolas", monospace';
-        ctx.fillText(`Status: ${hl.status.toUpperCase()}`, tooltipX + padding, tooltipY + padding + 10 + lineHeight);
-
-        // Initial volume
-        ctx.fillStyle = '#9ca3af';
-        ctx.fillText(`Initial: ${formatPassiveVol(hl.initialVolume)}`, tooltipX + padding, tooltipY + padding + 10 + lineHeight * 2);
-
-        // Remaining volume
-        ctx.fillStyle = hl.remainingVolume > hl.initialVolume * 0.5 ? '#4ade80' : hl.remainingVolume > 0 ? '#fbbf24' : '#ef4444';
-        ctx.fillText(`Remaining: ${formatPassiveVol(hl.remainingVolume)}`, tooltipX + padding, tooltipY + padding + 10 + lineHeight * 3);
-
-        // Absorbed volume
-        ctx.fillStyle = hl.absorbedVolume > 0 ? '#f97316' : '#6b7280';
-        ctx.fillText(`Absorbed: ${formatPassiveVol(hl.absorbedVolume)} (${((hl.absorbedVolume / Math.max(1, hl.initialVolume)) * 100).toFixed(1)}%)`, tooltipX + padding, tooltipY + padding + 10 + lineHeight * 4);
-
-        // Iceberg info (if applicable)
-        if (isIcebergLevel) {
-          ctx.fillStyle = '#60a5fa';
-          ctx.fillText(`Hidden: ${formatPassiveVol(hl.hiddenVolume)} | Refills: ${hl.refillCount}`, tooltipX + padding, tooltipY + padding + 10 + lineHeight * 5);
-
-          // Total iceberg volume
-          ctx.fillStyle = '#93c5fd';
-          ctx.fillText(`Total: ${formatPassiveVol(hl.totalIcebergVolume)}`, tooltipX + padding, tooltipY + padding + 10 + lineHeight * 6);
-        }
-      }
-
-      // ═══════════════════════════════════════════════════════════════
-      // ABSORPTION STATS PANEL (top-right corner)
-      // ═══════════════════════════════════════════════════════════════
-      if (plSettings.showStats !== false) {
-        const stats = simulator.getStatistics();
-        const panelWidth = 160;
-        const panelHeight = 95;
-        const panelX = footprintAreaX + footprintAreaWidth - panelWidth - 10;
-        const panelY = footprintAreaY + 10;
-        const padding = 8;
-        const lineHeight = 12;
-
-        // Panel background
-        ctx.globalAlpha = 0.85;
-        ctx.fillStyle = 'rgba(10, 12, 18, 0.92)';
-        ctx.beginPath();
-        ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 6);
-        ctx.fill();
-
-        // Border
-        ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        ctx.globalAlpha = 1;
-
-        // Title with mode indicator
-        const isRealtimeMode = plSettings.useRealOrderbook ?? false;
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = 'bold 9px "Consolas", monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText('PASSIVE LIQUIDITY', panelX + padding, panelY + padding + 8);
-
-        // Mode badge (SIM or LIVE)
-        const modeText = isRealtimeMode ? 'LIVE' : 'SIM';
-        const modeColor = isRealtimeMode ? '#22c55e' : '#6b7280';
-        const modeWidth = ctx.measureText(modeText).width + 8;
-        ctx.fillStyle = isRealtimeMode ? 'rgba(34, 197, 94, 0.2)' : 'rgba(107, 114, 128, 0.2)';
-        ctx.fillRect(panelX + panelWidth - padding - modeWidth, panelY + padding, modeWidth, 12);
-        ctx.fillStyle = modeColor;
-        ctx.font = 'bold 8px "Consolas", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(modeText, panelX + panelWidth - padding - modeWidth / 2, panelY + padding + 9);
-        ctx.textAlign = 'left';
-
-        // Bid volume
-        ctx.fillStyle = plSettings.bidColor;
-        ctx.font = '9px "Consolas", monospace';
-        ctx.fillText(`BID: ${formatPassiveVol(stats.totalBidVolume)}`, panelX + padding, panelY + padding + 8 + lineHeight * 1.5);
-
-        // Ask volume
-        ctx.fillStyle = plSettings.askColor;
-        ctx.fillText(`ASK: ${formatPassiveVol(stats.totalAskVolume)}`, panelX + padding + 70, panelY + padding + 8 + lineHeight * 1.5);
-
-        // Absorbed
-        ctx.fillStyle = '#f97316';
-        ctx.fillText(`Absorbed: ${formatPassiveVol(stats.totalAbsorbed)}`, panelX + padding, panelY + padding + 8 + lineHeight * 2.5);
-
-        // Imbalance bar
-        const imbalance = stats.volumeImbalance;
-        const maxImbalance = Math.max(stats.totalBidVolume, stats.totalAskVolume) || 1;
-        const imbalanceRatio = Math.min(1, Math.abs(imbalance) / maxImbalance);
-        const barWidth = panelWidth - padding * 2;
-        const barY = panelY + padding + 8 + lineHeight * 3.5;
-        const barHeight = 6;
-
-        // Bar background
-        ctx.fillStyle = 'rgba(50, 50, 60, 0.5)';
-        ctx.fillRect(panelX + padding, barY, barWidth, barHeight);
-
-        // Imbalance indicator
-        const centerX = panelX + padding + barWidth / 2;
-        const indicatorWidth = barWidth * imbalanceRatio * 0.5;
-        ctx.fillStyle = imbalance > 0 ? plSettings.bidColor : plSettings.askColor;
-        if (imbalance > 0) {
-          ctx.fillRect(centerX, barY, indicatorWidth, barHeight);
-        } else {
-          ctx.fillRect(centerX - indicatorWidth, barY, indicatorWidth, barHeight);
-        }
-
-        // Center line
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(centerX, barY - 1);
-        ctx.lineTo(centerX, barY + barHeight + 1);
-        ctx.stroke();
-
-        // Imbalance label
-        ctx.fillStyle = imbalance > 0 ? '#4ade80' : imbalance < 0 ? '#ef4444' : '#9ca3af';
-        ctx.font = '8px "Consolas", monospace';
-        ctx.textAlign = 'center';
-        const imbalanceLabel = imbalance > 0 ? `+${formatPassiveVol(imbalance)} BID` : imbalance < 0 ? `${formatPassiveVol(imbalance)} ASK` : 'BALANCED';
-        ctx.fillText(imbalanceLabel, centerX, barY + barHeight + 10);
-      }
-
-      ctx.restore();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1603,9 +1303,21 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       fpRenderer.renderDeltaProfile(ctx, layout, metrics, colors, profileCaches, rowH, features);
     }
 
-    // Volume Profile (uses cached volumeByPrice + session stats)
-    if (isFootprintMode && features.showVolumeProfile && metrics.visibleCandles.length > 0) {
-      fpRenderer.renderVolumeProfile(ctx, layout, metrics, colors, profileCaches, rowH, width, features);
+    // Volume Profile — overlay style (left-anchored, all session candles, like footprintTEST)
+    if (features.showVolumeProfile && candles.length > 0) {
+      fpRenderer.renderVolumeProfileOverlay(ctx, layout, metrics, candles, tickSize, features?.volumeProfilePocColor || '#e2b93b');
+    }
+
+    // DOM overlay — footprintTEST style, right-anchored (after candles + VP)
+    if (features.showPassiveLiquidity && currentPriceRef.current > 0) {
+      // Use raw price (not tick-rounded) so Binance depth20 levels aren't incorrectly filtered.
+      // e.g. BTC tickSize=10, price=97523 → domCp=97520 would filter out bids at 97521-97523.
+      const rawPrice = currentPriceRef.current;
+      const safeBids = new Map<number, number>();
+      const safeAsks = new Map<number, number>();
+      domBidsRef.current.forEach((qty, p) => { if (p < rawPrice) safeBids.set(p, qty); });
+      domAsksRef.current.forEach((qty, p) => { if (p > rawPrice) safeAsks.set(p, qty); });
+      fpRenderer.renderDOMOverlay(ctx, layout, metrics, safeBids, safeAsks, rawPrice, tickSize);
     }
 
     // TPO / Market Profile
