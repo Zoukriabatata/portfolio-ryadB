@@ -67,9 +67,14 @@ export async function GET(
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[Binance Proxy] HTTP ${response.status}: ${errorText}`);
+      // Forward Retry-After so client backoff uses the server-specified delay
+      const retryAfter = response.headers.get('Retry-After');
       return NextResponse.json(
         { error: `Binance API error: ${response.status}`, details: errorText },
-        { status: response.status }
+        {
+          status: response.status,
+          headers: retryAfter ? { 'Retry-After': retryAfter } : undefined,
+        }
       );
     }
 

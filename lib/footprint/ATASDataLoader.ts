@@ -58,6 +58,26 @@
 import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { RawTick } from './ATASFootprintEngine';
 
+// ─── Global rate-limit backoff ─────────────────────────────────────────────
+// Shared across ALL concurrent fetchChunk calls so that when one chunk hits
+// a 418/429 ban, every other in-flight chunk pauses before its next request
+// instead of hammering Binance simultaneously and worsening the ban.
+let _backoffUntilMs = 0;
+
+function setGlobalBackoff(ms: number): void {
+  _backoffUntilMs = Math.max(_backoffUntilMs, Date.now() + ms);
+}
+
+async function waitGlobalBackoff(signal?: AbortSignal): Promise<void> {
+  const delay = _backoffUntilMs - Date.now();
+  if (delay <= 0) return;
+  console.warn(`[ATASLoader] Global backoff: waiting ${(delay / 1000).toFixed(0)}s before next request`);
+  await new Promise<void>(resolve => {
+    const tid = setTimeout(resolve, delay);
+    signal?.addEventListener('abort', () => { clearTimeout(tid); resolve(); }, { once: true });
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,7 +108,7 @@ export interface LoadConfig {
   /**
    * Number of parallel time chunks.
    * Higher = faster overall load but more concurrent requests.
-   * Default: 4
+   * Default: 2 (reduced from 4 to avoid triggering Binance 418 IP bans)
    */
   parallelChunks?: number;
 
@@ -227,7 +247,7 @@ export async function loadTickRange(
 ): Promise<RawTick[]> {
   const {
     maxTradesPerChunk = null,
-    parallelChunks = 4,
+    parallelChunks = 2,
     signal,
   } = config;
 
@@ -327,6 +347,9 @@ async function fetchChunk(
 
     while (retryCount <= MAX_RETRIES) {
       if (signal?.aborted) break;
+      // Wait if another chunk already triggered a global backoff
+      await waitGlobalBackoff(signal);
+      if (signal?.aborted) break;
       try {
         const response = await throttledFetch(
           `/api/binance/fapi/v1/aggTrades?${params}`,
@@ -335,10 +358,12 @@ async function fetchChunk(
 
         if (response.status === 429 || response.status === 418) {
           const retryAfter = parseInt(response.headers.get('Retry-After') ?? '5', 10);
-          const baseWait   = response.status === 418 ? 30_000 : 2_000;
+          const baseWait   = response.status === 418 ? 60_000 : 3_000;
           const waitMs     = Math.max(retryAfter * 1000, baseWait) * Math.pow(2, retryCount);
-          console.warn(`[ATASLoader] aggTrades ${response.status}, retry ${retryCount + 1}/${MAX_RETRIES} in ${waitMs}ms`);
-          await new Promise(r => setTimeout(r, waitMs));
+          // Broadcast the backoff to all concurrent chunk fetchers
+          setGlobalBackoff(waitMs);
+          console.warn(`[ATASLoader] aggTrades ${response.status}, global backoff ${(waitMs / 1000).toFixed(0)}s (retry ${retryCount + 1}/${MAX_RETRIES})`);
+          await waitGlobalBackoff(signal);
           retryCount++;
           continue;
         }
@@ -501,7 +526,7 @@ export async function loadFootprintData(
     hoursBack = 4,
     dayStartMs,
     maxTradesPerChunk = null,
-    parallelChunks = 4,
+    parallelChunks = 2,
     signal,
     intervalStr = '1m',
     skeletonLimit = 1440,
