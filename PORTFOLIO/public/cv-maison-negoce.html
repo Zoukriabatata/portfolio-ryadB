@@ -1,237 +1,447 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>CV – Ryad Bouderga</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV — Ryad Bouderga — Trading House</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: Calibri, Arial, sans-serif;
-      font-size: 11pt;
-      color: #000;
-      background: #fff;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:  #0b1426;
+      --blue:  #1e40af;
+      --blue2: #2563eb;
+      --bs:    #eff6ff;
+      --bt:    #1d4ed8;
+      --white: #ffffff;
+      --bg:    #f7f9fc;
+      --bdr:   #e2e8f0;
+      --txt:   #111827;
+      --mid:   #374151;
+      --muted: #6b7280;
+      --light: #9ca3af;
+      --gold:  #c9a84c;
     }
+    html { font-family: 'Inter', Arial, sans-serif; font-size: 9.5pt; color: var(--txt); }
+    body { background: #c9cdd6; }
 
+    /* ── Print bar ── */
+    .bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: var(--navy);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px; gap: 12px;
+    }
+    .bar-l { display: flex; align-items: center; gap: 12px; }
+    .bar p { font-size: 12px; color: #cbd5e1; }
+    .bar strong { color: #fff; }
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; background: rgba(255,255,255,0.07); color: #cbd5e1;
+      border: 1px solid rgba(255,255,255,0.14); border-radius: 100px;
+      font-family: inherit; font-size: 12px; font-weight: 500;
+      text-decoration: none; transition: background .2s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.13); }
+    .btn-print {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 22px; background: var(--blue2); color: #fff;
+      border: none; border-radius: 100px;
+      font-family: inherit; font-size: 13px; font-weight: 700;
+      cursor: pointer; white-space: nowrap; min-width: 180px; justify-content: center;
+      transition: background .2s, transform .15s;
+    }
+    .btn-print:hover { background: #1d4ed8; transform: translateY(-1px); }
+    .btn-print:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+    /* ── Page ── */
+    .wrap { padding: 52px 16px 32px; }
     .page {
-      width: 21cm;
-      min-height: 29.7cm;
-      margin: 0 auto;
-      padding: 2cm 2.5cm;
+      width: 210mm; min-height: 297mm;
+      margin: 0 auto; background: var(--white);
+      box-shadow: 0 10px 50px rgba(0,0,0,0.2);
+      display: flex; flex-direction: column;
     }
 
-    .header {
-      text-align: center;
-      margin-bottom: 16px;
+    /* ── HEADER ── */
+    .hd {
+      background: var(--navy);
+      padding: 22px 28px 18px;
+      border-bottom: 3px solid var(--gold);
     }
-
-    .header h1 {
-      font-size: 16pt;
-      font-weight: bold;
-      margin-bottom: 4px;
+    .hd-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .hd-name {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 30pt; font-weight: 900; color: #fff;
+      letter-spacing: 1.5px; text-transform: uppercase; line-height: 1;
     }
-
-    .header p {
-      font-size: 10.5pt;
-      line-height: 1.6;
+    .hd-title {
+      margin-top: 5px; font-size: 9pt; color: #93c5fd;
+      font-weight: 400; letter-spacing: 0.5px;
     }
-
-    hr {
-      border: none;
-      border-top: 1px solid #000;
-      margin: 10px 0;
+    .hd-badge {
+      display: inline-block; margin-top: 10px;
+      background: transparent; color: var(--gold);
+      font-size: 7pt; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; padding: 3px 0;
+      border-bottom: 1px solid var(--gold);
     }
+    .hd-contact { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .hd-contact p { font-size: 8pt; color: #cbd5e1; }
+    .hd-contact a { font-size: 8pt; color: #7dd3fc; text-decoration: none; }
+    .hd-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 14px; }
 
-    .section {
-      margin-bottom: 14px;
-    }
+    /* ── Body ── */
+    .bd { display: flex; flex: 1; }
 
-    .section-title {
-      font-size: 11pt;
-      font-weight: bold;
-      text-transform: uppercase;
-      border-bottom: 1px solid #000;
-      padding-bottom: 2px;
-      margin-bottom: 8px;
-    }
+    /* ── Sidebar ── */
+    .sb { width: 60mm; background: var(--bg); border-right: 1.5px solid var(--bdr); padding: 0 14px 18px; }
 
-    .block {
-      margin-bottom: 10px;
-    }
-
-    .block-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-    }
-
-    .block-title {
-      font-weight: bold;
-      font-size: 11pt;
-    }
-
-    .block-date {
-      font-size: 10.5pt;
-    }
-
-    .block-sub {
-      font-style: italic;
-      font-size: 10.5pt;
-      margin-bottom: 3px;
-    }
-
-    ul {
-      padding-left: 18px;
-      margin-top: 3px;
-    }
-
-    ul li {
-      font-size: 10.5pt;
-      line-height: 1.55;
-    }
-
-    .two-col {
-      display: flex;
-      gap: 40px;
-    }
-
-    .two-col .section {
-      flex: 1;
+    /* ── Photo ── */
+    .photo-wrap {
+      display: flex; justify-content: center; align-items: center;
+      padding: 20px 0 16px;
+      border-bottom: 1px solid var(--bdr);
       margin-bottom: 0;
     }
-
-    .btn-download {
-      display: block;
-      width: fit-content;
-      margin: 16px auto 0;
-      padding: 10px 28px;
-      background: #000;
-      color: #fff;
-      font-family: Calibri, Arial, sans-serif;
-      font-size: 11pt;
-      font-weight: bold;
-      border: none;
-      cursor: pointer;
-      letter-spacing: 0.5px;
+    .photo-wrap img {
+      width: 90px; height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--gold);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
 
-    .btn-download:hover { background: #333; }
+    /* ── Main ── */
+    .mn { flex: 1; padding: 18px 20px; }
 
+    /* ── Section titles ── */
+    .st {
+      font-size: 6pt; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--blue);
+      border-bottom: 1.5px solid #dbeafe;
+      padding-bottom: 4px; margin-bottom: 10px; margin-top: 18px;
+    }
+    .st0 { margin-top: 14px; }
+
+    /* ── Skill group ── */
+    .sg-title { font-size: 7.5pt; font-weight: 700; color: var(--mid); margin: 10px 0 5px; }
+    .sg-title:first-child { margin-top: 0; }
+    .sk { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 4px; }
+    .sk-dot { width: 3.5px; height: 3.5px; border-radius: 50%; background: var(--gold); margin-top: 4.5px; flex-shrink: 0; }
+    .sk span { font-size: 7.8pt; color: var(--muted); line-height: 1.4; }
+
+    /* ── Tools grid ── */
+    .tools { display: flex; flex-wrap: wrap; gap: 3.5px; margin-top: 4px; }
+    .tool-dark {
+      background: #0f172a; color: #93c5fd;
+      font-size: 7pt; font-weight: 700;
+      padding: 2.5px 8px; border-radius: 8px;
+    }
+    .tool-light {
+      background: var(--bs); color: var(--bt);
+      font-size: 7pt; font-weight: 600;
+      padding: 2.5px 8px; border-radius: 8px;
+      border: 1px solid #dbeafe;
+    }
+
+    /* ── Markets traded ── */
+    .markets { margin-top: 4px; }
+    .market-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 2.5px 0;
+    }
+    .market-ticker {
+      font-size: 7.5pt; font-weight: 800; color: var(--gold);
+      min-width: 26px;
+    }
+    .market-name { font-size: 7.5pt; color: var(--muted); }
+
+    /* ── Lang ── */
+    .lang-row { display: flex; justify-content: space-between; align-items: center; font-size: 8pt; padding: 3.5px 0; border-bottom: 1px solid #f1f5f9; }
+    .lang-row:last-of-type { border-bottom: none; }
+    .lang-name { font-weight: 700; color: var(--txt); }
+    .lang-level { color: var(--muted); }
+
+    /* ── Education ── */
+    .edu { margin-bottom: 9px; }
+    .edu-deg { font-size: 8pt; font-weight: 700; color: var(--txt); line-height: 1.3; }
+    .edu-sch { font-size: 7.5pt; color: var(--muted); margin-top: 1px; }
+    .edu-yr  { font-size: 7pt; color: var(--light); margin-top: 1px; }
+
+    /* ── KEY SKILLS box ── */
+    .ks {
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-left: 3px solid var(--gold);
+      border-radius: 0 6px 6px 0;
+      padding: 9px 12px; margin-bottom: 16px;
+    }
+    .ks-label { font-size: 6pt; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: var(--bt); margin-bottom: 7px; }
+    .ks-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+    .ks-pill {
+      background: var(--navy); color: #fff;
+      font-size: 7.5pt; font-weight: 700;
+      padding: 3px 10px; border-radius: 9px;
+    }
+
+    /* ── Objective box ── */
+    .obj {
+      background: #f0fdf4; border: 1px solid #bbf7d0;
+      border-left: 3px solid #16a34a;
+      border-radius: 0 6px 6px 0;
+      padding: 9px 12px; margin-bottom: 14px;
+    }
+    .obj-label { font-size: 6pt; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #15803d; margin-bottom: 5px; }
+    .obj p { font-size: 8.5pt; color: var(--mid); line-height: 1.6; }
+    .obj strong { color: var(--txt); font-weight: 600; }
+
+    /* ── Cert badge ── */
+    .cert {
+      background: #0f172a; border-radius: 7px;
+      padding: 10px 13px; margin-top: 6px;
+    }
+    .cert-title { font-size: 8.5pt; font-weight: 800; color: var(--gold); text-transform: uppercase; letter-spacing: 0.4px; }
+    .cert-sub   { font-size: 7.5pt; color: #60a5fa; margin: 2px 0 5px; }
+    .cert-body  { font-size: 7.5pt; color: #cbd5e1; line-height: 1.55; }
+
+    /* ── Experience ── */
+    .exp { margin-bottom: 14px; }
+    .exp-hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+    .exp-left { flex: 1; }
+    .exp-title { font-size: 8.5pt; font-weight: 800; color: var(--txt); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2; }
+    .exp-co    { font-size: 8pt; font-weight: 600; color: var(--blue2); margin-top: 2px; }
+    .exp-loc   { font-size: 7pt; color: var(--light); margin-top: 1.5px; }
+    .exp-period { font-size: 7.5pt; font-weight: 700; color: var(--muted); background: #f1f5f9; padding: 2.5px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
+    .pt { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3.5px; }
+    .pt-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--gold); margin-top: 5.5px; flex-shrink: 0; }
+    .pt span { font-size: 8pt; color: var(--mid); line-height: 1.55; }
+    .pt strong { font-weight: 600; color: var(--txt); }
+
+    /* ── ATS keywords ── */
+    .ats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+    .ats-tag { background: #f1f5f9; color: var(--muted); font-size: 7pt; font-weight: 600; padding: 2px 7px; border-radius: 8px; }
+
+    /* ── Print ── */
     @media print {
       body { background: #fff; }
-      .btn-download { display: none; }
-      .page { margin: 0; padding: 2cm 2.5cm; }
+      .bar { display: none !important; }
+      .wrap { padding: 0; }
+      .page { box-shadow: none; width: 100%; min-height: 297mm; margin: 0; }
     }
+    @page { size: A4; margin: 0; }
   </style>
 </head>
 <body>
 
-<button class="btn-download" onclick="window.print()">⬇ Télécharger en PDF</button>
-
-<div class="page">
-
-  <div class="header">
-    <h1>Ryad Bouderga</h1>
-    <p>Cergy, France &nbsp;|&nbsp; 06 01 77 72 35 &nbsp;|&nbsp; ryad.bouderga78@gmail.com</p>
+<div class="bar">
+  <div class="bar-l">
+    <a href="/" class="btn-back">← Portfolio</a>
+    <p><strong>CV — Trading House</strong> · Ryad Bouderga</p>
   </div>
-
-  <hr>
-
-  <div class="section">
-    <div class="section-title">Profil</div>
-    <p style="font-size:10.5pt; line-height:1.6;">
-      Jeune étudiant intéressé par les marchés financiers et l'analyse économique.
-      Actuellement en année sabbatique afin de développer de nouvelles compétences,
-      acquérir de l'expérience professionnelle et renforcer mon autonomie.
-      Profil sérieux, discipliné et motivé.
-    </p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Formation</div>
-    <div class="block">
-      <div class="block-header">
-        <span class="block-title">Études en Finance et Business</span>
-        <span class="block-date">2023 – 2024</span>
-      </div>
-      <div class="block-sub">Niveau Bachelor – Première année</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Expériences Professionnelles</div>
-
-    <div class="block">
-      <div class="block-header">
-        <span class="block-title">Coach Sportif – Boxe (Enfants)</span>
-        <span class="block-date">2024 – 2025</span>
-      </div>
-      <div class="block-sub">Club de boxe, Cergy</div>
-      <ul>
-        <li>Encadrement et initiation à la boxe pour enfants</li>
-        <li>Organisation et animation des séances d'entraînement</li>
-        <li>Transmission de la discipline, de la rigueur et de l'esprit d'équipe</li>
-      </ul>
-    </div>
-
-    <div class="block">
-      <div class="block-header">
-        <span class="block-title">Responsable de Site – Société de Nettoyage</span>
-        <span class="block-date">2023 – 2024</span>
-      </div>
-      <div class="block-sub">Secteur des services, région Île-de-France</div>
-      <ul>
-        <li>Gestion et organisation des opérations sur site</li>
-        <li>Coordination des tâches et suivi du travail des équipes</li>
-        <li>Respect des délais et maintien des standards de qualité</li>
-      </ul>
-    </div>
-
-    <div class="block">
-      <div class="block-header">
-        <span class="block-title">Assistant Administratif</span>
-        <span class="block-date">2022 – 2023</span>
-      </div>
-      <div class="block-sub">SC Formation / L3M / Green Cottage, Cergy</div>
-      <ul>
-        <li>Organisation et classement de documents administratifs</li>
-        <li>Mise à jour de tableaux de suivi sur Excel</li>
-        <li>Suivi et gestion de tâches administratives courantes</li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="two-col">
-
-    <div class="section">
-      <div class="section-title">Compétences</div>
-      <ul>
-        <li>Excel (tableaux de suivi, mise en forme)</li>
-        <li>Organisation et gestion administrative</li>
-        <li>Autonomie et sens des responsabilités</li>
-        <li>Encadrement et pédagogie</li>
-      </ul>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Langues</div>
-      <ul>
-        <li><strong>Français :</strong> Langue maternelle</li>
-        <li><strong>Anglais :</strong> Niveau intermédiaire (B1)</li>
-      </ul>
-    </div>
-
-  </div>
-
-  <div class="section" style="margin-top:14px;">
-    <div class="section-title">Centres d'Intérêt</div>
-    <ul style="list-style:none; padding-left:0; columns:3;">
-      <li>Marchés financiers</li>
-      <li>Sport (boxe)</li>
-      <li>Développement personnel</li>
-    </ul>
-  </div>
-
+  <button class="btn-print" id="dlBtn" onclick="downloadPDF()">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    Télécharger en PDF
+  </button>
 </div>
+
+<div class="wrap"><div class="page">
+
+  <!-- HEADER -->
+  <div class="hd">
+    <div class="hd-row">
+      <div>
+        <p class="hd-name">Ryad Bouderga</p>
+        <p class="hd-title">Futures Trader &nbsp;·&nbsp; Order Flow &amp; Market Microstructure &nbsp;·&nbsp; Commodities</p>
+        <span class="hd-badge">Seeking Trading Internship — Paid or Unpaid</span>
+      </div>
+      <div class="hd-contact">
+        <p>+33 6 01 77 72 35</p>
+        <a href="mailto:ryad.bouderga78@gmail.com">ryad.bouderga78@gmail.com</a>
+        <a href="https://linkedin.com/in/ryad-bouderga">linkedin.com/in/ryad-bouderga</a>
+      </div>
+    </div>
+    <hr class="hd-sep">
+  </div>
+
+  <!-- BODY -->
+  <div class="bd">
+
+    <!-- ── SIDEBAR ── -->
+    <div class="sb">
+
+      <!-- Photo -->
+      <div class="photo-wrap">
+        <img src="./cv_photo.png" alt="Ryad Bouderga" />
+      </div>
+
+      <!-- Key Trading Skills -->
+      <p class="st st0">Key Trading Skills</p>
+      <div class="sk"><span class="sk-dot"></span><span>Order Flow analysis &amp; DOM reading</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Market microstructure &amp; liquidity dynamics</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>GEX / Skew / Implied volatility</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Risk management (R/R, sizing, drawdown)</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Statistical performance tracking</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Excel — Advanced (dashboards, reporting)</span></div>
+
+      <!-- Technical Tools -->
+      <p class="st">Technical Tools</p>
+      <div class="tools">
+        <span class="tool-dark">ATAS</span>
+        <span class="tool-dark">GEXstream</span>
+        <span class="tool-dark">Tradovate</span>
+        <span class="tool-dark">TradingView</span>
+        <span class="tool-dark">MT5</span>
+        <span class="tool-light">Excel</span>
+        <span class="tool-light">Notion</span>
+      </div>
+
+      <!-- Markets traded -->
+      <p class="st">Markets Traded</p>
+      <div class="markets">
+        <div class="market-row"><span class="market-ticker">NQ</span><span class="market-name">NASDAQ 100 Futures</span></div>
+        <div class="market-row"><span class="market-ticker">MNQ</span><span class="market-name">Micro NASDAQ Futures</span></div>
+        <div class="market-row"><span class="market-ticker">ES</span><span class="market-name">S&amp;P 500 Futures</span></div>
+        <div class="market-row"><span class="market-ticker">CL</span><span class="market-name">Crude Oil Futures</span></div>
+        <div class="market-row"><span class="market-ticker">BTC</span><span class="market-name">Bitcoin Perpetual</span></div>
+      </div>
+
+      <!-- Languages -->
+      <p class="st">Languages</p>
+      <div class="lang-row"><span class="lang-name">French</span><span class="lang-level">Native</span></div>
+      <div class="lang-row"><span class="lang-name">English</span><span class="lang-level">B2 — Upper Intermediate</span></div>
+      <div class="lang-row"><span class="lang-name">Excel</span><span class="lang-level">Advanced</span></div>
+
+      <!-- Education -->
+      <p class="st">Education</p>
+      <div class="edu">
+        <p class="edu-deg">Bachelor Finance &amp; Business — B1</p>
+        <p class="edu-sch">Financia Business School, Paris</p>
+        <p class="edu-yr">2024 – Present</p>
+      </div>
+      <div class="edu">
+        <p class="edu-deg">Secondary Education</p>
+        <p class="edu-sch">CNED — Distance Learning</p>
+      </div>
+
+      <!-- Interests -->
+      <p class="st">Interests</p>
+      <p style="font-size:7.8pt;color:var(--muted);line-height:1.6;">
+        Commodities Markets · Market Microstructure · Quantitative Analysis · Technology
+      </p>
+
+    </div>
+
+    <!-- ── MAIN ── -->
+    <div class="mn">
+
+      <!-- Objective -->
+      <p class="st st0">Internship Objective</p>
+      <div class="obj">
+        <p class="obj-label">Seeking a Trading / Négoce Internship</p>
+        <p>Finance student at Financia Business School and independent futures trader, I am actively seeking a <strong>trading or commodities internship</strong> — paid or unpaid — within a trading house or prop firm. With solid foundations in <strong>order flow analysis, market microstructure, risk management and Excel reporting</strong>, I am motivated to apply my analytical skills in a professional market environment.</p>
+      </div>
+
+      <!-- KEY TRADING SKILLS -->
+      <div class="ks">
+        <p class="ks-label">Key Trading Skills</p>
+        <div class="ks-grid">
+          <span class="ks-pill">Order Flow</span>
+          <span class="ks-pill">Market Microstructure</span>
+          <span class="ks-pill">Futures Trading</span>
+          <span class="ks-pill">Risk Management</span>
+          <span class="ks-pill">Commodities</span>
+          <span class="ks-pill">Excel Modeling</span>
+        </div>
+      </div>
+
+      <!-- Experience -->
+      <p class="st">Professional Experience</p>
+
+      <!-- Trading FIRST -->
+      <div class="exp">
+        <div class="exp-hd">
+          <div class="exp-left">
+            <p class="exp-title">Independent Intraday Trader — Futures &amp; Crypto</p>
+            <p class="exp-co">Apex Trader Funding — 6 funded challenges passed &nbsp;·&nbsp; Remote</p>
+            <p class="exp-loc">NQ · MNQ · ES · CL · BTC · ETH</p>
+          </div>
+          <span class="exp-period">2024 – Present</span>
+        </div>
+        <div class="pt"><span class="pt-dot"></span><span><strong>Market flow analysis</strong> and liquidity tracking using Order Flow, DOM and Footprint Chart</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Futures intraday trading with disciplined risk management (R/R, sizing, strict drawdown control)</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Statistical tracking via Excel dashboards: winrate, equity curve, weekly P&amp;L review</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Volatility and liquidity analysis using GEX, Skew and implied volatility data</span></div>
+        <div class="pt"><span class="pt-dot"></span><span><strong>Market microstructure:</strong> identification of absorption zones, imbalances and order clusters</span></div>
+      </div>
+
+      <!-- Admin Finance -->
+      <div class="exp">
+        <div class="exp-hd">
+          <div class="exp-left">
+            <p class="exp-title">Administrative &amp; Finance Assistant</p>
+            <p class="exp-co">SC Formation / L3M / Green Cottage &nbsp;·&nbsp; France</p>
+          </div>
+          <span class="exp-period">2023 – 2025</span>
+        </div>
+        <div class="pt"><span class="pt-dot"></span><span>Organisation and monitoring of financial and fiscal documentation</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Updating financial reporting tables using advanced Excel dashboards</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Support in invoicing tracking and administrative financial management</span></div>
+      </div>
+
+      <!-- Certification -->
+      <p class="st">Certification &amp; Track Record</p>
+      <div class="cert">
+        <p class="cert-title">Apex Trader Funding — 6 Challenges Passed</p>
+        <p class="cert-sub">Funded accounts up to $50K · Futures intraday</p>
+        <p class="cert-body">
+          Consistent profitability across 6 consecutive funded challenges in live market conditions.
+          Demonstrates discipline, risk control and repeatability of execution — key attributes for a trading desk environment.
+        </p>
+      </div>
+
+      <!-- ATS Keywords -->
+      <p class="st">Keywords — ATS</p>
+      <div class="ats">
+        <span class="ats-tag">Order Flow</span>
+        <span class="ats-tag">Market Microstructure</span>
+        <span class="ats-tag">Liquidity Dynamics</span>
+        <span class="ats-tag">Futures Trading</span>
+        <span class="ats-tag">Commodities</span>
+        <span class="ats-tag">Risk Management</span>
+        <span class="ats-tag">GEX / Volatility</span>
+        <span class="ats-tag">Performance Tracking</span>
+        <span class="ats-tag">Excel Modeling</span>
+        <span class="ats-tag">Trading Firm</span>
+      </div>
+
+    </div>
+  </div>
+
+</div></div>
+
+<script>
+  async function downloadPDF() {
+    const btn = document.getElementById('dlBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Génération…';
+
+    const { jsPDF } = window.jspdf;
+    const el = document.querySelector('.page');
+    const canvas = await html2canvas(el, { scale: 2.5, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+    pdf.save('CV_Ryad_Bouderga_Negoce.pdf');
+
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Télécharger en PDF';
+  }
+</script>
 </body>
 </html>
