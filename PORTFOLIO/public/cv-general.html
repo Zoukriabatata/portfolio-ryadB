@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV — Ryad Bouderga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:  #0b1426;
+      --blue:  #1e40af;
+      --blue2: #2563eb;
+      --bs:    #eff6ff;
+      --bt:    #1d4ed8;
+      --white: #ffffff;
+      --bg:    #f7f9fc;
+      --bdr:   #e2e8f0;
+      --txt:   #111827;
+      --mid:   #374151;
+      --muted: #6b7280;
+      --light: #9ca3af;
+      --gold:  #c9a84c;
+    }
+    html { font-family: 'Inter', Arial, sans-serif; font-size: 9.5pt; color: var(--txt); }
+    body { background: #c9cdd6; }
+
+    /* ── Print bar ── */
+    .bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: var(--navy);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px; gap: 12px;
+    }
+    .bar-l { display: flex; align-items: center; gap: 12px; }
+    .bar p { font-size: 12px; color: #cbd5e1; }
+    .bar strong { color: #fff; }
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; background: rgba(255,255,255,0.07); color: #cbd5e1;
+      border: 1px solid rgba(255,255,255,0.14); border-radius: 100px;
+      font-family: inherit; font-size: 12px; font-weight: 500;
+      text-decoration: none; transition: background .2s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.13); }
+    .btn-print {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 22px; background: var(--blue2); color: #fff;
+      border: none; border-radius: 100px;
+      font-family: inherit; font-size: 13px; font-weight: 700;
+      cursor: pointer; white-space: nowrap; transition: background .2s, transform .15s;
+      min-width: 180px; justify-content: center;
+    }
+    .btn-print:hover { background: #1d4ed8; transform: translateY(-1px); }
+    .btn-print:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+    /* ── Page ── */
+    .wrap { padding: 52px 16px 32px; }
+    .page {
+      width: 210mm; min-height: 297mm;
+      margin: 0 auto; background: var(--white);
+      box-shadow: 0 10px 50px rgba(0,0,0,0.2);
+      display: flex; flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    .hd {
+      background: var(--navy);
+      padding: 22px 28px 18px;
+      border-bottom: 3px solid var(--gold);
+    }
+    .hd-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .hd-name {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 30pt; font-weight: 900; color: #fff;
+      letter-spacing: 1.5px; text-transform: uppercase; line-height: 1;
+    }
+    .hd-title {
+      margin-top: 5px; font-size: 9pt; color: #93c5fd;
+      font-weight: 400; letter-spacing: 0.5px;
+    }
+    .hd-badge {
+      display: inline-block; margin-top: 10px;
+      background: transparent; color: var(--gold);
+      font-size: 7pt; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; padding: 3px 0;
+      border-bottom: 1px solid var(--gold);
+    }
+    .hd-contact { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .hd-contact p { font-size: 8pt; color: #cbd5e1; }
+    .hd-contact a { font-size: 8pt; color: #7dd3fc; text-decoration: none; }
+    .hd-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 14px; }
+
+    /* ── Body ── */
+    .bd { display: flex; flex: 1; }
+
+    /* ── Sidebar ── */
+    .sb { width: 60mm; background: var(--bg); border-right: 1.5px solid var(--bdr); padding: 0 14px 18px; }
+
+    /* ── Photo ── */
+    .photo-wrap {
+      display: flex; justify-content: center; align-items: center;
+      padding: 20px 0 16px;
+      border-bottom: 1px solid var(--bdr);
+      margin-bottom: 0;
+    }
+    .photo-wrap img {
+      width: 90px; height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--gold);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+
+    /* ── Main ── */
+    .mn { flex: 1; padding: 18px 20px; }
+
+    /* ── Section titles ── */
+    .st {
+      font-size: 6pt; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--blue);
+      border-bottom: 1.5px solid #dbeafe;
+      padding-bottom: 4px; margin-bottom: 10px; margin-top: 18px;
+    }
+    .st0 { margin-top: 14px; }
+
+    /* ── Skills ── */
+    .sk { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 5px; }
+    .sk-dot { width: 3.5px; height: 3.5px; border-radius: 50%; background: var(--gold); margin-top: 4.5px; flex-shrink: 0; }
+    .sk span { font-size: 7.8pt; color: var(--muted); line-height: 1.4; }
+    .sk-group { font-size: 7.5pt; font-weight: 700; color: var(--mid); margin: 10px 0 5px; }
+
+    /* ── Skill pill tags ── */
+    .pill-wrap { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .pill {
+      background: var(--bs); color: var(--bt);
+      font-size: 7pt; font-weight: 600;
+      padding: 2.5px 9px; border-radius: 10px;
+      border: 1px solid #dbeafe;
+    }
+
+    /* ── Lang ── */
+    .lang-row { display: flex; justify-content: space-between; align-items: center; font-size: 8pt; padding: 3.5px 0; border-bottom: 1px solid #f1f5f9; }
+    .lang-row:last-of-type { border-bottom: none; }
+    .lang-name { font-weight: 700; color: var(--txt); }
+    .lang-level { color: var(--muted); }
+
+    /* ── Education ── */
+    .edu { margin-bottom: 9px; }
+    .edu-deg { font-size: 8pt; font-weight: 700; color: var(--txt); line-height: 1.3; }
+    .edu-sch { font-size: 7.5pt; color: var(--muted); margin-top: 1px; }
+    .edu-yr  { font-size: 7pt; color: var(--light); margin-top: 1px; }
+
+    /* ── Objective box ── */
+    .obj {
+      background: #f0fdf4; border: 1px solid #bbf7d0;
+      border-left: 3px solid #16a34a;
+      border-radius: 0 6px 6px 0;
+      padding: 9px 12px; margin-bottom: 16px;
+    }
+    .obj-label { font-size: 6pt; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #15803d; margin-bottom: 5px; }
+    .obj p { font-size: 8.5pt; color: var(--mid); line-height: 1.65; }
+    .obj strong { color: var(--txt); font-weight: 600; }
+
+    /* ── KEY SKILLS box ── */
+    .ks {
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-left: 3px solid var(--gold);
+      border-radius: 0 6px 6px 0;
+      padding: 9px 12px; margin-bottom: 16px;
+    }
+    .ks-label { font-size: 6pt; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: var(--bt); margin-bottom: 7px; }
+    .ks-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+    .ks-pill {
+      background: var(--navy); color: #fff;
+      font-size: 7.5pt; font-weight: 700;
+      padding: 3px 10px; border-radius: 9px;
+    }
+
+    /* ── Experience ── */
+    .exp { margin-bottom: 14px; }
+    .exp-hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+    .exp-left { flex: 1; }
+    .exp-title { font-size: 8.5pt; font-weight: 800; color: var(--txt); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2; }
+    .exp-co { font-size: 8pt; font-weight: 600; color: var(--blue2); margin-top: 2px; }
+    .exp-period { font-size: 7.5pt; font-weight: 700; color: var(--muted); background: #f1f5f9; padding: 2.5px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
+    .pt { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3.5px; }
+    .pt-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--gold); margin-top: 5.5px; flex-shrink: 0; }
+    .pt span { font-size: 8pt; color: var(--mid); line-height: 1.55; }
+
+    /* ── Interests ── */
+    .int-wrap { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+    .int-tag {
+      background: #f8fafc; border: 1px solid var(--bdr);
+      color: var(--mid); font-size: 7.5pt; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px;
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; }
+      .bar { display: none !important; }
+      .wrap { padding: 0; }
+      .page { box-shadow: none; width: 100%; min-height: 297mm; margin: 0; }
+    }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-l">
+    <a href="/" class="btn-back">← Portfolio</a>
+    <p><strong>CV — Ryad Bouderga</strong></p>
+  </div>
+  <button class="btn-print" id="dlBtn" onclick="downloadPDF()">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    Télécharger en PDF
+  </button>
+</div>
+
+<div class="wrap"><div class="page">
+
+  <!-- HEADER -->
+  <div class="hd">
+    <div class="hd-row">
+      <div>
+        <p class="hd-name">Ryad Bouderga</p>
+        <p class="hd-title">Étudiant en Finance &nbsp;·&nbsp; Analyse Financière &amp; Gestion Administrative</p>
+        <span class="hd-badge">Recherche un Stage — Rémunéré ou Non Rémunéré</span>
+      </div>
+      <div class="hd-contact">
+        <p>+33 6 01 77 72 35</p>
+        <a href="mailto:ryad.bouderga78@gmail.com">ryad.bouderga78@gmail.com</a>
+      </div>
+    </div>
+    <hr class="hd-sep">
+  </div>
+
+  <!-- BODY -->
+  <div class="bd">
+
+    <!-- ── SIDEBAR ── -->
+    <div class="sb">
+
+      <!-- Photo -->
+      <div class="photo-wrap">
+        <img src="./cv_photo.png" alt="Ryad Bouderga" />
+      </div>
+
+      <!-- Compétences -->
+      <p class="st st0">Compétences</p>
+
+      <p class="sk-group">Finance &amp; Analyse</p>
+      <div class="sk"><span class="sk-dot"></span><span>Analyse financière &amp; suivi de données</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Reporting &amp; tableaux de bord</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Suivi de facturation &amp; comptabilité courante</span></div>
+
+      <p class="sk-group">Outils</p>
+      <div class="sk"><span class="sk-dot"></span><span>Excel — Avancé (TCD, VLOOKUP, dashboards)</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Google Sheets &amp; outils collaboratifs</span></div>
+
+      <p class="sk-group">Soft Skills</p>
+      <div class="sk"><span class="sk-dot"></span><span>Organisation &amp; gestion administrative</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Autonomie &amp; sens des responsabilités</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Encadrement &amp; pédagogie</span></div>
+      <div class="sk"><span class="sk-dot"></span><span>Rigueur &amp; discipline</span></div>
+
+      <!-- Langues -->
+      <p class="st">Langues</p>
+      <div class="lang-row"><span class="lang-name">Français</span><span class="lang-level">Langue maternelle</span></div>
+      <div class="lang-row"><span class="lang-name">Anglais</span><span class="lang-level">B2 — Upper Intermediate</span></div>
+      <div class="lang-row"><span class="lang-name">Excel</span><span class="lang-level">Avancé</span></div>
+
+      <!-- Formation -->
+      <p class="st">Formation</p>
+      <div class="edu">
+        <p class="edu-deg">Bachelor Finance &amp; Business — 1ère année</p>
+        <p class="edu-sch">Financia Business School, Paris</p>
+        <p class="edu-yr">2023 – 2024</p>
+      </div>
+      <div class="edu">
+        <p class="edu-deg">Formation à distance</p>
+        <p class="edu-sch">CNED</p>
+      </div>
+
+      <!-- Centres d'intérêt -->
+      <p class="st">Centres d'intérêt</p>
+      <div class="int-wrap">
+        <span class="int-tag">Marchés financiers</span>
+        <span class="int-tag">Sport — Boxe</span>
+        <span class="int-tag">Développement personnel</span>
+        <span class="int-tag">Analyse économique</span>
+      </div>
+
+    </div>
+
+    <!-- ── MAIN ── -->
+    <div class="mn">
+
+      <!-- Objectif de stage -->
+      <p class="st st0">Objectif de Stage</p>
+      <div class="obj">
+        <p class="obj-label">À la recherche d'un Stage en Entreprise</p>
+        <p>Étudiant en Finance &amp; Business à Financia Business School, je recherche activement un <strong>stage en entreprise</strong> — rémunéré ou non — afin de mettre en pratique mes compétences et acquérir une première expérience professionnelle significative. Fort de bases solides en <strong>gestion administrative, reporting Excel, analyse financière et encadrement d'équipe</strong>, je suis motivé, rigoureux et rapidement opérationnel dans tout environnement de travail exigeant.</p>
+      </div>
+
+      <!-- Key Skills -->
+      <div class="ks">
+        <p class="ks-label">Compétences Clés</p>
+        <div class="ks-grid">
+          <span class="ks-pill">Excel Avancé</span>
+          <span class="ks-pill">Reporting Financier</span>
+          <span class="ks-pill">Gestion Administrative</span>
+          <span class="ks-pill">Analyse de Données</span>
+          <span class="ks-pill">Encadrement</span>
+          <span class="ks-pill">Rigueur &amp; Autonomie</span>
+        </div>
+      </div>
+
+      <!-- Expériences Professionnelles -->
+      <p class="st">Expériences Professionnelles</p>
+
+      <div class="exp">
+        <div class="exp-hd">
+          <div class="exp-left">
+            <p class="exp-title">Assistant Administratif et Financier</p>
+            <p class="exp-co">SC Formation / L3M / Green Cottage &nbsp;·&nbsp; France</p>
+          </div>
+          <span class="exp-period">2022 – 2023</span>
+        </div>
+        <div class="pt"><span class="pt-dot"></span><span>Organisation et classement de documents administratifs et financiers</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Mise à jour de tableaux de suivi et reporting sur Excel (TCD, mise en forme avancée)</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Suivi de la facturation et gestion administrative courante</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Interface entre les équipes et la direction pour le traitement des dossiers</span></div>
+      </div>
+
+      <div class="exp">
+        <div class="exp-hd">
+          <div class="exp-left">
+            <p class="exp-title">Responsable de Site – Société de Services</p>
+            <p class="exp-co">Secteur des services &nbsp;·&nbsp; Région Île-de-France</p>
+          </div>
+          <span class="exp-period">2023 – 2024</span>
+        </div>
+        <div class="pt"><span class="pt-dot"></span><span>Gestion et organisation des opérations sur site — planification et suivi des tâches</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Coordination et encadrement des équipes opérationnelles</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Respect des délais, des standards de qualité et des consignes de sécurité</span></div>
+      </div>
+
+      <div class="exp">
+        <div class="exp-hd">
+          <div class="exp-left">
+            <p class="exp-title">Coach Sportif — Boxe (Enfants)</p>
+            <p class="exp-co">Club de Boxe &nbsp;·&nbsp; France</p>
+          </div>
+          <span class="exp-period">2024 – 2025</span>
+        </div>
+        <div class="pt"><span class="pt-dot"></span><span>Encadrement et initiation à la boxe pour enfants — adaptation pédagogique selon les niveaux</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Organisation et animation des séances d'entraînement hebdomadaires</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Transmission de la discipline, de la rigueur et de l'esprit d'équipe</span></div>
+      </div>
+
+      <!-- Projets personnels -->
+      <p class="st">Projets &amp; Initiatives Personnels</p>
+
+      <div class="exp">
+        <div class="exp-hd">
+          <div class="exp-left">
+            <p class="exp-title">Analyse des Marchés Financiers — Autodidacte</p>
+            <p class="exp-co">Projet Personnel &nbsp;·&nbsp; Remote</p>
+          </div>
+          <span class="exp-period">2023 – Présent</span>
+        </div>
+        <div class="pt"><span class="pt-dot"></span><span>Suivi et analyse des marchés financiers (actions, indices, crypto) via TradingView et MT5</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Construction de tableaux de bord Excel pour le tracking de performance et la gestion du risque</span></div>
+        <div class="pt"><span class="pt-dot"></span><span>Développement d'une discipline analytique et d'une gestion rigoureuse du capital</span></div>
+      </div>
+
+    </div>
+  </div>
+
+</div></div>
+
+<script>
+  async function downloadPDF() {
+    const btn = document.getElementById('dlBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Génération…';
+
+    const { jsPDF } = window.jspdf;
+    const el = document.querySelector('.page');
+    const canvas = await html2canvas(el, { scale: 2.5, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+    pdf.save('CV_Ryad_Bouderga.pdf');
+
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Télécharger en PDF';
+  }
+</script>
+</body>
+</html>
