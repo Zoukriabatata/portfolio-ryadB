@@ -149,7 +149,6 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
       engine.destroy();
       refs.chartEngine.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**

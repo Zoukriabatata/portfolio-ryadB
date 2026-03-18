@@ -62,5 +62,5 @@ export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   sourcemaps: {
     disable: false, // Enable source maps upload
   },
-  disableLogger: true, // Pas de logs Sentry pendant le build
+  webpack: { treeshake: { removeDebugLogging: true } },
 });

@@ -259,7 +259,6 @@ export default function IVSurface3D({
         rendererRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dimensions.width, dimensions.height]);
 
   // Feed IV data to renderer

@@ -1029,7 +1029,6 @@ export const Heatmap3D = React.memo(function Heatmap3D({
       rendererRef.current = null;
       setIsReady(false);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataMode, symbol]);
 
   // Pause/resume
@@ -1175,7 +1174,6 @@ export const Heatmap3D = React.memo(function Heatmap3D({
 
     animationRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, isReady, localContrast, upperCutoff, heightScale, surfaceOpacity, ambientStrength, showGrid, showTrades, showProfile, showPriceLine, showSpreadBand, showLiquidityWalls, tickSize]);
 
   // Mouse handlers for crosshair (use refs, not state, to avoid re-renders)

@@ -226,7 +226,6 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       refs.sessionLow.current = low;
       updatePricePositionIndicator();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -384,7 +383,6 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       refs.unsubscribers.current.forEach(unsub => unsub());
       refs.unsubscribers.current = [];
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, timeframe]);
 
   /**
@@ -430,7 +428,6 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     };
     engine.addViewportChangeListener(updateViewport);
     return () => engine.removeViewportChangeListener(updateViewport);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refs]);
 
   // Selected symbol label

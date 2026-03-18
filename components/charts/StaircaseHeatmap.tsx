@@ -756,7 +756,6 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, getPriceRange, rendererTradeFlowSettings, actuallyUsingWebGL, contrast, upperCutoffPercent, bestBidColor, bestAskColor, tradeFlowSettings.buyColor, tradeFlowSettings.sellColor, config?.tickSize, showDeltaProfile, showVolumeProfile]);
 
   // Resize — on window resize AND when height prop changes
@@ -806,7 +805,6 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     if (autoCenter && nav.panY !== 0) {
       recenterAnimRef.current = { startPanY: nav.panY, startTime: performance.now() };
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoCenter]);
 
   // Update color theme when colorScheme changes

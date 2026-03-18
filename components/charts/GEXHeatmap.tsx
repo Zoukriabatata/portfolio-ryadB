@@ -275,7 +275,6 @@ export default function GEXHeatmap({
         rendererRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, dimensions.width, dimensions.height]);
 
   // Update renderer colors when theme changes

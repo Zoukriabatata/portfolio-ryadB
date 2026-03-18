@@ -1,6 +1,7 @@
 'use client';
 
 import type { JournalEntry } from '@/types/journal';
+import Image from 'next/image';
 
 interface TradeDetailPanelProps {
   trade: JournalEntry | null;
@@ -128,10 +129,13 @@ export default function TradeDetailPanel({ trade, onClose, onEdit }: TradeDetail
             <div className="grid grid-cols-2 gap-2">
               {trade.screenshotUrls.map((url, i) => (
                 <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                  <img
+                  <Image
                     src={url}
                     alt={`Screenshot ${i + 1}`}
+                    width={400}
+                    height={300}
                     className="w-full rounded-lg border border-[var(--border)] hover:border-[var(--primary)] transition-colors"
+                    unoptimized
                   />
                 </a>
               ))}

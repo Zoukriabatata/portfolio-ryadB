@@ -77,11 +77,11 @@ export default function VolatilityPageContent() {
   useEffect(() => {
     loadLiveData();
     return () => { reset(); };
-  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol]);
 
   useEffect(() => {
     if (selectedExpiration) loadLiveData();
-  }, [selectedExpiration]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedExpiration]);
 
   // Auto-refresh every 30s when tab is active
   useEffect(() => {
