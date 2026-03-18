@@ -1,20 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import '@/app/globals.css';
 import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
-
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  preload: true,
-  adjustFontFallback: true,
-  variable: '--font-inter',
-  fallback: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-});
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://senzoukria.com';
 const SITE_NAME = 'Senzoukria';
@@ -75,9 +67,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Preconnect to Google Fonts CDN — reduces font LCP latency */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* DNS prefetch for key external services */}
         <link rel="dns-prefetch" href="https://fstream.binance.com" />
         <link rel="dns-prefetch" href="https://stream.bybit.com" />
@@ -109,7 +98,7 @@ if(typeof Node!=='undefined'){
           }}
         />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans`} suppressHydrationWarning>
         <DashboardClientLayout>{children}</DashboardClientLayout>
         <Toaster
           theme="dark"

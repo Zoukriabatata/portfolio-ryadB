@@ -22,6 +22,7 @@ const CursorGlow = dynamic(() => import('@/components/landing/CursorGlow'), { ss
 const ScrollProgress = dynamic(() => import('@/components/landing/ScrollProgress'), { ssr: false });
 const ScrollSpy = dynamic(() => import('@/components/landing/ScrollSpy'), { ssr: false });
 const BackToTop = dynamic(() => import('@/components/landing/BackToTop'), { ssr: false });
+const FloatingChat = dynamic(() => import('@/components/ai/FloatingChat'), { ssr: false });
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
@@ -70,6 +71,9 @@ export default function HomePage() {
 
       {/* Film grain noise overlay */}
       <div className="noise-overlay" />
+
+      {/* AI support chat bubble */}
+      <FloatingChat />
     </div>
   );
 }

@@ -29,27 +29,28 @@
      Ultra-subtle — only 1px of separation, never fights data */
   --border: rgba(255, 255, 255, 0.07);
   --border-light: rgba(255, 255, 255, 0.11);
-  --border-focus: rgba(99, 120, 255, 0.45);
+  --border-focus: rgba(74, 222, 128, 0.4);
   --border-strong: rgba(255, 255, 255, 0.16);
 
-  /* === PRIMARY — Indigo/Blue (institutional, not startup) ===
-     #4f6ef7 is a clean, saturated-but-not-aggressive blue.
+  /* === PRIMARY — Lime Green (modern, energetic, distinct) ===
+     #4ade80 is a vivid lime green — crisp on dark backgrounds,
+     instantly differentiates from market bull/bear greens.
      Used sparingly: active nav state, CTAs, accent lines only. */
-  --primary: #4f6ef7;
-  --primary-light: #7b94f8;
-  --primary-dark: #3354e8;
-  --primary-glow: rgba(79, 110, 247, 0.12);
-  --primary-rgb: 79 110 247;
-  --primary-light-rgb: 123 148 248;
-  --primary-dark-rgb: 51 84 232;
+  --primary: #4ade80;
+  --primary-light: #86efac;
+  --primary-dark: #22c55e;
+  --primary-glow: rgba(74, 222, 128, 0.12);
+  --primary-rgb: 74 222 128;
+  --primary-light-rgb: 134 239 172;
+  --primary-dark-rgb: 34 197 94;
 
-  /* === ACCENT — Soft violet (secondary highlights only) === */
-  --accent: #7c6af7;
-  --accent-light: #9d8ff9;
-  --accent-dark: #5f4de0;
-  --accent-glow: rgba(124, 106, 247, 0.12);
-  --accent-rgb: 124 106 247;
-  --accent-light-rgb: 157 143 249;
+  /* === ACCENT — Teal/cyan (secondary highlights only) === */
+  --accent: #2dd4bf;
+  --accent-light: #5eead4;
+  --accent-dark: #0d9488;
+  --accent-glow: rgba(45, 212, 191, 0.12);
+  --accent-rgb: 45 212 191;
+  --accent-light-rgb: 94 234 212;
 
   /* === SEMANTIC COLORS === */
   --success: #22c55e;
@@ -58,8 +59,8 @@
   --error-bg: rgba(240, 79, 79, 0.08);
   --warning: #e8a020;
   --warning-bg: rgba(232, 160, 32, 0.08);
-  --info: #4f6ef7;
-  --info-bg: rgba(79, 110, 247, 0.08);
+  --info: #4ade80;
+  --info-bg: rgba(74, 222, 128, 0.08);
 
   /* === TRADING COLORS ===
      Kept vivid but toned down backgrounds for a calmer chart feel */
@@ -143,7 +144,7 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif);
+  font-family: var(--font-geist-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Prevent layout shift from font swap */

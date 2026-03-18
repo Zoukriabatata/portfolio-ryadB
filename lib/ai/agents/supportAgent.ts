@@ -15,16 +15,18 @@ import type { OllamaMessage } from '../ollama';
 
 // ─── Intent detection ──────────────────────────────────────────────────────
 
-type Intent = 'concept' | 'howto' | 'troubleshoot' | 'analysis' | 'other';
+type Intent = 'concept' | 'howto' | 'troubleshoot' | 'analysis' | 'discord' | 'other';
 
 function detectIntent(message: string): Intent {
   const m = message.toLowerCase();
 
+  const discordKw = ['discord', 'communauté', 'community', 'rejoindre', 'invitation', 'invite', 'serveur', 'server', 'lien discord', 'discord link'];
   const troubleshootKw = ['marche pas', 'fonctionne pas', 'bug', 'erreur', 'problème', 'lent', 'chargement', 'ne répond pas', 'bloqué', 'crash', 'not working', 'broken', 'issue'];
   const howtoKw = ['comment', 'comment faire', 'comment utiliser', 'how to', 'how do', 'utiliser', 'activer', 'ajouter', 'créer', 'tracer', 'mettre', 'configurer', 'changer', 'paramétrer'];
   const conceptKw = ["c'est quoi", "qu'est-ce", 'définition', 'expliquer', 'explain', 'what is', 'what are', 'signifie', 'veut dire', 'comprendre', 'pourquoi', 'quand', 'différence'];
   const analysisKw = ['analyse', 'interpréter', 'lire', 'voir', 'signal', 'setup', 'stratégie', 'trade', 'position', 'haussier', 'baissier', 'bullish', 'bearish'];
 
+  if (discordKw.some(k => m.includes(k))) return 'discord';
   if (troubleshootKw.some(k => m.includes(k))) return 'troubleshoot';
   if (howtoKw.some(k => m.includes(k))) return 'howto';
   if (conceptKw.some(k => m.includes(k))) return 'concept';
@@ -57,6 +59,8 @@ Ne pas inventer des features qui n'existent pas — si tu ne trouves pas dans la
 3. Ce que les différents acteurs (MM, institutions) font probablement
 4. RAPPEL OBLIGATOIRE : tu ne donnes pas de conseil d'investissement`,
 
+  discord: `L'utilisateur demande le lien Discord. Réponds UNIQUEMENT avec le lien fourni dans la section "DISCORD DE LA COMMUNAUTÉ" du prompt. Ne jamais inventer un lien. Si aucun lien n'est fourni dans le prompt, dis que tu n'as pas le lien mais que l'utilisateur peut contacter le support.`,
+
   other: `Réponds de façon concise et utile. Si la question n'est pas liée au trading ou à la plateforme, redirige poliment vers les sujets couverts.`,
 };
 
@@ -64,6 +68,7 @@ Ne pas inventer des features qui n'existent pas — si tu ne trouves pas dans la
 
 function buildSystemPrompt(intent: Intent): string {
   const knowledge = loadKnowledge();
+  const discordLink = process.env.DISCORD_INVITE_URL ?? null;
 
   return `Tu es l'assistant IA de la plateforme OrderFlow — une plateforme de trading professionnelle spécialisée dans l'analyse d'options (GEX, skew, option flow), les charts live (footprint, VWAP, volume profile) et les données de marché en temps réel.
 
@@ -71,6 +76,10 @@ function buildSystemPrompt(intent: Intent): string {
 - Tu t'appelles "OrderFlow AI"
 - Tu es expert en : GEX, volatilité implicite, option flow, footprint chart, order flow, VWAP, volume profile
 - Tu connais parfaitement tous les outils et features de la plateforme OrderFlow
+${discordLink
+  ? `\n## DISCORD DE LA COMMUNAUTÉ\nLien d'invitation officiel : **${discordLink}**\nRÈGLE ABSOLUE : quand un utilisateur demande le lien Discord, le serveur, la communauté ou comment rejoindre — réponds UNIQUEMENT avec ce lien exact : ${discordLink}\nNe jamais inventer ou modifier ce lien.\n`
+  : '\n## DISCORD\nAucun lien Discord configuré. Si demandé, dire que le lien nest pas disponible pour linstant.\n'
+}
 
 ## RÈGLES DE RÉPONSE STRICTES
 1. **Langue** : réponds en français si le message est en français, en anglais si en anglais

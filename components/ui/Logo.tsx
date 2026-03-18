@@ -28,7 +28,7 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
         <style>{`
           @keyframes subtlePulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.25; } }
           @keyframes subtleFade { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
-          @keyframes subtleGlow { 0%, 100% { filter: drop-shadow(0 0 2px var(--logo-mid, #f59e0b)); } 50% { filter: drop-shadow(0 0 6px var(--logo-bright, #fbbf24)); } }
+          @keyframes subtleGlow { 0%, 100% { filter: drop-shadow(0 0 2px #22c55e); } 50% { filter: drop-shadow(0 0 6px #4ade80); } }
         `}</style>
       )}
 
@@ -46,14 +46,14 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           {/* Background glow */}
           <defs>
             <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="var(--logo-bright, #fbbf24)" />
-              <stop offset="50%" stopColor="var(--logo-mid, #f59e0b)" />
-              <stop offset="100%" stopColor="var(--logo-dark, #d97706)" />
+              <stop offset="0%" stopColor="var(--logo-bright, #4ade80)" />
+              <stop offset="50%" stopColor="var(--logo-mid, #22c55e)" />
+              <stop offset="100%" stopColor="var(--logo-dark, #16a34a)" />
             </linearGradient>
             <linearGradient id="energyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="var(--logo-bright, #fbbf24)" stopOpacity="0" />
-              <stop offset="50%" stopColor="var(--logo-bright, #fbbf24)" stopOpacity="1" />
-              <stop offset="100%" stopColor="var(--logo-bright, #fbbf24)" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--logo-bright, #4ade80)" stopOpacity="0" />
+              <stop offset="50%" stopColor="var(--logo-bright, #4ade80)" stopOpacity="1" />
+              <stop offset="100%" stopColor="var(--logo-bright, #4ade80)" stopOpacity="0" />
             </linearGradient>
             <filter id="glow">
               <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -92,37 +92,37 @@ export default function Logo({ size = 'md', showText = true, animated = true }: 
           <path
             d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32"
             fill="none"
-            stroke="var(--logo-mid, #f59e0b)"
+            stroke="var(--logo-mid, #22c55e)"
             strokeWidth="3"
             strokeLinecap="round"
             filter="url(#glow)"
           />
 
           {/* Energy sparks */}
-          <circle cx="8" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" style={animated ? {
+          <circle cx="8" cy="24" r="2" fill="var(--logo-bright, #4ade80)" style={animated ? {
             animation: size === 'sm' ? 'subtleFade 3s ease-in-out infinite' : 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
           } : undefined} />
-          <circle cx="40" cy="24" r="2" fill="var(--logo-bright, #fbbf24)" style={animated ? {
+          <circle cx="40" cy="24" r="2" fill="var(--logo-bright, #4ade80)" style={animated ? {
             animation: size === 'sm' ? 'subtleFade 3s ease-in-out infinite 1s' : 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite 0.5s',
           } : undefined} />
-          <circle cx="24" cy="8" r="2" fill="var(--logo-bright, #fbbf24)" style={animated ? {
+          <circle cx="24" cy="8" r="2" fill="var(--logo-bright, #4ade80)" style={animated ? {
             animation: size === 'sm' ? 'subtleFade 3s ease-in-out infinite 2s' : 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite 1s',
           } : undefined} />
 
           {/* Bottom accent dot */}
-          <circle cx="24" cy="40" r="1.5" fill="var(--logo-mid, #f59e0b)" opacity="0.5" />
+          <circle cx="24" cy="40" r="1.5" fill="var(--logo-mid, #22c55e)" opacity="0.5" />
         </svg>
 
         {/* Glow effect behind */}
         {animated && (
-          <div className="absolute inset-0 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'var(--logo-mid, #f59e0b)', opacity: 'inherit' }} />
+          <div className="absolute inset-0 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'var(--logo-mid, #22c55e)', opacity: 'inherit' }} />
         )}
       </div>
 
       {/* Text */}
       {showText && (
         <div className="flex flex-col">
-          <span className={`font-bold ${textSize} tracking-tight`} style={{ background: 'linear-gradient(to right, var(--logo-bright, #fbbf24), var(--logo-mid, #f59e0b), var(--logo-dark, #d97706))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <span className={`font-bold ${textSize} tracking-tight`} style={{ background: 'linear-gradient(to right, var(--logo-bright, #4ade80), var(--logo-mid, #22c55e), var(--logo-dark, #16a34a))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             SENZOU<span style={{ WebkitTextFillColor: 'var(--text-primary)' }}>KRIA</span>
           </span>
           {size !== 'sm' && (
@@ -150,8 +150,8 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="logoGradientIcon" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="var(--logo-bright, #fbbf24)" />
-          <stop offset="100%" stopColor="var(--logo-dark, #d97706)" />
+          <stop offset="0%" stopColor="var(--logo-bright, #4ade80)" />
+          <stop offset="100%" stopColor="var(--logo-dark, #16a34a)" />
         </linearGradient>
       </defs>
       <path
@@ -164,7 +164,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
       <path
         d="M28 16C28 16 26 14 22 14C18 14 16 16 16 19C16 22 18 23 22 24C26 25 28 26 28 29C28 32 26 34 22 34C18 34 16 32 16 32"
         fill="none"
-        stroke="var(--logo-mid, #f59e0b)"
+        stroke="var(--logo-mid, #22c55e)"
         strokeWidth="3"
         strokeLinecap="round"
       />

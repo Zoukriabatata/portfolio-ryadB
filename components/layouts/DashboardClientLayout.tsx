@@ -195,7 +195,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8' },
       { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7' },
       { href: '/ai',                labelKey: 'nav.ai',     Icon: BrainCircuit,  shortcut: '' },
-      { href: '/bilansUTILISATEUR', labelKey: 'nav.bilans', Icon: ClipboardList, shortcut: '' },
     ],
   },
 ];
@@ -361,16 +360,12 @@ export function DashboardClientLayout({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLandingPage, router]);
 
-  // ============================================================
-  // AUTO-CLOSE MOBILE DRAWER on resize to desktop
-  // ============================================================
+  // Close drawer on Escape key
   useEffect(() => {
     if (!showMobileMenu) return;
-    const handleResize = () => {
-      if (window.innerWidth >= 640) setShowMobileMenu(false);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowMobileMenu(false); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, [showMobileMenu]);
 
   return (
@@ -414,55 +409,28 @@ export function DashboardClientLayout({
           {/* Hamburger — mobile only */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="btn-icon sm:hidden mr-2"
+            className="btn-icon mr-2"
             aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
             aria-expanded={showMobileMenu}
           >
             {showMobileMenu ? <X size={15} strokeWidth={1.5} /> : <Menu size={15} strokeWidth={1.5} />}
           </button>
 
-          {/* Logo + brand name */}
-          <Link href="/dashboard"
-            className="flex items-center gap-2 flex-shrink-0 mr-5 select-none"
-            aria-label="Dashboard"
+          {/* Logo — click to go home */}
+          <Link href="/"
+            className="flex items-center gap-2 flex-shrink-0 select-none"
+            aria-label="Home"
           >
-            <Logo size="sm" showText={false} animated={false} />
-            <span className="hidden md:block text-[12px] font-semibold tracking-tight"
-              style={{ color: 'var(--text-primary)' }}>
-              OrderFlow
-            </span>
+            <Logo size="sm" showText animated={false} />
           </Link>
 
-          {/* Grouped navigation — desktop — extends full height for underline alignment */}
-          <div className="hidden sm:flex items-stretch flex-1 h-full">
-            {NAV_GROUPS.map((group, gi) => (
-              <div key={group.label} className="flex items-stretch">
-                {/* Group divider */}
-                {gi > 0 && (
-                  <div className="w-px self-center bg-[var(--border)] mx-3" style={{ height: '14px' }} />
-                )}
-
-                {/* Items */}
-                {group.items.map((item) => {
-                  const active = isNavActive(item.href);
-                  const IconComp = item.Icon;
-                  const label = t(item.labelKey);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`nav-item h-full flex items-center ${active ? 'active' : ''}`}
-                      title={item.shortcut ? `${label} (Alt+${item.shortcut})` : label}
-                      aria-current={active ? 'page' : undefined}
-                    >
-                      <IconComp size={13} strokeWidth={active ? 2 : 1.5} className="flex-shrink-0" />
-                      <span className="hidden lg:inline">{label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {/* Active page breadcrumb */}
+          {activeChart && (
+            <span className="ml-3 text-[11px] font-mono hidden sm:block"
+              style={{ color: 'var(--text-dimmed)' }}>
+              / {activeChart.slice(1)}
+            </span>
+          )}
 
           {/* Right controls */}
           <div className="flex items-center gap-1 ml-auto">
@@ -561,40 +529,75 @@ export function DashboardClientLayout({
       )}
 
       {/* Mobile Navigation Drawer */}
-      {!isLandingPage && (
+      {!isLandingPage && showMobileMenu && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — tap to close */}
           <div
             aria-hidden="true"
-            className="fixed inset-0 z-40 sm:hidden"
-            style={{
-              backgroundColor: 'color-mix(in srgb, var(--background) 70%, transparent)',
-              backdropFilter: showMobileMenu ? 'blur(4px)' : 'blur(0px)',
-              WebkitBackdropFilter: showMobileMenu ? 'blur(4px)' : 'blur(0px)',
-              opacity: showMobileMenu ? 1 : 0,
-              pointerEvents: showMobileMenu ? 'auto' : 'none',
-              transition: 'opacity 0.2s ease, backdrop-filter 0.2s ease',
-            }}
+            className="fixed inset-0 z-[59]"
+            style={{ background: 'rgba(0,0,0,0.55)' }}
             onClick={() => setShowMobileMenu(false)}
           />
-          {/* Drawer — grouped */}
+          {/* Drawer */}
           <div
-            className="fixed top-11 left-0 bottom-0 w-[200px] z-40 border-r border-[var(--border)]
-                       overflow-y-auto sm:hidden custom-scrollbar"
+            className="fixed top-0 left-0 bottom-0 w-[260px] z-[60] flex flex-col"
             style={{
-              background: 'var(--background)',
-              transform: showMobileMenu ? 'translateX(0)' : 'translateX(-100%)',
-              transition: 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
+              background: 'var(--surface)',
+              borderRight: '1px solid var(--border-light)',
+              boxShadow: '4px 0 32px rgba(0,0,0,0.6)',
+              animation: 'slideInLeft 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
             role="menu"
             aria-label="Mobile navigation"
           >
-            <div className="p-2 space-y-1">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
+              style={{ borderBottom: '1px solid var(--border)' }}>
+              <Logo size="sm" showText animated={false} />
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                aria-label="Close menu"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Live status strip */}
+            <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0"
+              style={{ borderBottom: '1px solid var(--border)', background: 'var(--background)' }}>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--bull)', animation: 'ping 2s cubic-bezier(0,0,0.2,1) infinite' }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: 'var(--bull)' }} />
+              </span>
+              <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                Markets live
+              </span>
+            </div>
+
+            {/* Nav groups */}
+            <div className="flex-1 overflow-y-auto py-2">
+              {/* Dashboard */}
+              <Link
+                href="/dashboard"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-colors duration-100 mb-1"
+                style={{
+                  background: isNavActive('/dashboard') ? 'var(--surface-elevated)' : 'transparent',
+                  color: isNavActive('/dashboard') ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  borderLeft: isNavActive('/dashboard') ? '2px solid var(--primary)' : '2px solid transparent',
+                }}
+              >
+                <Home size={15} strokeWidth={1.5} style={{ color: isNavActive('/dashboard') ? 'var(--primary)' : 'inherit', flexShrink: 0 }} />
+                <span className="text-[12px] font-medium">Dashboard</span>
+              </Link>
+              <div style={{ height: 1, background: 'var(--border)', margin: '4px 12px 4px' }} />
+
               {NAV_GROUPS.map((group) => (
-                <div key={group.label}>
-                  {/* Group label */}
-                  <div className="text-[9px] font-bold uppercase tracking-widest
-                                  text-[var(--text-dimmed)] px-3 pt-3 pb-1.5">
+                <div key={group.label} className="mb-1">
+                  <div className="text-[9px] font-bold uppercase tracking-widest px-4 pt-3 pb-1"
+                    style={{ color: 'var(--text-dimmed)' }}>
                     {group.label}
                   </div>
                   {group.items.map((item) => {
@@ -605,21 +608,22 @@ export function DashboardClientLayout({
                         key={item.href}
                         href={item.href}
                         onClick={() => setShowMobileMenu(false)}
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md
-                                    transition-colors duration-100 ${
-                          active
-                            ? 'bg-[var(--surface)] text-[var(--text-primary)]'
-                            : 'text-[var(--text-muted)] hover:bg-[var(--surface)]/70 hover:text-[var(--text-secondary)]'
-                        }`}
+                        className="flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-colors duration-100"
+                        style={{
+                          background: active ? 'var(--surface-elevated)' : 'transparent',
+                          color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                          borderLeft: active ? '2px solid var(--primary)' : '2px solid transparent',
+                        }}
                         role="menuitem"
                         aria-current={active ? 'page' : undefined}
                       >
-                        <IconComp size={14} strokeWidth={1.5}
-                          className={active ? 'text-[var(--primary)]' : ''} />
+                        <IconComp size={15} strokeWidth={1.5}
+                          style={{ color: active ? 'var(--primary)' : 'inherit', flexShrink: 0 }} />
                         <span className="text-[12px] font-medium flex-1">{t(item.labelKey)}</span>
                         {item.shortcut && (
-                          <span className="text-[9px] text-[var(--text-dimmed)] font-mono">
-                            {item.shortcut}
+                          <span className="text-[9px] font-mono px-1 py-0.5 rounded"
+                            style={{ color: 'var(--text-dimmed)', background: 'var(--background)' }}>
+                            Alt+{item.shortcut}
                           </span>
                         )}
                       </Link>
@@ -629,35 +633,29 @@ export function DashboardClientLayout({
               ))}
             </div>
 
-            {/* Bottom row */}
-            <div className="border-t border-[var(--border)] p-2 mt-1 space-y-0.5">
-              {[
-                { href: '/boutique', label: t('nav.dataFeeds'), Icon: Store },
-                { href: '/',         label: 'Home',             Icon: Home  },
-                { href: '/account',  label: t('nav.account'),   Icon: User  },
-              ].map(({ href, label, Icon: IconComp }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setShowMobileMenu(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors ${
-                    isNavActive(href)
-                      ? 'bg-[var(--surface)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface)]/70 hover:text-[var(--text-secondary)]'
-                  }`}
-                  role="menuitem"
-                >
-                  {href === '/account' ? (
-                    <span className="w-[14px] h-[14px] flex items-center justify-center overflow-hidden rounded-full flex-shrink-0">
-                      <NavUserAvatar />
-                    </span>
-                  ) : (
-                    <IconComp size={14} strokeWidth={1.5}
-                      className={isNavActive(href) ? 'text-[var(--primary)]' : ''} />
-                  )}
-                  <span className="text-[12px] font-medium">{label}</span>
-                </Link>
-              ))}
+            {/* Bottom section */}
+            <div className="flex-shrink-0 p-2" style={{ borderTop: '1px solid var(--border)' }}>
+              <Link
+                href="/boutique"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <Store size={14} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                <span className="text-[12px] font-medium">{t('nav.dataFeeds')}</span>
+              </Link>
+              <Link
+                href="/account"
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <span className="w-5 h-5 flex items-center justify-center overflow-hidden rounded-full flex-shrink-0"
+                  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                  <NavUserAvatar />
+                </span>
+                <span className="text-[12px] font-medium">{t('nav.account')}</span>
+              </Link>
             </div>
           </div>
         </>

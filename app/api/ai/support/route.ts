@@ -16,7 +16,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { ollamaChatStream, ollamaIsRunning, DEFAULT_MODEL } from '@/lib/ai/ollama';
 import { buildSupportMessages, type ChatMessage } from '@/lib/ai/agents/supportAgent';
-import { requireAuth } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,8 +25,7 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   : null;
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  // Public endpoint — no auth required (landing page support chat + dashboard)
 
   // ── Input validation ────────────────────────────────────────────────────────
   let body: { message?: string; history?: ChatMessage[] };
@@ -45,6 +43,29 @@ export async function POST(req: NextRequest) {
 
   if (message.length > 4000) {
     return new Response(JSON.stringify({ error: 'Message too long (max 4000 characters)' }), { status: 400 });
+  }
+
+  // ── Discord shortcut — bypass AI entirely to avoid hallucination ────────────
+  const DISCORD_KW = ['discord', 'communauté', 'community', 'rejoindre', 'serveur discord', 'lien discord', 'discord link', 'discord server', 'invite'];
+  const msgLower = message.toLowerCase();
+  if (DISCORD_KW.some(k => msgLower.includes(k))) {
+    const inviteUrl = process.env.DISCORD_INVITE_URL;
+    const reply = inviteUrl
+      ? `Rejoins notre communauté Discord ici 👉 ${inviteUrl}`
+      : "Le lien Discord n'est pas encore configuré. Contacte le support pour l'obtenir.";
+    const encoder2 = new TextEncoder();
+    const stream2 = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const char of reply) {
+          controller.enqueue(encoder2.encode(`data: ${JSON.stringify({ token: char })}\n\n`));
+        }
+        controller.enqueue(encoder2.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+    return new Response(stream2, {
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' },
+    });
   }
 
   // Limit history to last 20 messages, each capped at 2000 chars
