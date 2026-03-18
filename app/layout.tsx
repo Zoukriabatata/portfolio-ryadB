@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Space_Grotesk } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import '@/app/globals.css';
 import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
@@ -7,12 +7,12 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
 
-const spaceGrotesk = Space_Grotesk({
+const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   preload: true,
   adjustFontFallback: true,
-  variable: '--font-space-grotesk',
+  variable: '--font-inter',
   fallback: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
 });
 
@@ -109,7 +109,7 @@ if(typeof Node!=='undefined'){
           }}
         />
       </head>
-      <body className={spaceGrotesk.className} suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         <DashboardClientLayout>{children}</DashboardClientLayout>
         <Toaster
           theme="dark"
