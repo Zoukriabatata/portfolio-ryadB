@@ -525,11 +525,11 @@ Ensuite teste méthodiquement:
   ];
 
   let finalReport: Record<string, unknown> | null = null;
-  // Model fallback: start with 70b, downgrade to 8b on 429 rate-limit
-  const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'] as const;
+  // Use 8b-instant by default (30k TPM); fall back to smaller if needed
+  const GROQ_MODELS = ['llama-3.1-8b-instant', 'llama3-8b-8192'] as const;
   let modelIdx = 0;
 
-  send({ type: 'thinking', text: `🤖 Agent Groq (${GROQ_MODELS[modelIdx]}) démarré — test complet de ${baseUrl}` });
+  send({ type: 'thinking', text: `🤖 Agent Groq démarré — test complet de ${baseUrl}` });
 
   for (let i = 0; i < 18 && !finalReport; i++) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
