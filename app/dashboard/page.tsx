@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import {
   Activity, Grid3x3, Layers, Zap, Compass, Newspaper,
-  History, Store, TrendingUp, BrainCircuit, Wifi,
+  History, Store, TrendingUp, BrainCircuit,
   ArrowRight, Clock, CheckCircle2,
 } from 'lucide-react';
 
@@ -27,7 +27,6 @@ const SECTIONS = [
     id: 'charts',
     label: 'Charts',
     description: 'Real-time market visualization',
-    color: '#10b981',
     items: [
       { href: '/live',       label: 'Live',       sub: 'Candlestick & order flow', shortcut: '1', Icon: CandlestickSvg },
       { href: '/footprint',  label: 'Footprint',  sub: 'Delta & volume profile',   shortcut: '2', Icon: Grid3x3 },
@@ -38,7 +37,6 @@ const SECTIONS = [
     id: 'analytics',
     label: 'Analytics',
     description: 'Quantitative signal engine',
-    color: '#06b6d4',
     items: [
       { href: '/gex',        label: 'GEX',        sub: 'Gamma exposure',           shortcut: '4', Icon: Zap },
       { href: '/volatility', label: 'Volatility', sub: 'IV surface & skew',        shortcut: '5', Icon: Activity },
@@ -50,7 +48,6 @@ const SECTIONS = [
     id: 'tools',
     label: 'Tools',
     description: 'Research & management',
-    color: '#8b5cf6',
     items: [
       { href: '/journal',   label: 'Journal',     sub: 'Trade log & analytics',    shortcut: '8', Icon: History },
       { href: '/news',      label: 'News',        sub: 'Economic calendar',        shortcut: '7', Icon: Newspaper },
@@ -92,25 +89,25 @@ function useGreeting() {
 
 // ── NavCard ───────────────────────────────────────────────────────────────
 function NavCard({
-  href, label, sub, shortcut, Icon, accent,
+  href, label, sub, shortcut, Icon,
 }: {
   href: string; label: string; sub: string;
-  shortcut: string; Icon: any; accent: string;
+  shortcut: string; Icon: any;
 }) {
   return (
     <Link
       href={href}
       className="group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--border)]
-                 hover:border-[var(--border-light)] transition-all duration-200"
+                 hover:border-[var(--primary)] transition-all duration-150"
       style={{ background: 'var(--surface)' }}
     >
       {/* Icon */}
       <div
         className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center
-                   transition-transform duration-200 group-hover:scale-105"
-        style={{ background: `${accent}14`, color: accent }}
+                   text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors duration-150"
+        style={{ background: 'var(--surface-elevated)' }}
       >
-        <Icon size={16} strokeWidth={1.5} />
+        <Icon size={15} strokeWidth={1.5} />
       </div>
 
       {/* Text */}
@@ -126,16 +123,18 @@ function NavCard({
       {/* Shortcut + arrow */}
       <div className="flex-shrink-0 flex items-center gap-1.5">
         {shortcut && (
-          <kbd className="hidden sm:inline-flex text-[9px] font-mono px-1.5 py-0.5 rounded border
-                          border-[var(--border)] text-[var(--text-dimmed)]"
-            style={{ background: 'var(--surface-elevated)' }}>
+          <kbd
+            className="hidden sm:inline-flex text-[9px] font-mono px-1.5 py-0.5 rounded border
+                       border-[var(--border)] text-[var(--text-dimmed)]"
+            style={{ background: 'var(--surface-elevated)' }}
+          >
             {shortcut}
           </kbd>
         )}
         <ArrowRight
-          size={12}
+          size={11}
           className="text-[var(--text-dimmed)] opacity-0 group-hover:opacity-100
-                     -translate-x-1 group-hover:translate-x-0 transition-all duration-200"
+                     -translate-x-1 group-hover:translate-x-0 transition-all duration-150"
         />
       </div>
     </Link>
@@ -148,28 +147,25 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full overflow-auto custom-scrollbar">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 animate-fadeIn">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-7 animate-fadeIn">
 
         {/* ── Header ───────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-              {greeting}, Trader
+            <h1 className="text-base font-semibold text-[var(--text-primary)]">
+              {greeting}
             </h1>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Ready to analyze the markets
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+              Professional order flow analytics platform
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-            <Clock size={12} strokeWidth={1.5} />
-            <span className="font-mono">{time}</span>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+            <Clock size={11} strokeWidth={1.5} />
+            <span className="font-mono tabular-nums">{time}</span>
             <span className="w-px h-3 bg-[var(--border)]" />
             <div className="flex items-center gap-1.5">
-              <div className="relative flex items-center justify-center w-2 h-2">
-                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-30" />
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              </div>
-              <span className="text-emerald-500 font-medium text-[11px]">Live</span>
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--bull)' }} />
+              <span className="font-medium" style={{ color: 'var(--bull)' }}>Live</span>
             </div>
           </div>
         </div>
@@ -178,48 +174,52 @@ export default function DashboardPage() {
         {SECTIONS.map((section) => (
           <div key={section.id}>
             {/* Section header */}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-1 h-4 rounded-full" style={{ background: section.color }} />
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-widest"
-                  style={{ color: section.color }}>
-                  {section.label}
-                </span>
-                <span className="text-[11px] text-[var(--text-muted)] ml-2">
-                  — {section.description}
-                </span>
-              </div>
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                {section.label}
+              </span>
+              <span className="flex-1 h-px bg-[var(--border)]" />
+              <span className="text-[10px] text-[var(--text-dimmed)]">
+                {section.description}
+              </span>
             </div>
 
             {/* Cards grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
               {section.items.map((item) => (
-                <NavCard key={item.href} {...item} accent={section.color} />
+                <NavCard key={item.href} {...item} />
               ))}
             </div>
           </div>
         ))}
 
         {/* ── Bottom row: Status + Shortcuts ───────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
 
           {/* Platform Status */}
-          <div className="rounded-xl border border-[var(--border)] p-4"
-            style={{ background: 'var(--surface)' }}>
+          <div
+            className="rounded-lg border border-[var(--border)] p-4"
+            style={{ background: 'var(--surface)' }}
+          >
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
                 Platform Status
               </span>
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                style={{ background: '#10b98115', color: '#10b981' }}>
+              <span
+                className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(38,217,127,0.1)', color: 'var(--bull)' }}
+              >
                 All Operational
               </span>
             </div>
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {STATUS_ITEMS.map((item) => (
                 <div key={item.label} className="flex items-center gap-2">
-                  <CheckCircle2 size={12} strokeWidth={2}
-                    className={item.ok ? 'text-emerald-500' : 'text-red-400'} />
+                  <CheckCircle2
+                    size={11}
+                    strokeWidth={2}
+                    style={{ color: item.ok ? 'var(--bull)' : 'var(--bear)' }}
+                  />
                   <span className="text-[11px] text-[var(--text-secondary)]">{item.label}</span>
                 </div>
               ))}
@@ -227,18 +227,22 @@ export default function DashboardPage() {
           </div>
 
           {/* Keyboard Shortcuts */}
-          <div className="rounded-xl border border-[var(--border)] p-4"
-            style={{ background: 'var(--surface)' }}>
+          <div
+            className="rounded-lg border border-[var(--border)] p-4"
+            style={{ background: 'var(--surface)' }}
+          >
             <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] block mb-3">
               Keyboard Shortcuts
             </span>
-            <div className="grid grid-cols-2 gap-y-2.5 gap-x-4">
+            <div className="grid grid-cols-2 gap-y-2 gap-x-4">
               {SHORTCUTS.map((s) => (
                 <div key={s.keys} className="flex items-center justify-between gap-2">
                   <span className="text-[11px] text-[var(--text-secondary)]">{s.desc}</span>
-                  <kbd className="text-[9px] font-mono px-1.5 py-0.5 rounded border
-                                  border-[var(--border)] text-[var(--text-dimmed)] whitespace-nowrap"
-                    style={{ background: 'var(--surface-elevated)' }}>
+                  <kbd
+                    className="text-[9px] font-mono px-1.5 py-0.5 rounded border
+                               border-[var(--border)] text-[var(--text-dimmed)] whitespace-nowrap"
+                    style={{ background: 'var(--surface-elevated)' }}
+                  >
                     {s.keys}
                   </kbd>
                 </div>

@@ -22,8 +22,9 @@
  *   data: {"type":"heartbeat","ts":"..."}\n\n   ← every 15s to keep connection alive
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { StreamAgent, SyntheticFeed } from '@/lib/ai/streamAgent';
+import { requireAuth } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,9 @@ export const dynamic = 'force-dynamic';
 // ─── GET — persistent SSE loop ────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   const mode     = req.nextUrl.searchParams.get('mode') ?? 'sim';
   const interval = parseInt(req.nextUrl.searchParams.get('interval') ?? '3000', 10); // ms between ticks
   const agent    = new StreamAgent();
@@ -85,7 +89,6 @@ export async function GET(req: NextRequest) {
       'Cache-Control':               'no-cache, no-transform',
       'Connection':                  'keep-alive',
       'X-Accel-Buffering':           'no',
-      'Access-Control-Allow-Origin': '*',
     },
   });
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore, BROKER_INFO, type OrderType } from '@/stores/useTradingStore';
 import { useFuturesStore } from '@/stores/useFuturesStore';
 import { useMarketStore } from '@/stores/useMarketStore';
@@ -69,9 +70,22 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     positions,
     orders,
     connect,
-  } = useTradingStore();
+  } = useTradingStore(
+    useShallow(s => ({
+      activeBroker: s.activeBroker,
+      connections: s.connections,
+      contractQuantity: s.contractQuantity,
+      setContractQuantity: s.setContractQuantity,
+      placeOrder: s.placeOrder,
+      cancelOrder: s.cancelOrder,
+      closePosition: s.closePosition,
+      positions: s.positions,
+      orders: s.orders,
+      connect: s.connect,
+    }))
+  );
 
-  const { markPrice } = useFuturesStore();
+  const markPrice = useFuturesStore(s => s.markPrice);
   const marketPrice = useMarketStore((s) => s.currentPrice);
   const spotPrice = useSpotPrice(symbol);
 

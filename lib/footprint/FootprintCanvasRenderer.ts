@@ -132,7 +132,7 @@ export class FootprintCanvasRenderer {
    * Clear string cache periodically to avoid unbounded growth
    */
   clearStringCache(): void {
-    if (this.volStringCache.size > 5000) {
+    if (this.volStringCache.size > 1000) {
       this.volStringCache.clear();
       this.volCacheHits = 0;
       this.volCacheMisses = 0;

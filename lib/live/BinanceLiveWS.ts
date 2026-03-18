@@ -111,6 +111,11 @@ class BinanceLiveWS {
   private lastTickTime = 0;
   private currentPrice = 0;
 
+  // rAF batching — UI listeners fire at display refresh rate, not WS rate
+  private pendingTick: Tick | null = null;
+  private rafId: number | null = null;
+  private depthRafId: number | null = null;
+
   // Depth WebSocket
   private depthWs: WebSocket | null = null;
   private depthSnapshot: DepthSnapshot | null = null;
@@ -221,8 +226,19 @@ class BinanceLiveWS {
         // Store current price
         this.currentPrice = tick.price;
 
-        // Notifie les listeners
-        this.tickListeners.forEach(cb => cb(tick));
+        // Batch UI listener notifications to display refresh rate (~60fps).
+        // The aggregator already received the tick above — candle data stays accurate.
+        this.pendingTick = tick;
+        if (this.rafId === null) {
+          this.rafId = requestAnimationFrame(() => {
+            this.rafId = null;
+            if (this.pendingTick) {
+              const t = this.pendingTick;
+              this.pendingTick = null;
+              this.tickListeners.forEach(cb => cb(t));
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('[Binance WS] Parse error:', error);
@@ -282,9 +298,14 @@ class BinanceLiveWS {
           lastUpdateId: message.lastUpdateId,
         };
 
-        // Notify listeners
-        if (this.depthSnapshot) {
-          this.depthListeners.forEach(cb => cb(this.depthSnapshot!));
+        // Batch depth listener notifications to display refresh rate
+        if (this.depthSnapshot && this.depthRafId === null) {
+          this.depthRafId = requestAnimationFrame(() => {
+            this.depthRafId = null;
+            if (this.depthSnapshot) {
+              this.depthListeners.forEach(cb => cb(this.depthSnapshot!));
+            }
+          });
         }
       }
     } catch (error) {
@@ -494,6 +515,11 @@ class BinanceLiveWS {
    */
   disconnect(): void {
     this.intentionalDisconnect = true;
+
+    // Cancel pending rAF batches
+    if (this.rafId !== null) { cancelAnimationFrame(this.rafId); this.rafId = null; }
+    if (this.depthRafId !== null) { cancelAnimationFrame(this.depthRafId); this.depthRafId = null; }
+    this.pendingTick = null;
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

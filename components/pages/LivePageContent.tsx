@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import { useTradingStore } from '@/stores/useTradingStore';
+import { useShallow } from 'zustand/react/shallow';
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import { ChartSkeleton } from '@/components/ui/Skeleton';
 import ChartPageShell from '@/components/layouts/ChartPageShell';
@@ -244,7 +245,9 @@ function TradingPanel({ symbol }: { symbol: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LivePageContent() {
-  const { tradingSymbol, setTradingSymbol } = useTradingStore();
+  const { tradingSymbol, setTradingSymbol } = useTradingStore(
+    useShallow(s => ({ tradingSymbol: s.tradingSymbol, setTradingSymbol: s.setTradingSymbol }))
+  );
   const [layout, setLayout] = useState<LayoutMode>('1x1');
   const [layoutKey, setLayoutKey] = useState(0);
   const [showPanel, setShowPanel] = useState(false);

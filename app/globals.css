@@ -3,72 +3,84 @@
 @import "../styles/landing-animations.css";
 
 /* ============================================================
-   SENZOUKRIA - PROFESSIONAL TRADING PLATFORM THEME
-   Modern, Clean, High-Performance UI
+   ORDERFLOW — TRADYTICS-INSPIRED DESIGN SYSTEM
+   Minimal · Data-First · Professional Financial Tool
    ============================================================ */
 
 :root {
   /* === CORE PALETTE === */
-  --background: #0a0a0f;
-  --surface: #12121a;
-  --surface-elevated: #1a1a24;
-  --surface-hover: #1e1e2e;
+  /* Deep navy-black — warmer than pure black, easier on eyes */
+  --background: #07080f;
+  --surface: #0d0f1b;
+  --surface-elevated: #12152a;
+  --surface-hover: #181b30;
+  --surface-active: #1d2138;
 
-  /* === TEXT === */
-  --foreground: #e2e8f0;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-dimmed: #5a6a7e;
+  /* === TEXT ===
+     Cool-white hierarchy — primary is near white, each step
+     is visibly dimmer for clear data hierarchy */
+  --foreground: #dde1f0;
+  --text-primary: #e8eaf6;
+  --text-secondary: #8890b0;
+  --text-muted: #515878;
+  --text-dimmed: #333650;
 
-  /* === BORDERS === */
-  --border: #1e1e2e;
-  --border-light: #2a2a3a;
-  --border-focus: #3a3a4a;
+  /* === BORDERS ===
+     Ultra-subtle — only 1px of separation, never fights data */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-light: rgba(255, 255, 255, 0.11);
+  --border-focus: rgba(99, 120, 255, 0.45);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
-  /* === PRIMARY (Emerald/Teal) === */
-  --primary: #10b981;
-  --primary-light: #34d399;
-  --primary-dark: #059669;
-  --primary-glow: rgba(16, 185, 129, 0.15);
-  --primary-rgb: 16 185 129;
-  --primary-light-rgb: 52 211 153;
-  --primary-dark-rgb: 5 150 105;
+  /* === PRIMARY — Indigo/Blue (institutional, not startup) ===
+     #4f6ef7 is a clean, saturated-but-not-aggressive blue.
+     Used sparingly: active nav state, CTAs, accent lines only. */
+  --primary: #4f6ef7;
+  --primary-light: #7b94f8;
+  --primary-dark: #3354e8;
+  --primary-glow: rgba(79, 110, 247, 0.12);
+  --primary-rgb: 79 110 247;
+  --primary-light-rgb: 123 148 248;
+  --primary-dark-rgb: 51 84 232;
 
-  /* === ACCENT (Cyan) === */
-  --accent: #06b6d4;
-  --accent-light: #22d3ee;
-  --accent-dark: #0891b2;
-  --accent-glow: rgba(6, 182, 212, 0.15);
-  --accent-rgb: 6 182 212;
-  --accent-light-rgb: 34 211 238;
+  /* === ACCENT — Soft violet (secondary highlights only) === */
+  --accent: #7c6af7;
+  --accent-light: #9d8ff9;
+  --accent-dark: #5f4de0;
+  --accent-glow: rgba(124, 106, 247, 0.12);
+  --accent-rgb: 124 106 247;
+  --accent-light-rgb: 157 143 249;
 
   /* === SEMANTIC COLORS === */
   --success: #22c55e;
-  --success-bg: rgba(34, 197, 94, 0.1);
-  --error: #ef4444;
-  --error-bg: rgba(239, 68, 68, 0.1);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.1);
-  --info: #3b82f6;
-  --info-bg: rgba(59, 130, 246, 0.1);
+  --success-bg: rgba(34, 197, 94, 0.08);
+  --error: #f04f4f;
+  --error-bg: rgba(240, 79, 79, 0.08);
+  --warning: #e8a020;
+  --warning-bg: rgba(232, 160, 32, 0.08);
+  --info: #4f6ef7;
+  --info-bg: rgba(79, 110, 247, 0.08);
 
-  /* === TRADING COLORS === */
-  --bull: #22c55e;
-  --bull-bg: rgba(34, 197, 94, 0.12);
-  --bear: #ef4444;
-  --bear-bg: rgba(239, 68, 68, 0.12);
+  /* === TRADING COLORS ===
+     Kept vivid but toned down backgrounds for a calmer chart feel */
+  --bull: #26d97f;
+  --bull-dim: #1ca55e;
+  --bull-bg: rgba(38, 217, 127, 0.08);
+  --bear: #f04f4f;
+  --bear-dim: #c43d3d;
+  --bear-bg: rgba(240, 79, 79, 0.08);
 
-  /* === SHADOWS === */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  /* === SHADOWS ===
+     Near-invisible shadows — no heavy elevation, just depth cues */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.6);
 
   /* === GLASSMORPHISM === */
-  --glass-bg: rgba(18, 18, 26, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --glass-bg: rgba(13, 15, 27, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
 
   /* === SPACING SCALE === */
   --space-xs: 4px;
@@ -79,11 +91,13 @@
   --space-2xl: 48px;
   --space-3xl: 64px;
 
-  /* === BORDER RADIUS === */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* === BORDER RADIUS ===
+     Tighter radii — financial tools don't have round bubbly corners */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
   --radius-full: 9999px;
 
   /* === Z-INDEX SCALE === */
@@ -95,9 +109,12 @@
   --z-tooltip: 600;
 
   /* === TRANSITIONS === */
-  --transition-fast: 150ms ease;
-  --transition-normal: 200ms ease;
-  --transition-slow: 300ms ease;
+  --transition-fast: 120ms ease;
+  --transition-normal: 180ms ease;
+  --transition-slow: 280ms ease;
+
+  /* === NAV === */
+  --nav-height: 44px;
 }
 
 @theme inline {
@@ -105,9 +122,6 @@
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-surface: var(--surface);
-  --font-montserrat: var(--font-montserrat);
-
-  /* Extended color palette for Tailwind */
   --color-bull: var(--bull);
   --color-bear: var(--bear);
   --color-accent: var(--accent);
@@ -199,24 +213,53 @@ main {
 
 /* ============================================================
    TYPOGRAPHY
+   Sans-serif hierarchy inspired by financial data platforms.
+   Tight letter-spacing for headings; relaxed for body.
    ============================================================ */
 
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
 }
 
-h1 { font-size: 2.25rem; line-height: 2.5rem; }
-h2 { font-size: 1.875rem; line-height: 2.25rem; }
-h3 { font-size: 1.5rem; line-height: 2rem; }
-h4 { font-size: 1.25rem; line-height: 1.75rem; }
-h5 { font-size: 1.125rem; line-height: 1.75rem; }
-h6 { font-size: 1rem; line-height: 1.5rem; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.375rem; }
+h3 { font-size: 1.125rem; }
+h4 { font-size: 0.9375rem; letter-spacing: -0.01em; }
+h5 { font-size: 0.875rem; letter-spacing: 0; }
+h6 { font-size: 0.8125rem; letter-spacing: 0; font-weight: 500; }
 
 p {
   color: var(--text-secondary);
-  line-height: 1.65;
+  line-height: 1.6;
+  font-size: 0.875rem;
+}
+
+/* Data label — small uppercase tag above a metric */
+.label-data {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Metric value — large numeric display */
+.value-metric {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Monospace numbers — ticker prices, P&L, etc. */
+.value-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
 }
 
 code {
@@ -284,18 +327,19 @@ code {
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, var(--primary-light), var(--accent-light));
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--accent-light) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
+/* Subtle glow — use sparingly, only on key CTAs or focus states */
 .glow-primary {
-  box-shadow: 0 0 20px var(--primary-glow);
+  box-shadow: 0 0 16px var(--primary-glow);
 }
 
 .glow-accent {
-  box-shadow: 0 0 20px var(--accent-glow);
+  box-shadow: 0 0 16px var(--accent-glow);
 }
 
 /* Transitions & scroll are in styles/animations.css */
@@ -483,15 +527,276 @@ a:focus-visible {
 }
 
 /* ============================================================
-   NAVIGATION PILL GLOW
+   DATA CARDS — Tradytics-style clean panels
+   ============================================================ */
+
+/* Base card: flat, barely-visible border, no shadow */
+.data-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Card with a subtle left accent bar (for categorized panels) */
+.data-card-accent {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  border-left: 2px solid var(--primary);
+}
+
+/* Metric card: used for key number displays */
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Card header divider */
+.card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Card section label */
+.card-section-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   NAVIGATION ITEM — Clean horizontal nav (Tradytics style)
+   Active = lighter text + thin bottom border. No glows.
+   ============================================================ */
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.nav-item:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-item.active {
+  color: var(--text-primary);
+  background: transparent;
+}
+
+/* Thin bottom accent line on active nav item */
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 8px;
+  right: 8px;
+  height: 1.5px;
+  background: var(--primary);
+  border-radius: 1px;
+}
+
+/* ============================================================
+   DATA TABLE — Clean data rows (no zebra stripes, just lines)
+   ============================================================ */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table td {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+
+.data-table tr:hover td {
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   STATUS BADGES — Minimal, text-based
+   ============================================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.badge-bull {
+  background: var(--bull-bg);
+  color: var(--bull);
+  border: 1px solid rgba(38, 217, 127, 0.2);
+}
+
+.badge-bear {
+  background: var(--bear-bg);
+  color: var(--bear);
+  border: 1px solid rgba(240, 79, 79, 0.2);
+}
+
+.badge-neutral {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.badge-primary {
+  background: var(--primary-glow);
+  color: var(--primary-light);
+  border: 1px solid rgba(79, 110, 247, 0.25);
+}
+
+/* ============================================================
+   DIVIDERS — Barely visible separators
+   ============================================================ */
+
+.divider-h {
+  height: 1px;
+  background: var(--border);
+  margin: 0;
+}
+
+.divider-v {
+  width: 1px;
+  background: var(--border);
+  align-self: stretch;
+}
+
+/* ============================================================
+   INPUTS — Clean, minimal form controls
+   ============================================================ */
+
+.input-clean {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast);
+  width: 100%;
+}
+
+.input-clean::placeholder {
+  color: var(--text-muted);
+}
+
+.input-clean:focus {
+  border-color: var(--border-focus);
+}
+
+/* ============================================================
+   BUTTONS — Restrained, non-flashy
+   ============================================================ */
+
+/* Primary CTA */
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
+}
+
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:active { opacity: 0.8; }
+
+/* Ghost button */
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  border-color: var(--border-light);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Icon button */
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.btn-icon:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================================
+   NAVIGATION PILL GLOW — Legacy, kept for compatibility
    ============================================================ */
 
 .nav-pill-glow {
-  background: var(--nav-glow-bg, rgba(16, 185, 129, 0.08));
-  box-shadow:
-    0 0 12px var(--nav-glow-color, rgba(16, 185, 129, 0.15)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--nav-glow-border, rgba(16, 185, 129, 0.2));
+  background: var(--primary-glow);
+  border: 1px solid rgba(79, 110, 247, 0.2);
 }
 
 /* ============================================================
@@ -564,11 +869,10 @@ a:focus-visible {
 
 /* Row hover — background glow for table/list rows */
 .row-hover {
-  transition: background-color 0.12s ease, box-shadow 0.12s ease;
+  transition: background-color 0.12s ease;
 }
 .row-hover:hover {
-  background-color: var(--surface-hover);
-  box-shadow: inset 2px 0 0 var(--primary);
+  background-color: rgba(255, 255, 255, 0.03);
 }
 
 /* Action press — scale feedback for icon buttons */

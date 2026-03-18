@@ -274,6 +274,7 @@ export async function POST(req: NextRequest) {
 
   const message = (form.get('message') as string | null)?.trim() ?? '';
   if (!message) return Response.json({ error: 'message field is required.' }, { status: 400 });
+  if (message.length > 4000) return Response.json({ error: 'Message too long (max 4000 characters).' }, { status: 400 });
 
   let history: { role: string; content: string }[] = [];
   try { history = JSON.parse((form.get('history') as string | null) ?? '[]'); } catch { history = []; }

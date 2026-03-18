@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/lib/rendering/CanvasChartEngine';
@@ -257,9 +258,22 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
 
   // Contrast text for active buttons: auto black/white based on toolActive luminance
   const { textColor: activeTextColor } = useAutoContrast(theme.colors.toolActive);
-  const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity, showTradeBar, setShowTradeBar } = useTradingStore();
+  const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity, showTradeBar, setShowTradeBar } = useTradingStore(
+    useShallow(s => ({
+      positions: s.positions,
+      activeBroker: s.activeBroker,
+      connections: s.connections,
+      placeOrder: s.placeOrder,
+      closePosition: s.closePosition,
+      contractQuantity: s.contractQuantity,
+      showTradeBar: s.showTradeBar,
+      setShowTradeBar: s.setShowTradeBar,
+    }))
+  );
   const { indicators: indicatorConfigs, toggleIndicator: toggleIndicatorConfig } = useIndicatorStore();
-  const { showVolumeProfile, setShowVolumeProfile, vpPanelSide } = usePreferencesStore();
+  const { showVolumeProfile, setShowVolumeProfile, vpPanelSide } = usePreferencesStore(
+    useShallow(s => ({ showVolumeProfile: s.showVolumeProfile, setShowVolumeProfile: s.setShowVolumeProfile, vpPanelSide: s.vpPanelSide }))
+  );
   const customFavorites = useFavoritesToolbarStore(s => s.presets.custom.tools);
 
   // Trading ref for keyboard hotkeys

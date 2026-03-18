@@ -404,40 +404,43 @@ export function DashboardClientLayout({
           ============================================================ */}
       {!isLandingPage && (
       <nav
-        className="h-11 flex-shrink-0 border-b border-[var(--border)] relative z-50"
-        style={{ background: 'var(--background)' }}
+        className="flex-shrink-0 border-b border-[var(--border)] relative z-50"
+        style={{ height: 'var(--nav-height)', background: 'var(--background)', contain: 'layout style' }}
         role="navigation"
         aria-label="Main navigation"
       >
-        <div className="h-full px-3 flex items-center gap-1">
+        <div className="h-full px-4 flex items-center gap-0">
 
           {/* Hamburger — mobile only */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--surface)] transition-colors sm:hidden mr-1"
+            className="btn-icon sm:hidden mr-2"
             aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
             aria-expanded={showMobileMenu}
           >
             {showMobileMenu ? <X size={15} strokeWidth={1.5} /> : <Menu size={15} strokeWidth={1.5} />}
           </button>
 
-          {/* Logo */}
-          <Link href="/dashboard" className="flex-shrink-0 mr-3" aria-label="Dashboard">
-            <Logo size="sm" showText={false} animated={true} />
+          {/* Logo + brand name */}
+          <Link href="/dashboard"
+            className="flex items-center gap-2 flex-shrink-0 mr-5 select-none"
+            aria-label="Dashboard"
+          >
+            <Logo size="sm" showText={false} animated={false} />
+            <span className="hidden md:block text-[12px] font-semibold tracking-tight"
+              style={{ color: 'var(--text-primary)' }}>
+              OrderFlow
+            </span>
           </Link>
 
-          {/* Grouped navigation — desktop */}
-          <div className="hidden sm:flex items-center flex-1 gap-0.5">
+          {/* Grouped navigation — desktop — extends full height for underline alignment */}
+          <div className="hidden sm:flex items-stretch flex-1 h-full">
             {NAV_GROUPS.map((group, gi) => (
-              <div key={group.label} className="flex items-center gap-0.5">
+              <div key={group.label} className="flex items-stretch">
                 {/* Group divider */}
-                {gi > 0 && <div className="w-px h-4 bg-[var(--border)] mx-1.5" />}
-
-                {/* Group label pill */}
-                <span className="hidden xl:inline-flex text-[9px] font-bold uppercase tracking-widest
-                                 text-[var(--text-dimmed)] mr-1 select-none">
-                  {group.label}
-                </span>
+                {gi > 0 && (
+                  <div className="w-px self-center bg-[var(--border)] mx-3" style={{ height: '14px' }} />
+                )}
 
                 {/* Items */}
                 {group.items.map((item) => {
@@ -448,28 +451,12 @@ export function DashboardClientLayout({
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`
-                        relative flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium
-                        transition-all duration-150
-                        ${active
-                          ? 'bg-[var(--surface)] text-[var(--text-primary)]'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]/60'
-                        }
-                      `}
+                      className={`nav-item h-full flex items-center ${active ? 'active' : ''}`}
                       title={item.shortcut ? `${label} (Alt+${item.shortcut})` : label}
                       aria-current={active ? 'page' : undefined}
                     >
-                      <IconComp
-                        size={14}
-                        strokeWidth={1.5}
-                        className={`flex-shrink-0 ${active ? 'text-[var(--primary)]' : ''}`}
-                      />
-                      <span className="hidden lg:inline whitespace-nowrap">{label}</span>
-                      {/* Active pill indicator */}
-                      {active && (
-                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1
-                                         rounded-full bg-[var(--primary)]" />
-                      )}
+                      <IconComp size={13} strokeWidth={active ? 2 : 1.5} className="flex-shrink-0" />
+                      <span className="hidden lg:inline">{label}</span>
                     </Link>
                   );
                 })}
@@ -480,14 +467,11 @@ export function DashboardClientLayout({
           {/* Right controls */}
           <div className="flex items-center gap-1 ml-auto">
 
-            {/* Live dot */}
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md
-                            border border-[var(--border)] bg-[var(--surface)]/50">
-              <div className="relative w-1.5 h-1.5">
-                <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              </div>
-              <span className="hidden md:inline text-[10px] font-semibold text-emerald-500 tracking-wide">
+            {/* Live indicator — minimal dot only */}
+            <div className="flex items-center gap-1.5 px-2 py-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--bull)]" />
+              <span className="hidden md:inline text-[10px] font-medium tracking-wide"
+                style={{ color: 'var(--bull)' }}>
                 Live
               </span>
             </div>
@@ -498,16 +482,12 @@ export function DashboardClientLayout({
             {/* Data Feeds */}
             <Link
               href="/boutique"
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors
-                          text-[11px] font-medium ${
-                isNavActive('/boutique')
-                  ? 'bg-[var(--surface)] text-[var(--text-primary)] border-[var(--primary)]/30'
-                  : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]'
+              className={`btn-icon w-auto px-2 gap-1.5 text-[11px] font-medium ${
+                isNavActive('/boutique') ? '!text-[var(--text-primary)]' : ''
               }`}
               title="Data Feeds (Alt+0)"
             >
-              <Store size={13} strokeWidth={1.5}
-                className={isNavActive('/boutique') ? 'text-[var(--primary)]' : ''} />
+              <Store size={13} strokeWidth={1.5} />
               <span className="hidden md:inline">{t('nav.dataFeeds')}</span>
             </Link>
 
@@ -515,13 +495,12 @@ export function DashboardClientLayout({
             <div className="relative">
               <button
                 onClick={() => setShowThemePicker(!showThemePicker)}
-                className="w-7 h-7 flex items-center justify-center rounded-md
-                           hover:bg-[var(--surface)] transition-colors"
+                className="btn-icon"
                 title="Change theme (Ctrl+T)"
                 aria-label="Change theme"
                 aria-expanded={showThemePicker}
               >
-                <Palette size={14} strokeWidth={1.5} className="text-[var(--text-muted)]" />
+                <Palette size={14} strokeWidth={1.5} />
               </button>
               {showThemePicker && (
                 <>
@@ -571,8 +550,7 @@ export function DashboardClientLayout({
             {/* Account */}
             <Link
               href="/account"
-              className="w-7 h-7 flex items-center justify-center rounded-md
-                         hover:bg-[var(--surface)] transition-colors overflow-hidden"
+              className="btn-icon overflow-hidden"
               aria-label="Account settings"
             >
               <NavUserAvatar />
@@ -710,6 +688,7 @@ export function DashboardClientLayout({
               key={`${route}-${chartKey}`}
               className={`h-full ${isActive ? 'chart-route-enter' : ''}`}
               style={{ display: isActive ? 'block' : 'none' }}
+              data-chart-inactive={!isActive ? '' : undefined}
             >
               <PageActiveProvider value={isActive && !tabHidden}>
                 <ChartErrorBoundary fallbackTitle={`${route.slice(1)} chart error`}>

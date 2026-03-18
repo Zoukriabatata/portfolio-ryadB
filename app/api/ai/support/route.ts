@@ -43,7 +43,16 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'message is required' }), { status: 400 });
   }
 
-  const messages = buildSupportMessages(message.trim(), history);
+  if (message.length > 4000) {
+    return new Response(JSON.stringify({ error: 'Message too long (max 4000 characters)' }), { status: 400 });
+  }
+
+  // Limit history to last 20 messages, each capped at 2000 chars
+  const safeHistory = (Array.isArray(history) ? history : [])
+    .slice(-20)
+    .map(m => ({ ...m, content: typeof m.content === 'string' ? m.content.slice(0, 2000) : '' }));
+
+  const messages = buildSupportMessages(message.trim(), safeHistory);
   const encoder = new TextEncoder();
 
   // ── Claude API (cloud / Vercel) ─────────────────────────────────────────────

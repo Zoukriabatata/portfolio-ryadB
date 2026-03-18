@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { getBinanceLiveWS } from '@/lib/live/BinanceLiveWS';
 import { useOrderbookStore } from '@/stores/useOrderbookStore';
 import { useTradingStore } from '@/stores/useTradingStore';
@@ -487,7 +488,15 @@ function OrderBookTab() {
 // ─── POSITIONS TAB ─────────────────────────────────────────────────
 
 function PositionsTab() {
-  const { positions, orders, activeBroker, connections, closePosition } = useTradingStore();
+  const { positions, orders, activeBroker, connections, closePosition } = useTradingStore(
+    useShallow(s => ({
+      positions: s.positions,
+      orders: s.orders,
+      activeBroker: s.activeBroker,
+      connections: s.connections,
+      closePosition: s.closePosition,
+    }))
+  );
 
   const isConnected = activeBroker && connections[activeBroker]?.connected;
   const balance = activeBroker ? connections[activeBroker]?.balance || 0 : 0;

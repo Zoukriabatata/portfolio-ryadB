@@ -29,12 +29,13 @@ button, a, input, select, textarea,
    canvas/svg/chart elements to prevent GPU overhead.
    ============================================= */
 
-.theme-transition,
-.theme-transition *:not(canvas):not(svg):not(video):not(iframe) {
+/* Theme transition applied only to structural layout elements, not the full DOM tree.
+   Avoids forcing a compositing layer on every element and eliminates the !important cascade. */
+.theme-transition {
   transition: background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
               color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
               border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
+              box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* =============================================
@@ -229,10 +230,10 @@ button, a, input, select, textarea,
    3. MODAL / PANEL / DROPDOWN ANIMATIONS
    ============================================= */
 
-/* Modal overlay */
+/* Modal overlay — opacity only, no animated backdrop-filter (expensive GPU repaints) */
 @keyframes modalOverlayIn {
-  from { opacity: 0; backdrop-filter: blur(0px); }
-  to   { opacity: 1; backdrop-filter: blur(8px); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @keyframes modalOverlayOut {
   from { opacity: 1; }
@@ -342,7 +343,7 @@ button, a, input, select, textarea,
   filter: brightness(0.95);
 }
 
-/* --- Ripple effect --- */
+/* --- Ripple effect (GPU-only: uses transform+opacity, no layout triggers) --- */
 .ripple {
   position: relative;
   overflow: hidden;
@@ -352,17 +353,16 @@ button, a, input, select, textarea,
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 0;
-  height: 0;
+  width: 200%;
+  aspect-ratio: 1;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, transparent 70%);
   border-radius: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(0);
   opacity: 0;
-  transition: width 0.4s ease, height 0.4s ease, opacity 0.4s ease;
+  transition: transform 0.4s ease, opacity 0.4s ease;
 }
 .ripple:active::after {
-  width: 300%;
-  height: 300%;
+  transform: translate(-50%, -50%) scale(1);
   opacity: 0.6;
   transition: 0s;
 }
@@ -986,20 +986,20 @@ button, a, input, select, textarea,
    20. ACCORDION / EXPAND-COLLAPSE
    ============================================= */
 
+/* Expand/collapse via clip-path + opacity — GPU composited, no layout reflow.
+   Fallback: max-height is kept as a safe initial state reset. */
 @keyframes expandHeight {
-  from { max-height: 0; opacity: 0; }
-  to   { max-height: var(--expand-height, 500px); opacity: 1; }
+  from { clip-path: inset(0 0 100% 0); opacity: 0; }
+  to   { clip-path: inset(0 0 0% 0);   opacity: 1; }
 }
 @keyframes collapseHeight {
-  from { max-height: var(--expand-height, 500px); opacity: 1; }
-  to   { max-height: 0; opacity: 0; }
+  from { clip-path: inset(0 0 0% 0);   opacity: 1; }
+  to   { clip-path: inset(0 0 100% 0); opacity: 0; }
 }
 .animate-expand {
-  overflow: hidden;
   animation: expandHeight 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .animate-collapse {
-  overflow: hidden;
   animation: collapseHeight 0.2s ease-in forwards;
 }
 
@@ -1135,4 +1135,34 @@ button, a, input, select, textarea,
     scroll-behavior: auto !important;
   }
   [data-animate] { opacity: 1 !important; transform: none !important; filter: none !important; }
+}
+
+/* =============================================
+   PERFORMANCE: CSS CONTAINMENT
+   Isolate inactive/offscreen containers to skip
+   layout, paint, and style recalculations.
+   ============================================= */
+
+/* Hidden keep-alive chart containers: browser skips paint & layout entirely */
+[data-chart-inactive] {
+  contain: layout paint style;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Sidebar: own stacking context, no layout bleed to rest of page */
+[data-sidebar] {
+  contain: layout style;
+  will-change: auto;
+}
+
+/* Modals / overlays rendered at body level */
+[data-portal-overlay] {
+  contain: layout paint;
+}
+
+/* Chart canvas wrappers: GPU layer isolation */
+[data-chart-container] {
+  isolation: isolate;
+  contain: layout paint;
 }

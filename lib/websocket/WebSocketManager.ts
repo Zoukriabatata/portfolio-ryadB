@@ -10,6 +10,9 @@ interface Connection {
   messageHandlers: Map<string, Set<MessageHandler>>;
   statusHandlers: Set<StatusHandler>;
   pendingSubscriptions: string[];
+  // rAF batching: last message in the current frame wins for high-frequency streams
+  pendingMessage: unknown;
+  rafId: number | null;
 }
 
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -47,6 +50,8 @@ class WebSocketManager {
         messageHandlers: new Map(),
         statusHandlers: new Set(),
         pendingSubscriptions: [],
+        pendingMessage: undefined,
+        rafId: null,
       };
       this.connections.set(exchangeId, connection);
     }
@@ -145,6 +150,12 @@ class WebSocketManager {
     const connection = this.connections.get(exchangeId);
     if (!connection) return;
 
+    if (connection.rafId !== null) {
+      cancelAnimationFrame(connection.rafId);
+      connection.rafId = null;
+      connection.pendingMessage = undefined;
+    }
+
     if (connection.reconnectTimeout) {
       clearTimeout(connection.reconnectTimeout);
       connection.reconnectTimeout = null;
@@ -215,6 +226,8 @@ class WebSocketManager {
         messageHandlers: new Map(),
         statusHandlers: new Set(),
         pendingSubscriptions: [],
+        pendingMessage: undefined,
+        rafId: null,
       };
       this.connections.set(exchangeId, connection);
     }
@@ -241,15 +254,30 @@ class WebSocketManager {
     connection.statusHandlers.forEach((handler) => handler(status));
   }
 
+  private dispatchMessage(exchangeId: string, data: unknown): void {
+    const connection = this.connections.get(exchangeId);
+    if (!connection) return;
+    connection.messageHandlers.get('*')?.forEach((handler) => handler(data));
+  }
+
   private handleMessage(exchangeId: string, data: unknown): void {
     const connection = this.connections.get(exchangeId);
     if (!connection) return;
 
-    // Notify all handlers for 'all' channel
-    connection.messageHandlers.get('*')?.forEach((handler) => handler(data));
-
-    // Try to route to specific channel based on data structure
-    // This will be customized per exchange in the specific handlers
+    // Batch UI handler calls to display refresh rate.
+    // High-frequency streams (depth, trades) can fire 100–1000× per second;
+    // the last message in the rAF window is what gets dispatched.
+    connection.pendingMessage = data;
+    if (connection.rafId === null) {
+      connection.rafId = requestAnimationFrame(() => {
+        connection.rafId = null;
+        const msg = connection.pendingMessage;
+        if (msg !== undefined) {
+          connection.pendingMessage = undefined;
+          this.dispatchMessage(exchangeId, msg);
+        }
+      });
+    }
   }
 }
 
