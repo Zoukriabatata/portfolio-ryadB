@@ -391,7 +391,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   // === KEYBOARD SHORTCUTS (inline - too many cross-deps) ===
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === 'INPUT') return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement as HTMLElement)?.isContentEditable) return;
 
       if (e.key === '+' || e.key === '=') { e.preventDefault(); engine.smartZoom(true); return; }
       if (e.key === '-') { e.preventDefault(); engine.smartZoom(false); return; }

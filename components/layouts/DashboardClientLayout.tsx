@@ -31,6 +31,7 @@ import {
   WifiOff,
   TrendingUp,
   BrainCircuit,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -193,7 +194,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/replay',  labelKey: 'nav.replay',  Icon: History,        shortcut: '9' },
       { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8' },
       { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7' },
-      { href: '/ai',      labelKey: 'nav.ai',      Icon: BrainCircuit,    shortcut: '' },
+      { href: '/ai',            labelKey: 'nav.ai',     Icon: BrainCircuit,  shortcut: '' },
+      { href: '/bilansUTILISATEUR', labelKey: 'nav.bilans', Icon: ClipboardList, shortcut: '' },
     ],
   },
 ];

@@ -113,6 +113,7 @@ const PROTECTED_ROUTES = [
   '/account',
   '/boutique',
   '/admin',
+  '/bilansUTILISATEUR',
 ];
 
 // Routes that require specific subscription tiers

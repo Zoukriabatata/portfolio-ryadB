@@ -4,11 +4,10 @@
  * Fetches historical candlestick data from Binance Futures API
  * Supports multiple timeframes and pagination for loading more history
  *
- * ✅ SECURED: Requires authentication + rate limiting
+ * Public endpoint — proxies freely available Binance/Bybit public data.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/api-middleware';
 
 // Binance interval mapping
 const INTERVAL_MAP: Record<string, string> = {
@@ -83,18 +82,6 @@ interface NormalizedCandle {
 }
 
 export async function GET(request: NextRequest) {
-  // ✅ AUTHENTICATION REQUIRED
-  const authResult = await requireAuth(request);
-  if ('error' in authResult) {
-    return NextResponse.json(
-      { success: false, error: authResult.error },
-      {
-        status: authResult.status,
-        headers: authResult.headers,
-      }
-    );
-  }
-
   const searchParams = request.nextUrl.searchParams;
 
   const symbol = searchParams.get('symbol') || 'BTCUSDT';
@@ -113,7 +100,6 @@ export async function GET(request: NextRequest) {
       candles = await fetchBinanceKlines(symbol, interval, limit, startTime, endTime);
     }
 
-    // ✅ ADD RATE LIMIT + CACHE HEADERS
     return NextResponse.json({
       success: true,
       symbol,
@@ -122,8 +108,7 @@ export async function GET(request: NextRequest) {
       candles,
     }, {
       headers: {
-        ...authResult.headers,
-        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
       },
     });
   } catch (error) {

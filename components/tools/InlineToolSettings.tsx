@@ -174,8 +174,14 @@ export default function InlineToolSettings({
   const [showPresetNameInput, setShowPresetNameInput] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   const settingsBtnRef = useRef<HTMLDivElement>(null);
+  const widthBtnRef = useRef<HTMLButtonElement>(null);
+  const styleBtnRef = useRef<HTMLButtonElement>(null);
+  const widthPanelRef = useRef<HTMLDivElement>(null);
+  const stylePanelRef = useRef<HTMLDivElement>(null);
   const presetInputRef = useRef<HTMLInputElement>(null);
   const [settingsPanelPos, setSettingsPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [widthPickerPos, setWidthPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const [stylePickerPos, setStylePickerPos] = useState<{ top: number; left: number } | null>(null);
 
   // Force re-render when the engine updates the tool
   const [, forceRender] = useReducer((x: number) => x + 1, 0);
@@ -204,7 +210,11 @@ export default function InlineToolSettings({
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
-      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const inBar = barRef.current?.contains(target);
+      const inWidthPanel = widthPanelRef.current?.contains(target);
+      const inStylePanel = stylePanelRef.current?.contains(target);
+      if (!inBar && !inWidthPanel && !inStylePanel) {
         setShowWidthPicker(false);
         setShowStylePicker(false);
         setShowDynamicSettings(false);
@@ -296,9 +306,12 @@ export default function InlineToolSettings({
     setShowStylePicker(false);
     setShowPresetMenu(false);
     setShowDynamicSettings(false);
+    setWidthPickerPos(null);
+    setStylePickerPos(null);
   };
 
   return (
+    <>
     <div
       ref={barRef}
       className="flex items-center gap-0.5 h-8 px-1 border-b border-[var(--border)] bg-[var(--background)] flex-shrink-0 select-none overflow-x-auto"
@@ -373,79 +386,53 @@ export default function InlineToolSettings({
       )}
 
       {/* ── Line width ─────────────────────────────────────────────────── */}
-      <div className="relative">
-        <button
-          onClick={() => { closeAll(); setShowWidthPicker(!showWidthPicker); }}
-          className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
-          title="Line width"
-        >
-          <div className="w-7 h-4 flex items-center">
-            <div
-              className="w-full"
-              style={{
-                height: `${Math.min(style.lineWidth, 4)}px`,
-                backgroundColor: 'var(--text-secondary)',
-                borderRadius: 99,
-              }}
-            />
-          </div>
-          <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
-        </button>
-
-        {showWidthPicker && (
-          <div className="absolute top-full left-0 mt-1 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50 min-w-[120px]">
-            {LINE_WIDTHS.map(w => (
-              <button
-                key={w}
-                onClick={() => { updateStyle({ lineWidth: w }); setShowWidthPicker(false); }}
-                className={`flex items-center gap-2.5 w-full px-2 py-1.5 rounded transition-colors ${
-                  style.lineWidth === w
-                    ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
-                    : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
-                }`}
-              >
-                <div className="w-10 flex items-center">
-                  <div className="w-full rounded-full" style={{ height: Math.min(w, 4), backgroundColor: 'currentColor' }} />
-                </div>
-                <span className="text-[10px] font-mono tabular-nums">{w}px</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <button
+        ref={widthBtnRef}
+        onClick={() => {
+          const open = !showWidthPicker;
+          closeAll();
+          setShowWidthPicker(open);
+          if (open && widthBtnRef.current) {
+            const rect = widthBtnRef.current.getBoundingClientRect();
+            setWidthPickerPos({ top: rect.bottom + 4, left: rect.left });
+          }
+        }}
+        className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
+        title="Line width"
+      >
+        <div className="w-7 h-4 flex items-center">
+          <div
+            className="w-full"
+            style={{
+              height: `${Math.min(style.lineWidth, 4)}px`,
+              backgroundColor: 'var(--text-secondary)',
+              borderRadius: 99,
+            }}
+          />
+        </div>
+        <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
+      </button>
 
       {/* ── Line style ─────────────────────────────────────────────────── */}
-      <div className="relative">
-        <button
-          onClick={() => { closeAll(); setShowStylePicker(!showStylePicker); }}
-          className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
-          title="Line style"
-        >
-          <svg width="20" height="12" viewBox="0 0 28 12" className="text-[var(--text-secondary)]">
-            {LINE_STYLES.find(s => s.value === style.lineStyle)?.svg}
-          </svg>
-          <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
-        </button>
-
-        {showStylePicker && (
-          <div className="absolute top-full left-0 mt-1 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl z-50 min-w-[130px]">
-            {LINE_STYLES.map(ls => (
-              <button
-                key={ls.value}
-                onClick={() => { updateStyle({ lineStyle: ls.value }); setShowStylePicker(false); }}
-                className={`flex items-center gap-2.5 w-full px-2 py-1.5 rounded transition-colors ${
-                  style.lineStyle === ls.value
-                    ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
-                    : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
-                }`}
-              >
-                <svg width="24" height="12" viewBox="0 0 28 12">{ls.svg}</svg>
-                <span className="text-[10px]">{ls.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <button
+        ref={styleBtnRef}
+        onClick={() => {
+          const open = !showStylePicker;
+          closeAll();
+          setShowStylePicker(open);
+          if (open && styleBtnRef.current) {
+            const rect = styleBtnRef.current.getBoundingClientRect();
+            setStylePickerPos({ top: rect.bottom + 4, left: rect.left });
+          }
+        }}
+        className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors"
+        title="Line style"
+      >
+        <svg width="20" height="12" viewBox="0 0 28 12" className="text-[var(--text-secondary)]">
+          {LINE_STYLES.find(s => s.value === style.lineStyle)?.svg}
+        </svg>
+        <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
+      </button>
 
       {/* ── Position controls (Long/Short only) ───────────────────────── */}
       {isPosition && (
@@ -661,5 +648,58 @@ export default function InlineToolSettings({
         document.body
       )}
     </div>
+
+    {/* Width picker portal — escapes bar's overflow-x:auto Y clipping */}
+    {showWidthPicker && widthPickerPos && typeof document !== 'undefined' && createPortal(
+      <div
+        ref={widthPanelRef}
+        style={{ position: 'fixed', top: widthPickerPos.top, left: widthPickerPos.left, zIndex: 9999 }}
+        className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl min-w-[120px]"
+      >
+        {LINE_WIDTHS.map(w => (
+          <button
+            key={w}
+            onClick={() => { updateStyle({ lineWidth: w }); setShowWidthPicker(false); setWidthPickerPos(null); }}
+            className={`flex items-center gap-2.5 w-full px-2 py-1.5 rounded transition-colors ${
+              style.lineWidth === w
+                ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
+                : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
+            }`}
+          >
+            <div className="w-10 flex items-center">
+              <div className="w-full rounded-full" style={{ height: Math.min(w, 4), backgroundColor: 'currentColor' }} />
+            </div>
+            <span className="text-[10px] font-mono tabular-nums">{w}px</span>
+          </button>
+        ))}
+      </div>,
+      document.body
+    )}
+
+    {/* Style picker portal — escapes bar's overflow-x:auto Y clipping */}
+    {showStylePicker && stylePickerPos && typeof document !== 'undefined' && createPortal(
+      <div
+        ref={stylePanelRef}
+        style={{ position: 'fixed', top: stylePickerPos.top, left: stylePickerPos.left, zIndex: 9999 }}
+        className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-xl min-w-[130px]"
+      >
+        {LINE_STYLES.map(ls => (
+          <button
+            key={ls.value}
+            onClick={() => { updateStyle({ lineStyle: ls.value }); setShowStylePicker(false); setStylePickerPos(null); }}
+            className={`flex items-center gap-2.5 w-full px-2 py-1.5 rounded transition-colors ${
+              style.lineStyle === ls.value
+                ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
+                : 'hover:bg-[var(--surface)] text-[var(--text-secondary)]'
+            }`}
+          >
+            <svg width="24" height="12" viewBox="0 0 28 12">{ls.svg}</svg>
+            <span className="text-[10px]">{ls.label}</span>
+          </button>
+        ))}
+      </div>,
+      document.body
+    )}
+    </>
   );
 }

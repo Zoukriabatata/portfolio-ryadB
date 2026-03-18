@@ -2,7 +2,7 @@
  * POST /api/ai/support
  * ─────────────────────────────────────────────────────────────────────────────
  * Support agent endpoint — streams tokens via SSE.
- * Priority: Claude API (Vercel/cloud) → Ollama (local)
+ * Priority: ANTHROPIC_API_KEY → GROQ_API_KEY → Ollama (local)
  *
  * Request body:
  *   { message: string, history?: Array<{role, content}> }
@@ -92,13 +92,87 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // ── Ollama fallback (local dev) ─────────────────────────────────────────────
+  // ── Groq API (free, cloud) ───────────────────────────────────────────────────
+  if (process.env.GROQ_API_KEY) {
+    const systemMsg = messages.find(m => m.role === 'system');
+    const groqMessages = messages.map(m => ({ role: m.role, content: m.content }));
+
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'llama-3.1-8b-instant',
+              messages: systemMsg
+                ? groqMessages
+                : [{ role: 'system', content: 'Tu es un assistant support pour OrderFlow, une plateforme de trading professionnelle.' }, ...groqMessages],
+              stream: true,
+              max_tokens: 512,
+              temperature: 0.7,
+            }),
+            signal: AbortSignal.timeout(30_000),
+          });
+
+          if (!res.ok) {
+            const errText = await res.text();
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: `Groq error: ${errText.slice(0, 100)}` })}\n\n`));
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+            return;
+          }
+
+          const reader = res.body!.getReader();
+          const dec = new TextDecoder();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = dec.decode(value, { stream: true });
+            for (const line of chunk.split('\n')) {
+              if (!line.startsWith('data: ')) continue;
+              const raw = line.slice(6).trim();
+              if (raw === '[DONE]') break;
+              try {
+                const ev = JSON.parse(raw) as { choices?: Array<{ delta?: { content?: string } }> };
+                const token = ev.choices?.[0]?.delta?.content;
+                if (token) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+                }
+              } catch { /* skip malformed */ }
+            }
+          }
+
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Groq error';
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-AI-Backend': 'groq',
+      },
+    });
+  }
+
+  // ── Ollama fallback (local dev only) ────────────────────────────────────────
   const isUp = await ollamaIsRunning();
   if (!isUp) {
     return new Response(
       JSON.stringify({
-        error: 'Ollama is not running. Start it with: ollama serve',
-        hint: `Then pull a model: ollama pull ${DEFAULT_MODEL}`,
+        error: 'Service IA temporairement indisponible. Veuillez réessayer plus tard.',
       }),
       { status: 503 }
     );
@@ -128,6 +202,9 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   if (anthropic) {
     return Response.json({ status: 'ok', model: 'claude-haiku-4-5', agent: 'support', backend: 'claude' });
+  }
+  if (process.env.GROQ_API_KEY) {
+    return Response.json({ status: 'ok', model: 'llama-3.1-8b-instant', agent: 'support', backend: 'groq' });
   }
   const isUp = await ollamaIsRunning();
   return Response.json({
