@@ -17,8 +17,9 @@
  *   [DONE]
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { requireAuth } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -851,6 +852,12 @@ Pour chaque problème, pense en termes de:
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // ── Auth guard ──────────────────────────────────────────────────────────────
+  const auth = await requireAuth(req);
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   const encoder = new TextEncoder();
   const baseUrl = getBaseUrl(req);
 

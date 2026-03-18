@@ -22,9 +22,12 @@ const SECURITY_CHECK_TTL = 5 * 60 * 1000; // 5 minutes
 
 // ─── Rate Limiter (Upstash Redis, edge-compatible) ─────────
 const RATE_LIMITS: Record<string, number> = {
-  '/api/auth/': 20,           // 20 auth requests per minute
-  '/api/stripe/checkout': 5,   // 5 checkout attempts per minute
-  '/api/support': 5,           // 5 support tickets per minute
+  '/api/auth/': 20,              // 20 auth requests per minute
+  '/api/stripe/checkout': 5,     // 5 checkout attempts per minute
+  '/api/support': 5,             // 5 support tickets per minute
+  '/api/ai/user-tester': 3,      // 3 audit runs per minute (heavy)
+  '/api/ai/support': 15,         // 15 support messages per minute
+  '/api/ai/': 20,                // 20 AI requests per minute (general)
 };
 
 const isRedisConfigured = !!(
@@ -96,6 +99,10 @@ async function checkRateLimit(ip: string, pathname: string): Promise<boolean> {
 // Admin emails (from env var, fallback to empty)
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
+// Beta testers — get ULTRA access without payment (max 3 emails)
+const BETA_TESTER_EMAILS = (process.env.BETA_TESTER_EMAILS || '')
+  .split(',').map(e => e.trim().toLowerCase()).filter(Boolean).slice(0, 3);
+
 // Routes that require authentication
 const PROTECTED_ROUTES = [
   '/chart',
@@ -114,6 +121,7 @@ const PROTECTED_ROUTES = [
   '/boutique',
   '/admin',
   '/bilansUTILISATEUR',
+  '/ai',
 ];
 
 // Routes that require specific subscription tiers
@@ -123,6 +131,8 @@ const TIER_ROUTES: Record<string, ('FREE' | 'ULTRA')[]> = {
   '/bias': ['FREE', 'ULTRA'],
   '/boutique': ['FREE', 'ULTRA'],
   '/account': ['FREE', 'ULTRA'],
+  '/ai': ['FREE', 'ULTRA'],
+  '/bilansUTILISATEUR': ['FREE', 'ULTRA'],
   '/footprint': ['ULTRA'],
   '/orderflow': ['ULTRA'],
   '/liquidity': ['ULTRA'],
@@ -404,16 +414,20 @@ async function runMiddleware(request: NextRequest, pathname: string) {
     }).catch(err => console.error('Geo check error:', err));
   }
 
+  // Beta testers get ULTRA access regardless of subscription
+  const userEmail = (token.email as string || '').toLowerCase();
+
   // Admin route protection — show 404 to non-admins (don't reveal /admin exists)
   if (pathname.startsWith('/admin')) {
-    const userEmail = token.email as string;
     if (!ADMIN_EMAILS.includes(userEmail)) {
       return NextResponse.rewrite(new URL('/not-found', request.url));
     }
   }
+  const isBetaTester = BETA_TESTER_EMAILS.length > 0 && BETA_TESTER_EMAILS.includes(userEmail);
 
   // Check subscription tier for route access
-  const userTier = token.tier as 'FREE' | 'ULTRA';
+  const rawTier = token.tier as 'FREE' | 'ULTRA';
+  const userTier: 'FREE' | 'ULTRA' = isBetaTester ? 'ULTRA' : rawTier;
   const matchingRoute = Object.keys(TIER_ROUTES).find(route =>
     pathname.startsWith(route)
   );
@@ -427,9 +441,9 @@ async function runMiddleware(request: NextRequest, pathname: string) {
     }
   }
 
-  // Check subscription expiration
+  // Check subscription expiration (beta testers are exempt)
   const subscriptionEnd = token.subscriptionEnd as string | null;
-  if (subscriptionEnd && new Date(subscriptionEnd) < new Date()) {
+  if (!isBetaTester && subscriptionEnd && new Date(subscriptionEnd) < new Date()) {
     // Subscription expired — treat as FREE, show 404 for ULTRA routes
     const expiredTier = 'FREE' as const;
     if (matchingRoute) {
