@@ -485,7 +485,7 @@ button, a, input, select, textarea,
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  border: 2px solid var(--primary, #10b981);
+  border: 2px solid var(--primary, #4f6ef7);
   animation: pulseRing 1.5s ease-out infinite;
 }
 
@@ -725,7 +725,7 @@ button, a, input, select, textarea,
   background-clip: padding-box, border-box;
   background-image:
     linear-gradient(var(--surface, #12121a), var(--surface, #12121a)),
-    conic-gradient(from var(--angle), var(--primary, #10b981), var(--accent, #06b6d4), var(--primary, #10b981));
+    conic-gradient(from var(--angle), var(--primary, #4f6ef7), var(--accent, #7b94f8), var(--primary, #4f6ef7));
   animation: gradientRotate 3s linear infinite;
 }
 
@@ -758,7 +758,7 @@ button, a, input, select, textarea,
   100% { background-position: 200% 0; }
 }
 .text-shimmer {
-  background: linear-gradient(90deg, var(--primary, #10b981), var(--accent, #06b6d4), var(--primary, #10b981));
+  background: linear-gradient(90deg, var(--primary, #4f6ef7), var(--accent, #7b94f8), var(--primary, #4f6ef7));
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -780,7 +780,7 @@ button, a, input, select, textarea,
 .focus-glow:focus,
 .focus-glow:focus-within {
   box-shadow: 0 0 0 3px var(--primary-glow, rgba(16, 185, 129, 0.2));
-  border-color: var(--primary, #10b981) !important;
+  border-color: var(--primary, #4f6ef7) !important;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -800,7 +800,7 @@ button, a, input, select, textarea,
   left: 0;
   width: 0%;
   height: 2px;
-  background: linear-gradient(90deg, var(--primary, #10b981), var(--accent, #06b6d4));
+  background: linear-gradient(90deg, var(--primary, #4f6ef7), var(--accent, #7b94f8));
   z-index: 9999;
   transition: width 0.1s linear;
 }

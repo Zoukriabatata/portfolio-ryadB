@@ -529,7 +529,7 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
                   onClick={() => handleTimeframeChange(tf.sec)}
                   className="block w-full px-4 py-1.5 text-left text-[10px] font-mono transition-colors hover:bg-[rgba(255,255,255,0.06)]"
                   style={{
-                    color: tf.sec === timeframe ? '#10b981' : 'rgba(255,255,255,0.6)',
+                    color: tf.sec === timeframe ? '#4f6ef7' : 'rgba(255,255,255,0.6)',
                     fontWeight: tf.sec === timeframe ? 700 : 400,
                   }}
                 >
@@ -550,8 +550,8 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
             onClick={() => setFpMode(m)}
             className="px-1.5 py-0.5 rounded text-[9px] font-mono transition-colors"
             style={{
-              background: fpMode === m ? 'rgba(16,185,129,0.15)' : 'transparent',
-              color: fpMode === m ? '#10b981' : 'rgba(255,255,255,0.4)',
+              background: fpMode === m ? 'rgba(79,110,247,0.15)' : 'transparent',
+              color: fpMode === m ? '#4f6ef7' : 'rgba(255,255,255,0.4)',
               fontWeight: fpMode === m ? 700 : 400,
             }}
           >
@@ -589,8 +589,8 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
           onClick={() => toggleFeature('showCVDPanel')}
           className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-colors"
           style={{
-            background: features.showCVDPanel ? 'rgba(16,185,129,0.15)' : 'transparent',
-            color: features.showCVDPanel ? '#10b981' : 'rgba(255,255,255,0.35)',
+            background: features.showCVDPanel ? 'rgba(79,110,247,0.15)' : 'transparent',
+            color: features.showCVDPanel ? '#4f6ef7' : 'rgba(255,255,255,0.35)',
           }}
           title="Cumulative Volume Delta"
         >
@@ -622,12 +622,12 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
                     key={t.key}
                     onClick={() => toggleFeature(t.featureKey)}
                     className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-[10px] font-mono transition-colors hover:bg-[rgba(255,255,255,0.06)]"
-                    style={{ color: active ? '#10b981' : 'rgba(255,255,255,0.5)' }}
+                    style={{ color: active ? '#4f6ef7' : 'rgba(255,255,255,0.5)' }}
                   >
                     <span style={{
                       width: 8, height: 8, borderRadius: 2,
-                      background: active ? '#10b981' : 'transparent',
-                      border: `1px solid ${active ? '#10b981' : 'rgba(255,255,255,0.2)'}`,
+                      background: active ? '#4f6ef7' : 'transparent',
+                      border: `1px solid ${active ? '#4f6ef7' : 'rgba(255,255,255,0.2)'}`,
                     }} />
                     {t.label}
                   </button>
@@ -653,7 +653,7 @@ export default function ReplayTradingChart({ symbol, isPlaying }: ReplayTradingC
         <button
           onClick={() => setShowSettings(p => !p)}
           className="w-6 h-6 flex items-center justify-center rounded transition-colors hover:bg-[rgba(255,255,255,0.06)]"
-          style={{ color: showSettings ? '#10b981' : 'rgba(255,255,255,0.3)' }}
+          style={{ color: showSettings ? '#4f6ef7' : 'rgba(255,255,255,0.3)' }}
           title="Chart settings"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
