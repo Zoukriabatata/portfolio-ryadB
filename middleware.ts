@@ -266,9 +266,13 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   // ─── CORS + Rate limiting for API routes ─────────
   if (pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin') || '';
+    // Same-origin requests from the server itself are always allowed
+    const serverOrigin = new URL(request.url).origin;
     const allowedOrigins = [
+      serverOrigin,
       process.env.NEXTAUTH_URL || 'http://localhost:3000',
       process.env.NEXT_PUBLIC_APP_URL,
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
       'https://senzoukria.com',
       'https://www.senzoukria.com',
       'https://orderflow-v2.vercel.app',

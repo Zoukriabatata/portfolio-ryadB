@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/lib/rendering/CanvasChartEngine';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
@@ -240,6 +241,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   }), []);
 
   // === UI TOGGLE STATE ===
+  const symbolBtnRef = useRef<HTMLButtonElement>(null);
+  const [symbolDropdownPos, setSymbolDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
   const [showDepthMap, setShowDepthMap] = useState(false);
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
@@ -490,6 +493,22 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
     };
   }, [refs, symbolData.handleSymbolChange, symbolData.handleTimeframeChange]);
 
+  // Close symbol dropdown on scroll or resize
+  const closeSymbolDropdown = useCallback(() => {
+    symbolData.setShowSymbolSearch(false);
+    setSymbolDropdownPos(null);
+  }, [symbolData]);
+
+  useEffect(() => {
+    if (!symbolDropdownPos) return;
+    window.addEventListener('scroll', closeSymbolDropdown, true);
+    window.addEventListener('resize', closeSymbolDropdown);
+    return () => {
+      window.removeEventListener('scroll', closeSymbolDropdown, true);
+      window.removeEventListener('resize', closeSymbolDropdown);
+    };
+  }, [symbolDropdownPos, closeSymbolDropdown]);
+
   return (
     <div
       className={`flex h-full ${className || ''}`}
@@ -515,12 +534,22 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
         <div
           className="flex items-center px-2 py-1 border-b gap-0 overflow-x-auto"
           style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, scrollbarWidth: 'none', position: 'relative', zIndex: 10 } as React.CSSProperties}
+          onWheel={e => e.stopPropagation()}
         >
           {/* Group 1: Symbol & Price */}
           <div className="flex items-center gap-2.5 pr-2.5" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
             <div className="relative">
               <button
-                onClick={() => symbolData.setShowSymbolSearch(!symbolData.showSymbolSearch)}
+                ref={symbolBtnRef}
+                onClick={() => {
+                  const rect = symbolBtnRef.current?.getBoundingClientRect();
+                  if (symbolData.showSymbolSearch) {
+                    closeSymbolDropdown();
+                  } else {
+                    symbolData.setShowSymbolSearch(true);
+                    if (rect) setSymbolDropdownPos({ top: rect.bottom + 4, left: rect.left });
+                  }
+                }}
                 className="flex items-center gap-1.5 text-xs font-bold rounded px-2 py-1 border focus:outline-none hover:bg-opacity-80 transition-colors"
                 style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.text }}
               >
@@ -530,99 +559,6 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
                 </svg>
               </button>
 
-              {/* Symbol Search Modal */}
-              {symbolData.showSymbolSearch && (
-                <div
-                  className="absolute top-full left-0 mt-1 w-96 rounded-lg shadow-2xl z-50 max-h-[450px] overflow-hidden animate-slideDown"
-                  style={{ backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}
-                >
-                  {/* Asset Category Tabs */}
-                  <div className="flex items-center gap-0.5 p-1.5 border-b overflow-x-auto" style={{ borderColor: theme.colors.border }}>
-                    {ASSET_CATEGORIES.map((cat, index) => {
-                      const IconComponent = ASSET_CATEGORY_ICONS[cat.id];
-                      return (
-                        <button
-                          key={cat.id}
-                          onClick={() => symbolData.setAssetCategory(cat.id)}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ease-out transform ${symbolData.assetCategory === cat.id ? 'scale-105 shadow-lg' : 'hover:scale-102 active:scale-95'}`}
-                          style={{
-                            backgroundColor: symbolData.assetCategory === cat.id ? theme.colors.toolActive : 'transparent',
-                            color: symbolData.assetCategory === cat.id ? activeTextColor : theme.colors.textSecondary,
-                            boxShadow: symbolData.assetCategory === cat.id ? `0 0 10px ${theme.colors.toolActive}40` : 'none',
-                            animationDelay: `${index * 30}ms`,
-                          }}
-                        >
-                          <span className={`transition-transform duration-200 ${symbolData.assetCategory === cat.id ? 'scale-110' : ''}`}>
-                            <IconComponent size={16} color={symbolData.assetCategory === cat.id ? activeTextColor : undefined} />
-                          </span>
-                          <span className="font-medium">{cat.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Search Input */}
-                  <div className="p-2 border-b" style={{ borderColor: theme.colors.border }}>
-                    <input
-                      type="text"
-                      value={symbolData.symbolSearchQuery}
-                      onChange={(e) => symbolData.setSymbolSearchQuery(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Escape') { symbolData.setShowSymbolSearch(false); symbolData.setSymbolSearchQuery(''); } }}
-                      placeholder={`Search ${symbolData.assetCategory} symbols...`}
-                      autoFocus
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="w-full px-3 py-2 rounded text-sm focus:outline-none"
-                      style={{ backgroundColor: theme.colors.background, color: theme.colors.text, border: `1px solid ${theme.colors.border}` }}
-                    />
-                  </div>
-
-                  {/* Note for futures */}
-                  {symbolData.assetCategory === 'futures' && (
-                    <div className="px-3 py-2 text-xs border-b" style={{ borderColor: theme.colors.border, color: theme.colors.textSecondary }}>
-                      CME Futures via dxFeed. Connectez Interactive Brokers dans les paramètres pour le temps réel.
-                    </div>
-                  )}
-
-                  {/* Categories */}
-                  <div className="overflow-y-auto max-h-64">
-                    {Object.keys(symbolData.filteredSymbols).length === 0 && symbolData.symbolSearchQuery.trim() && (
-                      <div className="flex flex-col items-center justify-center py-8 gap-2">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={theme.colors.textMuted} strokeWidth="1.5" opacity="0.4">
-                          <circle cx="11" cy="11" r="8" />
-                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <span className="text-xs" style={{ color: theme.colors.textMuted }}>
-                          No symbols match &ldquo;{symbolData.symbolSearchQuery}&rdquo;
-                        </span>
-                      </div>
-                    )}
-                    {Object.entries(symbolData.filteredSymbols).map(([category, symbols]) => (
-                      <div key={category}>
-                        <div className="px-3 py-1.5 text-xs font-semibold sticky top-0" style={{ backgroundColor: theme.colors.surface, color: theme.colors.textMuted }}>
-                          {category}
-                        </div>
-                        <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
-                          {symbols.map(s => (
-                            <button
-                              key={s.value}
-                              onClick={() => { symbolData.handleSymbolChange(s.value); symbolData.setShowSymbolSearch(false); symbolData.setSymbolSearchQuery(''); }}
-                              className="text-left px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-between"
-                              style={{
-                                backgroundColor: symbolData.symbol === s.value ? theme.colors.toolActive : 'transparent',
-                                color: symbolData.symbol === s.value ? activeTextColor : theme.colors.text,
-                              }}
-                            >
-                              <span>{s.label}</span>
-                              {s.exchange && <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>{s.exchange}</span>}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <span ref={refs.price} className="text-base font-mono font-bold tabular-nums" style={{ color: theme.colors.text }}>$0.00</span>
@@ -985,6 +921,105 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
           to { opacity: 1; transform: translateX(0); }
         }
       ` }} />
+
+      {/* Symbol Search Dropdown — portal to escape overflow:auto clipping */}
+      {symbolData.showSymbolSearch && symbolDropdownPos && typeof document !== 'undefined' && createPortal(
+        <>
+          {/* Click-outside backdrop */}
+          <div className="fixed inset-0 z-[9998]" onClick={closeSymbolDropdown} />
+          <div
+            className="fixed w-96 rounded-lg shadow-2xl z-[9999] max-h-[450px] overflow-hidden animate-slideDown"
+            style={{ top: symbolDropdownPos.top, left: symbolDropdownPos.left, backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}
+          >
+            {/* Asset Category Tabs */}
+            <div className="flex items-center gap-0.5 p-1.5 border-b overflow-x-auto" style={{ borderColor: theme.colors.border }}>
+              {ASSET_CATEGORIES.map((cat, index) => {
+                const IconComponent = ASSET_CATEGORY_ICONS[cat.id];
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => symbolData.setAssetCategory(cat.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ease-out transform ${symbolData.assetCategory === cat.id ? 'scale-105 shadow-lg' : 'hover:scale-102 active:scale-95'}`}
+                    style={{
+                      backgroundColor: symbolData.assetCategory === cat.id ? theme.colors.toolActive : 'transparent',
+                      color: symbolData.assetCategory === cat.id ? activeTextColor : theme.colors.textSecondary,
+                      boxShadow: symbolData.assetCategory === cat.id ? `0 0 10px ${theme.colors.toolActive}40` : 'none',
+                      animationDelay: `${index * 30}ms`,
+                    }}
+                  >
+                    <span className={`transition-transform duration-200 ${symbolData.assetCategory === cat.id ? 'scale-110' : ''}`}>
+                      <IconComponent size={16} color={symbolData.assetCategory === cat.id ? activeTextColor : undefined} />
+                    </span>
+                    <span className="font-medium">{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search Input */}
+            <div className="p-2 border-b" style={{ borderColor: theme.colors.border }}>
+              <input
+                type="text"
+                value={symbolData.symbolSearchQuery}
+                onChange={(e) => symbolData.setSymbolSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') { closeSymbolDropdown(); symbolData.setSymbolSearchQuery(''); } }}
+                placeholder={`Search ${symbolData.assetCategory} symbols...`}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+                style={{ backgroundColor: theme.colors.background, color: theme.colors.text, border: `1px solid ${theme.colors.border}` }}
+              />
+            </div>
+
+            {/* Note for futures */}
+            {symbolData.assetCategory === 'futures' && (
+              <div className="px-3 py-2 text-xs border-b" style={{ borderColor: theme.colors.border, color: theme.colors.textSecondary }}>
+                CME Futures via dxFeed. Connectez Interactive Brokers dans les paramètres pour le temps réel.
+              </div>
+            )}
+
+            {/* Categories */}
+            <div className="overflow-y-auto max-h-64">
+              {Object.keys(symbolData.filteredSymbols).length === 0 && symbolData.symbolSearchQuery.trim() && (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={theme.colors.textMuted} strokeWidth="1.5" opacity="0.4">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <span className="text-xs" style={{ color: theme.colors.textMuted }}>
+                    No symbols match &ldquo;{symbolData.symbolSearchQuery}&rdquo;
+                  </span>
+                </div>
+              )}
+              {Object.entries(symbolData.filteredSymbols).map(([category, symbols]) => (
+                <div key={category}>
+                  <div className="px-3 py-1.5 text-xs font-semibold sticky top-0" style={{ backgroundColor: theme.colors.surface, color: theme.colors.textMuted }}>
+                    {category}
+                  </div>
+                  <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
+                    {symbols.map(s => (
+                      <button
+                        key={s.value}
+                        onClick={() => { symbolData.handleSymbolChange(s.value); closeSymbolDropdown(); symbolData.setSymbolSearchQuery(''); }}
+                        className="text-left px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-between"
+                        style={{
+                          backgroundColor: symbolData.symbol === s.value ? theme.colors.toolActive : 'transparent',
+                          color: symbolData.symbol === s.value ? activeTextColor : theme.colors.text,
+                        }}
+                      >
+                        <span>{s.label}</span>
+                        {s.exchange && <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>{s.exchange}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }
