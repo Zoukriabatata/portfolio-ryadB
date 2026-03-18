@@ -194,7 +194,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/replay',  labelKey: 'nav.replay',  Icon: History,        shortcut: '9' },
       { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8' },
       { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7' },
-      { href: '/ai',            labelKey: 'nav.ai',     Icon: BrainCircuit,  shortcut: '' },
+      { href: '/ai',                labelKey: 'nav.ai',     Icon: BrainCircuit,  shortcut: '' },
+      { href: '/bilansUTILISATEUR', labelKey: 'nav.bilans', Icon: ClipboardList, shortcut: '' },
     ],
   },
 ];
@@ -493,20 +494,6 @@ export function DashboardClientLayout({
 
             {/* AI signal badge */}
             <LiveSignalBadge />
-
-            {/* Bilans Utilisateur IA */}
-            <Link
-              href="/bilansUTILISATEUR"
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] font-medium transition-colors ${
-                isNavActive('/bilansUTILISATEUR')
-                  ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-400'
-                  : 'border-indigo-500/20 text-indigo-400/70 hover:border-indigo-500/40 hover:text-indigo-400 hover:bg-indigo-500/10'
-              }`}
-              title={t('nav.bilans')}
-            >
-              <ClipboardList size={13} strokeWidth={1.5} />
-              <span className="hidden md:inline whitespace-nowrap">Audits IA</span>
-            </Link>
 
             {/* Data Feeds */}
             <Link
