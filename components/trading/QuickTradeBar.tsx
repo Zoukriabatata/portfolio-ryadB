@@ -6,6 +6,26 @@ import { useFuturesStore } from '@/stores/useFuturesStore';
 import { useMarketStore } from '@/stores/useMarketStore';
 import DemoAccountPanel from './DemoAccountPanel';
 
+/** Poll /api/spot-price every 5s; returns 0 while loading or on error */
+function useSpotPrice(symbol: string): number {
+  const [price, setPrice] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    async function fetch_() {
+      try {
+        const res = await fetch(`/api/spot-price?ticker=${encodeURIComponent(symbol)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { price?: number };
+        if (!cancelled && typeof data.price === 'number' && data.price > 0) setPrice(data.price);
+      } catch { /* network error — keep previous price */ }
+    }
+    fetch_();
+    const id = setInterval(fetch_, 5_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [symbol]);
+  return price;
+}
+
 function getTickSize(symbol: string): { tick: number; decimals: number } {
   const s = symbol.toUpperCase();
   if (s.includes('BTC')) return { tick: 0.10, decimals: 2 };
@@ -53,10 +73,12 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
   const { markPrice } = useFuturesStore();
   const marketPrice = useMarketStore((s) => s.currentPrice);
+  const spotPrice = useSpotPrice(symbol);
 
   const { tick, decimals } = useMemo(() => getTickSize(symbol), [symbol]);
 
-  const currentPrice = marketPrice || markPrice || 0;
+  // Priority: live WebSocket price > futures mark price > spot API
+  const currentPrice = marketPrice || markPrice || spotPrice || 0;
 
   // Auto-connect to demo if no broker is active
   useEffect(() => {
@@ -70,16 +92,17 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
 
-  // Auto-fill limit/stop price with current price when switching order type
+  // Auto-fill limit/stop price when switching order type OR when live price first arrives
   useEffect(() => {
-    if ((orderType === 'limit' || orderType === 'stop_limit') && !limitPrice && currentPrice > 0) {
+    if (currentPrice <= 0) return;
+    if ((orderType === 'limit' || orderType === 'stop_limit') && !limitPrice) {
       setLimitPrice(currentPrice.toFixed(decimals));
     }
-    if ((orderType === 'stop' || orderType === 'stop_limit') && !stopPrice && currentPrice > 0) {
+    if ((orderType === 'stop' || orderType === 'stop_limit') && !stopPrice) {
       setStopPrice(currentPrice.toFixed(decimals));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderType]);
+  }, [orderType, currentPrice]);
   const [lastAction, setLastAction] = useState<{ side: 'buy' | 'sell'; time: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDemoPanel, setShowDemoPanel] = useState(false);
