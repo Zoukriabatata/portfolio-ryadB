@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { SessionProvider, useSession } from 'next-auth/react';
+import Image from 'next/image';
 import Logo from '@/components/ui/Logo';
 import { LiveSignalBadge } from '@/components/ai/LiveSignalBadge';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
@@ -215,14 +216,13 @@ function NavUserAvatar() {
 
   if (avatarUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={avatarUrl}
         alt="Account"
         width={22}
         height={22}
         className="rounded-full object-cover"
-        style={{ width: 22, height: 22 }}
+        unoptimized
       />
     );
   }
