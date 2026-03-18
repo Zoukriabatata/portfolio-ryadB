@@ -514,7 +514,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
         {/* Header */}
         <div
           className="flex items-center px-2 py-1 border-b gap-0 overflow-x-auto"
-          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, scrollbarWidth: 'none' } as React.CSSProperties}
+          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, scrollbarWidth: 'none', position: 'relative', zIndex: 10 } as React.CSSProperties}
         >
           {/* Group 1: Symbol & Price */}
           <div className="flex items-center gap-2.5 pr-2.5" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
@@ -827,7 +827,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
         <InlineToolSettings selectedTool={drawing.selectedTool} onRender={drawing.renderDrawingTools} />
 
         {/* Chart Area */}
-        <div className="flex-1 relative" onContextMenu={contextMenuHook.handleContextMenu}>
+        <div className="flex-1 relative" style={{ isolation: 'isolate' }} onContextMenu={contextMenuHook.handleContextMenu}>
           <div ref={refs.chartContainer} className="w-full h-full">
             <canvas ref={refs.chartCanvas} className="absolute inset-0 w-full h-full" style={{ cursor: 'crosshair', zIndex: 1 }} />
           </div>
