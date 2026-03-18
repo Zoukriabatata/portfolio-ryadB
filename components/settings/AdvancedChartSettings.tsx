@@ -802,7 +802,7 @@ export default function AdvancedChartSettings({
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Mode</span>
                     <div className="flex gap-1">
-                      {(['session', 'visible', 'custom'] as const).map(mode => (
+                      {(['daily', 'session', 'visible', 'custom'] as const).map(mode => (
                         <button key={mode} onClick={() => setVPSetting('vpProfileMode', mode)}
                           className="px-2 py-0.5 rounded text-[10px] transition-colors"
                           style={{
@@ -811,14 +811,14 @@ export default function AdvancedChartSettings({
                             border: '1px solid var(--border)',
                           }}
                         >
-                          {mode === 'session' ? 'Session' : mode === 'visible' ? 'Visible' : 'Custom'}
+                          {mode === 'daily' ? 'Daily' : mode === 'session' ? 'Session' : mode === 'visible' ? 'Visible' : 'Custom'}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* History Depth */}
-                  {vpProfileMode !== 'visible' && (
+                  {vpProfileMode !== 'visible' && vpProfileMode !== 'daily' && (
                     <SliderControl
                       label={vpProfileMode === 'custom' ? 'Profondeur personnalisée' : 'Profondeur historique'}
                       value={vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth}

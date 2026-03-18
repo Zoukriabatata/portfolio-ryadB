@@ -115,8 +115,15 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     // 1. Fetch historical trades for full profile immediately
     const loadHistorical = async () => {
       const endTime = Date.now();
-      const depthMinutes = vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth;
-      const startTime = endTime - depthMinutes * 60 * 1000;
+      let startTime: number;
+      if (vpProfileMode === 'daily') {
+        // Start of current UTC day (00:00:00 UTC)
+        const now = new Date();
+        startTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      } else {
+        const depthMinutes = vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth;
+        startTime = endTime - depthMinutes * 60 * 1000;
+      }
       let cursor = startTime;
 
       while (cursor < endTime && !cancelled) {

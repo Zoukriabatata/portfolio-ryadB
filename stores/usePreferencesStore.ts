@@ -117,7 +117,7 @@ export interface PreferencesState {
 
   // VP Engine settings
   vpHistoryDepth: number; // minutes (default 240 = 4h)
-  vpProfileMode: 'session' | 'visible' | 'custom';
+  vpProfileMode: 'session' | 'visible' | 'custom' | 'daily';
   vpCustomRangeMinutes: number;
   vpGradientEnabled: boolean;
   vpAskGradientEnd: string; // low-volume end color
@@ -219,7 +219,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       // VP Engine defaults
       vpHistoryDepth: 240,
-      vpProfileMode: 'session',
+      vpProfileMode: 'daily',
       vpCustomRangeMinutes: 240,
       vpGradientEnabled: false,
       vpAskGradientEnd: '#0a3d1a',

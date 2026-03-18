@@ -164,7 +164,8 @@ export default function VolumeProfilePanel({
     const valPrice = valueArea.val;
     const pocPrice = valueArea.poc;
 
-    const barLeft = 4;
+    // Bars grow right-to-left: anchor at right edge
+    const barRight = w - 4;
     const barMaxWidth = w - 12;
 
     // ── Value Area shading band ──
@@ -193,19 +194,20 @@ export default function VolumeProfilePanel({
       const totalBarW = intensity * barMaxWidth;
       const barY = y - barHeight / 2;
 
-      // Bid portion (left), Ask portion (right)
-      const bidW = bin.totalVolume > 0 ? (bin.bidVolume / bin.totalVolume) * totalBarW : 0;
+      // Bars grow left from barRight: ask on right (near price axis), bid on left
       const askW = bin.totalVolume > 0 ? (bin.askVolume / bin.totalVolume) * totalBarW : 0;
+      const bidW = bin.totalVolume > 0 ? (bin.bidVolume / bin.totalVolume) * totalBarW : 0;
+      const barX = barRight - totalBarW;  // leftmost x of bar
 
       // ── POC highlight glow background ──
       if (isPOC) {
         ctx.fillStyle = VP_COLORS.poc;
         ctx.globalAlpha = 0.12 * vpOpacity;
-        ctx.fillRect(barLeft - 1, barY - 2, totalBarW + 6, barHeight + 4);
+        ctx.fillRect(barX - 5, barY - 2, totalBarW + 6, barHeight + 4);
         ctx.globalAlpha = 1;
       }
 
-      // ── Bid bar (left portion) ──
+      // ── Bid bar (left portion, further from price axis) ──
       if (bidW > 0.5) {
         if (isPOC) {
           ctx.fillStyle = VP_COLORS.poc;
@@ -217,10 +219,10 @@ export default function VolumeProfilePanel({
           ctx.fillStyle = bidColor;
           ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
         }
-        ctx.fillRect(barLeft, barY, bidW, barHeight);
+        ctx.fillRect(barX, barY, bidW, barHeight);
       }
 
-      // ── Ask bar (right portion) ──
+      // ── Ask bar (right portion, closer to price axis) ──
       if (askW > 0.5) {
         if (isPOC) {
           ctx.fillStyle = VP_COLORS.poc;
@@ -232,14 +234,14 @@ export default function VolumeProfilePanel({
           ctx.fillStyle = askColor;
           ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
         }
-        ctx.fillRect(barLeft + bidW, barY, askW, barHeight);
+        ctx.fillRect(barRight - askW, barY, askW, barHeight);
       }
 
       // ── Thin separator between bid/ask ──
       if (bidW > 1 && askW > 1) {
         ctx.fillStyle = VP_COLORS.separator;
         ctx.globalAlpha = 0.6;
-        ctx.fillRect(barLeft + bidW - 0.5, barY, 1, barHeight);
+        ctx.fillRect(barRight - askW - 0.5, barY, 1, barHeight);
       }
 
       // ── POC outline ──
@@ -247,20 +249,20 @@ export default function VolumeProfilePanel({
         ctx.strokeStyle = VP_COLORS.poc;
         ctx.lineWidth = 1.5;
         ctx.globalAlpha = 0.9 * vpOpacity;
-        ctx.strokeRect(barLeft, barY, totalBarW, barHeight);
+        ctx.strokeRect(barX, barY, totalBarW, barHeight);
       }
 
-      // ── Volume text for significant levels ──
+      // ── Volume text to the left of the bar ──
       if (barHeight >= 8 && totalBarW > 30 && intensity > 0.15) {
         ctx.globalAlpha = isPOC ? 0.95 : 0.7;
         ctx.fillStyle = isPOC ? '#ffffff' : theme.textMuted;
         ctx.font = `${isPOC ? 'bold ' : ''}${barHeight >= 12 ? 8 : 7}px "Consolas", monospace`;
-        ctx.textAlign = 'left';
+        ctx.textAlign = 'right';
         const volText = bin.totalVolume >= 1000
           ? `${(bin.totalVolume / 1000).toFixed(1)}K`
           : Math.round(bin.totalVolume).toString();
-        const textX = barLeft + totalBarW + 3;
-        if (textX + 30 < w) {
+        const textX = barX - 3;
+        if (textX > 30) {
           ctx.fillText(volText, textX, y + 3);
         }
       }
@@ -268,16 +270,16 @@ export default function VolumeProfilePanel({
       ctx.globalAlpha = 1;
     }
 
-    // ── POC arrow marker (triangle on left edge) ──
+    // ── POC arrow marker (triangle on right edge, pointing left) ──
     const pocY = priceToY(pocPrice);
     if (pocY >= 0 && pocY <= h) {
       ctx.save();
       ctx.fillStyle = VP_COLORS.poc;
       ctx.globalAlpha = 0.9;
       ctx.beginPath();
-      ctx.moveTo(0, pocY - 4);
-      ctx.lineTo(5, pocY);
-      ctx.lineTo(0, pocY + 4);
+      ctx.moveTo(w, pocY - 4);
+      ctx.lineTo(w - 5, pocY);
+      ctx.lineTo(w, pocY + 4);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
@@ -304,13 +306,14 @@ export default function VolumeProfilePanel({
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
 
-    // ── Pill labels ──
+    // ── Pill labels (right-anchored) ──
     const c = ctx;
-    function renderPillLabel(text: string, x: number, y: number, color: string) {
+    function renderPillLabel(text: string, rightEdge: number, y: number, color: string) {
       c.font = 'bold 7px "Consolas", monospace';
       const tw = c.measureText(text).width;
       const pw = tw + 6;
       const ph = 10;
+      const x = rightEdge - pw;
       c.fillStyle = color;
       c.globalAlpha = 0.18;
       roundRect(c, x, y, pw, ph, 2);
@@ -323,13 +326,13 @@ export default function VolumeProfilePanel({
     }
 
     if (vahY >= 0 && vahY <= h) {
-      renderPillLabel('VAH', barLeft, vahY - 10, VP_COLORS.vahValLine);
+      renderPillLabel('VAH', barRight + 1, vahY - 10, VP_COLORS.vahValLine);
     }
     if (valY >= 0 && valY <= h) {
-      renderPillLabel('VAL', barLeft, valY + 1, VP_COLORS.vahValLine);
+      renderPillLabel('VAL', barRight + 1, valY + 1, VP_COLORS.vahValLine);
     }
     if (pocY >= 0 && pocY <= h) {
-      renderPillLabel('POC', barLeft + 6, pocY - 5, VP_COLORS.poc);
+      renderPillLabel('POC', barRight - 4, pocY - 5, VP_COLORS.poc);
     }
 
     // ── Stats: delta top, vol bottom ──
