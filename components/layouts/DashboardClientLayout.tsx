@@ -497,15 +497,15 @@ export function DashboardClientLayout({
             {/* Bilans Utilisateur IA */}
             <Link
               href="/bilansUTILISATEUR"
-              className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] font-medium transition-colors ${
                 isNavActive('/bilansUTILISATEUR')
-                  ? 'bg-[var(--surface)] text-[var(--primary)]'
-                  : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
+                  ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-400'
+                  : 'border-indigo-500/20 text-indigo-400/70 hover:border-indigo-500/40 hover:text-indigo-400 hover:bg-indigo-500/10'
               }`}
               title={t('nav.bilans')}
-              aria-label={t('nav.bilans')}
             >
-              <ClipboardList size={14} strokeWidth={1.5} />
+              <ClipboardList size={13} strokeWidth={1.5} />
+              <span className="hidden md:inline whitespace-nowrap">Audits IA</span>
             </Link>
 
             {/* Data Feeds */}
