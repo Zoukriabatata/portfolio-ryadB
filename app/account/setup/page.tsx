@@ -111,7 +111,7 @@ export default function IBSetupWizard() {
 
             <button
               onClick={() => setStep(2)}
-              className="mt-6 w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+              className="mt-6 w-full py-3 bg-gradient-to-r from-[#3354e8] to-[#4f6ef7] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
             >
               I&apos;ve subscribed to data &rarr;
             </button>
@@ -156,7 +156,7 @@ export default function IBSetupWizard() {
               </button>
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                className="flex-1 py-3 bg-gradient-to-r from-[#3354e8] to-[#4f6ef7] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
                 Got it &rarr;
               </button>
@@ -210,7 +210,7 @@ export default function IBSetupWizard() {
               </button>
               <button
                 onClick={() => setStep(4)}
-                className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                className="flex-1 py-3 bg-gradient-to-r from-[#3354e8] to-[#4f6ef7] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
                 Next &rarr;
               </button>
@@ -255,7 +255,7 @@ export default function IBSetupWizard() {
               </button>
               <Link
                 href={`/liquidity?source=ib&symbol=${selectedSymbol}`}
-                className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-center"
+                className="flex-1 py-3 bg-gradient-to-r from-[#3354e8] to-[#4f6ef7] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-center"
               >
                 Launch {selectedSymbol} &rarr;
               </Link>

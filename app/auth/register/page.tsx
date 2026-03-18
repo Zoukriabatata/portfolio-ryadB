@@ -112,16 +112,16 @@ export default function RegisterPage() {
     >
       {/* Ambient glow */}
       <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.04) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+        style={{ background: 'radial-gradient(circle, rgba(79,110,247,0.06) 0%, transparent 70%)', filter: 'blur(80px)' }} />
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.03) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+        style={{ background: 'radial-gradient(circle, rgba(79,110,247,0.03) 0%, transparent 70%)', filter: 'blur(80px)' }} />
 
       <div className="w-full max-w-md animate-fadeIn relative z-10">
 
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', boxShadow: '0 0 40px rgba(16,185,129,0.15)' }}>
+            style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', boxShadow: '0 0 40px rgba(79,110,247,0.25)' }}>
             <span className="text-xl font-black text-white">S</span>
           </div>
           <h1 className="text-3xl font-bold"

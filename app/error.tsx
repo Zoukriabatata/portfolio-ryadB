@@ -59,7 +59,8 @@ export default function Error({
           </button>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-all duration-200 border border-emerald-500/20 hover:border-emerald-500/30"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border"
+            style={{ background: 'rgba(79,110,247,0.1)', borderColor: 'rgba(79,110,247,0.25)', color: '#7b94f8' }}
           >
             Home
           </Link>
