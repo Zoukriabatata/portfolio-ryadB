@@ -22,7 +22,8 @@
  * GET /api/ai/analysis  →  health check (reports engine availability)
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -179,6 +180,9 @@ function runJsEngine(body: Record<string, unknown>): EngineAnalysisResult {
 // ─── Route handlers ───────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

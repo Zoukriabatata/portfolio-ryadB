@@ -465,7 +465,7 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 6 * 60 * 60, // 6 hours — limits stale tier window after subscription changes
   },
 
   secret: process.env.NEXTAUTH_SECRET,

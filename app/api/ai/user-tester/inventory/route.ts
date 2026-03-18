@@ -4,9 +4,14 @@
  * Used by the AI tester to know exactly what exists and what to test.
  */
 
+import { type NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/api-middleware';
+
 export const dynamic = 'force-dynamic';
 
-export function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   return Response.json({
     platform: 'OrderFlow — Professional Trading Platform',
 

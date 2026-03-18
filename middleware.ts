@@ -466,20 +466,25 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  // HSTS — force HTTPS for 1 year, include subdomains
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  // Prevent search engines from indexing private app pages
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   response.headers.set(
     'Content-Security-Policy',
     [
       "default-src 'self'",
       "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
-      "style-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
-      "font-src 'self' data:",
-      "connect-src 'self' https://*.tradovateapi.com wss://*.tradovateapi.com https://api.stripe.com https://stream.binance.com wss://stream.binance.com wss://stream.bybit.com wss://www.deribit.com https://*.vercel.app",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "connect-src 'self' https://*.tradovateapi.com wss://*.tradovateapi.com https://api.stripe.com https://stream.binance.com wss://stream.binance.com wss://stream.bybit.com wss://www.deribit.com https://*.vercel.app https://api.groq.com https://api.anthropic.com",
       "frame-src https://js.stripe.com https://hooks.stripe.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      "upgrade-insecure-requests",
     ].join('; ')
   );
 

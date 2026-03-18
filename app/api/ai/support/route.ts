@@ -12,10 +12,11 @@
  *   data: [DONE]\n\n
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { ollamaChatStream, ollamaIsRunning, DEFAULT_MODEL } from '@/lib/ai/ollama';
 import { buildSupportMessages, type ChatMessage } from '@/lib/ai/agents/supportAgent';
+import { requireAuth } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,9 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   : null;
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   // ── Input validation ────────────────────────────────────────────────────────
   let body: { message?: string; history?: ChatMessage[] };
   try {

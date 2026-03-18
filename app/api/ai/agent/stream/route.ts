@@ -19,7 +19,8 @@
  *   Frontend:      EventSource('/api/ai/agent/stream?interval=3000')
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/api-middleware';
 import { StreamAgent, SyntheticFeed } from '@/lib/ai/streamAgent';
 
 export const runtime = 'nodejs';
@@ -41,6 +42,9 @@ const SSE_HEADERS = (source: string) => ({
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   const interval = parseInt(req.nextUrl.searchParams.get('interval') ?? '3000', 10);
 
   // ── 1. Attempt Python FastAPI proxy ────────────────────────────────────────

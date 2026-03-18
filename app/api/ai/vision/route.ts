@@ -15,9 +15,10 @@
  *           Header: X-Vision-Backend: claude | ollama
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Anthropic        from '@anthropic-ai/sdk';
 import { ollamaIsRunning, listModels, DEFAULT_MODEL } from '@/lib/ai/ollama';
+import { requireAuth } from '@/lib/auth/api-middleware';
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -263,6 +264,9 @@ async function callOllama(
 // ─── Route ─────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   // ── Parse form ──────────────────────────────────────────────────────────────
   let form: FormData;
   try { form = await req.formData(); }
