@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { throttledFetch } from '@/lib/api/throttledFetch';
 
@@ -73,7 +74,7 @@ export default function ScreenshotUploader({ urls, onChange, maxFiles = 5 }: Scr
         <div className="flex gap-2 flex-wrap">
           {urls.map((url, i) => (
             <div key={i} className="relative group w-16 h-16">
-              <img src={url} alt="" className="w-full h-full object-cover rounded-lg border border-[var(--border)]" />
+              <Image src={url} alt="" width={64} height={64} className="w-full h-full object-cover rounded-lg border border-[var(--border)]" unoptimized />
               <button
                 onClick={() => removeUrl(i)}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[var(--error)] text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

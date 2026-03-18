@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface ScreenshotGalleryProps {
   urls: string[];
@@ -20,7 +21,7 @@ export default function ScreenshotGallery({ urls }: ScreenshotGalleryProps) {
             onClick={() => setLightboxIndex(i)}
             className="relative rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] transition-colors group"
           >
-            <img src={url} alt={`Screenshot ${i + 1}`} className="w-full h-24 object-cover" />
+            <Image src={url} alt={`Screenshot ${i + 1}`} width={200} height={96} className="w-full h-24 object-cover" unoptimized />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
               <svg
                 width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"
@@ -41,10 +42,13 @@ export default function ScreenshotGallery({ urls }: ScreenshotGalleryProps) {
           onClick={() => setLightboxIndex(null)}
         >
           <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <img
+            <Image
               src={urls[lightboxIndex]}
               alt=""
+              width={1200}
+              height={800}
               className="max-w-full max-h-[85vh] rounded-lg"
+              unoptimized
             />
             <button
               onClick={() => setLightboxIndex(null)}

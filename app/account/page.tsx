@@ -31,6 +31,7 @@ import { useAccountPrefsStore, type SupportedLanguage } from '@/stores/useAccoun
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import type { TranslationKey } from '@/lib/i18n/translations';
 import { TradovateAuth, TradovateClient } from '@/lib/brokers/tradovate';
+import Image from 'next/image';
 
 type TicketCategory = 'BILLING' | 'TECHNICAL' | 'ACCOUNT' | 'FEATURE_REQUEST' | 'OTHER';
 type AccountTab = 'profile' | 'preferences' | 'connections' | 'security' | 'notifications' | 'data' | 'support';
@@ -531,7 +532,7 @@ function AccountContent() {
                         >
                           <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarUpload} className="hidden" disabled={avatarUploading} />
                           {avatarUrl ? (
-                            <img src={avatarUrl} alt="Avatar" className="w-14 h-14 rounded-full object-cover transition-transform group-hover:scale-105" />
+                            <Image src={avatarUrl} alt="Avatar" width={56} height={56} className="w-14 h-14 rounded-full object-cover transition-transform group-hover:scale-105" unoptimized />
                           ) : (
                             <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold transition-transform group-hover:scale-105"
                               style={{ background: 'var(--primary-dark)', color: 'var(--primary-foreground, #fff)' }}>
