@@ -129,7 +129,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
         const updated = [...prev];
         updated[updated.length - 1] = {
           role: 'assistant',
-          content: `⚠️ ${errorText}\n\nVérifiez qu'Ollama est démarré (\`ollama serve\`) et qu'un modèle est installé (\`ollama pull mistral\`).`,
+          content: `⚠️ ${errorText}`,
         };
         return updated;
       });
@@ -192,7 +192,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
             Assistant Trading
           </span>
           <span className="text-xs ml-auto" style={{ color: textSecondary }}>
-            Ollama · Mistral
+            Claude · Haiku
           </span>
         </div>
 
