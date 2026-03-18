@@ -56,9 +56,30 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
   const { tick, decimals } = useMemo(() => getTickSize(symbol), [symbol]);
 
+  const currentPrice = marketPrice || markPrice || 0;
+
+  // Auto-connect to demo if no broker is active
+  useEffect(() => {
+    if (!activeBroker) {
+      connect('demo');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
+
+  // Auto-fill limit/stop price with current price when switching order type
+  useEffect(() => {
+    if ((orderType === 'limit' || orderType === 'stop_limit') && !limitPrice && currentPrice > 0) {
+      setLimitPrice(currentPrice.toFixed(decimals));
+    }
+    if ((orderType === 'stop' || orderType === 'stop_limit') && !stopPrice && currentPrice > 0) {
+      setStopPrice(currentPrice.toFixed(decimals));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderType]);
   const [lastAction, setLastAction] = useState<{ side: 'buy' | 'sell'; time: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDemoPanel, setShowDemoPanel] = useState(false);
@@ -85,7 +106,6 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   }, [rrPreset, slOffset, decimals]);
 
   const isConnected = activeBroker && connections[activeBroker]?.connected;
-  const currentPrice = marketPrice || markPrice || 0;
 
   const handleTrade = useCallback(async (side: 'buy' | 'sell') => {
     if (!activeBroker || !isConnected || isSubmitting) return;
@@ -241,7 +261,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   const needsStop = orderType === 'stop' || orderType === 'stop_limit';
 
   return (
-    <div className="flex items-center h-[38px] px-2 gap-2 text-[11px]"
+    <div className="flex items-center h-[38px] px-2 gap-2 text-[11px] font-mono overflow-x-auto"
       style={{ backgroundColor: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
 
       {/* Balance — clickable for demo settings */}

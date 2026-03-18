@@ -37,7 +37,16 @@ interface ContextMenuProps {
 export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [submenuId, setSubmenuId] = useState<string | null>(null);
-  const [position, setPosition] = useState({ x, y });
+  // Pre-clamp using estimated menu dimensions to avoid 1-frame positional flash
+  const [position, setPosition] = useState(() => {
+    const estW = 220, estH = items.length * 32 + 16;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 1080;
+    return {
+      x: Math.min(x, vw - estW - 10),
+      y: Math.min(y, vh - estH - 10),
+    };
+  });
   const submenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clear timeout on unmount
@@ -73,24 +82,13 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     }
   };
 
-  // Adjust position if menu would overflow viewport
+  // Fine-tune position with exact dimensions after mount
   useEffect(() => {
     if (menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      let newX = x;
-      let newY = y;
-
-      if (x + rect.width > viewportWidth) {
-        newX = viewportWidth - rect.width - 10;
-      }
-      if (y + rect.height > viewportHeight) {
-        newY = viewportHeight - rect.height - 10;
-      }
-
-      setPosition({ x: newX, y: newY });
+      const newX = Math.min(x, window.innerWidth - rect.width - 10);
+      const newY = Math.min(y, window.innerHeight - rect.height - 10);
+      setPosition({ x: Math.max(4, newX), y: Math.max(4, newY) });
     }
   }, [x, y]);
 

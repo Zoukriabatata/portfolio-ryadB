@@ -189,15 +189,28 @@ export default function AdvancedChartSettings({
   onBackgroundChange,
 }: AdvancedChartSettingsProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('style');
-  const [position, setPosition] = useState(initialPosition || { x: 100, y: 100 });
+  const [position, setPosition] = useState(() => {
+    if (initialPosition) return initialPosition;
+    if (typeof window !== 'undefined') {
+      return { x: Math.max(20, (window.innerWidth - 680) / 2), y: Math.max(20, (window.innerHeight - 600) / 2) };
+    }
+    return { x: 100, y: 100 };
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Update position when re-opened at a new location (right-click)
+  // Update position when re-opened at a new location (right-click) or center when no position
   useEffect(() => {
-    if (isOpen && initialPosition) {
-      setPosition(initialPosition);
+    if (isOpen) {
+      if (initialPosition) {
+        setPosition(initialPosition);
+      } else {
+        setPosition({
+          x: Math.max(20, (window.innerWidth - 680) / 2),
+          y: Math.max(20, (window.innerHeight - 600) / 2),
+        });
+      }
     }
   }, [isOpen, initialPosition?.x, initialPosition?.y]);
 
@@ -222,6 +235,7 @@ export default function AdvancedChartSettings({
     // VP Engine settings
     vpHistoryDepth, vpProfileMode, vpCustomRangeMinutes,
     vpGradientEnabled, vpAskGradientEnd, vpBidGradientEnd,
+    vpPanelSide,
     // Volume Bubble orderflow settings
     showVolumeBubbles, setShowVolumeBubbles,
     volumeBubbleMode, volumeBubbleScaling, volumeBubbleMaxSize,
@@ -797,6 +811,25 @@ export default function AdvancedChartSettings({
                 {/* ═══ VOLUME PROFILE SECTION ═══ */}
                 <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Volume Profile</h3>
+
+                  {/* Panel Side */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Position</span>
+                    <div className="flex gap-1">
+                      {(['left', 'right'] as const).map(s => (
+                        <button key={s} onClick={() => setVPSetting('vpPanelSide', s)}
+                          className="px-2 py-0.5 rounded text-[10px] transition-colors"
+                          style={{
+                            backgroundColor: vpPanelSide === s ? 'var(--primary)' : 'var(--surface-elevated)',
+                            color: vpPanelSide === s ? '#fff' : 'var(--text-secondary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          {s === 'left' ? 'Left' : 'Right'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Profile Mode */}
                   <div className="flex items-center justify-between mb-2">

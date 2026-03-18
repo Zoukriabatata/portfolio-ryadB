@@ -122,6 +122,7 @@ export interface PreferencesState {
   vpGradientEnabled: boolean;
   vpAskGradientEnd: string; // low-volume end color
   vpBidGradientEnd: string; // low-volume end color
+  vpPanelSide: 'left' | 'right';
 
   setVPSetting: <K extends keyof PreferencesState>(key: K, value: PreferencesState[K]) => void;
 
@@ -224,6 +225,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       vpGradientEnabled: false,
       vpAskGradientEnd: '#0a3d1a',
       vpBidGradientEnd: '#3d0a0a',
+      vpPanelSide: 'right' as const,
 
       // Long/Short position tool defaults
       posTpColor: '#22c55e',
@@ -234,16 +236,16 @@ export const usePreferencesStore = create<PreferencesState>()(
       posShowLabels: false,
       posDefaultCompact: true,
       posSmartArrow: true,
-      posDynamicOpacity: true,
+      posDynamicOpacity: false,
       posOpacityCurve: 'exponential' as const,
       posOpacityIntensity: 60,
       posArrowExponent: 1.6,
       posArrowIntensity: 50,
       posArrowThickness: 1.4,
       posArrowFill: true,
-      posProgressTrail: true,
+      posProgressTrail: false,
       posTrailIntensity: 25,
-      posHeatFill: true,
+      posHeatFill: false,
       posHeatIntensity: 40,
       posTimeWeight: 60,
       posGradientMode: 'dynamic' as const,
@@ -314,6 +316,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         vpShowBackground: s.vpShowBackground, vpBackgroundColor: s.vpBackgroundColor, vpBackgroundOpacity: s.vpBackgroundOpacity,
         vpHistoryDepth: s.vpHistoryDepth, vpProfileMode: s.vpProfileMode, vpCustomRangeMinutes: s.vpCustomRangeMinutes,
         vpGradientEnabled: s.vpGradientEnabled, vpAskGradientEnd: s.vpAskGradientEnd, vpBidGradientEnd: s.vpBidGradientEnd,
+        vpPanelSide: s.vpPanelSide,
         posTpColor: s.posTpColor, posSlColor: s.posSlColor, posEntryColor: s.posEntryColor,
         posZoneOpacity: s.posZoneOpacity, posShowZoneFill: s.posShowZoneFill,
         posShowLabels: s.posShowLabels, posDefaultCompact: s.posDefaultCompact,

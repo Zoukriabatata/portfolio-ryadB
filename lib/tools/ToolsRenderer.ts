@@ -1121,35 +1121,6 @@ export class ToolsRenderer {
       }
     }
 
-    // ═══ CLOSED POSITION BADGE — Refined TradingView style ═══
-    if (isClosed) {
-      const badgeColor = exitReason === 'target' ? profitLine : riskLine;
-      const badgeText = exitReason === 'target' ? 'TP HIT' : 'SL HIT';
-      const centerX = (leftX + rightX) / 2;
-      const centerY = (entryY + (exitReason === 'target' ? tpY : slY)) / 2;
-      // Badge fades in during close animation
-      const badgeOpacity = fadeFactor * 0.7;
-      ctx.font = '600 9px system-ui';
-      const textW = ctx.measureText(badgeText).width;
-      const badgeW = textW + 14;
-      const badgeH = 17;
-      // Subtle dark background
-      ctx.fillStyle = `rgba(12, 12, 16, ${badgeOpacity * 0.85})`;
-      ctx.beginPath();
-      ctx.roundRect(centerX - badgeW / 2, centerY - badgeH / 2, badgeW, badgeH, 3);
-      ctx.fill();
-      // Thin accent border
-      ctx.strokeStyle = hexToRgba(badgeColor, badgeOpacity * 0.5);
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-      // Accent text
-      ctx.fillStyle = hexToRgba(badgeColor, badgeOpacity);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(badgeText, centerX, centerY);
-      ctx.textBaseline = 'alphabetic';
-    }
-
     // ═══ Settings flags ═══
     const showRR = showLabels && tool.showRR !== false;
     const showPnL = showLabels && tool.showPnL !== false;

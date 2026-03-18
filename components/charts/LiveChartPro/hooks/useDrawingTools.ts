@@ -12,11 +12,11 @@ import type { RenderContext } from '@/lib/tools/ToolsRenderer';
 import { evaluateAllPositions } from '@/lib/tools/ExecutionEngine';
 import { useCrosshairStore } from '@/stores/useCrosshairStore';
 import { useAlertsStore, type PriceAlert } from '@/stores/useAlertsStore';
-import { useTradingStore, type Position } from '@/stores/useTradingStore';
+import { useTradingStore, type Position, type Order } from '@/stores/useTradingStore';
 import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import { getSoundManager } from '@/lib/audio/SoundManager';
-import { drawIndicatorLine, getSourceValues, lineStyleToDash } from '../utils/indicators';
+import { drawIndicatorLine, getSourceValues, lineStyleToDash, computeEMA, computeSMA } from '../utils/indicators';
 import { TOOL_TYPE_MAPPING } from '../constants/tools';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
@@ -49,16 +49,14 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
   const { magnetMode } = useCrosshairStore();
   const { alerts } = useAlertsStore();
-  const { positions, orders } = useTradingStore();
+  // Read positions/orders imperatively to avoid re-renders from every price update (every 250ms)
+  const positionsRef = useRef(useTradingStore.getState().positions);
+  const ordersRef = useRef(useTradingStore.getState().orders);
   const { indicators: indicatorConfigs } = useIndicatorStore();
 
   // Refs to avoid re-renders
   const alertsRef = useRef<PriceAlert[]>([]);
   alertsRef.current = alerts;
-  const positionsRef = useRef(positions);
-  positionsRef.current = positions;
-  const ordersRef = useRef(orders);
-  ordersRef.current = orders;
   const indicatorConfigsRef = useRef(indicatorConfigs);
   indicatorConfigsRef.current = indicatorConfigs;
 
@@ -79,19 +77,32 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
   // Order drag state (drag limit/stop to modify price)
   const orderDragRef = useRef<{
     active: boolean;
-    order: (typeof orders)[number] | null;
+    order: import('@/stores/useTradingStore').Order | null;
     startY: number;
     currentY: number;
     dragPrice: number;
   }>({ active: false, order: null, startY: 0, currentY: 0, dragPrice: 0 });
   const [hasPositionsOrOrders, setHasPositionsOrOrders] = useState(false);
 
-  // Track positions/orders for pointerEvents
+  // Subscribe imperatively to trading store — avoids re-render on every 250ms price update
   useEffect(() => {
-    const sym = symbol.toUpperCase();
-    const has = positions.some(p => p.symbol === sym) || orders.some(o => o.status === 'pending' && o.symbol === sym);
-    setHasPositionsOrOrders(has);
-  }, [positions, orders, symbol]);
+    const checkHas = (state: ReturnType<typeof useTradingStore.getState>) => {
+      const sym = symbol.toUpperCase();
+      return state.positions.some(p => p.symbol === sym) ||
+             state.orders.some(o => o.status === 'pending' && o.symbol === sym);
+    };
+    // Initialize
+    const initialState = useTradingStore.getState();
+    positionsRef.current = initialState.positions;
+    ordersRef.current = initialState.orders;
+    setHasPositionsOrOrders(checkHas(initialState));
+
+    return useTradingStore.subscribe((state) => {
+      positionsRef.current = state.positions;
+      ordersRef.current = state.orders;
+      setHasPositionsOrOrders(checkHas(state));
+    });
+  }, [symbol]);
 
   /**
    * Subscribe to drawing tools updates
@@ -202,7 +213,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
   const hitTestOrderCancel = useCallback((
     mx: number, my: number,
-    orderArr: typeof orders,
+    orderArr: Order[],
     priceToY: (p: number) => number,
     chartWidth: number,
     ctx: CanvasRenderingContext2D,
@@ -227,7 +238,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
   /** Hit-test order BADGE area (for drag-to-modify) */
   const hitTestOrderBadge = useCallback((
     mx: number, my: number,
-    orderArr: typeof orders,
+    orderArr: Order[],
     priceToY: (p: number) => number,
     chartWidth: number,
     ctx: CanvasRenderingContext2D,
@@ -752,6 +763,14 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
           cumTP += tp;
           return cumTP / (i + 1);
         });
+      } else if (indicator.type === 'EMA') {
+        const period = indicator.params.period ?? 20;
+        const source = getSourceValues(candles, (indicator.style.source as import('@/types/charts').IndicatorSource) || 'close');
+        values = computeEMA(source, period);
+      } else if (indicator.type === 'SMA') {
+        const period = indicator.params.period ?? 50;
+        const source = getSourceValues(candles, (indicator.style.source as import('@/types/charts').IndicatorSource) || 'close');
+        values = computeSMA(source, period);
       } else {
         continue;
       }
@@ -786,9 +805,34 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
     }
 
+    // ═══ Magnet snap indicator ═══
+    const icState = refs.interactionController.current.getState();
+    if (magnetMode !== 'none' && icState.mode === 'drawing' && icState.currentPoint) {
+      const snapX = renderContext.timeToX(icState.currentPoint.time);
+      const snapY = renderContext.priceToY(icState.currentPoint.price);
+      if (snapX >= 0 && snapX <= renderContext.width && snapY >= 0 && snapY <= renderContext.height) {
+        ctx.save();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(snapX, snapY, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(snapX - 11, snapY);
+        ctx.lineTo(snapX + 11, snapY);
+        ctx.moveTo(snapX, snapY - 11);
+        ctx.lineTo(snapX, snapY + 11);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // Restore clip
     ctx.restore();
-  }, [refs, theme.colors, symbol]);
+  }, [refs, theme.colors, symbol, magnetMode]);
 
   // Re-draw when indicators change (toggle, color, params)
   useEffect(() => {

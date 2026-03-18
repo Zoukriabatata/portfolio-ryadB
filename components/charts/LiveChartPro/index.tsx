@@ -256,7 +256,7 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
   const { textColor: activeTextColor } = useAutoContrast(theme.colors.toolActive);
   const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity, showTradeBar, setShowTradeBar } = useTradingStore();
   const { indicators: indicatorConfigs, toggleIndicator: toggleIndicatorConfig } = useIndicatorStore();
-  const { showVolumeProfile, setShowVolumeProfile } = usePreferencesStore();
+  const { showVolumeProfile, setShowVolumeProfile, vpPanelSide } = usePreferencesStore();
   const customFavorites = useFavoritesToolbarStore(s => s.presets.custom.tools);
 
   // Trading ref for keyboard hotkeys
@@ -512,8 +512,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div
-          className="flex items-center px-2 py-1 border-b gap-0"
-          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36 }}
+          className="flex items-center px-2 py-1 border-b gap-0 overflow-x-auto"
+          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, scrollbarWidth: 'none' } as React.CSSProperties}
         >
           {/* Group 1: Symbol & Price */}
           <div className="flex items-center gap-2.5 pr-2.5" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
@@ -742,11 +742,6 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
               )}
             </div>
 
-            {/* Depth Heatmap Toggle */}
-            <button onClick={() => setShowDepthMap(!showDepthMap)} data-tooltip="Depth Map" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showDepthMap ? theme.colors.toolActive : 'transparent', color: showDepthMap ? activeTextColor : theme.colors.textSecondary }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
-            </button>
-
             {/* Volume Profile Toggle */}
             <button onClick={() => setShowVolumeProfile(!showVolumeProfile)} data-tooltip="Volume Profile" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showVolumeProfile ? theme.colors.toolActive : 'transparent', color: showVolumeProfile ? activeTextColor : theme.colors.textSecondary }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" rx="1" /><rect x="12" y="6" width="3" height="12" rx="1" /><rect x="17" y="12" width="3" height="6" rx="1" /></svg>
@@ -836,15 +831,16 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
             <canvas ref={refs.chartCanvas} className="absolute inset-0 w-full h-full" style={{ cursor: 'crosshair', zIndex: 1 }} />
           </div>
 
-          {/* Volume Profile Panel — right-side overlay */}
+          {/* Volume Profile Panel — side-configurable overlay */}
           {showVolumeProfile && symbolData.viewportState.chartHeight > 0 && (
-            <div className="absolute z-[3]" style={{ right: 80, top: 0 }}>
+            <div className="absolute z-[3]" style={vpPanelSide === 'left' ? { left: 0, top: 0 } : { right: 80, top: 0 }}>
               <VolumeProfilePanel
                 data={vpData.data}
                 priceMin={symbolData.viewportState.priceMin}
                 priceMax={symbolData.viewportState.priceMax}
                 chartHeight={symbolData.viewportState.chartHeight}
                 width={140}
+                side={vpPanelSide}
                 theme={{ background: engine.effectiveColors.background, border: theme.colors.border, text: theme.colors.text, textMuted: theme.colors.textMuted }}
                 vpColors={{ bid: vpBidColor, ask: vpAskColor, opacity: vpBarOpacity }}
                 vpBackground={{ show: vpShowBackground, color: vpBackgroundColor, opacity: vpBackgroundOpacity }}

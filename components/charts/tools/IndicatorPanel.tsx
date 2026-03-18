@@ -8,6 +8,8 @@ import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
 const AVAILABLE_INDICATORS: { type: IndicatorType; label: string; defaultParams: Record<string, number>; description: string }[] = [
   { type: 'VWAP', label: 'VWAP', defaultParams: {}, description: 'Volume Weighted Average Price' },
   { type: 'TWAP', label: 'TWAP', defaultParams: {}, description: 'Time Weighted Average Price' },
+  { type: 'EMA', label: 'EMA', defaultParams: { period: 20 }, description: 'Exponential Moving Average' },
+  { type: 'SMA', label: 'SMA', defaultParams: { period: 50 }, description: 'Simple Moving Average' },
 ];
 
 interface IndicatorPanelProps {
@@ -37,7 +39,7 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
       enabled: true,
       params: { ...config.defaultParams },
       style: {
-        color: type === 'VWAP' ? '#f59e0b' : type === 'TWAP' ? '#3b82f6' : '#22c55e',
+        color: type === 'VWAP' ? '#f59e0b' : type === 'TWAP' ? '#3b82f6' : type === 'EMA' ? '#22d3ee' : '#a78bfa',
         lineWidth: 2,
       },
       paneId: 'main',

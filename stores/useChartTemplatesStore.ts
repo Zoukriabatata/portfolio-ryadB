@@ -78,6 +78,23 @@ export interface ChartTemplate {
 
     // Drawing tools
     drawings?: unknown[];
+
+    // Indicator configs
+    indicators?: Array<{
+      id: string;
+      type: string;
+      enabled: boolean;
+      params: Record<string, unknown>;
+      style: Record<string, unknown>;
+    }>;
+
+    // Volume profile settings
+    vpSettings?: {
+      showVolumeProfile?: boolean;
+      vpProfileMode?: string;
+      vpHistoryDepth?: number;
+      vpPanelSide?: 'left' | 'right';
+    };
   };
 }
 

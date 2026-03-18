@@ -84,7 +84,7 @@ export interface CrosshairData {
   changePercent: number;
 }
 
-export type IndicatorType = 'VWAP' | 'TWAP';
+export type IndicatorType = 'VWAP' | 'TWAP' | 'EMA' | 'SMA';
 
 export type IndicatorSource = 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4';
 export type IndicatorLineStyle = 'solid' | 'dashed' | 'dotted';

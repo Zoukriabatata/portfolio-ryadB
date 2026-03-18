@@ -208,7 +208,7 @@ export const useTradingStore = create<TradingState>()(
       closedTrades: [],
 
       showBrokerSelector: false,
-      showTradeBar: false,
+      showTradeBar: true,
 
       setTradingSymbol: (symbol) => set({ tradingSymbol: symbol.toLowerCase() }),
       setActiveBroker: (broker) => set({ activeBroker: broker }),

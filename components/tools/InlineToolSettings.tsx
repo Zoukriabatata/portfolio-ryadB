@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState, useReducer, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Tool,
   ToolStyle,
@@ -172,7 +173,9 @@ export default function InlineToolSettings({
   const [presetNameInput, setPresetNameInput] = useState('');
   const [showPresetNameInput, setShowPresetNameInput] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
+  const settingsBtnRef = useRef<HTMLDivElement>(null);
   const presetInputRef = useRef<HTMLInputElement>(null);
+  const [settingsPanelPos, setSettingsPanelPos] = useState<{ top: number; right: number } | null>(null);
 
   // Force re-render when the engine updates the tool
   const [, forceRender] = useReducer((x: number) => x + 1, 0);
@@ -246,15 +249,15 @@ export default function InlineToolSettings({
     if (!selectedTool) return;
     const engine = getToolsEngine();
     const fresh = engine.getTool(selectedTool.id);
-    if (fresh) engine.updateTool(selectedTool.id, { locked: !fresh.locked });
-  }, [selectedTool?.id]);
+    if (fresh) { engine.updateTool(selectedTool.id, { locked: !fresh.locked }); onRender?.(); }
+  }, [selectedTool?.id, onRender]);
 
   const handleToggleVisible = useCallback(() => {
     if (!selectedTool) return;
     const engine = getToolsEngine();
     const fresh = engine.getTool(selectedTool.id);
-    if (fresh) engine.updateTool(selectedTool.id, { visible: !fresh.visible });
-  }, [selectedTool?.id]);
+    if (fresh) { engine.updateTool(selectedTool.id, { visible: !fresh.visible }); onRender?.(); }
+  }, [selectedTool?.id, onRender]);
 
   const handleSavePreset = useCallback(() => {
     if (!selectedTool || !presetNameInput.trim()) return;
@@ -286,6 +289,7 @@ export default function InlineToolSettings({
   const ToolIcon = TOOL_ICONS[selectedTool.type];
   const toolLabel = TOOL_LABELS[selectedTool.type] ?? selectedTool.type;
   const isPosition = freshTool.type === 'longPosition' || freshTool.type === 'shortPosition';
+  const hasFill = ['rectangle', 'ellipse', 'parallelChannel', 'highlighter'].includes(freshTool.type);
 
   const closeAll = () => {
     setShowWidthPicker(false);
@@ -326,7 +330,7 @@ export default function InlineToolSettings({
 
       <Sep />
 
-      {/* ── Color ──────────────────────────────────────────────────────── */}
+      {/* ── Stroke Color ────────────────────────────────────────────────── */}
       <InlineColorSwatch
         value={style.color}
         onChange={(color) => updateStyle({ color })}
@@ -345,6 +349,28 @@ export default function InlineToolSettings({
         />
         <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
       </InlineColorSwatch>
+
+      {/* ── Fill Color (shapes only) ─────────────────────────────────── */}
+      {hasFill && (
+        <InlineColorSwatch
+          value={(style as any).fillColor || 'transparent'}
+          onChange={(color) => updateStyle({ fillColor: color } as any)}
+          mini
+          showAlpha
+          alpha={(style as any).fillOpacity ?? 0.15}
+          onAlphaChange={(a) => updateStyle({ fillOpacity: a } as any)}
+          className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors cursor-pointer"
+        >
+          <div
+            className="w-3.5 h-3.5 rounded-sm flex-shrink-0"
+            style={{
+              backgroundColor: (style as any).fillColor || 'transparent',
+              border: '1px dashed rgba(255,255,255,0.3)',
+            }}
+          />
+          <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
+        </InlineColorSwatch>
+      )}
 
       {/* ── Line width ─────────────────────────────────────────────────── */}
       <div className="relative">
@@ -602,23 +628,38 @@ export default function InlineToolSettings({
       </div>
 
       {/* ── Dynamic tool properties ────────────────────────────────────── */}
-      <div className="relative">
+      <div ref={settingsBtnRef} className="relative">
         <ActionBtn
-          onClick={() => { closeAll(); setShowDynamicSettings(!showDynamicSettings); }}
+          onClick={() => {
+            closeAll();
+            const open = !showDynamicSettings;
+            setShowDynamicSettings(open);
+            if (open && settingsBtnRef.current) {
+              const rect = settingsBtnRef.current.getBoundingClientRect();
+              setSettingsPanelPos({
+                top: rect.bottom + 4,
+                right: window.innerWidth - rect.right,
+              });
+            }
+          }}
           active={showDynamicSettings}
           activeColor="var(--primary)"
           title="Tool properties"
         >
           <Settings2 size={12} strokeWidth={1.5} />
         </ActionBtn>
+      </div>
 
-        {showDynamicSettings && (
+      {/* Portal render — escapes overflow-x-auto clipping */}
+      {showDynamicSettings && settingsPanelPos && typeof document !== 'undefined' && createPortal(
+        <div style={{ position: 'fixed', top: settingsPanelPos.top, right: settingsPanelPos.right, zIndex: 9999 }}>
           <DynamicToolSettingsPanel
             tool={freshTool}
             onUpdate={() => { onRender?.(); }}
           />
-        )}
-      </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

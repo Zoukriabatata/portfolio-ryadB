@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useChartTemplatesStore, type ChartTemplate } from '@/stores/useChartTemplatesStore';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
+import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import type { TimeframeSeconds } from '@/lib/live/HierarchicalAggregator';
 import type { SharedRefs, CustomColors, CrosshairSettings, CandleSettings, BackgroundSettings } from './types';
 import {
@@ -19,6 +20,7 @@ interface UseChartSettingsParams {
 }
 
 export function useChartSettings({ refs, timeframe, handleTimeframeChange, customColors, setCustomColors }: UseChartSettingsParams) {
+  const isBroadcastingRef = useRef(false);
   const [crosshairSettings, setCrosshairSettings] = useState<CrosshairSettings>(DEFAULT_CROSSHAIR_SETTINGS);
   const [candleSettings, setCandleSettings] = useState<CandleSettings>(DEFAULT_CANDLE_SETTINGS);
   const [backgroundSettings, setBackgroundSettings] = useState<BackgroundSettings>(DEFAULT_BACKGROUND_SETTINGS);
@@ -152,6 +154,7 @@ export function useChartSettings({ refs, timeframe, handleTimeframeChange, custo
    */
   const handleSaveTemplate = useCallback((name: string) => {
     const prefs = usePreferencesStore.getState();
+    const indicatorState = useIndicatorStore.getState();
     saveTemplate({
       name,
       type: 'live',
@@ -178,6 +181,19 @@ export function useChartSettings({ refs, timeframe, handleTimeframeChange, custo
         },
         showVolume: prefs.showVolume,
         showCrosshairTooltip: prefs.showCrosshairTooltip,
+        indicators: indicatorState.indicators.map(ind => ({
+          id: ind.id,
+          type: ind.type,
+          enabled: ind.enabled,
+          params: ind.params as Record<string, unknown>,
+          style: ind.style as Record<string, unknown>,
+        })),
+        vpSettings: {
+          showVolumeProfile: prefs.showVolumeProfile,
+          vpProfileMode: prefs.vpProfileMode,
+          vpHistoryDepth: prefs.vpHistoryDepth,
+          vpPanelSide: prefs.vpPanelSide,
+        },
       },
     });
   }, [saveTemplate, showGrid, timeframe, customColors, crosshairSettings, backgroundSettings, candleSettings]);
@@ -253,6 +269,37 @@ export function useChartSettings({ refs, timeframe, handleTimeframeChange, custo
     if (s.showCrosshairTooltip !== undefined) {
       prefs.setShowCrosshairTooltip(s.showCrosshairTooltip);
     }
+
+    // Indicators
+    if (s.indicators && Array.isArray(s.indicators)) {
+      const indStore = useIndicatorStore.getState();
+      // Reset to saved indicators
+      s.indicators.forEach(saved => {
+        const existing = indStore.indicators.find(i => i.type === saved.type);
+        if (existing) {
+          indStore.updateIndicator(existing.id, {
+            enabled: saved.enabled,
+            params: saved.params as Record<string, number>,
+          });
+        }
+      });
+    }
+
+    // Volume profile settings
+    if (s.vpSettings) {
+      const vp = s.vpSettings;
+      if (vp.showVolumeProfile !== undefined) prefs.setShowVolumeProfile(vp.showVolumeProfile);
+      if (vp.vpProfileMode !== undefined) prefs.setVPSetting('vpProfileMode', vp.vpProfileMode as 'session' | 'daily' | 'visible' | 'custom');
+      if (vp.vpHistoryDepth !== undefined) prefs.setVPSetting('vpHistoryDepth', vp.vpHistoryDepth);
+      if (vp.vpPanelSide !== undefined) prefs.setVPSetting('vpPanelSide', vp.vpPanelSide);
+    }
+
+    // Broadcast to all other chart instances (only if not already handling a broadcast)
+    if (!isBroadcastingRef.current && typeof window !== 'undefined') {
+      isBroadcastingRef.current = true;
+      window.dispatchEvent(new CustomEvent('chart:loadTemplate', { detail: template }));
+      isBroadcastingRef.current = false;
+    }
   }, [refs, handleTimeframeChange, setCustomColors]);
 
   /**
@@ -261,6 +308,20 @@ export function useChartSettings({ refs, timeframe, handleTimeframeChange, custo
   const availableTemplates = useMemo(() => {
     return getTemplatesByType('live');
   }, [getTemplatesByType, templates]);
+
+  // Listen for template broadcasts from other chart instances
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if (isBroadcastingRef.current) return; // Skip if we dispatched this
+      const template = (e as CustomEvent<ChartTemplate>).detail;
+      if (!template) return;
+      isBroadcastingRef.current = true;
+      handleLoadTemplate(template);
+      isBroadcastingRef.current = false;
+    };
+    window.addEventListener('chart:loadTemplate', handler);
+    return () => window.removeEventListener('chart:loadTemplate', handler);
+  }, [handleLoadTemplate]);
 
   return {
     crosshairSettings,

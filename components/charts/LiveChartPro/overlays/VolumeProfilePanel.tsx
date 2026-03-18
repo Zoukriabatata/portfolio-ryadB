@@ -23,6 +23,7 @@ interface VolumeProfilePanelProps {
   priceMax: number;
   chartHeight: number;
   width?: number;
+  side?: 'left' | 'right';
   theme?: {
     background: string;
     border: string;
@@ -57,6 +58,7 @@ export default function VolumeProfilePanel({
   priceMax,
   chartHeight,
   width = 140,
+  side = 'right',
   theme = DEFAULT_THEME,
   vpColors,
   vpBackground,
@@ -90,7 +92,7 @@ export default function VolumeProfilePanel({
     return ((priceMax - price) / (priceMax - priceMin)) * chartHeight;
   }, [priceMin, priceMax, chartHeight]);
 
-  const renderProfile = useCallback(() => {
+  const renderProfile = useCallback((currentSide: 'left' | 'right' = 'right') => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -164,8 +166,8 @@ export default function VolumeProfilePanel({
     const valPrice = valueArea.val;
     const pocPrice = valueArea.poc;
 
-    // Bars grow right-to-left: anchor at right edge
-    const barRight = w - 4;
+    // Anchor and direction depend on panel side
+    const isLeft = currentSide === 'left';
     const barMaxWidth = w - 12;
 
     // ── Value Area shading band ──
@@ -194,20 +196,23 @@ export default function VolumeProfilePanel({
       const totalBarW = intensity * barMaxWidth;
       const barY = y - barHeight / 2;
 
-      // Bars grow left from barRight: ask on right (near price axis), bid on left
-      const askW = bin.totalVolume > 0 ? (bin.askVolume / bin.totalVolume) * totalBarW : 0;
       const bidW = bin.totalVolume > 0 ? (bin.bidVolume / bin.totalVolume) * totalBarW : 0;
-      const barX = barRight - totalBarW;  // leftmost x of bar
+      const askW = bin.totalVolume > 0 ? (bin.askVolume / bin.totalVolume) * totalBarW : 0;
+
+      // Coordinates: left side grows right from edge; right side grows left from edge
+      const barX = isLeft ? 4 : (w - 4) - totalBarW;
+      const bidStartX = isLeft ? barX : barX;
+      const askStartX = isLeft ? barX + bidW : (w - 4) - askW;
 
       // ── POC highlight glow background ──
       if (isPOC) {
         ctx.fillStyle = VP_COLORS.poc;
         ctx.globalAlpha = 0.12 * vpOpacity;
-        ctx.fillRect(barX - 5, barY - 2, totalBarW + 6, barHeight + 4);
+        ctx.fillRect(barX - (isLeft ? 1 : 5), barY - 2, totalBarW + 6, barHeight + 4);
         ctx.globalAlpha = 1;
       }
 
-      // ── Bid bar (left portion, further from price axis) ──
+      // ── Bid bar ──
       if (bidW > 0.5) {
         if (isPOC) {
           ctx.fillStyle = VP_COLORS.poc;
@@ -219,10 +224,10 @@ export default function VolumeProfilePanel({
           ctx.fillStyle = bidColor;
           ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
         }
-        ctx.fillRect(barX, barY, bidW, barHeight);
+        ctx.fillRect(bidStartX, barY, bidW, barHeight);
       }
 
-      // ── Ask bar (right portion, closer to price axis) ──
+      // ── Ask bar ──
       if (askW > 0.5) {
         if (isPOC) {
           ctx.fillStyle = VP_COLORS.poc;
@@ -234,14 +239,14 @@ export default function VolumeProfilePanel({
           ctx.fillStyle = askColor;
           ctx.globalAlpha = (0.15 + intensity * 0.25) * vpOpacity;
         }
-        ctx.fillRect(barRight - askW, barY, askW, barHeight);
+        ctx.fillRect(askStartX, barY, askW, barHeight);
       }
 
       // ── Thin separator between bid/ask ──
       if (bidW > 1 && askW > 1) {
         ctx.fillStyle = VP_COLORS.separator;
         ctx.globalAlpha = 0.6;
-        ctx.fillRect(barRight - askW - 0.5, barY, 1, barHeight);
+        ctx.fillRect(isLeft ? barX + bidW - 0.5 : askStartX - 0.5, barY, 1, barHeight);
       }
 
       // ── POC outline ──
@@ -252,34 +257,46 @@ export default function VolumeProfilePanel({
         ctx.strokeRect(barX, barY, totalBarW, barHeight);
       }
 
-      // ── Volume text to the left of the bar ──
+      // ── Volume text ──
       if (barHeight >= 8 && totalBarW > 30 && intensity > 0.15) {
         ctx.globalAlpha = isPOC ? 0.95 : 0.7;
         ctx.fillStyle = isPOC ? '#ffffff' : theme.textMuted;
         ctx.font = `${isPOC ? 'bold ' : ''}${barHeight >= 12 ? 8 : 7}px "Consolas", monospace`;
-        ctx.textAlign = 'right';
         const volText = bin.totalVolume >= 1000
           ? `${(bin.totalVolume / 1000).toFixed(1)}K`
           : Math.round(bin.totalVolume).toString();
-        const textX = barX - 3;
-        if (textX > 30) {
-          ctx.fillText(volText, textX, y + 3);
+        if (isLeft) {
+          ctx.textAlign = 'left';
+          const textX = barX + totalBarW + 3;
+          if (textX + 30 < w) ctx.fillText(volText, textX, y + 3);
+        } else {
+          ctx.textAlign = 'right';
+          const textX = barX - 3;
+          if (textX > 30) ctx.fillText(volText, textX, y + 3);
         }
       }
 
       ctx.globalAlpha = 1;
     }
 
-    // ── POC arrow marker (triangle on right edge, pointing left) ──
+    // ── POC arrow marker ──
     const pocY = priceToY(pocPrice);
     if (pocY >= 0 && pocY <= h) {
       ctx.save();
       ctx.fillStyle = VP_COLORS.poc;
       ctx.globalAlpha = 0.9;
       ctx.beginPath();
-      ctx.moveTo(w, pocY - 4);
-      ctx.lineTo(w - 5, pocY);
-      ctx.lineTo(w, pocY + 4);
+      if (isLeft) {
+        // Left edge, pointing right
+        ctx.moveTo(0, pocY - 4);
+        ctx.lineTo(5, pocY);
+        ctx.lineTo(0, pocY + 4);
+      } else {
+        // Right edge, pointing left
+        ctx.moveTo(w, pocY - 4);
+        ctx.lineTo(w - 5, pocY);
+        ctx.lineTo(w, pocY + 4);
+      }
       ctx.closePath();
       ctx.fill();
       ctx.restore();
@@ -325,14 +342,16 @@ export default function VolumeProfilePanel({
       c.globalAlpha = 1;
     }
 
+    // For left side: pills align left (x = barLeft + offset); for right: pills align at barRight
+    const pillRightEdge = isLeft ? 4 + barMaxWidth + 1 : w - 4 + 1;
     if (vahY >= 0 && vahY <= h) {
-      renderPillLabel('VAH', barRight + 1, vahY - 10, VP_COLORS.vahValLine);
+      renderPillLabel('VAH', isLeft ? pillRightEdge : pillRightEdge, vahY - 10, VP_COLORS.vahValLine);
     }
     if (valY >= 0 && valY <= h) {
-      renderPillLabel('VAL', barRight + 1, valY + 1, VP_COLORS.vahValLine);
+      renderPillLabel('VAL', isLeft ? pillRightEdge : pillRightEdge, valY + 1, VP_COLORS.vahValLine);
     }
     if (pocY >= 0 && pocY <= h) {
-      renderPillLabel('POC', barRight - 4, pocY - 5, VP_COLORS.poc);
+      renderPillLabel('POC', isLeft ? pillRightEdge - 4 : pillRightEdge - 4, pocY - 5, VP_COLORS.poc);
     }
 
     // ── Stats: delta top, vol bottom ──
@@ -353,7 +372,7 @@ export default function VolumeProfilePanel({
     ctx.fillStyle = theme.textMuted;
     ctx.fillText(`Vol: ${volStr}`, w / 2, h - 8);
 
-  }, [data, priceMin, priceMax, chartHeight, width, theme, priceToY, currentDpr, vpColors, vpBackground]);
+  }, [data, priceMin, priceMax, chartHeight, width, side, theme, priceToY, currentDpr, vpColors, vpBackground]);
 
   // Hover tooltip
   useEffect(() => {
@@ -402,8 +421,8 @@ export default function VolumeProfilePanel({
   }, [data.bins, priceMin, priceMax, chartHeight]);
 
   useEffect(() => {
-    renderProfile();
-  }, [renderProfile]);
+    renderProfile(side);
+  }, [renderProfile, side]);
 
   return (
     <div className="relative flex-shrink-0" style={{ width, height: chartHeight }}>

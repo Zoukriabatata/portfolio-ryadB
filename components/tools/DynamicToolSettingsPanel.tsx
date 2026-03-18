@@ -116,8 +116,7 @@ export function DynamicToolSettingsPanel({ tool, onUpdate }: DynamicToolSettings
 
   return (
     <div
-      className="absolute right-0 top-full mt-1 w-[280px] bg-[#111315] border border-[#1C1F23] rounded-[10px]
-        shadow-xl z-50 overflow-hidden"
+      className="w-[280px] bg-[#111315] border border-[#1C1F23] rounded-[10px] shadow-xl overflow-hidden"
     >
       {/* Header */}
       <div className="px-3 py-2 border-b border-[#1C1F23]">

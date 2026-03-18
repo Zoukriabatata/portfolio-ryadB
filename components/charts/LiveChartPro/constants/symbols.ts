@@ -20,10 +20,7 @@ export const ASSET_CATEGORY_ICONS: Record<AssetCategory, React.FC<{ size?: numbe
 
 export const ASSET_CATEGORIES: { id: AssetCategory; label: string }[] = [
   { id: 'crypto', label: 'Crypto' },
-  { id: 'stocks', label: 'Stocks' },
   { id: 'futures', label: 'Futures' },
-  { id: 'forex', label: 'Forex' },
-  { id: 'indices', label: 'Indices' },
   { id: 'options', label: 'Options' },
 ];
 

@@ -56,7 +56,7 @@ export const useAccountPrefsStore = create<AccountPrefsState>()(
       language: 'en',
       timezone: 'Europe/Paris',
       compactMode: false,
-      soundEnabled: false,
+      soundEnabled: true,
       alertSound: 'beep',
       defaultSymbol: 'BTCUSDT',
       defaultTimeframe: '5m',
