@@ -525,15 +525,18 @@ Ensuite teste méthodiquement:
   ];
 
   let finalReport: Record<string, unknown> | null = null;
+  // Model fallback: start with 70b, downgrade to 8b on 429 rate-limit
+  const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'] as const;
+  let modelIdx = 0;
 
-  send({ type: 'thinking', text: `🤖 Agent Groq (Llama 3.3 70B) démarré — test complet de ${baseUrl}` });
+  send({ type: 'thinking', text: `🤖 Agent Groq (${GROQ_MODELS[modelIdx]}) démarré — test complet de ${baseUrl}` });
 
   for (let i = 0; i < 18 && !finalReport; i++) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: GROQ_MODELS[modelIdx],
         messages,
         tools: GROQ_TOOLS,
         tool_choice: 'auto',
@@ -544,6 +547,13 @@ Ensuite teste méthodiquement:
 
     if (!res.ok) {
       const err = await res.text();
+      // On rate-limit, downgrade to smaller model and retry immediately
+      if (res.status === 429 && modelIdx < GROQ_MODELS.length - 1) {
+        modelIdx++;
+        send({ type: 'thinking', text: `⚠️ Rate limit — basculement sur ${GROQ_MODELS[modelIdx]}` });
+        i--; // don't count this iteration
+        continue;
+      }
       throw new Error(`Groq API error ${res.status}: ${err.slice(0, 200)}`);
     }
 
@@ -595,7 +605,7 @@ Ensuite teste méthodiquement:
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: GROQ_MODELS[modelIdx],
         messages,
         tools: GROQ_TOOLS,
         tool_choice: { type: 'function', function: { name: 'write_report' } },

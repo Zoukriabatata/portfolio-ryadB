@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'llama-3.3-70b-versatile',
+              model: 'llama-3.1-8b-instant',
               messages: systemMsg
                 ? groqMessages
                 : [{ role: 'system', content: 'Tu es un assistant support pour OrderFlow, une plateforme de trading professionnelle.' }, ...groqMessages],
