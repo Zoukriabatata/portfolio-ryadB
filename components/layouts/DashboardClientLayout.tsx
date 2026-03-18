@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { SessionProvider } from 'next-auth/react';
+import { SessionProvider, useSession } from 'next-auth/react';
 import Logo from '@/components/ui/Logo';
+import { LiveSignalBadge } from '@/components/ai/LiveSignalBadge';
 import { useUIThemeStore, applyUITheme, UI_THEMES, type UIThemeId } from '@/stores/useUIThemeStore';
 import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
@@ -28,6 +29,7 @@ import {
   Wifi,
   WifiOff,
   TrendingUp,
+  BrainCircuit,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -68,7 +70,7 @@ import { useAutoTrackTrades } from '@/hooks/useAutoTrackTrades';
 // Only `display` toggles — no unmount/remount, no data loss.
 // ============================================================
 
-const CHART_ROUTES = ['/live', '/footprint', '/footprintTEST', '/liquidity', '/gex', '/volatility', '/bias', '/flow'] as const;
+const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility', '/bias', '/flow'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
 function ChartLoadingFallback({ label }: { label: string }) {
@@ -119,10 +121,6 @@ const FootprintPageContent = dynamic(() => import('@/components/pages/FootprintP
   ssr: false,
   loading: () => <ChartLoadingFallback label="Footprint" />,
 });
-const FootprintTESTPageContent = dynamic(() => import('@/components/pages/FootprintTESTPageContent'), {
-  ssr: false,
-  loading: () => <ChartLoadingFallback label="FootprintTEST" />,
-});
 const LiquidityPageContent = dynamic(() => import('@/components/pages/LiquidityPageContent'), {
   ssr: false,
   loading: () => <ChartLoadingFallback label="Heatmap" />,
@@ -147,7 +145,6 @@ const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
   '/footprint': FootprintPageContent,
-  '/footprintTEST': FootprintTESTPageContent,
   '/liquidity': LiquidityPageContent,
   '/gex': GEXPageContent,
   '/volatility': VolatilityPageContent,
@@ -192,22 +189,46 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Tools',
     items: [
-      { href: '/replay', labelKey: 'nav.replay', Icon: History, shortcut: '9' },
+      { href: '/replay',  labelKey: 'nav.replay',  Icon: History,        shortcut: '9' },
       { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8' },
-      { href: '/news', labelKey: 'nav.news', Icon: Newspaper, shortcut: '7' },
-    ],
-  },
-  {
-    label: 'Market',
-    items: [
-      { href: '/boutique', labelKey: 'nav.dataFeeds', Icon: Store, shortcut: '0' },
+      { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7' },
+      { href: '/ai',      labelKey: 'nav.ai',      Icon: BrainCircuit,    shortcut: '' },
     ],
   },
 ];
 
 // Flat list for keyboard shortcuts and route matching
-const ALL_NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
+// Includes boutique (Data Feeds) even though it's displayed on the right side
+const ALL_NAV_ITEMS = [
+  ...NAV_GROUPS.flatMap(g => g.items),
+  { href: '/boutique', labelKey: 'nav.dataFeeds' as const, Icon: Store, shortcut: '0' },
+];
 
+
+// ============================================================
+// USER AVATAR — reads live session so it updates after upload
+// Must be rendered inside <SessionProvider>
+// ============================================================
+function NavUserAvatar() {
+  const { data: session } = useSession();
+  const avatarUrl = session?.user?.image;
+
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt="Account"
+        width={22}
+        height={22}
+        className="rounded-full object-cover"
+        style={{ width: 22, height: 22 }}
+      />
+    );
+  }
+
+  return <User size={14} strokeWidth={1.5} className="text-[var(--text-muted)]" />;
+}
 
 export function DashboardClientLayout({
   children,
@@ -381,66 +402,71 @@ export function DashboardClientLayout({
           ============================================================ */}
       {!isLandingPage && (
       <nav
-        className="h-12 flex-shrink-0 border-b border-[var(--border)] bg-[var(--background)] relative z-50"
+        className="h-11 flex-shrink-0 border-b border-[var(--border)] relative z-50"
+        style={{ background: 'var(--background)' }}
         role="navigation"
         aria-label="Main navigation"
       >
-        <div className="h-full px-3 flex items-center">
-          {/* Hamburger - mobile only */}
+        <div className="h-full px-3 flex items-center gap-1">
+
+          {/* Hamburger — mobile only */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--surface)] transition-colors sm:hidden mr-2"
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--surface)] transition-colors sm:hidden mr-1"
             aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
             aria-expanded={showMobileMenu}
           >
-            {showMobileMenu ? <X size={16} /> : <Menu size={16} />}
+            {showMobileMenu ? <X size={15} strokeWidth={1.5} /> : <Menu size={15} strokeWidth={1.5} />}
           </button>
 
-          {/* Logo — compact */}
-          <Link href="/" className="flex-shrink-0 mr-4" aria-label="Home">
+          {/* Logo */}
+          <Link href="/dashboard" className="flex-shrink-0 mr-3" aria-label="Dashboard">
             <Logo size="sm" showText={false} animated={true} />
           </Link>
 
-          {/* Grouped Navigation — hidden on mobile */}
-          <div className="hidden sm:flex items-center flex-1 h-full">
+          {/* Grouped navigation — desktop */}
+          <div className="hidden sm:flex items-center flex-1 gap-0.5">
             {NAV_GROUPS.map((group, gi) => (
-              <div key={group.label} className="flex items-center h-full">
+              <div key={group.label} className="flex items-center gap-0.5">
                 {/* Group divider */}
-                {gi > 0 && (
-                  <div className="w-px h-5 bg-[var(--border)] mx-1.5" />
-                )}
+                {gi > 0 && <div className="w-px h-4 bg-[var(--border)] mx-1.5" />}
 
-                {/* Group items */}
+                {/* Group label pill */}
+                <span className="hidden xl:inline-flex text-[9px] font-bold uppercase tracking-widest
+                                 text-[var(--text-dimmed)] mr-1 select-none">
+                  {group.label}
+                </span>
+
+                {/* Items */}
                 {group.items.map((item) => {
                   const active = isNavActive(item.href);
                   const IconComp = item.Icon;
                   const label = t(item.labelKey);
-
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={`
-                        relative flex items-center gap-1.5 px-2.5 h-full text-xs font-medium transition-colors duration-150
+                        relative flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium
+                        transition-all duration-150
                         ${active
-                          ? 'text-[var(--text-primary)]'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]/50'
+                          ? 'bg-[var(--surface)] text-[var(--text-primary)]'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]/60'
                         }
                       `}
-                      title={`${label} (Alt+${item.shortcut})`}
-                      aria-label={`${label} — Alt+${item.shortcut}`}
+                      title={item.shortcut ? `${label} (Alt+${item.shortcut})` : label}
                       aria-current={active ? 'page' : undefined}
                     >
                       <IconComp
-                        size={16}
+                        size={14}
                         strokeWidth={1.5}
-                        className={`flex-shrink-0 transition-colors duration-150 ${active ? 'text-[var(--primary)]' : ''}`}
+                        className={`flex-shrink-0 ${active ? 'text-[var(--primary)]' : ''}`}
                       />
-                      <span className="hidden lg:inline">{label}</span>
-
-                      {/* Active indicator — bottom accent line */}
+                      <span className="hidden lg:inline whitespace-nowrap">{label}</span>
+                      {/* Active pill indicator */}
                       {active && (
-                        <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[var(--primary)]" />
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1
+                                         rounded-full bg-[var(--primary)]" />
                       )}
                     </Link>
                   );
@@ -449,56 +475,92 @@ export function DashboardClientLayout({
             ))}
           </div>
 
-          {/* Right Side — Status, Theme, Account */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            {/* Live Status */}
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--surface)]/60 border border-[var(--border)]">
-              <div className="relative flex items-center justify-center w-2 h-2">
-                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-40" />
+          {/* Right controls */}
+          <div className="flex items-center gap-1 ml-auto">
+
+            {/* Live dot */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md
+                            border border-[var(--border)] bg-[var(--surface)]/50">
+              <div className="relative w-1.5 h-1.5">
+                <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               </div>
-              <span className="text-[10px] font-semibold text-emerald-500 tracking-wide hidden md:inline">Live</span>
+              <span className="hidden md:inline text-[10px] font-semibold text-emerald-500 tracking-wide">
+                Live
+              </span>
             </div>
 
-            {/* Theme Picker */}
+            {/* AI signal badge */}
+            <LiveSignalBadge />
+
+            {/* Data Feeds */}
+            <Link
+              href="/boutique"
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors
+                          text-[11px] font-medium ${
+                isNavActive('/boutique')
+                  ? 'bg-[var(--surface)] text-[var(--text-primary)] border-[var(--primary)]/30'
+                  : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]'
+              }`}
+              title="Data Feeds (Alt+0)"
+            >
+              <Store size={13} strokeWidth={1.5}
+                className={isNavActive('/boutique') ? 'text-[var(--primary)]' : ''} />
+              <span className="hidden md:inline">{t('nav.dataFeeds')}</span>
+            </Link>
+
+            {/* Theme picker */}
             <div className="relative">
               <button
                 onClick={() => setShowThemePicker(!showThemePicker)}
-                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[var(--surface)] transition-colors"
-                title="Change theme"
+                className="w-7 h-7 flex items-center justify-center rounded-md
+                           hover:bg-[var(--surface)] transition-colors"
+                title="Change theme (Ctrl+T)"
                 aria-label="Change theme"
                 aria-expanded={showThemePicker}
               >
-                <Palette size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
+                <Palette size={14} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </button>
               {showThemePicker && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-52 z-50 p-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-xl">
-                    <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-2 py-1 mb-0.5">
-                      Theme
+                  <div className="absolute right-0 top-full mt-1 w-48 z-50 rounded-lg border
+                                  border-[var(--border)] shadow-xl overflow-hidden"
+                    style={{ background: 'var(--surface)' }}>
+                    <div className="px-3 py-2 border-b border-[var(--border)]">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                        Theme
+                      </span>
                     </div>
-                    {UI_THEMES.map((theme) => (
-                      <button
-                        key={theme.id}
-                        onClick={() => { setTheme(theme.id); syncFootprintWithUITheme(theme.id); setShowThemePicker(false); }}
-                        className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left transition-colors duration-100 ${
-                          activeTheme === theme.id
-                            ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)]'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
-                        }`}
-                      >
-                        <div className="flex gap-0.5">
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.preview.bg, border: '1px solid rgba(255,255,255,0.1)' }} />
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.preview.primary }} />
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.preview.accent }} />
-                        </div>
-                        <span className="text-[11px] font-medium flex-1">{theme.name}</span>
-                        {activeTheme === theme.id && (
-                          <Check size={12} className="text-[var(--primary)] flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
+                    <div className="p-1">
+                      {UI_THEMES.map((theme) => (
+                        <button
+                          key={theme.id}
+                          onClick={() => {
+                            setTheme(theme.id);
+                            syncFootprintWithUITheme(theme.id);
+                            setShowThemePicker(false);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left
+                                      transition-colors duration-100 ${
+                            activeTheme === theme.id
+                              ? 'bg-[var(--surface-elevated)] text-[var(--text-primary)]'
+                              : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                          }`}
+                        >
+                          <div className="flex gap-0.5">
+                            {[theme.preview.bg, theme.preview.primary, theme.preview.accent].map((c, i) => (
+                              <div key={i} className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: c, border: '1px solid rgba(255,255,255,0.1)' }} />
+                            ))}
+                          </div>
+                          <span className="text-[11px] font-medium flex-1">{theme.name}</span>
+                          {activeTheme === theme.id && (
+                            <Check size={11} className="text-[var(--primary)]" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
@@ -507,10 +569,11 @@ export function DashboardClientLayout({
             {/* Account */}
             <Link
               href="/account"
-              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[var(--surface)] transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md
+                         hover:bg-[var(--surface)] transition-colors overflow-hidden"
               aria-label="Account settings"
             >
-              <User size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
+              <NavUserAvatar />
             </Link>
           </div>
         </div>
@@ -536,20 +599,22 @@ export function DashboardClientLayout({
           />
           {/* Drawer — grouped */}
           <div
-            className="fixed top-12 left-0 bottom-0 w-[220px] z-40 border-r border-[var(--border)] overflow-y-auto sm:hidden custom-scrollbar"
+            className="fixed top-11 left-0 bottom-0 w-[200px] z-40 border-r border-[var(--border)]
+                       overflow-y-auto sm:hidden custom-scrollbar"
             style={{
-              backgroundColor: 'var(--background)',
+              background: 'var(--background)',
               transform: showMobileMenu ? 'translateX(0)' : 'translateX(-100%)',
-              transition: 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
+              transition: 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
             role="menu"
             aria-label="Mobile navigation"
           >
-            <div className="p-2">
-              {NAV_GROUPS.map((group, gi) => (
+            <div className="p-2 space-y-1">
+              {NAV_GROUPS.map((group) => (
                 <div key={group.label}>
                   {/* Group label */}
-                  <div className="text-[10px] font-semibold text-[var(--text-dimmed)] uppercase tracking-wider px-3 pt-3 pb-1">
+                  <div className="text-[9px] font-bold uppercase tracking-widest
+                                  text-[var(--text-dimmed)] px-3 pt-3 pb-1.5">
                     {group.label}
                   </div>
                   {group.items.map((item) => {
@@ -560,25 +625,23 @@ export function DashboardClientLayout({
                         key={item.href}
                         href={item.href}
                         onClick={() => setShowMobileMenu(false)}
-                        className={`
-                          flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors duration-100
-                          ${active
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md
+                                    transition-colors duration-100 ${
+                          active
                             ? 'bg-[var(--surface)] text-[var(--text-primary)]'
-                            : 'text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)]'
-                          }
-                        `}
+                            : 'text-[var(--text-muted)] hover:bg-[var(--surface)]/70 hover:text-[var(--text-secondary)]'
+                        }`}
                         role="menuitem"
                         aria-current={active ? 'page' : undefined}
                       >
-                        <IconComp
-                          size={16}
-                          strokeWidth={1.5}
-                          className={active ? 'text-[var(--primary)]' : ''}
-                        />
-                        <span className="text-[13px] font-medium flex-1">{t(item.labelKey)}</span>
-                        <span className="text-[9px] text-[var(--text-dimmed)] font-mono">
-                          Alt+{item.shortcut}
-                        </span>
+                        <IconComp size={14} strokeWidth={1.5}
+                          className={active ? 'text-[var(--primary)]' : ''} />
+                        <span className="text-[12px] font-medium flex-1">{t(item.labelKey)}</span>
+                        {item.shortcut && (
+                          <span className="text-[9px] text-[var(--text-dimmed)] font-mono">
+                            {item.shortcut}
+                          </span>
+                        )}
                       </Link>
                     );
                   })}
@@ -586,26 +649,35 @@ export function DashboardClientLayout({
               ))}
             </div>
 
-            {/* Bottom — Home & Account */}
-            <div className="border-t border-[var(--border)] p-2 mt-1">
-              <Link
-                href="/"
-                onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] transition-colors"
-                role="menuitem"
-              >
-                <Home size={16} strokeWidth={1.5} />
-                <span className="text-[13px] font-medium">Home</span>
-              </Link>
-              <Link
-                href="/account"
-                onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] transition-colors"
-                role="menuitem"
-              >
-                <User size={16} strokeWidth={1.5} />
-                <span className="text-[13px] font-medium">{t('nav.account')}</span>
-              </Link>
+            {/* Bottom row */}
+            <div className="border-t border-[var(--border)] p-2 mt-1 space-y-0.5">
+              {[
+                { href: '/boutique', label: t('nav.dataFeeds'), Icon: Store },
+                { href: '/',         label: 'Home',             Icon: Home  },
+                { href: '/account',  label: t('nav.account'),   Icon: User  },
+              ].map(({ href, label, Icon: IconComp }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setShowMobileMenu(false)}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors ${
+                    isNavActive(href)
+                      ? 'bg-[var(--surface)] text-[var(--text-primary)]'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--surface)]/70 hover:text-[var(--text-secondary)]'
+                  }`}
+                  role="menuitem"
+                >
+                  {href === '/account' ? (
+                    <span className="w-[14px] h-[14px] flex items-center justify-center overflow-hidden rounded-full flex-shrink-0">
+                      <NavUserAvatar />
+                    </span>
+                  ) : (
+                    <IconComp size={14} strokeWidth={1.5}
+                      className={isNavActive(href) ? 'text-[var(--primary)]' : ''} />
+                  )}
+                  <span className="text-[12px] font-medium">{label}</span>
+                </Link>
+              ))}
             </div>
           </div>
         </>

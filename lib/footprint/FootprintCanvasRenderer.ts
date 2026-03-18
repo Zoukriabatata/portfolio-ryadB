@@ -299,7 +299,7 @@ export class FootprintCanvasRenderer {
    * Previously was two separate forEach loops over candle.levels
    */
   renderFootprintCandles(params: RenderParams): void {
-    const { ctx, layout, metrics, colors, fonts, features, zoom, rowH, fpWidth, ohlcWidth } = params;
+    const { ctx, layout, metrics, colors, fonts, features, zoom, rowH, fpWidth, ohlcWidth, tickSize } = params;
     const { footprintAreaY, footprintAreaHeight } = metrics;
 
     // Dynamic font scaling with zoom (Phase 2)
@@ -390,7 +390,7 @@ export class FootprintCanvasRenderer {
       const volFilterMode = features.volumeFilterMode ?? 'relative';
 
       // Compact mode: cells too small for text → bars only + per-candle delta label
-      // Threshold: need at least (fontSize + 4) px of row height for text to fit without overlap
+      // (rowH-based coarse check — fine-grained per-level showLevelText is computed inside the loop)
       const showCellText = rowH >= fontSize + 4;
 
       candle.levels.forEach((level, price) => {
@@ -406,8 +406,15 @@ export class FootprintCanvasRenderer {
           if (levelVol < threshold) return;
         }
 
-        const cellY = y - rowH / 2;
-        const barH = rowH - 2;
+        // Actual pixel spacing between this level and the next — caps cell height to prevent overlap
+        const pixelSpacing = Math.abs(layout.priceToY(price + tickSize, metrics) - y);
+        const effectiveRowH = Math.min(rowH, pixelSpacing - 1);
+        if (effectiveRowH < 2) return; // cell invisible at this zoom — skip entirely
+
+        const cellY = y - effectiveRowH / 2;
+        const barH = effectiveRowH - 2;
+        // Text visible only when there is enough vertical AND horizontal space
+        const showLevelText = effectiveRowH >= 8 && fpWidth >= 38;
         const isPOC = price === candle.poc;
         const textY = y + fontSize / 3;
         const totalVol = level.bidVolume + level.askVolume;
@@ -418,14 +425,14 @@ export class FootprintCanvasRenderer {
           const heatColor = this.getHeatmapColor(intensity);
           ctx.fillStyle = heatColor;
           ctx.globalAlpha = intensity * heatmapIntensity;
-          ctx.fillRect(cellStartX + 2, cellY + 1, fpWidth - 4, rowH - 2);
+          ctx.fillRect(cellStartX + 2, cellY + 1, fpWidth - 4, effectiveRowH - 2);
           ctx.globalAlpha = 1;
         }
 
         // ─── LAYER 1: Delta bars ───
         // In compact mode (no text), bars are more opaque to carry the full visual signal
-        const barBaseAlpha  = showCellText ? 0.15 : 0.45;
-        const barRangeAlpha = showCellText ? 0.25 : 0.45;
+        const barBaseAlpha  = showLevelText ? 0.15 : 0.45;
+        const barRangeAlpha = showLevelText ? 0.25 : 0.45;
         const clusterMode = features.clusterDisplayMode ?? 'bid-ask';
         if (clusterMode === 'bid-ask' || clusterMode === 'bid-ask-split') {
           // Two-sided bars (bid left, ask right)
@@ -473,9 +480,9 @@ export class FootprintCanvasRenderer {
         // ─── LAYER 2: POC highlight ───
         if (isPOC && features.showPOC) {
           ctx.fillStyle = 'rgba(251, 191, 36, 0.08)';
-          ctx.fillRect(cellStartX + 2, cellY + 1, fpWidth - 4, rowH - 2);
+          ctx.fillRect(cellStartX + 2, cellY + 1, fpWidth - 4, effectiveRowH - 2);
           ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(cellStartX + 1, cellY + 2, 2, rowH - 4);
+          ctx.fillRect(cellStartX + 1, cellY + 2, 2, effectiveRowH - 4);
         }
 
         // ─── LAYER 2.5: Large trade highlight (Phase 2) ───
@@ -484,12 +491,12 @@ export class FootprintCanvasRenderer {
           ctx.strokeStyle = largeTradeColor;
           ctx.lineWidth = 1.5;
           ctx.globalAlpha = 0.7;
-          ctx.strokeRect(cellStartX + 2, cellY + 1, fpWidth - 4, rowH - 2);
+          ctx.strokeRect(cellStartX + 2, cellY + 1, fpWidth - 4, effectiveRowH - 2);
           ctx.globalAlpha = 1;
         }
 
-        // ─── LAYER 3: Text (bid, separator, ask) — skipped in compact mode ───
-        if (!showCellText) return; // cells too small: bars carry the signal, delta shown per-candle
+        // ─── LAYER 3: Text (bid, separator, ask) — skipped when cell too small ───
+        if (!showLevelText) return; // cells too small: bars carry the signal, delta shown per-candle
         const isLargeTrade = largeTradeEnabled && totalVol > largeTradeMultiplier * avgLevelVol;
 
         if (clusterMode === 'bid-ask' || clusterMode === 'bid-ask-split') {
@@ -1558,12 +1565,21 @@ export class FootprintCanvasRenderer {
     fonts: FootprintFonts,
     currentPrice: number,
     width: number,
+    tickSize = 1,
   ): void {
     if (currentPrice <= 0) return;
 
     const priceY = layout.priceToY(currentPrice, metrics);
     const { footprintAreaY, footprintAreaHeight } = metrics;
     if (priceY < footprintAreaY || priceY > footprintAreaY + footprintAreaHeight) return;
+
+    // Compute label dimensions first so the line stops cleanly at the label edge
+    const decimals = tickSize < 1 ? (String(tickSize).split('.')[1]?.length ?? 0) : 0;
+    const label = currentPrice.toFixed(decimals);
+    ctx.font = `bold ${fonts.priceFontSize}px "Consolas", "Monaco", monospace`;
+    const labelW = colors.currentPriceShowLabel !== false
+      ? Math.max(60, ctx.measureText(label).width + 12)
+      : 0;
 
     // Line style
     ctx.strokeStyle = colors.currentPriceColor;
@@ -1576,7 +1592,7 @@ export class FootprintCanvasRenderer {
 
     ctx.beginPath();
     ctx.moveTo(0, priceY);
-    ctx.lineTo(width - 62, priceY);
+    ctx.lineTo(width - labelW - (labelW > 0 ? 2 : 0), priceY);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -1586,24 +1602,19 @@ export class FootprintCanvasRenderer {
       const labelY = priceY - labelH / 2;
 
       ctx.fillStyle = colors.currentPriceLabelBg || colors.currentPriceColor;
-      ctx.fillRect(width - 60, labelY, 60, labelH);
+      ctx.fillRect(width - labelW, labelY, labelW, labelH);
 
       // Triangle pointer
       ctx.beginPath();
-      ctx.moveTo(width - 62, priceY);
-      ctx.lineTo(width - 60, priceY - 4);
-      ctx.lineTo(width - 60, priceY + 4);
+      ctx.moveTo(width - labelW - 2, priceY);
+      ctx.lineTo(width - labelW, priceY - 4);
+      ctx.lineTo(width - labelW, priceY + 4);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${fonts.priceFontSize}px "Consolas", "Monaco", monospace`;
       ctx.textAlign = 'right';
-      ctx.fillText(
-        `$${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        width - 4,
-        priceY + 4,
-      );
+      ctx.fillText(label, width - 4, priceY + 4);
     }
   }
 

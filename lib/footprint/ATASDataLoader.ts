@@ -283,9 +283,9 @@ export async function loadTickRange(
 
   // Merge all chunks — each chunk is already sorted internally
   // Final sort ensures strict global order (handles any timestamp overlap between chunks)
-  const allTicks: RawTick[] = [];
+  let allTicks: RawTick[] = [];
   for (const chunk of chunkResults) {
-    allTicks.push(...chunk);
+    allTicks = allTicks.concat(chunk);
   }
 
   // Sort by timestamp — critical for OHLC correctness
@@ -511,12 +511,15 @@ export interface FootprintLoadResult {
  *   ETHUSDT → 'window' (4h default) or 'fullday' (25 seconds)
  *   Others  → 'window' or 'fullday'
  *
- * @param config      Full load configuration
- * @param onProgress  Progress callback
+ * @param config           Full load configuration
+ * @param onProgress       Progress callback
+ * @param onSkeletonReady  Skeleton mode only: fired after OHLC is loaded, before ticks.
+ *                         Use to display the chart immediately while ticks load in background.
  */
 export async function loadFootprintData(
   config: LoadConfig,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  onSkeletonReady?: (skeleton: OHLCSkeleton[]) => void
 ): Promise<FootprintLoadResult> {
   const startTime = performance.now();
 
@@ -556,6 +559,9 @@ export async function loadFootprintData(
       const dayStart = dayStartMs ?? getTodayUTCMidnight();
       skeleton = await loadOHLCSkeleton(symbol, dayStart, intervalStr, skeletonLimit, signal);
       onProgress?.(15, `OHLC skeleton: ${skeleton.length} candles loaded`);
+
+      // Notify caller that skeleton is ready — allows early chart display
+      onSkeletonReady?.(skeleton);
 
       // Phase 2: Load recent tick data for footprint detail
       onProgress?.(20, `Loading tick data for last ${hoursBack}h...`);

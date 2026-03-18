@@ -39,12 +39,16 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) return tooManyRequests(rl);
 
     const body = await req.json();
-    const { provider, host, port, username, apiKey } = body;
+    const { provider, host, port, username, apiKey, verified } = body;
 
-    const validProviders = ['IB', 'DXFEED', 'RITHMIC', 'AMP', 'BINANCE', 'BYBIT', 'DERIBIT', 'TRADOVATE', 'CQG', 'DATABENTO'];
+    const validProviders = ['BINANCE', 'BYBIT', 'DERIBIT', 'TRADOVATE', 'DATABENTO', 'DXFEED'];
     if (!provider || !validProviders.includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
     }
+
+    // Only mark CONNECTED when credentials were actually verified against the provider API.
+    // Gateway/local providers (Rithmic, CQG, AMP, IB, dxFeed) send verified:false — save as CONFIGURED.
+    const dbStatus = verified === false ? 'CONFIGURED' : 'CONNECTED';
 
     const config = await prisma.dataFeedConfig.upsert({
       where: {
@@ -58,7 +62,7 @@ export async function POST(req: NextRequest) {
         port: port ? parseInt(port, 10) : null,
         username: username || null,
         apiKey: apiKey || null,
-        status: 'CONNECTED',
+        status: dbStatus,
       },
       create: {
         userId: session.user.id,
@@ -67,7 +71,7 @@ export async function POST(req: NextRequest) {
         port: port ? parseInt(port, 10) : null,
         username: username || null,
         apiKey: apiKey || null,
-        status: 'CONNECTED',
+        status: dbStatus,
       },
     });
 
@@ -92,7 +96,7 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const provider = searchParams.get('provider');
 
-    const validProviders = ['IB', 'DXFEED', 'RITHMIC', 'AMP', 'BINANCE', 'BYBIT', 'DERIBIT', 'TRADOVATE', 'CQG', 'DATABENTO'];
+    const validProviders = ['BINANCE', 'BYBIT', 'DERIBIT', 'TRADOVATE', 'DATABENTO', 'DXFEED'];
     if (!provider || !validProviders.includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
     }

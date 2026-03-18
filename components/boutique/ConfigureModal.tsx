@@ -28,10 +28,11 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
   const { configs, setConfig, updateStatus, removeConfig } = useDataFeedStore();
   const Icon = ICON_MAP[provider.iconName];
   const currentConfig = configs[provider.id];
-  const isConnected = currentConfig?.status === 'connected';
+  const isConnected  = currentConfig?.status === 'connected';
+  const isConfigured = currentConfig?.status === 'configured'; // saved but not verified
 
-  // Mode: show info if already connected, configure if not
-  const [mode, setMode] = useState<ModalMode>(isConnected ? 'info' : 'configure');
+  // Mode: show info if already connected/configured, configure if not
+  const [mode, setMode] = useState<ModalMode>((isConnected || isConfigured) ? 'info' : 'configure');
 
   // Pre-fill fields from existing store config
   const [fields, setFields] = useState<Record<string, string>>(() => {
@@ -43,9 +44,24 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
   });
   const [state, setState] = useState<ModalState>('idle');
   const [message, setMessage] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
   const updateField = (key: string, value: string) => {
     setFields(prev => ({ ...prev, [key]: value }));
+    // Clear error on edit
+    if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: false }));
+  };
+
+  // Validate required text/password fields before submitting
+  const validateFields = (): boolean => {
+    const errors: Record<string, boolean> = {};
+    provider.fields.forEach(f => {
+      if (f.type !== 'select' && !fields[f.key]?.trim()) {
+        errors[f.key] = true;
+      }
+    });
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // Single "Connect" button — tests + saves in one step
@@ -61,6 +77,8 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
       return;
     }
 
+    if (!validateFields()) return; // Stop if required fields empty
+
     setState('connecting');
     setMessage('');
 
@@ -71,13 +89,17 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: provider.id.toUpperCase(), ...fields }),
       });
-      const testData = await testRes.json();
+      const testData = await testRes.json() as {
+        success: boolean; verified?: boolean; latency?: number; message?: string; error?: string;
+      };
 
       if (!testData.success) {
         setState('error');
         setMessage(testData.error || 'Connection failed');
         return; // Don't save — test failed
       }
+
+      const isVerified = testData.verified !== false; // true for tradovate/databento/crypto; false for gateway
 
       // Step 2: Test passed → save to database
       const saveRes = await throttledFetch('/api/datafeed', {
@@ -89,6 +111,7 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
           port: fields.port ? parseInt(fields.port) : undefined,
           username: fields.username,
           apiKey: fields.apiKey || fields.password,
+          verified: isVerified,
         }),
       });
       const saveData = await saveRes.json();
@@ -99,13 +122,14 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
         return;
       }
 
-      // Step 3: Update local store to "connected"
-      setConfig(provider.id, { ...fields, status: 'connected' });
-      updateStatus(provider.id, 'connected');
+      // Step 3: Update local store — 'connected' only when credentials were actually verified
+      const localStatus = isVerified ? 'connected' : 'configured';
+      setConfig(provider.id, { ...fields, status: localStatus });
+      updateStatus(provider.id, localStatus);
 
       setState('success');
       const latencyInfo = testData.latency ? ` (${testData.latency}ms)` : '';
-      setMessage(testData.message ? `${testData.message}${latencyInfo}` : `Connected${latencyInfo}`);
+      setMessage(testData.message ? `${testData.message}${latencyInfo}` : isVerified ? `Connected${latencyInfo}` : 'Saved');
       setTimeout(onClose, 1200);
     } catch {
       setState('error');
@@ -178,6 +202,12 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
               Connected
             </span>
           )}
+          {isConfigured && mode === 'info' && (
+            <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>
+              Saved
+            </span>
+          )}
           <button
             onClick={onClose}
             aria-label="Close"
@@ -197,8 +227,17 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
             <div className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface-elevated)' }}>
               <div className="flex items-center justify-between">
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Status</span>
-                <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>Active</span>
+                {isConnected
+                  ? <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>Connected ✓</span>
+                  : <span className="text-xs font-medium" style={{ color: '#F59E0B' }}>Saved — not verified</span>
+                }
               </div>
+              {isConfigured && (
+                <div className="text-[11px] mt-1 px-2 py-1.5 rounded-lg"
+                  style={{ background: 'rgba(245,158,11,0.08)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.2)' }}>
+                  Credentials saved locally. They will be verified when the gateway connects.
+                </div>
+              )}
               {lastConnected && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Last connected</span>
@@ -258,10 +297,13 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
             ) : (
               /* Credential fields + single Connect button */
               <div className="space-y-3">
-                {provider.fields.map(field => (
+                {provider.fields.map((field, idx) => (
                   <div key={field.key}>
                     <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                       {field.label}
+                      {field.type !== 'select' && (
+                        <span style={{ color: 'var(--error)', marginLeft: 2 }}>*</span>
+                      )}
                     </label>
                     {field.type === 'select' ? (
                       <select
@@ -279,10 +321,23 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
                         type={field.type}
                         value={fields[field.key] || ''}
                         onChange={e => updateField(field.key, e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleConnect(); }}
                         placeholder={field.placeholder}
+                        autoFocus={idx === 0}
+                        autoComplete={field.type === 'password' ? 'current-password' : 'username'}
                         className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus-glow"
-                        style={inputStyle}
+                        style={{
+                          ...inputStyle,
+                          border: fieldErrors[field.key]
+                            ? '1px solid var(--error)'
+                            : inputStyle.border,
+                        }}
                       />
+                    )}
+                    {fieldErrors[field.key] && (
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--error)' }}>
+                        {field.label} is required
+                      </p>
                     )}
                   </div>
                 ))}
@@ -329,6 +384,21 @@ export default function ConfigureModal({ provider, onClose }: ConfigureModalProp
             }}
           >
             {message}
+            {/* Special captcha guidance */}
+            {state === 'error' && message.toLowerCase().includes('captcha') && (
+              <div className="mt-2 pt-2" style={{ borderTop: '1px solid rgba(239,68,68,0.2)' }}>
+                <a
+                  href="https://trader.tradovate.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                  style={{ color: 'var(--error)' }}
+                >
+                  Open Tradovate ↗
+                </a>
+                {' — log in there first, then come back and try again.'}
+              </div>
+            )}
           </div>
         )}
       </div>

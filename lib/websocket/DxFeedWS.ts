@@ -26,6 +26,40 @@ const KEEPALIVE_INTERVAL_MS = 30_000;
 type KlineHandler = (candle: Candle, isClosed: boolean) => void;
 type TradeHandler = (trade: Trade) => void;
 type QuoteHandler = (quote: { bid: number; ask: number; last: number }) => void;
+export type DOMLevel    = { price: number; size: number };
+export type DOMSnapshot = { bids: DOMLevel[]; asks: DOMLevel[]; timestamp: number };
+type DOMHandler = (dom: DOMSnapshot) => void;
+
+// Map our generic root symbols → dxFeed CME continuous-contract format (/ES = front month)
+export const CME_SYMBOL_MAP: Record<string, string> = {
+  ES:  '/ES',
+  MES: '/MES',
+  NQ:  '/NQ',
+  MNQ: '/MNQ',
+  YM:  '/YM',
+  MYM: '/MYM',
+  RTY: '/RTY',
+  M2K: '/M2K',
+  GC:  '/GC',
+  MGC: '/MGC',
+  SI:  '/SI',
+  CL:  '/CL',
+  MCL: '/MCL',
+  NG:  '/NG',
+};
+
+/** Convert our internal symbol (e.g. "MNQ") to dxFeed format ("/MNQ"). */
+export function toCMEDxSymbol(symbol: string): string {
+  return CME_SYMBOL_MAP[symbol.toUpperCase()] ?? symbol;
+}
+
+/** Convert dxFeed symbol ("/MNQ") back to our internal symbol ("MNQ"). */
+export function fromCMEDxSymbol(dxSymbol: string): string {
+  for (const [ours, dx] of Object.entries(CME_SYMBOL_MAP)) {
+    if (dx === dxSymbol) return ours;
+  }
+  return dxSymbol;
+}
 
 type ConnectionState = 'disconnected' | 'connecting' | 'authorizing' | 'connected' | 'error';
 
@@ -69,6 +103,7 @@ class DxFeedWebSocket {
   private klineHandlers: Map<string, Set<KlineHandler>> = new Map();
   private tradeHandlers: Map<string, Set<TradeHandler>> = new Map();
   private quoteHandlers: Map<string, Set<QuoteHandler>> = new Map();
+  private domHandlers:   Map<string, Set<DOMHandler>>   = new Map();
 
   // active subscriptions: "symbol|type" → true
   private activeSubscriptions: Set<string> = new Set();
@@ -141,12 +176,13 @@ class DxFeedWebSocket {
     if (!this.quoteHandlers.has(symbol)) this.quoteHandlers.set(symbol, new Set());
     this.quoteHandlers.get(symbol)!.add(handler);
 
-    await this.ensureSubscribed('Quote', symbol);
+    const dxSym = toCMEDxSymbol(symbol);
+    await this.ensureSubscribed('Quote', dxSym);
 
     return () => {
       this.quoteHandlers.get(symbol)?.delete(handler);
       if (this.quoteHandlers.get(symbol)?.size === 0) {
-        this.unsubscribe('Quote', symbol);
+        this.unsubscribe('Quote', dxSym);
       }
     };
   }
@@ -156,12 +192,31 @@ class DxFeedWebSocket {
     if (!this.tradeHandlers.has(symbol)) this.tradeHandlers.set(symbol, new Set());
     this.tradeHandlers.get(symbol)!.add(handler);
 
-    await this.ensureSubscribed('TimeAndSale', symbol);
+    // Use CME continuous-contract format for dxFeed (/MNQ etc.)
+    const dxSym = toCMEDxSymbol(symbol);
+    await this.ensureSubscribed('TimeAndSale', dxSym);
 
     return () => {
       this.tradeHandlers.get(symbol)?.delete(handler);
       if (this.tradeHandlers.get(symbol)?.size === 0) {
-        this.unsubscribe('TimeAndSale', symbol);
+        this.unsubscribe('TimeAndSale', dxSym);
+      }
+    };
+  }
+
+  /** Subscribe to Level 2 DOM (OrderDepth events). Requires CME depth subscription. */
+  async subscribeDom(symbol: string, handler: DOMHandler): Promise<() => void> {
+    if (!this.domHandlers.has(symbol)) this.domHandlers.set(symbol, new Set());
+    this.domHandlers.get(symbol)!.add(handler);
+
+    const dxSym = toCMEDxSymbol(symbol);
+    await this.ensureSubscribed('OrderDepth', dxSym);
+
+    return () => {
+      this.domHandlers.get(symbol)?.delete(handler);
+      if (this.domHandlers.get(symbol)?.size === 0) {
+        this.unsubscribe('OrderDepth', dxSym);
+        this.domHandlers.delete(symbol);
       }
     };
   }
@@ -273,6 +328,7 @@ class DxFeedWebSocket {
               Quote: ['eventSymbol', 'bidPrice', 'askPrice', 'bidSize', 'askSize'],
               TimeAndSale: ['eventSymbol', 'time', 'price', 'size', 'side'],
               Candle: ['eventSymbol', 'time', 'open', 'high', 'low', 'close', 'volume'],
+              OrderDepth: ['eventSymbol', 'time', 'bids', 'asks'],
             },
           });
 
@@ -317,6 +373,9 @@ class DxFeedWebSocket {
         case 'TimeAndSale':
           this.dispatchTrade(fields);
           break;
+        case 'OrderDepth':
+          this.dispatchDOM(fields);
+          break;
       }
     }
   }
@@ -346,21 +405,24 @@ class DxFeedWebSocket {
   }
 
   private dispatchQuote(fields: Record<string, unknown>): void {
-    const symbol = fields.eventSymbol as string;
-    const handlers = this.quoteHandlers.get(symbol);
+    const dxSymbol  = fields.eventSymbol as string;
+    const ourSymbol = fromCMEDxSymbol(dxSymbol);
+    const handlers  = this.quoteHandlers.get(ourSymbol) ?? this.quoteHandlers.get(dxSymbol);
     if (!handlers || handlers.size === 0) return;
 
     const quote = {
-      bid: (fields.bidPrice as number) || 0,
-      ask: (fields.askPrice as number) || 0,
+      bid:  (fields.bidPrice as number) || 0,
+      ask:  (fields.askPrice as number) || 0,
       last: 0,
     };
     handlers.forEach(h => h(quote));
   }
 
   private dispatchTrade(fields: Record<string, unknown>): void {
-    const symbol = fields.eventSymbol as string;
-    const handlers = this.tradeHandlers.get(symbol);
+    // dxFeed uses CME-format symbols (/MNQ) — map back for handler lookup
+    const dxSymbol  = fields.eventSymbol as string;
+    const ourSymbol = fromCMEDxSymbol(dxSymbol);
+    const handlers  = this.tradeHandlers.get(ourSymbol) ?? this.tradeHandlers.get(dxSymbol);
     if (!handlers || handlers.size === 0) return;
 
     const trade: Trade = {
@@ -371,6 +433,20 @@ class DxFeedWebSocket {
       isBuyerMaker: fields.side === 'SELL',
     };
     handlers.forEach(h => h(trade));
+  }
+
+  private dispatchDOM(fields: Record<string, unknown>): void {
+    const dxSymbol  = fields.eventSymbol as string;
+    const ourSymbol = fromCMEDxSymbol(dxSymbol);
+    const handlers  = this.domHandlers.get(ourSymbol) ?? this.domHandlers.get(dxSymbol);
+    if (!handlers || handlers.size === 0) return;
+
+    const snapshot: DOMSnapshot = {
+      bids:      (fields.bids  as DOMLevel[]) ?? [],
+      asks:      (fields.asks  as DOMLevel[]) ?? [],
+      timestamp: (fields.time  as number)     ?? Date.now(),
+    };
+    handlers.forEach(h => h(snapshot));
   }
 
   private async ensureSubscribed(eventType: string, symbol: string): Promise<void> {
@@ -443,6 +519,7 @@ class DxFeedWebSocket {
     this.channelOpen = false;
     this.activeSubscriptions.clear();
     this.pendingSubscriptions = [];
+    this.domHandlers.clear();
   }
 
   private waitForConnection(): Promise<boolean> {

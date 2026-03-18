@@ -7,7 +7,7 @@ import {
   type TimeframeSeconds,
 } from '@/lib/live/HierarchicalAggregator';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
-import { getRithmicLiveWS } from '@/lib/live/RithmicLiveWS';
+import { getCMELiveAdapter } from '@/lib/live/getCMELiveAdapter';
 import { isCMESymbol } from '@/lib/utils/symbolUtils';
 import { useAlertsStore } from '@/stores/useAlertsStore';
 import { useTradingStore } from '@/stores/useTradingStore';
@@ -69,7 +69,32 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     setLoadingPhase('fetching');
     try {
       if (isCMESymbol(sym)) {
-        return [];
+        // Load history from Tradovate (md/getChart) — OHLCV with bid/ask volume split
+        return await new Promise<LiveCandle[]>(async (resolve) => {
+          const intervalMin = Math.max(1, Math.floor(tf / 60));
+          let resolved = false;
+          const timer = setTimeout(() => { if (!resolved) { resolved = true; resolve([]); } }, 12_000);
+
+          await getCMELiveAdapter().connect(sym).catch(() => {});
+
+          const { tradovateWS } = await import('@/lib/websocket/TradovateWS');
+          await tradovateWS.subscribeChart(sym, intervalMin, () => {}, (candles) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timer);
+            resolve(candles.map(c => ({
+              time:       c.time,
+              open:       c.open,
+              high:       c.high,
+              low:        c.low,
+              close:      c.close,
+              volume:     c.volume,
+              buyVolume:  c.volume * 0.5,   // approximate — no level-by-level split in OHLCV
+              sellVolume: c.volume * 0.5,
+              trades:     0,
+            })));
+          });
+        });
       }
 
       // Sub-minute: fetch real 1s klines and aggregate into 15s/30s
@@ -236,9 +261,9 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         refs.unsubscribers.current.push(() => clearTimeout(noDataTimer));
       }
 
-      // Connect WebSocket (IB for CME, Binance for crypto)
+      // Connect WebSocket (Tradovate for CME, Binance for crypto)
       const isCME = isCMESymbol(symbol);
-      const ws = isCME ? getRithmicLiveWS() : getBinanceLiveWS();
+      const ws = isCME ? getCMELiveAdapter() : getBinanceLiveWS();
       const aggregator = getAggregator();
 
       // Disconnect previous WebSocket to ensure clean reconnect with new symbol

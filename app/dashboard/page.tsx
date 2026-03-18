@@ -3,188 +3,243 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import {
-  LiveIcon,
-  FootprintIcon,
-  GexIcon,
-  VolatilityIcon,
-  NewsIcon,
-  HeatmapIcon,
-  JournalIcon,
-  ReplayIcon,
-  BiasIcon,
-  DataFeedIcon,
-} from '@/components/ui/Icons';
+  Activity, Grid3x3, Layers, Zap, Compass, Newspaper,
+  History, Store, TrendingUp, BrainCircuit, Wifi,
+  ArrowRight, Clock, CheckCircle2,
+} from 'lucide-react';
 
-const QUICK_ACTIONS = [
-  { href: '/live', label: 'Live Charts', description: 'Real-time candlestick & order flow', Icon: LiveIcon, color: '#10b981' },
-  { href: '/footprint', label: 'Footprint', description: 'Delta & volume profile analysis', Icon: FootprintIcon, color: '#14b8a6' },
-  { href: '/liquidity', label: 'Heatmap', description: 'Liquidity depth visualization', Icon: HeatmapIcon, color: '#06b6d4' },
-  { href: '/gex', label: 'GEX', description: 'Gamma exposure dashboard', Icon: GexIcon, color: '#22d3ee' },
-  { href: '/volatility', label: 'Volatility', description: 'IV surface & skew analysis', Icon: VolatilityIcon, color: '#0ea5e9' },
-  { href: '/bias', label: 'Bias Engine', description: 'Multi-factor directional bias', Icon: BiasIcon, color: '#f59e0b' },
-  { href: '/news', label: 'News', description: 'Economic calendar & events', Icon: NewsIcon, color: '#84cc16' },
-  { href: '/journal', label: 'Journal', description: 'Trade logging & analytics', Icon: JournalIcon, color: '#f59e0b' },
-  { href: '/replay', label: 'Replay', description: 'Session recording & playback', Icon: ReplayIcon, color: '#8b5cf6' },
-  { href: '/boutique', label: 'Data Feeds', description: 'Configure market data sources', Icon: DataFeedIcon, color: '#fbbf24' },
+// ── Custom candlestick icon ────────────────────────────────────────────────
+function CandlestickSvg({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <rect x="6" y="7" width="6" height="8" rx="1" fill="currentColor" opacity="0.15" />
+      <line x1="17" y1="5" x2="17" y2="19" />
+      <rect x="14" y="9" width="6" height="5" rx="1" fill="currentColor" opacity="0.15" />
+    </svg>
+  );
+}
+
+// ── Navigation data ────────────────────────────────────────────────────────
+const SECTIONS = [
+  {
+    id: 'charts',
+    label: 'Charts',
+    description: 'Real-time market visualization',
+    color: '#10b981',
+    items: [
+      { href: '/live',       label: 'Live',       sub: 'Candlestick & order flow', shortcut: '1', Icon: CandlestickSvg },
+      { href: '/footprint',  label: 'Footprint',  sub: 'Delta & volume profile',   shortcut: '2', Icon: Grid3x3 },
+      { href: '/liquidity',  label: 'Heatmap',    sub: 'Liquidity depth map',      shortcut: '3', Icon: Layers },
+    ],
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    description: 'Quantitative signal engine',
+    color: '#06b6d4',
+    items: [
+      { href: '/gex',        label: 'GEX',        sub: 'Gamma exposure',           shortcut: '4', Icon: Zap },
+      { href: '/volatility', label: 'Volatility', sub: 'IV surface & skew',        shortcut: '5', Icon: Activity },
+      { href: '/bias',       label: 'Bias',       sub: 'Directional engine',       shortcut: '6', Icon: Compass },
+      { href: '/flow',       label: 'Flow',       sub: 'Options order flow',        shortcut: '',  Icon: TrendingUp },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'Tools',
+    description: 'Research & management',
+    color: '#8b5cf6',
+    items: [
+      { href: '/journal',   label: 'Journal',     sub: 'Trade log & analytics',    shortcut: '8', Icon: History },
+      { href: '/news',      label: 'News',        sub: 'Economic calendar',        shortcut: '7', Icon: Newspaper },
+      { href: '/ai',        label: 'AI Signals',  sub: 'Agent analysis',           shortcut: '',  Icon: BrainCircuit },
+      { href: '/boutique',  label: 'Data Feeds',  sub: 'Market data config',       shortcut: '0', Icon: Store },
+    ],
+  },
+] as const;
+
+const STATUS_ITEMS = [
+  { label: 'WebSocket Feed',     ok: true },
+  { label: 'Options Data',       ok: true },
+  { label: 'Data Processing',    ok: true },
 ];
 
-const KEYBOARD_HINTS = [
-  { keys: 'Alt+1–0', description: 'Navigate between pages' },
-  { keys: 'Ctrl+T', description: 'Change theme' },
-  { keys: '+/−', description: 'Zoom in/out on charts' },
-  { keys: 'Esc', description: 'Close modals & dropdowns' },
+const SHORTCUTS = [
+  { keys: 'Alt + 1–0', desc: 'Navigate pages' },
+  { keys: '+ / −',     desc: 'Zoom chart' },
+  { keys: 'Ctrl + T',  desc: 'Change theme' },
+  { keys: 'Esc',       desc: 'Close panels' },
 ];
 
-export default function DashboardPage() {
-  const [currentTime, setCurrentTime] = useState('');
+// ── Greeting ──────────────────────────────────────────────────────────────
+function useGreeting() {
   const [greeting, setGreeting] = useState('');
-
+  const [time, setTime] = useState('');
   useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      const hour = now.getHours();
-      setGreeting(
-        hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
-      );
-      setCurrentTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+    const tick = () => {
+      const h = new Date().getHours();
+      setGreeting(h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
+      setTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
     };
-    update();
-    const interval = setInterval(update, 30000);
-    return () => clearInterval(interval);
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
   }, []);
+  return { greeting, time };
+}
+
+// ── NavCard ───────────────────────────────────────────────────────────────
+function NavCard({
+  href, label, sub, shortcut, Icon, accent,
+}: {
+  href: string; label: string; sub: string;
+  shortcut: string; Icon: any; accent: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--border)]
+                 hover:border-[var(--border-light)] transition-all duration-200"
+      style={{ background: 'var(--surface)' }}
+    >
+      {/* Icon */}
+      <div
+        className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center
+                   transition-transform duration-200 group-hover:scale-105"
+        style={{ background: `${accent}14`, color: accent }}
+      >
+        <Icon size={16} strokeWidth={1.5} />
+      </div>
+
+      {/* Text */}
+      <div className="flex-1 min-w-0">
+        <div className="text-[12px] font-semibold text-[var(--text-primary)] leading-tight">
+          {label}
+        </div>
+        <div className="text-[10px] text-[var(--text-muted)] leading-tight mt-0.5 truncate">
+          {sub}
+        </div>
+      </div>
+
+      {/* Shortcut + arrow */}
+      <div className="flex-shrink-0 flex items-center gap-1.5">
+        {shortcut && (
+          <kbd className="hidden sm:inline-flex text-[9px] font-mono px-1.5 py-0.5 rounded border
+                          border-[var(--border)] text-[var(--text-dimmed)]"
+            style={{ background: 'var(--surface-elevated)' }}>
+            {shortcut}
+          </kbd>
+        )}
+        <ArrowRight
+          size={12}
+          className="text-[var(--text-dimmed)] opacity-0 group-hover:opacity-100
+                     -translate-x-1 group-hover:translate-x-0 transition-all duration-200"
+        />
+      </div>
+    </Link>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────
+export default function DashboardPage() {
+  const { greeting, time } = useGreeting();
 
   return (
     <div className="h-full overflow-auto custom-scrollbar">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 animate-fadeIn">
-        {/* Welcome Header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))' }}
-            >
-              <span className="text-sm font-bold text-white">S</span>
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
-                {greeting}, Trader
-              </h1>
-              <p className="text-xs text-[var(--text-muted)]">
-                {currentTime} — Ready to analyze the markets
-              </p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 animate-fadeIn">
+
+        {/* ── Header ───────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+              {greeting}, Trader
+            </h1>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Ready to analyze the markets
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+            <Clock size={12} strokeWidth={1.5} />
+            <span className="font-mono">{time}</span>
+            <span className="w-px h-3 bg-[var(--border)]" />
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex items-center justify-center w-2 h-2">
+                <div className="absolute w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-30" />
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              </div>
+              <span className="text-emerald-500 font-medium text-[11px]">Live</span>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions Grid */}
-        <div className="mb-10">
-          <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-4 uppercase tracking-wider">
-            Quick Access
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {QUICK_ACTIONS.map((action, i) => {
-              const IconComponent = action.Icon;
-              return (
-                <Link
-                  key={action.href}
-                  href={action.href}
-                  className="group relative flex flex-col items-center gap-3 p-4 sm:p-5 rounded-xl border border-[var(--border)] hover:border-[var(--border-light)] transition-all duration-300 stagger-fade-up"
-                  style={{
-                    background: 'var(--surface)',
-                    animationDelay: `${i * 0.04}s`,
-                  }}
-                >
-                  {/* Hover glow */}
-                  <div
-                    className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                    style={{
-                      background: `radial-gradient(circle at 50% 30%, ${action.color}08 0%, transparent 70%)`,
-                    }}
-                  />
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg relative z-10"
-                    style={{
-                      background: `${action.color}12`,
-                      border: `1px solid ${action.color}20`,
-                    }}
-                  >
-                    <span style={{ color: action.color }}>
-                      <IconComponent size={20} />
-                    </span>
-                  </div>
-                  <div className="text-center relative z-10">
-                    <div className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--text-primary)] mb-0.5">
-                      {action.label}
-                    </div>
-                    <div className="text-[10px] text-[var(--text-muted)] leading-tight hidden sm:block">
-                      {action.description}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        {/* ── Nav Sections ─────────────────────────────────────────────── */}
+        {SECTIONS.map((section) => (
+          <div key={section.id}>
+            {/* Section header */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-1 h-4 rounded-full" style={{ background: section.color }} />
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-widest"
+                  style={{ color: section.color }}>
+                  {section.label}
+                </span>
+                <span className="text-[11px] text-[var(--text-muted)] ml-2">
+                  — {section.description}
+                </span>
+              </div>
+            </div>
 
-        {/* Info Cards Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+            {/* Cards grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {section.items.map((item) => (
+                <NavCard key={item.href} {...item} accent={section.color} />
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* ── Bottom row: Status + Shortcuts ───────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+
           {/* Platform Status */}
-          <div className="rounded-xl border border-[var(--border)] p-5" style={{ background: 'var(--surface)' }}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-[#10b981] live-dot" />
-              <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Platform Status</h3>
+          <div className="rounded-xl border border-[var(--border)] p-4"
+            style={{ background: 'var(--surface)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                Platform Status
+              </span>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                style={{ background: '#10b98115', color: '#10b981' }}>
+                All Operational
+              </span>
             </div>
-            <div className="space-y-3">
-              {[
-                { label: 'WebSocket Feed', status: 'Operational', color: '#10b981' },
-                { label: 'Data Processing', status: 'Operational', color: '#10b981' },
-                { label: 'Options Data (Deribit)', status: 'Operational', color: '#10b981' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between">
-                  <span className="text-xs text-[var(--text-muted)]">{item.label}</span>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${item.color}15`, color: item.color }}>
-                    {item.status}
-                  </span>
+            <div className="space-y-2.5">
+              {STATUS_ITEMS.map((item) => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <CheckCircle2 size={12} strokeWidth={2}
+                    className={item.ok ? 'text-emerald-500' : 'text-red-400'} />
+                  <span className="text-[11px] text-[var(--text-secondary)]">{item.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Getting Started */}
-          <div className="rounded-xl border border-[var(--border)] p-5" style={{ background: 'var(--surface)' }}>
-            <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-4">Getting Started</h3>
-            <div className="space-y-2.5">
-              {[
-                { label: 'Open Live Charts', href: '/live', done: false },
-                { label: 'Configure Data Feeds', href: '/boutique', done: false },
-                { label: 'Set Your Preferences', href: '/account', done: false },
-                { label: 'Explore the Journal', href: '/journal', done: false },
-              ].map((step) => (
-                <Link
-                  key={step.label}
-                  href={step.href}
-                  className="flex items-center gap-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors group"
-                >
-                  <div className="w-5 h-5 rounded-full border border-[var(--border)] flex items-center justify-center group-hover:border-[var(--primary)] transition-colors">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-[var(--text-dimmed)] group-hover:text-[var(--primary)]">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </div>
-                  {step.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
           {/* Keyboard Shortcuts */}
-          <div className="rounded-xl border border-[var(--border)] p-5 sm:col-span-2 lg:col-span-1" style={{ background: 'var(--surface)' }}>
-            <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-4">Keyboard Shortcuts</h3>
-            <div className="space-y-2.5">
-              {KEYBOARD_HINTS.map((hint) => (
-                <div key={hint.keys} className="flex items-center justify-between">
-                  <span className="text-xs text-[var(--text-muted)]">{hint.description}</span>
-                  <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--border)] text-[var(--text-dimmed)]" style={{ background: 'var(--surface-elevated)' }}>
-                    {hint.keys}
+          <div className="rounded-xl border border-[var(--border)] p-4"
+            style={{ background: 'var(--surface)' }}>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] block mb-3">
+              Keyboard Shortcuts
+            </span>
+            <div className="grid grid-cols-2 gap-y-2.5 gap-x-4">
+              {SHORTCUTS.map((s) => (
+                <div key={s.keys} className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-[var(--text-secondary)]">{s.desc}</span>
+                  <kbd className="text-[9px] font-mono px-1.5 py-0.5 rounded border
+                                  border-[var(--border)] text-[var(--text-dimmed)] whitespace-nowrap"
+                    style={{ background: 'var(--surface-elevated)' }}>
+                    {s.keys}
                   </kbd>
                 </div>
               ))}
@@ -192,12 +247,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center pb-8">
-          <p className="text-[10px] text-[var(--text-dimmed)]">
-            Senzoukria v1.0 — Professional Order Flow Analytics
-          </p>
-        </div>
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <p className="text-[10px] text-[var(--text-dimmed)] text-center pb-2">
+          Senzoukria v1.0 — Professional Order Flow Analytics
+        </p>
       </div>
     </div>
   );

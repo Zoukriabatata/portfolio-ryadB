@@ -6,6 +6,14 @@ import { useTradingStore } from '@/stores/useTradingStore';
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import { ChartSkeleton } from '@/components/ui/Skeleton';
 import ChartPageShell from '@/components/layouts/ChartPageShell';
+import { DOMladder } from '@/components/live/DOMladder';
+import { LiveTape } from '@/components/live/LiveTape';
+import { ConnectionStatusBadge } from '@/components/live/ConnectionStatus';
+import { useLiveStore } from '@/stores/useLiveStore';
+import { useTradovatePanel } from '@/hooks/useTradovatePanel';
+import { CME_SYMBOLS } from '@/lib/websocket/TradovateWS';
+import { isCMESymbol } from '@/lib/utils/symbolUtils';
+import Link from 'next/link';
 
 const LiveChartPro = dynamic(
   () => import('@/components/charts/LiveChartPro'),
@@ -157,18 +165,96 @@ function ChartGrid({ layout, setSymbol, layoutKey }: {
   );
 }
 
+// ─── Trading Panel (DOM + Tape) ───────────────────────────────────────────────
+
+/**
+ * TradingPanel subscribes to Tradovate DOM/quotes/trades for CME symbols
+ * and renders the DOM Ladder + Live Tape side panel.
+ */
+function TradingPanel({ symbol }: { symbol: string }) {
+  useTradovatePanel(symbol);
+  const { dom, quote, trades, status } = useLiveStore();
+  const tickSize = CME_SYMBOLS[symbol.toUpperCase()]?.tickSize ?? 0.25;
+  const [activeTab, setActiveTab] = useState<'dom' | 'tape'>('dom');
+
+  return (
+    <div
+      className="flex flex-col h-full border-l"
+      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)', minWidth: 220, maxWidth: 280 }}
+    >
+      {/* Panel header */}
+      <div
+        className="flex items-center justify-between px-2 py-1.5 shrink-0"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <div className="flex gap-1">
+          {(['dom', 'tape'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="px-2.5 py-0.5 rounded text-[10px] font-medium transition-colors"
+              style={{
+                backgroundColor: activeTab === tab ? 'var(--primary)' : 'transparent',
+                color: activeTab === tab ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              {tab === 'dom' ? 'DOM' : 'Tape'}
+            </button>
+          ))}
+        </div>
+        <ConnectionStatusBadge status={status} />
+      </div>
+
+      {/* Panel content */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {/* Show setup prompt when connection fails */}
+        {status === 'error' ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 px-4 text-center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <div>
+              <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Tradovate not connected
+              </p>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                Add your credentials to stream live CME data
+              </p>
+            </div>
+            <Link
+              href="/boutique"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-opacity hover:opacity-80"
+              style={{ backgroundColor: 'var(--primary)', color: '#fff' }}
+            >
+              Connect Tradovate →
+            </Link>
+          </div>
+        ) : activeTab === 'dom' ? (
+          <DOMladder dom={dom} quote={quote} tickSize={tickSize} depth={14} />
+        ) : (
+          <LiveTape trades={trades} tickSize={tickSize} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LivePageContent() {
   const { tradingSymbol, setTradingSymbol } = useTradingStore();
   const [layout, setLayout] = useState<LayoutMode>('1x1');
   const [layoutKey, setLayoutKey] = useState(0);
+  const [showPanel, setShowPanel] = useState(false);
 
   useEffect(() => {
     setLayoutKey(prev => prev + 1);
   }, [layout]);
 
   const chartCount = layout === '1x1' ? 1 : layout === '2x1' ? 2 : 4;
+  const showTradingPanel = showPanel && isCMESymbol(tradingSymbol) && layout === '1x1';
 
   return (
     <ChartPageShell
@@ -178,10 +264,46 @@ export default function LivePageContent() {
         <div className="flex items-center gap-2">
           <ChartBadge count={chartCount} />
           <LayoutSelector layout={layout} onChange={setLayout} />
+
+          {/* Trading panel toggle — only for CME futures symbols */}
+          {isCMESymbol(tradingSymbol) && (
+            <button
+              onClick={() => setShowPanel((p) => !p)}
+              title={showPanel ? 'Hide DOM & Tape' : 'Show DOM & Tape'}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium transition-all duration-150"
+              style={{
+                backgroundColor: showPanel ? 'var(--primary)' : 'var(--surface)',
+                color: showPanel ? '#fff' : 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {/* Simple order book icon */}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <rect x="0" y="0" width="4" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+                <rect x="5" y="0" width="5" height="1.5" rx="0.5" fill="#22c55e" />
+                <rect x="0" y="2.5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+                <rect x="7" y="2.5" width="3" height="1.5" rx="0.5" fill="#22c55e" />
+                <rect x="0" y="5" width="7" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+                <rect x="8" y="5" width="2" height="1.5" rx="0.5" fill="#ef4444" />
+                <rect x="0" y="7.5" width="5" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+                <rect x="6" y="7.5" width="4" height="1.5" rx="0.5" fill="#ef4444" />
+              </svg>
+              DOM
+            </button>
+          )}
         </div>
       }
     >
-      <ChartGrid layout={layout} setSymbol={setTradingSymbol} layoutKey={layoutKey} />
+      <div className="flex h-full min-h-0">
+        <div className="flex-1 min-w-0 min-h-0">
+          <ChartGrid layout={layout} setSymbol={setTradingSymbol} layoutKey={layoutKey} />
+        </div>
+
+        {/* Trading panel: DOM Ladder + Live Tape */}
+        {showTradingPanel && (
+          <TradingPanel symbol={tradingSymbol} />
+        )}
+      </div>
     </ChartPageShell>
   );
 }

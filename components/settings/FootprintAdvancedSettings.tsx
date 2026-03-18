@@ -203,11 +203,13 @@ function Section({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-[var(--border)] rounded-lg overflow-hidden">
-      {/* Header */}
-      <button
-        type="button"
-        className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface)] hover:bg-[var(--surface-elevated)] transition-colors"
+      {/* Header — div instead of button to allow nested Toggle buttons */}
+      <div
+        role="button"
+        tabIndex={0}
+        className="w-full flex items-center justify-between px-3 py-2 bg-[var(--surface)] hover:bg-[var(--surface-elevated)] transition-colors cursor-pointer"
         onClick={() => setOpen(p => !p)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(p => !p); } }}
       >
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: accent }} />
@@ -228,7 +230,7 @@ function Section({
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </div>
-      </button>
+      </div>
       {/* Body */}
       {open && (
         <div className="px-3 pb-3 pt-2 space-y-3 bg-[var(--surface)]/50">

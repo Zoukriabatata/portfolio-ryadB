@@ -116,9 +116,9 @@ class WebSocketManager {
     const connection = this.connections.get(exchangeId);
     if (!connection) return;
 
-    if (connection.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.error(`[${exchangeId}] Max reconnect attempts reached`);
-      return;
+    // Never give up — cap the counter so backoff stays at MAX_RECONNECT_DELAY
+    if (connection.reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+      connection.reconnectAttempts = MAX_RECONNECT_ATTEMPTS;
     }
 
     // Clear any existing timeout

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type DataFeedProvider = 'binance' | 'bybit' | 'deribit' | 'rithmic' | 'ib' | 'tradovate' | 'cqg' | 'dxfeed' | 'amp' | 'databento';
+export type DataFeedProvider = 'binance' | 'bybit' | 'deribit' | 'tradovate' | 'databento' | 'dxfeed';
 export type DataFeedStatus = 'not_configured' | 'configured' | 'connected' | 'error';
 
 export interface DataFeedConfig {
@@ -23,16 +23,12 @@ interface DataFeedStore {
 }
 
 const DEFAULT_CONFIGS: Record<DataFeedProvider, DataFeedConfig> = {
-  binance: { provider: 'binance', status: 'not_configured' },
-  bybit: { provider: 'bybit', status: 'not_configured' },
-  deribit: { provider: 'deribit', status: 'not_configured' },
-  rithmic: { provider: 'rithmic', status: 'not_configured' },
-  ib: { provider: 'ib', status: 'not_configured' },
+  binance:   { provider: 'binance',   status: 'not_configured' },
+  bybit:     { provider: 'bybit',     status: 'not_configured' },
+  deribit:   { provider: 'deribit',   status: 'not_configured' },
   tradovate: { provider: 'tradovate', status: 'not_configured' },
-  cqg: { provider: 'cqg', status: 'not_configured' },
-  dxfeed: { provider: 'dxfeed', status: 'not_configured' },
-  amp: { provider: 'amp', status: 'not_configured' },
   databento: { provider: 'databento', status: 'not_configured' },
+  dxfeed:    { provider: 'dxfeed',    status: 'not_configured' },
 };
 
 export const useDataFeedStore = create<DataFeedStore>()(

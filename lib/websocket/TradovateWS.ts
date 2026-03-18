@@ -6,6 +6,9 @@ type KlineHandler = (candle: Candle, isClosed: boolean) => void;
 type HistoryHandler = (candles: Candle[]) => void;
 type TradeHandler = (trade: Trade) => void;
 type QuoteHandler = (quote: { bid: number; ask: number; last: number }) => void;
+export type DOMLevel = { price: number; size: number };
+export type DOMSnapshot = { bids: DOMLevel[]; offers: DOMLevel[]; timestamp: string };
+type DOMHandler = (dom: DOMSnapshot) => void;
 
 interface ChartData {
   id: number;
@@ -70,6 +73,11 @@ export function getSubMinuteSeconds(tf: Timeframe): 15 | 30 | null {
   return null;
 }
 
+// Max reconnect attempts before giving up (browser-side)
+const MAX_RECONNECTS = 8;
+const BASE_RECONNECT_DELAY = 1500; // ms
+const MAX_RECONNECT_DELAY = 30_000; // ms
+
 class TradovateWebSocket {
   private static instance: TradovateWebSocket;
   private ws: WebSocket | null = null;
@@ -79,9 +87,15 @@ class TradovateWebSocket {
   private mdConnected = false;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
+  // Reconnection state
+  private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private intentionalDisconnect = false;
+
   private klineHandlers: Map<string, Set<KlineHandler>> = new Map();
   private tradeHandlers: Map<string, Set<TradeHandler>> = new Map();
   private quoteHandlers: Map<string, Set<QuoteHandler>> = new Map();
+  private domHandlers: Map<string, Set<DOMHandler>> = new Map();
 
   // Called once with the initial batch of historical bars
   private historyHandler: HistoryHandler | null = null;
@@ -89,6 +103,10 @@ class TradovateWebSocket {
 
   private subscriptions: Map<string, number> = new Map();
   private contractIds: Map<string, number> = new Map();
+
+  // Track active subscriptions so we can re-issue them on reconnect
+  private activeQuoteSymbols: Set<string> = new Set();
+  private activeDomSymbols: Set<string> = new Set();
 
   private constructor() {}
 
@@ -101,8 +119,10 @@ class TradovateWebSocket {
 
   async connect(): Promise<boolean> {
     if (this.mdConnected) return true;
+    this.intentionalDisconnect = false;
 
     try {
+      // Always re-fetch token — the /api/tradovate/auth route caches it server-side
       const authResponse = await fetch('/api/tradovate/auth');
       const authData = await authResponse.json();
 
@@ -116,6 +136,7 @@ class TradovateWebSocket {
       console.log('[Tradovate] Authenticated as:', authData.name);
 
       await this.connectMarketData();
+      this.reconnectAttempts = 0; // Reset on clean connect
       return true;
     } catch (error) {
       console.error('[Tradovate] Connection error:', error);
@@ -126,12 +147,13 @@ class TradovateWebSocket {
   private connectMarketData(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.mdWs = new WebSocket(TRADOVATE_DEMO_MD_WS);
+      let authorized = false;
 
       this.mdWs.onopen = () => {
         console.log('[Tradovate MD] WebSocket connected');
         this.sendMD(`authorize\n${this.requestId()}\n\n${this.accessToken}`);
 
-        // Tradovate requires heartbeat every 2.5s
+        // Tradovate requires heartbeat every 2.5s or it drops the connection
         this.heartbeatInterval = setInterval(() => {
           this.sendMD('[]');
         }, 2500);
@@ -140,16 +162,21 @@ class TradovateWebSocket {
       this.mdWs.onmessage = (event) => {
         const msg = event.data as string;
         this.handleMDMessage(msg);
-        if (!this.mdConnected && msg.includes('"s":200')) {
+        if (!authorized && msg.includes('"s":200')) {
+          authorized = true;
           this.mdConnected = true;
           console.log('[Tradovate MD] Authorized');
+
+          // Re-subscribe to any symbols active before reconnect
+          this.replaySubscriptions();
+
           resolve();
         }
       };
 
       this.mdWs.onerror = (event) => {
         console.error('[Tradovate MD] WebSocket error:', event);
-        reject(new Error('[Tradovate MD] WebSocket connection failed'));
+        if (!authorized) reject(new Error('[Tradovate MD] WebSocket connection failed'));
       };
 
       this.mdWs.onclose = () => {
@@ -159,12 +186,60 @@ class TradovateWebSocket {
           clearInterval(this.heartbeatInterval);
           this.heartbeatInterval = null;
         }
+
+        if (!authorized) {
+          reject(new Error('WS closed before auth'));
+          return;
+        }
+
+        // Auto-reconnect unless we disconnected intentionally
+        if (!this.intentionalDisconnect) {
+          this.scheduleReconnect();
+        }
       };
 
       setTimeout(() => {
-        if (!this.mdConnected) reject(new Error('Connection timeout'));
+        if (!authorized) reject(new Error('Connection timeout'));
       }, 10000);
     });
+  }
+
+  /** Re-issue all active subscriptions after a reconnect. */
+  private replaySubscriptions(): void {
+    for (const symbol of this.activeQuoteSymbols) {
+      this.sendMD(`md/subscribeQuote\n${this.requestId()}\n\n${JSON.stringify({ symbol })}`);
+      console.log('[Tradovate MD] Re-subscribed quote:', symbol);
+    }
+    for (const symbol of this.activeDomSymbols) {
+      this.sendMD(`md/subscribeDOM\n${this.requestId()}\n\n${JSON.stringify({ symbol })}`);
+      console.log('[Tradovate MD] Re-subscribed DOM:', symbol);
+    }
+  }
+
+  /** Exponential backoff reconnect — re-fetches auth token each attempt. */
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= MAX_RECONNECTS) {
+      console.error('[Tradovate] Max reconnect attempts reached');
+      return;
+    }
+
+    const delay = Math.min(
+      BASE_RECONNECT_DELAY * Math.pow(1.8, this.reconnectAttempts),
+      MAX_RECONNECT_DELAY
+    );
+    this.reconnectAttempts++;
+
+    console.log(
+      `[Tradovate] Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts}/${MAX_RECONNECTS})`
+    );
+
+    this.reconnectTimer = setTimeout(async () => {
+      try {
+        await this.connect();
+      } catch {
+        // scheduleReconnect will be called again from onclose
+      }
+    }, delay);
   }
 
   private requestId(): number {
@@ -269,8 +344,17 @@ class TradovateWebSocket {
     });
   }
 
-  private handleDOMData(_data: DOMData): void {
-    // Reserved for orderbook visualization
+  private handleDOMData(data: DOMData): void {
+    const symbol = this.getSymbolByContractId(data.contractId);
+    if (!symbol) return;
+    const handlers = this.domHandlers.get(symbol);
+    if (!handlers?.size) return;
+    const snapshot: DOMSnapshot = {
+      bids:      data.bids   ?? [],
+      offers:    data.offers ?? [],
+      timestamp: data.timestamp,
+    };
+    handlers.forEach(h => h(snapshot));
   }
 
   private getSymbolByContractId(contractId: number): string | undefined {
@@ -378,12 +462,14 @@ class TradovateWebSocket {
       this.quoteHandlers.set(symbol, new Set());
     }
     this.quoteHandlers.get(symbol)!.add(handler);
+    this.activeQuoteSymbols.add(symbol); // Track for reconnect replay
 
     this.sendMD(`md/subscribeQuote\n${this.requestId()}\n\n${JSON.stringify({ symbol })}`);
 
     return () => {
       this.quoteHandlers.get(symbol)?.delete(handler);
       if (this.quoteHandlers.get(symbol)?.size === 0) {
+        this.activeQuoteSymbols.delete(symbol);
         this.sendMD(`md/unsubscribeQuote\n${this.requestId()}\n\n${JSON.stringify({ symbol })}`);
       }
     };
@@ -408,7 +494,52 @@ class TradovateWebSocket {
     };
   }
 
+  /**
+   * Subscribe to Level 2 / DOM (Depth of Market) updates.
+   * Requires CME Level 2 data subscription on the Tradovate account (~$41–48/mo).
+   * Tradovate sends a full snapshot on every update (bids + offers sorted by price).
+   */
+  async subscribeDom(symbol: string, handler: DOMHandler): Promise<() => void> {
+    if (!this.mdConnected) {
+      const ok = await this.connect();
+      if (!ok) return () => {};
+    }
+
+    const contractId = await this.getContractId(symbol);
+    if (!contractId) {
+      console.error('[Tradovate DOM] Contract not found:', symbol);
+      return () => {};
+    }
+
+    if (!this.domHandlers.has(symbol)) {
+      this.domHandlers.set(symbol, new Set());
+    }
+    const isFirstSubscriber = this.domHandlers.get(symbol)!.size === 0;
+    this.domHandlers.get(symbol)!.add(handler);
+
+    // Only send subscribeDOM once per symbol (first subscriber triggers it)
+    if (isFirstSubscriber) {
+      this.activeDomSymbols.add(symbol); // Track for reconnect replay
+      this.sendMD(`md/subscribeDOM\n${this.requestId()}\n\n${JSON.stringify({ symbol })}`);
+    }
+
+    return () => {
+      this.domHandlers.get(symbol)?.delete(handler);
+      if (this.domHandlers.get(symbol)?.size === 0) {
+        this.activeDomSymbols.delete(symbol);
+        this.sendMD(`md/unsubscribeDOM\n${this.requestId()}\n\n${JSON.stringify({ symbol })}`);
+        this.domHandlers.delete(symbol);
+      }
+    };
+  }
+
   disconnect(): void {
+    this.intentionalDisconnect = true;
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
@@ -423,11 +554,15 @@ class TradovateWebSocket {
     }
     this.connected = false;
     this.mdConnected = false;
+    this.reconnectAttempts = 0;
     this.receivedHistory = false;
     this.historyHandler = null;
     this.klineHandlers.clear();
     this.tradeHandlers.clear();
     this.quoteHandlers.clear();
+    this.domHandlers.clear();
+    this.activeQuoteSymbols.clear();
+    this.activeDomSymbols.clear();
   }
 
   isConnectedMD(): boolean {

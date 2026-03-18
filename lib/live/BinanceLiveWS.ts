@@ -411,24 +411,23 @@ class BinanceLiveWS {
   }
 
   /**
-   * Tente une reconnexion
+   * Tente une reconnexion — infiniment, avec backoff plafonné à 30s
    */
   private attemptReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[Binance WS] Max reconnect attempts reached');
-      this.setStatus('error');
-      return;
-    }
-
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
     }
 
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+    // Cap at 30s; after maxReconnectAttempts just keep retrying at that cadence
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts), 30_000);
     console.debug(`[Binance WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
+      // Reset counter so backoff stays at max (30s) rather than growing forever
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        this.reconnectAttempts = this.maxReconnectAttempts;
+      }
       this.doConnect();
     }, delay);
   }
@@ -437,16 +436,9 @@ class BinanceLiveWS {
    * Attempt to reconnect depth stream with exponential backoff
    */
   private attemptDepthReconnect(): void {
-    if (this.depthReconnectAttempts >= this.maxAuxReconnectAttempts) {
-      console.error('[Binance Depth] Max reconnect attempts reached');
-      return;
-    }
-
-    const delay = this.reconnectDelay * Math.pow(2, this.depthReconnectAttempts);
-    console.debug(`[Binance Depth] Reconnecting in ${delay}ms (attempt ${this.depthReconnectAttempts + 1})`);
-
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.depthReconnectAttempts), 30_000);
     setTimeout(() => {
-      this.depthReconnectAttempts++;
+      if (this.depthReconnectAttempts < this.maxAuxReconnectAttempts) this.depthReconnectAttempts++;
       this.connectDepth();
     }, delay);
   }
@@ -455,16 +447,9 @@ class BinanceLiveWS {
    * Attempt to reconnect mark price stream with exponential backoff
    */
   private attemptMarkPriceReconnect(): void {
-    if (this.markPriceReconnectAttempts >= this.maxAuxReconnectAttempts) {
-      console.error('[Binance MarkPrice] Max reconnect attempts reached');
-      return;
-    }
-
-    const delay = this.reconnectDelay * Math.pow(2, this.markPriceReconnectAttempts);
-    console.debug(`[Binance MarkPrice] Reconnecting in ${delay}ms (attempt ${this.markPriceReconnectAttempts + 1})`);
-
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.markPriceReconnectAttempts), 30_000);
     setTimeout(() => {
-      this.markPriceReconnectAttempts++;
+      if (this.markPriceReconnectAttempts < this.maxAuxReconnectAttempts) this.markPriceReconnectAttempts++;
       this.connectMarkPrice();
     }, delay);
   }
@@ -473,16 +458,9 @@ class BinanceLiveWS {
    * Attempt to reconnect liquidation stream with exponential backoff
    */
   private attemptLiquidationReconnect(): void {
-    if (this.liquidationReconnectAttempts >= this.maxAuxReconnectAttempts) {
-      console.error('[Binance Liquidation] Max reconnect attempts reached');
-      return;
-    }
-
-    const delay = this.reconnectDelay * Math.pow(2, this.liquidationReconnectAttempts);
-    console.debug(`[Binance Liquidation] Reconnecting in ${delay}ms (attempt ${this.liquidationReconnectAttempts + 1})`);
-
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.liquidationReconnectAttempts), 30_000);
     setTimeout(() => {
-      this.liquidationReconnectAttempts++;
+      if (this.liquidationReconnectAttempts < this.maxAuxReconnectAttempts) this.liquidationReconnectAttempts++;
       this.connectLiquidation();
     }, delay);
   }

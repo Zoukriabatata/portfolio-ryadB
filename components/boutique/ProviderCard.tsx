@@ -5,12 +5,12 @@ import type { DataFeedStatus } from '@/stores/useDataFeedStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import {
   BinanceIcon, BybitIcon, DeribitIcon, RithmicIcon,
-  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon,
+  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon, DatabentoIcon,
 } from '@/components/ui/Icons';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   BinanceIcon, BybitIcon, DeribitIcon, RithmicIcon,
-  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon,
+  InteractiveBrokersIcon, TradovateIcon, CQGIcon, DxFeedIcon, AMPIcon, DatabentoIcon,
 };
 
 interface ProviderCardProps {
@@ -23,18 +23,19 @@ interface ProviderCardProps {
 export default function ProviderCard({ provider, status, onConfigure }: ProviderCardProps) {
   const { t } = useTranslation();
   const Icon = ICON_MAP[provider.iconName];
-  const isConnected = status === 'connected';
-  const isError = status === 'error';
+  const isConnected  = status === 'connected';
+  const isConfigured = status === 'configured'; // saved but not verified (gateway providers)
+  const isError      = status === 'error';
+
+  const borderColor = isConnected ? 'var(--success)' : isConfigured ? 'var(--warning, #F59E0B)' : 'var(--border)';
 
   return (
     <div
       className="group relative rounded-2xl flex flex-col transition-all duration-300 hover:translate-y-[-3px] overflow-hidden"
       style={{
         background: 'var(--surface)',
-        border: `1px solid ${isConnected ? 'var(--success)' : 'var(--border)'}`,
-        boxShadow: isConnected
-          ? '0 0 20px var(--success-bg)'
-          : 'none',
+        border: `1px solid ${borderColor}`,
+        boxShadow: isConnected ? '0 0 20px var(--success-bg)' : isConfigured ? '0 0 16px rgba(245,158,11,0.08)' : 'none',
       }}
     >
       {/* Hover glow overlay */}
@@ -46,7 +47,7 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
         }}
       />
       {/* Top accent bar */}
-      <div className="h-[2px] w-full" style={{ background: isConnected ? 'var(--success)' : provider.color }} />
+      <div className="h-[2px] w-full" style={{ background: isConnected ? 'var(--success)' : isConfigured ? '#F59E0B' : provider.color }} />
 
       <div className="p-5 flex flex-col flex-1">
         {/* Header row */}
@@ -62,9 +63,12 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
               <h3 className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                 {provider.name}
               </h3>
-              {/* Connected dot */}
+              {/* Status dot */}
               {isConnected && (
                 <div className="w-2 h-2 rounded-full shrink-0 animate-pulse" style={{ background: 'var(--success)' }} />
+              )}
+              {isConfigured && (
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#F59E0B' }} />
               )}
             </div>
             <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
@@ -126,26 +130,34 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
           style={{
             background: isConnected
               ? 'var(--success-bg)'
-              : isError
-                ? 'var(--error-bg)'
-                : provider.color,
+              : isConfigured
+                ? 'rgba(245,158,11,0.12)'
+                : isError
+                  ? 'var(--error-bg)'
+                  : provider.color,
             color: isConnected
               ? 'var(--success)'
-              : isError
-                ? 'var(--error)'
-                : '#000',
+              : isConfigured
+                ? '#F59E0B'
+                : isError
+                  ? 'var(--error)'
+                  : '#000',
             border: isConnected
               ? '1px solid color-mix(in srgb, var(--success) 25%, transparent)'
-              : isError
-                ? '1px solid color-mix(in srgb, var(--error) 25%, transparent)'
-                : 'none',
+              : isConfigured
+                ? '1px solid rgba(245,158,11,0.3)'
+                : isError
+                  ? '1px solid color-mix(in srgb, var(--error) 25%, transparent)'
+                  : 'none',
           }}
         >
           {isConnected
             ? `${t('boutique.connected')} \u2713`
-            : isError
-              ? 'Retry'
-              : 'Connect'}
+            : isConfigured
+              ? 'Configured \u2713'
+              : isError
+                ? 'Retry'
+                : 'Connect'}
         </button>
       </div>
     </div>

@@ -6,6 +6,26 @@ import { prisma } from '@/lib/db';
 const TRADOVATE_DEMO_API = 'https://demo.tradovateapi.com/v1';
 const TRADOVATE_LIVE_API = 'https://live.tradovateapi.com/v1';
 
+// ── Server-side token cache ────────────────────────────────────────────────
+// Stores one access token per user (keyed by userId+mode) so repeated calls
+// from TradovateWS.connect() don't hammer the Tradovate auth API.
+// Tokens are cached with a 5-minute safety buffer before their actual expiry.
+interface CachedToken {
+  accessToken: string;
+  name: string;
+  expiresAt: number; // Unix ms
+}
+const tokenCache = new Map<string, CachedToken>();
+
+function getCachedToken(cacheKey: string): CachedToken | null {
+  const cached = tokenCache.get(cacheKey);
+  if (!cached) return null;
+  // Use cache if token is valid for at least another 5 minutes
+  if (Date.now() < cached.expiresAt - 5 * 60 * 1000) return cached;
+  tokenCache.delete(cacheKey);
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -42,6 +62,17 @@ export async function GET(req: NextRequest) {
       error: 'Tradovate credentials not configured',
       message: 'Configure Tradovate on the Data Feeds page first.',
     }, { status: 401 });
+  }
+
+  // Check cache before hitting Tradovate API
+  const cacheKey = `${session.user.id}:${isDemo ? 'demo' : 'live'}`;
+  const cached = getCachedToken(cacheKey);
+  if (cached) {
+    return NextResponse.json({
+      accessToken: cached.accessToken,
+      name: cached.name,
+      cached: true,
+    });
   }
 
   try {
@@ -85,6 +116,13 @@ export async function GET(req: NextRequest) {
         error: 'Captcha required — log into Tradovate website first, then retry',
       }, { status: 403 });
     }
+
+    // Store in cache so repeated WS reconnects don't re-authenticate
+    tokenCache.set(cacheKey, {
+      accessToken: data.accessToken,
+      name: data.name,
+      expiresAt: new Date(data.expirationTime).getTime(),
+    });
 
     return NextResponse.json({
       accessToken: data.accessToken,

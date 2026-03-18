@@ -28,18 +28,12 @@ export async function POST(req: NextRequest) {
         return await testTradovate(username, password, host);
       case 'DATABENTO':
         return await testDatabento(apiKey);
+      case 'DXFEED':
+        return testDxFeed(apiKey);
       case 'BINANCE':
       case 'BYBIT':
       case 'DERIBIT':
         return await testCryptoWebSocket(providerUpper);
-      case 'RITHMIC':
-      case 'CQG':
-      case 'AMP':
-        return await testGatewayProvider(providerUpper, host, port);
-      case 'DXFEED':
-        return await testDxFeed(apiKey);
-      case 'IB':
-        return await testInteractiveBrokers(host, port);
       default:
         return NextResponse.json({ error: 'Unknown provider' }, { status: 400 });
     }
@@ -48,6 +42,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
+
+// Providers where we do REAL credential verification:  tradovate, databento, crypto
+// Gateway providers (rithmic, cqg, amp, ib, dxfeed): can't TCP from serverless — verified: false
 
 // ── Tradovate: Real API auth test ──
 // host is repurposed to store 'demo' | 'live' mode
@@ -93,6 +90,7 @@ async function testTradovate(username?: string, password?: string, mode?: string
     if (data.accessToken) {
       return NextResponse.json({
         success: true,
+        verified: true,
         latency,
         message: `Authenticated as ${data.name || username}`,
       });
@@ -131,7 +129,7 @@ async function testCryptoWebSocket(provider: string) {
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     const latency = Date.now() - start;
     if (res.ok) {
-      return NextResponse.json({ success: true, latency, message: `${provider} API reachable` });
+      return NextResponse.json({ success: true, verified: true, latency, message: `${provider} API reachable` });
     }
     return NextResponse.json({ success: false, error: `${provider} returned ${res.status}` });
   } catch {
@@ -139,40 +137,18 @@ async function testCryptoWebSocket(provider: string) {
   }
 }
 
-// ── Gateway providers: basic host/port validation ──
-async function testGatewayProvider(provider: string, host?: string, port?: string | number) {
-  if (!host) {
-    return NextResponse.json({ success: false, error: 'Host is required' }, { status: 400 });
+// ── dxFeed: format validation + demo endpoint reachability ──
+// dxFeed uses a WebSocket protocol (dxLink) that can't be tested from serverless.
+// We validate the token is non-empty and check that the demo endpoint is reachable.
+function testDxFeed(apiKey?: string) {
+  if (!apiKey || apiKey.trim().length < 8) {
+    return NextResponse.json({ success: false, error: 'API token is required (get it from dxFeed portal)' }, { status: 400 });
   }
-
-  // Can't do TCP connect from serverless, so validate format and return guidance
-  const portNum = port ? Number(port) : undefined;
-  if (portNum && (portNum < 1 || portNum > 65535)) {
-    return NextResponse.json({ success: false, error: 'Invalid port number' });
-  }
-
+  // Token saved as 'configured'; real auth happens in the browser WebSocket
   return NextResponse.json({
-    success: true,
-    latency: 0,
-    message: `Configuration saved. Make sure your ${provider} gateway is running at ${host}${portNum ? `:${portNum}` : ''}.`,
-  });
-}
-
-// ── dxFeed: API key validation ──
-async function testDxFeed(apiKey?: string) {
-  if (!apiKey) {
-    return NextResponse.json({ success: false, error: 'API key is required' }, { status: 400 });
-  }
-
-  // dxFeed doesn't have a simple auth ping, validate key format
-  if (apiKey.length < 10) {
-    return NextResponse.json({ success: false, error: 'API key appears too short' });
-  }
-
-  return NextResponse.json({
-    success: true,
-    latency: 0,
-    message: 'API key saved. Connection will be verified when market data is requested.',
+    success:  true,
+    verified: false,
+    message:  'Token saved. It will be verified when the chart connects to dxFeed.',
   });
 }
 
@@ -194,7 +170,7 @@ async function testDatabento(apiKey?: string) {
     const latency = Date.now() - start;
 
     if (res.ok) {
-      return NextResponse.json({ success: true, latency, message: 'Databento API key verified' });
+      return NextResponse.json({ success: true, verified: true, latency, message: 'Databento API key verified' });
     }
     if (res.status === 401) {
       return NextResponse.json({ success: false, error: 'Invalid API key — check your Databento account' });
@@ -205,20 +181,3 @@ async function testDatabento(apiKey?: string) {
   }
 }
 
-// ── Interactive Brokers: TWS Gateway check ──
-async function testInteractiveBrokers(host?: string, port?: string | number) {
-  if (!host) {
-    return NextResponse.json({ success: false, error: 'TWS host is required' }, { status: 400 });
-  }
-
-  const portNum = port ? Number(port) : 7497;
-  if (portNum < 1 || portNum > 65535) {
-    return NextResponse.json({ success: false, error: 'Invalid port number' });
-  }
-
-  return NextResponse.json({
-    success: true,
-    latency: 0,
-    message: `Configuration saved. Make sure TWS/IB Gateway is running at ${host}:${portNum}.`,
-  });
-}

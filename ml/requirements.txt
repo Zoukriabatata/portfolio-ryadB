@@ -1,0 +1,24 @@
+# Core scientific stack
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.3
+
+# Gradient boosting
+xgboost>=2.0
+
+# Deep learning (optional — LSTM)
+torch>=2.1
+
+# Data sources (optional)
+yfinance>=0.2          # free delayed data (testing/research)
+requests>=2.31         # for Tradier/other REST APIs
+
+# Model persistence
+joblib>=1.3
+
+# Interpretability (optional but recommended)
+shap>=0.43
+
+# Development / testing
+pytest>=7.4
+matplotlib>=3.7         # for equity curve plots

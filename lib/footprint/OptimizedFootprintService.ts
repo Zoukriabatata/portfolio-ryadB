@@ -113,8 +113,13 @@ export class OptimizedFootprintService {
   /**
    * Load footprint data using the configured mode.
    * Returns FootprintCandle[] ready for rendering.
+   *
+   * @param onSkeletonReady  Skeleton mode only: called after OHLC loads, before tick data.
+   *                         Receives skeleton-only FootprintCandles for immediate display.
    */
-  async loadOptimized(): Promise<FootprintCandle[]> {
+  async loadOptimized(
+    onSkeletonReady?: (skeletonCandles: FootprintCandle[]) => void
+  ): Promise<FootprintCandle[]> {
     if (this.isLoading) return this.getCandlesArray();
 
     this.isLoading = true;
@@ -138,10 +143,15 @@ export class OptimizedFootprintService {
           intervalStr,
           skeletonLimit,
         },
-        (pct, msg) => this.report(pct * 0.85, msg)
+        (pct, msg) => this.report(pct * 0.85, msg),
+        (sk) => {
+          // Skeleton is ready — build OHLC-only candles for immediate display
+          this.skeleton = sk;
+          onSkeletonReady?.(this.mergeWithSkeleton([]));
+        }
       );
 
-      this.skeleton = skeleton;
+      this.skeleton = skeleton ?? this.skeleton;
 
       if (ticks.length === 0) {
         this.report(100, 'No trades in window');

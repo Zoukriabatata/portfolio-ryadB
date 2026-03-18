@@ -17,11 +17,7 @@ import {
   GlobeIcon,
   PaletteIcon,
   LogOutIcon,
-  RithmicIcon,
-  InteractiveBrokersIcon,
   TradovateIcon,
-  CQGIcon,
-  NinjaTraderIcon,
   BinanceIcon,
   BybitIcon,
   DeribitIcon,
@@ -60,46 +56,13 @@ interface BrokerConnection {
 
 const BROKER_CONNECTIONS: BrokerConnection[] = [
   {
-    id: 'rithmic', name: 'Rithmic', icon: RithmicIcon, color: '#0ea5e9', connected: false,
-    description: 'Professional futures data & execution',
-    fields: [
-      { key: 'username', label: 'Username', type: 'text', placeholder: 'Rithmic username' },
-      { key: 'password', label: 'Password', type: 'password', placeholder: 'Rithmic password' },
-      { key: 'server', label: 'Server', type: 'text', placeholder: 'e.g. Chicago' },
-    ],
-  },
-  {
-    id: 'ib', name: 'Interactive Brokers', icon: InteractiveBrokersIcon, color: '#dc2626', connected: false,
-    description: 'Multi-asset broker - stocks, futures, options',
-    fields: [
-      { key: 'host', label: 'TWS Host', type: 'text', placeholder: '127.0.0.1' },
-      { key: 'port', label: 'TWS Port', type: 'text', placeholder: '7497' },
-      { key: 'clientId', label: 'Client ID', type: 'text', placeholder: '1' },
-    ],
-  },
-  {
     id: 'tradovate', name: 'Tradovate', icon: TradovateIcon, color: '#6366f1', connected: false,
-    description: 'Commission-free futures trading',
+    description: 'Commission-free futures trading — ES, NQ, MNQ, CL…',
     fields: [
       { key: 'apiKey', label: 'Username', type: 'text', placeholder: 'Tradovate username' },
       { key: 'apiSecret', label: 'Password', type: 'password', placeholder: 'Tradovate password' },
       { key: 'cid', label: 'CID (App ID)', type: 'text', placeholder: 'Optional — your app client ID' },
       { key: 'sec', label: 'API Secret', type: 'password', placeholder: 'Optional — your API secret key' },
-    ],
-  },
-  {
-    id: 'cqg', name: 'CQG', icon: CQGIcon, color: '#f59e0b', connected: false,
-    description: 'Institutional-grade market data',
-    fields: [
-      { key: 'username', label: 'Username', type: 'text', placeholder: 'CQG username' },
-      { key: 'password', label: 'Password', type: 'password', placeholder: 'CQG password' },
-    ],
-  },
-  {
-    id: 'ninja', name: 'NinjaTrader', icon: NinjaTraderIcon, color: '#14b8a6', connected: false,
-    description: 'Futures & forex trading platform',
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'text', placeholder: 'NinjaTrader API key' },
     ],
   },
   {
@@ -380,19 +343,7 @@ function AccountContent() {
     setConnectionMessage(prev => ({ ...prev, [brokerId]: '' }));
 
     try {
-      if (brokerId === 'ib') {
-        const gatewayUrl = process.env.NEXT_PUBLIC_IB_GATEWAY_URL || 'ws://localhost:4000';
-        const healthUrl = gatewayUrl.replace('wss://', 'https://').replace('ws://', 'http://') + '/health';
-        const response = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
-        if (response.ok) {
-          const data = await response.json();
-          setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
-          setConnectionMessage(prev => ({ ...prev, [brokerId]: `Gateway online (${data.connectedUsers || 0} users)` }));
-          dataFeedStore.updateStatus('ib', 'connected');
-        } else {
-          throw new Error(`HTTP ${response.status}`);
-        }
-      } else if (brokerId === 'tradovate') {
+      if (brokerId === 'tradovate') {
         // Test Tradovate API connectivity
         const config = brokerFields[brokerId] || {};
         if (!config.apiKey || !config.apiSecret) {
@@ -410,11 +361,6 @@ function AccountContent() {
         auth.disconnect();
         setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
         setConnectionMessage(prev => ({ ...prev, [brokerId]: `Authenticated — ${accounts.length} account(s) found` }));
-      } else if (['rithmic', 'ninja', 'cqg'].includes(brokerId)) {
-        await new Promise(r => setTimeout(r, 800));
-        const names: Record<string, string> = { rithmic: 'Rithmic', ninja: 'NinjaTrader', cqg: 'CQG' };
-        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
-        setConnectionMessage(prev => ({ ...prev, [brokerId]: `${names[brokerId] || brokerId} credentials saved — direct connection coming in a future update. Use Tradovate or Binance/Bybit for live data now.` }));
       } else {
         // Crypto brokers - test API key validity
         const config = brokerFields[brokerId] || {};
@@ -443,29 +389,7 @@ function AccountContent() {
       const config = brokerFields[brokerId] || {};
       localStorage.setItem(`senzoukria-broker-${brokerId}`, JSON.stringify(config));
 
-      if (brokerId === 'ib') {
-        const ibConfig = config as Record<string, string>;
-        dataFeedStore.setConfig('ib', {
-          host: ibConfig.host || '127.0.0.1',
-          port: parseInt(ibConfig.port || '7497', 10),
-          status: 'configured',
-        });
-        const gatewayUrl = process.env.NEXT_PUBLIC_IB_GATEWAY_URL || 'ws://localhost:4000';
-        const healthUrl = gatewayUrl.replace('wss://', 'https://').replace('ws://', 'http://') + '/health';
-        try {
-          const response = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
-          if (response.ok) {
-            setConnectionStatus(prev => ({ ...prev, [brokerId]: 'connected' }));
-            setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved — Gateway connected' }));
-            dataFeedStore.updateStatus('ib', 'connected');
-          } else {
-            throw new Error('Gateway unavailable');
-          }
-        } catch {
-          setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
-          setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved. Start gateway: cd gateway && npm run dev' }));
-        }
-      } else if (brokerId === 'tradovate') {
+      if (brokerId === 'tradovate') {
         // Real Tradovate connection
         if (!config.apiKey || !config.apiSecret) {
           throw new Error('API Key and API Secret are required');
@@ -487,10 +411,6 @@ function AccountContent() {
           ...prev,
           [brokerId]: `Connected as ${tokenResp.name} — ${accounts.length} account(s), balance: $${totalBalance.toLocaleString()}`,
         }));
-      } else if (['rithmic', 'ninja', 'cqg'].includes(brokerId)) {
-        await new Promise(r => setTimeout(r, 1000));
-        setConnectionStatus(prev => ({ ...prev, [brokerId]: 'configured' }));
-        setConnectionMessage(prev => ({ ...prev, [brokerId]: 'Configuration saved — local gateway required for live connection' }));
       } else {
         // Crypto brokers (binance, bybit, deribit) — save config
         await new Promise(r => setTimeout(r, 500));

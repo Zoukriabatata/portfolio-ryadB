@@ -34,8 +34,7 @@ import {
 } from '@/lib/tools/InteractionController';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
 import { binanceWS } from '@/lib/websocket/BinanceWS';
-import { getIBConnectionManager } from '@/lib/ib/ConnectionManager';
-import { getRithmicLiveWS } from '@/lib/live/RithmicLiveWS';
+import { getCMELiveAdapter, getCMEAdapterLabel } from '@/lib/live/getCMELiveAdapter';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
 import {
   getFootprintDataService,
@@ -465,6 +464,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
   const [tickSize, setTickSize] = useState(10);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadGenerationRef = useRef(0); // Guard against stale async loads
   const [activeTool, setActiveTool] = useState<ToolType>('cursor');
@@ -859,6 +859,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     const generation = ++loadGenerationRef.current;
 
     setIsLoading(true);
+    setIsRefreshing(false);
     setLoadError(null);
     setLoadingProgress(0);
     setLoadingMessage('Loading footprint data...');
@@ -894,9 +895,39 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         setLoadingMessage(message);
       });
 
+      // ── Phase 0: Try IndexedDB cache for instant display ──────────────────
+      const cached = await getFootprintCache().getCachedCandles(sym, tf);
+      if (loadGenerationRef.current !== generation) return [];
+
+      let hasEarlyDisplay = false;
+
+      if (cached && cached.candles.length > 0) {
+        // Show cached candles immediately — hide loading overlay
+        candlesRef.current = cached.candles;
+        setIsLoading(false);
+        setIsRefreshing(true);
+        setLoadingMessage('Refreshing recent data...');
+        hasEarlyDisplay = true;
+        console.log(`[FootprintChartPro] Cache hit: ${cached.candles.length} candles shown instantly`);
+      }
+
       console.log(`[FootprintChartPro] Loading footprint for ${sym}...`);
 
-      const tickCandles = await service.loadOptimized();
+      // ── Phase 1 (skeleton) → Phase 2 (ticks) ─────────────────────────────
+      const tickCandles = await service.loadOptimized(
+        // onSkeletonReady: show skeleton immediately if no cache was available
+        hasEarlyDisplay ? undefined : (skeletonCandles) => {
+          if (loadGenerationRef.current !== generation) return;
+          if (skeletonCandles.length > 0) {
+            candlesRef.current = skeletonCandles;
+            setIsLoading(false);
+            setIsRefreshing(true);
+            setLoadingMessage('Loading tick data...');
+            hasEarlyDisplay = true;
+            console.log(`[FootprintChartPro] Skeleton ready: ${skeletonCandles.length} OHLC candles displayed`);
+          }
+        }
+      );
 
       // Guard: if symbol/timeframe changed during load, discard results
       if (loadGenerationRef.current !== generation) {
@@ -952,6 +983,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     } finally {
       if (loadGenerationRef.current === generation) {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
     }
   }, [tickSize, settings.imbalance.ratio]);
@@ -1309,15 +1341,40 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     }
 
     // DOM overlay — footprintTEST style, right-anchored (after candles + VP)
-    if (features.showPassiveLiquidity && currentPriceRef.current > 0) {
-      // Use raw price (not tick-rounded) so Binance depth20 levels aren't incorrectly filtered.
-      // e.g. BTC tickSize=10, price=97523 → domCp=97520 would filter out bids at 97521-97523.
-      const rawPrice = currentPriceRef.current;
-      const safeBids = new Map<number, number>();
-      const safeAsks = new Map<number, number>();
-      domBidsRef.current.forEach((qty, p) => { if (p < rawPrice) safeBids.set(p, qty); });
-      domAsksRef.current.forEach((qty, p) => { if (p > rawPrice) safeAsks.set(p, qty); });
-      fpRenderer.renderDOMOverlay(ctx, layout, metrics, safeBids, safeAsks, rawPrice, tickSize);
+    if (features.showPassiveLiquidity) {
+      // Fallback to last candle close so the overlay shows as soon as historical bars load,
+      // without waiting for the first live tick (which can take several seconds).
+      const rawPrice = currentPriceRef.current > 0
+        ? currentPriceRef.current
+        : (candles[candles.length - 1]?.close ?? 0);
+      if (rawPrice > 0) {
+        // If real depth20 data hasn't arrived yet, generate a minimal synthetic book
+        // from the visible footprint levels so the overlay isn't blank.
+        let domBids = domBidsRef.current;
+        let domAsks = domAsksRef.current;
+        if (!hasRealDOMRef.current && domBids.size === 0 && domAsks.size === 0 && candles.length > 0) {
+          const synthBids = new Map<number, number>();
+          const synthAsks = new Map<number, number>();
+          for (const candle of metrics.visibleCandles.slice(-5)) {
+            candle.levels.forEach((lvl, price) => {
+              if (price < rawPrice && lvl.bidVolume > 0) {
+                synthBids.set(price, (synthBids.get(price) ?? 0) + lvl.bidVolume * 0.15);
+              } else if (price > rawPrice && lvl.askVolume > 0) {
+                synthAsks.set(price, (synthAsks.get(price) ?? 0) + lvl.askVolume * 0.15);
+              }
+            });
+          }
+          if (synthBids.size > 0 || synthAsks.size > 0) {
+            domBids = synthBids;
+            domAsks = synthAsks;
+          }
+        }
+        const safeBids = new Map<number, number>();
+        const safeAsks = new Map<number, number>();
+        domBids.forEach((qty, p) => { if (p < rawPrice) safeBids.set(p, qty); });
+        domAsks.forEach((qty, p) => { if (p > rawPrice) safeAsks.set(p, qty); });
+        fpRenderer.renderDOMOverlay(ctx, layout, metrics, safeBids, safeAsks, rawPrice, tickSize);
+      }
     }
 
     // TPO / Market Profile
@@ -1332,14 +1389,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       }
     }
 
-    // Current price line
-    if (features.showCurrentPrice) {
-      fpRenderer.renderCurrentPriceLine(ctx, layout, metrics, colors, fonts, currentPriceRef.current, width);
-    }
-
-    // Price scale
+    // Price scale (must render before price line so the label sits on top)
     const isCME = SYMBOL_EXCHANGE[symbol] === 'cme';
     fpRenderer.renderPriceScale(ctx, layout, metrics, colors, fonts, tickSize, isCME, width);
+
+    // Current price line — rendered after scale so label is not covered by scale background
+    if (features.showCurrentPrice) {
+      fpRenderer.renderCurrentPriceLine(ctx, layout, metrics, colors, fonts, currentPriceRef.current, width, tickSize);
+    }
 
     // Bid/Ask Spread on price scale (Phase B)
     if (features.showSpread && currentPriceRef.current > 0) {
@@ -1654,174 +1711,83 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       workerDataVersionRef.current = '';
 
       // ═══════════════════════════════════════════════════════════════════════
-      // CME FUTURES (IB Gateway → Simulation fallback)
+      // CME FUTURES — dxFeed (preferred, $29/mo) or Tradovate fallback
+      // Configure provider in /boutique.
       // ═══════════════════════════════════════════════════════════════════════
       if (exchange === 'cme') {
-        const ibMgr = getIBConnectionManager();
-        const ibConnected = ibMgr.isConnected();
+        const adapterLabel = getCMEAdapterLabel();
+        console.log(`[FootprintChartPro] CME symbol ${symbol} — connecting via ${adapterLabel}`);
 
-        if (ibConnected) {
-          // ═══════════════════════════════════════════════════════════════
-          // IB GATEWAY MODE - Real CME data
-          // ═══════════════════════════════════════════════════════════════
-          console.log(`[FootprintChartPro] Initializing CME symbol: ${symbol} via IB Gateway`);
+        const tradovate = getCMELiveAdapter();
+        const footprintService = getOptimizedFootprintService({
+          symbol,
+          timeframe,
+          tickSize,
+          imbalanceRatio: settings.imbalance.ratio,
+          totalHours: 4,
+          aggregationMode: settings.features.aggregationMode,
+          tickBarSize: settings.features.tickBarSize,
+          volumeBarSize: settings.features.volumeBarSize,
+          loadMode: 'skeleton',
+        });
 
-          // Configure IB footprint adapter timeframe
-          ibMgr.setFootprintTimeframe(timeframe);
+        setIsLoading(false);
 
-          // Set status
-          setStatus('connected');
-          setIsLoading(false);
+        // Status updates
+        const unsubStatus = tradovate.onStatus((s) => {
+          if (!isMounted) return;
+          setStatus(s);
           if (statusDotRef.current) {
-            statusDotRef.current.style.backgroundColor = settings.colors.deltaPositive;
+            statusDotRef.current.style.backgroundColor =
+              s === 'connected'  ? settings.colors.deltaPositive :
+              s === 'connecting' ? '#eab308' :
+              settings.colors.deltaNegative;
+          }
+        });
+        unsubscribersRef.current.push(unsubStatus);
+
+        // Live ticks — same footprint pipeline as Binance
+        const unsubTick = tradovate.onTick((tick) => {
+          if (!isMounted || replayStateRef.current.active) return;
+
+          currentPriceRef.current = tick.price;
+          useAlertsStore.getState().checkAlerts(symbol, tick.price);
+          if (priceRef.current) {
+            priceRef.current.textContent = tick.price.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
           }
 
-          // Poll IB footprint candles at 200ms interval
-          const ibPollInterval = setInterval(() => {
-            if (!isMounted) return;
-
-            const ibCandles = ibMgr.getFootprintCandles();
-            if (ibCandles.length === 0) return;
-
-            // Convert IB FootprintCandle to chart format
-            const convertedCandles = ibCandles.map(c => ({
-              time: c.time,
-              open: c.open,
-              high: c.high,
-              low: c.low,
-              close: c.close,
-              levels: c.levels,
-              totalVolume: c.totalVolume,
-              totalBuyVolume: c.totalBuyVolume,
-              totalSellVolume: c.totalSellVolume,
-              totalDelta: c.totalDelta,
-              totalTrades: c.totalTrades,
-              poc: c.poc,
-              vah: c.vah,
-              val: c.val,
-              isClosed: c.isClosed,
-            }));
-
-            candlesRef.current = convertedCandles;
-
-            // Update price display
-            const lastCandle = ibCandles[ibCandles.length - 1];
-            if (lastCandle) {
-              currentPriceRef.current = lastCandle.close;
-              if (priceRef.current) {
-                priceRef.current.textContent = lastCandle.close.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                });
-              }
-
-              // Update delta display
-              if (deltaRef.current) {
-                const delta = lastCandle.totalDelta;
-                deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
-                deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
-              }
+          try {
+            const updatedCandle = footprintService.processLiveTrade({
+              price:        tick.price,
+              quantity:     tick.quantity,
+              time:         tick.timestamp,
+              isBuyerMaker: tick.isBuyerMaker,
+            });
+            if (updatedCandle) {
+              candlesRef.current = footprintService.getCandlesArray();
             }
-          }, 200);
+          } catch { /* ignore — building up history from live ticks */ }
 
-          // Monitor IB status changes
-          const unsubIBStatus = ibMgr.onStatus((s) => {
-            if (!isMounted) return;
-            if (s === 'connected') {
-              setStatus('connected');
-              if (statusDotRef.current) {
-                statusDotRef.current.style.backgroundColor = settings.colors.deltaPositive;
-              }
-            } else if (s === 'connecting_ib' || s === 'authenticating') {
-              setStatus('connecting');
-              if (statusDotRef.current) {
-                statusDotRef.current.style.backgroundColor = '#eab308';
-              }
-            } else {
-              setStatus('disconnected');
-              if (statusDotRef.current) {
-                statusDotRef.current.style.backgroundColor = settings.colors.textMuted;
-              }
-            }
-          });
-          unsubscribersRef.current.push(unsubIBStatus);
+          if (candlesRef.current.length > MAX_CANDLES) {
+            candlesRef.current = candlesRef.current.slice(-MAX_CANDLES);
+          }
 
-          // Cleanup
-          unsubscribersRef.current.push(() => {
-            clearInterval(ibPollInterval);
-          });
+          const lastCandle = candlesRef.current[candlesRef.current.length - 1];
+          if (lastCandle && deltaRef.current) {
+            const delta = lastCandle.totalDelta;
+            deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
+            deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
+          }
+        });
+        unsubscribersRef.current.push(unsubTick);
 
-        } else {
-          // ═══════════════════════════════════════════════════════════════
-          // RITHMIC MODE - Real CME data via local Python bridge
-          // ═══════════════════════════════════════════════════════════════
-          console.log(`[FootprintChartPro] CME symbol ${symbol} — connecting via Rithmic bridge`);
+        // Connect and subscribe
+        tradovate.connect(symbol);
 
-          const rithmicWS = getRithmicLiveWS();
-          const footprintService = getOptimizedFootprintService();
-
-          setIsLoading(false);
-
-          // Status
-          const unsubRithmicStatus = rithmicWS.onStatus((s) => {
-            if (!isMounted) return;
-            setStatus(s);
-            if (statusDotRef.current) {
-              statusDotRef.current.style.backgroundColor =
-                s === 'connected'   ? settings.colors.deltaPositive :
-                s === 'connecting'  ? '#eab308' :
-                settings.colors.deltaNegative;
-            }
-          });
-          unsubscribersRef.current.push(unsubRithmicStatus);
-
-          // Live ticks — same pipeline as Binance
-          const unsubRithmicTick = rithmicWS.onTick((tick) => {
-            if (!isMounted) return;
-            if (replayStateRef.current.active) return;
-
-            currentPriceRef.current = tick.price;
-            useAlertsStore.getState().checkAlerts(symbol, tick.price);
-            if (priceRef.current) {
-              priceRef.current.textContent = tick.price.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-            }
-
-            try {
-              const updatedCandle = footprintService.processLiveTrade({
-                price: tick.price,
-                quantity: tick.quantity,
-                time: tick.timestamp,
-                isBuyerMaker: tick.isBuyerMaker,
-              });
-              if (updatedCandle) {
-                candlesRef.current = footprintService.getCandlesArray();
-              }
-            } catch {
-              // ignore — no history loaded for CME yet
-            }
-
-            if (candlesRef.current.length > MAX_CANDLES) {
-              candlesRef.current = candlesRef.current.slice(-MAX_CANDLES);
-            }
-
-            // Update delta display
-            const lastCandle = candlesRef.current[candlesRef.current.length - 1];
-            if (lastCandle && deltaRef.current) {
-              const delta = lastCandle.totalDelta;
-              deltaRef.current.textContent = (delta >= 0 ? '+' : '') + formatVol(delta);
-              deltaRef.current.style.color = delta >= 0 ? settings.colors.deltaPositive : settings.colors.deltaNegative;
-            }
-          });
-          unsubscribersRef.current.push(unsubRithmicTick);
-
-          // Connect (idempotent)
-          rithmicWS.connect(symbol);
-        }
-
-        return; // Exit early for CME - don't run Binance logic
+        return; // Exit early for CME — don't run Binance logic
       }
 
       // ═══════════════════════════════════════════════════════════════════════
@@ -2631,22 +2597,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     layoutEngineRef.current?.resetScroll();
 
     if (exchange === 'binance') {
-      // Binance: Connect to live WebSocket
       getBinanceLiveWS().changeSymbol(newSymbol);
     } else {
-      // CME: Disconnect Binance WS, switch Rithmic symbol
+      // CME → dxFeed/Tradovate: disconnect Binance, adapter handles re-subscribe via main useEffect
       getBinanceLiveWS().disconnect();
-      resetDxFeedFootprintEngine();
-
-      const ibMgr = getIBConnectionManager();
-      if (ibMgr.isConnected()) {
-        ibMgr.changeSymbol(newSymbol);
-      } else {
-        // Rithmic path
-        getRithmicLiveWS().changeSymbol(newSymbol);
-      }
-
-      console.log(`[FootprintChartPro] CME symbol selected: ${newSymbol}`);
+      getCMELiveAdapter().changeSymbol(newSymbol);
     }
   }, [symbol]);
 
@@ -3100,7 +3055,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
               color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : '#3b82f6',
             }}
           >
-            {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : (getIBConnectionManager().isConnected() ? 'CME IB' : 'CME Rithmic')}
+            {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : getCMEAdapterLabel()}
           </span>
 
           <span ref={priceRef} className="text-xl font-mono font-bold" style={{ color: settings.colors.textPrimary }}>
@@ -3332,6 +3287,16 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Refreshing badge — shown while tick data loads after cache/skeleton display */}
+          {isRefreshing && !isLoading && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px]"
+              style={{ backgroundColor: settings.colors.surface, color: settings.colors.textSecondary, border: `1px solid ${settings.colors.gridColor}` }}>
+              <div className="w-2.5 h-2.5 border border-t-transparent rounded-full animate-spin"
+                style={{ borderColor: settings.colors.currentPriceColor }} />
+              {loadingMessage}
             </div>
           )}
 
