@@ -20,9 +20,12 @@ interface KnowledgeSection {
 }
 
 const sections: KnowledgeSection[] = [
-  { title: 'GEX (Gamma Exposure)',  file: 'gex.md'         },
-  { title: 'Volatility Skew',       file: 'skew.md'        },
-  { title: 'Option Flow',           file: 'optionFlow.md'  },
+  { title: 'GEX (Gamma Exposure)',       file: 'gex.md'        },
+  { title: 'Volatility Skew',            file: 'skew.md'       },
+  { title: 'Option Flow',                file: 'optionFlow.md' },
+  { title: 'Footprint Chart',            file: 'footprint.md'  },
+  { title: 'Indicateurs & Overlays',     file: 'indicators.md' },
+  { title: 'Guide Plateforme OrderFlow', file: 'platform.md'   },
 ];
 
 let _cache: string | null = null;
