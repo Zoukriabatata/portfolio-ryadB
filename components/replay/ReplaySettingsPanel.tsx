@@ -129,11 +129,11 @@ function Toggle({ label, value, onChange, indent }: { label: string; value: bool
       <div
         onClick={() => onChange(!value)}
         className="w-7 h-4 rounded-full transition-colors relative"
-        style={{ background: value ? 'rgba(79,110,247,0.4)' : 'rgba(255,255,255,0.08)' }}
+        style={{ background: value ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.08)' }}
       >
         <div
           className="absolute top-0.5 w-3 h-3 rounded-full transition-all"
-          style={{ left: value ? 14 : 2, background: value ? '#4f6ef7' : 'rgba(255,255,255,0.3)' }}
+          style={{ left: value ? 14 : 2, background: value ? '#4ade80' : 'rgba(255,255,255,0.3)' }}
         />
       </div>
     </label>

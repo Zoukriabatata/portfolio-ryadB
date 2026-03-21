@@ -139,7 +139,7 @@ function AuthErrorContent() {
             <Link
               href="/"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border"
-              style={{ background: 'rgba(79,110,247,0.1)', borderColor: 'rgba(79,110,247,0.25)', color: '#7b94f8' }}
+              style={{ background: 'rgba(74,222,128,0.1)', borderColor: 'rgba(74,222,128,0.25)', color: '#86efac' }}
             >
               Home
             </Link>

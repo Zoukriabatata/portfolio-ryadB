@@ -195,13 +195,13 @@ export default function FeatureTour() {
           className="rounded-xl p-5 shadow-2xl"
           style={{
             background: 'var(--surface, #141419)',
-            border: '1px solid rgba(79,110,247,0.25)',
+            border: '1px solid rgba(74,222,128,0.25)',
             boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }}
         >
           {/* Step counter */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#7b94f8' }}>
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#86efac' }}>
               Step {currentStep + 1} of {TOUR_STEPS.length}
             </span>
             <button
@@ -223,7 +223,7 @@ export default function FeatureTour() {
                   key={i}
                   className="w-1.5 h-1.5 rounded-full transition-all duration-300"
                   style={{
-                    background: i === currentStep ? '#4f6ef7' : i < currentStep ? '#4f6ef766' : 'rgba(255,255,255,0.1)',
+                    background: i === currentStep ? '#4ade80' : i < currentStep ? '#4ade8066' : 'rgba(255,255,255,0.1)',
                     width: i === currentStep ? 12 : 6,
                   }}
                 />
@@ -243,7 +243,7 @@ export default function FeatureTour() {
                 onClick={handleNext}
                 className="px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 hover:brightness-110"
                 style={{
-                  background: 'linear-gradient(135deg, #3354e8, #4f6ef7)',
+                  background: 'linear-gradient(135deg, #16a34a, #4ade80)',
                   color: '#fff',
                 }}
               >

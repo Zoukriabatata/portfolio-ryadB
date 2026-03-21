@@ -194,6 +194,7 @@ export const authOptions: NextAuthOptions = {
           tier: user.subscriptionTier as SubscriptionTier,
           deviceId: deviceFingerprint,
           sessionId,
+          hasResearchPack: user.hasResearchPack ?? false,
         };
       },
     }),
@@ -394,6 +395,7 @@ export const authOptions: NextAuthOptions = {
           user.tier = dbUser.subscriptionTier as SubscriptionTier;
           user.deviceId = deviceFingerprint;
           user.sessionId = sessionId;
+          user.hasResearchPack = dbUser.hasResearchPack ?? false;
 
           return true;
         } catch (error) {
@@ -417,6 +419,7 @@ export const authOptions: NextAuthOptions = {
         token.tier = user.tier || 'FREE';
         token.deviceId = user.deviceId || '';
         token.sessionId = user.sessionId || '';
+        token.hasResearchPack = user.hasResearchPack ?? false;
       }
 
       // On session update or periodic refresh — re-check tier from DB
@@ -425,10 +428,11 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id },
-            select: { subscriptionTier: true, name: true, avatar: true },
+            select: { subscriptionTier: true, name: true, avatar: true, hasResearchPack: true },
           });
           if (dbUser) {
             token.tier = dbUser.subscriptionTier as SubscriptionTier;
+            token.hasResearchPack = dbUser.hasResearchPack ?? token.hasResearchPack;
             token.name = dbUser.name || token.name;
             // Never store data URLs in the JWT — they bloat the cookie and cause 494 errors
             token.picture = (dbUser.avatar && !dbUser.avatar.startsWith('data:'))
@@ -453,6 +457,7 @@ export const authOptions: NextAuthOptions = {
         tier: token.tier,
         deviceId: token.deviceId,
         sessionId: token.sessionId,
+        hasResearchPack: token.hasResearchPack ?? false,
       };
       return session;
     },

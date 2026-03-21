@@ -108,16 +108,17 @@ function ChartBadge({ count }: { count: number }) {
 
 // ─── Chart grid ───────────────────────────────────────────────────────────────
 
-function ChartGrid({ layout, setSymbol, layoutKey }: {
+function ChartGrid({ layout, setSymbol, layoutKey, headerRight }: {
   layout: LayoutMode;
   setSymbol: (s: string) => void;
   layoutKey: number;
+  headerRight?: React.ReactNode;
 }) {
   if (layout === '1x1') {
     return (
       <ChartErrorBoundary fallbackTitle="Chart Error">
         <div key={`chart-1x1-${layoutKey}`} className="h-full chart-panel-enter">
-          <LiveChartPro className="h-full" onSymbolChange={setSymbol} />
+          <LiveChartPro className="h-full" onSymbolChange={setSymbol} headerRight={headerRight} />
         </div>
       </ChartErrorBoundary>
     );
@@ -128,7 +129,7 @@ function ChartGrid({ layout, setSymbol, layoutKey }: {
       <div className="h-full flex min-h-0">
         <div key={`chart-2x1-a-${layoutKey}`} className="flex-1 min-w-0 border-r border-[var(--border)] chart-panel-enter">
           <ChartErrorBoundary fallbackTitle="Chart Error">
-            <LiveChartPro className="h-full" onSymbolChange={setSymbol} />
+            <LiveChartPro className="h-full" onSymbolChange={setSymbol} headerRight={headerRight} />
           </ChartErrorBoundary>
         </div>
         <div key={`chart-2x1-b-${layoutKey}`} className="flex-1 min-w-0 chart-panel-enter-stagger-1">
@@ -259,47 +260,45 @@ export default function LivePageContent() {
   const chartCount = layout === '1x1' ? 1 : layout === '2x1' ? 2 : 4;
   const showTradingPanel = showPanel && isCMESymbol(tradingSymbol) && layout === '1x1';
 
+  const layoutControls = (
+    <div className="flex items-center gap-1.5">
+      <ChartBadge count={chartCount} />
+      <LayoutSelector layout={layout} onChange={setLayout} />
+      {isCMESymbol(tradingSymbol) && (
+        <button
+          onClick={() => setShowPanel((p) => !p)}
+          title={showPanel ? 'Hide DOM & Tape' : 'Show DOM & Tape'}
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150"
+          style={{
+            backgroundColor: showPanel ? 'var(--primary)' : 'transparent',
+            color: showPanel ? '#fff' : 'var(--text-secondary)',
+            border: `1px solid ${showPanel ? 'var(--primary)' : 'var(--border)'}`,
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <rect x="0" y="0" width="4" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+            <rect x="5" y="0" width="5" height="1.5" rx="0.5" fill="#22c55e" />
+            <rect x="0" y="2.5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+            <rect x="7" y="2.5" width="3" height="1.5" rx="0.5" fill="#22c55e" />
+            <rect x="0" y="5" width="7" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+            <rect x="8" y="5" width="2" height="1.5" rx="0.5" fill="#ef4444" />
+            <rect x="0" y="7.5" width="5" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
+            <rect x="6" y="7.5" width="4" height="1.5" rx="0.5" fill="#ef4444" />
+          </svg>
+          DOM
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <ChartPageShell
       symbol={tradingSymbol}
       onSymbolChange={setTradingSymbol}
-      toolbarRight={
-        <div className="flex items-center gap-2">
-          <ChartBadge count={chartCount} />
-          <LayoutSelector layout={layout} onChange={setLayout} />
-
-          {/* Trading panel toggle — only for CME futures symbols */}
-          {isCMESymbol(tradingSymbol) && (
-            <button
-              onClick={() => setShowPanel((p) => !p)}
-              title={showPanel ? 'Hide DOM & Tape' : 'Show DOM & Tape'}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium transition-all duration-150"
-              style={{
-                backgroundColor: showPanel ? 'var(--primary)' : 'var(--surface)',
-                color: showPanel ? '#fff' : 'var(--text-secondary)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {/* Simple order book icon */}
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <rect x="0" y="0" width="4" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-                <rect x="5" y="0" width="5" height="1.5" rx="0.5" fill="#22c55e" />
-                <rect x="0" y="2.5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-                <rect x="7" y="2.5" width="3" height="1.5" rx="0.5" fill="#22c55e" />
-                <rect x="0" y="5" width="7" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-                <rect x="8" y="5" width="2" height="1.5" rx="0.5" fill="#ef4444" />
-                <rect x="0" y="7.5" width="5" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-                <rect x="6" y="7.5" width="4" height="1.5" rx="0.5" fill="#ef4444" />
-              </svg>
-              DOM
-            </button>
-          )}
-        </div>
-      }
     >
       <div className="flex h-full min-h-0">
         <div className="flex-1 min-w-0 min-h-0">
-          <ChartGrid layout={layout} setSymbol={setTradingSymbol} layoutKey={layoutKey} />
+          <ChartGrid layout={layout} setSymbol={setTradingSymbol} layoutKey={layoutKey} headerRight={layoutControls} />
         </div>
 
         {/* Trading panel: DOM Ladder + Live Tape */}

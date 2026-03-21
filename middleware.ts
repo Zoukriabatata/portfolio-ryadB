@@ -122,6 +122,7 @@ const PROTECTED_ROUTES = [
   '/admin',
   '/bilansUTILISATEUR',
   '/ai',
+  '/pdf',
 ];
 
 // Routes that require specific subscription tiers
@@ -432,6 +433,16 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   // Check subscription tier for route access
   const rawTier = token.tier as 'FREE' | 'ULTRA';
   const userTier: 'FREE' | 'ULTRA' = isBetaTester ? 'ULTRA' : rawTier;
+
+  // Special: /pdf requires ULTRA OR hasResearchPack (one-time $50 purchase)
+  if (pathname.startsWith('/pdf')) {
+    const hasResearchPack = token.hasResearchPack === true;
+    if (userTier !== 'ULTRA' && !hasResearchPack && !isBetaTester) {
+      // Not authorized — show 404 (don't reveal route exists)
+      return NextResponse.rewrite(new URL('/not-found', request.url));
+    }
+  }
+
   const matchingRoute = Object.keys(TIER_ROUTES).find(route =>
     pathname.startsWith(route)
   );
@@ -447,9 +458,19 @@ async function runMiddleware(request: NextRequest, pathname: string) {
 
   // Check subscription expiration (beta testers are exempt)
   const subscriptionEnd = token.subscriptionEnd as string | null;
-  if (!isBetaTester && subscriptionEnd && new Date(subscriptionEnd) < new Date()) {
+  const isExpired = !isBetaTester && subscriptionEnd && new Date(subscriptionEnd) < new Date();
+  if (isExpired) {
     // Subscription expired — treat as FREE, show 404 for ULTRA routes
     const expiredTier = 'FREE' as const;
+
+    // /pdf: expired ULTRA still has access IF hasResearchPack (one-time purchase)
+    if (pathname.startsWith('/pdf')) {
+      const hasResearchPack = token.hasResearchPack === true;
+      if (!hasResearchPack) {
+        return NextResponse.rewrite(new URL('/not-found', request.url));
+      }
+    }
+
     if (matchingRoute) {
       const allowedTiers = TIER_ROUTES[matchingRoute];
       if (allowedTiers && !allowedTiers.includes(expiredTier)) {
@@ -490,6 +511,7 @@ async function runMiddleware(request: NextRequest, pathname: string) {
 
   response.headers.set('x-user-id', token.id as string);
   response.headers.set('x-user-tier', userTier);
+  response.headers.set('x-user-research-pack', token.hasResearchPack ? '1' : '0');
 
   // CORS headers for API responses (only for allowed origins)
   const origin = request.headers.get('origin');

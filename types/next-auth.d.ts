@@ -11,6 +11,7 @@ declare module 'next-auth' {
       tier: 'FREE' | 'ULTRA';
       deviceId: string;
       sessionId: string;
+      hasResearchPack: boolean;
     };
   }
 
@@ -19,6 +20,7 @@ declare module 'next-auth' {
     tier: 'FREE' | 'ULTRA';
     deviceId?: string;
     sessionId?: string;
+    hasResearchPack?: boolean;
   }
 }
 
@@ -31,5 +33,6 @@ declare module 'next-auth/jwt' {
     tier: 'FREE' | 'ULTRA';
     deviceId: string;
     sessionId: string;
+    hasResearchPack: boolean;
   }
 }

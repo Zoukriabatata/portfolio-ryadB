@@ -21,6 +21,7 @@ export const STRIPE_PRICES = {
     monthly: process.env.STRIPE_MONTHLY_PRICE_ID || process.env.STRIPE_ULTRA_MONTHLY_PRICE_ID || '',
     yearly: process.env.STRIPE_YEARLY_PRICE_ID || process.env.STRIPE_ULTRA_YEARLY_PRICE_ID || '',
   },
+  RESEARCH_PACK: process.env.STRIPE_RESEARCH_PACK_PRICE_ID || '',
 };
 
 // ============ CUSTOMER MANAGEMENT ============
@@ -105,6 +106,49 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
       ...(trialDays && { trial_period_days: trialDays }), // Add trial period if provided
     },
     allow_promotion_codes: true,
+  });
+
+  return session.url!;
+}
+
+// ============ ONE-TIME PURCHASE CHECKOUT ============
+
+export interface CreateOneTimeCheckoutParams {
+  customerId: string;
+  userId: string;
+  product: 'research-pack';
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export async function createOneTimeCheckoutSession(params: CreateOneTimeCheckoutParams): Promise<string> {
+  const { customerId, userId, product, successUrl, cancelUrl } = params;
+
+  const priceId = STRIPE_PRICES.RESEARCH_PACK;
+
+  if (!priceId || !priceId.startsWith('price_')) {
+    throw new Error(
+      `Stripe price not configured for ${product}. ` +
+      `Create a one-time $50 product in Stripe Dashboard and set STRIPE_RESEARCH_PACK_PRICE_ID in .env`
+    );
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: 'payment', // one-time payment, not subscription
+    payment_method_types: ['card'],
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
+      },
+    ],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      userId,
+      product, // 'research-pack'
+    },
   });
 
   return session.url!;

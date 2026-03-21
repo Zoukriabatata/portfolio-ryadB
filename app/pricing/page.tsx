@@ -359,7 +359,7 @@ function PricingContent() {
             {/* Hover glow overlay */}
             <div
               className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-              style={{ boxShadow: 'inset 0 0 60px rgba(79,110,247,0.07)' }}
+              style={{ boxShadow: 'inset 0 0 60px rgba(74,222,128,0.07)' }}
             />
             <div className="p-8 flex flex-col flex-1 relative">
             {/* Recommended badge */}

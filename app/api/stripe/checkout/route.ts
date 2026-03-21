@@ -9,15 +9,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
-import { createOrGetCustomer, createCheckoutSession, stripe } from '@/lib/stripe';
+import { createOrGetCustomer, createCheckoutSession, createOneTimeCheckoutSession, stripe } from '@/lib/stripe';
 import { validatePromoCodeUsage, recordPromoCodeAttempt } from '@/lib/stripe/promo-code-service';
 import { z } from 'zod';
 
-const checkoutSchema = z.object({
+const subscriptionSchema = z.object({
   tier: z.literal('ULTRA'),
   billingPeriod: z.enum(['monthly', 'yearly']),
   promoCode: z.string().max(30).optional(),
 }).strict();
+
+const oneTimeSchema = z.object({
+  product: z.literal('research-pack'),
+}).strict();
+
+const checkoutSchema = z.union([subscriptionSchema, oneTimeSchema]);
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +45,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 });
     }
 
-    const { tier, billingPeriod, promoCode } = parsed.data;
+    const data = parsed.data;
+
+    // ── One-time product purchase (Research Pack) ──
+    if ('product' in data) {
+      const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+      if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      // Already purchased?
+      if (user.hasResearchPack) {
+        return NextResponse.json({ error: 'You already own the Research Pack' }, { status: 400 });
+      }
+
+      // Already ULTRA? They get it for free
+      if (user.subscriptionTier === 'ULTRA') {
+        return NextResponse.json({ error: 'Research Pack is included in your Ultra subscription' }, { status: 400 });
+      }
+
+      let customerId = user.customerId;
+      if (!customerId) {
+        customerId = await createOrGetCustomer(user.email, user.name, user.id);
+        await prisma.user.update({ where: { id: user.id }, data: { customerId } });
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const checkoutUrl = await createOneTimeCheckoutSession({
+        customerId,
+        userId: user.id,
+        product: data.product,
+        successUrl: `${baseUrl}/pdf?success=true`,
+        cancelUrl: `${baseUrl}/pdf?cancelled=true`,
+      });
+
+      return NextResponse.json({ url: checkoutUrl });
+    }
+
+    // ── Subscription purchase (ULTRA) ──
+    const { tier, billingPeriod, promoCode } = data;
 
     // Get device fingerprint and IP for anti-abuse detection
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||

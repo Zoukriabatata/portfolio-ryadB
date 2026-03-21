@@ -7,14 +7,14 @@ export default function NotFound() {
       <div
         className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full pointer-events-none"
         style={{
-          background: 'radial-gradient(circle, rgba(79,110,247,0.07) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(74,222,128,0.07) 0%, transparent 70%)',
           filter: 'blur(80px)',
         }}
       />
       <div
         className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full pointer-events-none"
         style={{
-          background: 'radial-gradient(circle, rgba(79,110,247,0.04) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(74,222,128,0.04) 0%, transparent 70%)',
           filter: 'blur(80px)',
         }}
       />
@@ -37,7 +37,7 @@ export default function NotFound() {
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
             style={{ filter: 'blur(40px)', opacity: 0.3 }}
           >
-            <span className="text-[160px] sm:text-[200px] font-black leading-none tracking-tighter" style={{ color: '#4f6ef7' }}>
+            <span className="text-[160px] sm:text-[200px] font-black leading-none tracking-tighter" style={{ color: '#4ade80' }}>
               404
             </span>
           </div>
@@ -53,9 +53,9 @@ export default function NotFound() {
         {/* Quick navigation grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
-            { href: '/live', label: 'Live Charts', icon: 'M3 3v18h18', color: '#4f6ef7' },
-            { href: '/journal', label: 'Journal', icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14v14H6.5', color: '#7b94f8' },
-            { href: '/pricing', label: 'Pricing', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6', color: '#3354e8' },
+            { href: '/live', label: 'Live Charts', icon: 'M3 3v18h18', color: '#4ade80' },
+            { href: '/journal', label: 'Journal', icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14v14H6.5', color: '#86efac' },
+            { href: '/pricing', label: 'Pricing', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6', color: '#16a34a' },
             { href: '/news', label: 'News', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1', color: '#a3b8ff' },
           ].map((item) => (
             <Link
@@ -95,9 +95,9 @@ export default function NotFound() {
             href="/live"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border"
             style={{
-              background: 'rgba(79,110,247,0.1)',
-              borderColor: 'rgba(79,110,247,0.25)',
-              color: '#7b94f8',
+              background: 'rgba(74,222,128,0.1)',
+              borderColor: 'rgba(74,222,128,0.25)',
+              color: '#86efac',
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

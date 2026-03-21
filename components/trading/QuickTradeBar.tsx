@@ -270,8 +270,8 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   if (!isConnected) {
     return (
       <>
-        <div className="flex items-center justify-between px-3 h-[38px] text-xs"
-          style={{ backgroundColor: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
+        <div className="flex items-center justify-between px-3 h-[34px] text-xs"
+          style={{ backgroundColor: colors.background, borderBottom: `1px solid ${colors.border}` }}>
           <span className="text-[11px]" style={{ color: colors.textMuted }}>Connect to trade</span>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setShowDemoPanel(true)}
@@ -298,31 +298,31 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   const needsStop = orderType === 'stop' || orderType === 'stop_limit';
 
   return (
-    <div className="flex items-center h-[38px] px-2 gap-2 text-[11px] font-mono overflow-x-auto"
-      style={{ backgroundColor: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
+    <div className="flex items-center h-[34px] px-2.5 gap-1.5 text-[11px] overflow-x-auto"
+      style={{ backgroundColor: colors.background, borderBottom: `1px solid ${colors.border}`, scrollbarWidth: 'none' }}>
 
       {/* Balance — clickable for demo settings */}
       {balance !== undefined && (
         <button
           onClick={() => activeBroker === 'demo' && setShowDemoPanel(true)}
-          className="font-mono text-[10px] shrink-0 tabular-nums transition-colors hover:brightness-125"
-          style={{ color: colors.textMuted, cursor: activeBroker === 'demo' ? 'pointer' : 'default' }}
+          className="text-[10px] shrink-0 tabular-nums font-medium transition-colors hover:brightness-125 px-1.5 py-0.5 rounded"
+          style={{ color: colors.textSecondary, cursor: activeBroker === 'demo' ? 'pointer' : 'default', backgroundColor: colors.surface }}
         >
           ${balance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </button>
       )}
 
-      <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
+      <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
 
       {/* Order type — includes stop_limit */}
-      <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
+      <div className="flex items-center rounded overflow-hidden shrink-0"
         style={{ border: `1px solid ${colors.border}` }}>
         {(['market', 'limit', 'stop', 'stop_limit'] as OrderType[]).map(t => (
           <button key={t}
             onClick={() => setOrderType(t)}
-            className="px-2 py-1 text-[10px] font-medium transition-colors"
+            className="px-2 py-0.5 text-[10px] font-medium transition-colors"
             style={{
-              backgroundColor: orderType === t ? 'var(--surface-hover)' : 'transparent',
+              backgroundColor: orderType === t ? colors.surface : 'transparent',
               color: orderType === t ? colors.text : colors.textMuted,
             }}>
             {t === 'stop_limit' ? 'S/L' : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -332,52 +332,52 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
       {/* Limit/Stop price inputs */}
       {needsLimit && (
-        <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
-          style={{ border: `1px solid ${colors.border}` }}>
+        <div className="flex items-center rounded overflow-hidden shrink-0"
+          style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
           <button onClick={() => setLimitPrice(((parseFloat(limitPrice) || currentPrice) - tick).toFixed(decimals))}
-            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] text-[10px]"
+            className="w-5 h-5 flex items-center justify-center hover:bg-[var(--surface-hover)] text-[10px]"
             style={{ color: colors.textMuted }}>-</button>
           <input type="number" value={limitPrice}
             onChange={e => setLimitPrice(e.target.value)}
             step={tick}
             placeholder={currentPrice.toFixed(decimals)}
-            className="w-[72px] px-1 text-center text-[11px] font-mono focus:outline-none bg-transparent"
+            className="w-[68px] px-1 text-center text-[10px] tabular-nums focus:outline-none bg-transparent"
             style={{ color: colors.text }} />
           <button onClick={() => setLimitPrice(((parseFloat(limitPrice) || currentPrice) + tick).toFixed(decimals))}
-            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] text-[10px]"
+            className="w-5 h-5 flex items-center justify-center hover:bg-[var(--surface-hover)] text-[10px]"
             style={{ color: colors.textMuted }}>+</button>
         </div>
       )}
       {needsStop && (
-        <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
-          style={{ border: `1px solid ${colors.border}` }}>
-          <span className="px-1 text-[9px]" style={{ color: '#f59e0b' }}>STP</span>
+        <div className="flex items-center rounded overflow-hidden shrink-0"
+          style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
+          <span className="px-1 text-[9px] font-medium" style={{ color: '#f59e0b' }}>STP</span>
           <input type="number" value={stopPrice}
             onChange={e => setStopPrice(e.target.value)}
             step={tick}
             placeholder={currentPrice.toFixed(decimals)}
-            className="w-[72px] px-1 text-center text-[11px] font-mono focus:outline-none bg-transparent"
+            className="w-[68px] px-1 text-center text-[10px] tabular-nums focus:outline-none bg-transparent"
             style={{ color: colors.text }} />
         </div>
       )}
 
-      <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
+      <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
 
       {/* Quantity control — compact */}
-      <div className="flex items-center gap-1 shrink-0">
-        <div className="flex items-center gap-px rounded-md overflow-hidden"
-          style={{ border: `1px solid ${colors.border}` }}>
+      <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center rounded overflow-hidden"
+          style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
           <button onClick={() => setContractQuantity(Math.max(1, contractQuantity - 1))}
-            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
+            className="w-5 h-5 flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
             style={{ color: colors.textMuted }}>
             <svg width="8" height="8" viewBox="0 0 10 10"><line x1="2" y1="5" x2="8" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
           </button>
           <input type="number" value={contractQuantity}
             onChange={e => setContractQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-8 text-center text-[11px] font-mono font-semibold focus:outline-none bg-transparent tabular-nums"
+            className="w-7 text-center text-[10px] font-semibold focus:outline-none bg-transparent tabular-nums"
             style={{ color: colors.text }} />
           <button onClick={() => setContractQuantity(contractQuantity + 1)}
-            className="w-5 h-6 flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
+            className="w-5 h-5 flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
             style={{ color: colors.textMuted }}>
             <svg width="8" height="8" viewBox="0 0 10 10"><line x1="5" y1="2" x2="5" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><line x1="2" y1="5" x2="8" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
           </button>
@@ -385,21 +385,21 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         {/* Quick qty presets */}
         {[1, 5, 10, 25].map(q => (
           <button key={q} onClick={() => setContractQuantity(q)}
-            className="w-6 h-6 rounded text-[9px] font-mono transition-colors"
+            className="w-5 h-5 rounded text-[9px] font-medium transition-colors"
             style={{
-              backgroundColor: contractQuantity === q ? 'var(--surface-hover)' : 'transparent',
+              backgroundColor: contractQuantity === q ? colors.surface : 'transparent',
               color: contractQuantity === q ? colors.text : colors.textMuted,
             }}>{q}</button>
         ))}
       </div>
 
-      <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
+      <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
 
       {/* Bracket Toggle + R:R */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0">
         <button
           onClick={() => { setBracketEnabled(!bracketEnabled); if (!bracketEnabled && rrPreset === 'off') setRrPreset('1:2'); }}
-          className="h-6 px-1.5 rounded text-[9px] font-semibold tracking-wide transition-colors"
+          className="h-5 px-1.5 rounded text-[9px] font-semibold tracking-wide transition-colors"
           title="Bracket order (TP + SL)"
           style={{
             backgroundColor: bracketEnabled ? 'rgba(168,85,247,0.15)' : 'transparent',
@@ -411,11 +411,10 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         </button>
         {bracketEnabled && (
           <>
-            {/* R:R presets */}
             {(['1:1', '1:2', '1:3'] as RRPreset[]).map(rr => (
               <button key={rr}
                 onClick={() => setRrPreset(rr)}
-                className="h-6 px-1.5 rounded text-[9px] font-mono transition-colors"
+                className="h-5 px-1 rounded text-[9px] font-medium transition-colors"
                 style={{
                   backgroundColor: rrPreset === rr ? 'rgba(251,191,36,0.15)' : 'transparent',
                   color: rrPreset === rr ? '#fbbf24' : colors.textMuted,
@@ -423,70 +422,68 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
                 {rr}
               </button>
             ))}
-            {/* SL offset input */}
-            <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
-              style={{ border: `1px solid ${colors.border}` }}>
+            <div className="flex items-center rounded overflow-hidden shrink-0"
+              style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
               <span className="px-1 text-[8px] font-bold" style={{ color: '#ef4444' }}>SL</span>
               <input type="number" value={slOffset}
                 onChange={e => setSlOffset(e.target.value)}
                 step={tick}
                 placeholder={tick.toFixed(decimals)}
-                className="w-[52px] px-0.5 text-center text-[10px] font-mono focus:outline-none bg-transparent"
+                className="w-[48px] px-0.5 text-center text-[10px] tabular-nums focus:outline-none bg-transparent"
                 style={{ color: colors.text }} />
             </div>
-            {/* TP offset input */}
-            <div className="flex items-center gap-px rounded-md overflow-hidden shrink-0"
-              style={{ border: `1px solid ${colors.border}` }}>
+            <div className="flex items-center rounded overflow-hidden shrink-0"
+              style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
               <span className="px-1 text-[8px] font-bold" style={{ color: '#22c55e' }}>TP</span>
               <input type="number" value={tpOffset}
                 onChange={e => { setTpOffset(e.target.value); setRrPreset('off'); }}
                 step={tick}
                 placeholder={tick.toFixed(decimals)}
-                className="w-[52px] px-0.5 text-center text-[10px] font-mono focus:outline-none bg-transparent"
+                className="w-[48px] px-0.5 text-center text-[10px] tabular-nums focus:outline-none bg-transparent"
                 style={{ color: colors.text }} />
             </div>
           </>
         )}
       </div>
 
-      <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
+      <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
 
       {/* Position info */}
       {currentPosition && (
         <>
-          <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px] tabular-nums">
-            <span className="px-1 py-0.5 rounded text-[9px] font-bold"
+          <div className="flex items-center gap-1 shrink-0 text-[10px] tabular-nums">
+            <span className="px-1 py-px rounded text-[9px] font-bold"
               style={{
                 backgroundColor: currentPosition.side === 'buy' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
                 color: currentPosition.side === 'buy' ? '#10b981' : '#ef4444',
               }}>
               {currentPosition.side === 'buy' ? 'L' : 'S'}{currentPosition.quantity}
             </span>
-            <span style={{ color: currentPosition.pnl >= 0 ? '#10b981' : '#ef4444' }}>
+            <span className="font-medium" style={{ color: currentPosition.pnl >= 0 ? '#10b981' : '#ef4444' }}>
               {currentPosition.pnl >= 0 ? '+' : ''}{currentPosition.pnl.toFixed(2)}
             </span>
           </div>
-          <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
+          <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
         </>
       )}
 
       {/* Action buttons: Flatten, Reverse, Cancel */}
       {(currentPosition || pendingOrders.length > 0) && (
         <>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0">
             {currentPosition && (
               <>
                 <button onClick={handleFlatten} title="Flatten (X)"
-                  className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
+                  className="w-5 h-5 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
                   style={{ color: '#a78bfa' }}>
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" />
                   </svg>
                 </button>
                 <button onClick={handleReverse} title="Reverse (F)"
-                  className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
+                  className="w-5 h-5 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
                   style={{ color: '#fbbf24' }}>
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="2,6 6,2 10,6" /><line x1="6" y1="2" x2="6" y2="11" />
                     <polyline points="6,10 10,14 14,10" /><line x1="10" y1="5" x2="10" y2="14" />
                   </svg>
@@ -495,13 +492,13 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             )}
             {pendingOrders.length > 0 && (
               <button onClick={handleCancelAll} title="Cancel all (Esc)"
-                className="h-6 px-1.5 rounded flex items-center justify-center text-[9px] font-medium transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: '#a8a29e' }}>
+                className="h-5 px-1.5 rounded flex items-center justify-center text-[9px] font-medium transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: colors.textMuted }}>
                 CXL{pendingOrders.length > 1 && <span className="ml-0.5 text-[8px] opacity-60">{pendingOrders.length}</span>}
               </button>
             )}
           </div>
-          <div className="w-px h-5 shrink-0" style={{ backgroundColor: colors.border }} />
+          <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
         </>
       )}
 
@@ -510,7 +507,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
       {/* Buy / Sell */}
       <div className="flex items-center gap-1 shrink-0">
         <button onClick={() => handleTrade('sell')} disabled={isSubmitting}
-          className="h-7 px-4 rounded font-bold text-[11px] tracking-wide transition-all active:scale-95 disabled:opacity-40"
+          className="h-6 px-3.5 rounded font-bold text-[10px] tracking-wider transition-all active:scale-95 disabled:opacity-40"
           style={{
             backgroundColor: lastAction?.side === 'sell' ? '#dc2626' : '#ef4444',
             color: '#fff',
@@ -519,7 +516,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           SELL
         </button>
         <button onClick={() => handleTrade('buy')} disabled={isSubmitting}
-          className="h-7 px-4 rounded font-bold text-[11px] tracking-wide transition-all active:scale-95 disabled:opacity-40"
+          className="h-6 px-3.5 rounded font-bold text-[10px] tracking-wider transition-all active:scale-95 disabled:opacity-40"
           style={{
             backgroundColor: lastAction?.side === 'buy' ? '#059669' : '#10b981',
             color: '#fff',

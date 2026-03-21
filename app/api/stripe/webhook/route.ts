@@ -82,12 +82,48 @@ export async function POST(req: NextRequest) {
 
 async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.userId;
-  const tier = session.metadata?.tier as 'ULTRA';
-  const subscriptionId = session.subscription as string;
+  const product = session.metadata?.product; // 'research-pack' for one-time purchases
   const customerId = session.customer as string;
 
-  if (!userId || !tier) {
-    console.error('Missing metadata in checkout session');
+  if (!userId) {
+    console.error('Missing userId in checkout session metadata');
+    return;
+  }
+
+  // ── One-time product purchase (Research Pack) ──
+  if (product === 'research-pack') {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        hasResearchPack: true,
+        researchPackBoughtAt: new Date(),
+        customerId,
+      },
+    });
+
+    await prisma.payment.create({
+      data: {
+        userId,
+        stripePaymentId: session.payment_intent as string,
+        amount: session.amount_total || 0,
+        currency: session.currency || 'usd',
+        status: 'COMPLETED',
+        tier: 'FREE', // Pack purchase, not a tier change
+        billingPeriod: 'ONE_TIME',
+        completedAt: new Date(),
+      },
+    });
+
+    console.log(`✅ User ${userId} purchased Research Pack`);
+    return;
+  }
+
+  // ── Subscription purchase (ULTRA) ──
+  const tier = session.metadata?.tier as 'ULTRA';
+  const subscriptionId = session.subscription as string;
+
+  if (!tier) {
+    console.error('Missing tier in checkout session metadata');
     return;
   }
 

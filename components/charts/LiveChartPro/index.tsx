@@ -53,6 +53,8 @@ import { useFavoritesToolbarStore } from '@/stores/useFavoritesToolbarStore';
 interface LiveChartProProps {
   className?: string;
   onSymbolChange?: (symbol: string) => void;
+  /** Slot rendered at the far-right of the chart header bar */
+  headerRight?: React.ReactNode;
 }
 
 // Helper function to create tool context menu items
@@ -182,7 +184,7 @@ function createToolContextMenuItems(
   ];
 }
 
-export default function LiveChartPro({ className, onSymbolChange }: LiveChartProProps) {
+export default function LiveChartPro({ className, onSymbolChange, headerRight }: LiveChartProProps) {
   // === SHARED REFS (individual refs first, then wrapped in stable object) ===
   const chartEngineRef = useRef(null);
   const chartContainerRef = useRef(null);
@@ -546,8 +548,8 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div
-          className="flex items-center px-2 py-1 border-b gap-0 overflow-x-auto"
-          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, scrollbarWidth: 'none', position: 'relative', zIndex: 10 } as React.CSSProperties}
+          className="flex items-center px-1.5 py-0.5 border-b gap-0 overflow-x-auto"
+          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 32, flexShrink: 0, scrollbarWidth: 'none', position: 'relative', zIndex: 10 } as React.CSSProperties}
           onWheel={e => e.stopPropagation()}
         >
           {/* Group 1: Symbol & Price */}
@@ -736,11 +738,19 @@ export default function LiveChartPro({ className, onSymbolChange }: LiveChartPro
               <span ref={refs.tickCount} className="font-mono tabular-nums">0</span>
               <div ref={refs.statusDot} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.colors.textMuted }} />
             </div>
+
+            {/* Layout selector slot (Single/Split/Grid) */}
+            {headerRight && (
+              <>
+                <div className="w-px h-4" style={{ backgroundColor: theme.colors.border }} />
+                {headerRight}
+              </>
+            )}
           </div>
         </div>
 
         {/* Quick Trade Bar */}
-        <div style={{ height: showTradeBar ? 38 : 0, overflow: 'hidden', transition: 'height 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div style={{ height: showTradeBar ? 34 : 0, overflow: 'hidden', transition: 'height 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           <QuickTradeBar
             symbol={symbolData.symbol}
             colors={{ surface: theme.colors.surface, border: theme.colors.border, text: theme.colors.text, textSecondary: theme.colors.textSecondary, textMuted: theme.colors.textMuted, success: theme.colors.success, error: theme.colors.error, background: theme.colors.background }}

@@ -51,7 +51,7 @@ export default function ChartPageShell({
         {tradeBarSlot && (
           <div
             style={{
-              height: tradeBarVisible ? 38 : 0,
+              height: tradeBarVisible ? 34 : 0,
               overflow: 'hidden',
               transition: 'height 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             }}

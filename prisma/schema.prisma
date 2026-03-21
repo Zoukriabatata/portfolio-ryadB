@@ -34,6 +34,10 @@ model User {
   subscriptionStart DateTime?
   subscriptionEnd   DateTime?
 
+  // One-time packs (separate from subscription)
+  hasResearchPack      Boolean   @default(false) // $50 Research Library access
+  researchPackBoughtAt DateTime? // Purchase timestamp
+
   // Security - Device & Session Management
   maxDevices        Int       @default(1) // 1 for Free, 2 for Ultra
   currentDeviceId   String?   // Active device fingerprint

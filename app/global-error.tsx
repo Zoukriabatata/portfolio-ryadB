@@ -106,18 +106,18 @@ export default function GlobalError({
                 href="/"
                 style={{
                   padding: '10px 24px', fontSize: '0.875rem', fontWeight: 500,
-                  borderRadius: 12, border: '1px solid rgba(79,110,247,0.25)',
-                  background: 'rgba(79,110,247,0.1)', color: '#7b94f8',
+                  borderRadius: 12, border: '1px solid rgba(74,222,128,0.25)',
+                  background: 'rgba(74,222,128,0.1)', color: '#86efac',
                   cursor: 'pointer', transition: 'all 0.2s',
                   textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(79,110,247,0.18)';
-                  e.currentTarget.style.borderColor = 'rgba(79,110,247,0.4)';
+                  e.currentTarget.style.background = 'rgba(74,222,128,0.18)';
+                  e.currentTarget.style.borderColor = 'rgba(74,222,128,0.4)';
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(79,110,247,0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(79,110,247,0.25)';
+                  e.currentTarget.style.background = 'rgba(74,222,128,0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(74,222,128,0.25)';
                 }}
               >
                 Home
