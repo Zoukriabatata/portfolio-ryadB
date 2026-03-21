@@ -122,9 +122,9 @@ export default function FloatingChat() {
       {/* ── Chat panel ── */}
       {open && (
         <div
-          className="fixed bottom-20 right-5 z-[200] flex flex-col overflow-hidden"
+          className="fixed bottom-20 right-5 max-sm:right-3 max-sm:bottom-16 z-[200] flex flex-col overflow-hidden"
           style={{
-            width: 360,
+            width: 'min(90vw, 360px)',
             height: 500,
             background: 'var(--surface)',
             border: '1px solid var(--border)',
@@ -301,7 +301,7 @@ export default function FloatingChat() {
       {/* ── Floating button ── */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-5 right-5 z-[200] w-13 h-13 flex items-center justify-center rounded-full transition-all duration-200"
+        className="fixed bottom-5 right-5 max-sm:right-3 max-sm:bottom-3 z-[200] w-13 h-13 flex items-center justify-center rounded-full transition-all duration-200"
         style={{
           width: 52,
           height: 52,

@@ -81,7 +81,7 @@ export default function HeroSection() {
   const { data: session } = useSession();
 
   return (
-    <section id="hero" className="relative min-h-[100vh] flex items-center justify-center px-6 overflow-hidden">
+    <section id="hero" className="relative min-h-dvh flex items-center justify-center px-6 overflow-hidden">
       <div className="relative z-10 max-w-3xl mx-auto text-center pt-16">
 
         {/* Badge */}
@@ -154,7 +154,7 @@ export default function HeroSection() {
 
         {/* Stats */}
         <div
-          className="mt-16 grid grid-cols-4 gap-4 max-w-sm mx-auto"
+          className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-sm mx-auto"
           style={{ animation: 'fadeInUp 0.7s ease-out 0.6s forwards', opacity: 0 }}
         >
           {[

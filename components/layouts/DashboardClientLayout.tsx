@@ -547,7 +547,7 @@ export function DashboardClientLayout({
           />
           {/* Drawer */}
           <div
-            className="fixed top-0 left-0 bottom-0 w-[260px] z-[60] flex flex-col"
+            className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-[280px] z-[60] flex flex-col"
             style={{
               background: 'var(--surface)',
               borderRight: '1px solid var(--border-light)',
@@ -563,7 +563,7 @@ export function DashboardClientLayout({
               <Logo size="sm" showText animated={false} />
               <button
                 onClick={() => setShowMobileMenu(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
                 style={{ color: 'var(--text-muted)' }}
                 aria-label="Close menu"
               >

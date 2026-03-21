@@ -70,7 +70,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
 
       {/* Modal */}
       <div
-        className="relative w-[420px] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl animate-scaleIn"
+        className="relative w-[90vw] max-w-[420px] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl animate-scaleIn"
         style={{
           backgroundColor: 'var(--surface-elevated)',
           border: '1px solid var(--border-light)',

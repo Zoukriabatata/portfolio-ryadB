@@ -29,7 +29,7 @@ export default function TradeDetailPanel({ trade, onClose, onEdit }: TradeDetail
     : [];
 
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-[var(--surface-elevated)] border-l border-[var(--border)] shadow-xl animate-slideInRight flex flex-col"
+    <div className="fixed inset-y-0 right-0 w-[90vw] max-w-96 sm:w-96 bg-[var(--surface-elevated)] border-l border-[var(--border)] shadow-xl animate-slideInRight flex flex-col"
       style={{ zIndex: 'var(--z-dropdown, 100)' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">

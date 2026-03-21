@@ -952,7 +952,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
           {/* Click-outside backdrop */}
           <div className="fixed inset-0 z-[9998]" onClick={closeSymbolDropdown} />
           <div
-            className="fixed w-96 rounded-lg shadow-2xl z-[9999] max-h-[450px] overflow-hidden animate-slideDown"
+            className="fixed w-[90vw] max-w-96 sm:w-96 rounded-lg shadow-2xl z-[9999] max-h-[450px] overflow-hidden animate-slideDown"
             style={{ top: symbolDropdownPos.top, left: symbolDropdownPos.left, backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}
           >
             {/* Asset Category Tabs */}
