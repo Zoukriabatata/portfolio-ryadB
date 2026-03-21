@@ -449,9 +449,10 @@ export function DashboardClientLayout({
       >
         <div className="h-full px-4 flex items-center gap-0">
 
-          {/* Hamburger — mobile only */}
+          {/* Hamburger — opens on hover (desktop) or click (mobile) */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
+            onMouseEnter={() => { if (window.innerWidth >= 768) setShowMobileMenu(true); }}
             className="btn-icon mr-2"
             aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
             aria-expanded={showMobileMenu}
