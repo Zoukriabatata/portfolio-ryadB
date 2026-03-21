@@ -711,6 +711,55 @@ export function DashboardClientLayout({
         })}
       </main>
 
+      {/* ============================================================
+          MOBILE BOTTOM TAB BAR — Quick navigation without hamburger
+          Visible on mobile only (< 768px), hidden on desktop
+          ============================================================ */}
+      {!isLandingPage && (
+        <nav
+          className="flex-shrink-0 md:hidden border-t safe-area-bottom"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}
+          aria-label="Quick navigation"
+        >
+          <div className="flex items-stretch justify-around h-12">
+            {([
+              { href: '/live', icon: CandlestickIcon, label: 'Live' },
+              { href: '/footprint', icon: Grid3x3, label: 'Footprint' },
+              { href: '/liquidity', icon: Layers, label: 'Liquidity' },
+              { href: '/gex', icon: Zap, label: 'GEX' },
+              { href: '/volatility', icon: Activity, label: 'Vol' },
+            ] as const).map((tab) => {
+              const active = isNavActive(tab.href);
+              const TabIcon = tab.icon;
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
+                  style={{ color: active ? 'var(--primary)' : 'var(--text-dimmed)' }}
+                >
+                  <TabIcon size={18} strokeWidth={active ? 2 : 1.5} />
+                  <span className="text-[9px] font-medium leading-none">{tab.label}</span>
+                </Link>
+              );
+            })}
+            <button
+              onClick={() => setShowMobileMenu(true)}
+              className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
+              style={{ color: showMobileMenu ? 'var(--primary)' : 'var(--text-dimmed)' }}
+              aria-label="More navigation options"
+            >
+              <Menu size={18} strokeWidth={1.5} />
+              <span className="text-[9px] font-medium leading-none">More</span>
+            </button>
+          </div>
+        </nav>
+      )}
+
       {/* Feature Tour — shows once for new users */}
       {!isLandingPage && <FeatureTour />}
     </div>

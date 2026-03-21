@@ -155,7 +155,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
   const FloatingBtn = (
     <button
       onClick={() => setIsOpen(o => !o)}
-      className="fixed bottom-6 right-6 max-sm:right-3 max-sm:bottom-3 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-105"
+      className="fixed bottom-6 right-6 max-sm:right-3 max-sm:bottom-16 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-105"
       style={{ backgroundColor: currentPriceColor }}
       title="Assistant IA"
     >
