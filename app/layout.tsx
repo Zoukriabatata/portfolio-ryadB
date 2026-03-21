@@ -39,6 +39,9 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: SITE_NAME }],
   creator: SITE_NAME,
+  verification: {
+    google: 'MGGYgE7tU9jpIL3O_QQ2lxyFV580zSQtlhf2vd9Sprg',
+  },
   alternates: {
     canonical: SITE_URL,
   },
