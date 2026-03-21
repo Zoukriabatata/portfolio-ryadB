@@ -457,7 +457,7 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   largeTradeMultiplier: 2.0,
   largeTradeColor: '#ffd700',
   // Phase 3: Indicators
-  showStackedImbalances: true,
+  showStackedImbalances: false,
   stackedImbalanceMin: 3,
   showNakedPOC: false,
   nakedPOCColor: '#fbbf24',
@@ -796,7 +796,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
     {
       name: 'footprint-settings',
       skipHydration: true,
-      version: 7, // v7: CVDConfig, ClusterStatConfig, DOMConfig, VWAP advanced fields
+      version: 8, // v8: ATAS-style defaults — disabled heatmap, delta profile, std dev bands, naked POC, developing POC, large trades
       partialize: (state) => ({
         colors: state.colors,
         fonts: state.fonts,
