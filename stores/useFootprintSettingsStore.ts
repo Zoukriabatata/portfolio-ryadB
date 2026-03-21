@@ -437,7 +437,7 @@ const DEFAULT_FONTS: FootprintFonts = {
 const DEFAULT_FEATURES: FootprintFeatures = {
   showGrid: true,
   showOHLC: false,
-  showDeltaProfile: true,
+  showDeltaProfile: false,
   showPOC: true,
   showImbalances: true,
   showCurrentPrice: true,
@@ -451,7 +451,7 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   // Phase 2: Visual polish
   showHeatmapCells: true,
   heatmapIntensity: 0.4,
-  showDevelopingPOC: true,
+  showDevelopingPOC: false,
   developingPOCColor: '#fbbf24',
   showLargeTradeHighlight: true,
   largeTradeMultiplier: 2.0,
@@ -459,7 +459,7 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   // Phase 3: Indicators
   showStackedImbalances: true,
   stackedImbalanceMin: 3,
-  showNakedPOC: true,
+  showNakedPOC: false,
   nakedPOCColor: '#fbbf24',
   showUnfinishedAuctions: false,  // Off by default (can be noisy)
   // Phase V2
@@ -490,7 +490,7 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   // Cluster display mode
   clusterDisplayMode: 'bid-ask' as const,
   // VWAP Bands
-  showVWAPBands: true,
+  showVWAPBands: false,
   vwapBandMultipliers: [1, 2],
   vwapBandOpacity: 0.06,
   vwapBandColor: '#e2b93b',
@@ -542,8 +542,8 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   vwapSessionEndMinute: 59,
   vwapShowFirstPartialPeriod: true,
   vwapSplineTension: 0.4,
-  vwapShowBand1: true,
-  vwapShowBand2: true,
+  vwapShowBand1: false,
+  vwapShowBand2: false,
   vwapShowBand3: false,
   vwapBandMult1: 1.0,
   vwapBandMult2: 2.0,
