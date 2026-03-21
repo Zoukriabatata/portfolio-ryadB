@@ -8,8 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
-// Revalidate server cache every hour (Next.js ISR-style for route handlers)
-export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
