@@ -1399,6 +1399,12 @@ export class FootprintCanvasRenderer {
     }
 
     // ── Volume bars — left-anchored, cell-aligned ──────────────────────────────
+    // Clip to footprint area so bars at edges don't bleed outside
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(footprintAreaX, footprintAreaY, footprintAreaWidth, footprintAreaHeight);
+    ctx.clip();
+
     totalVol.forEach((vol, price) => {
       const y1 = layout.priceToY(price + tickSize, metrics); // top of cell
       const y2 = layout.priceToY(price, metrics);            // bottom of cell
@@ -1413,6 +1419,8 @@ export class FootprintCanvasRenderer {
       ctx.fillStyle   = isPOC ? pocColor : isVA ? '#4a7abf' : '#2a4870';
       ctx.fillRect(footprintAreaX, y1, barW, barH);
     });
+
+    ctx.restore();
 
     // ── VAH / VAL labels ───────────────────────────────────────────────────────
     ctx.globalAlpha  = 1;

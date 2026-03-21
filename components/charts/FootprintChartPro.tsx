@@ -681,15 +681,32 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     domBidsRef.current = new Map();
     domAsksRef.current = new Map();
     if (CME_SYMS.has(symbol.toLowerCase())) return; // CME DOM populated from simulator each frame
-    const unsub = binanceWS.subscribeDepth20(symbol.toLowerCase(), (snap) => {
+    const SMOOTH = 0.4; // blend factor for fluid DOM rendering
+    const unsub = binanceWS.subscribeDepth(symbol.toLowerCase(), (update) => {
       hasRealDOMRef.current = true;
-      const bids = new Map<number, number>();
-      const asks = new Map<number, number>();
-      snap.bids.forEach(([p, q]: [string, string]) => { const qty = parseFloat(q); if (qty > 0) bids.set(parseFloat(p), qty); });
-      snap.asks.forEach(([p, q]: [string, string]) => { const qty = parseFloat(q); if (qty > 0) asks.set(parseFloat(p), qty); });
-      domBidsRef.current = bids;
-      domAsksRef.current = asks;
-    }, 'futures', '100ms');
+      // Merge bids with smoothing
+      update.bids.forEach(([p, q]: [string, string]) => {
+        const price = parseFloat(p);
+        const qty = parseFloat(q);
+        const prev = domBidsRef.current.get(price) || 0;
+        if (qty > 0) {
+          domBidsRef.current.set(price, prev + (qty - prev) * SMOOTH);
+        } else {
+          domBidsRef.current.delete(price);
+        }
+      });
+      // Merge asks with smoothing
+      update.asks.forEach(([p, q]: [string, string]) => {
+        const price = parseFloat(p);
+        const qty = parseFloat(q);
+        const prev = domAsksRef.current.get(price) || 0;
+        if (qty > 0) {
+          domAsksRef.current.set(price, prev + (qty - prev) * SMOOTH);
+        } else {
+          domAsksRef.current.delete(price);
+        }
+      });
+    }, 'futures', '500ms');
     return unsub;
   }, [symbol, settings.features.showPassiveLiquidity, CME_SYMS, isActive]);
 
@@ -1352,31 +1369,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         ? currentPriceRef.current
         : (candles[candles.length - 1]?.close ?? 0);
       if (rawPrice > 0) {
-        // If real depth20 data hasn't arrived yet, generate a minimal synthetic book
-        // from the visible footprint levels so the overlay isn't blank.
-        let domBids = domBidsRef.current;
-        let domAsks = domAsksRef.current;
-        if (!hasRealDOMRef.current && domBids.size === 0 && domAsks.size === 0 && candles.length > 0) {
-          const synthBids = new Map<number, number>();
-          const synthAsks = new Map<number, number>();
-          for (const candle of metrics.visibleCandles.slice(-5)) {
-            candle.levels.forEach((lvl, price) => {
-              if (price < rawPrice && lvl.bidVolume > 0) {
-                synthBids.set(price, (synthBids.get(price) ?? 0) + lvl.bidVolume * 0.15);
-              } else if (price > rawPrice && lvl.askVolume > 0) {
-                synthAsks.set(price, (synthAsks.get(price) ?? 0) + lvl.askVolume * 0.15);
-              }
-            });
-          }
-          if (synthBids.size > 0 || synthAsks.size > 0) {
-            domBids = synthBids;
-            domAsks = synthAsks;
-          }
-        }
+        // Use real DOM data only — no synthetic fallback (avoids visual noise)
         const safeBids = new Map<number, number>();
         const safeAsks = new Map<number, number>();
-        domBids.forEach((qty, p) => { if (p < rawPrice) safeBids.set(p, qty); });
-        domAsks.forEach((qty, p) => { if (p > rawPrice) safeAsks.set(p, qty); });
+        domBidsRef.current.forEach((qty, p) => { if (p < rawPrice) safeBids.set(p, qty); });
+        domAsksRef.current.forEach((qty, p) => { if (p > rawPrice) safeAsks.set(p, qty); });
         fpRenderer.renderDOMOverlay(ctx, layout, metrics, safeBids, safeAsks, rawPrice, tickSize);
       }
     }
