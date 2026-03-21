@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from '@sentry/nextjs';
+// import { withSentryConfig } from '@sentry/nextjs';
 import bundleAnalyzer from '@next/bundle-analyzer';
 
 const withBundleAnalyzer = bundleAnalyzer({
@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
-    optimizePackageImports: ['@sentry/nextjs', 'lightweight-charts', 'regl', 'zustand', 'zod', 'lucide-react'],
+    optimizePackageImports: ['lightweight-charts', 'regl', 'zustand', 'zod', 'lucide-react'],
   },
 
   async headers() {
@@ -85,22 +85,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Wrapping avec Bundle Analyzer + Sentry
-export default withSentryConfig(withBundleAnalyzer(nextConfig), {
-  // Sentry Webpack Plugin options
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-
-  // Authentication token pour upload des source maps
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-
-  // Désactiver en dev (pas besoin d'upload)
-  silent: process.env.NODE_ENV !== 'production',
-
-  // Upload des source maps uniquement en production
-  widenClientFileUpload: true,
-  sourcemaps: {
-    disable: false, // Enable source maps upload
-  },
-  webpack: { treeshake: { removeDebugLogging: true } },
-});
+export default withBundleAnalyzer(nextConfig);
