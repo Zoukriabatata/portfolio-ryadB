@@ -490,8 +490,12 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   // HSTS — force HTTPS for 1 year, include subdomains
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  // Prevent search engines from indexing private app pages
-  response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  // Prevent search engines from indexing private app pages (not public-facing ones)
+  const indexableRoutes = ['/', '/pricing', '/boutique', '/pdf', '/auth/login', '/auth/register', '/legal'];
+  const isIndexable = indexableRoutes.some(r => pathname === r || pathname.startsWith(r + '/'));
+  if (!isIndexable) {
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
   response.headers.set(
     'Content-Security-Policy',
     [

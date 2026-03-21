@@ -1,6 +1,10 @@
-'use client';
-
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+
+export const metadata: Metadata = {
+  title: 'Order Flow Analysis',
+  description: 'Professional order flow analysis with footprint charts, delta profiles, and real-time trade visualization on Senzoukria.',
+};
 
 /**
  * ORDERFLOW PAGE - Redirects to Footprint

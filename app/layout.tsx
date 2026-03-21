@@ -7,6 +7,7 @@ import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayou
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
+import { JsonLd } from '@/components/seo/JsonLd';
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://senzoukria.com';
 const SITE_NAME = 'Senzoukria';
@@ -16,19 +17,33 @@ const DEFAULT_DESCRIPTION =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — Professional Order Flow Analytics`,
+    default: `${SITE_NAME} — Professional Order Flow Analytics Platform`,
     template: `%s | ${SITE_NAME}`,
   },
   description: DEFAULT_DESCRIPTION,
   keywords: [
-    'order flow', 'footprint chart', 'liquidity heatmap', 'gamma exposure', 'GEX',
-    'volatility surface', 'trading platform', 'Rithmic', 'Interactive Brokers',
-    'CQG', 'AMP', 'Binance', 'futures trading', 'crypto trading', 'delta profile',
+    'order flow', 'order flow trading', 'order flow software', 'order flow platform',
+    'footprint chart', 'footprint chart software', 'volume footprint',
+    'liquidity heatmap', 'orderbook heatmap', 'bookmap alternative',
+    'gamma exposure', 'GEX', 'GEX dashboard', 'options gamma exposure',
+    'volatility surface', 'implied volatility', 'IV skew',
+    'volume profile', 'market profile', 'TPO chart',
+    'cumulative volume delta', 'CVD indicator', 'delta profile',
+    'DOM trading', 'depth of market', 'level 2 data',
+    'trading platform', 'futures trading platform', 'crypto trading tools',
+    'Rithmic', 'Interactive Brokers', 'CQG', 'AMP Futures',
+    'Binance futures', 'Bybit', 'Deribit', 'crypto derivatives',
+    'ATAS alternative', 'Sierra Chart alternative', 'Jigsaw alternative',
+    'market microstructure', 'tape reading', 'order book analysis',
+    'NQ futures', 'ES futures', 'MNQ', 'MES',
   ],
   authors: [{ name: SITE_NAME }],
   creator: SITE_NAME,
+  alternates: {
+    canonical: SITE_URL,
+  },
   openGraph: {
-    title: `${SITE_NAME} — Professional Order Flow Analytics`,
+    title: `${SITE_NAME} — Professional Order Flow Analytics Platform`,
     description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
     type: 'website',
@@ -37,12 +52,19 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${SITE_NAME} — Professional Order Flow Analytics`,
+    title: `${SITE_NAME} — Professional Order Flow Analytics Platform`,
     description: DEFAULT_DESCRIPTION,
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 
@@ -88,6 +110,7 @@ if(typeof Node!=='undefined'){
 }`,
           }}
         />
+        <JsonLd />
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans`} suppressHydrationWarning>
         <DashboardClientLayout>{children}</DashboardClientLayout>
