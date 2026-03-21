@@ -8,14 +8,29 @@
 import type { FootprintCandle } from '@/lib/orderflow/OrderflowEngine';
 
 const DB_NAME = 'footprint-cache';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'candles';
+const PROFILE_STORE_NAME = 'profiles';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CacheEntry {
   key: string; // symbol_timeframe
   candles: SerializedCandle[];
   lastCandleTime: number;
+  cachedAt: number;
+}
+
+/** Cached computed profile for a candle (POC, VAH, VAL) */
+export interface CachedProfile {
+  poc: number;
+  vah: number;
+  val: number;
+  timestamp: number;
+}
+
+interface ProfileCacheEntry {
+  key: string; // symbol_timeframe
+  profiles: CachedProfile[];
   cachedAt: number;
 }
 
@@ -123,6 +138,9 @@ class FootprintCache {
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           db.createObjectStore(STORE_NAME, { keyPath: 'key' });
         }
+        if (!db.objectStoreNames.contains(PROFILE_STORE_NAME)) {
+          db.createObjectStore(PROFILE_STORE_NAME, { keyPath: 'key' });
+        }
       };
 
       request.onsuccess = () => resolve(request.result);
@@ -214,6 +232,68 @@ class FootprintCache {
   }
 
   /**
+   * Get cached computed profiles (POC, VAH, VAL) for a symbol/timeframe.
+   * Returns null if no cache or cache is too old.
+   */
+  async getCachedProfiles(
+    symbol: string,
+    timeframe: number,
+  ): Promise<CachedProfile[] | null> {
+    try {
+      const db = await this.openDB();
+      const key = `${symbol}_${timeframe}`;
+
+      return new Promise((resolve) => {
+        const tx = db.transaction(PROFILE_STORE_NAME, 'readonly');
+        const store = tx.objectStore(PROFILE_STORE_NAME);
+        const request = store.get(key);
+
+        request.onsuccess = () => {
+          const entry = request.result as ProfileCacheEntry | undefined;
+          if (!entry) { resolve(null); return; }
+          if (Date.now() - entry.cachedAt > MAX_AGE_MS) { resolve(null); return; }
+          resolve(entry.profiles);
+        };
+
+        request.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Store computed profiles (POC, VAH, VAL) alongside candles.
+   * Avoids recalculation on subsequent loads.
+   */
+  async storeProfiles(
+    symbol: string,
+    timeframe: number,
+    profiles: CachedProfile[],
+  ): Promise<void> {
+    try {
+      const db = await this.openDB();
+      const key = `${symbol}_${timeframe}`;
+
+      const entry: ProfileCacheEntry = {
+        key,
+        profiles,
+        cachedAt: Date.now(),
+      };
+
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(PROFILE_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(PROFILE_STORE_NAME);
+        store.put(entry);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch {
+      // Silently fail — cache is optional
+    }
+  }
+
+  /**
    * Clear old cache entries
    */
   async clearOldEntries(): Promise<void> {
@@ -221,26 +301,27 @@ class FootprintCache {
       const db = await this.openDB();
       const now = Date.now();
 
-      return new Promise((resolve) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.openCursor();
+      const clearStore = (storeName: string): Promise<void> =>
+        new Promise((resolve) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          const request = store.openCursor();
 
-        request.onsuccess = () => {
-          const cursor = request.result;
-          if (!cursor) {
-            resolve();
-            return;
-          }
-          const entry = cursor.value as CacheEntry;
-          if (now - entry.cachedAt > MAX_AGE_MS) {
-            cursor.delete();
-          }
-          cursor.continue();
-        };
+          request.onsuccess = () => {
+            const cursor = request.result;
+            if (!cursor) { resolve(); return; }
+            const entry = cursor.value as { cachedAt: number };
+            if (now - entry.cachedAt > MAX_AGE_MS) {
+              cursor.delete();
+            }
+            cursor.continue();
+          };
 
-        request.onerror = () => resolve();
-      });
+          request.onerror = () => resolve();
+        });
+
+      await clearStore(STORE_NAME);
+      await clearStore(PROFILE_STORE_NAME);
     } catch {
       // Silently fail
     }

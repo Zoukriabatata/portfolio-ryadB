@@ -132,6 +132,11 @@ export class OptimizedFootprintService {
 
       const { intervalStr, skeletonLimit } = timeframeToSkeletonParams(this.config.timeframe);
 
+      // Fire skeleton callback immediately with empty data for instant visual feedback
+      if (this.config.loadMode === 'skeleton' && onSkeletonReady) {
+        onSkeletonReady(this.mergeWithSkeleton([]));
+      }
+
       const { ticks, skeleton } = await loadFootprintData(
         {
           symbol:            this.config.symbol,
@@ -139,13 +144,13 @@ export class OptimizedFootprintService {
           hoursBack:         this.config.totalHours,
           dayStartMs:        this.config.dayStartMs,
           maxTradesPerChunk: this.config.maxTradesPerChunk,
-          parallelChunks:    this.config.loadMode === 'fullday' ? 24 : 4,
+          parallelChunks:    this.config.loadMode === 'fullday' ? 24 : 6,
           intervalStr,
           skeletonLimit,
         },
         (pct, msg) => this.report(pct * 0.85, msg),
         (sk) => {
-          // Skeleton is ready — build OHLC-only candles for immediate display
+          // Skeleton is ready — update with real OHLC data
           this.skeleton = sk;
           onSkeletonReady?.(this.mergeWithSkeleton([]));
         }

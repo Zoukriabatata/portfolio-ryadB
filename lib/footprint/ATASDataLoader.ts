@@ -554,23 +554,27 @@ export async function loadFootprintData(
     }
 
     case 'skeleton': {
-      // Phase 1: Load OHLC skeleton instantly from klines
-      onProgress?.(5, `Loading OHLC skeleton for ${symbol}...`);
+      // Fetch klines and ticks in parallel — they are independent
+      onProgress?.(5, `Loading OHLC skeleton + ticks for ${symbol}...`);
       const dayStart = dayStartMs ?? getTodayUTCMidnight();
-      skeleton = await loadOHLCSkeleton(symbol, dayStart, intervalStr, skeletonLimit, signal);
-      onProgress?.(15, `OHLC skeleton: ${skeleton.length} candles loaded`);
 
-      // Notify caller that skeleton is ready — allows early chart display
-      onSkeletonReady?.(skeleton);
+      const [skeletonResult, ticksResult] = await Promise.all([
+        loadOHLCSkeleton(symbol, dayStart, intervalStr, skeletonLimit, signal).then(sk => {
+          onProgress?.(15, `OHLC skeleton: ${sk.length} candles loaded`);
+          // Notify caller that skeleton is ready — allows early chart display
+          onSkeletonReady?.(sk);
+          return sk;
+        }),
+        loadRecentWindow(
+          symbol,
+          hoursBack,
+          loaderConfig,
+          (pct, msg, partial) => onProgress?.(20 + pct * 0.8, msg, partial)
+        ),
+      ]);
 
-      // Phase 2: Load recent tick data for footprint detail
-      onProgress?.(20, `Loading tick data for last ${hoursBack}h...`);
-      ticks = await loadRecentWindow(
-        symbol,
-        hoursBack,
-        loaderConfig,
-        (pct, msg, partial) => onProgress?.(20 + pct * 0.8, msg, partial)
-      );
+      skeleton = skeletonResult;
+      ticks = ticksResult;
       break;
     }
   }
