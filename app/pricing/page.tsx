@@ -615,288 +615,69 @@ function PricingContent() {
                 </button>
               </div>
 
-              {/* PayPal (manual) */}
-              <div
-                className="stagger-fade-up rounded-xl p-6"
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm"
-                      style={{ background: '#0070ba', color: '#fff' }}
-                    >
-                      PP
-                    </div>
-                    <div>
-                      <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                        PayPal
-                      </div>
-                      <div className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                        @SENZOUKRIA
-                      </div>
-                    </div>
-                  </div>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24' }}
-                  >
-                    Manual Verification
-                  </span>
-                </div>
-                <a
-                  href="https://paypal.me/SENZOUKRIA"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full py-2.5 rounded-lg font-semibold text-sm text-center transition-opacity hover:opacity-90"
-                  style={{ background: '#0070ba', color: '#fff' }}
-                >
-                  Send via PayPal
-                </a>
-              </div>
-
-              {/* Revolut (manual) */}
-              <div
-                className="stagger-fade-up rounded-xl p-6"
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm"
-                      style={{ background: '#191C1F', color: '#fff', border: '1px solid #333' }}
-                    >
-                      R
-                    </div>
-                    <div>
-                      <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                        Revolut
-                      </div>
-                      <div className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                        @senzoukria
-                      </div>
-                    </div>
-                  </div>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24' }}
-                  >
-                    Manual Verification
-                  </span>
-                </div>
-                <a
-                  href="https://revolut.me/senzoukria"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full py-2.5 rounded-lg font-semibold text-sm text-center transition-opacity hover:opacity-90"
-                  style={{ background: '#191C1F', color: '#fff', border: '1px solid #444' }}
-                >
-                  Send via Revolut
-                </a>
-              </div>
-
-              {/* Binance Pay (manual) */}
-              <div
-                className="stagger-fade-up rounded-xl p-6"
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm"
-                      style={{ background: '#F0B90B', color: '#000' }}
-                    >
-                      B
-                    </div>
-                    <div>
-                      <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                        Binance Pay
-                      </div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        Crypto payment
-                      </div>
-                    </div>
-                  </div>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24' }}
-                  >
-                    Manual Verification
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <a
-                    href="https://app.binance.com/en/usercenter/wallet/payment/send"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 py-2.5 rounded-lg font-semibold text-sm text-center transition-opacity hover:opacity-90"
-                    style={{ background: '#F0B90B', color: '#000' }}
-                  >
-                    Open Binance Pay
-                  </a>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText('1017835844'); toast.success('ID copied'); }}
-                    className="px-4 py-2.5 rounded-lg text-sm font-mono transition-opacity hover:opacity-80"
-                    style={{
-                      background: 'var(--surface-elevated, #1a1a24)',
-                      color: 'var(--text-secondary)',
-                      border: '1px solid var(--border)',
-                    }}
-                    title="Copy Binance ID"
-                  >
-                    ID: 1017835844 &#128203;
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* ------------------------------------------------------------- */}
-            {/* Payment Proof Submission Form                                  */}
+            {/* Support the project                                            */}
             {/* ------------------------------------------------------------- */}
-            {session && (
+            <div className="mt-12 max-w-2xl mx-auto">
               <div
-                className="mt-12 rounded-xl p-8"
+                className="rounded-xl p-8 text-center"
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',
                 }}
               >
-                <h3
-                  className="text-lg font-semibold mb-1"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  Submit Payment Proof
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(99,102,241,0.12)' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  Support the project
                 </h3>
                 <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-                  After completing a manual payment (PayPal, Revolut, or Binance Pay), submit
-                  your proof here for verification. Activation typically takes under 24 hours.
+                  Senzoukria is built by a solo developer. If you enjoy the platform,
+                  consider making a donation to help keep it alive and fund new features.
                 </p>
-
-                {proofSuccess && (
-                  <div
-                    className="mb-5 p-4 rounded-lg text-sm font-medium"
-                    style={{
-                      background: 'rgba(16, 185, 129, 0.1)',
-                      border: '1px solid rgba(16, 185, 129, 0.25)',
-                      color: 'var(--primary-light)',
-                    }}
+                <div className="flex flex-wrap justify-center gap-3">
+                  <a
+                    href="https://paypal.me/SENZOUKRIA"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                    style={{ background: '#0070ba', color: '#fff' }}
                   >
-                    Payment proof submitted successfully. We will review it shortly.
-                  </div>
-                )}
-
-                {proofError && (
-                  <div
-                    className="mb-5 p-4 rounded-lg text-sm font-medium"
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      color: '#f87171',
-                    }}
+                    <span className="font-bold">PP</span> PayPal
+                  </a>
+                  <a
+                    href="https://revolut.me/senzoukria"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                    style={{ background: '#191C1F', color: '#fff', border: '1px solid #444' }}
                   >
-                    {proofError}
-                  </div>
-                )}
-
-                <form ref={formRef} onSubmit={handleProofSubmit} className="space-y-5">
-                  {/* Payment method dropdown */}
-                  <div>
-                    <label
-                      className="block text-sm mb-1.5"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      Payment Method
-                    </label>
-                    <select
-                      value={proofMethod}
-                      onChange={(e) => setProofMethod(e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none"
-                      style={{
-                        background: 'var(--surface-elevated, #1a1a24)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      <option value="PayPal">PayPal</option>
-                      <option value="Revolut">Revolut</option>
-                      <option value="Binance">Binance Pay</option>
-                    </select>
-                  </div>
-
-                  {/* Transaction reference */}
-                  <div>
-                    <label
-                      className="block text-sm mb-1.5"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      Transaction Reference
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={proofReference}
-                      onChange={(e) => setProofReference(e.target.value)}
-                      placeholder="e.g. PayPal transaction ID, Revolut reference..."
-                      className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none placeholder:opacity-40"
-                      style={{
-                        background: 'var(--surface-elevated, #1a1a24)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                      }}
-                    />
-                  </div>
-
-                  {/* Additional notes */}
-                  <div>
-                    <label
-                      className="block text-sm mb-1.5"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      Additional Notes{' '}
-                      <span style={{ color: 'var(--text-muted)' }}>(optional)</span>
-                    </label>
-                    <textarea
-                      value={proofNotes}
-                      onChange={(e) => setProofNotes(e.target.value)}
-                      rows={3}
-                      placeholder="Anything else we should know..."
-                      className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none resize-none placeholder:opacity-40"
-                      style={{
-                        background: 'var(--surface-elevated, #1a1a24)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                      }}
-                    />
-                  </div>
-
+                    <span className="font-bold">R</span> Revolut
+                  </a>
                   <button
-                    type="submit"
-                    disabled={proofSubmitting}
-                    className="w-full py-3 rounded-lg font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{
-                      background: 'var(--primary)',
-                      color: '#000',
-                    }}
+                    onClick={() => { navigator.clipboard.writeText('1017835844'); toast.success('Binance ID copied!'); }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                    style={{ background: '#F0B90B', color: '#000' }}
                   >
-                    {proofSubmitting ? 'Submitting...' : 'Submit Payment Proof'}
+                    <span className="font-bold">B</span> Binance Pay &middot; 1017835844
                   </button>
-                </form>
+                </div>
+                <p className="text-[10px] mt-4" style={{ color: 'var(--text-dimmed)' }}>
+                  Donations are voluntary and do not grant subscription access.
+                </p>
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
-            {/* ------------------------------------------------------------- */}
-            {/* Proof Status Tracker                                           */}
-            {/* ------------------------------------------------------------- */}
-            {session && !proofsLoading && pendingProofs.length > 0 && (
+        {/* EMPTY — removed payment proof tracker (no longer needed without manual payments) */}
+        {session && false && (
               <div
                 className="mt-8 rounded-xl p-6"
                 style={{
@@ -1026,7 +807,7 @@ function PricingContent() {
               },
               {
                 q: 'What payment methods do you accept?',
-                a: 'We accept Visa, Mastercard, AMEX via Stripe (instant activation), plus PayPal, Revolut, and Binance Pay (manual verification within 24h).',
+                a: 'We accept Visa, Mastercard, and AMEX via Stripe with instant activation. All payments are processed securely through Stripe.',
               },
               {
                 q: 'Is my data safe?',
