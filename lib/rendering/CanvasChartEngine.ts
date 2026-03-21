@@ -146,6 +146,7 @@ export class CanvasChartEngine {
     showPieChart: false,
   };
   private animationFrameId: number | null = null;
+  private renderScheduled = false;
   private smoothAnimationId: number | null = null; // For lerp animation loop
   private dpr = 1;
   private autoScalePrice = true; // Auto-scale price axis
@@ -331,7 +332,7 @@ export class CanvasChartEngine {
       this.calculatePriceRange();
     }
     this.syncTargetToViewport();
-    this.render();
+    this.scheduleRender();
 
     if (this.onPriceChange) {
       this.onPriceChange(candle.close);
@@ -460,7 +461,7 @@ export class CanvasChartEngine {
   }
 
   private static readonly MIN_VISIBLE_CANDLES = 5;
-  private static readonly LERP_SPEED = 0.28; // Interpolation speed (converges in ~4-5 frames)
+  private static readonly LERP_SPEED = 0.12; // Interpolation speed (smooth 200-300ms easing)
   private static readonly LERP_THRESHOLD = 0.05; // Snap when close enough
 
   /**
@@ -694,31 +695,15 @@ export class CanvasChartEngine {
   // ============ RENDERING ============
 
   render(): void {
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
+    this.scheduleRender();
+  }
 
-    this.animationFrameId = requestAnimationFrame(() => {
-      this.ctx.save();
-      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-
-      this.ctx.fillStyle = this.theme.background;
-      this.ctx.fillRect(0, 0, this.dimensions.width, this.dimensions.height);
-
-      if (this.showGrid) this.drawGrid();
-      this.drawCandles();
-      if (this.showVolumeBubbles) this.drawVolumeBubbles();
-      if (this.showVolume) this.drawVolume();
-      this.drawPriceAxis();
-      this.drawTimeAxis();
-      if (this.vpLevels) this.drawVPLevels();
-      this.drawCurrentPriceLine();
-      if (this.crosshair.visible) this.drawCrosshair();
-
-      this.ctx.restore();
-
-      this.notifyViewportChangeIfNeeded();
+  private scheduleRender(): void {
+    if (this.renderScheduled) return;
+    this.renderScheduled = true;
+    requestAnimationFrame(() => {
+      this.renderScheduled = false;
+      this.renderImmediate();
     });
   }
 

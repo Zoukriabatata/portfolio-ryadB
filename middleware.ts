@@ -440,7 +440,7 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   // Special: /academy requires ULTRA OR hasResearchPack (one-time $39 purchase)
   if (pathname.startsWith('/academy')) {
     const hasResearchPack = token.hasResearchPack === true;
-    if (userTier !== 'ULTRA' && !hasResearchPack && !isBetaTester) {
+    if (userTier !== 'ULTRA' && !hasResearchPack && !isAdmin && !isBetaTester) {
       // Not authorized — show 404 (don't reveal route exists)
       return NextResponse.rewrite(new URL('/not-found', request.url));
     }

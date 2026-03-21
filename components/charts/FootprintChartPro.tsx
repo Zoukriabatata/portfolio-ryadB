@@ -1008,11 +1008,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.scale(dpr, dpr);
+    const needsResize = canvas.width !== width * dpr || canvas.height !== height * dpr;
+    if (needsResize) {
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Update layout engine size
     layout.setContainerSize(width, height);
