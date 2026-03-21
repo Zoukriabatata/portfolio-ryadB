@@ -163,6 +163,60 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
       alpha: 0.06 + Math.random() * 0.14,
     }));
 
+    // Shooting stars — rare, dramatic streaks across the sky
+    const shootingStars: {
+      x: number; y: number; vx: number; vy: number;
+      life: number; maxLife: number; len: number; brightness: number;
+      hue: number; active: boolean;
+    }[] = Array.from({ length: isMobile ? 3 : 6 }, () => ({
+      x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0,
+      len: 0, brightness: 0, hue: 0, active: false,
+    }));
+
+    const spawnShootingStar = (s: typeof shootingStars[0]) => {
+      const side = Math.random();
+      if (side < 0.5) {
+        s.x = Math.random() * w;
+        s.y = -10;
+      } else {
+        s.x = side < 0.75 ? -10 : w + 10;
+        s.y = Math.random() * viewH * 0.5;
+      }
+      const angle = Math.PI * 0.15 + Math.random() * Math.PI * 0.4;
+      const speed = 4 + Math.random() * 8;
+      s.vx = Math.cos(angle) * speed * (s.x > w / 2 ? -1 : 1);
+      s.vy = Math.sin(angle) * speed;
+      s.maxLife = 30 + Math.random() * 50;
+      s.life = s.maxLife;
+      s.len = 40 + Math.random() * 80;
+      s.brightness = 0.4 + Math.random() * 0.6;
+      s.hue = 200 + Math.random() * 60;
+      s.active = true;
+    };
+
+    // Volumetric nebula clouds — animated gas clouds
+    const nebulaClouds = Array.from({ length: isMobile ? 4 : 8 }, (_, i) => ({
+      x: Math.random() * 2 - 0.5,
+      y: Math.random() * 0.8,
+      radius: 0.15 + Math.random() * 0.25,
+      hue: pHue + (i % 2 === 0 ? -30 : 40) + Math.random() * 20,
+      saturation: 40 + Math.random() * 30,
+      alpha: 0.012 + Math.random() * 0.018,
+      driftX: (Math.random() - 0.5) * 0.00003,
+      driftY: (Math.random() - 0.5) * 0.00001,
+      pulseSpeed: 0.001 + Math.random() * 0.002,
+      pulsePhase: Math.random() * Math.PI * 2,
+    }));
+
+    // Gravitational pulse waves — rings expanding from center
+    const gravPulses: {
+      radius: number; maxRadius: number; alpha: number; speed: number; active: boolean;
+    }[] = Array.from({ length: 3 }, () => ({
+      radius: 0, maxRadius: 0, alpha: 0, speed: 0, active: false,
+    }));
+
+    let lastPulseTime = 0;
+
     let raf: number;
     let t = 0;
 
@@ -208,6 +262,27 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         ctx.fillStyle = `rgba(210,220,255,${s.a * tw})`;
         ctx.beginPath();
         ctx.arc(s.x * w, sy, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Volumetric nebula clouds — behind everything
+      nebulaClouds.forEach((cloud) => {
+        cloud.x += cloud.driftX;
+        cloud.y += cloud.driftY;
+        if (cloud.x > 1.5) cloud.x = -0.5;
+        if (cloud.x < -0.5) cloud.x = 1.5;
+        const pulse = 1 + 0.3 * Math.sin(t * cloud.pulseSpeed + cloud.pulsePhase);
+        const cloudX = cloud.x * w;
+        const cloudY = cloud.y * viewH;
+        const cloudR = cloud.radius * Math.max(w, viewH) * pulse;
+        if (cloudY < visTop - cloudR || cloudY > visBot + cloudR) return;
+        const ng = ctx.createRadialGradient(cloudX, cloudY, 0, cloudX, cloudY, cloudR);
+        ng.addColorStop(0, `hsla(${cloud.hue},${cloud.saturation}%,40%,${cloud.alpha * pulse})`);
+        ng.addColorStop(0.4, `hsla(${cloud.hue},${cloud.saturation}%,30%,${cloud.alpha * 0.5 * pulse})`);
+        ng.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = ng;
+        ctx.beginPath();
+        ctx.arc(cloudX, cloudY, cloudR, 0, Math.PI * 2);
         ctx.fill();
       });
 
@@ -520,6 +595,38 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         ctx.stroke();
         ctx.restore();
 
+        // Gravitational pulse waves
+        if (t - lastPulseTime > 300 + Math.random() * 200) {
+          const pulse = gravPulses.find(p => !p.active);
+          if (pulse) {
+            pulse.radius = R * 1.05;
+            pulse.maxRadius = R * 6;
+            pulse.alpha = 0.12;
+            pulse.speed = 1.5 + Math.random() * 1;
+            pulse.active = true;
+            lastPulseTime = t;
+          }
+        }
+        gravPulses.forEach(pulse => {
+          if (!pulse.active) return;
+          pulse.radius += pulse.speed;
+          const progress = (pulse.radius - R) / (pulse.maxRadius - R);
+          const a = pulse.alpha * (1 - progress) * (1 - progress);
+          if (a < 0.001 || pulse.radius > pulse.maxRadius) {
+            pulse.active = false;
+            return;
+          }
+          ctx.save();
+          ctx.strokeStyle = pl(a);
+          ctx.lineWidth = 1.5 * (1 - progress);
+          ctx.shadowColor = pr(a * 0.5);
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, pulse.radius, pulse.radius * TILT, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        });
+
         // Vignette effect for depth
         const vig = ctx.createRadialGradient(cx, cy, R * 2, cx, cy, Math.max(w, viewH) * 0.7);
         vig.addColorStop(0, 'rgba(0,0,0,0)');
@@ -527,6 +634,45 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         vig.addColorStop(1, 'rgba(0,0,0,0.5)');
         ctx.fillStyle = vig;
         ctx.fillRect(0, 0, w, viewH);
+        // Shooting stars — rendered on top of everything
+        if (Math.random() < 0.008) {
+          const s = shootingStars.find(s => !s.active);
+          if (s) spawnShootingStar(s);
+        }
+        shootingStars.forEach(s => {
+          if (!s.active) return;
+          s.x += s.vx;
+          s.y += s.vy;
+          s.life--;
+          if (s.life <= 0 || s.x < -200 || s.x > w + 200 || s.y > viewH + 200) {
+            s.active = false;
+            return;
+          }
+          const lifeRatio = s.life / s.maxLife;
+          const fadeIn = Math.min(1, (s.maxLife - s.life) / 8);
+          const a = s.brightness * lifeRatio * fadeIn;
+          const tailX = s.x - s.vx * (s.len / Math.sqrt(s.vx * s.vx + s.vy * s.vy));
+          const tailY = s.y - s.vy * (s.len / Math.sqrt(s.vx * s.vx + s.vy * s.vy));
+          const g = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
+          g.addColorStop(0, `hsla(${s.hue},60%,80%,0)`);
+          g.addColorStop(0.7, `hsla(${s.hue},60%,85%,${a * 0.5})`);
+          g.addColorStop(1, `hsla(${s.hue},80%,95%,${a})`);
+          ctx.save();
+          ctx.strokeStyle = g;
+          ctx.lineWidth = 1.5 + a;
+          ctx.shadowColor = `hsla(${s.hue},80%,90%,${a * 0.8})`;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.moveTo(tailX, tailY);
+          ctx.lineTo(s.x, s.y);
+          ctx.stroke();
+          // Bright head
+          ctx.fillStyle = `hsla(${s.hue},50%,95%,${a})`;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
       } else {
         disk.forEach((p) => {
           p.angle += p.speed;
