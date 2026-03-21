@@ -30,7 +30,7 @@ export default function ChartPageShell({
   const hasToolbar = toolbarLeft || toolbarRight;
 
   return (
-    <div className="h-[calc(100svh-56px)] flex animate-fadeIn" style={{ backgroundColor: 'var(--background)' }}>
+    <div className="flex animate-fadeIn" style={{ backgroundColor: 'var(--background)', height: 'calc(100svh - var(--nav-height, 44px))' }}>
 
       {/* ── Center Column ────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 relative">
