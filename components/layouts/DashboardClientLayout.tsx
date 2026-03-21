@@ -582,7 +582,7 @@ export function DashboardClientLayout({
             style={{ background: 'rgba(0,0,0,0.55)' }}
             onClick={() => setShowMobileMenu(false)}
           />
-          {/* Drawer */}
+          {/* Drawer — closes when mouse leaves */}
           <div
             className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-[280px] z-[60] flex flex-col"
             style={{
@@ -591,6 +591,7 @@ export function DashboardClientLayout({
               boxShadow: '4px 0 32px rgba(0,0,0,0.6)',
               animation: 'slideInLeft 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
+            onMouseLeave={() => { if (window.innerWidth >= 768) setShowMobileMenu(false); }}
             role="menu"
             aria-label="Mobile navigation"
           >
