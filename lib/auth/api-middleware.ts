@@ -81,12 +81,20 @@ export async function requireAuth(req: NextRequest): Promise<AuthResult | AuthEr
       };
     }
 
+    // Admin emails get ULTRA access regardless of subscription
+    const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    const BETA_TESTER_EMAILS = (process.env.BETA_TESTER_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    const userEmail = (token.email as string || '').toLowerCase();
+    const isAdmin = ADMIN_EMAILS.includes(userEmail);
+    const isBetaTester = BETA_TESTER_EMAILS.includes(userEmail);
+    const effectiveTier = (isAdmin || isBetaTester) ? 'ULTRA' : ((token.tier as string) || 'FREE');
+
     // Success - return user info and rate limit headers
     return {
       user: {
         id: token.id as string,
         email: token.email as string,
-        tier: (token.tier as string) || 'FREE',
+        tier: effectiveTier,
         name: token.name as string,
       },
       rateLimit,

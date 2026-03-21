@@ -255,6 +255,36 @@ export function DashboardClientLayout({
   // Auto-track closed trades to journal
   useAutoTrackTrades();
 
+  // Swipe right from left edge to open menu, swipe left to close
+  useEffect(() => {
+    if (isLandingPage) return;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dy) > Math.abs(dx)) return; // vertical scroll, ignore
+      // Swipe right from left edge → open menu
+      if (dx > 60 && touchStartX < 30 && !showMobileMenu) {
+        setShowMobileMenu(true);
+      }
+      // Swipe left → close menu
+      if (dx < -60 && showMobileMenu) {
+        setShowMobileMenu(false);
+      }
+    };
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isLandingPage, showMobileMenu]);
+
   // Lazy-hydrate non-critical persisted stores after first paint
   useEffect(() => {
     hydrateStores();
