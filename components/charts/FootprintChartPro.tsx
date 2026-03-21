@@ -193,8 +193,20 @@ const SYMBOL_CATEGORIES: Record<FootprintAssetCategory, Record<string, { value: 
 // Timeframes (footprint compatible only - 15m+ removed, candles only)
 const TIMEFRAMES: TimeframeSeconds[] = [15, 30, 60, 180, 300];
 
+// Tick-based timeframes (number of trades per candle)
+const TICK_TIMEFRAMES = [300, 500, 1000, 2000] as const;
+type TickTimeframe = typeof TICK_TIMEFRAMES[number];
+
+const TICK_TF_LABELS: Record<TickTimeframe, string> = {
+  300: '300T',
+  500: '500T',
+  1000: '1000T',
+  2000: '2000T',
+};
+
 // Timeframe groups for visual separation (like LiveChartPro)
 const TF_GROUPS = {
+  ticks: TICK_TIMEFRAMES as readonly number[],
   seconds: [15, 30] as TimeframeSeconds[],
   minutes: [60, 180, 300] as TimeframeSeconds[],
 };
@@ -461,6 +473,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
   // State
   const [symbol, setSymbol] = useState('btcusdt');
   const [timeframe, setTimeframe] = useState<TimeframeSeconds>(60);
+  const [aggregationMode, setAggregationMode] = useState<'time' | 'tick'>('time');
+  const [tickBarSize, setTickBarSize] = useState<TickTimeframe>(500);
   const [tickSize, setTickSize] = useState(10);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [isLoading, setIsLoading] = useState(true);
@@ -893,12 +907,12 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
       const service = getOptimizedFootprintService({
         symbol: sym,
-        timeframe: tf,
+        timeframe: aggregationMode === 'tick' ? 60 : tf, // Use 1m base for tick mode
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
         totalHours: 24,
-        aggregationMode: settings.features.aggregationMode,
-        tickBarSize: settings.features.tickBarSize,
+        aggregationMode,
+        tickBarSize: aggregationMode === 'tick' ? tickBarSize : (settings.features.tickBarSize || 500),
         volumeBarSize: settings.features.volumeBarSize,
         // Skeleton mode: instant OHLC for all historical candles (from klines),
         // real bid/ask footprint only for the last 24 hours (from aggTrades).
@@ -1004,7 +1018,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         setIsRefreshing(false);
       }
     }
-  }, [tickSize, settings.imbalance.ratio]);
+  }, [tickSize, settings.imbalance.ratio, aggregationMode, tickBarSize]);
 
   /**
    * Canvas rendering
@@ -3068,26 +3082,49 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           </span>
         </div>
 
-        {/* Group 2: Timeframes (grouped) */}
+        {/* Group 2: Timeframes (tick-based + time-based) */}
         <div className="flex items-center gap-1 px-3" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
-          {Object.entries(TF_GROUPS).map(([group, tfs]) => (
-            <div key={group} className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: settings.colors.background }}>
-              {tfs.map((tf) => (
+          {/* Tick-based timeframes */}
+          <div className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: settings.colors.background }}>
+            {TICK_TIMEFRAMES.map((tf) => {
+              const isActive = aggregationMode === 'tick' && tickBarSize === tf;
+              return (
                 <button
-                  key={tf}
-                  onClick={() => handleTimeframeChange(tf)}
-                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${timeframe === tf ? '' : 'hover:scale-105 active:scale-95 hover:bg-white/5'}`}
+                  key={`tick-${tf}`}
+                  onClick={() => { setAggregationMode('tick'); setTickBarSize(tf); }}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${isActive ? '' : 'hover:scale-105 active:scale-95 hover:bg-white/5'}`}
                   style={{
-                    backgroundColor: timeframe === tf ? settings.colors.currentPriceColor : 'transparent',
-                    color: timeframe === tf ? '#fff' : settings.colors.textSecondary,
+                    backgroundColor: isActive ? settings.colors.currentPriceColor : 'transparent',
+                    color: isActive ? '#fff' : settings.colors.textSecondary,
                   }}
                 >
-                  {TIMEFRAME_LABELS[tf]}
+                  {TICK_TF_LABELS[tf]}
                 </button>
-              ))}
+              );
+            })}
+          </div>
+          {/* Time-based timeframes */}
+          {Object.entries({ seconds: TF_GROUPS.seconds, minutes: TF_GROUPS.minutes }).map(([group, tfs]) => (
+            <div key={group} className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: settings.colors.background }}>
+              {tfs.map((tf) => {
+                const isActive = aggregationMode === 'time' && timeframe === tf;
+                return (
+                  <button
+                    key={tf}
+                    onClick={() => { setAggregationMode('time'); handleTimeframeChange(tf as TimeframeSeconds); }}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${isActive ? '' : 'hover:scale-105 active:scale-95 hover:bg-white/5'}`}
+                    style={{
+                      backgroundColor: isActive ? settings.colors.currentPriceColor : 'transparent',
+                      color: isActive ? '#fff' : settings.colors.textSecondary,
+                    }}
+                  >
+                    {TIMEFRAME_LABELS[tf as TimeframeSeconds]}
+                  </button>
+                );
+              })}
             </div>
           ))}
-          <PriceCountdownCompact timeframeSeconds={timeframe} />
+          {aggregationMode === 'time' && <PriceCountdownCompact timeframeSeconds={timeframe} />}
         </div>
 
         {/* Group 3: Controls */}
@@ -3648,7 +3685,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor, color: settings.colors.textMuted }}
       >
         <span>
-          {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : 'CME'} • {symbol.toUpperCase()} • Footprint {TIMEFRAME_LABELS[timeframe]} • Tick {SYMBOL_EXCHANGE[symbol] === 'binance' ? '$' : ''}{tickSize}
+          {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : 'CME'} • {symbol.toUpperCase()} • Footprint {aggregationMode === 'tick' ? `${tickBarSize}T` : TIMEFRAME_LABELS[timeframe]} • Tick {SYMBOL_EXCHANGE[symbol] === 'binance' ? '$' : ''}{tickSize}
         </span>
         <span className="flex items-center gap-3">
           {/* Zoom level indicator */}
