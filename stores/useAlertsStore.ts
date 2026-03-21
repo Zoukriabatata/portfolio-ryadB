@@ -80,6 +80,7 @@ export const useAlertsStore = create<AlertsState>()(
     }),
     {
       name: 'senzoukria-alerts',
+      skipHydration: true,
       partialize: (state) => ({ alerts: state.alerts }),
     }
   )

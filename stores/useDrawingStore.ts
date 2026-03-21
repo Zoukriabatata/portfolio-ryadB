@@ -220,6 +220,7 @@ export const useDrawingStore = create<DrawingState>()(
     }),
     {
       name: 'drawing-storage',
+      skipHydration: true,
       partialize: (state) => ({
         drawings: state.drawings,
         defaultStyle: state.defaultStyle,

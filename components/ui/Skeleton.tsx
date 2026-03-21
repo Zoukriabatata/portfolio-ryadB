@@ -74,7 +74,7 @@ export function ChartSkeleton({ className = '' }: { className?: string }) {
       {/* Chart area */}
       <div className="flex-1 flex items-end gap-[3px] px-6 py-4 overflow-hidden">
         {/* Fake candlesticks */}
-        {Array.from({ length: 40 }).map((_, i) => {
+        {Array.from({ length: 15 }).map((_, i) => {
           const h = 20 + Math.abs(Math.sin(i * 0.7)) * 60;
           return (
             <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0">
@@ -110,7 +110,7 @@ export function ChartSkeleton({ className = '' }: { className?: string }) {
 
       {/* Volume area */}
       <div className="flex items-end gap-[3px] px-6 pb-3 h-[60px]">
-        {Array.from({ length: 40 }).map((_, i) => {
+        {Array.from({ length: 15 }).map((_, i) => {
           const h = 8 + Math.abs(Math.cos(i * 0.5)) * 35;
           return (
             <div

@@ -15,6 +15,7 @@ export const useNewsThemeStore = create<NewsThemeState>()(
     }),
     {
       name: 'senzoukria-news-theme',
+      skipHydration: true,
       merge: (persisted, current) => {
         const p = persisted as Partial<NewsThemeState> | undefined;
         const valid: NewsThemeId[] = [

@@ -408,6 +408,7 @@ export const useBacktestStore = create<BacktestState>()(
     }),
     {
       name: 'backtest-store',
+      skipHydration: true,
       partialize: (state) => ({
         sessions: state.sessions,
         journalEntries: state.journalEntries,

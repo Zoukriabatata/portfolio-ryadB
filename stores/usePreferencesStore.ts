@@ -292,6 +292,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     }),
     {
       name: 'senzoukria-preferences',
+      skipHydration: true,
       partialize: (s) => ({
         density: s.density,
         fontSize: s.fontSize,

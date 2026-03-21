@@ -80,6 +80,7 @@ export const useCrosshairStore = create<CrosshairSettings>()(
     }),
     {
       name: 'crosshair-settings',
+      skipHydration: true,
       partialize: (state) => ({
         color: state.color,
         lineWidth: state.lineWidth,

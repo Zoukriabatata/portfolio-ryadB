@@ -675,6 +675,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
   // ── DOM overlay — Binance depth subscription (non-CME symbols) ────────────
   const CME_SYMS = useMemo(() => new Set(['mnq', 'mes', 'mym', 'm2k']), []);
   useEffect(() => {
+    if (!isActive) return;
     if (!settings.features.showPassiveLiquidity) return;
     hasRealDOMRef.current = false;
     domBidsRef.current = new Map();
@@ -690,7 +691,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       domAsksRef.current = asks;
     }, 'futures', '100ms');
     return unsub;
-  }, [symbol, settings.features.showPassiveLiquidity, CME_SYMS]);
+  }, [symbol, settings.features.showPassiveLiquidity, CME_SYMS, isActive]);
 
   /**
    * Handle keyboard shortcuts
@@ -1691,6 +1692,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
    * Initialize and connect
    */
   useEffect(() => {
+    if (!isActive) return;
     let isMounted = true;
     const MAX_CANDLES = 500; // Keep more candles for history
     const exchange = SYMBOL_EXCHANGE[symbol] || 'binance';
@@ -1960,7 +1962,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       // Disconnect from dxFeed if connected
       resetDxFeedFootprintEngine();
     };
-  }, [symbol, timeframe, tickSize, loadHistory, settings.imbalance.ratio, settings.colors.deltaPositive, settings.colors.deltaNegative]);
+  }, [symbol, timeframe, tickSize, loadHistory, settings.imbalance.ratio, settings.colors.deltaPositive, settings.colors.deltaNegative, isActive]);
 
   /**
    * Wheel handler (zoom / scroll)

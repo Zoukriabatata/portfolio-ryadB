@@ -119,6 +119,7 @@ export const useChartToolsStore = create<ChartToolsState>()(
     }),
     {
       name: 'chart-tools-storage',
+      skipHydration: true,
       partialize: (state) => ({
         drawings: state.drawings,
         markers: state.markers,

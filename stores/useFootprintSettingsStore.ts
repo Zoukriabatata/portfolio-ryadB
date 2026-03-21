@@ -795,6 +795,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
     }),
     {
       name: 'footprint-settings',
+      skipHydration: true,
       version: 7, // v7: CVDConfig, ClusterStatConfig, DOMConfig, VWAP advanced fields
       partialize: (state) => ({
         colors: state.colors,

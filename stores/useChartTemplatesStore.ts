@@ -196,6 +196,7 @@ export const useChartTemplatesStore = create<ChartTemplatesState>()(
     }),
     {
       name: 'chart-templates-storage',
+      skipHydration: true,
       version: 1,
     }
   )

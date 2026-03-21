@@ -43,6 +43,7 @@ export const useChartSyncStore = create<ChartSyncStore>()(
     }),
     {
       name: 'chart-sync-settings',
+      skipHydration: true,
     },
   ),
 );

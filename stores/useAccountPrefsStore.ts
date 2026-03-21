@@ -89,6 +89,7 @@ export const useAccountPrefsStore = create<AccountPrefsState>()(
     }),
     {
       name: 'senzoukria-account-prefs',
+      skipHydration: true,
     }
   )
 );

@@ -66,6 +66,7 @@ import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import FeatureTour from '@/components/ui/FeatureTour';
 import { PageActiveProvider } from '@/hooks/usePageActive';
 import { useAutoTrackTrades } from '@/hooks/useAutoTrackTrades';
+import { hydrateStores } from '@/lib/hydrate-stores';
 
 // ============================================================
 // KEEP-ALIVE CHART COMPONENTS
@@ -253,6 +254,11 @@ export function DashboardClientLayout({
 
   // Auto-track closed trades to journal
   useAutoTrackTrades();
+
+  // Lazy-hydrate non-critical persisted stores after first paint
+  useEffect(() => {
+    hydrateStores();
+  }, []);
 
   // Apply UI theme on mount and changes — sync footprint canvas colors too
   useEffect(() => {

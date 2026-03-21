@@ -67,6 +67,7 @@ export const useDataFeedStore = create<DataFeedStore>()(
     }),
     {
       name: 'senzoukria-datafeeds',
+      skipHydration: true,
       merge: (persistedState: any, currentState) => ({
         ...currentState,
         configs: {

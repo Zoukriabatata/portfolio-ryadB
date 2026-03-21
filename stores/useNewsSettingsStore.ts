@@ -35,6 +35,6 @@ export const useNewsSettingsStore = create<NewsSettingsState>()(
       toggleNotifications: () => set(s => ({ notificationsEnabled: !s.notificationsEnabled })),
       setNotificationLead: (m) => set({ notificationLeadMinutes: m }),
     }),
-    { name: 'senzoukria-news-settings' }
+    { name: 'senzoukria-news-settings', skipHydration: true }
   )
 );

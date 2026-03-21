@@ -102,6 +102,7 @@ export const useTimezoneStore = create<TimezoneState>()(
     }),
     {
       name: 'chart-timezone',
+      skipHydration: true,
       partialize: (state) => ({ timezone: state.timezone }),
     }
   )

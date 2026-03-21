@@ -106,6 +106,7 @@ export const useReplayUIStore = create<ReplayUIState>()(
     }),
     {
       name: 'replay-ui-storage',
+      skipHydration: true,
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         statsMinimized: state.statsMinimized,

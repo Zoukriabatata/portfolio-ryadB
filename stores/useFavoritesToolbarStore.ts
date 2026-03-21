@@ -154,6 +154,7 @@ export const useFavoritesToolbarStore = create<FavoritesToolbarState>()(
     }),
     {
       name: 'senzoukria-favorites-toolbar',
+      skipHydration: true,
       version: 3,
       migrate: (persistedState: unknown) => persistedState as FavoritesToolbarState,
       merge: (persistedState: unknown, currentState: FavoritesToolbarState) => {

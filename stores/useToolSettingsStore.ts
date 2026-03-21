@@ -154,6 +154,7 @@ export const useToolSettingsStore = create<ToolSettingsState>()(
     }),
     {
       name: 'tool-settings-storage',
+      skipHydration: true,
       version: SETTINGS_VERSION,
       partialize: (state) => ({
         version: state.version,

@@ -105,6 +105,7 @@ export const useWatchlistStore = create<WatchlistState>()(
     }),
     {
       name: 'senzoukria-watchlist',
+      skipHydration: true,
       partialize: (s) => ({ items: s.items }),
     }
   )

@@ -756,6 +756,7 @@ export const useTradingStore = create<TradingState>()(
     }),
     {
       name: 'trading-store',
+      skipHydration: true,
       partialize: (state) => ({
         activeBroker: state.activeBroker,
         tradingSymbol: state.tradingSymbol,

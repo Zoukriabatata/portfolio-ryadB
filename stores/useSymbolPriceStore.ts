@@ -153,6 +153,7 @@ export const useSymbolPriceStore = create<SymbolPriceState>()(
     }),
     {
       name: 'senzoukria-symbol-price',
+      skipHydration: true,
       // Only persist active symbol and metadata, not transient price data
       partialize: (state) => ({
         activeSymbol: state.activeSymbol,

@@ -68,6 +68,7 @@ export const useJournalStore = create<JournalUIState>()(
     }),
     {
       name: 'journal-ui-storage',
+      skipHydration: true,
       partialize: (state) => ({
         activeTab: state.activeTab,
         tradeFilters: state.tradeFilters,

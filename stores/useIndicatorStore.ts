@@ -44,6 +44,7 @@ export const useIndicatorStore = create<IndicatorState>()(
     }),
     {
       name: 'indicator-storage',
+      skipHydration: true,
     }
   )
 );
