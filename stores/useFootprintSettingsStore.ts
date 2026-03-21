@@ -436,7 +436,7 @@ const DEFAULT_FONTS: FootprintFonts = {
 
 const DEFAULT_FEATURES: FootprintFeatures = {
   showGrid: true,
-  showOHLC: true,
+  showOHLC: false,
   showDeltaProfile: true,
   showPOC: true,
   showImbalances: true,

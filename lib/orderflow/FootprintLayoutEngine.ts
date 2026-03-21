@@ -92,7 +92,7 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
   footprintWidth: 70,      // Réduit pour afficher plus de bougies
   ohlcWidth: 10,           // Réduit proportionnellement
   deltaProfileWidth: 35,
-  volumeProfileWidth: 50,  // Session volume profile width
+  volumeProfileWidth: 30,  // Session volume profile width (compact, ATAS-style)
   rowHeight: 13,           // Compact like ATAS — denser rows
   candleGap: 3,            // Gap between candles for readability
 

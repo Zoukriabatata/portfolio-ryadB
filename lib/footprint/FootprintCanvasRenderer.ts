@@ -283,6 +283,8 @@ export class FootprintCanvasRenderer {
     const gridLevels = layout.getVisiblePriceLevels(metrics, tickSize);
     const { footprintAreaY, footprintAreaHeight } = metrics;
 
+    // Horizontal grid lines only (subtle, ATAS-style) — no vertical grid lines
+    ctx.globalAlpha = Math.min(colors.gridOpacity, 0.15);
     for (const price of gridLevels) {
       const y = layout.priceToY(price, metrics);
       if (y < footprintAreaY || y > footprintAreaY + footprintAreaHeight) continue;
@@ -380,7 +382,7 @@ export class FootprintCanvasRenderer {
       });
       const avgLevelVol = levelCount > 0 ? totalLevelVol / levelCount : 1;
 
-      const barMaxW = (fpWidth / 2) - 8;
+      const barMaxW = (fpWidth / 2) - 2;
 
       // ═══════════════════════════════════════════════════════════════
       // SINGLE PASS: heatmap + bars + POC + large trade + text
@@ -408,11 +410,11 @@ export class FootprintCanvasRenderer {
 
         // Actual pixel spacing between this level and the next — caps cell height to prevent overlap
         const pixelSpacing = Math.abs(layout.priceToY(price + tickSize, metrics) - y);
-        const effectiveRowH = Math.min(rowH, pixelSpacing - 1);
+        const effectiveRowH = Math.min(rowH, pixelSpacing);
         if (effectiveRowH < 2) return; // cell invisible at this zoom — skip entirely
 
         const cellY = y - effectiveRowH / 2;
-        const barH = effectiveRowH - 2;
+        const barH = effectiveRowH;
         // Text visible only when there is enough vertical AND horizontal space
         const showLevelText = effectiveRowH >= 8 && fpWidth >= 38;
         const isPOC = price === candle.poc;
@@ -425,7 +427,7 @@ export class FootprintCanvasRenderer {
           const heatColor = this.getHeatmapColor(intensity);
           ctx.fillStyle = heatColor;
           ctx.globalAlpha = intensity * heatmapIntensity;
-          ctx.fillRect(cellStartX + 2, cellY + 1, fpWidth - 4, effectiveRowH - 2);
+          ctx.fillRect(cellStartX, cellY, fpWidth, effectiveRowH);
           ctx.globalAlpha = 1;
         }
 
@@ -441,7 +443,7 @@ export class FootprintCanvasRenderer {
             const bidW = intensity * barMaxW;
             ctx.fillStyle = colors.bidColor;
             ctx.globalAlpha = barBaseAlpha + intensity * barRangeAlpha;
-            ctx.fillRect(centerX - 2 - bidW, cellY + 1, bidW, barH);
+            ctx.fillRect(centerX - 1 - bidW, cellY, bidW, barH);
             ctx.globalAlpha = 1;
           }
           if (level.askVolume > 0) {
@@ -449,7 +451,7 @@ export class FootprintCanvasRenderer {
             const askW = intensity * barMaxW;
             ctx.fillStyle = colors.askColor;
             ctx.globalAlpha = barBaseAlpha + intensity * barRangeAlpha;
-            ctx.fillRect(centerX + 2, cellY + 1, askW, barH);
+            ctx.fillRect(centerX + 1, cellY, askW, barH);
             ctx.globalAlpha = 1;
           }
         } else if (clusterMode === 'delta') {
@@ -458,31 +460,31 @@ export class FootprintCanvasRenderer {
           const absDelta = Math.abs(delta);
           const maxDelta = maxLevelVol; // normalize against max level vol
           const intensity = Math.min(1, absDelta / maxDelta);
-          const fullBarW = (fpWidth - 8) * intensity;
+          const fullBarW = (fpWidth - 2) * intensity;
           ctx.fillStyle = delta >= 0 ? colors.deltaPositive : colors.deltaNegative;
           ctx.globalAlpha = 0.2 + intensity * 0.3;
-          ctx.fillRect(centerX - fullBarW / 2, cellY + 1, fullBarW, barH);
+          ctx.fillRect(centerX - fullBarW / 2, cellY, fullBarW, barH);
           ctx.globalAlpha = 1;
         } else if (clusterMode === 'volume') {
           // Single centered bar showing total volume
           const intensity = Math.min(1, totalVol / maxLevelVol);
-          const fullBarW = (fpWidth - 8) * intensity;
+          const fullBarW = (fpWidth - 2) * intensity;
           // Gradient from muted to bright based on intensity
           const r = Math.round(80 + intensity * 100);
           const g = Math.round(130 + intensity * 80);
           const b = Math.round(220 - intensity * 40);
           ctx.fillStyle = `rgb(${r},${g},${b})`;
           ctx.globalAlpha = 0.2 + intensity * 0.35;
-          ctx.fillRect(centerX - fullBarW / 2, cellY + 1, fullBarW, barH);
+          ctx.fillRect(centerX - fullBarW / 2, cellY, fullBarW, barH);
           ctx.globalAlpha = 1;
         }
 
         // ─── LAYER 2: POC highlight ───
         if (isPOC && features.showPOC) {
           ctx.fillStyle = 'rgba(251, 191, 36, 0.08)';
-          ctx.fillRect(cellStartX + 2, cellY + 1, fpWidth - 4, effectiveRowH - 2);
+          ctx.fillRect(cellStartX, cellY, fpWidth, effectiveRowH);
           ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(cellStartX + 1, cellY + 2, 2, effectiveRowH - 4);
+          ctx.fillRect(cellStartX, cellY, 2, effectiveRowH);
         }
 
         // ─── LAYER 2.5: Large trade highlight (Phase 2) ───
@@ -491,7 +493,7 @@ export class FootprintCanvasRenderer {
           ctx.strokeStyle = largeTradeColor;
           ctx.lineWidth = 1.5;
           ctx.globalAlpha = 0.7;
-          ctx.strokeRect(cellStartX + 2, cellY + 1, fpWidth - 4, effectiveRowH - 2);
+          ctx.strokeRect(cellStartX, cellY, fpWidth, effectiveRowH);
           ctx.globalAlpha = 1;
         }
 
@@ -1453,7 +1455,7 @@ export class FootprintCanvasRenderer {
 
     const { footprintAreaX, footprintAreaY, footprintAreaHeight, footprintAreaWidth } = metrics;
     const areaRight = footprintAreaX + footprintAreaWidth;
-    const barMaxW   = Math.min(footprintAreaWidth * 0.28, 200);
+    const barMaxW   = Math.min(footprintAreaWidth * 0.15, 100);
     const domLeft   = areaRight - barMaxW;
 
     const bidEntries = Array.from(domBids.entries()).sort(([a], [b]) => b - a); // desc
