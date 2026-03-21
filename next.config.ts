@@ -43,6 +43,31 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      // SEO: allow Google to index public pages
+      {
+        source: '/',
+        headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
+      },
+      {
+        source: '/pricing',
+        headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
+      },
+      {
+        source: '/pdf',
+        headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
+      },
+      {
+        source: '/boutique',
+        headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
+      },
+      {
+        source: '/auth/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
+      },
+      {
+        source: '/legal/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
+      },
       // Cache headers for data APIs
       {
         source: '/api/binance/:path*',
