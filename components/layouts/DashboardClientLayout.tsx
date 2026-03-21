@@ -32,6 +32,7 @@ import {
   TrendingUp,
   BrainCircuit,
   ClipboardList,
+  FileText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -195,6 +196,12 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8' },
       { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7' },
       { href: '/ai',                labelKey: 'nav.ai',     Icon: BrainCircuit,  shortcut: '' },
+    ],
+  },
+  {
+    label: 'Research',
+    items: [
+      { href: '/pdf', labelKey: 'nav.research' as const, Icon: FileText, shortcut: '' },
     ],
   },
 ];

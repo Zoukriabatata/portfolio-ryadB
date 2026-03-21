@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 
 /* ------------------------------------------------------------------ */
 /*  Feature list for the paywall CTA                                   */
@@ -26,6 +26,107 @@ const PREVIEW_QUOTES = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  Anti-download CSS injection                                        */
+/* ------------------------------------------------------------------ */
+
+function AntiDownloadShield({ userEmail }: { userEmail: string }) {
+  useEffect(() => {
+    // Disable right-click on research content
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-research-content]')) {
+        e.preventDefault();
+      }
+    };
+    // Disable keyboard shortcuts for save/print/copy
+    const keyHandler = (e: KeyboardEvent) => {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        ['s', 'p', 'c', 'a', 'u'].includes(e.key.toLowerCase())
+      ) {
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-research-content]') || document.querySelector('[data-research-content]')) {
+          e.preventDefault();
+        }
+      }
+      // Disable print screen
+      if (e.key === 'PrintScreen') {
+        e.preventDefault();
+      }
+    };
+    // Disable drag
+    const dragHandler = (e: DragEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-research-content]')) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('contextmenu', handler);
+    document.addEventListener('keydown', keyHandler);
+    document.addEventListener('dragstart', dragHandler);
+    return () => {
+      document.removeEventListener('contextmenu', handler);
+      document.removeEventListener('keydown', keyHandler);
+      document.removeEventListener('dragstart', dragHandler);
+    };
+  }, []);
+
+  return (
+    <>
+      {/* Watermark overlay with user email — makes screenshots traceable */}
+      <div
+        className="pointer-events-none fixed inset-0 z-[9999] select-none"
+        aria-hidden="true"
+        style={{
+          background: `repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 200px,
+            rgba(255,255,255,0.015) 200px,
+            rgba(255,255,255,0.015) 201px
+          )`,
+        }}
+      >
+        <div
+          className="h-full w-full"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='11' fill='rgba(255,255,255,0.03)' transform='rotate(-35, 200, 100)' font-family='monospace'%3E${encodeURIComponent(userEmail)}%3C/text%3E%3C/svg%3E")`,
+            backgroundRepeat: 'repeat',
+          }}
+        />
+      </div>
+      {/* Anti-copy CSS */}
+      <style>{`
+        [data-research-content] {
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          user-select: none !important;
+          -webkit-touch-callout: none !important;
+        }
+        [data-research-content] * {
+          -webkit-user-select: none !important;
+          user-select: none !important;
+        }
+        @media print {
+          [data-research-content] {
+            display: none !important;
+          }
+          body::after {
+            content: 'Impression non autorisée — Research Pack Senzoukria';
+            display: block;
+            text-align: center;
+            font-size: 24px;
+            padding: 100px;
+          }
+        }
+      `}</style>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Fake blurred preview — decorative only, contains NO real content   */
 /* ------------------------------------------------------------------ */
 
@@ -33,7 +134,6 @@ function DecorativeBlur() {
   return (
     <div className="pointer-events-none select-none" aria-hidden="true" style={{ maxHeight: 480, overflow: 'hidden' }}>
       <div style={{ filter: 'blur(10px)', opacity: 0.25 }}>
-        {/* Fake card blocks — purely decorative, no real data */}
         {[1, 2, 3].map((i) => (
           <div
             key={i}
@@ -52,7 +152,6 @@ function DecorativeBlur() {
           </div>
         ))}
       </div>
-      {/* Gradient fade to background */}
       <div
         className="absolute inset-0"
         style={{ background: 'linear-gradient(to bottom, transparent 0%, var(--background) 80%)' }}
@@ -66,9 +165,7 @@ function DecorativeBlur() {
 /* ------------------------------------------------------------------ */
 
 interface ResearchPaywallProps {
-  /** Content visible to everyone (header, intro) */
   preview: ReactNode;
-  /** Content behind the paywall — NEVER rendered for non-authorized users */
   children: ReactNode;
 }
 
@@ -83,6 +180,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
   const hasResearchPack = session?.user?.hasResearchPack === true;
   const hasAccess = isUltra || hasResearchPack;
   const isLoggedIn = !!session?.user;
+  const userEmail = session?.user?.email || '';
 
   async function handlePurchase() {
     setPurchasing(true);
@@ -98,7 +196,6 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
         setPurchaseError(data.error || 'Erreur de paiement');
         return;
       }
-      // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch {
       setPurchaseError('Erreur réseau. Réessayez.');
@@ -107,24 +204,36 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
     }
   }
 
-  // Authorized users see everything — children are rendered
+  // ── Authorized: show content with anti-download protection ──
   if (hasAccess) {
     return (
       <>
+        <AntiDownloadShield userEmail={userEmail} />
         {preview}
-        {children}
+        <div data-research-content="true">
+          {/* View-only badge */}
+          <div className="mb-6 flex items-center gap-3 rounded-lg border px-4 py-3"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Consultation uniquement — Contenu protégé et lié à votre compte ({userEmail})
+            </span>
+          </div>
+          {children}
+        </div>
       </>
     );
   }
 
-  // NOT authorized — children are NEVER rendered, NEVER sent to the DOM
-  // Only show the preview + decorative blur + paywall card
+  // ── NOT authorized — children are NEVER rendered ──
   return (
     <>
       {preview}
 
       <div className="relative mt-12">
-        {/* Decorative blur — contains NO real content, just placeholder shapes */}
         <DecorativeBlur />
 
         {/* ── Paywall card ── */}
@@ -152,10 +261,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <path d="M2 12l10 5 10-5" />
                 </svg>
               </div>
-              <h3
-                className="text-xl font-bold tracking-tight"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <h3 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 Research Pack
               </h3>
               <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -170,8 +276,17 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                 <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>one-time</span>
               </div>
               <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                Paiement unique — accès permanent, mises à jour incluses
+                Paiement unique — consultation en ligne permanente
               </p>
+              <div className="mt-3 flex items-center justify-center gap-2 rounded-lg px-3 py-2"
+                style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span className="text-[11px]" style={{ color: 'var(--accent)' }}>
+                  Aussi inclus avec l&apos;abonnement SENULTRA
+                </span>
+              </div>
             </div>
 
             {/* Preview quotes */}
@@ -208,6 +323,19 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
               </ul>
             </div>
 
+            {/* Security info */}
+            <div className="px-6 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
+              <div className="flex items-center gap-2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+                <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                  Consultation en ligne uniquement — lié à votre compte, non téléchargeable, non transférable
+                </span>
+              </div>
+            </div>
+
             {/* CTA */}
             <div className="px-6 py-5">
               {isLoading ? (
@@ -241,10 +369,11 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                     <p className="text-center text-xs" style={{ color: '#ef4444' }}>{purchaseError}</p>
                   )}
                   <p className="text-center text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
-                    Aussi inclus avec l&apos;abonnement{' '}
+                    Ou souscris à{' '}
                     <Link href="/pricing" className="underline" style={{ color: 'var(--accent)' }}>
-                      Ultra
+                      SENULTRA
                     </Link>
+                    {' '}pour accéder à tout
                   </p>
                 </div>
               ) : (
