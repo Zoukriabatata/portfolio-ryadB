@@ -676,69 +676,6 @@ function PricingContent() {
           </div>
         )}
 
-        {/* EMPTY — removed payment proof tracker (no longer needed without manual payments) */}
-        {session && false && (
-              <div
-                className="mt-8 rounded-xl p-6"
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <h3
-                  className="text-lg font-semibold mb-4"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  Proof Status
-                </h3>
-
-                <div className="space-y-3">
-                  {pendingProofs.map((proof) => (
-                    <div
-                      key={proof.id}
-                      className="flex items-center justify-between p-4 rounded-lg"
-                      style={{
-                        background: 'var(--surface-elevated, #1a1a24)',
-                        border: '1px solid var(--border)',
-                      }}
-                    >
-                      <div>
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                          {proof.method} &mdash;{' '}
-                          <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
-                            {proof.reference}
-                          </span>
-                        </div>
-                        <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                          Submitted {new Date(proof.createdAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </div>
-                      </div>
-                      <span
-                        className="text-xs px-3 py-1 rounded-full font-medium"
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.12)',
-                          color: '#fbbf24',
-                        }}
-                      >
-                        Under Review
-                      </span>
-                    </div>
-                  ))}
-
-                  <p className="text-xs pt-2" style={{ color: 'var(--text-muted)' }}>
-                    Your payment proof is being reviewed. You will receive an email once your
-                    account is activated. This usually takes less than 24 hours.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* ----------------------------------------------------------------- */}
         {/* Feature Comparison Table                                          */}
         {/* ----------------------------------------------------------------- */}
