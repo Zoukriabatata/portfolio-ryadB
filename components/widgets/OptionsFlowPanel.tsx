@@ -168,6 +168,14 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
   const [hovered, setHovered]       = useState<NetFlowStrike | null>(null);
   const [zoomRange, setZoomRange]   = useState<{ min: number; max: number } | null>(null);
 
+  // Global mouseup to stop panning even when cursor leaves canvas
+  useEffect(() => {
+    const stop = () => setIsPanning(false);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('touchend', stop);
+    return () => { window.removeEventListener('mouseup', stop); window.removeEventListener('touchend', stop); };
+  }, []);
+
   const size = useCanvasSize(canvasRef, containerRef);
 
   const sorted = useMemo(() => [...data].sort((a, b) => a.strike - b.strike), [data]);
@@ -430,13 +438,22 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
     <div ref={containerRef} className="relative w-full h-full min-h-0 select-none">
       <canvas
         ref={canvasRef}
-        className="absolute inset-0"
+        className="absolute inset-0 touch-none"
         style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={() => setIsPanning(false)}
         onMouseLeave={() => { setHovered(null); setIsPanning(false); }}
         onDoubleClick={() => setZoomRange(defaultZoom)}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          handleMouseDown({ clientX: t.clientX, clientY: t.clientY, button: 0 } as any);
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0];
+          handleMouseMove({ clientX: t.clientX, clientY: t.clientY } as any);
+        }}
+        onTouchEnd={() => setIsPanning(false)}
       />
       {hovered && !isPanning && (
         <div className="absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] font-mono shadow-2xl"
@@ -477,6 +494,14 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
 
   const [isPanning, setIsPanning]   = useState(false);
   const [mousePos, setMousePos]     = useState({ x: 0, y: 0 });
+
+  // Global mouseup to stop panning even when cursor leaves canvas
+  useEffect(() => {
+    const stop = () => setIsPanning(false);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('touchend', stop);
+    return () => { window.removeEventListener('mouseup', stop); window.removeEventListener('touchend', stop); };
+  }, []);
   const [hovered, setHovered]       = useState<OIStrike | null>(null);
   const [zoomRange, setZoomRange]   = useState<{ min: number; max: number } | null>(null);
 
@@ -724,7 +749,7 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
     <div ref={containerRef} className="relative w-full h-full min-h-0 select-none">
       <canvas
         ref={canvasRef}
-        className="absolute inset-0"
+        className="absolute inset-0 touch-none"
         style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
         onMouseMove={handleMouseMove}
         onMouseDown={e => {
@@ -735,6 +760,16 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
         onMouseUp={() => setIsPanning(false)}
         onMouseLeave={() => { setHovered(null); setIsPanning(false); }}
         onDoubleClick={() => setZoomRange(defaultZoom)}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          panRef.current = { startY: t.clientY, startMin: visMin, startMax: visMax };
+          setIsPanning(true);
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0];
+          handleMouseMove({ clientX: t.clientX, clientY: t.clientY } as any);
+        }}
+        onTouchEnd={() => setIsPanning(false)}
       />
       {hovered && !isPanning && (
         <div className="absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] font-mono shadow-2xl"
