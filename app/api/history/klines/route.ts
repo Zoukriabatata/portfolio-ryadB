@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 // Binance interval mapping
 const INTERVAL_MAP: Record<string, string> = {
@@ -82,6 +83,15 @@ interface NormalizedCandle {
 }
 
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   const searchParams = request.nextUrl.searchParams;
 
   const symbol = searchParams.get('symbol') || 'BTCUSDT';

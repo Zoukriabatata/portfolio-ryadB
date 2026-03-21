@@ -126,14 +126,15 @@ const PROTECTED_ROUTES = [
 ];
 
 // Routes that require specific subscription tiers
+// ALL app features require ULTRA — FREE tier only gets landing, pricing, account
 const TIER_ROUTES: Record<string, ('FREE' | 'ULTRA')[]> = {
-  '/chart': ['FREE', 'ULTRA'],
-  '/live': ['FREE', 'ULTRA'],
-  '/bias': ['FREE', 'ULTRA'],
-  '/boutique': ['FREE', 'ULTRA'],
   '/account': ['FREE', 'ULTRA'],
-  '/ai': ['FREE', 'ULTRA'],
-  '/bilansUTILISATEUR': ['FREE', 'ULTRA'],
+  '/chart': ['ULTRA'],
+  '/live': ['ULTRA'],
+  '/bias': ['ULTRA'],
+  '/boutique': ['ULTRA'],
+  '/ai': ['ULTRA'],
+  '/bilansUTILISATEUR': ['ULTRA'],
   '/footprint': ['ULTRA'],
   '/orderflow': ['ULTRA'],
   '/liquidity': ['ULTRA'],
@@ -428,11 +429,13 @@ async function runMiddleware(request: NextRequest, pathname: string) {
       return NextResponse.rewrite(new URL('/not-found', request.url));
     }
   }
+  const isAdmin = ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(userEmail);
   const isBetaTester = BETA_TESTER_EMAILS.length > 0 && BETA_TESTER_EMAILS.includes(userEmail);
 
   // Check subscription tier for route access
+  // Admins and beta testers always get ULTRA access
   const rawTier = token.tier as 'FREE' | 'ULTRA';
-  const userTier: 'FREE' | 'ULTRA' = isBetaTester ? 'ULTRA' : rawTier;
+  const userTier: 'FREE' | 'ULTRA' = (isAdmin || isBetaTester) ? 'ULTRA' : rawTier;
 
   // Special: /pdf requires ULTRA OR hasResearchPack (one-time $50 purchase)
   if (pathname.startsWith('/pdf')) {
@@ -456,9 +459,9 @@ async function runMiddleware(request: NextRequest, pathname: string) {
     }
   }
 
-  // Check subscription expiration (beta testers are exempt)
+  // Check subscription expiration (admins and beta testers are exempt)
   const subscriptionEnd = token.subscriptionEnd as string | null;
-  const isExpired = !isBetaTester && subscriptionEnd && new Date(subscriptionEnd) < new Date();
+  const isExpired = !isAdmin && !isBetaTester && subscriptionEnd && new Date(subscriptionEnd) < new Date();
   if (isExpired) {
     // Subscription expired — treat as FREE, show 404 for ULTRA routes
     const expiredTier = 'FREE' as const;

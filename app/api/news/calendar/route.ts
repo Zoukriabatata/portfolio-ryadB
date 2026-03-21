@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 import type { EconomicEvent, MarketImpact } from '@/types/news';
 import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
 
@@ -19,8 +19,6 @@ import { rateLimitByIP, tooManyRequests } from '@/lib/auth/rate-limiter';
  * Response: { events: EconomicEvent[], source: string, updatedAt: string }
  * Cached in-memory for 5 minutes.
  */
-
-const IS_DEV = process.env.NODE_ENV === 'development';
 
 // ---------------------------------------------------------------------------
 // In-memory cache (5 minutes TTL)
@@ -603,15 +601,14 @@ export async function GET(req: NextRequest) {
     const rl = await rateLimitByIP(req, 30, 60_000); // 30 req/min
     if (!rl.allowed) return tooManyRequests(rl);
 
-    // ---- Authentication (skip in dev for local testing) ----
-    if (!IS_DEV) {
-      const token = await getToken({ req });
-      if (!token) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        );
-      }
+    // ---- Authentication ----
+    const authResult = await requireAuth(req);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+    }
+    const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+    if (tierCheck) {
+      return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
     }
 
     // ---- Check cache first ----

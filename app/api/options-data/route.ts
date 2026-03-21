@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { OptionsFlowData, StrikeWall } from '@/types/trading-bias';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 /**
  * GET /api/options-data
@@ -34,6 +35,15 @@ function parseOptionTicker(ticker: string): { strike: number; type: 'C' | 'P' } 
 }
 
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   const symbol = request.nextUrl.searchParams.get('symbol') || 'QQQ';
   const cboeSymbol = CBOE_SYMBOL_MAP[symbol] || symbol;
 

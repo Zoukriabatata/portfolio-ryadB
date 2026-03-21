@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { BASE_PRICES } from '@/lib/simulation/constants';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 const ALLOWED_SYMBOLS = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'META'];
 
@@ -18,6 +19,15 @@ const priceCache = new Map<string, { price: number; fetchedAt: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
+  const authResult = await requireAuth(req);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   const symbol = req.nextUrl.searchParams.get('symbol')?.toUpperCase();
 
   if (!symbol || !ALLOWED_SYMBOLS.includes(symbol)) {

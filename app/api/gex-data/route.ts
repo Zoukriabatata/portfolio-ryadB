@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSpotPrice } from '@/lib/cboe/fetchChain';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 /**
  * GET /api/gex-data
@@ -46,6 +47,15 @@ function parseTicker(ticker: string): { strike: number; type: 'C' | 'P' } | null
 }
 
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   const ticker = request.nextUrl.searchParams.get('ticker') || 'QQQ';
   const cboeSymbol = CBOE_SYMBOL_MAP[ticker] || ticker;
 
@@ -240,6 +250,15 @@ export async function GET(request: NextRequest) {
  * Manual override — still available as fallback.
  */
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   try {
     const body = await request.json();
 

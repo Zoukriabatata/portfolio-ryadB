@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSpotPrice } from '@/lib/cboe/fetchChain';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 /**
  * GET /api/spot-price?ticker=QQQ
@@ -13,6 +14,15 @@ const cache = new Map<string, { price: number; ts: number }>();
 const CACHE_TTL = 3_000; // 3 seconds
 
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   const ticker = request.nextUrl.searchParams.get('ticker') || 'QQQ';
 
   // Serve from cache if fresh

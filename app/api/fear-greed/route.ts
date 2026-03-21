@@ -4,13 +4,23 @@
  * The index updates at most once per day — no need to hit the external API every visit.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
 // Revalidate server cache every hour (Next.js ISR-style for route handlers)
 export const revalidate = 3600;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   try {
     const res = await fetch('https://api.alternative.me/fng/?limit=1', {
       next: { revalidate: 3600 },

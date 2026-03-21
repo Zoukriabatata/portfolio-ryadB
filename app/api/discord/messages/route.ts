@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_CHANNEL_ID = process.env.DISCORD_CHANNEL_ID;
@@ -6,7 +7,16 @@ const DISCORD_CHANNEL_ID = process.env.DISCORD_CHANNEL_ID;
 export const runtime = 'nodejs';
 export const revalidate = 0;
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const authResult = await requireAuth(req);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
+  }
+  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  if (tierCheck) {
+    return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
+  }
+
   if (!DISCORD_BOT_TOKEN || !DISCORD_CHANNEL_ID) {
     return NextResponse.json(
       { error: 'DISCORD_BOT_TOKEN or DISCORD_CHANNEL_ID not configured' },

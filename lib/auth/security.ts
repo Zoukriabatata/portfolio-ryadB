@@ -198,12 +198,11 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierConfig> = {
     yearlyPrice: 0,
     maxDevices: 1,
     features: [
-      'Live crypto charts (Binance)',
-      'Basic candlestick charts',
-      '1 symbol at a time',
-      'Community timeframes',
+      'Landing page access',
+      'Pricing page access',
+      'Account management',
     ],
-    pages: ['/', '/chart', '/live', '/boutique', '/account'],
+    pages: ['/', '/account'],
   },
   ULTRA: {
     name: 'ULTRA',
