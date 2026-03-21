@@ -449,11 +449,11 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   showHourMarkers: true,      // Hour labels (13h, 14h, etc.)
   showPassiveLiquidity: true, // Passive liquidity from heatmap (simulation)
   // Phase 2: Visual polish
-  showHeatmapCells: true,
+  showHeatmapCells: false,
   heatmapIntensity: 0.4,
   showDevelopingPOC: false,
   developingPOCColor: '#fbbf24',
-  showLargeTradeHighlight: true,
+  showLargeTradeHighlight: false,
   largeTradeMultiplier: 2.0,
   largeTradeColor: '#ffd700',
   // Phase 3: Indicators
