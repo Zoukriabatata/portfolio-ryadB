@@ -390,7 +390,7 @@ const DEFAULT_COLORS: FootprintColors = {
   askColor: '#26a69a',
   bidTextColor: '#f48fb1',  // Softer pink for bid text
   askTextColor: '#80cbc4',  // Softer teal for ask text
-  footprintContainerOpacity: 0.03, // Very subtle container background
+  footprintContainerOpacity: 0, // Off by default (ATAS-style)
 
   // Delta colors
   deltaPositive: '#26a69a',
@@ -796,7 +796,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
     {
       name: 'footprint-settings',
       skipHydration: true,
-      version: 8, // v8: ATAS-style defaults — disabled heatmap, delta profile, std dev bands, naked POC, developing POC, large trades
+      version: 9, // v9: container opacity 0, heatmap off, stacked imbalances off
       partialize: (state) => ({
         colors: state.colors,
         fonts: state.fonts,
