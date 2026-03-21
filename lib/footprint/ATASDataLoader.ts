@@ -91,7 +91,7 @@ export interface LoadConfig {
   /** Loading mode (default: 'window') */
   mode?: LoadMode;
 
-  /** WINDOW mode: hours to look back from now (default: 4) */
+  /** WINDOW mode: hours to look back from now (default: 24) */
   hoursBack?: number;
 
   /** FULLDAY mode: date as UTC midnight milliseconds. If omitted, uses today. */
@@ -422,13 +422,13 @@ async function fetchChunk(
  * This is the default for live charts — fast, always fresh.
  *
  * @param symbol        e.g. "BTCUSDT"
- * @param hoursBack     How many hours to look back (default: 4)
+ * @param hoursBack     How many hours to look back (default: 24)
  * @param config        Additional loader options
  * @param onProgress    Optional progress callback
  */
 export async function loadRecentWindow(
   symbol: string,
-  hoursBack: number = 4,
+  hoursBack: number = 24,
   config: Omit<LoadConfig, 'symbol' | 'mode' | 'hoursBack'> = {},
   onProgress?: ProgressCallback
 ): Promise<RawTick[]> {
@@ -526,7 +526,7 @@ export async function loadFootprintData(
   const {
     symbol,
     mode = 'window',
-    hoursBack = 4,
+    hoursBack = 24,
     dayStartMs,
     maxTradesPerChunk = null,
     parallelChunks = 2,

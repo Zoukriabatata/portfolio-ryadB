@@ -49,7 +49,7 @@ export interface OptimizedConfig {
   timeframe: number;          // Candle duration in SECONDS (e.g. 60 for 1m)
   tickSize: number;           // Price compression step (e.g. 10 for BTC)
   imbalanceRatio: number;     // Default 3.0
-  totalHours: number;         // History window for window mode (default 4)
+  totalHours: number;         // History window for window mode (default 24)
 
   /** Non-time aggregation (tick/volume bars) */
   aggregationMode: 'time' | 'tick' | 'volume';
@@ -91,7 +91,7 @@ export class OptimizedFootprintService {
   ) {
     this.config = {
       imbalanceRatio: 3.0,
-      totalHours: 4,
+      totalHours: 24,
       aggregationMode: 'time',
       tickBarSize: 500,
       volumeBarSize: 100,

@@ -879,12 +879,12 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         timeframe: tf,
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
-        totalHours: 4,
+        totalHours: 24,
         aggregationMode: settings.features.aggregationMode,
         tickBarSize: settings.features.tickBarSize,
         volumeBarSize: settings.features.volumeBarSize,
         // Skeleton mode: instant OHLC for all historical candles (from klines),
-        // real bid/ask footprint only for the last 4 hours (from aggTrades).
+        // real bid/ask footprint only for the last 24 hours (from aggTrades).
         // Avoids fake data caused by Binance rate-limiting cutting tick loads short.
         loadMode: 'skeleton',
       });
@@ -1729,7 +1729,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           timeframe,
           tickSize,
           imbalanceRatio: settings.imbalance.ratio,
-          totalHours: 4,
+          totalHours: 24,
           aggregationMode: settings.features.aggregationMode,
           tickBarSize: settings.features.tickBarSize,
           volumeBarSize: settings.features.volumeBarSize,

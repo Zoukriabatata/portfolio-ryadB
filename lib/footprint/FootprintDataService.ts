@@ -68,7 +68,7 @@ export class FootprintDataService {
       symbol,
       timeframe,
       tickSize,
-      hoursBack = 4,
+      hoursBack = 24,
       imbalanceRatio = this.imbalanceRatio,
     } = options;
 

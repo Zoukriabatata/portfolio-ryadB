@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type DataFeedProvider = 'binance' | 'bybit' | 'deribit' | 'tradovate' | 'databento' | 'dxfeed';
+export type DataFeedProvider = 'binance' | 'bybit' | 'deribit' | 'tradovate' | 'databento' | 'dxfeed' | 'rithmic' | 'ib' | 'cqg' | 'amp';
 export type DataFeedStatus = 'not_configured' | 'configured' | 'connected' | 'error';
 
 export interface DataFeedConfig {
@@ -29,6 +29,10 @@ const DEFAULT_CONFIGS: Record<DataFeedProvider, DataFeedConfig> = {
   tradovate: { provider: 'tradovate', status: 'not_configured' },
   databento: { provider: 'databento', status: 'not_configured' },
   dxfeed:    { provider: 'dxfeed',    status: 'not_configured' },
+  rithmic:   { provider: 'rithmic',   status: 'not_configured' },
+  ib:        { provider: 'ib',        status: 'not_configured' },
+  cqg:       { provider: 'cqg',       status: 'not_configured' },
+  amp:       { provider: 'amp',       status: 'not_configured' },
 };
 
 export const useDataFeedStore = create<DataFeedStore>()(

@@ -830,11 +830,12 @@ export class FootprintCanvasRenderer {
         ctx.restore();
       }
 
-      // Label
+      // Label — shows "VWAP/TWAP" when both active (fused like ATAS)
       if (features.vwapShowLabel !== false) {
         const lastVP = vwapPoints[vwapPoints.length - 1];
+        const labelText = showTWAP ? 'VWAP/TWAP' : 'VWAP';
         ctx.font = 'bold 9px "Consolas", monospace';
-        const tw = ctx.measureText('VWAP').width;
+        const tw = ctx.measureText(labelText).width;
         ctx.fillStyle = vwapColor;
         ctx.globalAlpha = 0.85;
         ctx.beginPath();
@@ -843,7 +844,7 @@ export class FootprintCanvasRenderer {
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#0a0a0f';
         ctx.textAlign = 'left';
-        ctx.fillText('VWAP', lastVP.x + 8, lastVP.y + 2);
+        ctx.fillText(labelText, lastVP.x + 8, lastVP.y + 2);
       }
 
       // ─── VWAP Standard Deviation Bands (individual config per band) ───
@@ -928,13 +929,13 @@ export class FootprintCanvasRenderer {
       }
     });
 
-    // Draw TWAP
+    // Draw TWAP — fused with VWAP (ATAS-style: same color family, thinner, slightly transparent)
     if (showTWAP && twapPoints.length > 1) {
-      // Glow
+      // Subtle glow (uses VWAP color for unified look)
       ctx.save();
-      ctx.strokeStyle = twapColor;
-      ctx.lineWidth = twapLW * 2.5;
-      ctx.globalAlpha = 0.1;
+      ctx.strokeStyle = vwapColor;
+      ctx.lineWidth = twapLW * 2;
+      ctx.globalAlpha = 0.06;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.setLineDash([]);
@@ -943,25 +944,26 @@ export class FootprintCanvasRenderer {
       ctx.stroke();
       ctx.restore();
 
-      // Main line (dashed spline)
+      // Main line — solid, thinner than VWAP, same color but 55% opacity
       ctx.save();
-      ctx.strokeStyle = twapColor;
-      ctx.lineWidth = twapLW;
+      ctx.strokeStyle = vwapColor;
+      ctx.lineWidth = Math.max(1, vwapLW - 1);
+      ctx.globalAlpha = 0.55;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.setLineDash([6, 3]);
+      ctx.setLineDash([]);
       ctx.beginPath();
       catmullRomSpline(ctx, twapPoints, splineTension);
       ctx.stroke();
-      ctx.setLineDash([]);
       ctx.restore();
 
-      // Label
-      if (features.twapShowLabel !== false) {
+      // Combined label — only show if VWAP label is hidden, otherwise VWAP label covers both
+      if (features.twapShowLabel !== false && features.vwapShowLabel === false) {
         const lastTP = twapPoints[twapPoints.length - 1];
         ctx.font = 'bold 9px "Consolas", monospace';
-        const tw2 = ctx.measureText('TWAP').width;
-        ctx.fillStyle = twapColor;
+        const labelText = 'VWAP/TWAP';
+        const tw2 = ctx.measureText(labelText).width;
+        ctx.fillStyle = vwapColor;
         ctx.globalAlpha = 0.85;
         ctx.beginPath();
         ctx.roundRect(lastTP.x + 4, lastTP.y + 2, tw2 + 8, 14, 3);
@@ -969,7 +971,7 @@ export class FootprintCanvasRenderer {
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#0a0a0f';
         ctx.textAlign = 'left';
-        ctx.fillText('TWAP', lastTP.x + 8, lastTP.y + 12);
+        ctx.fillText(labelText, lastTP.x + 8, lastTP.y + 12);
       }
     }
   }

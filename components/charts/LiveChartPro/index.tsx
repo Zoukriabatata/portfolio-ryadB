@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/lib/rendering/CanvasChartEngine';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { useUIThemeStore } from '@/stores/useUIThemeStore';
 import { THEMES } from '@/lib/themes/ThemeSystem';
 import { getToolsEngine, type ToolType as EngineToolType } from '@/lib/tools/ToolsEngine';
 import { getToolsRenderer } from '@/lib/tools/ToolsRenderer';
@@ -256,7 +257,39 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
 
   // === STORE HOOKS ===
   const { themeId, setTheme, getTheme } = useThemeStore();
-  const theme = useMemo(() => getTheme(), [themeId, getTheme]);
+  const baseTheme = useMemo(() => getTheme(), [themeId, getTheme]);
+
+  // Subscribe to UI theme changes so colors re-derive from CSS variables
+  const uiThemeId = useUIThemeStore((s) => s.activeTheme);
+
+  // Override chart theme colors with CSS variables set by the global UI theme
+  const theme = useMemo(() => {
+    if (typeof document === 'undefined') return baseTheme;
+    const cs = getComputedStyle(document.documentElement);
+    const get = (v: string, fallback: string) => cs.getPropertyValue(v).trim() || fallback;
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        background: get('--chart-bg', get('--background', baseTheme.colors.background)),
+        surface: get('--surface', baseTheme.colors.surface),
+        text: get('--text-primary', baseTheme.colors.text),
+        textSecondary: get('--text-secondary', baseTheme.colors.textSecondary),
+        textMuted: get('--text-muted', baseTheme.colors.textMuted),
+        border: get('--border', baseTheme.colors.border),
+        gridLines: get('--chart-grid', baseTheme.colors.gridLines),
+        candleUp: get('--candle-up', baseTheme.colors.candleUp),
+        candleDown: get('--candle-down', baseTheme.colors.candleDown),
+        wickUp: get('--wick-up', baseTheme.colors.wickUp),
+        wickDown: get('--wick-down', baseTheme.colors.wickDown),
+        crosshair: get('--text-muted', baseTheme.colors.crosshair),
+        toolActive: get('--primary', baseTheme.colors.toolActive),
+        toolHover: get('--surface-hover', baseTheme.colors.toolHover),
+        success: get('--candle-up', baseTheme.colors.success),
+        error: get('--candle-down', baseTheme.colors.error),
+      },
+    };
+  }, [baseTheme, uiThemeId]);
 
   // Contrast text for active buttons: auto black/white based on toolActive luminance
   const { textColor: activeTextColor } = useAutoContrast(theme.colors.toolActive);

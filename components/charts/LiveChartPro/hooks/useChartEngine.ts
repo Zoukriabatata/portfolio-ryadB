@@ -1,9 +1,37 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { CanvasChartEngine } from '@/lib/rendering/CanvasChartEngine';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
+import { useUIThemeStore } from '@/stores/useUIThemeStore';
 import { hexToRgba } from '@/lib/utils/colorUtils';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs, CustomColors, EffectiveColors } from './types';
+
+/**
+ * Read chart colors from CSS custom properties set by the global UI theme.
+ * Falls back to sensible defaults if a variable is not yet applied.
+ */
+function getThemeFromCSS() {
+  const cs = getComputedStyle(document.documentElement);
+  const get = (v: string, fallback: string) =>
+    cs.getPropertyValue(v).trim() || fallback;
+
+  return {
+    background: get('--chart-bg', get('--background', '#0a0a0a')),
+    gridLines: get('--chart-grid', '#1a1a1a'),
+    text: get('--text-secondary', '#888888'),
+    textMuted: get('--text-muted', '#555555'),
+    candleUp: get('--candle-up', get('--bull', '#22c55e')),
+    candleDown: get('--candle-down', get('--bear', '#ef4444')),
+    wickUp: get('--wick-up', get('--candle-up', '#22c55e')),
+    wickDown: get('--wick-down', get('--candle-down', '#ef4444')),
+    volumeUp: `${get('--candle-up', get('--bull', '#22c55e'))}66`,
+    volumeDown: `${get('--candle-down', get('--bear', '#ef4444'))}66`,
+    crosshair: get('--text-muted', '#6b7280'),
+    crosshairLabel: '#ffffff',
+    crosshairLabelBg: get('--surface-elevated', '#374151'),
+    priceLineColor: get('--accent', '#3b82f6'),
+  };
+}
 
 interface UseChartEngineParams {
   refs: SharedRefs;
@@ -21,17 +49,23 @@ interface UseChartEngineReturn {
 }
 
 export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEngineParams): UseChartEngineReturn {
+  // Re-read CSS vars whenever the global UI theme changes
+  const uiThemeId = useUIThemeStore((s) => s.activeTheme);
+
   /**
-   * Get effective colors (custom > theme)
+   * Get effective colors (custom > CSS variables from UI theme)
    */
-  const effectiveColors = useMemo<EffectiveColors>(() => ({
-    background: customColors.background || theme.colors.background,
-    candleUp: customColors.candleUp || theme.colors.candleUp,
-    candleDown: customColors.candleDown || theme.colors.candleDown,
-    wickUp: customColors.wickUp || theme.colors.wickUp,
-    wickDown: customColors.wickDown || theme.colors.wickDown,
-    priceLineColor: customColors.priceLineColor || theme.colors.toolActive || '#7ed321',
-  }), [customColors, theme.colors]);
+  const effectiveColors = useMemo<EffectiveColors>(() => {
+    const css = typeof document !== 'undefined' ? getThemeFromCSS() : null;
+    return {
+      background: customColors.background || css?.background || theme.colors.background,
+      candleUp: customColors.candleUp || css?.candleUp || theme.colors.candleUp,
+      candleDown: customColors.candleDown || css?.candleDown || theme.colors.candleDown,
+      wickUp: customColors.wickUp || css?.wickUp || theme.colors.wickUp,
+      wickDown: customColors.wickDown || css?.wickDown || theme.colors.wickDown,
+      priceLineColor: customColors.priceLineColor || css?.priceLineColor || theme.colors.toolActive || '#7ed321',
+    };
+  }, [customColors, theme.colors, uiThemeId]);
 
   /**
    * Update price position indicator (shows where current price is in the session range)
@@ -81,21 +115,22 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
 
+    const cssTheme = getThemeFromCSS();
     const engine = new CanvasChartEngine(canvas, {
-      background: theme.colors.background,
-      gridLines: theme.colors.gridLines,
-      text: theme.colors.text,
-      textMuted: theme.colors.textMuted,
-      candleUp: theme.colors.candleUp,
-      candleDown: theme.colors.candleDown,
-      wickUp: theme.colors.wickUp,
-      wickDown: theme.colors.wickDown,
-      volumeUp: theme.colors.volumeUp,
-      volumeDown: theme.colors.volumeDown,
-      crosshair: theme.colors.crosshair,
-      crosshairLabel: '#ffffff',
-      crosshairLabelBg: '#374151',
-      priceLineColor: customColors.priceLineColor || theme.colors.toolActive || '#7ed321',
+      background: cssTheme.background,
+      gridLines: cssTheme.gridLines,
+      text: cssTheme.text,
+      textMuted: cssTheme.textMuted,
+      candleUp: cssTheme.candleUp,
+      candleDown: cssTheme.candleDown,
+      wickUp: cssTheme.wickUp,
+      wickDown: cssTheme.wickDown,
+      volumeUp: cssTheme.volumeUp,
+      volumeDown: cssTheme.volumeDown,
+      crosshair: cssTheme.crosshair,
+      crosshairLabel: cssTheme.crosshairLabel,
+      crosshairLabelBg: cssTheme.crosshairLabelBg,
+      priceLineColor: customColors.priceLineColor || cssTheme.priceLineColor,
     });
 
     engine.resize(rect.width, rect.height);
@@ -152,27 +187,28 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
   }, []);
 
   /**
-   * Apply theme and custom colors
+   * Apply theme and custom colors — reads from CSS variables set by the UI theme
    */
   useEffect(() => {
     if (!refs.chartEngine.current) return;
 
+    const cssTheme = getThemeFromCSS();
     const prefs = usePreferencesStore.getState();
     refs.chartEngine.current.setTheme({
       background: effectiveColors.background,
-      gridLines: theme.colors.gridLines,
-      text: theme.colors.text,
-      textMuted: theme.colors.textMuted,
+      gridLines: cssTheme.gridLines,
+      text: cssTheme.text,
+      textMuted: cssTheme.textMuted,
       candleUp: effectiveColors.candleUp,
       candleDown: effectiveColors.candleDown,
       wickUp: effectiveColors.wickUp,
       wickDown: effectiveColors.wickDown,
       volumeUp: hexToRgba(prefs.volumeBarBullColor, prefs.volumeBarOpacity),
       volumeDown: hexToRgba(prefs.volumeBarBearColor, prefs.volumeBarOpacity),
-      crosshair: theme.colors.crosshair,
+      crosshair: cssTheme.crosshair,
       priceLineColor: effectiveColors.priceLineColor,
     });
-  }, [refs, theme, effectiveColors]);
+  }, [refs, theme, effectiveColors, uiThemeId]);
 
   // Sync volume bar colors
   const volBarBull = usePreferencesStore(s => s.volumeBarBullColor);
