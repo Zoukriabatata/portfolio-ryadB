@@ -120,7 +120,7 @@ interface FootprintChartProProps {
 // Symbols - Crypto + CME Futures (flat list for lookups)
 const SYMBOLS = [
   // Crypto (Binance)
-  { value: 'btcusdt', label: 'BTC/USDT', tickSize: 5, exchange: 'binance' },
+  { value: 'btcusdt', label: 'BTC/USDT', tickSize: 10, exchange: 'binance' },
   { value: 'ethusdt', label: 'ETH/USDT', tickSize: 1, exchange: 'binance' },
   { value: 'solusdt', label: 'SOL/USDT', tickSize: 0.1, exchange: 'binance' },
   { value: 'bnbusdt', label: 'BNB/USDT', tickSize: 1, exchange: 'binance' },

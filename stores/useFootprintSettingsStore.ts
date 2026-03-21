@@ -682,7 +682,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
       domConfig: DEFAULT_DOM_CONFIG,
 
       footprintWidth: 70,
-      rowHeight: 16,
+      rowHeight: 13,
       maxVisibleFootprints: 100,
       deltaProfilePosition: 'right' as const,
       candleGap: 3,
@@ -744,7 +744,7 @@ export const useFootprintSettingsStore = create<FootprintSettings>()(
           clusterStatConfig: DEFAULT_CLUSTER_STAT_CONFIG,
           domConfig: DEFAULT_DOM_CONFIG,
           footprintWidth: 70,
-          rowHeight: 16,
+          rowHeight: 13,
           maxVisibleFootprints: 100,
           deltaProfilePosition: 'right' as const,
           candleGap: 3,

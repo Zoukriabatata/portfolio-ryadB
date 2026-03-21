@@ -93,7 +93,7 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
   ohlcWidth: 10,           // Réduit proportionnellement
   deltaProfileWidth: 35,
   volumeProfileWidth: 50,  // Session volume profile width
-  rowHeight: 16,           // Légèrement réduit
+  rowHeight: 13,           // Compact like ATAS — denser rows
   candleGap: 3,            // Gap between candles for readability
 
   maxVisibleFootprints: 100, // Augmenté pour permettre beaucoup de bougies en dézoomant
@@ -133,7 +133,7 @@ export class FootprintLayoutEngine {
       scrollIndex: 0,
       scrollY: 0,
       zoom: 1,
-      zoomY: 1,
+      zoomY: 1.8,
       visibleCount: this.config.maxVisibleFootprints,
       fixedPriceMin: null,
       fixedPriceMax: null,
@@ -397,7 +397,7 @@ export class FootprintLayoutEngine {
     this.viewport.scrollIndex = 0;
     this.viewport.scrollY = 0;
     this.viewport.zoom = 1;
-    this.viewport.zoomY = 1;
+    this.viewport.zoomY = 1.8;
     // Reset to auto-fit mode
     this.viewport.fixedPriceMin = null;
     this.viewport.fixedPriceMax = null;
