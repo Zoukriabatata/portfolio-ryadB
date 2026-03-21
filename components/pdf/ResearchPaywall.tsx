@@ -379,7 +379,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
               ) : (
                 <div className="space-y-3">
                   <Link
-                    href="/auth/login?callbackUrl=/pdf"
+                    href="/auth/login?callbackUrl=/academy"
                     className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
                     style={{ background: 'var(--accent)' }}
                   >
@@ -387,7 +387,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   </Link>
                   <p className="text-center text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
                     Pas encore de compte ?{' '}
-                    <Link href="/auth/register?callbackUrl=/pdf" className="underline" style={{ color: 'var(--accent)' }}>
+                    <Link href="/auth/register?callbackUrl=/academy" className="underline" style={{ color: 'var(--accent)' }}>
                       Créer un compte
                     </Link>
                   </p>

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * USER TESTER PAGE — /bilansUTILISATEUR
+ * USER TESTER PAGE — /reports
  * Displays the autonomous AI agent testing the site in real-time.
  */
 

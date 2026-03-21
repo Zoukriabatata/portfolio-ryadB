@@ -14,7 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/auth/register', priority: 0.7, changeFrequency: 'yearly' as const },
     { path: '/legal/terms', priority: 0.3, changeFrequency: 'yearly' as const },
     { path: '/legal/privacy', priority: 0.3, changeFrequency: 'yearly' as const },
-    { path: '/pdf', priority: 0.8, changeFrequency: 'monthly' as const },
+    { path: '/academy', priority: 0.8, changeFrequency: 'monthly' as const },
   ];
 
   // App pages (lower priority, still indexable for SEO value)

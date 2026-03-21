@@ -201,7 +201,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Research',
     items: [
-      { href: '/pdf', labelKey: 'nav.research' as const, Icon: FileText, shortcut: '' },
+      { href: '/academy', labelKey: 'nav.academy' as const, Icon: FileText, shortcut: '' },
     ],
   },
 ];

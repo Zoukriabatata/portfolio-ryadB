@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       { path: '/account',        name: 'Account Settings',     auth: true,  description: 'Profile, subscription, notification prefs' },
       { path: '/pricing',        name: 'Pricing',              auth: false, description: 'Subscription plans: Free, Pro, Elite' },
       { path: '/login',          name: 'Login',                auth: false, description: 'Email/password + Google OAuth' },
-      { path: '/bilansUTILISATEUR', name: 'User Audits',       auth: true,  description: 'AI user-testing reports (this page)' },
+      { path: '/reports', name: 'User Audits',       auth: true,  description: 'AI user-testing reports (this page)' },
     ],
 
     live_chart: {

@@ -120,9 +120,9 @@ const PROTECTED_ROUTES = [
   '/account',
   '/boutique',
   '/admin',
-  '/bilansUTILISATEUR',
+  '/reports',
   '/ai',
-  '/pdf',
+  '/academy',
 ];
 
 // Routes that require specific subscription tiers
@@ -134,7 +134,7 @@ const TIER_ROUTES: Record<string, ('FREE' | 'ULTRA')[]> = {
   '/bias': ['ULTRA'],
   '/boutique': ['ULTRA'],
   '/ai': ['ULTRA'],
-  '/bilansUTILISATEUR': ['ULTRA'],
+  '/reports': ['ULTRA'],
   '/footprint': ['ULTRA'],
   '/orderflow': ['ULTRA'],
   '/liquidity': ['ULTRA'],
@@ -437,8 +437,8 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   const rawTier = token.tier as 'FREE' | 'ULTRA';
   const userTier: 'FREE' | 'ULTRA' = (isAdmin || isBetaTester) ? 'ULTRA' : rawTier;
 
-  // Special: /pdf requires ULTRA OR hasResearchPack (one-time $50 purchase)
-  if (pathname.startsWith('/pdf')) {
+  // Special: /academy requires ULTRA OR hasResearchPack (one-time $39 purchase)
+  if (pathname.startsWith('/academy')) {
     const hasResearchPack = token.hasResearchPack === true;
     if (userTier !== 'ULTRA' && !hasResearchPack && !isBetaTester) {
       // Not authorized — show 404 (don't reveal route exists)
@@ -466,8 +466,8 @@ async function runMiddleware(request: NextRequest, pathname: string) {
     // Subscription expired — treat as FREE, show 404 for ULTRA routes
     const expiredTier = 'FREE' as const;
 
-    // /pdf: expired ULTRA still has access IF hasResearchPack (one-time purchase)
-    if (pathname.startsWith('/pdf')) {
+    // /academy: expired ULTRA still has access IF hasResearchPack (one-time purchase)
+    if (pathname.startsWith('/academy')) {
       const hasResearchPack = token.hasResearchPack === true;
       if (!hasResearchPack) {
         return NextResponse.rewrite(new URL('/not-found', request.url));

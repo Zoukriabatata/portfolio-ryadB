@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
         customerId,
         userId: user.id,
         product: data.product,
-        successUrl: `${baseUrl}/pdf?success=true`,
-        cancelUrl: `${baseUrl}/pdf?cancelled=true`,
+        successUrl: `${baseUrl}/academy?success=true`,
+        cancelUrl: `${baseUrl}/academy?cancelled=true`,
       });
 
       return NextResponse.json({ url: checkoutUrl });

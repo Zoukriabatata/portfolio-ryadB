@@ -53,7 +53,7 @@ const nextConfig: NextConfig = {
         headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
       },
       {
-        source: '/pdf',
+        source: '/academy',
         headers: [{ key: 'X-Robots-Tag', value: 'index, follow' }],
       },
       {
