@@ -895,9 +895,9 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
         <ChartFooter timeframe={symbolData.timeframe} activeTool={drawing.activeTool} selectedTool={drawing.selectedTool} status={symbolData.status} symbol={symbolData.symbol} volumeRef={refs.footerVolume} theme={theme} />
       </div>
 
-      {/* Click outside to close modals */}
-      {(symbolData.showSymbolSearch || showThemePanel) && (
-        <div className="fixed inset-0 z-40" onClick={() => { symbolData.setShowSymbolSearch(false); setShowThemePanel(false); }} />
+      {/* Click outside to close theme panel (symbol search has its own portal backdrop) */}
+      {showThemePanel && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowThemePanel(false)} />
       )}
 
       {contextMenuHook.contextMenu && (
