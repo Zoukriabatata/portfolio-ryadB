@@ -104,8 +104,10 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         if (tradovateCandles.length > 0) return tradovateCandles;
 
         // Fallback: dxFeed history API (works without Tradovate credentials)
+        // dxFeed uses /ES, /NQ format — add slash prefix for CME symbols
+        const dxSymbol = sym.startsWith('/') ? sym : `/${sym}`;
         try {
-          const dxRes = await fetch(`/api/dxfeed/history?symbol=${encodeURIComponent(sym)}&timeframe=${tf}&limit=500`);
+          const dxRes = await fetch(`/api/dxfeed/history?symbol=${encodeURIComponent(dxSymbol)}&timeframe=${tf}&limit=500`);
           if (dxRes.ok) {
             const dxData = await dxRes.json();
             if (Array.isArray(dxData) && dxData.length > 0) {
@@ -115,8 +117,17 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               }));
             }
           }
-        } catch { /* dxFeed unavailable — show empty chart */ }
+        } catch { /* dxFeed unavailable */ }
 
+        // Fallback 2: Binance proxy for index-linked futures (delayed but available 24/7)
+        const CME_TO_BINANCE: Record<string, string> = {
+          'ES': 'BTCUSDT', 'MES': 'BTCUSDT', // not exact but gives chart data
+          'NQ': 'BTCUSDT', 'MNQ': 'BTCUSDT',
+          'YM': 'BTCUSDT', 'RTY': 'BTCUSDT',
+          'GC': 'BTCUSDT', 'CL': 'BTCUSDT',
+        };
+        // Don't use Binance proxy — it would show BTC data for NQ which is misleading
+        // Instead show "Market closed" message
         return [];
       }
 
