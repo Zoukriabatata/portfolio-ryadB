@@ -414,13 +414,14 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
   const handleSymbolChange = useCallback((newSymbol: string) => {
     if (newSymbol === symbol) return;
     // Clear chart immediately for visual feedback
+    refs.candles.current = [];
+    refs.candleData.current.clear();
     if (refs.chartEngine.current) {
-      refs.candles.current = [];
-      refs.candleData.current.clear();
+      refs.chartEngine.current.setCandles([]);
+      refs.chartEngine.current.render();
     }
-    // State update triggers the main effect which handles:
-    // cleanup old subscriptions → load history → connect WebSocket
-    // Do NOT call getBinanceLiveWS().changeSymbol() here — it desynchs
+    setNoData(false);
+    setLoadingPhase('fetching');
     setSymbol(newSymbol);
     onSymbolChange?.(newSymbol);
   }, [symbol, refs, onSymbolChange]);
