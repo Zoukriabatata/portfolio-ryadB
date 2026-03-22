@@ -44,7 +44,12 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
   const [loadingPhase, setLoadingPhase] = useState<'fetching' | 'rendering' | 'connecting' | null>('fetching');
   const [noData, setNoData] = useState(false);
   const [assetCategory, setAssetCategory] = useState<AssetCategory>('crypto');
-  const [showSymbolSearch, setShowSymbolSearch] = useState(false);
+  const [showSymbolSearch, _setShowSymbolSearch] = useState(false);
+  const [searchOpenedAt, setSearchOpenedAt] = useState(0);
+  const setShowSymbolSearch = useCallback((v: boolean) => {
+    _setShowSymbolSearch(v);
+    if (v) setSearchOpenedAt(Date.now());
+  }, []);
   const [symbolSearchQuery, setSymbolSearchQuery] = useState('');
   const [viewportState, setViewportState] = useState({ priceMin: 0, priceMax: 100, chartHeight: 400 });
 
@@ -444,6 +449,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     setAssetCategory,
     showSymbolSearch,
     setShowSymbolSearch,
+    searchOpenedAt,
     symbolSearchQuery,
     setSymbolSearchQuery,
     currentSymbolCategories,

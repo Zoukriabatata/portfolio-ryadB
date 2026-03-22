@@ -982,8 +982,15 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
       {/* Symbol Search Dropdown — portal to escape overflow:auto clipping */}
       {symbolData.showSymbolSearch && symbolDropdownPos && typeof document !== 'undefined' && createPortal(
         <>
-          {/* Click-outside backdrop */}
-          <div className="fixed inset-0 z-[9998]" onClick={closeSymbolDropdown} />
+          {/* Click-outside backdrop — delayed to avoid mobile ghost click on open */}
+          <div
+            className="fixed inset-0 z-[9998]"
+            onClick={(e) => {
+              // Ignore clicks within 200ms of opening (mobile ghost click prevention)
+              if (Date.now() - (symbolData.searchOpenedAt || 0) < 200) { e.stopPropagation(); return; }
+              closeSymbolDropdown();
+            }}
+          />
           <div
             className="fixed w-[90vw] max-w-96 sm:w-96 rounded-lg shadow-2xl z-[9999] max-h-[450px] overflow-hidden animate-slideDown"
             style={{ top: symbolDropdownPos.top, left: symbolDropdownPos.left, backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}
