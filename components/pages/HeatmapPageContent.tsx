@@ -173,15 +173,19 @@ export default function HeatmapPageContent() {
     );
 
     // Subscribe to trades for bubbles
-    const unsubTrades = binanceWS.onTick((tick) => {
-      trades.push({
-        ts: Date.now(),
-        price: tick.price,
-        qty: tick.quantity,
-        isBuy: !tick.isBuyerMaker,
-      });
-      while (trades.length > TRADE_BUBBLE_MAX) trades.shift();
-    });
+    const unsubTrades = binanceWS.subscribeTrades(
+      symbol.toLowerCase(),
+      (trade) => {
+        trades.push({
+          ts: trade.time,
+          price: trade.price,
+          qty: trade.quantity,
+          isBuy: !trade.isBuyerMaker,
+        });
+        while (trades.length > TRADE_BUBBLE_MAX) trades.shift();
+      },
+      'futures'
+    );
 
     // ── Render loop ──
     const tickSize = symbolCfg.tick;
