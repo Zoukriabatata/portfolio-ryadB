@@ -946,6 +946,18 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       console.log(`[FootprintChartPro] Loading footprint for ${sym}...`);
 
       // ── Phase 1 (skeleton) → Phase 2 (ticks) ─────────────────────────────
+      // Timeout: if tick data takes >90s, show skeleton only and stop loading indicator
+      const TICK_TIMEOUT = 90_000;
+      let tickTimedOut = false;
+      const tickTimeoutId = setTimeout(() => {
+        tickTimedOut = true;
+        if (loadGenerationRef.current === generation) {
+          setIsRefreshing(false);
+          setLoadingMessage('');
+          console.warn(`[FootprintChartPro] Tick data timeout after ${TICK_TIMEOUT / 1000}s — showing OHLC only`);
+        }
+      }, TICK_TIMEOUT);
+
       const tickCandles = await service.loadOptimized(
         // onSkeletonReady: show skeleton immediately if no cache was available
         hasEarlyDisplay ? undefined : (skeletonCandles) => {
@@ -960,6 +972,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           }
         }
       );
+      clearTimeout(tickTimeoutId);
+      if (tickTimedOut) return candlesRef.current;
 
       // Guard: if symbol/timeframe changed during load, discard results
       if (loadGenerationRef.current !== generation) {
