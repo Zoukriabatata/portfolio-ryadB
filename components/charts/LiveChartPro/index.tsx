@@ -979,22 +979,28 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
         }
       ` }} />
 
-      {/* Symbol Search Dropdown — portal to escape overflow:auto clipping */}
-      {symbolData.showSymbolSearch && symbolDropdownPos && typeof document !== 'undefined' && createPortal(
+      {/* Symbol Search — fullscreen on mobile, positioned dropdown on desktop */}
+      {symbolData.showSymbolSearch && createPortal(
         <>
-          {/* Click-outside backdrop — delayed to avoid mobile ghost click on open */}
+          {/* Backdrop */}
           <div
-            className="fixed inset-0 z-[9998]"
-            onClick={(e) => {
-              // Ignore clicks within 200ms of opening (mobile ghost click prevention)
-              if (Date.now() - (symbolData.searchOpenedAt || 0) < 200) { e.stopPropagation(); return; }
-              closeSymbolDropdown();
-            }}
+            className="fixed inset-0 z-[9998] bg-black/60 sm:bg-transparent"
+            onTouchStart={(e) => { e.preventDefault(); closeSymbolDropdown(); }}
+            onClick={closeSymbolDropdown}
           />
           <div
-            className="fixed w-[90vw] max-w-96 sm:w-96 rounded-lg shadow-2xl z-[9999] max-h-[450px] overflow-hidden animate-slideDown"
-            style={{ top: symbolDropdownPos.top, left: symbolDropdownPos.left, backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}
+            className="fixed inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto sm:w-96 rounded-t-2xl sm:rounded-lg shadow-2xl z-[9999] max-h-[80vh] sm:max-h-[450px] overflow-hidden"
+            style={{
+              ...(symbolDropdownPos ? { top: symbolDropdownPos.top, left: symbolDropdownPos.left } : {}),
+              backgroundColor: theme.colors.surface,
+              border: `1px solid ${theme.colors.border}`,
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
           >
+            {/* Mobile drag handle */}
+            <div className="sm:hidden flex justify-center py-2">
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
             {/* Asset Category Tabs */}
             <div className="flex items-center gap-0.5 p-1.5 border-b overflow-x-auto" style={{ borderColor: theme.colors.border }}>
               {ASSET_CATEGORIES.map((cat, index) => {
@@ -1028,7 +1034,6 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                 onChange={(e) => symbolData.setSymbolSearchQuery(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') { closeSymbolDropdown(); symbolData.setSymbolSearchQuery(''); } }}
                 placeholder={`Search ${symbolData.assetCategory} symbols...`}
-                autoFocus
                 autoComplete="off"
                 spellCheck={false}
                 className="w-full px-3 py-2 rounded text-sm focus:outline-none"
