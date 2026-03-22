@@ -74,11 +74,11 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     setLoadingPhase('fetching');
     try {
       if (isCMESymbol(sym)) {
-        // Load history from Tradovate (md/getChart) — OHLCV with bid/ask volume split
-        return await new Promise<LiveCandle[]>(async (resolve) => {
+        // Try Tradovate first, fallback to dxFeed history
+        const tradovateCandles = await new Promise<LiveCandle[]>(async (resolve) => {
           const intervalMin = Math.max(1, Math.floor(tf / 60));
           let resolved = false;
-          const timer = setTimeout(() => { if (!resolved) { resolved = true; resolve([]); } }, 12_000);
+          const timer = setTimeout(() => { if (!resolved) { resolved = true; resolve([]); } }, 8_000);
 
           await getCMELiveAdapter().connect(sym).catch(() => {});
 
@@ -94,12 +94,30 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               low:        c.low,
               close:      c.close,
               volume:     c.volume,
-              buyVolume:  c.volume * 0.5,   // approximate — no level-by-level split in OHLCV
+              buyVolume:  c.volume * 0.5,
               sellVolume: c.volume * 0.5,
               trades:     0,
             })));
           });
         });
+
+        if (tradovateCandles.length > 0) return tradovateCandles;
+
+        // Fallback: dxFeed history API (works without Tradovate credentials)
+        try {
+          const dxRes = await fetch(`/api/dxfeed/history?symbol=${encodeURIComponent(sym)}&timeframe=${tf}&limit=500`);
+          if (dxRes.ok) {
+            const dxData = await dxRes.json();
+            if (Array.isArray(dxData) && dxData.length > 0) {
+              return dxData.map((c: { time: number; open: number; high: number; low: number; close: number; volume: number }) => ({
+                time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+                volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
+              }));
+            }
+          }
+        } catch { /* dxFeed unavailable — show empty chart */ }
+
+        return [];
       }
 
       // Sub-minute: fetch real 1s klines and aggregate into 15s/30s
