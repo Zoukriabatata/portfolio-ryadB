@@ -229,21 +229,21 @@ export default function HeroSection() {
                 ))}
               </div>
               {/* Orderbook mockup */}
-              <div className="w-24 flex-shrink-0 rounded-lg border border-white/[0.05] p-2.5 hidden sm:block">
+              <div className="w-24 flex-shrink-0 rounded-lg border border-white/[0.05] p-2.5 hidden sm:flex flex-col overflow-hidden">
                 <div className="text-[9px] text-white/30 uppercase tracking-wider mb-2">Orderbook</div>
                 {/* Asks */}
-                {[0.3, 0.5, 0.8, 0.4].map((w, i) => (
+                {[0.5, 0.8, 0.4].map((w, i) => (
                   <div key={`a${i}`} className="flex items-center gap-1 mb-0.5">
                     <div className="h-1.5 rounded-full bg-red-500/30" style={{ width: `${w * 100}%` }} />
-                    <span className="text-[8px] text-red-400/40">{(67250 + i * 25).toLocaleString()}</span>
+                    <span className="text-[7px] text-red-400/40">{(67250 + i * 50).toLocaleString()}</span>
                   </div>
                 ))}
-                <div className="h-px bg-white/[0.08] my-1.5" />
+                <div className="h-px bg-white/[0.08] my-1" />
                 {/* Bids */}
-                {[0.6, 0.9, 0.4, 0.7].map((w, i) => (
+                {[0.6, 0.9, 0.4].map((w, i) => (
                   <div key={`b${i}`} className="flex items-center gap-1 mb-0.5">
                     <div className="h-1.5 rounded-full bg-emerald-500/30" style={{ width: `${w * 100}%` }} />
-                    <span className="text-[8px] text-emerald-400/40">{(67150 - i * 25).toLocaleString()}</span>
+                    <span className="text-[7px] text-emerald-400/40">{(67150 - i * 50).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
