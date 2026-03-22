@@ -15,6 +15,7 @@ import type { TranslationKey } from '@/lib/i18n/translations';
 import {
   Activity,
   Grid3x3,
+  Layers,
   Zap,
   Compass,
   Newspaper,
@@ -73,7 +74,7 @@ import { hydrateStores } from '@/lib/hydrate-stores';
 // Only `display` toggles — no unmount/remount, no data loss.
 // ============================================================
 
-const CHART_ROUTES = ['/live', '/footprint', '/gex', '/volatility', '/bias', '/flow'] as const;
+const CHART_ROUTES = ['/live', '/footprint', '/heatmap', '/gex', '/volatility', '/bias', '/flow'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
 function ChartLoadingFallback({ label }: { label: string }) {
@@ -136,6 +137,10 @@ const BiasPageContent = dynamic(() => import('@/components/pages/BiasPageContent
   ssr: false,
   loading: () => <ChartLoadingFallback label="Bias" />,
 });
+const HeatmapPageContent = dynamic(() => import('@/components/pages/HeatmapPageContent'), {
+  ssr: false,
+  loading: () => <ChartLoadingFallback label="Heatmap" />,
+});
 const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent'), {
   ssr: false,
   loading: () => <ChartLoadingFallback label="Options Flow" />,
@@ -144,6 +149,7 @@ const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
   '/footprint': FootprintPageContent,
+  '/heatmap': HeatmapPageContent,
   '/gex': GEXPageContent,
   '/volatility': VolatilityPageContent,
   '/bias': BiasPageContent,
@@ -172,6 +178,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/live', labelKey: 'nav.live', Icon: CandlestickIcon, shortcut: '1' },
       { href: '/footprint', labelKey: 'nav.footprint', Icon: Grid3x3, shortcut: '2' },
+      { href: '/heatmap', labelKey: 'nav.heatmap' as TranslationKey, Icon: Layers, shortcut: 'Alt+4' },
     ],
   },
   {

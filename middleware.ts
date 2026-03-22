@@ -122,6 +122,7 @@ const PROTECTED_ROUTES = [
   '/reports',
   '/ai',
   '/academy',
+  '/heatmap',
 ];
 
 // Routes that require specific subscription tiers
@@ -142,6 +143,7 @@ const TIER_ROUTES: Record<string, ('FREE' | 'ULTRA')[]> = {
   '/replay': ['ULTRA'],
   '/backtest': ['ULTRA'],
   '/news': ['ULTRA'],
+  '/heatmap': ['ULTRA'],
 };
 
 // Public routes (no auth required)

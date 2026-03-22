@@ -225,7 +225,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierConfig> = {
       'Priority support',
       '2 devices simultaneously',
     ],
-    pages: ['/', '/chart', '/live', '/boutique', '/account', '/footprint', '/orderflow', '/volatility', '/gex', '/backtest', '/news', '/replay', '/journal'],
+    pages: ['/', '/chart', '/live', '/boutique', '/account', '/footprint', '/orderflow', '/volatility', '/gex', '/backtest', '/news', '/replay', '/journal', '/heatmap'],
   },
 };
 

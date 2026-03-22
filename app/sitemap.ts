@@ -29,6 +29,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/journal', priority: 0.4, changeFrequency: 'weekly' as const },
     { path: '/replay', priority: 0.4, changeFrequency: 'weekly' as const },
     { path: '/backtest', priority: 0.4, changeFrequency: 'weekly' as const },
+    { path: '/heatmap', priority: 0.6, changeFrequency: 'daily' as const },
   ];
 
   return [...publicPages, ...appPages].map(({ path, priority, changeFrequency }) => ({
