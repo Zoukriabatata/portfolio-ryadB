@@ -178,6 +178,9 @@ export interface MarketState {
   // Drawing Tools
   drawings: DrawingsData;
 
+  // Bookmap-style depth columns
+  depthColumns: DepthColumn[];
+
   // Timing
   timestamp: number;
 }
@@ -516,4 +519,20 @@ export interface DrawingsData {
   drawings: Drawing[];
   selectedId: string | null;
   activeToolType: DrawingType | null;
+}
+
+// ── Bookmap-style depth column ──────────────────────────────────
+export interface DepthColumn {
+  timestamp: number;           // ms since epoch
+  bidDepth: Map<number, number>;  // price → cumulative size
+  askDepth: Map<number, number>;  // price → cumulative size
+  bestBid: number;
+  bestAsk: number;
+}
+
+export interface BookmapConfig {
+  columnIntervalMs: number;    // snapshot interval (default 100ms)
+  maxColumns: number;          // ring buffer size (default 3600 = 6 min at 100ms)
+  priceGrouping: number;       // tick size for price bucketing
+  depthLevels: number;         // how many levels deep to capture (default 50)
 }

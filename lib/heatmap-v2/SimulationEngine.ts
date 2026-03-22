@@ -142,6 +142,7 @@ export class SimulationEngine {
         selectedId: null,
         activeToolType: null,
       },
+      depthColumns: [],
       timestamp: now,
     };
 

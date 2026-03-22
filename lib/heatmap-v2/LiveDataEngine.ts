@@ -36,6 +36,7 @@ import {
   PressurePoint,
   SessionStats,
   DrawingsData,
+  DepthColumn,
 } from './types';
 
 export interface LiveDataConfig extends SimulationConfig {
@@ -70,6 +71,13 @@ export class LiveDataEngine {
   private priceHistoryInterval = 250;   // Add price history point every 250ms (not every frame)         // Monotonically increasing time column index
   private prevBidSnapshot: Map<number, number> = new Map(); // price → intensity
   private prevAskSnapshot: Map<number, number> = new Map();
+
+  // Bookmap-style continuous depth columns
+  private depthColumns: DepthColumn[] = [];
+  private maxDepthColumns = 3600; // 6 min at 100ms
+  private depthColumnInterval = 100; // ms
+  private lastDepthColumnTime = 0;
+  private depthLevels = 50;
 
   constructor(config: Partial<LiveDataConfig> = {}) {
     this.config = { ...DEFAULT_LIVE_CONFIG, ...config };
@@ -167,6 +175,7 @@ export class LiveDataEngine {
         selectedId: null,
         activeToolType: null,
       },
+      depthColumns: [],
       timestamp: now,
     };
   }
@@ -231,6 +240,8 @@ export class LiveDataEngine {
       if (!this.isRunning) return;
 
       this.updateState();
+
+      this.state.depthColumns = this.depthColumns;
 
       if (this.onUpdate) {
         this.onUpdate(this.state);
@@ -629,6 +640,46 @@ export class LiveDataEngine {
     }
   }
 
+  private captureDepthColumn(now: number): void {
+    const bidDepth = new Map<number, number>();
+    const askDepth = new Map<number, number>();
+
+    let count = 0;
+    for (const [price, order] of this.state.bids) {
+      if (count >= this.depthLevels) break;
+      if (order.displaySize > 0) {
+        bidDepth.set(price, order.displaySize);
+        count++;
+      }
+    }
+
+    count = 0;
+    for (const [price, order] of this.state.asks) {
+      if (count >= this.depthLevels) break;
+      if (order.displaySize > 0) {
+        askDepth.set(price, order.displaySize);
+        count++;
+      }
+    }
+
+    this.depthColumns.push({
+      timestamp: now,
+      bidDepth,
+      askDepth,
+      bestBid: this.state.currentBid,
+      bestAsk: this.state.currentAsk,
+    });
+
+    // Ring buffer: remove oldest columns
+    while (this.depthColumns.length > this.maxDepthColumns) {
+      this.depthColumns.shift();
+    }
+  }
+
+  getDepthColumns(): DepthColumn[] {
+    return this.depthColumns;
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // STATE UPDATE (Animation Loop)
   // ══════════════════════════════════════════════════════════════════════════
@@ -657,6 +708,12 @@ export class LiveDataEngine {
     if (this.snapshotFrameCounter >= this.snapshotInterval) {
       this.snapshotFrameCounter = 0;
       this.captureFullSnapshot(now);
+    }
+
+    // Capture depth column for Bookmap-style heatmap
+    if (now - this.lastDepthColumnTime >= this.depthColumnInterval) {
+      this.captureDepthColumn(now);
+      this.lastDepthColumnTime = now;
     }
 
     // Update trades (fade out old ones) - in-place compaction (zero allocation)

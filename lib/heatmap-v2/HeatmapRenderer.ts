@@ -2567,226 +2567,78 @@ export class HeatmapRenderer {
   }
 
   private renderHeatmap(state: MarketState, priceRange: { min: number; max: number }): void {
-    const { ctx, heatmapWidth, heatmapStartX, height, tickSize } = this;
-    const history = state.priceHistory;
+    const ctx = this.ctx;
+    const columns = state.depthColumns || [];
+    if (columns.length === 0) return;
 
-    if (history.length < 2) return;
+    const visibleColumns = Math.min(columns.length, Math.floor(this.heatmapWidth / 2)); // 2px per column min
+    const startIdx = Math.max(0, columns.length - visibleColumns);
+    const colWidth = this.heatmapWidth / visibleColumns;
 
-    const visiblePoints = Math.min(history.length, 200);
-    const numLevels = Math.ceil((priceRange.max - priceRange.min) / tickSize);
-    const cellHeight = Math.max(2, height / numLevels);
-
-    // Seuil de volume significatif (filtrage du bruit)
-    const MIN_VOLUME_THRESHOLD = 5;
-
-    // ══════════════════════════════════════════════════════════════════════
-    // RENDER LIVE ORDERS - Lignes horizontales continues UNIQUEMENT
-    // Pas de time-bucket, pas de micro-blocs
-    // Offset par heatmapStartX pour tenir compte du delta profile
-    // ══════════════════════════════════════════════════════════════════════
-
-    // Bids (achat) - lignes cyan
-    for (const order of state.bids.values()) {
-      if (order.displaySize < MIN_VOLUME_THRESHOLD) continue;
-      this.renderLiveOrder(order, priceRange, heatmapStartX, heatmapStartX + heatmapWidth, cellHeight, state);
+    // Find max depth for normalization
+    let maxDepth = 0;
+    for (let i = startIdx; i < columns.length; i++) {
+      const col = columns[i];
+      for (const size of col.bidDepth.values()) {
+        if (size > maxDepth) maxDepth = size;
+      }
+      for (const size of col.askDepth.values()) {
+        if (size > maxDepth) maxDepth = size;
+      }
     }
+    if (maxDepth === 0) maxDepth = 1;
 
-    // Asks (vente) - lignes rouges
-    for (const order of state.asks.values()) {
-      if (order.displaySize < MIN_VOLUME_THRESHOLD) continue;
-      this.renderLiveOrder(order, priceRange, heatmapStartX, heatmapStartX + heatmapWidth, cellHeight, state);
+    const chartHeight = this.height - this.statsBarHeight;
+    const priceSpan = priceRange.max - priceRange.min;
+    const priceToY = (price: number) => {
+      return ((priceRange.max - price) / priceSpan) * chartHeight;
+    };
+
+    // Draw each column
+    for (let i = startIdx; i < columns.length; i++) {
+      const col = columns[i];
+      const x = this.heatmapStartX + (i - startIdx) * colWidth;
+
+      // Draw bid depth cells
+      for (const [price, size] of col.bidDepth) {
+        const y = priceToY(price);
+        if (y < 0 || y > chartHeight) continue;
+        const intensity = Math.min(size / maxDepth, 1);
+        const color = this.depthToColor(intensity, 'bid');
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, Math.ceil(colWidth), this.cellHeight);
+      }
+
+      // Draw ask depth cells
+      for (const [price, size] of col.askDepth) {
+        const y = priceToY(price);
+        if (y < 0 || y > chartHeight) continue;
+        const intensity = Math.min(size / maxDepth, 1);
+        const color = this.depthToColor(intensity, 'ask');
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, Math.ceil(colWidth), this.cellHeight);
+      }
     }
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // RENDER LIVE ORDER - RECTANGLE HORIZONTAL (meilleur rendu GPU)
-  // ══════════════════════════════════════════════════════════════════════════
-  //
-  // RÈGLES D'ÉPAISSEUR:
-  // - Min: 2px (jamais 1px - illisible)
-  // - Max: 6px (éviter effet "mur plein")
-  // - Dynamique selon volume: petit=2px, moyen=3-4px, gros=5-6px
-  //
-  // PRIORITÉ VISUELLE:
-  // - Ordres proches du prix → plus épais/opaques
-  // - Ordres éloignés → légèrement plus fins/transparents
-  //
-  // ZÉRO CLIGNOTEMENT - rectangles au lieu de strokes
-  // ══════════════════════════════════════════════════════════════════════════
-  private renderLiveOrder(
-    order: PassiveOrder,
-    priceRange: { min: number; max: number },
-    areaStartX: number,
-    areaEndX: number,
-    cellHeight: number,
-    state: MarketState
-  ): void {
-    const { ctx, heatmapWidth } = this;
+  private depthToColor(intensity: number, side: 'bid' | 'ask'): string {
+    // Bookmap-style gradient: dark → colored → bright
+    const i = Math.pow(intensity, 0.6); // gamma for better visual distribution
 
-    // Filtrage: hors range ou trop transparent
-    if (order.price < priceRange.min || order.price > priceRange.max) return;
-    if (order.opacity < 0.1) return;
-
-    const y = this.priceToY(order.price, priceRange);
-    const isBid = order.side === 'bid';
-
-    // ══════════════════════════════════════════════════════════════════════
-    // CALCUL POSITION X - basé sur firstSeen (lifecycle tracking)
-    // Uses areaStartX and areaEndX for proper positioning with delta profile
-    // ══════════════════════════════════════════════════════════════════════
-    const history = state.priceHistory;
-    const visiblePoints = Math.min(history.length, 200);
-    const historyStartIdx = history.length - visiblePoints;
-    const areaWidth = areaEndX - areaStartX;
-    const pointWidth = areaWidth / visiblePoints;
-
-    // Trouver l'index correspondant au firstSeen de l'ordre
-    let orderStartIdx = historyStartIdx;
-    for (let i = historyStartIdx; i < history.length; i++) {
-      if (history[i].timestamp >= order.firstSeen) {
-        orderStartIdx = i;
-        break;
-      }
-    }
-
-    const lineStartX = areaStartX + Math.max(0, (orderStartIdx - historyStartIdx) * pointWidth);
-    const lineEndX = areaEndX - 1;
-    const lineWidth = lineEndX - lineStartX;
-
-    if (lineWidth < 2) return; // Trop court pour être visible
-
-    // ══════════════════════════════════════════════════════════════════════
-    // ÉPAISSEUR DYNAMIQUE - basée sur le volume + setting utilisateur
-    // ══════════════════════════════════════════════════════════════════════
-    // Thickness presets basés sur le setting utilisateur
-    let MIN_THICKNESS: number;
-    let MAX_THICKNESS: number;
-
-    switch (this.passiveThickness) {
-      case 'thin':
-        MIN_THICKNESS = 1;
-        MAX_THICKNESS = 3;
-        break;
-      case 'thick':
-        MIN_THICKNESS = 3;
-        MAX_THICKNESS = 8;
-        break;
-      case 'normal':
-      default:
-        MIN_THICKNESS = 2;
-        MAX_THICKNESS = 6;
-        break;
-    }
-
-    // Intensité normalisée (0-1)
-    const intensity = Math.min(1, order.intensity);
-
-    // Épaisseur proportionnelle au volume
-    // petit volume → min, volume moyen → mid, gros mur → max
-    let thickness = MIN_THICKNESS + intensity * (MAX_THICKNESS - MIN_THICKNESS);
-
-    // ══════════════════════════════════════════════════════════════════════
-    // PRIORITÉ VISUELLE - ordres proches du prix = plus visibles
-    // ══════════════════════════════════════════════════════════════════════
-    const midPrice = state.midPrice;
-    const priceDistance = Math.abs(order.price - midPrice);
-    const priceRange_span = priceRange.max - priceRange.min;
-    const normalizedDistance = priceDistance / (priceRange_span / 2);
-
-    // Ordres éloignés: légèrement plus fins et transparents
-    let distanceFactor = 1;
-    if (normalizedDistance > 0.3) {
-      distanceFactor = Math.max(0.7, 1 - (normalizedDistance - 0.3) * 0.4);
-    }
-
-    thickness *= distanceFactor;
-    thickness = Math.max(MIN_THICKNESS, Math.round(thickness * 2) / 2); // Arrondi à 0.5px
-
-    // ══════════════════════════════════════════════════════════════════════
-    // COULEUR ET OPACITÉ - Enhanced absorption effects
-    // ══════════════════════════════════════════════════════════════════════
-    let r: number, g: number, b: number;
-    let alpha = order.opacity * 0.9 * distanceFactor;
-    let glowColor: string | null = null;
-    let glowIntensity = 0;
-
-    if (order.state === 'absorbing') {
-      // Active absorption = pulsing orange/gold with glow
-      const timeSinceAbsorb = Date.now() - order.stateChangeTime;
-      const pulse = Math.sin(timeSinceAbsorb / 150 * Math.PI) * 0.3 + 0.7;
-      r = 255; g = Math.round(149 + pulse * 50); b = 0;
-      alpha = Math.min(0.98, alpha * 1.2 * pulse);
-      glowColor = `rgba(255, 180, 50, ${pulse * 0.6})`;
-      glowIntensity = 12 * pulse;
-    } else if (order.wasPartiallyAbsorbed) {
-      // Previously absorbed = dimmer orange
-      r = 220; g = 130; b = 30;
-      alpha = Math.min(0.85, alpha * 1.0);
-      glowColor = 'rgba(255, 150, 30, 0.3)';
-      glowIntensity = 6;
-    } else if (order.state === 'reinforcing') {
-      // Reinforced = bright with pulse
-      const timeSinceReinforce = Date.now() - order.stateChangeTime;
-      const pulse = Math.sin(timeSinceReinforce / 200 * Math.PI) * 0.2 + 0.8;
-      if (isBid) {
-        r = 0; g = Math.round(229 + pulse * 26); b = 255;
-        glowColor = `rgba(0, 255, 255, ${pulse * 0.4})`;
-      } else {
-        r = 255; g = Math.round(85 + pulse * 40); b = Math.round(119 + pulse * 40);
-        glowColor = `rgba(255, 100, 150, ${pulse * 0.4})`;
-      }
-      alpha = Math.min(0.98, alpha * 1.15);
-      glowIntensity = 8 * pulse;
-    } else if (order.state === 'fading') {
-      // Fading = grey
-      r = 85; g = 85; b = 102;
-      alpha *= 0.65;
+    if (side === 'bid') {
+      // Dark blue → cyan → white
+      const r = Math.floor(i * 80);
+      const g = Math.floor(40 + i * 200);
+      const b = Math.floor(60 + i * 195);
+      const a = 0.15 + i * 0.75;
+      return `rgba(${r},${g},${b},${a})`;
     } else {
-      // Normal - base color by side
-      if (isBid) { r = 0; g = 200; b = 232; }  // Cyan
-      else { r = 232; g = 80; b = 80; }         // Red
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // DESSIN - RECTANGLE HORIZONTAL CENTRÉ (meilleur rendu GPU que stroke)
-    // ══════════════════════════════════════════════════════════════════════
-
-    // Apply glow effect for absorbing/reinforcing orders
-    if (glowColor && glowIntensity > 0) {
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur = glowIntensity;
-    }
-
-    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-
-    // Rectangle centré verticalement sur le prix
-    const rectY = y - thickness / 2;
-    ctx.fillRect(lineStartX, rectY, lineWidth, thickness);
-
-    // Reset glow
-    if (glowColor) {
-      ctx.shadowBlur = 0;
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // TERMINAISON - indicateur de volume pour ordres significatifs
-    // ══════════════════════════════════════════════════════════════════════
-    if ((order.isSignificant || intensity > 0.5) && order.displaySize >= 10) {
-      // Point de terminaison plus visible
-      const dotRadius = Math.max(3, thickness * 0.8);
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(1, alpha * 1.3)})`;
-      ctx.beginPath();
-      ctx.arc(lineEndX, y, dotRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Label volume pour gros ordres (lisibilité)
-      if (order.displaySize >= 20) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.95, alpha + 0.2)})`;
-        ctx.font = 'bold 10px Arial, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(Math.round(order.displaySize).toString(), lineEndX - dotRadius - 5, y);
-      }
+      // Dark red → magenta → white
+      const r = Math.floor(60 + i * 195);
+      const g = Math.floor(i * 60);
+      const b = Math.floor(40 + i * 120);
+      const a = 0.15 + i * 0.75;
+      return `rgba(${r},${g},${b},${a})`;
     }
   }
 
