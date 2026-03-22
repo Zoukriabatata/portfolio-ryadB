@@ -136,13 +136,14 @@ export async function requireTier(
     return null;
   }
 
-  // ULTRA tier check
-  if (requiredTier === 'ULTRA' && userTier !== 'ULTRA') {
-    return {
-      error: 'ULTRA subscription required for this feature. Please upgrade your plan.',
-      status: 403,
-    };
-  }
+  // TEMPORARY: Open beta — all users get ULTRA access
+  // TODO: revert to tier check: if (requiredTier === 'ULTRA' && userTier !== 'ULTRA') return 403
+  // if (requiredTier === 'ULTRA' && userTier !== 'ULTRA') {
+  //   return {
+  //     error: 'ULTRA subscription required for this feature. Please upgrade your plan.',
+  //     status: 403,
+  //   };
+  // }
 
   return null;
 }
