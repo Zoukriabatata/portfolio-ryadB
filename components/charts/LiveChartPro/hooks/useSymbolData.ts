@@ -119,15 +119,20 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           }
         } catch { /* dxFeed unavailable */ }
 
-        // Fallback 2: Binance proxy for index-linked futures (delayed but available 24/7)
-        const CME_TO_BINANCE: Record<string, string> = {
-          'ES': 'BTCUSDT', 'MES': 'BTCUSDT', // not exact but gives chart data
-          'NQ': 'BTCUSDT', 'MNQ': 'BTCUSDT',
-          'YM': 'BTCUSDT', 'RTY': 'BTCUSDT',
-          'GC': 'BTCUSDT', 'CL': 'BTCUSDT',
-        };
-        // Don't use Binance proxy — it would show BTC data for NQ which is misleading
-        // Instead show "Market closed" message
+        // Fallback 2: Yahoo Finance (free, real CME data, available 24/7 including weekends)
+        try {
+          const yahooRes = await fetch(`/api/futures-history?symbol=${encodeURIComponent(sym)}&timeframe=${tf}&days=5`);
+          if (yahooRes.ok) {
+            const yahooData = await yahooRes.json();
+            if (Array.isArray(yahooData) && yahooData.length > 0) {
+              return yahooData.map((c: { time: number; open: number; high: number; low: number; close: number; volume: number }) => ({
+                time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+                volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
+              }));
+            }
+          }
+        } catch { /* Yahoo unavailable */ }
+
         return [];
       }
 
