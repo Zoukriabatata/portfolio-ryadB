@@ -910,7 +910,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         timeframe: aggregationMode === 'tick' ? 60 : tf, // Use 1m base for tick mode
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
-        totalHours: 24,
+        totalHours: 4,
         aggregationMode,
         tickBarSize: aggregationMode === 'tick' ? tickBarSize : (settings.features.tickBarSize || 500),
         volumeBarSize: settings.features.volumeBarSize,
@@ -947,7 +947,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
       // ── Phase 1 (skeleton) → Phase 2 (ticks) ─────────────────────────────
       // Timeout: if tick data takes >90s, show skeleton only and stop loading indicator
-      const TICK_TIMEOUT = 90_000;
+      const TICK_TIMEOUT = 45_000;
       let tickTimedOut = false;
       const tickTimeoutId = setTimeout(() => {
         tickTimedOut = true;
@@ -1754,7 +1754,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           timeframe,
           tickSize,
           imbalanceRatio: settings.imbalance.ratio,
-          totalHours: 24,
+          totalHours: 4,
           aggregationMode: settings.features.aggregationMode,
           tickBarSize: settings.features.tickBarSize,
           volumeBarSize: settings.features.volumeBarSize,
