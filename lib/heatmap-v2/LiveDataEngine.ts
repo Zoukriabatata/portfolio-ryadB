@@ -77,7 +77,7 @@ export class LiveDataEngine {
   private maxDepthColumns = 3600; // 6 min at 100ms
   private depthColumnInterval = 100; // ms
   private lastDepthColumnTime = 0;
-  private depthLevels = 50;
+  private depthLevels = 20; // Binance depth20 stream provides 20 levels per side
 
   constructor(config: Partial<LiveDataConfig> = {}) {
     this.config = { ...DEFAULT_LIVE_CONFIG, ...config };

@@ -35,8 +35,8 @@ import {
 // COULEURS
 // ══════════════════════════════════════════════════════════════════════════════
 const COLORS = {
-  bg: '#0a0c10',
-  grid: '#1a1e28',
+  bg: '#081228',     // Deep navy blue (Bookmap-style)
+  grid: '#0e1e3a',
 
   // Bid (achat) - Cyan/Bleu
   bidLight: '#0d3a4a',
@@ -67,27 +67,33 @@ const COLORS = {
 // COLOR GRADIENTS (professional style)
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Bid gradient: Dark blue → Cyan → White
+// Bookmap-authentic bid gradient: deep navy → blue → cyan → yellow → orange (walls)
 const BID_GRADIENT = [
-  { stop: 0, r: 10, g: 20, b: 40 },      // Very dark blue
-  { stop: 0.2, r: 20, g: 60, b: 100 },   // Dark blue
-  { stop: 0.4, r: 30, g: 100, b: 140 },  // Medium blue
-  { stop: 0.6, r: 40, g: 160, b: 200 },  // Cyan
-  { stop: 0.8, r: 80, g: 220, b: 255 },  // Bright cyan
-  { stop: 1, r: 180, g: 255, b: 255 },   // White-cyan
+  { stop: 0,    r: 8,   g: 18,  b: 42  },   // Deep navy (background blend)
+  { stop: 0.15, r: 12,  g: 40,  b: 90  },   // Dark blue
+  { stop: 0.3,  r: 20,  g: 80,  b: 140 },   // Medium blue
+  { stop: 0.45, r: 30,  g: 140, b: 200 },   // Cyan-blue
+  { stop: 0.6,  r: 60,  g: 200, b: 230 },   // Bright cyan
+  { stop: 0.75, r: 180, g: 220, b: 100 },   // Yellow-green (transition)
+  { stop: 0.85, r: 240, g: 200, b: 40  },   // Yellow (large orders)
+  { stop: 0.95, r: 255, g: 140, b: 20  },   // Orange (walls)
+  { stop: 1,    r: 255, g: 80,  b: 20  },   // Red-orange (mega walls)
 ];
 
-// Ask gradient: Dark red → Magenta → White
+// Bookmap-authentic ask gradient: deep navy → blue → magenta → yellow → orange (walls)
 const ASK_GRADIENT = [
-  { stop: 0, r: 40, g: 15, b: 20 },      // Very dark red
-  { stop: 0.2, r: 80, g: 25, b: 35 },    // Dark red
-  { stop: 0.4, r: 140, g: 40, b: 60 },   // Medium red
-  { stop: 0.6, r: 200, g: 60, b: 100 },  // Bright red/magenta
-  { stop: 0.8, r: 255, g: 100, b: 140 }, // Pink
-  { stop: 1, r: 255, g: 180, b: 200 },   // White-pink
+  { stop: 0,    r: 8,   g: 18,  b: 42  },   // Deep navy (background blend)
+  { stop: 0.15, r: 35,  g: 20,  b: 70  },   // Dark purple
+  { stop: 0.3,  r: 80,  g: 30,  b: 100 },   // Medium purple-red
+  { stop: 0.45, r: 140, g: 40,  b: 90  },   // Magenta
+  { stop: 0.6,  r: 200, g: 60,  b: 80  },   // Bright red-magenta
+  { stop: 0.75, r: 220, g: 150, b: 60  },   // Orange transition
+  { stop: 0.85, r: 240, g: 200, b: 40  },   // Yellow (large orders)
+  { stop: 0.95, r: 255, g: 140, b: 20  },   // Orange (walls)
+  { stop: 1,    r: 255, g: 80,  b: 20  },   // Red-orange (mega walls)
 ];
 
-// Absorbed gradient (golden/orange)
+// Absorbed gradient (golden/orange trace)
 const ABSORBED_GRADIENT = [
   { stop: 0, r: 60, g: 40, b: 10 },
   { stop: 0.5, r: 180, g: 120, b: 40 },
@@ -2580,11 +2586,11 @@ export class HeatmapRenderer {
       const t = i / 255;
       const bid = interpolateGradient(BID_GRADIENT, t);
       const ask = interpolateGradient(ASK_GRADIENT, t);
-      const alpha = Math.round((0.05 + t * 0.95) * 255);
+      // Full opacity — Bookmap fills every pixel solidly
       this.bidLUT[i * 4] = bid.r; this.bidLUT[i * 4 + 1] = bid.g;
-      this.bidLUT[i * 4 + 2] = bid.b; this.bidLUT[i * 4 + 3] = alpha;
+      this.bidLUT[i * 4 + 2] = bid.b; this.bidLUT[i * 4 + 3] = 255;
       this.askLUT[i * 4] = ask.r; this.askLUT[i * 4 + 1] = ask.g;
-      this.askLUT[i * 4 + 2] = ask.b; this.askLUT[i * 4 + 3] = alpha;
+      this.askLUT[i * 4 + 2] = ask.b; this.askLUT[i * 4 + 3] = 255;
     }
   }
 
@@ -2622,9 +2628,9 @@ export class HeatmapRenderer {
     const imgData = ctx.createImageData(hmW, hmH);
     const px = imgData.data;
 
-    // Background (matches COLORS.bg #0a0c10)
+    // Background — deep navy blue (Bookmap-style #081228)
     for (let p = 0; p < px.length; p += 4) {
-      px[p] = 10; px[p + 1] = 12; px[p + 2] = 16; px[p + 3] = 255;
+      px[p] = 8; px[p + 1] = 18; px[p + 2] = 40; px[p + 3] = 255;
     }
 
     const bidLUT = this.bidLUT!;
