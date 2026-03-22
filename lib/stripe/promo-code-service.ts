@@ -266,12 +266,36 @@ export async function initializeSENBETA5(): Promise<void> {
       data: {
         code: 'SENBETA5',
         discountType: 'PERCENTAGE',
-        discountValue: 100, // 100% de réduction (gratuit)
+        discountValue: 100,
         maxUses: 5,
         usedCount: 0,
-        active: true,
+        active: false, // Disabled — replaced by MOBYR45
       },
     });
-    console.log('✅ Code promo SENBETA5 créé (5 utilisations)');
+  } else if (existing.active) {
+    await prisma.promoCode.update({
+      where: { code: 'SENBETA5' },
+      data: { active: false },
+    });
+  }
+
+  // Initialize MOBYR45 — 45% off, unlimited uses
+  const mobyr = await prisma.promoCode.findUnique({
+    where: { code: 'MOBYR45' },
+  });
+
+  if (!mobyr) {
+    await prisma.promoCode.create({
+      data: {
+        code: 'MOBYR45',
+        discountType: 'PERCENTAGE',
+        discountValue: 45,
+        maxUses: 9999,
+        usedCount: 0,
+        active: true,
+        stripeCouponId: 'MOBYR45',
+      },
+    });
+    console.log('✅ Code promo MOBYR45 créé (45% off)');
   }
 }
