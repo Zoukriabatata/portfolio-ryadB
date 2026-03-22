@@ -193,7 +193,7 @@ export default function HeroSection() {
               </div>
             </div>
             {/* Fake UI content */}
-            <div className="p-3 sm:p-4 flex gap-3" style={{ height: 'auto', maxHeight: 180 }}>
+            <div className="p-3 sm:p-4 flex gap-3 overflow-hidden" style={{ height: 'auto', maxHeight: 180 }}>
               {/* Heatmap mockup */}
               <div className="flex-1 rounded-lg border border-white/[0.05] p-3 relative overflow-hidden" style={{ background: 'linear-gradient(to bottom, rgb(var(--primary-rgb) / 0.05), transparent)' }}>
                 <div className="flex items-center justify-between mb-2">
@@ -229,7 +229,7 @@ export default function HeroSection() {
                 ))}
               </div>
               {/* Orderbook mockup */}
-              <div className="w-28 rounded-lg border border-white/[0.05] p-3 hidden sm:block">
+              <div className="w-24 flex-shrink-0 rounded-lg border border-white/[0.05] p-2.5 hidden sm:block">
                 <div className="text-[9px] text-white/30 uppercase tracking-wider mb-2">Orderbook</div>
                 {/* Asks */}
                 {[0.3, 0.5, 0.8, 0.4].map((w, i) => (
