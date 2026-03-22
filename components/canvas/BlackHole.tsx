@@ -154,29 +154,6 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
       };
     });
 
-    // Shooting stars
-    const shootingStars: { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; length: number; size: number; hue: number }[] = [];
-    let shootingStarTimer = 0;
-    const SHOOTING_STAR_INTERVAL = isMobile ? 180 : 90; // frames between spawns
-
-    const spawnShootingStar = () => {
-      const fromRight = Math.random() > 0.5;
-      const startX = fromRight ? w * (0.6 + Math.random() * 0.5) : w * (Math.random() * 0.4 - 0.1);
-      const startY = Math.random() * viewH * 0.5;
-      const angle = fromRight ? (Math.PI * 0.6 + Math.random() * 0.4) : (Math.PI * -0.1 + Math.random() * 0.4);
-      const speed = 4 + Math.random() * 8;
-      shootingStars.push({
-        x: startX, y: startY,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 0,
-        maxLife: 40 + Math.random() * 60,
-        length: 60 + Math.random() * 120,
-        size: 0.5 + Math.random() * 1.5,
-        hue: pHue - 10 + Math.random() * 30,
-      });
-    };
-
     // Infalling matter streaks
     const streaks = Array.from({ length: isMobile ? 10 : 25 }, () => ({
       angle: Math.random() * Math.PI * 2,
@@ -324,39 +301,6 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         ctx.arc(d.x % w, dy, d.r, 0, Math.PI * 2);
         ctx.fill();
       });
-
-      // Shooting stars
-      shootingStarTimer++;
-      if (shootingStarTimer >= SHOOTING_STAR_INTERVAL && shootingStars.length < 3) {
-        spawnShootingStar();
-        shootingStarTimer = 0;
-      }
-      for (let i = shootingStars.length - 1; i >= 0; i--) {
-        const ss = shootingStars[i];
-        ss.x += ss.vx;
-        ss.y += ss.vy;
-        ss.life++;
-        if (ss.life > ss.maxLife) { shootingStars.splice(i, 1); continue; }
-        const progress = ss.life / ss.maxLife;
-        const fade = progress < 0.1 ? progress / 0.1 : progress > 0.7 ? (1 - progress) / 0.3 : 1;
-        const tailX = ss.x - (ss.vx / Math.sqrt(ss.vx * ss.vx + ss.vy * ss.vy)) * ss.length;
-        const tailY = ss.y - (ss.vy / Math.sqrt(ss.vx * ss.vx + ss.vy * ss.vy)) * ss.length;
-        const grad = ctx.createLinearGradient(tailX, tailY, ss.x, ss.y);
-        grad.addColorStop(0, `hsla(${ss.hue},70%,80%,0)`);
-        grad.addColorStop(0.7, `hsla(${ss.hue},70%,80%,${0.15 * fade})`);
-        grad.addColorStop(1, `hsla(${ss.hue},80%,90%,${0.6 * fade})`);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = ss.size;
-        ctx.beginPath();
-        ctx.moveTo(tailX, tailY);
-        ctx.lineTo(ss.x, ss.y);
-        ctx.stroke();
-        // Bright head
-        ctx.fillStyle = `hsla(${ss.hue},60%,95%,${0.8 * fade})`;
-        ctx.beginPath();
-        ctx.arc(ss.x, ss.y, ss.size * 0.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
 
       // Secondary gravitational distortions
       secondaryBHs.forEach(bh => {
