@@ -6,7 +6,7 @@
  * Max concurrent requests defaults to 6 (browser default per origin).
  */
 
-const MAX_CONCURRENT = 5; // Balanced: faster loading while staying within Binance 2400 weight/min
+const MAX_CONCURRENT = 8; // Aggressive: faster footprint loading (Binance 2400 weight/min budget)
 
 let activeCount = 0;
 const queue: Array<{

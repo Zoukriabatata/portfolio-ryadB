@@ -144,7 +144,7 @@ export class OptimizedFootprintService {
           hoursBack:         this.config.totalHours,
           dayStartMs:        this.config.dayStartMs,
           maxTradesPerChunk: this.config.maxTradesPerChunk,
-          parallelChunks:    this.config.loadMode === 'fullday' ? 24 : 6,
+          parallelChunks:    this.config.loadMode === 'fullday' ? 24 : 10,
           intervalStr,
           skeletonLimit,
         },

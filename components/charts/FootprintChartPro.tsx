@@ -910,7 +910,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         timeframe: aggregationMode === 'tick' ? 60 : tf, // Use 1m base for tick mode
         tickSize,
         imbalanceRatio: settings.imbalance.ratio,
-        totalHours: 4,
+        totalHours: 1,
         aggregationMode,
         tickBarSize: aggregationMode === 'tick' ? tickBarSize : (settings.features.tickBarSize || 500),
         volumeBarSize: settings.features.volumeBarSize,
@@ -1754,7 +1754,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           timeframe,
           tickSize,
           imbalanceRatio: settings.imbalance.ratio,
-          totalHours: 4,
+          totalHours: 1,
           aggregationMode: settings.features.aggregationMode,
           tickBarSize: settings.features.tickBarSize,
           volumeBarSize: settings.features.volumeBarSize,
