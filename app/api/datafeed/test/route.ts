@@ -34,6 +34,16 @@ export async function POST(req: NextRequest) {
       case 'BYBIT':
       case 'DERIBIT':
         return await testCryptoWebSocket(providerUpper);
+      // Gateway providers — can't verify from serverless (no TCP), accept credentials as-is
+      case 'CQG':
+      case 'AMP':
+      case 'RITHMIC':
+      case 'IB':
+        return NextResponse.json({
+          success: true,
+          verified: false,
+          message: `${providerUpper} credentials saved. Connection will be verified when the local gateway connects.`,
+        });
       default:
         return NextResponse.json({ error: 'Unknown provider' }, { status: 400 });
     }
