@@ -2566,80 +2566,127 @@ export class HeatmapRenderer {
     this.passiveThickness = thickness;
   }
 
+  // ── Bookmap-style bitmap renderer ────────────────────────────────────────
+  // Pre-baked LUT for fast color lookup (256 entries × RGBA)
+  private bidLUT: Uint8ClampedArray | null = null;
+  private askLUT: Uint8ClampedArray | null = null;
+  private smoothMaxDepth = 1;
+
+  private ensureLUTs(): void {
+    if (this.bidLUT) return;
+    this.bidLUT = new Uint8ClampedArray(256 * 4);
+    this.askLUT = new Uint8ClampedArray(256 * 4);
+    for (let i = 0; i < 256; i++) {
+      const t = i / 255;
+      const bid = interpolateGradient(BID_GRADIENT, t);
+      const ask = interpolateGradient(ASK_GRADIENT, t);
+      const alpha = Math.round((0.05 + t * 0.95) * 255);
+      this.bidLUT[i * 4] = bid.r; this.bidLUT[i * 4 + 1] = bid.g;
+      this.bidLUT[i * 4 + 2] = bid.b; this.bidLUT[i * 4 + 3] = alpha;
+      this.askLUT[i * 4] = ask.r; this.askLUT[i * 4 + 1] = ask.g;
+      this.askLUT[i * 4 + 2] = ask.b; this.askLUT[i * 4 + 3] = alpha;
+    }
+  }
+
   private renderHeatmap(state: MarketState, priceRange: { min: number; max: number }): void {
+    this.ensureLUTs();
     const ctx = this.ctx;
     const columns = state.depthColumns || [];
     if (columns.length === 0) return;
 
-    const visibleColumns = Math.min(columns.length, Math.floor(this.heatmapWidth / 2)); // 2px per column min
-    const startIdx = Math.max(0, columns.length - visibleColumns);
-    const colWidth = this.heatmapWidth / visibleColumns;
-
-    // Find max depth for normalization
-    let maxDepth = 0;
-    for (let i = startIdx; i < columns.length; i++) {
-      const col = columns[i];
-      for (const size of col.bidDepth.values()) {
-        if (size > maxDepth) maxDepth = size;
-      }
-      for (const size of col.askDepth.values()) {
-        if (size > maxDepth) maxDepth = size;
-      }
-    }
-    if (maxDepth === 0) maxDepth = 1;
-
     const chartHeight = this.height - this.statsBarHeight;
     const priceSpan = priceRange.max - priceRange.min;
-    const priceToY = (price: number) => {
-      return ((priceRange.max - price) / priceSpan) * chartHeight;
-    };
+    if (priceSpan <= 0 || chartHeight <= 0) return;
 
-    // Draw each column
-    for (let i = startIdx; i < columns.length; i++) {
+    const hmW = Math.floor(this.heatmapWidth);
+    const hmH = Math.floor(chartHeight);
+    if (hmW <= 0 || hmH <= 0) return;
+
+    // Column layout
+    const visibleColumns = Math.min(columns.length, hmW);
+    const startIdx = Math.max(0, columns.length - visibleColumns);
+    const colWidth = hmW / visibleColumns;
+
+    // Adaptive max-depth with smoothing (no flicker)
+    let frameMax = 0;
+    const step = Math.max(1, Math.floor(visibleColumns / 200));
+    for (let i = startIdx; i < columns.length; i += step) {
       const col = columns[i];
-      const x = this.heatmapStartX + (i - startIdx) * colWidth;
+      for (const size of col.bidDepth.values()) if (size > frameMax) frameMax = size;
+      for (const size of col.askDepth.values()) if (size > frameMax) frameMax = size;
+    }
+    if (frameMax > 0) this.smoothMaxDepth = this.smoothMaxDepth * 0.92 + frameMax * 0.08;
+    const maxD = this.smoothMaxDepth || 1;
 
-      // Draw bid depth cells
+    // Build pixel bitmap via ImageData
+    const imgData = ctx.createImageData(hmW, hmH);
+    const px = imgData.data;
+
+    // Background (matches COLORS.bg #0a0c10)
+    for (let p = 0; p < px.length; p += 4) {
+      px[p] = 10; px[p + 1] = 12; px[p + 2] = 16; px[p + 3] = 255;
+    }
+
+    const bidLUT = this.bidLUT!;
+    const askLUT = this.askLUT!;
+    const tickSize = this.tickSize || 0.5;
+    const pxPerTick = (tickSize / priceSpan) * hmH;
+    const cellH = Math.max(1, Math.round(pxPerTick));
+
+    // Paint each column
+    for (let ci = startIdx; ci < columns.length; ci++) {
+      const col = columns[ci];
+      const xStart = Math.floor((ci - startIdx) * colWidth);
+      const xEnd = Math.min(hmW, Math.floor(xStart + colWidth) + 1);
+      if (xEnd <= xStart) continue;
+
+      // Bids (below best bid)
       for (const [price, size] of col.bidDepth) {
-        const y = priceToY(price);
-        if (y < 0 || y > chartHeight) continue;
-        const intensity = Math.min(size / maxDepth, 1);
-        const color = this.depthToColor(intensity, 'bid');
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, Math.ceil(colWidth), this.cellHeight);
+        const yMid = Math.floor(((priceRange.max - price) / priceSpan) * hmH);
+        const yTop = Math.max(0, yMid - (cellH >> 1));
+        const yBot = Math.min(hmH, yTop + cellH);
+        if (yBot <= 0 || yTop >= hmH) continue;
+        const g = Math.pow(Math.min(size / maxD, 1), 0.55);
+        const li = Math.min(255, Math.floor(g * 255)) * 4;
+        const cr = bidLUT[li], cg = bidLUT[li + 1], cb = bidLUT[li + 2], ca = bidLUT[li + 3];
+        const a = ca / 255;
+        const inv = 1 - a;
+        for (let y = yTop; y < yBot; y++) {
+          const row = y * hmW;
+          for (let x = xStart; x < xEnd; x++) {
+            const off = (row + x) * 4;
+            px[off]     = (px[off]     * inv + cr * a) | 0;
+            px[off + 1] = (px[off + 1] * inv + cg * a) | 0;
+            px[off + 2] = (px[off + 2] * inv + cb * a) | 0;
+          }
+        }
       }
 
-      // Draw ask depth cells
+      // Asks (above best ask)
       for (const [price, size] of col.askDepth) {
-        const y = priceToY(price);
-        if (y < 0 || y > chartHeight) continue;
-        const intensity = Math.min(size / maxDepth, 1);
-        const color = this.depthToColor(intensity, 'ask');
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, Math.ceil(colWidth), this.cellHeight);
+        const yMid = Math.floor(((priceRange.max - price) / priceSpan) * hmH);
+        const yTop = Math.max(0, yMid - (cellH >> 1));
+        const yBot = Math.min(hmH, yTop + cellH);
+        if (yBot <= 0 || yTop >= hmH) continue;
+        const g = Math.pow(Math.min(size / maxD, 1), 0.55);
+        const li = Math.min(255, Math.floor(g * 255)) * 4;
+        const cr = askLUT[li], cg = askLUT[li + 1], cb = askLUT[li + 2], ca = askLUT[li + 3];
+        const a = ca / 255;
+        const inv = 1 - a;
+        for (let y = yTop; y < yBot; y++) {
+          const row = y * hmW;
+          for (let x = xStart; x < xEnd; x++) {
+            const off = (row + x) * 4;
+            px[off]     = (px[off]     * inv + cr * a) | 0;
+            px[off + 1] = (px[off + 1] * inv + cg * a) | 0;
+            px[off + 2] = (px[off + 2] * inv + cb * a) | 0;
+          }
+        }
       }
     }
-  }
 
-  private depthToColor(intensity: number, side: 'bid' | 'ask'): string {
-    // Bookmap-style gradient: dark → colored → bright
-    const i = Math.pow(intensity, 0.6); // gamma for better visual distribution
-
-    if (side === 'bid') {
-      // Dark blue → cyan → white
-      const r = Math.floor(i * 80);
-      const g = Math.floor(40 + i * 200);
-      const b = Math.floor(60 + i * 195);
-      const a = 0.15 + i * 0.75;
-      return `rgba(${r},${g},${b},${a})`;
-    } else {
-      // Dark red → magenta → white
-      const r = Math.floor(60 + i * 195);
-      const g = Math.floor(i * 60);
-      const b = Math.floor(40 + i * 120);
-      const a = 0.15 + i * 0.75;
-      return `rgba(${r},${g},${b},${a})`;
-    }
+    // Blit bitmap to canvas at heatmap offset
+    ctx.putImageData(imgData, Math.floor(this.heatmapStartX), 0);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
