@@ -15,7 +15,6 @@ import type { TranslationKey } from '@/lib/i18n/translations';
 import {
   Activity,
   Grid3x3,
-  Layers,
   Zap,
   Compass,
   Newspaper,
@@ -74,7 +73,7 @@ import { hydrateStores } from '@/lib/hydrate-stores';
 // Only `display` toggles — no unmount/remount, no data loss.
 // ============================================================
 
-const CHART_ROUTES = ['/live', '/footprint', '/liquidity', '/gex', '/volatility', '/bias', '/flow'] as const;
+const CHART_ROUTES = ['/live', '/footprint', '/gex', '/volatility', '/bias', '/flow'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
 function ChartLoadingFallback({ label }: { label: string }) {
@@ -125,10 +124,6 @@ const FootprintPageContent = dynamic(() => import('@/components/pages/FootprintP
   ssr: false,
   loading: () => <ChartLoadingFallback label="Footprint" />,
 });
-const LiquidityPageContent = dynamic(() => import('@/components/pages/LiquidityPageContent'), {
-  ssr: false,
-  loading: () => <ChartLoadingFallback label="Heatmap" />,
-});
 const GEXPageContent = dynamic(() => import('@/components/pages/GEXPageContent'), {
   ssr: false,
   loading: () => <ChartLoadingFallback label="GEX" />,
@@ -149,7 +144,6 @@ const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
   '/footprint': FootprintPageContent,
-  '/liquidity': LiquidityPageContent,
   '/gex': GEXPageContent,
   '/volatility': VolatilityPageContent,
   '/bias': BiasPageContent,
@@ -178,7 +172,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/live', labelKey: 'nav.live', Icon: CandlestickIcon, shortcut: '1' },
       { href: '/footprint', labelKey: 'nav.footprint', Icon: Grid3x3, shortcut: '2' },
-      { href: '/liquidity', labelKey: 'nav.liquidity', Icon: Layers, shortcut: '3' },
     ],
   },
   {
@@ -761,7 +754,6 @@ export function DashboardClientLayout({
             {([
               { href: '/live', icon: CandlestickIcon, label: 'Live' },
               { href: '/footprint', icon: Grid3x3, label: 'Footprint' },
-              { href: '/liquidity', icon: Layers, label: 'Liquidity' },
               { href: '/gex', icon: Zap, label: 'GEX' },
               { href: '/volatility', icon: Activity, label: 'Vol' },
             ] as const).map((tab) => {

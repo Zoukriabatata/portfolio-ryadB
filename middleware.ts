@@ -109,7 +109,6 @@ const PROTECTED_ROUTES = [
   '/live',
   '/footprint',
   '/orderflow',
-  '/liquidity',
   '/volatility',
   '/gex',
   '/bias',
@@ -137,7 +136,6 @@ const TIER_ROUTES: Record<string, ('FREE' | 'ULTRA')[]> = {
   '/reports': ['ULTRA'],
   '/footprint': ['ULTRA'],
   '/orderflow': ['ULTRA'],
-  '/liquidity': ['ULTRA'],
   '/volatility': ['ULTRA'],
   '/gex': ['ULTRA'],
   '/journal': ['ULTRA'],
@@ -494,7 +492,7 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   // HSTS — force HTTPS for 1 year, include subdomains
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   // SEO: block indexing ONLY on private app pages, leave public pages untagged
-  const privateRoutes = ['/dashboard', '/live', '/footprint', '/orderflow', '/liquidity', '/volatility', '/gex', '/journal', '/replay', '/backtest', '/news', '/account', '/admin', '/api'];
+  const privateRoutes = ['/dashboard', '/live', '/footprint', '/orderflow', '/volatility', '/gex', '/journal', '/replay', '/backtest', '/news', '/account', '/admin', '/api'];
   const isPrivate = privateRoutes.some(r => pathname === r || pathname.startsWith(r + '/'));
   if (isPrivate) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');

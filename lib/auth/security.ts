@@ -213,7 +213,6 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierConfig> = {
     features: [
       'All FREE features',
       'Footprint charts',
-      'Liquidity heatmap',
       'GEX Dashboard',
       'Volatility analysis',
       'All crypto symbols',
@@ -226,7 +225,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierConfig> = {
       'Priority support',
       '2 devices simultaneously',
     ],
-    pages: ['/', '/chart', '/live', '/boutique', '/account', '/footprint', '/orderflow', '/liquidity', '/volatility', '/gex', '/backtest', '/news', '/replay', '/journal'],
+    pages: ['/', '/chart', '/live', '/boutique', '/account', '/footprint', '/orderflow', '/volatility', '/gex', '/backtest', '/news', '/replay', '/journal'],
   },
 };
 

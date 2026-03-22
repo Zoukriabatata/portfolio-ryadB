@@ -9,7 +9,7 @@
  *   Python Bridge (ws://8765) → RithmicClient → RithmicLiveWS → HierarchicalAggregator
  *                                                                        │
  *                                                                        ▼
- *                                                               /live  /footprint  /liquidity
+ *                                                               /live  /footprint
  */
 
 import { getRithmicClient, type ClassifiedTrade } from '@/lib/rithmic/RithmicClient';

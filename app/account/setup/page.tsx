@@ -254,7 +254,7 @@ export default function IBSetupWizard() {
                 &larr; Back
               </button>
               <Link
-                href={`/liquidity?source=ib&symbol=${selectedSymbol}`}
+                href={`/live?source=ib&symbol=${selectedSymbol}`}
                 className="flex-1 py-3 bg-gradient-to-r from-[#16a34a] to-[#4ade80] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-center"
               >
                 Launch {selectedSymbol} &rarr;

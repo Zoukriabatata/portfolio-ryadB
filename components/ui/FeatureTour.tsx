@@ -29,12 +29,6 @@ const TOUR_STEPS: TourStep[] = [
     position: 'bottom',
   },
   {
-    target: 'a[href="/liquidity"]',
-    title: 'Liquidity Heatmap',
-    description: 'GPU-accelerated visualization of orderbook depth. See where liquidity sits in real-time.',
-    position: 'bottom',
-  },
-  {
     target: '[aria-label="Change theme"]',
     title: 'Theme Picker',
     description: 'Customize the interface with multiple color themes. Press Ctrl+T for quick access.',

@@ -10,7 +10,6 @@ const FOOTER_COLUMNS = [
     links: [
       { label: 'Live Trading', href: '/live' },
       { label: 'Footprint Charts', href: '/footprint' },
-      { label: 'Liquidity Heatmap', href: '/liquidity' },
       { label: 'GEX Dashboard', href: '/gex' },
       { label: 'IV Surface', href: '/volatility' },
       { label: 'Session Replay', href: '/replay' },

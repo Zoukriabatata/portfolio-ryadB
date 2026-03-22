@@ -19,7 +19,6 @@ export async function GET(req: NextRequest) {
       { path: '/',               name: 'Landing Page',        auth: false, description: 'Marketing page with pricing, features, screenshots' },
       { path: '/live',           name: 'Live Chart Pro',       auth: true,  description: 'Main trading chart with all tools' },
       { path: '/dashboard',      name: 'Dashboard',            auth: true,  description: 'Market overview, BTC price, GEX, volatility widgets' },
-      { path: '/liquidity',      name: 'Liquidity Heatmap',    auth: true,  description: 'Order book heatmap with passive order flow' },
       { path: '/gex',            name: 'GEX Dashboard',        auth: true,  description: 'Gamma exposure charts for SPX, SPY, QQQ' },
       { path: '/volatility',     name: 'Volatility Skew',      auth: true,  description: 'Options volatility surface from Deribit' },
       { path: '/orderflow',      name: 'Footprint Chart',      auth: true,  description: 'Delta footprint with ATAS-style rendering' },

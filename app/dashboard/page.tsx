@@ -240,7 +240,6 @@ const CHAT_MESSAGES = [
 const QUICK_LAUNCH = [
   { href: '/live',       label: 'Live',       desc: 'Candle chart', shortcut: '1', Icon: IconLive       },
   { href: '/footprint',  label: 'Footprint',  desc: 'Order flow',   shortcut: '2', Icon: IconFootprint  },
-  { href: '/liquidity',  label: 'Heatmap',    desc: 'Liq. levels',  shortcut: '3', Icon: IconHeatmap    },
   { href: '/gex',        label: 'GEX',        desc: 'Gamma expo.',  shortcut: '4', Icon: IconGEX        },
   { href: '/volatility', label: 'Volatility', desc: 'IV skew',      shortcut: '5', Icon: IconVolatility },
   { href: '/bias',       label: 'Bias',       desc: 'Direction',    shortcut: '6', Icon: IconBias       },
@@ -908,7 +907,6 @@ function MarketStatsCard({ tickers }: { tickers: TickerData[] }) {
 const LAUNCH_COLORS: Record<string, string> = {
   '/live':       '#4ade80',
   '/footprint':  '#2dd4bf',
-  '/liquidity':  '#818cf8',
   '/gex':        '#fb923c',
   '/volatility': '#f472b6',
   '/bias':       '#facc15',

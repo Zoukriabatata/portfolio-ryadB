@@ -307,7 +307,7 @@ async function toolInspectPage(input: { path: string; reason: string }, baseUrl:
     const isNextPage    = /__NEXT_DATA__|_next\/static/i.test(html);
 
     // Extract nav links
-    const navLinks = [...html.matchAll(/href=["'](\/(live|dashboard|journal|pricing|gex|volatility|orderflow|liquidity)[^"']*)/gi)]
+    const navLinks = [...html.matchAll(/href=["'](\/(live|dashboard|journal|pricing|gex|volatility|orderflow)[^"']*)/gi)]
       .map(m => m[1])
       .filter((v, i, a) => a.indexOf(v) === i)
       .slice(0, 10);
