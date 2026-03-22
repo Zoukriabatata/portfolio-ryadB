@@ -483,7 +483,8 @@ export default function HeatmapPageContent() {
       const dy = e.clientY - lastMouseY.current;
       lastMouseY.current = e.clientY;
       const hmH = h - TIME_AXIS_H;
-      const lastCol = cols[cols.length - 1];
+      const c = columnsRef.current;
+      const lastCol = c[c.length - 1];
       if (!lastCol) return;
       let depthMin = Infinity, depthMax = -Infinity;
       for (let i = 0; i < lastCol.bids.length; i += 2) {
