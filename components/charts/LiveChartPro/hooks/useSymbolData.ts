@@ -274,12 +274,12 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       if (history.length > 0) {
         updateChartData(history);
       } else {
-        // No history — wait 10s for live data before showing "no data"
+        // No history — wait 3s for live data before showing "no data"
         const noDataTimer = setTimeout(() => {
           if (isMounted && refs.candles.current.length === 0) {
             setNoData(true);
           }
-        }, 10_000);
+        }, 3_000);
         refs.unsubscribers.current.push(() => clearTimeout(noDataTimer));
       }
 

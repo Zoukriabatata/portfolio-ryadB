@@ -871,7 +871,11 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span className="text-xs" style={{ color: theme.colors.textMuted }}>No data available for this symbol</span>
+                <span className="text-xs" style={{ color: theme.colors.textMuted }}>
+                  {symbolData.symbol && /^[A-Z]{1,3}$/.test(symbolData.symbol)
+                    ? 'Market closed — CME futures trade Sun 6PM – Fri 5PM ET'
+                    : 'No data available for this symbol'}
+                </span>
               </div>
             </div>
           )}
