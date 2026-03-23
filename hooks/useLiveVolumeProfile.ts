@@ -112,56 +112,90 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     engine.reset();
     setData(EMPTY_DATA);
 
-    // 1. Fetch historical trades for full profile immediately
-    const loadHistorical = async () => {
+    // 1. Build VP from klines (OHLCV) — fast, no rate limit issues
+    // Each kline distributes volume across the OHLC range using VWAP approximation
+    const loadFromKlines = async () => {
       const endTime = Date.now();
       let startTime: number;
       if (vpProfileMode === 'daily') {
-        // Start of current UTC day (00:00:00 UTC)
         const now = new Date();
         startTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
       } else {
         const depthMinutes = vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth;
         startTime = endTime - depthMinutes * 60 * 1000;
       }
-      let cursor = startTime;
 
-      while (cursor < endTime && !cancelled) {
+      try {
+        // Fetch 1m klines for the period (max 1500 per request, covers 25h)
         const params = new URLSearchParams({
           symbol: symbol.toUpperCase(),
-          startTime: cursor.toString(),
+          interval: '1m',
+          startTime: startTime.toString(),
           endTime: endTime.toString(),
-          limit: '1000',
+          limit: '1500',
         });
 
-        try {
-          const res = await fetch(`/api/binance/fapi/v1/aggTrades?${params}`);
-          if (!res.ok || cancelled) break;
-          const trades = await res.json();
-          if (!Array.isArray(trades) || trades.length === 0) break;
+        const res = await fetch(`/api/binance/fapi/v1/klines?${params}`);
+        if (!res.ok || cancelled) return;
+        const klines = await res.json();
+        if (!Array.isArray(klines) || klines.length === 0) return;
 
-          for (const t of trades) {
+        const tickSize = getTickSizeForSymbol(symbol);
+
+        for (const k of klines) {
+          if (cancelled) break;
+          const open = parseFloat(k[1]);
+          const high = parseFloat(k[2]);
+          const low = parseFloat(k[3]);
+          const close = parseFloat(k[4]);
+          const volume = parseFloat(k[5]);
+          const ts = k[0];
+          const isBullish = close >= open;
+
+          // Distribute volume across price range using weighted VWAP approximation
+          // More volume near close (where most trades happened)
+          const range = high - low;
+          if (range <= 0 || volume <= 0) continue;
+
+          const steps = Math.max(1, Math.round(range / tickSize));
+          const totalWeight = steps * (steps + 1) / 2; // Triangle distribution
+
+          for (let i = 0; i < steps; i++) {
+            const price = low + (i + 0.5) * tickSize;
+            if (price > high) break;
+
+            // Weight: more volume near close price
+            const distFromClose = Math.abs(price - close) / range;
+            const weight = 1 + (1 - distFromClose) * 2; // 1x-3x, highest near close
+            const binVolume = (volume * weight) / (totalWeight > 0 ? totalWeight : 1);
+
+            // Approximate bid/ask split: bullish candle = more buy volume
+            const buyRatio = isBullish ? 0.6 : 0.4;
+
             engine.processTrade({
-              timestamp: t.T,
-              price: parseFloat(t.p),
-              size: parseFloat(t.q),
-              side: t.m ? 'sell' : 'buy',
+              timestamp: ts,
+              price,
+              size: binVolume * buyRatio,
+              side: 'buy',
+            });
+            engine.processTrade({
+              timestamp: ts,
+              price,
+              size: binVolume * (1 - buyRatio),
+              side: 'sell',
             });
           }
-
-          cursor = trades[trades.length - 1].T + 1;
-          if (trades.length < 1000) break;
-        } catch {
-          break;
         }
-      }
 
-      if (!cancelled && engineRef.current) {
-        setData(readEngineData(engineRef.current));
+        if (!cancelled && engineRef.current) {
+          setData(readEngineData(engineRef.current));
+        }
+      } catch {
+        // Silently fail — live trades will still build the profile
       }
     };
 
-    loadHistorical();
+    loadFromKlines();
 
     // 2. Subscribe to live tick stream (runs in parallel with historical fetch)
     const ws = getBinanceLiveWS();

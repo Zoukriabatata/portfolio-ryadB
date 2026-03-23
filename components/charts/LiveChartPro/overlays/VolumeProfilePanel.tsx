@@ -57,7 +57,7 @@ export default function VolumeProfilePanel({
   priceMin,
   priceMax,
   chartHeight,
-  width = 140,
+  width = 200,
   side = 'right',
   theme = DEFAULT_THEME,
   vpColors,
