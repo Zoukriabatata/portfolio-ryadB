@@ -178,6 +178,25 @@ export class CanvasChartEngine {
   private vpPoc = 0;
   private vpVah = 0;
   private vpVal = 0;
+
+  // Market Profile — per-period VP overlays (ATAS Market Profile & TPO style)
+  private marketProfilePeriods: {
+    startTime: number; endTime: number;
+    bins: Map<number, { total: number; buy: number; sell: number }>;
+    poc: number; pocVolume: number; vah: number; val: number;
+    totalVolume: number; high: number; low: number;
+  }[] = [];
+  private marketProfileEnabled = false;
+  private marketProfileColors = {
+    profile: 'rgba(125, 41, 98, 0.35)',   // #7D2962 at 35%
+    bid: 'rgba(255, 82, 82, 0.30)',        // #FF5252 at 30%
+    ask: 'rgba(33, 150, 243, 0.30)',       // #2196F3 at 30%
+    poc: '#FFB22B',                         // Amber
+    vah: 'rgba(255, 255, 255, 0.5)',
+    val: 'rgba(255, 255, 255, 0.5)',
+    text: 'rgba(255, 255, 255, 0.7)',
+    volumeText: 'rgba(255, 178, 43, 0.6)',
+  };
   private showCrosshairTooltip = true;
 
   // Callbacks
@@ -440,6 +459,15 @@ export class CanvasChartEngine {
     this.showCrosshairTooltip = show;
   }
 
+  setMarketProfileData(periods: typeof this.marketProfilePeriods, enabled: boolean): void {
+    this.marketProfilePeriods = periods;
+    this.marketProfileEnabled = enabled;
+  }
+
+  setMarketProfileColors(colors: Partial<typeof this.marketProfileColors>): void {
+    Object.assign(this.marketProfileColors, colors);
+  }
+
   setVolumeProfileData(bins: { price: number; totalVolume: number; bidVolume: number; askVolume: number }[], poc: number, vah: number, val: number): void {
     this.vpBins = bins;
     this.vpPoc = poc;
@@ -655,6 +683,7 @@ export class CanvasChartEngine {
 
     if (this.showGrid) this.drawGrid();
     if (this.vpBins && this.vpBins.length > 0) this.drawVolumeProfile();
+    if (this.marketProfileEnabled && this.marketProfilePeriods.length > 0) this.drawMarketProfile();
     this.drawCandles();
     if (this.showVolume) this.drawVolume();
     this.drawPriceAxis();
@@ -1283,6 +1312,172 @@ export class CanvasChartEngine {
 
       ctx.globalAlpha = 1;
     }
+  }
+
+  /**
+   * Draw Market Profile — ATAS-style per-period VP overlays with VAH/vPOC/VAL labels
+   */
+  private drawMarketProfile(): void {
+    const { width, priceAxisWidth, timeAxisHeight, volumeHeight } = this.dimensions;
+    const { startIndex, endIndex, priceMin, priceMax } = this.viewport;
+    const chartWidth = width - priceAxisWidth;
+    const chartHeight = this.dimensions.height - timeAxisHeight - (this.showVolume ? volumeHeight : 0);
+    const priceRange = priceMax - priceMin;
+    if (priceRange <= 0 || chartHeight <= 0 || this.candles.length === 0) return;
+
+    const ctx = this.ctx;
+    const visibleCandles = endIndex - startIndex;
+    const candleTotalWidth = chartWidth / visibleCandles;
+    const colors = this.marketProfileColors;
+
+    for (const period of this.marketProfilePeriods) {
+      // Find candle indices for this period
+      let periodStartIdx = -1;
+      let periodEndIdx = -1;
+      for (let i = Math.max(0, Math.floor(startIndex)); i < Math.min(this.candles.length, Math.ceil(endIndex)); i++) {
+        const t = this.candles[i].time;
+        if (t >= period.startTime && t < period.endTime) {
+          if (periodStartIdx < 0) periodStartIdx = i;
+          periodEndIdx = i;
+        }
+      }
+      if (periodStartIdx < 0) continue;
+
+      // X coordinates of this period on screen
+      const xStart = (periodStartIdx - startIndex) * candleTotalWidth;
+      const xEnd = (periodEndIdx - startIndex + 1) * candleTotalWidth;
+      const periodWidth = xEnd - xStart;
+      if (periodWidth < 5) continue; // Too narrow to render
+
+      // Max volume in this period for scaling
+      let maxVol = 0;
+      for (const [, vol] of period.bins) {
+        if (vol.total > maxVol) maxVol = vol.total;
+      }
+      if (maxVol === 0) continue;
+
+      const barMaxWidth = periodWidth * 0.85; // 85% of period width
+
+      // Determine tick size from bins
+      let tickSize = 10;
+      const binPrices = Array.from(period.bins.keys()).sort((a, b) => a - b);
+      for (let i = 1; i < binPrices.length; i++) {
+        const d = binPrices[i] - binPrices[i - 1];
+        if (d > 0) { tickSize = d; break; }
+      }
+      const barH = Math.max(1, (tickSize / priceRange) * chartHeight * 0.85);
+
+      // Draw period separator line
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(Math.round(xStart) + 0.5, 0);
+      ctx.lineTo(Math.round(xStart) + 0.5, chartHeight);
+      ctx.stroke();
+
+      // Draw bins
+      for (const [price, vol] of period.bins) {
+        if (price < priceMin || price > priceMax) continue;
+        const y = ((priceMax - price) / priceRange) * chartHeight;
+        const barY = y - barH / 2;
+
+        const intensity = Math.pow(vol.total / maxVol, 0.5);
+        const totalW = Math.max(1, intensity * barMaxWidth);
+        const isPOC = price === period.poc;
+        const isVA = price >= period.val && price <= period.vah;
+
+        // Bid/Ask split
+        const bidRatio = vol.total > 0 ? vol.sell / vol.total : 0.5;
+        const bidW = totalW * bidRatio;
+        const askW = totalW * (1 - bidRatio);
+
+        // Draw from left edge of period
+        const barX = xStart + (periodWidth - totalW) / 2; // Centered in period
+
+        ctx.globalAlpha = isPOC ? 0.7 : isVA ? 0.45 : 0.25;
+        ctx.fillStyle = colors.bid;
+        ctx.fillRect(barX, barY, bidW, barH);
+        ctx.fillStyle = colors.ask;
+        ctx.fillRect(barX + bidW, barY, askW, barH);
+
+        // POC bar highlight
+        if (isPOC) {
+          ctx.globalAlpha = 0.9;
+          ctx.strokeStyle = colors.poc;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(xStart, y);
+          ctx.lineTo(xEnd, y);
+          ctx.stroke();
+        }
+      }
+
+      ctx.globalAlpha = 1;
+
+      // Draw VAH line
+      if (period.vah >= priceMin && period.vah <= priceMax) {
+        const vahY = ((priceMax - period.vah) / priceRange) * chartHeight;
+        ctx.strokeStyle = colors.vah;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(xStart, vahY);
+        ctx.lineTo(xEnd, vahY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Label
+        ctx.font = '9px -apple-system, sans-serif';
+        ctx.fillStyle = colors.text;
+        ctx.textAlign = 'right';
+        ctx.fillText('VAH', xEnd - 2, vahY - 3);
+      }
+
+      // Draw VAL line
+      if (period.val >= priceMin && period.val <= priceMax) {
+        const valY = ((priceMax - period.val) / priceRange) * chartHeight;
+        ctx.strokeStyle = colors.val;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(xStart, valY);
+        ctx.lineTo(xEnd, valY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.font = '9px -apple-system, sans-serif';
+        ctx.fillStyle = colors.text;
+        ctx.textAlign = 'right';
+        ctx.fillText('VAL', xEnd - 2, valY + 11);
+      }
+
+      // Draw vPOC label
+      if (period.poc >= priceMin && period.poc <= priceMax) {
+        const pocY = ((priceMax - period.poc) / priceRange) * chartHeight;
+        ctx.font = 'bold 9px -apple-system, sans-serif';
+        ctx.fillStyle = colors.poc;
+        ctx.textAlign = 'right';
+        ctx.fillText('vPOC', xEnd - 2, pocY - 3);
+      }
+
+      // Draw volume label at bottom of period
+      const volLabel = period.totalVolume >= 1000
+        ? `${(period.totalVolume / 1000).toFixed(0)}K Lots`
+        : `${period.totalVolume.toFixed(0)} Lots`;
+      ctx.font = '8px -apple-system, sans-serif';
+      ctx.fillStyle = colors.volumeText;
+      ctx.textAlign = 'center';
+      const labelX = xStart + periodWidth / 2;
+      const labelY = ((priceMax - period.low) / priceRange) * chartHeight + 14;
+      if (labelY < chartHeight - 5) {
+        ctx.fillText(volLabel, labelX, labelY);
+      }
+    }
+
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
   }
 
   private drawVPLevels(): void {

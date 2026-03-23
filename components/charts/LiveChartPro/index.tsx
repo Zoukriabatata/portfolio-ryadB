@@ -306,8 +306,11 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
     }))
   );
   const { indicators: indicatorConfigs, toggleIndicator: toggleIndicatorConfig } = useIndicatorStore();
-  const { showVolumeProfile, setShowVolumeProfile, vpPanelSide } = usePreferencesStore(
-    useShallow(s => ({ showVolumeProfile: s.showVolumeProfile, setShowVolumeProfile: s.setShowVolumeProfile, vpPanelSide: s.vpPanelSide }))
+  const { showVolumeProfile, setShowVolumeProfile, vpPanelSide, showMarketProfile, setShowMarketProfile, marketProfilePeriod } = usePreferencesStore(
+    useShallow(s => ({
+      showVolumeProfile: s.showVolumeProfile, setShowVolumeProfile: s.setShowVolumeProfile, vpPanelSide: s.vpPanelSide,
+      showMarketProfile: s.showMarketProfile, setShowMarketProfile: s.setShowMarketProfile, marketProfilePeriod: s.marketProfilePeriod,
+    }))
   );
   const customFavorites = useFavoritesToolbarStore(s => s.presets.custom.tools);
 
@@ -402,6 +405,36 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
     vpPocEnabled, vpPocColor, vpPocWidth, vpPocStyle, vpPocLabel,
     vpVahEnabled, vpVahColor, vpVahWidth, vpVahStyle, vpVahLabel,
     vpValEnabled, vpValColor, vpValWidth, vpValStyle, vpValLabel]);
+
+  // Market Profile — compute per-period VP from candle data
+  useEffect(() => {
+    const engine = refs.chartEngine.current;
+    if (!engine) return;
+    if (!showMarketProfile) {
+      engine.setMarketProfileData([], false);
+      return;
+    }
+
+    const candles = refs.candles.current;
+    if (!candles || candles.length === 0) {
+      engine.setMarketProfileData([], false);
+      return;
+    }
+
+    // Use MarketProfileEngine to build per-period profiles
+    const { MarketProfileEngine } = require('@/lib/orderflow/MarketProfileEngine');
+    const tickSize = symbolData.symbol.toUpperCase().includes('BTC') ? 10 :
+      symbolData.symbol.toUpperCase().includes('ETH') ? 1 : 0.1;
+
+    const mpEngine = new MarketProfileEngine({
+      externalPeriod: marketProfilePeriod,
+      tickSize,
+      valueAreaPercent: 0.70,
+    });
+
+    mpEngine.buildFromCandles(candles);
+    engine.setMarketProfileData(mpEngine.getPeriods(), true);
+  }, [showMarketProfile, marketProfilePeriod, symbolData.symbol, refs, symbolData.viewportState]);
 
   const settings = useChartSettings({
     refs,
@@ -744,6 +777,11 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             {/* Volume Profile Toggle */}
             <button onClick={() => setShowVolumeProfile(!showVolumeProfile)} data-tooltip="Volume Profile" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showVolumeProfile ? theme.colors.toolActive : 'transparent', color: showVolumeProfile ? activeTextColor : theme.colors.textSecondary }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" rx="1" /><rect x="12" y="6" width="3" height="12" rx="1" /><rect x="17" y="12" width="3" height="6" rx="1" /></svg>
+            </button>
+
+            {/* Market Profile Toggle */}
+            <button onClick={() => setShowMarketProfile(!showMarketProfile)} data-tooltip="Market Profile" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showMarketProfile ? theme.colors.toolActive : 'transparent', color: showMarketProfile ? activeTextColor : theme.colors.textSecondary }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="4" height="16" rx="1" /><rect x="10" y="8" width="4" height="12" rx="1" /><rect x="17" y="6" width="4" height="14" rx="1" /><line x1="1" y1="12" x2="23" y2="12" opacity="0.3" /></svg>
             </button>
 
             {/* Trade Toggle */}

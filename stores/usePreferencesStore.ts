@@ -75,6 +75,12 @@ export interface PreferencesState {
   setVolumeMode: (mode: 'classic' | 'bidask' | 'delta') => void;
   setShowVolumeProfile: (show: boolean) => void;
 
+  // Market Profile (ATAS-style per-period VP overlay)
+  showMarketProfile: boolean;
+  setShowMarketProfile: (show: boolean) => void;
+  marketProfilePeriod: number; // seconds (900=M15, 1800=M30, 3600=1H, 14400=4H)
+  setMarketProfilePeriod: (period: number) => void;
+
   // Volume Bubble orderflow settings
   volumeBubbleMode: 'total' | 'delta' | 'bid' | 'ask';
   volumeBubbleScaling: 'sqrt' | 'linear' | 'log';
@@ -195,6 +201,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       showCrosshairTooltip: true,
       volumeMode: 'classic',
       showVolumeProfile: false,
+      showMarketProfile: false,
+      marketProfilePeriod: 900, // M15 default (like ATAS)
 
       // Volume Bubble orderflow defaults
       volumeBubbleMode: 'total',
@@ -278,6 +286,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       setPriceLabelBorderRadius: (priceLabelBorderRadius) => set({ priceLabelBorderRadius: Math.max(0, Math.min(8, priceLabelBorderRadius)) }),
       setVolumeMode: (volumeMode) => set({ volumeMode }),
       setShowVolumeProfile: (showVolumeProfile) => set({ showVolumeProfile }),
+      setShowMarketProfile: (showMarketProfile) => set({ showMarketProfile }),
+      setMarketProfilePeriod: (marketProfilePeriod) => set({ marketProfilePeriod }),
       setVPSetting: (key, value) => set({ [key]: value } as any),
       setDensity: (density) => set({ density }),
       setFontSize: (fontSize) => set({ fontSize: Math.max(10, Math.min(16, fontSize)) }),
