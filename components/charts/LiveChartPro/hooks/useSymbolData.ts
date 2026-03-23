@@ -144,9 +144,10 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       const binanceInterval = TF_TO_BINANCE[tf] || '1m';
       const limit = 500;
 
+      // Use Futures API (fapi) to match the live WebSocket feed
       const response = await fetch(
-        `/api/binance/api/v3/klines?symbol=${sym.toUpperCase()}&interval=${binanceInterval}&limit=${limit}`,
-        { headers: { 'x-market': 'spot' }, signal: AbortSignal.timeout(15_000) }
+        `/api/binance/fapi/v1/klines?symbol=${sym.toUpperCase()}&interval=${binanceInterval}&limit=${limit}`,
+        { signal: AbortSignal.timeout(15_000) }
       );
 
       const data = await response.json();
