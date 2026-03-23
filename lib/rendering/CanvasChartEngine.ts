@@ -1285,19 +1285,19 @@ export class CanvasChartEngine {
       const bidW = totalW * bidRatio;
       const askW = totalW * (1 - bidRatio);
 
-      // Draw bid bar (left)
-      ctx.globalAlpha = isPOC ? 0.50 : isVA ? 0.35 : 0.20;
-      ctx.fillStyle = '#5c6bc0'; // indigo
+      // Draw bid bar (left) — ATAS-style: solid visible bars
+      ctx.globalAlpha = isPOC ? 0.85 : isVA ? 0.55 : 0.35;
+      ctx.fillStyle = '#3949ab'; // deep indigo (visible on dark bg)
       ctx.fillRect(0, barY, bidW, barH);
 
       // Draw ask bar (right of bid)
-      ctx.fillStyle = '#42a5f5'; // lighter blue
+      ctx.fillStyle = '#1e88e5'; // medium blue
       ctx.fillRect(bidW, barY, askW, barH);
 
-      // POC highlight
+      // POC highlight — full bright yellow bar
       if (isPOC) {
-        ctx.globalAlpha = 0.7;
-        ctx.fillStyle = '#e2b93b';
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = '#fdd835';
         ctx.fillRect(0, barY, totalW, Math.max(barH, 2));
       }
 
