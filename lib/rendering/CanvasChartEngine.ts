@@ -282,38 +282,18 @@ export class CanvasChartEngine {
     // Sort by time to ensure proper order
     validCandles.sort((a, b) => a.time - b.time);
 
-    // Calculate IQR (Interquartile Range) for robust outlier detection
-    const prices = validCandles.map(c => c.close).sort((a, b) => a - b);
-    const q1Index = Math.floor(prices.length * 0.25);
-    const q3Index = Math.floor(prices.length * 0.75);
-    const q1 = prices[q1Index];
-    const q3 = prices[q3Index];
-    const iqr = q3 - q1;
-    const medianPrice = prices[Math.floor(prices.length / 2)];
-
-    // Use IQR-based bounds (more robust than simple multiplier)
-    // Allow 3x IQR range which is standard for outlier detection
-    const lowerBound = Math.max(q1 - 3 * iqr, medianPrice * 0.5);
-    const upperBound = q3 + 3 * iqr;
-
-    // Also check for sudden jumps between consecutive candles
+    // Minimal outlier detection — only filter truly broken data (not volatile moves)
+    // Crypto can move 10-20% in minutes, so IQR-based filtering was too aggressive
     const filteredCandles: ChartCandle[] = [];
-    let lastValidPrice = medianPrice;
+    let lastValidPrice = validCandles[0].close;
 
     for (let i = 0; i < validCandles.length; i++) {
       const c = validCandles[i];
-      const maxPrice = Math.max(c.high, c.open, c.close);
-      const minPrice = Math.min(c.low, c.open, c.close);
 
-      // Check if within reasonable bounds
-      if (maxPrice > upperBound || minPrice < lowerBound) {
-        continue; // Skip outlier
-      }
-
-      // Check for sudden price jump (more than 50% change in one candle)
+      // Only skip if price jumps more than 90% in a single candle (data corruption)
       const priceChange = Math.abs(c.close - lastValidPrice) / lastValidPrice;
-      if (priceChange > 0.5 && filteredCandles.length > 0) {
-        continue; // Skip abnormal jump
+      if (priceChange > 0.9 && filteredCandles.length > 0) {
+        continue; // Skip data corruption (90%+ jump in 1 candle)
       }
 
       filteredCandles.push(c);
