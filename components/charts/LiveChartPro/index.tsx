@@ -47,7 +47,7 @@ import { useLiveVolumeProfile } from '@/hooks/useLiveVolumeProfile';
 import { useLiveFootprint } from '@/hooks/useLiveFootprint';
 import { ClusterRenderer } from '@/lib/rendering/ClusterRenderer';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
-import VolumeProfilePanel from './overlays/VolumeProfilePanel';
+// VolumeProfilePanel removed — VP now rendered directly in CanvasChartEngine
 import FavoritesToolbar from '@/components/tools/FavoritesToolbar';
 import { useFavoritesToolbarStore } from '@/stores/useFavoritesToolbarStore';
 
