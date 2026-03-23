@@ -306,6 +306,9 @@ export class CanvasChartEngine {
     return filteredCandles;
   }
 
+  private lastUpdateTime = 0;
+  private updateThrottleMs = 16; // ~60fps max update rate
+
   updateCandle(candle: ChartCandle): void {
     // Validate the incoming candle
     if (!this.isValidCandle(candle)) {
@@ -328,8 +331,35 @@ export class CanvasChartEngine {
       }
     }
 
+    // Throttle renders to 60fps max — batch rapid tick updates
+    const now = performance.now();
+    if (now - this.lastUpdateTime < this.updateThrottleMs) {
+      // Still schedule a render, but RAF will batch it
+      this.scheduleRender();
+      if (this.onPriceChange) this.onPriceChange(candle.close);
+      return;
+    }
+    this.lastUpdateTime = now;
+
     if (this.autoScalePrice) {
+      // Smooth price range — lerp instead of jump
+      const oldMin = this.targetViewport.priceMin;
+      const oldMax = this.targetViewport.priceMax;
       this.calculatePriceRange();
+      const newMin = this.viewport.priceMin;
+      const newMax = this.viewport.priceMax;
+      // Only animate if change is small (normal tick), snap if large (new candle/zoom)
+      const rangeDelta = Math.abs((newMax - newMin) - (oldMax - oldMin)) / (oldMax - oldMin || 1);
+      if (rangeDelta < 0.1 && oldMin > 0) {
+        // Small change: lerp the target, let smooth animation handle it
+        this.targetViewport.priceMin = newMin;
+        this.targetViewport.priceMax = newMax;
+        this.viewport.priceMin = oldMin;
+        this.viewport.priceMax = oldMax;
+        this.startSmoothAnimation();
+        if (this.onPriceChange) this.onPriceChange(candle.close);
+        return;
+      }
     }
     this.syncTargetToViewport();
     this.scheduleRender();
@@ -461,7 +491,7 @@ export class CanvasChartEngine {
   }
 
   private static readonly MIN_VISIBLE_CANDLES = 5;
-  private static readonly LERP_SPEED = 0.12; // Interpolation speed (smooth 200-300ms easing)
+  private static readonly LERP_SPEED = 0.08; // Interpolation speed (smooth ~300-400ms easing, TradingView-like)
   private static readonly LERP_THRESHOLD = 0.05; // Snap when close enough
 
   /**
