@@ -250,6 +250,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
   const [showThemePanel, setShowThemePanel] = useState(false);
   const [showDepthMap, setShowDepthMap] = useState(false);
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
+  const [indicatorMenuPos, setIndicatorMenuPos] = useState({ top: 0, right: 0 });
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showToolProperties, setShowToolProperties] = useState(false);
   const [customColors, setCustomColors] = useState<CustomColors>(DEFAULT_CUSTOM_COLORS);
@@ -733,9 +734,9 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             </button>
 
             {/* Indicators Toggle */}
-            <div className="relative">
+            <div className="relative" ref={(el) => { if (el) (el as HTMLDivElement & { _indicatorBtnRect?: DOMRect })._indicatorBtnRect = el.getBoundingClientRect(); }}>
               <button
-                onClick={() => setShowIndicatorMenu(!showIndicatorMenu)}
+                onClick={(e) => { setShowIndicatorMenu(!showIndicatorMenu); const rect = (e.currentTarget.parentElement as HTMLElement)?.getBoundingClientRect(); if (rect) setIndicatorMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); }}
                 data-tooltip="Indicators"
                 className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95"
                 style={{ backgroundColor: indicatorConfigs.some(i => i.enabled) ? theme.colors.toolActive : 'transparent', color: indicatorConfigs.some(i => i.enabled) ? activeTextColor : theme.colors.textSecondary }}
@@ -744,8 +745,8 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
               </button>
               {showIndicatorMenu && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowIndicatorMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border shadow-xl z-50 py-1" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowIndicatorMenu(false)} />
+                  <div className="fixed w-52 rounded-lg border shadow-xl z-[9999] py-1 max-h-[60vh] overflow-y-auto" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, top: indicatorMenuPos.top, right: indicatorMenuPos.right }}>
                     {/* Orderflow Section */}
                     <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>Orderflow</div>
 
