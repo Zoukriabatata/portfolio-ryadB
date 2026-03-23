@@ -825,9 +825,16 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             <canvas ref={refs.chartCanvas} className="absolute inset-0 w-full h-full" style={{ cursor: 'crosshair', zIndex: 1 }} />
           </div>
 
-          {/* Volume Profile Panel — side-configurable overlay */}
+          {/* Volume Profile Panel — clipped to price chart area only (excludes volume bars + time axis) */}
           {showVolumeProfile && symbolData.viewportState.chartHeight > 0 && (
-            <div className="absolute z-[3]" style={vpPanelSide === 'left' ? { left: 0, top: 0, height: symbolData.viewportState.chartHeight, overflow: 'hidden' } : { right: 80, top: 0, height: symbolData.viewportState.chartHeight, overflow: 'hidden' }}>
+            <div className="absolute z-[3] pointer-events-none" style={{
+              ...(vpPanelSide === 'left' ? { left: 0 } : { right: 80 }),
+              top: 0,
+              height: symbolData.viewportState.chartHeight,
+              overflow: 'hidden',
+              clipPath: `inset(0 0 0 0)`,
+            }}>
+              <div className="pointer-events-auto">
               <VolumeProfilePanel
                 data={vpData.data}
                 priceMin={symbolData.viewportState.priceMin}
@@ -840,6 +847,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                 vpBackground={{ show: vpShowBackground, color: vpBackgroundColor, opacity: vpBackgroundOpacity }}
                 vpGradient={{ enabled: vpGradientEnabled, askEnd: vpAskGradientEnd, bidEnd: vpBidGradientEnd }}
               />
+              </div>
             </div>
           )}
 
