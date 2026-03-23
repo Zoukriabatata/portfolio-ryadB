@@ -112,67 +112,69 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     engine.reset();
     setData(EMPTY_DATA);
 
-    // 1. Build VP from klines (OHLCV) — single API call, instant processing
-    const loadFromKlines = async () => {
+    // 1. Load real trades from aggTrades — limited to last 2h to avoid rate limits
+    const loadHistorical = async () => {
       const endTime = Date.now();
+      // Cap at 2 hours max to avoid Binance rate limits (BTC = ~150K trades/2h = ~150 requests)
+      const maxMinutes = 120;
       let startTime: number;
       if (vpProfileMode === 'daily') {
         const now = new Date();
-        startTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+        const dayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+        // If more than 2h since day start, only load last 2h
+        startTime = Math.max(dayStart, endTime - maxMinutes * 60 * 1000);
       } else {
         const depthMinutes = vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth;
-        startTime = endTime - depthMinutes * 60 * 1000;
+        startTime = endTime - Math.min(depthMinutes, maxMinutes) * 60 * 1000;
       }
 
-      try {
+      let cursor = startTime;
+      let requestCount = 0;
+      const maxRequests = 80; // Safety cap
+
+      while (cursor < endTime && !cancelled && requestCount < maxRequests) {
         const params = new URLSearchParams({
           symbol: symbol.toUpperCase(),
-          interval: '1m',
-          startTime: startTime.toString(),
+          startTime: cursor.toString(),
           endTime: endTime.toString(),
-          limit: '1500',
+          limit: '1000',
         });
 
-        const res = await fetch(`/api/binance/fapi/v1/klines?${params}`);
-        if (!res.ok || cancelled) return;
-        const klines = await res.json();
-        if (!Array.isArray(klines) || klines.length === 0) return;
+        try {
+          const res = await fetch(`/api/binance/fapi/v1/aggTrades?${params}`);
+          requestCount++;
+          if (!res.ok || cancelled) break;
+          const trades = await res.json();
+          if (!Array.isArray(trades) || trades.length === 0) break;
 
-        const tickSize = getTickSizeForSymbol(symbol);
-
-        // Fast bulk injection — no processTrade overhead
-        for (const k of klines) {
-          const high = parseFloat(k[2]);
-          const low = parseFloat(k[3]);
-          const close = parseFloat(k[4]);
-          const volume = parseFloat(k[5]);
-          const ts = k[0];
-          const isBullish = parseFloat(k[4]) >= parseFloat(k[1]);
-
-          const range = high - low;
-          if (range <= 0 || volume <= 0) continue;
-
-          // Distribute volume: 3 price levels (low, mid, high) with weighted close
-          const levels = [low, (low + high) / 2, close, high];
-          const weights = levels.map(p => 1 + (1 - Math.abs(p - close) / (range || 1)) * 2);
-          const totalW = weights.reduce((s, w) => s + w, 0);
-          const buyRatio = isBullish ? 0.6 : 0.4;
-
-          for (let i = 0; i < levels.length; i++) {
-            const binVol = (volume * weights[i]) / totalW;
-            engine.addBulkVolume(levels[i], binVol * buyRatio, binVol * (1 - buyRatio), ts);
+          for (const t of trades) {
+            engine.processTrade({
+              timestamp: t.T,
+              price: parseFloat(t.p),
+              size: parseFloat(t.q),
+              side: t.m ? 'sell' : 'buy',
+            });
           }
-        }
 
-        if (!cancelled && engineRef.current) {
-          setData(readEngineData(engineRef.current));
+          cursor = trades[trades.length - 1].T + 1;
+
+          // Update UI every 10 batches so user sees progress
+          if (requestCount % 10 === 0 && !cancelled && engineRef.current) {
+            setData(readEngineData(engineRef.current));
+          }
+
+          if (trades.length < 1000) break;
+        } catch {
+          break;
         }
-      } catch {
-        // Live trades will still build the profile
+      }
+
+      if (!cancelled && engineRef.current) {
+        setData(readEngineData(engineRef.current));
       }
     };
 
-    loadFromKlines();
+    loadHistorical();
 
     // 2. Subscribe to live tick stream (runs in parallel with historical fetch)
     const ws = getBinanceLiveWS();
