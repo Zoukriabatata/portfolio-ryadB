@@ -373,11 +373,24 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
   const vpBidGradientEnd = usePreferencesStore((s) => s.vpBidGradientEnd);
 
   useEffect(() => {
+    const engine = refs.chartEngine.current;
+    if (!engine) return;
+
     if (!showVolumeProfile || !vpData.data.valueArea.poc) {
-      refs.chartEngine.current?.setVPLevels(null);
+      engine.setVPLevels(null);
+      engine.setVolumeProfileData([], 0, 0, 0);
       return;
     }
-    refs.chartEngine.current?.setVPLevels({
+
+    // Pass VP bins to engine for ATAS-style background rendering
+    engine.setVolumeProfileData(
+      vpData.data.bins,
+      vpData.data.valueArea.poc,
+      vpData.data.valueArea.vah,
+      vpData.data.valueArea.val,
+    );
+
+    engine.setVPLevels({
       poc: vpData.data.valueArea.poc,
       vah: vpData.data.valueArea.vah,
       val: vpData.data.valueArea.val,
@@ -385,7 +398,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
       vahEnabled: vpVahEnabled, vahColor: vpVahColor, vahWidth: vpVahWidth, vahStyle: vpVahStyle, vahLabel: vpVahLabel,
       valEnabled: vpValEnabled, valColor: vpValColor, valWidth: vpValWidth, valStyle: vpValStyle, valLabel: vpValLabel,
     });
-  }, [showVolumeProfile, vpData.data.valueArea, refs,
+  }, [showVolumeProfile, vpData.data, refs,
     vpPocEnabled, vpPocColor, vpPocWidth, vpPocStyle, vpPocLabel,
     vpVahEnabled, vpVahColor, vpVahWidth, vpVahStyle, vpVahLabel,
     vpValEnabled, vpValColor, vpValWidth, vpValStyle, vpValLabel]);
@@ -825,31 +838,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             <canvas ref={refs.chartCanvas} className="absolute inset-0 w-full h-full" style={{ cursor: 'crosshair', zIndex: 1 }} />
           </div>
 
-          {/* Volume Profile Panel — clipped to price chart area only (excludes volume bars + time axis) */}
-          {showVolumeProfile && symbolData.viewportState.chartHeight > 0 && (
-            <div className="absolute z-[3] pointer-events-none" style={{
-              ...(vpPanelSide === 'left' ? { left: 0 } : { right: 80 }),
-              top: 0,
-              height: symbolData.viewportState.chartHeight,
-              overflow: 'hidden',
-              clipPath: `inset(0 0 0 0)`,
-            }}>
-              <div className="pointer-events-auto">
-              <VolumeProfilePanel
-                data={vpData.data}
-                priceMin={symbolData.viewportState.priceMin}
-                priceMax={symbolData.viewportState.priceMax}
-                chartHeight={symbolData.viewportState.chartHeight}
-                width={200}
-                side={vpPanelSide}
-                theme={{ background: engine.effectiveColors.background, border: theme.colors.border, text: theme.colors.text, textMuted: theme.colors.textMuted }}
-                vpColors={{ bid: vpBidColor, ask: vpAskColor, opacity: vpBarOpacity }}
-                vpBackground={{ show: vpShowBackground, color: vpBackgroundColor, opacity: vpBackgroundOpacity }}
-                vpGradient={{ enabled: vpGradientEnabled, askEnd: vpAskGradientEnd, bidEnd: vpBidGradientEnd }}
-              />
-              </div>
-            </div>
-          )}
+          {/* Volume Profile is now rendered directly in CanvasChartEngine (ATAS-style) */}
 
           {showDepthMap && symbolData.viewportState.chartHeight > 0 && (
             <MiniDepthHeatmap priceMin={symbolData.viewportState.priceMin} priceMax={symbolData.viewportState.priceMax} chartHeight={symbolData.viewportState.chartHeight} onClose={() => setShowDepthMap(false)} />

@@ -172,6 +172,12 @@ export class CanvasChartEngine {
     labelBorderRadius: 0,
   };
   private vpLevels: VPLevelConfig | null = null;
+
+  // Volume Profile bins — drawn as ATAS-style horizontal bars in chart background
+  private vpBins: { price: number; totalVolume: number; bidVolume: number; askVolume: number }[] = [];
+  private vpPoc = 0;
+  private vpVah = 0;
+  private vpVal = 0;
   private showCrosshairTooltip = true;
 
   // Callbacks
@@ -454,6 +460,13 @@ export class CanvasChartEngine {
     this.showCrosshairTooltip = show;
   }
 
+  setVolumeProfileData(bins: { price: number; totalVolume: number; bidVolume: number; askVolume: number }[], poc: number, vah: number, val: number): void {
+    this.vpBins = bins;
+    this.vpPoc = poc;
+    this.vpVah = vah;
+    this.vpVal = val;
+  }
+
   setVPLevels(config: VPLevelConfig | null): void {
     this.vpLevels = config;
     this.render();
@@ -661,6 +674,7 @@ export class CanvasChartEngine {
     this.ctx.fillRect(0, 0, this.dimensions.width, this.dimensions.height);
 
     if (this.showGrid) this.drawGrid();
+    if (this.vpBins && this.vpBins.length > 0) this.drawVolumeProfile();
     this.drawCandles();
     if (this.showVolume) this.drawVolume();
     this.drawPriceAxis();
@@ -1217,6 +1231,77 @@ export class CanvasChartEngine {
       const x = ((i - startIndex) / visibleCandles) * chartWidth;
       const timeStr = this.formatTime(candle.time);
       this.ctx.fillText(timeStr, x, axisY + 18);
+    }
+  }
+
+  /**
+   * Draw Volume Profile — ATAS-style horizontal bars behind candles
+   * Uses visible candles' volume, rendered left-aligned with sqrt scaling
+   */
+  private drawVolumeProfile(): void {
+    const { width, priceAxisWidth, timeAxisHeight, volumeHeight } = this.dimensions;
+    const { priceMin, priceMax } = this.viewport;
+    const chartWidth = width - priceAxisWidth;
+    const chartHeight = this.dimensions.height - timeAxisHeight - (this.showVolume ? volumeHeight : 0);
+    const priceRange = priceMax - priceMin;
+    if (priceRange <= 0 || chartHeight <= 0) return;
+
+    const ctx = this.ctx;
+    const bins = this.vpBins;
+    const vpMaxWidth = chartWidth * 0.30; // VP covers 30% of chart width (like ATAS)
+
+    // Filter visible bins
+    const visible = bins.filter(b => b.price >= priceMin && b.price <= priceMax);
+    if (visible.length === 0) return;
+
+    // Max volume from visible bins
+    const maxVol = visible.reduce((m, b) => Math.max(m, b.totalVolume), 0);
+    if (maxVol === 0) return;
+
+    // Determine bar height from price spacing
+    let tickSize = 10;
+    if (visible.length >= 2) {
+      const prices = visible.map(b => b.price).sort((a, b) => a - b);
+      for (let i = 1; i < prices.length; i++) {
+        const d = prices[i] - prices[i - 1];
+        if (d > 0) { tickSize = d; break; }
+      }
+    }
+    const barH = Math.max(1, (tickSize / priceRange) * chartHeight * 0.9);
+
+    for (const bin of visible) {
+      const y = ((priceMax - bin.price) / priceRange) * chartHeight;
+      const barY = y - barH / 2;
+      if (barY + barH < 0 || barY > chartHeight) continue;
+
+      const intensity = Math.pow(bin.totalVolume / maxVol, 0.55); // sqrt-ish scale
+      const totalW = Math.max(1, intensity * vpMaxWidth);
+
+      const isPOC = bin.price === this.vpPoc;
+      const isVA = bin.price >= this.vpVal && bin.price <= this.vpVah;
+
+      // Bid portion (sell aggressor) — darker blue
+      const bidRatio = bin.totalVolume > 0 ? bin.bidVolume / bin.totalVolume : 0.5;
+      const bidW = totalW * bidRatio;
+      const askW = totalW * (1 - bidRatio);
+
+      // Draw bid bar (left)
+      ctx.globalAlpha = isPOC ? 0.50 : isVA ? 0.35 : 0.20;
+      ctx.fillStyle = '#5c6bc0'; // indigo
+      ctx.fillRect(0, barY, bidW, barH);
+
+      // Draw ask bar (right of bid)
+      ctx.fillStyle = '#42a5f5'; // lighter blue
+      ctx.fillRect(bidW, barY, askW, barH);
+
+      // POC highlight
+      if (isPOC) {
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = '#e2b93b';
+        ctx.fillRect(0, barY, totalW, Math.max(barH, 2));
+      }
+
+      ctx.globalAlpha = 1;
     }
   }
 
