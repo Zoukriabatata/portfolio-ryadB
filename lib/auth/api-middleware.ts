@@ -87,7 +87,7 @@ export async function requireAuth(req: NextRequest): Promise<AuthResult | AuthEr
     const userEmail = (token.email as string || '').toLowerCase();
     const isAdmin = ADMIN_EMAILS.includes(userEmail);
     const isBetaTester = BETA_TESTER_EMAILS.includes(userEmail);
-    const effectiveTier = (isAdmin || isBetaTester) ? 'ULTRA' : ((token.tier as string) || 'FREE');
+    const effectiveTier = 'ULTRA'; // TODO: revert to (isAdmin || isBetaTester) ? 'ULTRA' : ((token.tier as string) || 'FREE');
 
     // Success - return user info and rate limit headers
     return {
