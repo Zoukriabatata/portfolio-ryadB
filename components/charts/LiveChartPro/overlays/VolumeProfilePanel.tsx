@@ -147,12 +147,16 @@ export default function VolumeProfilePanel({
       }
     }
 
-    const barHeight = Math.max(2, Math.min((tickSize / priceRange) * chartHeight * 0.75, 14));
-    const barGap = 0;  // packed bars like footprint
-    void barGap;
+    const barHeight = Math.max(1, Math.min((tickSize / priceRange) * chartHeight * 0.85, 10));
 
-    // Use global maxBinVolume (not viewport-aware) — matches footprint approach
-    const maxVolume = data.maxBinVolume;
+    // Filter to visible bins FIRST, then compute max from visible only
+    const viewportPadding = tickSize * 2;
+    const visibleBins = bins.filter(b =>
+      b.price >= priceMin - viewportPadding && b.price <= priceMax + viewportPadding
+    );
+
+    // Max volume from visible bins only — prevents out-of-view POC from shrinking visible bars
+    const maxVolume = visibleBins.reduce((max, b) => Math.max(max, b.totalVolume), 0);
     if (maxVolume === 0) {
       ctx.fillStyle = theme.textMuted;
       ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
@@ -161,30 +165,26 @@ export default function VolumeProfilePanel({
       return;
     }
 
-    // Build value area price set
     const vahPrice = valueArea.vah;
     const valPrice = valueArea.val;
     const pocPrice = valueArea.poc;
 
-    // Anchor and direction depend on panel side
     const isLeft = currentSide === 'left';
-    const barMaxWidth = w - 12;
+    const barMaxWidth = w - 16;
 
-    // ── Value Area shading band ──
-    const vahY = priceToY(vahPrice);
-    const valY = priceToY(valPrice);
-    const vaTop = Math.min(vahY, valY);
-    const vaBottom = Math.max(vahY, valY);
-    ctx.fillStyle = VP_COLORS.vaFill;
-    ctx.globalAlpha = 0.04 * vpOpacity;
-    ctx.fillRect(0, vaTop, w, vaBottom - vaTop);
-    ctx.globalAlpha = 1;
-
-    // ── Per-tick bid/ask split bars ──
-    const viewportPadding = tickSize * 2;
-    const visibleBins = bins.filter(b =>
-      b.price >= priceMin - viewportPadding && b.price <= priceMax + viewportPadding
-    );
+    // ── Value Area shading band (only if visible) ──
+    if (vahPrice >= priceMin && valPrice <= priceMax) {
+      const vahY = priceToY(Math.min(vahPrice, priceMax));
+      const valY = priceToY(Math.max(valPrice, priceMin));
+      const vaTop = Math.max(0, Math.min(vahY, valY));
+      const vaBottom = Math.min(h, Math.max(vahY, valY));
+      if (vaBottom > vaTop) {
+        ctx.fillStyle = VP_COLORS.vaFill;
+        ctx.globalAlpha = 0.04 * vpOpacity;
+        ctx.fillRect(0, vaTop, w, vaBottom - vaTop);
+        ctx.globalAlpha = 1;
+      }
+    }
 
     for (const bin of visibleBins) {
       const y = priceToY(bin.price);
