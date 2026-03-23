@@ -743,7 +743,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
               </button>
-              {showIndicatorMenu && (
+              {showIndicatorMenu && typeof document !== 'undefined' && createPortal(
                 <>
                   <div className="fixed inset-0 z-[9998]" onClick={() => setShowIndicatorMenu(false)} />
                   <div className="fixed w-52 rounded-lg border shadow-xl z-[9999] py-1 max-h-[60vh] overflow-y-auto" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, top: indicatorMenuPos.top, right: indicatorMenuPos.right }}>
@@ -751,14 +751,14 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                     <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>Orderflow</div>
 
                     {/* Volume Profile */}
-                    <button onClick={() => setShowVolumeProfile(!showVolumeProfile)} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showVolumeProfile ? theme.colors.text : theme.colors.textMuted }}>
+                    <button onClick={() => { setShowVolumeProfile(!showVolumeProfile); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showVolumeProfile ? theme.colors.text : theme.colors.textMuted }}>
                       <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showVolumeProfile ? '#1e88e5' : 'transparent', borderColor: '#1e88e5' }} />
                       <span className="font-medium">Volume Profile</span>
                       <span className="ml-auto text-[9px] opacity-40">Daily</span>
                     </button>
 
                     {/* Market Profile */}
-                    <button onClick={() => setShowMarketProfile(!showMarketProfile)} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showMarketProfile ? theme.colors.text : theme.colors.textMuted }}>
+                    <button onClick={() => { setShowMarketProfile(!showMarketProfile); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showMarketProfile ? theme.colors.text : theme.colors.textMuted }}>
                       <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showMarketProfile ? '#7D2962' : 'transparent', borderColor: '#7D2962' }} />
                       <span className="font-medium">Market Profile</span>
                       <span className="ml-auto text-[9px] opacity-40">M15</span>
@@ -792,7 +792,8 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                       );
                     })}
                   </div>
-                </>
+                </>,
+                document.body
               )}
             </div>
 
