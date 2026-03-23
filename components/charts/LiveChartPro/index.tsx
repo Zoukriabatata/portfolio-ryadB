@@ -716,22 +716,8 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             <PriceCountdownCompact timeframeSeconds={symbolData.timeframe} />
           </div>
 
-          {/* Group 3: Controls */}
-          <div className="flex items-center gap-1.5 pl-3 ml-auto">
-            <MagnetToggle theme={theme} />
-
-            {/* Chart Settings — opens AdvancedChartSettings */}
-            <button
-              onClick={settings.openAdvancedSettings}
-              data-tooltip="Settings"
-              className="w-8 h-8 flex items-center justify-center rounded-md transition-all hover:scale-105 active:scale-95"
-              style={{ backgroundColor: settings.showAdvancedSettings ? theme.colors.toolActive : 'transparent', color: settings.showAdvancedSettings ? activeTextColor : theme.colors.textSecondary }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-              </svg>
-            </button>
+          {/* Group 3: Controls — minimal, clean */}
+          <div className="flex items-center gap-1 pl-3 ml-auto">
 
             {/* Indicators Toggle */}
             <div className="relative" ref={(el) => { if (el) (el as HTMLDivElement & { _indicatorBtnRect?: DOMRect })._indicatorBtnRect = el.getBoundingClientRect(); }}>
@@ -797,45 +783,22 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
               )}
             </div>
 
-            {/* Volume Profile Toggle */}
-            {/* VP & Market Profile are now in the Indicators menu */}
-
-            {/* Trade Toggle */}
-            <button onClick={() => setShowTradeBar(!showTradeBar)} data-tooltip="Quick Trade" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showTradeBar ? theme.colors.toolActive : 'transparent', color: showTradeBar ? activeTextColor : theme.colors.textSecondary }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+            {/* Chart Settings */}
+            <button
+              onClick={settings.openAdvancedSettings}
+              data-tooltip="Chart Settings"
+              className="w-8 h-8 flex items-center justify-center rounded-md transition-all hover:scale-105 active:scale-95"
+              style={{ backgroundColor: settings.showAdvancedSettings ? theme.colors.toolActive : 'transparent', color: settings.showAdvancedSettings ? activeTextColor : theme.colors.textSecondary }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+              </svg>
             </button>
 
-            {/* Global Settings */}
-            <button onClick={() => settings.setShowGlobalSettings(true)} data-tooltip="Settings" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ color: theme.colors.textSecondary }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
-            </button>
-
-            <div className="w-px h-4" style={{ backgroundColor: theme.colors.border }} />
-
-            {/* Theme Selector */}
-            <div className="relative">
-              <button onClick={() => setShowThemePanel(!showThemePanel)} data-tooltip={THEMES.find(t => t.id === themeId)?.name} className="w-7 h-7 flex items-center justify-center rounded transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: theme.colors.background, border: `1px solid ${theme.colors.border}` }}>
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.colors.candleUp, boxShadow: `0 0 6px ${theme.colors.candleUp}40` }} />
-              </button>
-              {showThemePanel && (
-                <div className="absolute top-full right-0 mt-1 rounded-lg shadow-2xl z-50 p-1.5 min-w-[160px] animate-slideDown" style={{ backgroundColor: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}>
-                  {THEMES.map((t, index) => (
-                    <button
-                      key={t.id}
-                      onClick={() => { setTheme(t.id); setShowThemePanel(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-all duration-200 ease-out transform ${themeId === t.id ? 'scale-102' : 'hover:scale-102 active:scale-98'}`}
-                      style={{ backgroundColor: themeId === t.id ? theme.colors.toolActive : 'transparent', color: themeId === t.id ? activeTextColor : theme.colors.text, animationDelay: `${index * 30}ms` }}
-                    >
-                      <span className={`w-3 h-3 rounded-full transition-transform duration-200 ${themeId === t.id ? 'scale-125' : ''}`} style={{ backgroundColor: t.colors.candleUp, boxShadow: `0 0 6px ${t.colors.candleUp}` }} />
-                      <span className="font-medium">{t.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 text-[10px]" style={{ color: theme.colors.textMuted }}>
-              <span ref={refs.tickCount} className="font-mono tabular-nums">0</span>
+            {/* Status dot — connection indicator */}
+            <div className="flex items-center gap-1 text-[9px] px-1" style={{ color: theme.colors.textMuted }}>
+              <span ref={refs.tickCount} className="font-mono tabular-nums hidden sm:inline">0</span>
               <div ref={refs.statusDot} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.colors.textMuted }} />
             </div>
 
