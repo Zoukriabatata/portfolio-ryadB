@@ -44,8 +44,8 @@ const DEFAULT_THEME = {
 
 // Match FootprintCanvasRenderer colors exactly
 const VP_COLORS = {
-  bid: '#ef5350',
-  ask: '#26a69a',
+  bid: '#5c6bc0',    // ATAS-style blue/indigo for bid (sell) volume
+  ask: '#42a5f5',    // Lighter blue for ask (buy) volume
   poc: '#e2b93b',
   vaFill: '#5e7ce2',
   vahValLine: '#7c85f6',
@@ -192,8 +192,10 @@ export default function VolumeProfilePanel({
 
       const isPOC = bin.price === pocPrice;
       const isValueArea = bin.price >= valPrice && bin.price <= vahPrice;
-      const intensity = bin.totalVolume / maxVolume;
-      const totalBarW = intensity * barMaxWidth;
+      // Sqrt scale — makes smaller bars more visible (ATAS-style)
+      const rawIntensity = bin.totalVolume / maxVolume;
+      const intensity = Math.pow(rawIntensity, 0.5); // sqrt for better distribution
+      const totalBarW = Math.max(2, intensity * barMaxWidth);
       const barY = y - barHeight / 2;
 
       const bidW = bin.totalVolume > 0 ? (bin.bidVolume / bin.totalVolume) * totalBarW : 0;
