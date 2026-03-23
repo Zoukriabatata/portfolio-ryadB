@@ -15,11 +15,15 @@ export interface FlowItem {
   volOiRatio: number;
   iv: number;           // percent (25.3)
   delta: number;        // absolute value
+  gamma: number;
+  vega: number;
+  theta: number;
   bid: number;
   ask: number;
   lastPrice: number;
   tag: 'WHALE' | 'UNUSUAL' | 'BLOCK' | 'SWEEP' | 'FLOW';
   sentiment: 'BULLISH' | 'BEARISH';
+  sentimentScore: number; // -1 (max bearish) to +1 (max bullish)
 }
 
 function expToLabel(exp: string): string {
@@ -91,6 +95,13 @@ export async function GET(request: NextRequest) {
 
       if (tagFilter !== 'all' && tag.toLowerCase() !== tagFilter.toLowerCase()) continue;
 
+      // Multi-factor sentiment: considers delta, vol/oi, premium weight
+      const deltaWeight = Math.abs(opt.delta);         // 0-1, higher = more directional
+      const volOiWeight = Math.min(volOiRatio / 3, 1); // 0-1, higher = more unusual
+      const premWeight  = Math.min(premium / 1_000_000, 1); // 0-1, higher = bigger bet
+      const rawScore    = (deltaWeight * 0.4 + volOiWeight * 0.3 + premWeight * 0.3);
+      const sentimentScore = type === 'CALL' ? rawScore : -rawScore;
+
       const item: FlowItem = {
         id:          opt.option,
         type,
@@ -104,11 +115,15 @@ export async function GET(request: NextRequest) {
         volOiRatio,
         iv:          opt.iv * 100,
         delta:       Math.abs(opt.delta),
+        gamma:       opt.gamma ?? 0,
+        vega:        opt.vega ?? 0,
+        theta:       opt.theta ?? 0,
         bid:         opt.bid,
         ask:         opt.ask,
         lastPrice:   opt.lastPrice,
         tag,
         sentiment:   type === 'CALL' ? 'BULLISH' : 'BEARISH',
+        sentimentScore,
       };
 
       flows.push(item);
@@ -122,6 +137,40 @@ export async function GET(request: NextRequest) {
     const totalPutPremium  = flows.filter(f => f.type === 'PUT').reduce((s, f) => s + f.premium, 0);
     const unusualCount     = flows.filter(f => f.tag === 'UNUSUAL' || f.tag === 'WHALE').length;
 
+    // Weighted sentiment score: premium-weighted average of all sentiment scores
+    const totalPremium = totalCallPremium + totalPutPremium;
+    const avgSentiment = totalPremium > 0
+      ? flows.reduce((s, f) => s + f.sentimentScore * f.premium, 0) / totalPremium
+      : 0;
+
+    // Strike × Expiry aggregation for heatmap
+    const strikeExpiryMap = new Map<string, { strike: number; expLabel: string; dte: number; callPremium: number; putPremium: number; totalVolume: number }>();
+    for (const f of flows) {
+      const key = `${f.strike}_${f.expiry}`;
+      const entry = strikeExpiryMap.get(key) || { strike: f.strike, expLabel: f.expLabel, dte: f.dte, callPremium: 0, putPremium: 0, totalVolume: 0 };
+      if (f.type === 'CALL') entry.callPremium += f.premium;
+      else entry.putPremium += f.premium;
+      entry.totalVolume += f.volume;
+      strikeExpiryMap.set(key, entry);
+    }
+
+    // Premium by strike for bar chart
+    const strikeMap = new Map<number, { callPremium: number; putPremium: number }>();
+    for (const f of flows) {
+      const entry = strikeMap.get(f.strike) || { callPremium: 0, putPremium: 0 };
+      if (f.type === 'CALL') entry.callPremium += f.premium;
+      else entry.putPremium += f.premium;
+      strikeMap.set(f.strike, entry);
+    }
+    const premiumByStrike = Array.from(strikeMap.entries())
+      .map(([strike, v]) => ({ strike, ...v }))
+      .sort((a, b) => a.strike - b.strike);
+
+    // Top 5 unusual trades
+    const topUnusual = flows
+      .filter(f => f.tag === 'WHALE' || f.tag === 'UNUSUAL' || f.tag === 'BLOCK')
+      .slice(0, 5);
+
     return NextResponse.json({
       symbol,
       spotPrice:         chain.spotPrice,
@@ -131,6 +180,10 @@ export async function GET(request: NextRequest) {
       totalCallPremium,
       totalPutPremium,
       unusualCount,
+      avgSentiment,
+      premiumByStrike,
+      strikeExpiry:      Array.from(strikeExpiryMap.values()),
+      topUnusual,
     });
 
   } catch (err) {
