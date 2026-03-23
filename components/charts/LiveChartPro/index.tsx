@@ -628,12 +628,12 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div
-          className="flex items-center px-1.5 py-0.5 border-b gap-0 overflow-x-auto"
-          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 32, flexShrink: 0, scrollbarWidth: 'none', position: 'relative', zIndex: 10 } as React.CSSProperties}
+          className="flex items-center px-2 py-0 border-b gap-0 overflow-x-auto"
+          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, scrollbarWidth: 'none', position: 'relative', zIndex: 10 } as React.CSSProperties}
           onWheel={e => e.stopPropagation()}
         >
           {/* Group 1: Symbol & Price */}
-          <div className="flex items-center gap-2.5 pr-2.5" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
+          <div className="flex items-center gap-2 pr-3 mr-1" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
             <div className="relative">
               <button
                 ref={symbolBtnRef}
@@ -646,7 +646,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                     if (rect) setSymbolDropdownPos({ top: rect.bottom + 4, left: rect.left });
                   }
                 }}
-                className="flex items-center gap-1.5 text-xs font-bold rounded px-2 py-1 border focus:outline-none hover:bg-opacity-80 transition-colors"
+                className="flex items-center gap-1.5 text-[13px] font-bold rounded-md px-2.5 py-1 border focus:outline-none hover:brightness-110 transition-all"
                 style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.text }}
               >
                 <span>{symbolData.selectedSymbolLabel}</span>
@@ -657,7 +657,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
 
             </div>
 
-            <span ref={refs.price} className="text-base font-mono font-bold tabular-nums" style={{ color: theme.colors.text }}>$0.00</span>
+            <span ref={refs.price} className="text-[15px] font-mono font-black tabular-nums tracking-tight" style={{ color: theme.colors.text }}>$0.00</span>
 
             {/* Price Position Indicator */}
             <div ref={refs.pricePosition} className="relative w-4 h-6 rounded border overflow-hidden" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }} data-tooltip="Session Range" data-tooltip-pos="top">
@@ -695,14 +695,14 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
           </div>
 
           {/* Group 2: Timeframes */}
-          <div className="flex items-center gap-0.5 px-2.5" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
+          <div className="flex items-center gap-0.5 px-3 mr-1" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
             {Object.entries(TF_GROUPS).map(([group, tfs]) => (
               <div key={group} className="flex items-center rounded p-px mr-0.5" style={{ backgroundColor: theme.colors.background }}>
                 {tfs.map((tf) => (
                   <button
                     key={tf}
                     onClick={() => symbolData.handleTimeframeChange(tf)}
-                    className="px-1.5 py-0.5 rounded text-[11px] font-medium transition-all duration-150"
+                    className="px-2 py-0.5 rounded text-[11px] font-semibold transition-all duration-150"
                     style={{
                       backgroundColor: symbolData.timeframe === tf ? theme.colors.toolActive : 'transparent',
                       color: symbolData.timeframe === tf ? activeTextColor : theme.colors.textSecondary,
@@ -717,17 +717,17 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
           </div>
 
           {/* Group 3: Controls */}
-          <div className="flex items-center gap-1 pl-2.5 ml-auto">
+          <div className="flex items-center gap-1.5 pl-3 ml-auto">
             <MagnetToggle theme={theme} />
 
             {/* Chart Settings — opens AdvancedChartSettings */}
             <button
               onClick={settings.openAdvancedSettings}
-              data-tooltip="Chart Settings"
-              className="w-7 h-7 flex items-center justify-center rounded transition-colors"
+              data-tooltip="Settings"
+              className="w-8 h-8 flex items-center justify-center rounded-md transition-all hover:scale-105 active:scale-95"
               style={{ backgroundColor: settings.showAdvancedSettings ? theme.colors.toolActive : 'transparent', color: settings.showAdvancedSettings ? activeTextColor : theme.colors.textSecondary }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
               </svg>
@@ -738,10 +738,10 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
               <button
                 onClick={(e) => { setShowIndicatorMenu(!showIndicatorMenu); const rect = (e.currentTarget.parentElement as HTMLElement)?.getBoundingClientRect(); if (rect) setIndicatorMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); }}
                 data-tooltip="Indicators"
-                className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95"
-                style={{ backgroundColor: indicatorConfigs.some(i => i.enabled) ? theme.colors.toolActive : 'transparent', color: indicatorConfigs.some(i => i.enabled) ? activeTextColor : theme.colors.textSecondary }}
+                className="w-8 h-8 flex items-center justify-center rounded-md text-sm transition-all duration-150 hover:scale-105 active:scale-95"
+                style={{ backgroundColor: (indicatorConfigs.some(i => i.enabled) || showVolumeProfile || showMarketProfile) ? theme.colors.toolActive : 'transparent', color: (indicatorConfigs.some(i => i.enabled) || showVolumeProfile || showMarketProfile) ? activeTextColor : theme.colors.textSecondary }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
               </button>
               {showIndicatorMenu && typeof document !== 'undefined' && createPortal(
                 <>
