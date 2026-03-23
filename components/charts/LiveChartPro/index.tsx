@@ -745,7 +745,28 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
               {showIndicatorMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowIndicatorMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border shadow-xl z-50 py-1" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
+                  <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border shadow-xl z-50 py-1" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
+                    {/* Orderflow Section */}
+                    <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>Orderflow</div>
+
+                    {/* Volume Profile */}
+                    <button onClick={() => setShowVolumeProfile(!showVolumeProfile)} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showVolumeProfile ? theme.colors.text : theme.colors.textMuted }}>
+                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showVolumeProfile ? '#1e88e5' : 'transparent', borderColor: '#1e88e5' }} />
+                      <span className="font-medium">Volume Profile</span>
+                      <span className="ml-auto text-[9px] opacity-40">Daily</span>
+                    </button>
+
+                    {/* Market Profile */}
+                    <button onClick={() => setShowMarketProfile(!showMarketProfile)} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showMarketProfile ? theme.colors.text : theme.colors.textMuted }}>
+                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showMarketProfile ? '#7D2962' : 'transparent', borderColor: '#7D2962' }} />
+                      <span className="font-medium">Market Profile</span>
+                      <span className="ml-auto text-[9px] opacity-40">M15</span>
+                    </button>
+
+                    {/* Separator */}
+                    <div className="mx-2 my-1 border-t" style={{ borderColor: 'var(--border)' }} />
+
+                    {/* Technical Indicators */}
                     <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>Indicators</div>
                     {indicatorConfigs.map(ind => {
                       const label = ind.type;
@@ -775,14 +796,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             </div>
 
             {/* Volume Profile Toggle */}
-            <button onClick={() => setShowVolumeProfile(!showVolumeProfile)} data-tooltip="Volume Profile" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showVolumeProfile ? theme.colors.toolActive : 'transparent', color: showVolumeProfile ? activeTextColor : theme.colors.textSecondary }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18" /><rect x="7" y="10" width="3" height="8" rx="1" /><rect x="12" y="6" width="3" height="12" rx="1" /><rect x="17" y="12" width="3" height="6" rx="1" /></svg>
-            </button>
-
-            {/* Market Profile Toggle */}
-            <button onClick={() => setShowMarketProfile(!showMarketProfile)} data-tooltip="Market Profile" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showMarketProfile ? theme.colors.toolActive : 'transparent', color: showMarketProfile ? activeTextColor : theme.colors.textSecondary }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="4" height="16" rx="1" /><rect x="10" y="8" width="4" height="12" rx="1" /><rect x="17" y="6" width="4" height="14" rx="1" /><line x1="1" y1="12" x2="23" y2="12" opacity="0.3" /></svg>
-            </button>
+            {/* VP & Market Profile are now in the Indicators menu */}
 
             {/* Trade Toggle */}
             <button onClick={() => setShowTradeBar(!showTradeBar)} data-tooltip="Quick Trade" className="w-7 h-7 flex items-center justify-center rounded text-sm transition-all duration-150 hover:scale-105 active:scale-95" style={{ backgroundColor: showTradeBar ? theme.colors.toolActive : 'transparent', color: showTradeBar ? activeTextColor : theme.colors.textSecondary }}>
