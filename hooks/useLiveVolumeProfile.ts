@@ -112,37 +112,80 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     engine.reset();
     setData(EMPTY_DATA);
 
-    // 1. Load real trades from aggTrades — limited to last 2h to avoid rate limits
+    // 1. Build daily VP from klines (1 API call) + refine with recent aggTrades
     const loadHistorical = async () => {
       const endTime = Date.now();
-      // Cap at 2 hours max to avoid Binance rate limits (BTC = ~150K trades/2h = ~150 requests)
-      const maxMinutes = 120;
       let startTime: number;
       if (vpProfileMode === 'daily') {
         const now = new Date();
-        const dayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-        // If more than 2h since day start, only load last 2h
-        startTime = Math.max(dayStart, endTime - maxMinutes * 60 * 1000);
+        startTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
       } else {
         const depthMinutes = vpProfileMode === 'custom' ? vpCustomRangeMinutes : vpHistoryDepth;
-        startTime = endTime - Math.min(depthMinutes, maxMinutes) * 60 * 1000;
+        startTime = endTime - depthMinutes * 60 * 1000;
       }
 
-      let cursor = startTime;
-      let requestCount = 0;
-      const maxRequests = 80; // Safety cap
+      const tickSize = getTickSizeForSymbol(symbol);
 
-      while (cursor < endTime && !cancelled && requestCount < maxRequests) {
+      // Phase 1: Klines for full daily coverage (instant, 1 API call)
+      try {
         const params = new URLSearchParams({
           symbol: symbol.toUpperCase(),
-          startTime: cursor.toString(),
+          interval: '1m',
+          startTime: startTime.toString(),
           endTime: endTime.toString(),
-          limit: '1000',
+          limit: '1500',
         });
+        const res = await fetch(`/api/binance/fapi/v1/klines?${params}`);
+        if (res.ok && !cancelled) {
+          const klines = await res.json();
+          if (Array.isArray(klines)) {
+            for (const k of klines) {
+              const open = parseFloat(k[1]);
+              const high = parseFloat(k[2]);
+              const low = parseFloat(k[3]);
+              const close = parseFloat(k[4]);
+              const volume = parseFloat(k[5]);
+              const ts = k[0];
+              if (volume <= 0) continue;
 
+              const isBullish = close >= open;
+              const buyRatio = isBullish ? 0.55 : 0.45;
+
+              // Typical price = (H+L+C)/3 — single bin per kline, accurate price level
+              const tp = (high + low + close) / 3;
+              const tpRounded = Math.round(tp / tickSize) * tickSize;
+              engine.addBulkVolume(tpRounded, volume * buyRatio, volume * (1 - buyRatio), ts);
+
+              // Also add bins at high and low with small weight (shows range)
+              if (high - low > tickSize * 2) {
+                const edgeVol = volume * 0.1;
+                engine.addBulkVolume(Math.round(high / tickSize) * tickSize, edgeVol * buyRatio, edgeVol * (1 - buyRatio), ts);
+                engine.addBulkVolume(Math.round(low / tickSize) * tickSize, edgeVol * (1 - buyRatio), edgeVol * buyRatio, ts);
+              }
+            }
+          }
+        }
+        if (!cancelled && engineRef.current) {
+          setData(readEngineData(engineRef.current));
+        }
+      } catch { /* continue to phase 2 */ }
+
+      // Phase 2: Recent aggTrades for precise bid/ask (last 30min only)
+      if (cancelled) return;
+      const recentStart = endTime - 30 * 60 * 1000;
+      let cursor = recentStart;
+      let reqCount = 0;
+
+      while (cursor < endTime && !cancelled && reqCount < 30) {
         try {
+          const params = new URLSearchParams({
+            symbol: symbol.toUpperCase(),
+            startTime: cursor.toString(),
+            endTime: endTime.toString(),
+            limit: '1000',
+          });
           const res = await fetch(`/api/binance/fapi/v1/aggTrades?${params}`);
-          requestCount++;
+          reqCount++;
           if (!res.ok || cancelled) break;
           const trades = await res.json();
           if (!Array.isArray(trades) || trades.length === 0) break;
@@ -155,18 +198,9 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
               side: t.m ? 'sell' : 'buy',
             });
           }
-
           cursor = trades[trades.length - 1].T + 1;
-
-          // Update UI every 10 batches so user sees progress
-          if (requestCount % 10 === 0 && !cancelled && engineRef.current) {
-            setData(readEngineData(engineRef.current));
-          }
-
           if (trades.length < 1000) break;
-        } catch {
-          break;
-        }
+        } catch { break; }
       }
 
       if (!cancelled && engineRef.current) {
