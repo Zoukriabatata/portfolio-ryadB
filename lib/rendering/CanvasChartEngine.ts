@@ -225,12 +225,23 @@ export class CanvasChartEngine {
   setCandles(candles: ChartCandle[]): void {
     // Filter out invalid candles (NaN, Infinity, or extreme outliers)
     this.candles = this.validateCandles(candles);
+    this.autoScalePrice = true;
+    this.userHasPanned = false;
     if (this.candles.length > 0) {
-      this.autoScalePrice = true;
-      this.userHasPanned = false;
       this.fitToData();
+    } else {
+      // Reset viewport to neutral state when cleared (e.g. symbol change)
+      this.viewport.startIndex = 0;
+      this.viewport.endIndex = 0;
+      this.viewport.priceMin = 0;
+      this.viewport.priceMax = 100;
+      this.targetViewport.startIndex = 0;
+      this.targetViewport.endIndex = 0;
+      this.targetViewport.priceMin = 0;
+      this.targetViewport.priceMax = 100;
+      this.stopSmoothAnimation();
     }
-    this.render();
+    this.scheduleRender();
   }
 
   /**

@@ -429,12 +429,12 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
    */
   const handleSymbolChange = useCallback((newSymbol: string) => {
     if (newSymbol === symbol) return;
-    // Clear chart immediately for visual feedback
+    // Clear chart immediately — reset everything for clean slate
     refs.candles.current = [];
     refs.candleData.current.clear();
     if (refs.chartEngine.current) {
       refs.chartEngine.current.setCandles([]);
-      refs.chartEngine.current.render();
+      refs.chartEngine.current.resetPriceScale();
     }
     setNoData(false);
     setLoadingPhase('fetching');
