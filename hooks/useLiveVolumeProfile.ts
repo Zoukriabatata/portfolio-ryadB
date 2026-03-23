@@ -140,7 +140,6 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
           const klines = await res.json();
           if (Array.isArray(klines)) {
             for (const k of klines) {
-              const open = parseFloat(k[1]);
               const high = parseFloat(k[2]);
               const low = parseFloat(k[3]);
               const close = parseFloat(k[4]);
@@ -148,19 +147,29 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
               const ts = k[0];
               if (volume <= 0) continue;
 
-              const isBullish = close >= open;
+              const isBullish = parseFloat(k[4]) >= parseFloat(k[1]);
               const buyRatio = isBullish ? 0.55 : 0.45;
 
-              // Typical price = (H+L+C)/3 — single bin per kline, accurate price level
-              const tp = (high + low + close) / 3;
-              const tpRounded = Math.round(tp / tickSize) * tickSize;
-              engine.addBulkVolume(tpRounded, volume * buyRatio, volume * (1 - buyRatio), ts);
+              // Fill EVERY tick level from low to high — no gaps in VP
+              const lowRounded = Math.floor(low / tickSize) * tickSize;
+              const highRounded = Math.ceil(high / tickSize) * tickSize;
+              const levels = Math.max(1, Math.round((highRounded - lowRounded) / tickSize) + 1);
 
-              // Also add bins at high and low with small weight (shows range)
-              if (high - low > tickSize * 2) {
-                const edgeVol = volume * 0.1;
-                engine.addBulkVolume(Math.round(high / tickSize) * tickSize, edgeVol * buyRatio, edgeVol * (1 - buyRatio), ts);
-                engine.addBulkVolume(Math.round(low / tickSize) * tickSize, edgeVol * (1 - buyRatio), edgeVol * buyRatio, ts);
+              // Triangle distribution: more volume near close, less at extremes
+              let totalWeight = 0;
+              const weights: number[] = [];
+              for (let j = 0; j < levels; j++) {
+                const price = lowRounded + j * tickSize;
+                const distFromClose = Math.abs(price - close) / (highRounded - lowRounded || 1);
+                const w = 1 + (1 - distFromClose) * 3; // 1x at edges, 4x at close
+                weights.push(w);
+                totalWeight += w;
+              }
+
+              for (let j = 0; j < levels; j++) {
+                const price = lowRounded + j * tickSize;
+                const binVol = (volume * weights[j]) / totalWeight;
+                engine.addBulkVolume(price, binVol * buyRatio, binVol * (1 - buyRatio), ts);
               }
             }
           }
