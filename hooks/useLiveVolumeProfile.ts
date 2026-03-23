@@ -112,7 +112,7 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     engine.reset();
     setData(EMPTY_DATA);
 
-    // 1. Build daily VP from klines (1 API call) + refine with recent aggTrades
+    // Load real aggTrades progressively — updates UI every batch
     const loadHistorical = async () => {
       const endTime = Date.now();
       let startTime: number;
@@ -124,73 +124,18 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
         startTime = endTime - depthMinutes * 60 * 1000;
       }
 
-      const tickSize = getTickSizeForSymbol(symbol);
-
-      // Phase 1: Klines for full daily coverage (instant, 1 API call)
-      try {
-        const params = new URLSearchParams({
-          symbol: symbol.toUpperCase(),
-          interval: '1m',
-          startTime: startTime.toString(),
-          endTime: endTime.toString(),
-          limit: '1500',
-        });
-        const res = await fetch(`/api/binance/fapi/v1/klines?${params}`);
-        if (res.ok && !cancelled) {
-          const klines = await res.json();
-          if (Array.isArray(klines)) {
-            for (const k of klines) {
-              const high = parseFloat(k[2]);
-              const low = parseFloat(k[3]);
-              const close = parseFloat(k[4]);
-              const volume = parseFloat(k[5]);
-              const ts = k[0];
-              if (volume <= 0) continue;
-
-              const isBullish = parseFloat(k[4]) >= parseFloat(k[1]);
-              const buyRatio = isBullish ? 0.55 : 0.45;
-
-              // Fill EVERY tick level from low to high — no gaps in VP
-              const lowRounded = Math.floor(low / tickSize) * tickSize;
-              const highRounded = Math.ceil(high / tickSize) * tickSize;
-              const levels = Math.max(1, Math.round((highRounded - lowRounded) / tickSize) + 1);
-
-              // Triangle distribution: more volume near close, less at extremes
-              let totalWeight = 0;
-              const weights: number[] = [];
-              for (let j = 0; j < levels; j++) {
-                const price = lowRounded + j * tickSize;
-                const distFromClose = Math.abs(price - close) / (highRounded - lowRounded || 1);
-                const w = 1 + (1 - distFromClose) * 3; // 1x at edges, 4x at close
-                weights.push(w);
-                totalWeight += w;
-              }
-
-              for (let j = 0; j < levels; j++) {
-                const price = lowRounded + j * tickSize;
-                const binVol = (volume * weights[j]) / totalWeight;
-                engine.addBulkVolume(price, binVol * buyRatio, binVol * (1 - buyRatio), ts);
-              }
-            }
-          }
-        }
-        if (!cancelled && engineRef.current) {
-          setData(readEngineData(engineRef.current));
-        }
-      } catch { /* continue to phase 2 */ }
-
-      // Phase 2: Recent aggTrades for precise bid/ask (last 30min only)
-      if (cancelled) return;
-      const recentStart = endTime - 30 * 60 * 1000;
-      let cursor = recentStart;
+      // Load from most recent trades BACKWARDS — user sees current VP immediately
+      let cursor = endTime;
       let reqCount = 0;
+      const maxRequests = 200; // ~200K trades
+      const batchUpdateInterval = 5; // Update UI every 5 requests
 
-      while (cursor < endTime && !cancelled && reqCount < 30) {
+      while (cursor > startTime && !cancelled && reqCount < maxRequests) {
         try {
+          // Fetch backwards: endTime = cursor, get 1000 trades before cursor
           const params = new URLSearchParams({
             symbol: symbol.toUpperCase(),
-            startTime: cursor.toString(),
-            endTime: endTime.toString(),
+            endTime: cursor.toString(),
             limit: '1000',
           });
           const res = await fetch(`/api/binance/fapi/v1/aggTrades?${params}`);
@@ -207,8 +152,21 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
               side: t.m ? 'sell' : 'buy',
             });
           }
-          cursor = trades[trades.length - 1].T + 1;
+
+          // Move cursor backwards
+          cursor = trades[0].T - 1;
+
+          // Progressive UI update
+          if (reqCount % batchUpdateInterval === 0 && !cancelled && engineRef.current) {
+            setData(readEngineData(engineRef.current));
+          }
+
           if (trades.length < 1000) break;
+
+          // Small delay to respect rate limits (2 req/sec safe)
+          if (reqCount % 10 === 0) {
+            await new Promise(r => setTimeout(r, 500));
+          }
         } catch { break; }
       }
 
