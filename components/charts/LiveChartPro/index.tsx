@@ -827,13 +827,13 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
 
           {/* Volume Profile Panel — side-configurable overlay */}
           {showVolumeProfile && symbolData.viewportState.chartHeight > 0 && (
-            <div className="absolute z-[3]" style={vpPanelSide === 'left' ? { left: 0, top: 0 } : { right: 80, top: 0 }}>
+            <div className="absolute z-[3]" style={vpPanelSide === 'left' ? { left: 0, top: 0, height: symbolData.viewportState.chartHeight, overflow: 'hidden' } : { right: 80, top: 0, height: symbolData.viewportState.chartHeight, overflow: 'hidden' }}>
               <VolumeProfilePanel
                 data={vpData.data}
                 priceMin={symbolData.viewportState.priceMin}
                 priceMax={symbolData.viewportState.priceMax}
                 chartHeight={symbolData.viewportState.chartHeight}
-                width={140}
+                width={200}
                 side={vpPanelSide}
                 theme={{ background: engine.effectiveColors.background, border: theme.colors.border, text: theme.colors.text, textMuted: theme.colors.textMuted }}
                 vpColors={{ bid: vpBidColor, ask: vpAskColor, opacity: vpBarOpacity }}
