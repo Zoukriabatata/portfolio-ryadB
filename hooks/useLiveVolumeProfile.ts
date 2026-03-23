@@ -112,8 +112,7 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
     engine.reset();
     setData(EMPTY_DATA);
 
-    // 1. Build VP from klines (OHLCV) — fast, no rate limit issues
-    // Each kline distributes volume across the OHLC range using VWAP approximation
+    // 1. Build VP from klines (OHLCV) — single API call, instant processing
     const loadFromKlines = async () => {
       const endTime = Date.now();
       let startTime: number;
@@ -126,7 +125,6 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
       }
 
       try {
-        // Fetch 1m klines for the period (max 1500 per request, covers 25h)
         const params = new URLSearchParams({
           symbol: symbol.toUpperCase(),
           interval: '1m',
@@ -142,48 +140,27 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
 
         const tickSize = getTickSizeForSymbol(symbol);
 
+        // Fast bulk injection — no processTrade overhead
         for (const k of klines) {
-          if (cancelled) break;
-          const open = parseFloat(k[1]);
           const high = parseFloat(k[2]);
           const low = parseFloat(k[3]);
           const close = parseFloat(k[4]);
           const volume = parseFloat(k[5]);
           const ts = k[0];
-          const isBullish = close >= open;
+          const isBullish = parseFloat(k[4]) >= parseFloat(k[1]);
 
-          // Distribute volume across price range using weighted VWAP approximation
-          // More volume near close (where most trades happened)
           const range = high - low;
           if (range <= 0 || volume <= 0) continue;
 
-          const steps = Math.max(1, Math.round(range / tickSize));
-          const totalWeight = steps * (steps + 1) / 2; // Triangle distribution
+          // Distribute volume: 3 price levels (low, mid, high) with weighted close
+          const levels = [low, (low + high) / 2, close, high];
+          const weights = levels.map(p => 1 + (1 - Math.abs(p - close) / (range || 1)) * 2);
+          const totalW = weights.reduce((s, w) => s + w, 0);
+          const buyRatio = isBullish ? 0.6 : 0.4;
 
-          for (let i = 0; i < steps; i++) {
-            const price = low + (i + 0.5) * tickSize;
-            if (price > high) break;
-
-            // Weight: more volume near close price
-            const distFromClose = Math.abs(price - close) / range;
-            const weight = 1 + (1 - distFromClose) * 2; // 1x-3x, highest near close
-            const binVolume = (volume * weight) / (totalWeight > 0 ? totalWeight : 1);
-
-            // Approximate bid/ask split: bullish candle = more buy volume
-            const buyRatio = isBullish ? 0.6 : 0.4;
-
-            engine.processTrade({
-              timestamp: ts,
-              price,
-              size: binVolume * buyRatio,
-              side: 'buy',
-            });
-            engine.processTrade({
-              timestamp: ts,
-              price,
-              size: binVolume * (1 - buyRatio),
-              side: 'sell',
-            });
+          for (let i = 0; i < levels.length; i++) {
+            const binVol = (volume * weights[i]) / totalW;
+            engine.addBulkVolume(levels[i], binVol * buyRatio, binVol * (1 - buyRatio), ts);
           }
         }
 
@@ -191,7 +168,7 @@ export function useLiveVolumeProfile(symbol: string, enabled: boolean = true) {
           setData(readEngineData(engineRef.current));
         }
       } catch {
-        // Silently fail — live trades will still build the profile
+        // Live trades will still build the profile
       }
     };
 

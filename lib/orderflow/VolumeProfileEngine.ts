@@ -233,6 +233,39 @@ export class VolumeProfileEngine {
     }
   }
 
+  /**
+   * Bulk inject volume at a price level (fast, no validation overhead).
+   * Used to build VP from klines OHLCV without simulating individual trades.
+   */
+  addBulkVolume(price: number, buyVolume: number, sellVolume: number, timestamp: number = Date.now()): void {
+    const binPrice = this.roundToTick(price);
+    let bin = this.state.bins.get(binPrice);
+
+    if (!bin) {
+      if (this.state.bins.size >= this.config.maxBins) this.pruneOldBins();
+      bin = this.createEmptyBin(binPrice, timestamp);
+      this.state.bins.set(binPrice, bin);
+    }
+
+    const total = buyVolume + sellVolume;
+    bin.totalVolume += total;
+    bin.askVolume += buyVolume;
+    bin.bidVolume += sellVolume;
+    bin.delta = bin.askVolume - bin.bidVolume;
+    bin.tradeCount++;
+    bin.lastTradeTime = timestamp;
+
+    this.state.totalVolume += total;
+    this.state.totalAskVolume += buyVolume;
+    this.state.totalBidVolume += sellVolume;
+    this.state.totalDelta = this.state.totalAskVolume - this.state.totalBidVolume;
+    this.state.tradeCount++;
+
+    if (binPrice > this.state.profileHigh) this.state.profileHigh = binPrice;
+    if (binPrice < this.state.profileLow || this.state.profileLow === 0) this.state.profileLow = binPrice;
+    if (this.state.sessionStart === 0) this.state.sessionStart = timestamp;
+  }
+
   // ============ VALUE AREA CALCULATION ============
 
   /**
