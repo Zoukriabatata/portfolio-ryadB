@@ -153,6 +153,7 @@ const PUBLIC_ROUTES = [
   '/auth/register',
   '/auth/error',
   '/pricing',
+  '/upgrade',
   '/api/auth',
   '/api/stripe/webhook',
   '/api/paypal/webhook',
@@ -440,8 +441,7 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   if (pathname.startsWith('/academy')) {
     const hasResearchPack = token.hasResearchPack === true;
     if (userTier !== 'ULTRA' && !hasResearchPack && !isAdmin && !isBetaTester) {
-      // Not authorized — show 404 (don't reveal route exists)
-      return NextResponse.rewrite(new URL('/not-found', request.url));
+      return NextResponse.redirect(new URL(`/upgrade?from=${encodeURIComponent(pathname)}`, request.url));
     }
   }
 
@@ -453,8 +453,8 @@ async function runMiddleware(request: NextRequest, pathname: string) {
     const allowedTiers = TIER_ROUTES[matchingRoute];
 
     if (!allowedTiers.includes(userTier)) {
-      // User doesn't have access — show 404 (don't reveal route exists)
-      return NextResponse.rewrite(new URL('/not-found', request.url));
+      // Redirect to upgrade page — user knows the route exists but needs to upgrade
+      return NextResponse.redirect(new URL(`/upgrade?from=${encodeURIComponent(pathname)}`, request.url));
     }
   }
 
@@ -462,21 +462,20 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   const subscriptionEnd = token.subscriptionEnd as string | null;
   const isExpired = !isAdmin && !isBetaTester && subscriptionEnd && new Date(subscriptionEnd) < new Date();
   if (isExpired) {
-    // Subscription expired — treat as FREE, show 404 for ULTRA routes
     const expiredTier = 'FREE' as const;
 
     // /academy: expired ULTRA still has access IF hasResearchPack (one-time purchase)
     if (pathname.startsWith('/academy')) {
       const hasResearchPack = token.hasResearchPack === true;
       if (!hasResearchPack) {
-        return NextResponse.rewrite(new URL('/not-found', request.url));
+        return NextResponse.redirect(new URL(`/upgrade?from=${encodeURIComponent(pathname)}&expired=1`, request.url));
       }
     }
 
     if (matchingRoute) {
       const allowedTiers = TIER_ROUTES[matchingRoute];
       if (allowedTiers && !allowedTiers.includes(expiredTier)) {
-        return NextResponse.rewrite(new URL('/not-found', request.url));
+        return NextResponse.redirect(new URL(`/upgrade?expired=1`, request.url));
       }
     }
   }
