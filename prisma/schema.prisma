@@ -61,6 +61,7 @@ model User {
   promoCodeUsages   PromoCodeUsage[]
   dailyNotes        DailyNote[]
   playbookSetups    PlaybookSetup[]
+  priceAlerts       PriceAlert[]
 
   @@index([email])
   @@index([customerId])
@@ -328,4 +329,26 @@ model PlaybookSetup {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+// ============ PRICE ALERT MODEL ============
+model PriceAlert {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  symbol      String   // e.g. "BTCUSDT"
+  condition   String   // "above" | "below"
+  targetPrice Float
+  label       String?  // optional user note
+
+  triggered   Boolean  @default(false)
+  triggeredAt DateTime?
+
+  emailSent   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([symbol, triggered])
 }
