@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent, stripe } from '@/lib/stripe';
 import { confirmPromoCodeUsage } from '@/lib/stripe/promo-code-service';
+import { sendPaymentConfirmationEmail } from '@/lib/auth/email-verification';
 import Stripe from 'stripe';
 
 // Stripe API objects may include fields not in the SDK types (depends on API version / expand)
@@ -174,6 +175,22 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
   }
 
   console.log(`User ${userId} subscribed to ${tier}`);
+
+  // ── Send payment confirmation email (fire-and-forget) ──
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://orderflow-v2.vercel.app';
+  prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } })
+    .then(user => {
+      if (!user) return;
+      sendPaymentConfirmationEmail(user.email, user.name, {
+        tier,
+        amount: session.amount_total || 2900,
+        currency: session.currency || 'usd',
+        billingPeriod: session.metadata?.billingPeriod === 'yearly' ? 'YEARLY' : 'MONTHLY',
+        nextBillingDate: subscriptionEnd,
+        dashboardUrl: `${baseUrl}/live`,
+      }).catch(() => { /* non-blocking */ });
+    })
+    .catch(() => { /* non-blocking */ });
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {

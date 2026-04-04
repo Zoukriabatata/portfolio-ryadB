@@ -628,12 +628,12 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div
-          className="flex items-center px-2 py-0 border-b gap-0 overflow-x-auto"
-          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, scrollbarWidth: 'none', position: 'relative', zIndex: 10 } as React.CSSProperties}
+          className="flex items-center px-2 py-0 border-b gap-0"
+          style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border, minHeight: 36, flexShrink: 0, position: 'relative', zIndex: 10 } as React.CSSProperties}
           onWheel={e => e.stopPropagation()}
         >
-          {/* Group 1: Symbol & Price */}
-          <div className="flex items-center gap-2 pr-3 mr-1" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
+          {/* Group 1: Symbol & Price — fixed left, never shrinks */}
+          <div className="flex items-center gap-2 pr-3 mr-1 flex-shrink-0" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
             <div className="relative">
               <button
                 ref={symbolBtnRef}
@@ -694,7 +694,8 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             )}
           </div>
 
-          {/* Group 2: Timeframes */}
+          {/* Group 2: Timeframes — scrollable middle section */}
+          <div className="flex-1 min-w-0 overflow-x-auto flex items-center" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
           <div className="flex items-center gap-0.5 px-3 mr-1" style={{ borderRight: `1px solid ${theme.colors.border}` }}>
             {Object.entries(TF_GROUPS).map(([group, tfs]) => (
               <div key={group} className="flex items-center rounded p-px mr-0.5" style={{ backgroundColor: theme.colors.background }}>
@@ -715,9 +716,10 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             ))}
             <PriceCountdownCompact timeframeSeconds={symbolData.timeframe} />
           </div>
+          </div>{/* end scrollable middle */}
 
-          {/* Group 3: Controls — minimal, clean */}
-          <div className="flex items-center gap-1 pl-3 ml-auto">
+          {/* Group 3: Controls — fixed right, never shrinks */}
+          <div className="flex items-center gap-1 pl-3 flex-shrink-0">
 
             {/* Indicators Toggle */}
             <div className="relative" ref={(el) => { if (el) (el as HTMLDivElement & { _indicatorBtnRect?: DOMRect })._indicatorBtnRect = el.getBoundingClientRect(); }}>

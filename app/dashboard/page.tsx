@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const DashboardAIChat = dynamic(() => import('@/components/ai/DashboardAIChat'), { ssr: false });
+const WelcomeModal = dynamic(() => import('@/components/ui/WelcomeModal'), { ssr: false });
 import {
   Activity, Zap, BarChart3, MessageSquare, RefreshCw,
   ChevronDown, Flame,
@@ -1781,6 +1782,7 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full overflow-auto custom-scrollbar">
+      <WelcomeModal />
       <div className="max-w-[1400px] mx-auto px-3 py-3 space-y-3 animate-fadeIn">
 
         {/* ── 1. Hero Bar ──────────────────────────────────────────── */}

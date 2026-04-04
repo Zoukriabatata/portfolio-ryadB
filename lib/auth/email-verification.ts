@@ -266,6 +266,85 @@ export async function sendEmail(options: {
   }
 }
 
+// ============ PAYMENT CONFIRMATION EMAIL ============
+
+/**
+ * Send a payment confirmation email after successful ULTRA subscription.
+ * Non-blocking — fire and forget. Returns false if SMTP is not configured.
+ */
+export async function sendPaymentConfirmationEmail(
+  email: string,
+  name: string | null,
+  options: {
+    tier: string;
+    amount: number;
+    currency: string;
+    billingPeriod: 'MONTHLY' | 'YEARLY' | 'ONE_TIME';
+    nextBillingDate?: Date | null;
+    dashboardUrl: string;
+  }
+): Promise<boolean> {
+  const displayName = name || email.split('@')[0];
+  const amountFormatted = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: options.currency.toUpperCase(),
+    minimumFractionDigits: 0,
+  }).format(options.amount / 100);
+
+  const periodLabel = options.billingPeriod === 'YEARLY' ? 'year' : 'month';
+  const nextBilling = options.nextBillingDate
+    ? options.nextBillingDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
+
+  const content = `
+    <h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #e2e8f0;">Welcome to ULTRA, ${displayName}!</h2>
+    <p style="margin: 0 0 28px; font-size: 15px; color: #94a3b8; line-height: 1.6;">Your payment was successful. You now have full access to the Senzoukria professional suite.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #0f0f1a; border: 1px solid #1e1e2e; border-radius: 10px; margin-bottom: 28px;">
+      <tr><td style="padding: 24px 28px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding-bottom: 14px; border-bottom: 1px solid #1e1e2e;">
+            <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Plan</span><br/>
+            <span style="font-size: 16px; font-weight: 600; color: #e2e8f0;">ULTRA — ${amountFormatted}/${periodLabel}</span>
+          </td></tr>
+          ${nextBilling ? `<tr><td style="padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid #1e1e2e;"><span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Next billing date</span><br/><span style="font-size: 15px; color: #cbd5e1;">${nextBilling}</span></td></tr>` : ''}
+          <tr><td style="padding-top: 14px;">
+            <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Status</span><br/>
+            <span style="font-size: 15px; color: #4ade80; font-weight: 600;">Active</span>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+    <p style="margin: 0 0 12px; font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px;">What you have unlocked</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 28px;">
+      <tr><td style="padding: 4px 0;"><span style="color: #4ade80; font-weight: 700; margin-right: 8px;">+</span><span style="font-size: 14px; color: #94a3b8;">Footprint charts (delta, volume, imbalance)</span></td></tr>
+      <tr><td style="padding: 4px 0;"><span style="color: #4ade80; font-weight: 700; margin-right: 8px;">+</span><span style="font-size: 14px; color: #94a3b8;">Liquidity heatmap — WebGL, real-time</span></td></tr>
+      <tr><td style="padding: 4px 0;"><span style="color: #4ade80; font-weight: 700; margin-right: 8px;">+</span><span style="font-size: 14px; color: #94a3b8;">GEX dashboard &amp; gamma exposure</span></td></tr>
+      <tr><td style="padding: 4px 0;"><span style="color: #4ade80; font-weight: 700; margin-right: 8px;">+</span><span style="font-size: 14px; color: #94a3b8;">Volatility surface &amp; IV skew analysis</span></td></tr>
+      <tr><td style="padding: 4px 0;"><span style="color: #4ade80; font-weight: 700; margin-right: 8px;">+</span><span style="font-size: 14px; color: #94a3b8;">GVS Bias engine (institutional signals)</span></td></tr>
+      <tr><td style="padding: 4px 0;"><span style="color: #4ade80; font-weight: 700; margin-right: 8px;">+</span><span style="font-size: 14px; color: #94a3b8;">Trading journal, backtesting, session replay</span></td></tr>
+      <tr><td style="padding: 4px 0;"><span style="color: #4ade80; font-weight: 700; margin-right: 8px;">+</span><span style="font-size: 14px; color: #94a3b8;">All symbols &amp; timeframes — up to 2 devices</span></td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 28px;">
+      <tr><td align="center">
+        <a href="${options.dashboardUrl}" target="_blank"
+           style="display: inline-block; padding: 14px 44px; background: linear-gradient(135deg, #4ade80, #22c55e); color: #0a0a0f; font-size: 15px; font-weight: 700; text-decoration: none; border-radius: 8px;">
+          Open Dashboard
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.6;">You can manage your subscription at any time from your account settings.</p>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: 'Welcome to Senzoukria ULTRA — Payment Confirmed',
+    content,
+    text: `Welcome to ULTRA, ${displayName}!\n\nPayment: ${amountFormatted}/${periodLabel}\n${nextBilling ? `Next billing: ${nextBilling}\n` : ''}Status: Active\n\nOpen your dashboard: ${options.dashboardUrl}\n\nSenzoukria Team`,
+  });
+}
+
+// ============ EMAIL VERIFICATION ============
+
 /**
  * Send a verification email to the user
  * Falls back to console logging if SMTP is not configured (beta testing)
