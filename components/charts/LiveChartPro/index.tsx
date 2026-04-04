@@ -248,7 +248,6 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
   const symbolBtnRef = useRef<HTMLButtonElement>(null);
   const [symbolDropdownPos, setSymbolDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [showThemePanel, setShowThemePanel] = useState(false);
-  const [showDepthMap, setShowDepthMap] = useState(false);
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const [indicatorMenuPos, setIndicatorMenuPos] = useState({ top: 0, right: 0 });
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -307,10 +306,11 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
     }))
   );
   const { indicators: indicatorConfigs, toggleIndicator: toggleIndicatorConfig } = useIndicatorStore();
-  const { showVolumeProfile, setShowVolumeProfile, vpPanelSide, showMarketProfile, setShowMarketProfile, marketProfilePeriod } = usePreferencesStore(
+  const { showVolumeProfile, setShowVolumeProfile, vpPanelSide, showMarketProfile, setShowMarketProfile, marketProfilePeriod, showDepthMap, setShowDepthMap } = usePreferencesStore(
     useShallow(s => ({
       showVolumeProfile: s.showVolumeProfile, setShowVolumeProfile: s.setShowVolumeProfile, vpPanelSide: s.vpPanelSide,
       showMarketProfile: s.showMarketProfile, setShowMarketProfile: s.setShowMarketProfile, marketProfilePeriod: s.marketProfilePeriod,
+      showDepthMap: s.showDepthMap, setShowDepthMap: s.setShowDepthMap,
     }))
   );
   const customFavorites = useFavoritesToolbarStore(s => s.presets.custom.tools);
@@ -722,7 +722,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
             {/* Indicators Toggle */}
             <div className="relative" ref={(el) => { if (el) (el as HTMLDivElement & { _indicatorBtnRect?: DOMRect })._indicatorBtnRect = el.getBoundingClientRect(); }}>
               <button
-                onClick={(e) => { setShowIndicatorMenu(!showIndicatorMenu); const rect = (e.currentTarget.parentElement as HTMLElement)?.getBoundingClientRect(); if (rect) setIndicatorMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); }}
+                onClick={(e) => { setShowIndicatorMenu(!showIndicatorMenu); const rect = (e.currentTarget.parentElement as HTMLElement)?.getBoundingClientRect(); if (rect) { const vpWidth = document.documentElement.clientWidth; setIndicatorMenuPos({ top: rect.bottom + 4, right: Math.max(0, vpWidth - rect.right) }); } }}
                 data-tooltip="Indicators"
                 className="w-8 h-8 flex items-center justify-center rounded-md text-sm transition-all duration-150 hover:scale-105 active:scale-95"
                 style={{ backgroundColor: (indicatorConfigs.some(i => i.enabled) || showVolumeProfile || showMarketProfile) ? theme.colors.toolActive : 'transparent', color: (indicatorConfigs.some(i => i.enabled) || showVolumeProfile || showMarketProfile) ? activeTextColor : theme.colors.textSecondary }}

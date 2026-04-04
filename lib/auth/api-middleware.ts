@@ -87,7 +87,7 @@ export async function requireAuth(req: NextRequest): Promise<AuthResult | AuthEr
     const userEmail = (token.email as string || '').toLowerCase();
     const isAdmin = ADMIN_EMAILS.includes(userEmail);
     const isBetaTester = BETA_TESTER_EMAILS.includes(userEmail);
-    const effectiveTier = 'ULTRA'; // TODO: revert to (isAdmin || isBetaTester) ? 'ULTRA' : ((token.tier as string) || 'FREE');
+    const effectiveTier = (isAdmin || isBetaTester) ? 'ULTRA' : ((token.tier as string) || 'FREE');
 
     // Success - return user info and rate limit headers
     return {
@@ -136,14 +136,12 @@ export async function requireTier(
     return null;
   }
 
-  // TEMPORARY: Open beta — all users get ULTRA access
-  // TODO: revert to tier check: if (requiredTier === 'ULTRA' && userTier !== 'ULTRA') return 403
-  // if (requiredTier === 'ULTRA' && userTier !== 'ULTRA') {
-  //   return {
-  //     error: 'ULTRA subscription required for this feature. Please upgrade your plan.',
-  //     status: 403,
-  //   };
-  // }
+  if (requiredTier === 'ULTRA' && userTier !== 'ULTRA') {
+    return {
+      error: 'ULTRA subscription required for this feature. Please upgrade your plan.',
+      status: 403,
+    };
+  }
 
   return null;
 }

@@ -45,6 +45,21 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
   const targetFPS = 60; // 60 FPS
   const frameInterval = 1000 / targetFPS;
 
+  // Refs for high-frequency data — decouples WebSocket updates from the RAF loop.
+  // Without this, every orderbook tick (100ms) restarts the RAF useEffect.
+  const bidsRef = useRef<Map<number, number>>(new Map());
+  const asksRef = useRef<Map<number, number>>(new Map());
+  const midPriceRef = useRef<number>(0);
+  const currentPriceRef = useRef<number | null>(null);
+  const mousePositionRef = useRef<Point | null>(null);
+  const bestBidRef = useRef<number>(0);
+  const bestAskRef = useRef<number>(0);
+  const tradeEventsRef = useRef<typeof tradeEvents>([] as any);
+  const absorptionLevelsRef = useRef<Map<string, PassiveOrderLevel>>(new Map());
+  const maxBidVolumeRef = useRef<number>(100);
+  const maxAskVolumeRef = useRef<number>(100);
+  const tickSizeRef = useRef<number>(0.1);
+
   // State
   const [mousePosition, setMousePosition] = useState<Point | null>(null);
   const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
@@ -95,6 +110,9 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
   const absorptionLevels = absorptionState.levels;
   const maxBidVolume = absorptionState.maxBidVolume;
   const maxAskVolume = absorptionState.maxAskVolume;
+  absorptionLevelsRef.current = absorptionLevels;
+  maxBidVolumeRef.current = maxBidVolume;
+  maxAskVolumeRef.current = maxAskVolume;
 
   // Stores - granular selectors to avoid re-renders on unrelated settings changes
   const autoCenter = useHeatmapSettingsStore((s) => s.autoCenter);
@@ -126,6 +144,7 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
   const currentPrice = useMarketStore((s) => s.currentPrice);
   const symbol = useMarketStore((s) => s.symbol);
   const { tradeEvents, addTrade } = useTradeStore();
+  tradeEventsRef.current = tradeEvents;
 
   // Calculate best bid/ask (optimized - avoid spread on large Maps)
   const bestBid = React.useMemo(() => {
@@ -148,6 +167,17 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
 
   // Get tick size from symbol
   const tickSize = getTickSize(symbol);
+
+  // Sync high-frequency data to refs so the RAF loop always reads latest values
+  // without being in its deps array (prevents restarting the loop on every WS tick)
+  bidsRef.current = bids;
+  asksRef.current = asks;
+  midPriceRef.current = midPrice;
+  currentPriceRef.current = currentPrice;
+  mousePositionRef.current = mousePosition;
+  bestBidRef.current = bestBid;
+  bestAskRef.current = bestAsk;
+  tickSizeRef.current = tickSize;
 
   // Calculate price range based on mid price and zoom
   const getPriceRange = useCallback((): PriceRange => {
@@ -503,31 +533,45 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
       const stats = getStats();
       const history = getSnapshots();
 
+      // Read latest values from refs (no RAF restart on every WS tick)
+      const _bids = bidsRef.current;
+      const _asks = asksRef.current;
+      const _midPrice = midPriceRef.current;
+      const _currentPrice = currentPriceRef.current;
+      const _mousePosition = mousePositionRef.current;
+      const _bestBid = bestBidRef.current;
+      const _bestAsk = bestAskRef.current;
+      const _tradeEvents = tradeEventsRef.current;
+      const _absorptionLevels = absorptionLevelsRef.current;
+      const _maxBidVolume = maxBidVolumeRef.current;
+      const _maxAskVolume = maxAskVolumeRef.current;
+      const _tickSize = tickSizeRef.current;
+
       // Update visible range on passive simulator
       if (passiveSimulatorRef.current) {
         passiveSimulatorRef.current.setVisibleRange(priceRange.min, priceRange.max);
         passiveSimulatorRef.current.setConfig({
-          basePrice: currentPrice || midPrice,
-          tickSize,
+          basePrice: _currentPrice || _midPrice,
+          tickSize: _tickSize,
         });
       }
 
       rendererRef.current.render({
         history,
-        currentBids: bids,
-        currentAsks: asks,
-        bestBid,
-        bestAsk,
-        midPrice: currentPrice || midPrice,
-        trades: tradeEvents,
+        currentBids: _bids,
+        currentAsks: _asks,
+        bestBid: _bestBid,
+        bestAsk: _bestAsk,
+        midPrice: _currentPrice || _midPrice,
+        trades: _tradeEvents,
         priceRange,
-        tickSize,
-        mousePosition,
+        tickSize: _tickSize,
+        mousePosition: _mousePosition,
         stats,
         // Pass absorption data for visualization
-        passiveLevels: absorptionLevels,
-        maxBidVolume,
-        maxAskVolume,
+        passiveLevels: _absorptionLevels,
+        maxBidVolume: _maxBidVolume,
+        maxAskVolume: _maxAskVolume,
       });
 
       // DÉSACTIVÉ: Trade flow bubbles (rectangles cyan/rouge) - retirées car dérangent
@@ -562,7 +606,10 @@ export const LiquidityHeatmapPro = React.memo(function LiquidityHeatmapPro({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isActive, bids, asks, midPrice, currentPrice, mousePosition, getPriceRange, getStats, getSnapshots, bestBid, bestAsk, tickSize, tradeFlow.enabled, tradeEvents, frameInterval, absorptionLevels, maxBidVolume, maxAskVolume]);
+  // bids, asks, midPrice, currentPrice, mousePosition, bestBid, bestAsk, tickSize,
+  // tradeEvents, absorptionLevels, maxBidVolume, maxAskVolume are read via refs —
+  // removing them from deps prevents the RAF loop from restarting on every WS tick.
+  }, [isActive, getPriceRange, getStats, getSnapshots, frameInterval]);
 
   // Handle resize
   useEffect(() => {

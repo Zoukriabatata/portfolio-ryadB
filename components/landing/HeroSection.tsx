@@ -9,8 +9,23 @@ const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(timer);
+    const el = ref.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          timer = setTimeout(() => setVisible(true), delay);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
   }, [delay]);
 
   // Extract numeric part for counting animation — memoized to avoid regex on every render
@@ -161,7 +176,7 @@ export default function HeroSection() {
             { v: '<5ms', l: 'Latency' },
             { v: '8', l: 'Data Feeds' },
             { v: '6', l: 'Pro Tools' },
-            { v: '24/7', l: 'Markets' },
+            { v: '12+', l: 'Markets' },
           ].map((s, i) => (
             <AnimatedStat key={i} value={s.v} label={s.l} delay={800 + i * 200} />
           ))}

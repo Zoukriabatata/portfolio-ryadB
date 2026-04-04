@@ -186,6 +186,10 @@ export interface PreferencesState {
   setConfirmOrders: (confirm: boolean) => void;
   setDefaultOrderType: (type: 'market' | 'limit') => void;
 
+  // Live chart panel visibility (persisted across sessions)
+  showDepthMap: boolean;
+  setShowDepthMap: (show: boolean) => void;
+
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -274,6 +278,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       priceLabelBorderRadius: 0,
       confirmOrders: true,
       defaultOrderType: 'market',
+      showDepthMap: false,
 
       setShowCurrentPriceLine: (showCurrentPriceLine) => set({ showCurrentPriceLine }),
       setPriceLineStyle: (priceLineStyle) => set({ priceLineStyle }),
@@ -299,6 +304,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setShowCrosshairTooltip: (showCrosshairTooltip) => set({ showCrosshairTooltip }),
       setConfirmOrders: (confirmOrders) => set({ confirmOrders }),
       setDefaultOrderType: (defaultOrderType) => set({ defaultOrderType }),
+      setShowDepthMap: (showDepthMap) => set({ showDepthMap }),
     }),
     {
       name: 'senzoukria-preferences',
@@ -350,6 +356,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         priceLabelBorderRadius: s.priceLabelBorderRadius,
         confirmOrders: s.confirmOrders,
         defaultOrderType: s.defaultOrderType,
+        showDepthMap: s.showDepthMap,
       }),
     }
   )

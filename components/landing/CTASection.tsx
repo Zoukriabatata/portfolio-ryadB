@@ -168,18 +168,15 @@ export default function CTASection() {
                 </Link>
               </div>
               </MagneticButton>
-              <button
-                onClick={() => {
-                  const target = document.getElementById('features');
-                  const scrollRoot = document.querySelector('[data-scroll-root]');
-                  if (target && scrollRoot) {
-                    scrollRoot.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
-                  }
-                }}
-                className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold text-white/70 border border-white/[0.15] rounded-xl hover:border-white/[0.25] hover:text-white hover:bg-white/[0.04] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold text-white/70 border border-white/[0.15] rounded-xl hover:border-white/[0.25] hover:text-white hover:bg-white/[0.04] hover:-translate-y-0.5 transition-all duration-300"
               >
-                Explore Features
-              </button>
+                View Pricing
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </Link>
             </>
           )}
         </div>

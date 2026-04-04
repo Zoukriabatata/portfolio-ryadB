@@ -23,6 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
@@ -30,6 +31,45 @@ export const dynamic = 'force-dynamic';
 
 const PYTHON_URL      = process.env.AGENT_SERVER_URL ?? 'http://localhost:8765';
 const CONNECT_TIMEOUT = 3000;   // ms before falling back to JS engine
+
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
+
+/**
+ * Generate a concise natural-language explanation using Claude.
+ * Non-blocking — returns null on any error so the deterministic result is
+ * always delivered even if Claude is unavailable or rate-limited.
+ */
+async function generateLlmExplanation(result: EngineAnalysisResult): Promise<string | null> {
+  if (!anthropic) return null;
+  try {
+    const prompt = `You are a professional trading analyst. Given the following deterministic market analysis, write a concise 2-3 sentence natural language explanation suitable for a trader. Be direct and actionable. Do not invent data — only interpret what is provided.
+
+Analysis:
+- Bias: ${result.bias} (confidence: ${(result.confidence * 100).toFixed(0)}%)
+- Gamma regime: ${result.gamma_regime}
+- Volatility regime: ${result.volatility_regime}
+- Flow direction: ${result.flow_direction}
+- Dealer state: ${result.dealer_state}
+- Regime: ${result.regime}
+- Confluence score: ${result.confluence_score}/8
+- Gamma squeeze: ${result.gamma_squeeze ? `YES (strength: ${result.squeeze_strength})` : 'No'}
+- Key levels: support ${result.key_levels.support.join(', ') || 'none'}, resistance ${result.key_levels.resistance.join(', ') || 'none'}, gamma flip ${result.key_levels.gamma_flip}
+- Setup: ${result.setup.entry} | target ${result.setup.target} | invalidation ${result.setup.invalidation}`;
+
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : null;
+    return text || null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Output type ──────────────────────────────────────────────────────────────
 
@@ -220,9 +260,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 2. JS deterministic fallback ────────────────────────────────────────────
+  // ── 2. JS deterministic fallback + optional Claude explanation ─────────────
   try {
     const result = runJsEngine(body);
+    // Enrich with LLM explanation if Claude API key is set (non-blocking)
+    result.llm_explanation = await generateLlmExplanation(result);
     return Response.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -245,5 +287,6 @@ export async function GET() {
     python_online: pythonOnline,
     deterministic: true,
     llm_role:      'explanation_only',
+    llm_backend:   anthropic ? 'claude' : 'none',
   });
 }

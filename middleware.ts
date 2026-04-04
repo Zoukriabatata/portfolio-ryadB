@@ -433,9 +433,8 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   const isBetaTester = BETA_TESTER_EMAILS.length > 0 && BETA_TESTER_EMAILS.includes(userEmail);
 
   // Check subscription tier for route access
-  // TEMPORARY: All users get ULTRA access (open beta)
   const rawTier = token.tier as 'FREE' | 'ULTRA';
-  const userTier: 'FREE' | 'ULTRA' = 'ULTRA'; // TODO: revert to (isAdmin || isBetaTester) ? 'ULTRA' : rawTier;
+  const userTier: 'FREE' | 'ULTRA' = (isAdmin || isBetaTester) ? 'ULTRA' : (rawTier || 'FREE');
 
   // Special: /academy requires ULTRA OR hasResearchPack (one-time $39 purchase)
   if (pathname.startsWith('/academy')) {
