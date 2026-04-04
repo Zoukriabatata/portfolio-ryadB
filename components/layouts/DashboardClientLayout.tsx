@@ -165,6 +165,7 @@ interface NavItem {
   labelKey: TranslationKey;
   Icon: LucideIcon;
   shortcut: string;
+  requiresUltra?: boolean;
 }
 
 interface NavGroup {
@@ -177,26 +178,26 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Charts',
     items: [
       { href: '/live', labelKey: 'nav.live', Icon: CandlestickIcon, shortcut: '1' },
-      { href: '/footprint', labelKey: 'nav.footprint', Icon: Grid3x3, shortcut: '2' },
-      { href: '/heatmap', labelKey: 'nav.heatmap' as TranslationKey, Icon: Layers, shortcut: 'Alt+4' },
+      { href: '/footprint', labelKey: 'nav.footprint', Icon: Grid3x3, shortcut: '2', requiresUltra: true },
+      { href: '/heatmap', labelKey: 'nav.heatmap' as TranslationKey, Icon: Layers, shortcut: 'Alt+4', requiresUltra: true },
     ],
   },
   {
     label: 'Analytics',
     items: [
-      { href: '/gex',        labelKey: 'nav.gex',        Icon: Zap,         shortcut: '4' },
-      { href: '/volatility', labelKey: 'nav.volatility', Icon: Activity,    shortcut: '5' },
-      { href: '/bias',       labelKey: 'nav.bias',       Icon: Compass,     shortcut: '6' },
+      { href: '/gex',        labelKey: 'nav.gex',        Icon: Zap,         shortcut: '4', requiresUltra: true },
+      { href: '/volatility', labelKey: 'nav.volatility', Icon: Activity,    shortcut: '5', requiresUltra: true },
+      { href: '/bias',       labelKey: 'nav.bias',       Icon: Compass,     shortcut: '6', requiresUltra: true },
       { href: '/flow',       labelKey: 'nav.flow',       Icon: TrendingUp,  shortcut: '' },
     ],
   },
   {
     label: 'Tools',
     items: [
-      { href: '/replay',  labelKey: 'nav.replay',  Icon: History,        shortcut: '9' },
-      { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8' },
-      { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7' },
-      { href: '/ai',                labelKey: 'nav.ai',     Icon: BrainCircuit,  shortcut: '' },
+      { href: '/replay',  labelKey: 'nav.replay',  Icon: History,        shortcut: '9', requiresUltra: true },
+      { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8', requiresUltra: true },
+      { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7', requiresUltra: true },
+      { href: '/ai',      labelKey: 'nav.ai',      Icon: BrainCircuit,   shortcut: '' },
     ],
   },
   {
@@ -251,6 +252,8 @@ export function DashboardClientLayout({
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { t } = useTranslation();
+  const { data: navSession } = useSession();
+  const isFreeUser = !navSession?.user?.tier || navSession.user.tier === 'FREE';
 
   // Auto-track closed trades to journal
   useAutoTrackTrades();
@@ -663,14 +666,23 @@ export function DashboardClientLayout({
                         aria-current={active ? 'page' : undefined}
                       >
                         <IconComp size={15} strokeWidth={1.5}
-                          style={{ color: active ? 'var(--primary)' : 'inherit', flexShrink: 0 }} />
-                        <span className="text-[12px] font-medium flex-1">{t(item.labelKey)}</span>
-                        {item.shortcut && (
+                          style={{ color: active ? 'var(--primary)' : isFreeUser && item.requiresUltra ? 'var(--text-dimmed)' : 'inherit', flexShrink: 0 }} />
+                        <span className="text-[12px] font-medium flex-1"
+                          style={{ color: isFreeUser && item.requiresUltra && !active ? 'var(--text-dimmed)' : undefined }}>
+                          {t(item.labelKey)}
+                        </span>
+                        {isFreeUser && item.requiresUltra ? (
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                            style={{ color: 'var(--text-dimmed)', opacity: 0.5, flexShrink: 0 }}>
+                            <rect x="3" y="11" width="18" height="11" rx="2" />
+                            <path d="M7 11V7a5 5 0 0110 0v4" />
+                          </svg>
+                        ) : item.shortcut ? (
                           <span className="text-[9px] font-mono px-1 py-0.5 rounded"
                             style={{ color: 'var(--text-dimmed)', background: 'var(--background)' }}>
                             Alt+{item.shortcut}
                           </span>
-                        )}
+                        ) : null}
                       </Link>
                     );
                   })}
