@@ -99,7 +99,6 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     if (!activeBroker) {
       connect('demo');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [orderType, setOrderType] = useState<OrderType>('market');
@@ -115,7 +114,6 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     if ((orderType === 'stop' || orderType === 'stop_limit') && !stopPrice) {
       setStopPrice(currentPrice.toFixed(decimals));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType, currentPrice]);
   const [lastAction, setLastAction] = useState<{ side: 'buy' | 'sell'; time: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -19,7 +19,6 @@ interface ChartPageShellProps {
 }
 
 export default function ChartPageShell({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   symbol: _symbol,
   toolbarLeft,
   toolbarRight,
