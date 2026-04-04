@@ -21,6 +21,7 @@ declare module 'next-auth' {
     deviceId?: string;
     sessionId?: string;
     hasResearchPack?: boolean;
+    subscriptionEnd?: Date | null;
   }
 }
 
@@ -34,5 +35,6 @@ declare module 'next-auth/jwt' {
     deviceId: string;
     sessionId: string;
     hasResearchPack: boolean;
+    subscriptionEnd?: string | null;
   }
 }

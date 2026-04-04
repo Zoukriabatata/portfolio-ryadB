@@ -30,6 +30,7 @@ const GlobalSettingsModal = dynamic(() => import('@/components/settings/GlobalSe
 const AdvancedChartSettings = dynamic(() => import('@/components/settings/AdvancedChartSettings'), { ssr: false });
 const AdvancedToolSettingsModal = dynamic(() => import('@/components/tools/AdvancedToolSettingsModal'), { ssr: false });
 const KeyboardShortcutsModal = dynamic(() => import('@/components/ui/KeyboardShortcutsModal'), { ssr: false });
+import { MarketProfileEngine } from '@/lib/orderflow/MarketProfileEngine';
 import { ASSET_CATEGORY_ICONS, ASSET_CATEGORIES } from './constants/symbols';
 import { TF_GROUPS } from './constants/timeframes';
 import LoadingOverlay from './components/LoadingOverlay';
@@ -423,7 +424,6 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
     }
 
     // Use MarketProfileEngine to build per-period profiles
-    const { MarketProfileEngine } = require('@/lib/orderflow/MarketProfileEngine');
     const tickSize = symbolData.symbol.toUpperCase().includes('BTC') ? 10 :
       symbolData.symbol.toUpperCase().includes('ETH') ? 1 : 0.1;
 
@@ -433,7 +433,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
       valueAreaPercent: 0.70,
     });
 
-    mpEngine.buildFromCandles(candles);
+    mpEngine.buildFromCandles(candles as Parameters<typeof mpEngine.buildFromCandles>[0]);
     engine.setMarketProfileData(mpEngine.getPeriods(), true);
   }, [showMarketProfile, marketProfilePeriod, symbolData.symbol, refs, symbolData.viewportState]);
 

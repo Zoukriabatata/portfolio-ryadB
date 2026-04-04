@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { constructWebhookEvent } from '@/lib/stripe';
+import { constructWebhookEvent, stripe } from '@/lib/stripe';
 import { confirmPromoCodeUsage } from '@/lib/stripe/promo-code-service';
 import Stripe from 'stripe';
 
@@ -127,6 +127,18 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Fetch subscription to get current_period_end
+  let subscriptionEnd: Date | null = null;
+  if (subscriptionId) {
+    try {
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      const periodEnd = (sub as StripeSubscriptionRaw).current_period_end;
+      if (periodEnd) subscriptionEnd = new Date(periodEnd * 1000);
+    } catch {
+      console.warn('[Stripe] Could not retrieve subscription for period end');
+    }
+  }
+
   // Update user subscription
   await prisma.user.update({
     where: { id: userId },
@@ -135,6 +147,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
       subscriptionId,
       customerId,
       subscriptionStart: new Date(),
+      subscriptionEnd,
       maxDevices: 2,
     },
   });
@@ -166,9 +179,18 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.userId;
   const subRaw = subscription as StripeSubscriptionRaw;
+  const currentPeriodEnd = subRaw.current_period_end;
+  const subscriptionEnd = subscription.cancel_at_period_end && currentPeriodEnd
+    ? new Date(currentPeriodEnd * 1000)
+    : null;
 
-  if (!userId) {
-    // Try to find user by subscription ID
+  if (userId) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { subscriptionEnd },
+    });
+  } else {
+    // Fallback: find user by subscription ID
     const user = await prisma.user.findFirst({
       where: { subscriptionId: subscription.id },
     });
@@ -178,15 +200,9 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       return;
     }
 
-    // Update subscription end date
-    const currentPeriodEnd = subRaw.current_period_end;
     await prisma.user.update({
       where: { id: user.id },
-      data: {
-        subscriptionEnd: subscription.cancel_at_period_end && currentPeriodEnd
-          ? new Date(currentPeriodEnd * 1000)
-          : null,
-      },
+      data: { subscriptionEnd },
     });
   }
 }

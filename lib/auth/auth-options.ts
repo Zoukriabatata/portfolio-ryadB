@@ -195,6 +195,7 @@ export const authOptions: NextAuthOptions = {
           deviceId: deviceFingerprint,
           sessionId,
           hasResearchPack: user.hasResearchPack ?? false,
+          subscriptionEnd: user.subscriptionEnd ?? null,
         };
       },
     }),
@@ -396,6 +397,7 @@ export const authOptions: NextAuthOptions = {
           user.deviceId = deviceFingerprint;
           user.sessionId = sessionId;
           user.hasResearchPack = dbUser.hasResearchPack ?? false;
+          user.subscriptionEnd = dbUser.subscriptionEnd ?? null;
 
           return true;
         } catch (error) {
@@ -420,6 +422,9 @@ export const authOptions: NextAuthOptions = {
         token.deviceId = user.deviceId || '';
         token.sessionId = user.sessionId || '';
         token.hasResearchPack = user.hasResearchPack ?? false;
+        token.subscriptionEnd = user.subscriptionEnd
+          ? user.subscriptionEnd.toISOString()
+          : null;
       }
 
       // On session update or periodic refresh — re-check tier from DB
@@ -428,7 +433,7 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id },
-            select: { subscriptionTier: true, name: true, avatar: true, hasResearchPack: true },
+            select: { subscriptionTier: true, name: true, avatar: true, hasResearchPack: true, subscriptionEnd: true },
           });
           if (dbUser) {
             token.tier = dbUser.subscriptionTier as SubscriptionTier;
@@ -438,6 +443,9 @@ export const authOptions: NextAuthOptions = {
             token.picture = (dbUser.avatar && !dbUser.avatar.startsWith('data:'))
               ? dbUser.avatar
               : token.picture;
+            token.subscriptionEnd = dbUser.subscriptionEnd
+              ? dbUser.subscriptionEnd.toISOString()
+              : null;
           }
         } catch (err) {
           console.error('[Auth] jwt callback DB error (non-fatal):', err);
