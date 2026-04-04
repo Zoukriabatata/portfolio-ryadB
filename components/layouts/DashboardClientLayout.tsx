@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { SessionProvider, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import Logo from '@/components/ui/Logo';
 import { LiveSignalBadge } from '@/components/ai/LiveSignalBadge';
@@ -137,7 +137,7 @@ const BiasPageContent = dynamic(() => import('@/components/pages/BiasPageContent
   ssr: false,
   loading: () => <ChartLoadingFallback label="Bias" />,
 });
-const HeatmapPageContent = dynamic(() => import('@/components/pages/HeatmapPageContent'), {
+const HeatmapPageContent = dynamic(() => import('@/components/pages/WebGLHeatmapContent'), {
   ssr: false,
   loading: () => <ChartLoadingFallback label="Heatmap" />,
 });
@@ -415,7 +415,6 @@ export function DashboardClientLayout({
   }, [showMobileMenu]);
 
   return (
-    <SessionProvider>
       <div className="h-screen w-screen overflow-hidden flex flex-col bg-[var(--background)] text-[var(--text-primary)]">
       {/* Skip Link for keyboard navigation */}
       <a href="#main-content" className="skip-link">Skip to main content</a>
@@ -806,6 +805,5 @@ export function DashboardClientLayout({
       {/* Feature Tour — shows once for new users */}
       {!isLandingPage && <FeatureTour />}
     </div>
-    </SessionProvider>
   );
 }

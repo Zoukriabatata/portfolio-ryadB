@@ -5,6 +5,7 @@ import { throttledFetch } from '@/lib/api/throttledFetch';
 import { useJournal } from '@/hooks/useJournal';
 import { useJournalStore } from '@/stores/useJournalStore';
 import { exportToCsv } from '@/lib/journal/csvExport';
+import { exportToPdf } from '@/lib/journal/pdfExport';
 import TradeFilters from './TradeFilters';
 import TradeTable from './TradeTable';
 import TradeDetailPanel from './TradeDetailPanel';
@@ -57,6 +58,10 @@ export default function TradesTab() {
 
   const handleExport = () => {
     exportToCsv(entries);
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(entries, stats);
   };
 
   const handleEdit = (trade: JournalEntry) => {
@@ -114,6 +119,12 @@ export default function TradesTab() {
           className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-light)] hover:border-[var(--border)] transition-colors"
         >
           Export CSV
+        </button>
+        <button
+          onClick={handleExportPdf}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-light)] hover:border-[var(--border)] transition-colors"
+        >
+          Export PDF
         </button>
 
         {/* New Trade */}

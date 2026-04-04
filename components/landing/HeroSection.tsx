@@ -115,8 +115,8 @@ export default function HeroSection() {
           Launch Offer — $29/mo locked for life
         </div>
 
-        {/* Title */}
-        <div style={{ animation: 'fadeInUp 0.9s ease-out 0.1s forwards', opacity: 0 }}>
+        {/* Title — slideInUp has no opacity transition, h1 is immediately visible for LCP */}
+        <div style={{ animation: 'slideInUp 0.5s ease-out forwards' }}>
           <h1 className="font-black tracking-tight leading-[1.05]">
             <span className="block text-4xl md:text-6xl lg:text-7xl text-white/90">
               Professional

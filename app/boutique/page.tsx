@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';

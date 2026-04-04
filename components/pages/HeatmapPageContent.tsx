@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { binanceWS } from '@/lib/websocket/BinanceWS';
 import { usePageActive } from '@/hooks/usePageActive';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -23,7 +22,9 @@ interface TradeEvent {
 // ─── Constants ───────────────────────────────────────────────────────────────
 const MAX_COLUMNS = 2400;        // 4 min at 100ms
 const PRICE_AXIS_W = 70;         // right side price labels
-const TIME_AXIS_H = 24;          // bottom time labels
+const CVD_H = 60;                // cumulative volume delta section height
+const TIME_AXIS_H = 22;          // bottom time labels
+const BOTTOM_H = CVD_H + TIME_AXIS_H; // total bottom reserved area
 const TRADE_BUBBLE_MAX = 500;    // max trades in buffer
 
 // Bookmap color LUT: 256 entries for bid and ask
@@ -92,6 +93,17 @@ export default function HeatmapPageContent() {
   const priceRangeRef = useRef({ min: 0, max: 0, center: 0 });
   const autoCenter = useRef(true);
 
+  // CVD (cumulative volume delta) refs — one entry per depth column
+  const cvdColumnsRef = useRef<{ buyVol: number; sellVol: number }[]>([]);
+  const currentCvdRef = useRef({ buyVol: 0, sellVol: 0 });
+  const cvdSmoothMaxRef = useRef(1);
+
+  // Mouse/crosshair ref
+  const mouseRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Spread DOM ref (direct DOM update avoids React re-render every 100ms)
+  const spreadSpanRef = useRef<HTMLSpanElement>(null);
+
   // Pan/zoom refs
   const zoomRef = useRef(1);
   const panYRef = useRef(0);
@@ -101,6 +113,9 @@ export default function HeatmapPageContent() {
   const handleSymbolChange = useCallback((s: string) => {
     columnsRef.current = [];
     tradesRef.current = [];
+    cvdColumnsRef.current = [];
+    currentCvdRef.current = { buyVol: 0, sellVol: 0 };
+    cvdSmoothMaxRef.current = 1;
     smoothMaxRef.current = 1;
     priceRangeRef.current = { min: 0, max: 0, center: 0 };
     autoCenter.current = true;
@@ -134,58 +149,84 @@ export default function HeatmapPageContent() {
     const ro = new ResizeObserver(resize);
     ro.observe(container);
 
-    // ── WebSocket subscription ──
+    // ── REST polling (server-side proxy bypasses geo-blocks) ──
     const columns = columnsRef.current;
     const trades = tradesRef.current;
+    const sym = symbol.toUpperCase();
+    let depthTimer = 0;
+    let tradesTimer = 0;
+    let lastTradeId = -1;
 
-    const unsubDepth = binanceWS.subscribeDepth20(
-      symbol.toLowerCase(),
-      (snap) => {
-        const bids = new Float64Array(snap.bids.length * 2);
-        const asks = new Float64Array(snap.asks.length * 2);
-        let bestBid = 0, bestAsk = Infinity;
+    const processDepthSnap = (snap: { bids: [string, string][]; asks: [string, string][] }) => {
+      const bids = new Float64Array(snap.bids.length * 2);
+      const asks = new Float64Array(snap.asks.length * 2);
+      let bestBid = 0, bestAsk = Infinity;
 
-        for (let i = 0; i < snap.bids.length; i++) {
-          const p = parseFloat(snap.bids[i][0]);
-          const q = parseFloat(snap.bids[i][1]);
-          bids[i * 2] = p;
-          bids[i * 2 + 1] = q;
-          if (p > bestBid) bestBid = p;
+      for (let i = 0; i < snap.bids.length; i++) {
+        const p = parseFloat(snap.bids[i][0]);
+        const q = parseFloat(snap.bids[i][1]);
+        bids[i * 2] = p; bids[i * 2 + 1] = q;
+        if (p > bestBid) bestBid = p;
+      }
+      for (let i = 0; i < snap.asks.length; i++) {
+        const p = parseFloat(snap.asks[i][0]);
+        const q = parseFloat(snap.asks[i][1]);
+        asks[i * 2] = p; asks[i * 2 + 1] = q;
+        if (p < bestAsk) bestAsk = p;
+      }
+
+      columns.push({ ts: Date.now(), bids, asks, bestBid, bestAsk });
+      while (columns.length > MAX_COLUMNS) columns.shift();
+
+      cvdColumnsRef.current.push({ ...currentCvdRef.current });
+      currentCvdRef.current = { buyVol: 0, sellVol: 0 };
+      while (cvdColumnsRef.current.length > MAX_COLUMNS) cvdColumnsRef.current.shift();
+
+      if (bestBid > 0 && bestAsk < Infinity) {
+        const mid = (bestBid + bestAsk) / 2;
+        if (autoCenter.current) priceRangeRef.current.center = mid;
+        if (spreadSpanRef.current) {
+          const spreadPct = ((bestAsk - bestBid) / mid * 100).toFixed(3);
+          spreadSpanRef.current.textContent = `Spread: ${(bestAsk - bestBid).toFixed(symbolCfg.tick < 0.01 ? 4 : symbolCfg.tick < 1 ? 2 : 1)} (${spreadPct}%)`;
         }
-        for (let i = 0; i < snap.asks.length; i++) {
-          const p = parseFloat(snap.asks[i][0]);
-          const q = parseFloat(snap.asks[i][1]);
-          asks[i * 2] = p;
-          asks[i * 2 + 1] = q;
-          if (p < bestAsk) bestAsk = p;
+      }
+    };
+
+    const pollDepth = async () => {
+      try {
+        const res = await fetch(`/api/heatmap/snapshot?symbol=${sym}&market=futures`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.bids && data.asks) processDepthSnap(data);
         }
+      } catch { /* ignore */ }
+    };
 
-        columns.push({ ts: Date.now(), bids, asks, bestBid, bestAsk });
-        while (columns.length > MAX_COLUMNS) columns.shift();
-
-        // Auto-center on mid price
-        if (autoCenter.current && bestBid > 0 && bestAsk < Infinity) {
-          priceRangeRef.current.center = (bestBid + bestAsk) / 2;
+    const pollTrades = async () => {
+      try {
+        const res = await fetch(`/api/heatmap/trades?symbol=${sym}&market=futures`, { cache: 'no-store' });
+        if (res.ok) {
+          const data: Array<{ id: number; price: string; qty: string; time: number; isBuyerMaker: boolean }> = await res.json();
+          if (!Array.isArray(data)) return;
+          for (const t of data) {
+            if (t.id <= lastTradeId) continue;
+            const isBuy = !t.isBuyerMaker;
+            const qty = parseFloat(t.qty);
+            trades.push({ ts: t.time, price: parseFloat(t.price), qty, isBuy });
+            if (isBuy) currentCvdRef.current.buyVol += qty;
+            else currentCvdRef.current.sellVol += qty;
+          }
+          if (data.length > 0) lastTradeId = data[data.length - 1].id;
+          while (trades.length > TRADE_BUBBLE_MAX) trades.shift();
         }
-      },
-      'futures',
-      '100ms'
-    );
+      } catch { /* ignore */ }
+    };
 
-    // Subscribe to trades for bubbles
-    const unsubTrades = binanceWS.subscribeTrades(
-      symbol.toLowerCase(),
-      (trade) => {
-        trades.push({
-          ts: trade.time,
-          price: trade.price,
-          qty: trade.quantity,
-          isBuy: !trade.isBuyerMaker,
-        });
-        while (trades.length > TRADE_BUBBLE_MAX) trades.shift();
-      },
-      'futures'
-    );
+    // Initial fetch immediately, then poll
+    pollDepth();
+    pollTrades();
+    depthTimer = window.setInterval(pollDepth, 200);
+    tradesTimer = window.setInterval(pollTrades, 1000);
 
     // ── Render loop ──
     const tickSize = symbolCfg.tick;
@@ -194,7 +235,7 @@ export default function HeatmapPageContent() {
       if (!w || !h) { rafId = requestAnimationFrame(draw); return; }
 
       const hmW = Math.floor(w - PRICE_AXIS_W);
-      const hmH = Math.floor(h - TIME_AXIS_H);
+      const hmH = Math.floor(h - BOTTOM_H);
       if (hmW <= 0 || hmH <= 0) { rafId = requestAnimationFrame(draw); return; }
 
       // Clear
@@ -258,7 +299,7 @@ export default function HeatmapPageContent() {
       }
 
       const pxPerTick = (tickSize / pSpan) * hmH;
-      const cellH = Math.max(1, Math.ceil(pxPerTick));
+      const cellH = Math.max(2, Math.ceil(pxPerTick));
 
       for (let ci = startIdx; ci < cols.length; ci++) {
         const col = cols[ci];
@@ -421,9 +462,72 @@ export default function HeatmapPageContent() {
         ctx.stroke();
       }
 
+      // ── CVD (Cumulative Volume Delta) bars ──
+      const cvdCols = cvdColumnsRef.current;
+      const cvdY = hmH; // CVD section starts right below heatmap
+
+      ctx.fillStyle = `rgb(${BG_R + 2},${BG_G + 2},${BG_B + 4})`;
+      ctx.fillRect(0, cvdY, hmW, CVD_H);
+
+      if (cvdCols.length > 1) {
+        // Find max |delta| for scaling (smoothed)
+        let frameMax = 0;
+        const cvdStep = Math.max(1, Math.floor(visCols / 200));
+        for (let ci = Math.max(0, cvdCols.length - visCols); ci < cvdCols.length; ci += cvdStep) {
+          const c = cvdCols[ci];
+          if (c) {
+            const net = Math.abs(c.buyVol - c.sellVol);
+            if (net > frameMax) frameMax = net;
+          }
+        }
+        if (frameMax > 0) {
+          cvdSmoothMaxRef.current = cvdSmoothMaxRef.current * 0.95 + frameMax * 0.05;
+        }
+        const cvdMax = cvdSmoothMaxRef.current || 1;
+        const cvdMidY = cvdY + CVD_H / 2;
+        const cvdMaxBarH = CVD_H / 2 - 3;
+
+        const cvdStartIdx = Math.max(0, cvdCols.length - visCols);
+        for (let ci = cvdStartIdx; ci < cvdCols.length; ci++) {
+          const cvd = cvdCols[ci];
+          if (!cvd) continue;
+          const delta = cvd.buyVol - cvd.sellVol;
+          if (Math.abs(delta) < 0.0001) continue;
+          const barH = Math.max(1, Math.min(cvdMaxBarH, Math.abs(delta / cvdMax) * cvdMaxBarH));
+          const xS = Math.floor((ci - cvdStartIdx) * colW);
+          const xE = Math.max(xS + 1, Math.ceil(xS + colW - 0.5));
+          if (delta > 0) {
+            ctx.fillStyle = 'rgba(0,230,120,0.75)';
+            ctx.fillRect(xS, cvdMidY - barH, xE - xS, barH);
+          } else {
+            ctx.fillStyle = 'rgba(255,60,100,0.75)';
+            ctx.fillRect(xS, cvdMidY, xE - xS, barH);
+          }
+        }
+
+        // Zero line
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(0, cvdMidY);
+        ctx.lineTo(hmW, cvdMidY);
+        ctx.stroke();
+      }
+
+      // CVD label + separator
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, cvdY); ctx.lineTo(hmW, cvdY); ctx.stroke();
+      ctx.fillStyle = '#374151';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('CVD', 4, cvdY + 10);
+
       // ── Time axis (bottom) ──
+      const timeAxisY = hmH + CVD_H;
       ctx.fillStyle = `rgb(${BG_R + 4},${BG_G + 4},${BG_B + 6})`;
-      ctx.fillRect(0, hmH, w, TIME_AXIS_H);
+      ctx.fillRect(0, timeAxisY, w, TIME_AXIS_H);
 
       if (cols.length > 1) {
         ctx.fillStyle = '#6b7280';
@@ -434,7 +538,46 @@ export default function HeatmapPageContent() {
           const x = (ci - startIdx) * colW;
           const d = new Date(cols[ci].ts);
           const label = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
-          ctx.fillText(label, x, hmH + 16);
+          ctx.fillText(label, x, timeAxisY + 15);
+        }
+      }
+
+      // ── Crosshair ──
+      const mouse = mouseRef.current;
+      if (mouse && mouse.x >= 0 && mouse.x < hmW && mouse.y >= 0 && mouse.y < hmH) {
+        const mousePrice = pMax - (mouse.y / hmH) * pSpan;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 0.5;
+        // Horizontal
+        ctx.beginPath(); ctx.moveTo(0, mouse.y); ctx.lineTo(hmW, mouse.y); ctx.stroke();
+        // Vertical
+        ctx.beginPath(); ctx.moveTo(mouse.x, 0); ctx.lineTo(mouse.x, hmH); ctx.stroke();
+        ctx.setLineDash([]);
+        // Price label on axis
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(hmW, mouse.y - 9, PRICE_AXIS_W, 18);
+        ctx.fillStyle = '#e0e4ec';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          mousePrice.toFixed(tickSize < 0.01 ? 4 : tickSize < 1 ? 2 : 0),
+          hmW + PRICE_AXIS_W / 2,
+          mouse.y + 3
+        );
+        // Time label
+        if (cols.length > 1) {
+          const tFrac = mouse.x / hmW;
+          const tIdx = Math.min(cols.length - 1, Math.floor(startIdx + tFrac * visCols));
+          const d = new Date(cols[tIdx]?.ts ?? 0);
+          const tLabel = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+          ctx.fillStyle = 'rgba(255,255,255,0.15)';
+          const tlW = 54;
+          ctx.fillRect(mouse.x - tlW / 2, timeAxisY, tlW, 14);
+          ctx.fillStyle = '#e0e4ec';
+          ctx.font = '10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(tLabel, mouse.x, timeAxisY + 11);
         }
       }
 
@@ -464,12 +607,12 @@ export default function HeatmapPageContent() {
       if (e.ctrlKey || e.metaKey) {
         // Zoom
         const factor = e.deltaY > 0 ? 0.9 : 1.1;
-        zoomRef.current = Math.max(0.2, Math.min(20, zoomRef.current * factor));
+        zoomRef.current = Math.max(0.8, Math.min(20, zoomRef.current * factor));
       } else {
         // Pan
-        const hmH = h - TIME_AXIS_H;
+        const hmHlocal = h - BOTTOM_H;
         const pSpan = (priceRangeRef.current.center ? 1 : 100) / zoomRef.current;
-        panYRef.current += (e.deltaY / hmH) * pSpan * 50;
+        panYRef.current += (e.deltaY / hmHlocal) * pSpan * 50;
         autoCenter.current = false;
       }
     };
@@ -479,10 +622,14 @@ export default function HeatmapPageContent() {
       lastMouseY.current = e.clientY;
     };
     const onMouseMove = (e: MouseEvent) => {
+      // Update crosshair position
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
       if (!draggingRef.current) return;
       const dy = e.clientY - lastMouseY.current;
       lastMouseY.current = e.clientY;
-      const hmH = h - TIME_AXIS_H;
+      const hmHlocal = h - BOTTOM_H;
       const c = columnsRef.current;
       const lastCol = c[c.length - 1];
       if (!lastCol) return;
@@ -497,9 +644,10 @@ export default function HeatmapPageContent() {
       }
       const baseSpread = (depthMax - depthMin) || 100;
       const pSpan = baseSpread / zoomRef.current;
-      panYRef.current += (dy / hmH) * pSpan;
+      panYRef.current += (dy / hmHlocal) * pSpan;
       autoCenter.current = false;
     };
+    const onMouseLeave = () => { mouseRef.current = null; };
     const onMouseUp = () => { draggingRef.current = false; };
 
     const onDblClick = () => {
@@ -510,17 +658,19 @@ export default function HeatmapPageContent() {
 
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mouseleave', onMouseLeave);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('dblclick', onDblClick);
 
     return () => {
       cancelAnimationFrame(rafId);
-      unsubDepth();
-      unsubTrades();
+      clearInterval(depthTimer);
+      clearInterval(tradesTimer);
       ro.disconnect();
       canvas.removeEventListener('wheel', onWheel);
       canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mouseleave', onMouseLeave);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('dblclick', onDblClick);
@@ -553,6 +703,13 @@ export default function HeatmapPageContent() {
 
         <div className="flex-1" />
 
+        {/* Live spread */}
+        <span
+          ref={spreadSpanRef}
+          className="text-[10px] font-mono px-2 py-0.5 rounded"
+          style={{ color: '#6ee7b7', background: 'rgba(110,231,183,0.06)', border: '1px solid rgba(110,231,183,0.12)' }}
+        />
+
         {/* Auto-center button */}
         <button
           onClick={() => { autoCenter.current = true; panYRef.current = 0; zoomRef.current = 1; }}
@@ -563,8 +720,8 @@ export default function HeatmapPageContent() {
         </button>
 
         {/* Info */}
-        <span className="text-[10px] font-mono" style={{ color: '#4a5568' }}>
-          Scroll: zoom · Drag: pan · Dbl-click: reset
+        <span className="text-[10px] font-mono hidden md:inline" style={{ color: '#374151' }}>
+          Ctrl+scroll: zoom · Drag: pan · Dbl-click: reset
         </span>
       </div>
 

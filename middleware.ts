@@ -505,7 +505,7 @@ async function runMiddleware(request: NextRequest, pathname: string) {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.tradovateapi.com wss://*.tradovateapi.com https://api.stripe.com https://stream.binance.com wss://stream.binance.com wss://stream.bybit.com wss://www.deribit.com https://*.vercel.app https://api.groq.com https://api.anthropic.com",
+      "connect-src 'self' https://*.tradovateapi.com wss://*.tradovateapi.com https://api.stripe.com https://stream.binance.com wss://stream.binance.com https://fstream.binance.com wss://fstream.binance.com https://api.binance.com https://fapi.binance.com wss://stream.bybit.com wss://www.deribit.com https://*.vercel.app https://api.groq.com https://api.anthropic.com",
       "frame-src https://js.stripe.com https://hooks.stripe.com",
       "object-src 'none'",
       "base-uri 'self'",

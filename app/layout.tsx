@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono';
 import '@/app/globals.css';
 import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
+import SessionProviderWrapper from '@/components/layouts/SessionProviderWrapper';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
@@ -120,7 +121,9 @@ if(typeof Node!=='undefined'){
         <JsonLd />
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans`} suppressHydrationWarning>
-        <DashboardClientLayout>{children}</DashboardClientLayout>
+        <SessionProviderWrapper>
+          <DashboardClientLayout>{children}</DashboardClientLayout>
+        </SessionProviderWrapper>
         <Toaster
           theme="dark"
           position="bottom-right"
