@@ -75,64 +75,64 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     setLoadingPhase('fetching');
     try {
       if (isCMESymbol(sym)) {
-        // Try Tradovate first, fallback to dxFeed history
-        const tradovateCandles = await new Promise<LiveCandle[]>(async (resolve) => {
-          const intervalMin = Math.max(1, Math.floor(tf / 60));
-          let resolved = false;
-          const timer = setTimeout(() => { if (!resolved) { resolved = true; resolve([]); } }, 8_000);
-
-          await getCMELiveAdapter().connect(sym).catch(() => {});
-
-          const { tradovateWS } = await import('@/lib/websocket/TradovateWS');
-          await tradovateWS.subscribeChart(sym, intervalMin, () => {}, (candles) => {
-            if (resolved) return;
-            resolved = true;
-            clearTimeout(timer);
-            resolve(candles.map(c => ({
-              time:       c.time,
-              open:       c.open,
-              high:       c.high,
-              low:        c.low,
-              close:      c.close,
-              volume:     c.volume,
-              buyVolume:  c.volume * 0.5,
-              sellVolume: c.volume * 0.5,
-              trades:     0,
-            })));
-          });
+        type CandleRow = { time: number; open: number; high: number; low: number; close: number; volume: number };
+        const toCandle = (c: CandleRow): LiveCandle => ({
+          time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+          volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
         });
 
-        if (tradovateCandles.length > 0) return tradovateCandles.filter(c => validateCandle(c, sym));
-
-        // Fallback: dxFeed history API (works without Tradovate credentials)
-        // dxFeed uses /ES, /NQ format — add slash prefix for CME symbols
-        const dxSymbol = sym.startsWith('/') ? sym : `/${sym}`;
+        // 1. Yahoo Finance — fast HTTP, works for FREE users, no credentials needed
         try {
-          const dxRes = await fetch(`/api/dxfeed/history?symbol=${encodeURIComponent(dxSymbol)}&timeframe=${tf}&limit=500`);
-          if (dxRes.ok) {
-            const dxData = await dxRes.json();
-            if (Array.isArray(dxData) && dxData.length > 0) {
-              return dxData.map((c: { time: number; open: number; high: number; low: number; close: number; volume: number }) => ({
-                time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
-                volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
-              })).filter((c: LiveCandle) => validateCandle(c, sym));
-            }
-          }
-        } catch { /* dxFeed unavailable */ }
-
-        // Fallback 2: Yahoo Finance (free, real CME data, available 24/7 including weekends)
-        try {
-          const yahooRes = await fetch(`/api/futures-history?symbol=${encodeURIComponent(sym)}&timeframe=${tf}&days=5`);
+          const yahooRes = await fetch(
+            `/api/futures-history?symbol=${encodeURIComponent(sym)}&timeframe=${tf}&days=5`,
+            { signal: AbortSignal.timeout(8_000) }
+          );
           if (yahooRes.ok) {
             const yahooData = await yahooRes.json();
             if (Array.isArray(yahooData) && yahooData.length > 0) {
-              return yahooData.map((c: { time: number; open: number; high: number; low: number; close: number; volume: number }) => ({
-                time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
-                volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
-              })).filter((c: LiveCandle) => validateCandle(c, sym));
+              const candles = yahooData.map(toCandle).filter((c: LiveCandle) => validateCandle(c, sym));
+              if (candles.length > 0) return candles;
             }
           }
         } catch { /* Yahoo unavailable */ }
+
+        // 2. Tradovate — only attempt if credentials are configured (avoids 5s needless wait)
+        const { useDataFeedStore } = await import('@/stores/useDataFeedStore');
+        const configs = useDataFeedStore.getState().configs;
+        const hasTradovate = configs['tradovate']?.status === 'connected' || configs['tradovate']?.status === 'configured';
+        if (hasTradovate) {
+          const tradovateCandles = await new Promise<LiveCandle[]>(async (resolve) => {
+            const intervalMin = Math.max(1, Math.floor(tf / 60));
+            let resolved = false;
+            const timer = setTimeout(() => { if (!resolved) { resolved = true; resolve([]); } }, 5_000);
+            const { tradovateWS } = await import('@/lib/websocket/TradovateWS');
+            await tradovateWS.subscribeChart(sym, intervalMin, () => {}, (candles) => {
+              if (resolved) return;
+              resolved = true;
+              clearTimeout(timer);
+              resolve(candles.map(c => ({
+                time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+                volume: c.volume, buyVolume: c.volume * 0.5, sellVolume: c.volume * 0.5, trades: 0,
+              })));
+            });
+          });
+          if (tradovateCandles.length > 0) return tradovateCandles.filter(c => validateCandle(c, sym));
+        }
+
+        // 3. dxFeed history REST endpoint
+        try {
+          const dxSymbol = sym.startsWith('/') ? sym : `/${sym}`;
+          const dxRes = await fetch(
+            `/api/dxfeed/history?symbol=${encodeURIComponent(dxSymbol)}&timeframe=${tf}&limit=500`,
+            { signal: AbortSignal.timeout(5_000) }
+          );
+          if (dxRes.ok) {
+            const dxData = await dxRes.json();
+            if (Array.isArray(dxData) && dxData.length > 0) {
+              return dxData.map(toCandle).filter((c: LiveCandle) => validateCandle(c, sym));
+            }
+          }
+        } catch { /* dxFeed history unavailable */ }
 
         return [];
       }
@@ -276,16 +276,19 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     let isMounted = true;
 
     const init = async () => {
-      // Clean up previous subscriptions
+      // Step 1 — kill all live feeds IMMEDIATELY so no stale ticks reach the aggregator
+      // during the async history load below (Binance ticks were leaking onto CME charts).
+      getBinanceLiveWS().disconnect();
+      getCMELiveAdapter().disconnect();
+
+      // Step 2 — clean slate
       refs.unsubscribers.current.forEach(unsub => unsub());
       refs.unsubscribers.current = [];
-
-      // Reset aggregator for fresh start
       resetAggregator();
       refs.lastHistoryTime.current = 0;
       setNoData(false);
 
-      // Load history
+      // Step 3 — load history (adapters are disconnected, aggregator is clean)
       const history = await loadHistory(symbol, timeframe);
       if (!isMounted) return;
 
@@ -301,15 +304,10 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         refs.unsubscribers.current.push(() => clearTimeout(noDataTimer));
       }
 
-      // Connect WebSocket (Tradovate for CME, Binance for crypto)
+      // Step 4 — connect the right live adapter
       const isCME = isCMESymbol(symbol);
       const ws = isCME ? getCMELiveAdapter() : getBinanceLiveWS();
       const aggregator = getAggregator();
-
-      // Disconnect BOTH adapters — prevents cross-source tick contamination
-      // (e.g. Binance still pushing BTC ticks into the aggregator while on a CME symbol)
-      getBinanceLiveWS().disconnect();
-      getCMELiveAdapter().disconnect();
 
       const unsubStatus = ws.onStatus((s) => {
         if (!isMounted) return;
