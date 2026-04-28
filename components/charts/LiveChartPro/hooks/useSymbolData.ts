@@ -9,7 +9,8 @@ import {
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
 import { getCMELiveAdapter } from '@/lib/live/getCMELiveAdapter';
 import { isCMESymbol } from '@/lib/utils/symbolUtils';
-import { validateInstrumentPrice, validateCandle } from '@/lib/instruments';
+import { validateInstrumentPrice, validateCandle, getDxFeedSymbol } from '@/lib/instruments';
+import { dxFeedWS } from '@/lib/websocket/DxFeedWS';
 import { useAlertsStore } from '@/stores/useAlertsStore';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { type AssetCategory, SYMBOL_CATEGORIES_BY_ASSET } from '../constants/symbols';
@@ -430,6 +431,53 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       });
 
       await ws.connect(symbol);
+
+      // CME in demo mode: TimeAndSale (individual trades) are not streamed by dxFeed demo.
+      // Subscribe to Candle events instead — they ARE available and update as bars form.
+      if (isCME) {
+        const TF_TO_DX: Partial<Record<TimeframeSeconds, string>> = {
+          15: '15s', 30: '30s', 60: '1m', 180: '1m', 300: '5m',
+          900: '15m', 1800: '30m', 3600: '1h', 14400: '4h', 86400: '1d',
+        };
+        const dxTF = TF_TO_DX[timeframe] ?? '1m';
+        const dxSym = getDxFeedSymbol(symbol);
+        try {
+          const unsubDxCandle = await dxFeedWS.subscribeCandles(dxSym, dxTF, (candle) => {
+            if (!isMounted) return;
+            if (!validateCandle(candle, symbol) || !validateInstrumentPrice(symbol, candle.close)) return;
+
+            const cc: ChartCandle = {
+              time: candle.time, open: candle.open, high: candle.high,
+              low: candle.low, close: candle.close, volume: candle.volume,
+              buyVolume: candle.volume * 0.5, sellVolume: candle.volume * 0.5,
+            };
+
+            refs.currentPrice.current = candle.close;
+            if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
+            if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(candle.open);
+            if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(candle.high);
+            if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = priceFormatter.format(candle.low);
+            if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(candle.close);
+
+            if (candle.high > refs.sessionHigh.current) refs.sessionHigh.current = candle.high;
+            if (candle.low < refs.sessionLow.current) refs.sessionLow.current = candle.low;
+            updatePricePositionIndicator();
+
+            if (refs.chartEngine.current && candle.time >= refs.lastHistoryTime.current) {
+              refs.chartEngine.current.updateCandle(cc);
+              refs.candleData.current.set(candle.time, {
+                open: candle.open, high: candle.high, low: candle.low, close: candle.close,
+              });
+              const idx = refs.candles.current.findIndex(c => c.time === candle.time);
+              if (idx >= 0) refs.candles.current[idx] = cc;
+              else refs.candles.current.push(cc);
+            }
+          });
+          refs.unsubscribers.current.push(unsubDxCandle);
+        } catch {
+          console.warn('[dxFeed] Candle subscription failed — candle updates will not be live');
+        }
+      }
     };
 
     init();
