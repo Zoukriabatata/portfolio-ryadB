@@ -89,6 +89,10 @@ class DxFeedWebSocket {
   private channelOpen = false;
   private demoMode = false;
 
+  private intentionalDisconnect = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempts = 0;
+
   // symbol → handlers
   private klineHandlers: Map<string, Set<KlineHandler>> = new Map();
   private tradeHandlers: Map<string, Set<TradeHandler>> = new Map();
@@ -273,10 +277,20 @@ class DxFeedWebSocket {
       };
 
       this.ws.onclose = () => {
-        console.log('[dxFeed] WebSocket closed');
-        this.state = 'disconnected';
         this.channelOpen = false;
         this.stopKeepalive();
+        this.state = 'disconnected';
+        if (!this.intentionalDisconnect && this.activeSubscriptions.size > 0) {
+          const delay = Math.min(1_000 * Math.pow(2, this.reconnectAttempts), 30_000);
+          console.log(`[dxFeed] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            if (!this.intentionalDisconnect) {
+              this.reconnectAttempts++;
+              this.openWebSocket();
+            }
+          }, delay);
+        }
       };
 
       // Timeout after 10s
@@ -317,7 +331,7 @@ class DxFeedWebSocket {
       case 'CHANNEL_OPENED':
         if (msg.channel === FEED_CHANNEL) {
           this.channelOpen = true;
-          // Tell server which fields we want for each event type
+          this.reconnectAttempts = 0;
           this.send({
             type: 'FEED_SETUP',
             channel: FEED_CHANNEL,
@@ -334,11 +348,18 @@ class DxFeedWebSocket {
           this.startKeepalive();
           resolve?.(true);
 
-          // Flush pending subscriptions
-          if (this.pendingSubscriptions.length > 0) {
-            this.sendSubscriptions(this.pendingSubscriptions);
-            this.pendingSubscriptions = [];
+          // Re-send ALL active subscriptions (handles both initial flush and auto-reconnect)
+          const toFlush = [...this.pendingSubscriptions];
+          this.pendingSubscriptions = [];
+          for (const key of this.activeSubscriptions) {
+            const sep = key.indexOf('|');
+            const et = key.slice(0, sep);
+            const sym = key.slice(sep + 1);
+            if (!toFlush.some(s => s.eventType === et && s.symbol === sym)) {
+              toFlush.push({ eventType: et, symbol: sym });
+            }
           }
+          if (toFlush.length > 0) this.sendSubscriptions(toFlush);
         }
         break;
 
@@ -505,6 +526,8 @@ class DxFeedWebSocket {
   }
 
   private cleanup(): void {
+    this.intentionalDisconnect = true;
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     this.stopKeepalive();
     if (this.ws) {
       this.ws.onclose = null;
@@ -518,6 +541,7 @@ class DxFeedWebSocket {
     this.activeSubscriptions.clear();
     this.pendingSubscriptions = [];
     this.domHandlers.clear();
+    this.intentionalDisconnect = false; // reset so next connect() works normally
   }
 
   private waitForConnection(): Promise<boolean> {

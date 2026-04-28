@@ -477,6 +477,48 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         } catch {
           console.warn('[dxFeed] Candle subscription failed — candle updates will not be live');
         }
+
+        // Quote subscription: bid/ask events are streamed more frequently than closed candles.
+        // Use the midpoint to animate the current forming candle and price display.
+        try {
+          const unsubDxQuote = await dxFeedWS.subscribeQuotes(symbol, ({ bid, ask }) => {
+            if (!isMounted) return;
+            const mid = (bid + ask) / 2;
+            if (!mid || !validateInstrumentPrice(symbol, mid)) return;
+
+            refs.currentPrice.current = mid;
+            if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(mid)}`;
+            if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(mid);
+
+            // Animate the last candle's close/high/low with the quoted midpoint
+            const candles = refs.candles.current;
+            if (candles.length > 0 && refs.chartEngine.current) {
+              const last = candles[candles.length - 1];
+              const updated: ChartCandle = {
+                ...last,
+                close: mid,
+                high: Math.max(last.high, mid),
+                low: Math.min(last.low, mid),
+              };
+              refs.chartEngine.current.updateCandle(updated);
+              candles[candles.length - 1] = updated;
+            }
+
+            if (mid > refs.sessionHigh.current) refs.sessionHigh.current = mid;
+            if (mid < refs.sessionLow.current) refs.sessionLow.current = mid;
+            updatePricePositionIndicator();
+
+            const now = Date.now();
+            if (now - refs.lastAlertCheck.current > 500) {
+              refs.lastAlertCheck.current = now;
+              checkAlerts(symbol, mid);
+              updatePositionPrices(symbol.toUpperCase(), mid);
+            }
+          });
+          refs.unsubscribers.current.push(unsubDxQuote);
+        } catch {
+          console.warn('[dxFeed] Quote subscription failed');
+        }
       }
     };
 
