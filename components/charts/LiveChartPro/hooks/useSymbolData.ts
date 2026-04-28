@@ -338,18 +338,23 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
 
       // Update price and chart without React re-renders
       const unsubCandle = aggregator.on('candle:update', (candle, tf) => {
-        if (tf !== timeframe || !isMounted) return;
+        if (!isMounted) return;
         if (!validateInstrumentPrice(symbol, candle.close)) return;
+
+        // Price indicator updates on EVERY tick (primary 15s TF), not just selected TF.
+        // This keeps the price display live even on 1m/5m/1h charts where candle:update
+        // fires for the selected TF only every 15s (on slot boundaries).
+        if (refs.price.current) {
+          refs.currentPrice.current = candle.close;
+          refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
+        }
+
+        // All remaining updates (OHLC, chart, alerts) are TF-specific
+        if (tf !== timeframe) return;
 
         // Clear "no data" state on first live candle
         if (refs.candles.current.length === 0) {
           setNoData(false);
-        }
-
-        // Update price directly in DOM
-        if (refs.price.current) {
-          refs.currentPrice.current = candle.close;
-          refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
         }
 
         // Update OHLC + volume directly in DOM (no re-render)

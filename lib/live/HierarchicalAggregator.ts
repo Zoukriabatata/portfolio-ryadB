@@ -185,6 +185,23 @@ export class HierarchicalAggregator {
     node.lastUpdateTime = Date.now();
     this.emit('candle:update', current, tf);
 
+    // Fast-path: directly propagate the new close/high/low to all higher TF candles
+    // so charts at 1m/5m/1h animate on every tick, not just every 15s.
+    // Volume stays correct — propagateUpward() recomputes it on every 15s boundary.
+    TIMEFRAMES.filter(t => t > HierarchicalAggregator.PRIMARY_TF).forEach(higherTF => {
+      const higherNode = this.nodes.get(higherTF)!;
+      if (!higherNode.currentCandle) return;
+      const c = higherNode.currentCandle;
+      const updated: LiveCandle = {
+        ...c,
+        close: tick.price,
+        high: Math.max(c.high, tick.price),
+        low: Math.min(c.low, tick.price),
+      };
+      higherNode.currentCandle = updated;
+      this.emit('candle:update', updated, higherTF);
+    });
+
     return false;
   }
 

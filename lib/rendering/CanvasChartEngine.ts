@@ -343,6 +343,9 @@ export class CanvasChartEngine {
         if (!this.userHasPanned && this.viewport.endIndex >= this.candles.length - 1) {
           this.viewport.endIndex = this.candles.length;
           this.viewport.startIndex = Math.max(0, this.viewport.endIndex - this.getVisibleCandleCount());
+          // Must mirror into targetViewport — otherwise the smooth animation lerps back
+          this.targetViewport.endIndex = this.viewport.endIndex;
+          this.targetViewport.startIndex = this.viewport.startIndex;
         }
       }
     }
