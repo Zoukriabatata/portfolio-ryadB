@@ -524,6 +524,55 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         } catch {
           console.warn('[dxFeed] Quote subscription failed');
         }
+
+        // Polling fallback: dxFeed demo streams infrequently for many CME symbols.
+        // Poll Yahoo Finance every 15s to keep the price display alive.
+        const pollPrice = async () => {
+          if (!isMounted) return;
+          try {
+            const res = await fetch(
+              `/api/futures-price?symbol=${encodeURIComponent(symbol)}`,
+              { signal: AbortSignal.timeout(6_000) }
+            );
+            if (!res.ok) return;
+            const q = await res.json() as {
+              price: number; open: number; high: number; low: number; timestamp: number;
+            };
+            if (!q?.price || !isMounted) return;
+            if (!validateInstrumentPrice(symbol, q.price)) return;
+
+            refs.currentPrice.current = q.price;
+            if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(q.price)}`;
+            if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(q.price);
+
+            // Animate the last candle on the chart with the polled close
+            const candles = refs.candles.current;
+            if (candles.length > 0 && refs.chartEngine.current) {
+              const last = candles[candles.length - 1];
+              const updated = {
+                ...last,
+                close: q.price,
+                high: Math.max(last.high, q.price),
+                low: Math.min(last.low, q.price),
+              };
+              refs.chartEngine.current.updateCandle(updated);
+              candles[candles.length - 1] = updated;
+            }
+
+            if (q.price > refs.sessionHigh.current) refs.sessionHigh.current = q.price;
+            if (q.price < refs.sessionLow.current) refs.sessionLow.current = q.price;
+            updatePricePositionIndicator();
+            checkAlerts(symbol, q.price);
+            updatePositionPrices(symbol.toUpperCase(), q.price);
+          } catch {
+            // Poll failed — silently retry next interval
+          }
+        };
+
+        // Kick off an immediate poll so price shows right away, then every 15s
+        pollPrice();
+        const pollTimer = setInterval(pollPrice, 15_000);
+        refs.unsubscribers.current.push(() => clearInterval(pollTimer));
       }
     };
 
