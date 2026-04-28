@@ -470,37 +470,42 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
             // Clear the "no data" overlay as soon as polling returns valid candles
             setNoData(false);
 
-            // Append candles newer than the last known history time
-            const newBars = polled.filter(c => c.time > refs.lastHistoryTime.current);
-            if (newBars.length > 0 && refs.chartEngine.current) {
-              newBars.forEach(c => {
-                const cc: ChartCandle = {
-                  time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
-                  volume: c.volume, buyVolume: c.buyVolume, sellVolume: c.sellVolume,
-                };
-                refs.chartEngine.current!.updateCandle(cc);
-                refs.candleData.current.set(c.time, { open: c.open, high: c.high, low: c.low, close: c.close });
-                const idx = refs.candles.current.findIndex(x => x.time === c.time);
-                if (idx >= 0) refs.candles.current[idx] = cc;
-                else refs.candles.current.push(cc);
-              });
-              refs.lastHistoryTime.current = newBars[newBars.length - 1].time;
-            }
+            if (refs.candles.current.length === 0) {
+              // Chart is empty — do a full load so the viewport auto-scales properly
+              updateChartData(polled);
+            } else {
+              // Append candles newer than the last known history time
+              const newBars = polled.filter(c => c.time > refs.lastHistoryTime.current);
+              if (newBars.length > 0 && refs.chartEngine.current) {
+                newBars.forEach(c => {
+                  const cc: ChartCandle = {
+                    time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+                    volume: c.volume, buyVolume: c.buyVolume, sellVolume: c.sellVolume,
+                  };
+                  refs.chartEngine.current!.updateCandle(cc);
+                  refs.candleData.current.set(c.time, { open: c.open, high: c.high, low: c.low, close: c.close });
+                  const idx = refs.candles.current.findIndex(x => x.time === c.time);
+                  if (idx >= 0) refs.candles.current[idx] = cc;
+                  else refs.candles.current.push(cc);
+                });
+                refs.lastHistoryTime.current = newBars[newBars.length - 1].time;
+              }
 
-            // Patch the last candle with the freshest Yahoo close
-            const existingCandles = refs.candles.current;
-            if (existingCandles.length > 0 && refs.chartEngine.current) {
-              const tail = existingCandles[existingCandles.length - 1];
-              if (tail.time === last.time) {
-                const updated: ChartCandle = {
-                  ...tail,
-                  close: last.close,
-                  high: Math.max(tail.high, last.high),
-                  low: Math.min(tail.low, last.low),
-                  volume: last.volume,
-                };
-                refs.chartEngine.current.updateCandle(updated);
-                existingCandles[existingCandles.length - 1] = updated;
+              // Patch the last candle with the freshest close
+              const existingCandles = refs.candles.current;
+              if (existingCandles.length > 0 && refs.chartEngine.current) {
+                const tail = existingCandles[existingCandles.length - 1];
+                if (tail.time === last.time) {
+                  const updated: ChartCandle = {
+                    ...tail,
+                    close: last.close,
+                    high: Math.max(tail.high, last.high),
+                    low: Math.min(tail.low, last.low),
+                    volume: last.volume,
+                  };
+                  refs.chartEngine.current.updateCandle(updated);
+                  existingCandles[existingCandles.length - 1] = updated;
+                }
               }
             }
 
