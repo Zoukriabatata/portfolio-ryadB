@@ -437,97 +437,11 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
 
       await ws.connect(symbol);
 
-      // CME in demo mode: TimeAndSale (individual trades) are not streamed by dxFeed demo.
-      // Subscribe to Candle events instead — they ARE available and update as bars form.
       if (isCME) {
-        const TF_TO_DX: Partial<Record<TimeframeSeconds, string>> = {
-          15: '15s', 30: '30s', 60: '1m', 180: '1m', 300: '5m',
-          900: '15m', 1800: '30m', 3600: '1h', 14400: '4h', 86400: '1d',
-        };
-        const dxTF = TF_TO_DX[timeframe] ?? '1m';
-        const dxSym = getDxFeedSymbol(symbol);
-        try {
-          const unsubDxCandle = await dxFeedWS.subscribeCandles(dxSym, dxTF, (candle) => {
-            if (!isMounted) return;
-            if (!validateCandle(candle, symbol) || !validateInstrumentPrice(symbol, candle.close)) return;
-
-            const cc: ChartCandle = {
-              time: candle.time, open: candle.open, high: candle.high,
-              low: candle.low, close: candle.close, volume: candle.volume,
-              buyVolume: candle.volume * 0.5, sellVolume: candle.volume * 0.5,
-            };
-
-            refs.currentPrice.current = candle.close;
-            if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
-            if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(candle.open);
-            if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(candle.high);
-            if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = priceFormatter.format(candle.low);
-            if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(candle.close);
-
-            if (candle.high > refs.sessionHigh.current) refs.sessionHigh.current = candle.high;
-            if (candle.low < refs.sessionLow.current) refs.sessionLow.current = candle.low;
-            updatePricePositionIndicator();
-
-            if (refs.chartEngine.current && candle.time >= refs.lastHistoryTime.current) {
-              refs.chartEngine.current.updateCandle(cc);
-              refs.candleData.current.set(candle.time, {
-                open: candle.open, high: candle.high, low: candle.low, close: candle.close,
-              });
-              const idx = refs.candles.current.findIndex(c => c.time === candle.time);
-              if (idx >= 0) refs.candles.current[idx] = cc;
-              else refs.candles.current.push(cc);
-            }
-          });
-          refs.unsubscribers.current.push(unsubDxCandle);
-        } catch {
-          console.warn('[dxFeed] Candle subscription failed — candle updates will not be live');
-        }
-
-        // Quote subscription: bid/ask events are streamed more frequently than closed candles.
-        // Use the midpoint to animate the current forming candle and price display.
-        try {
-          const unsubDxQuote = await dxFeedWS.subscribeQuotes(symbol, ({ bid, ask }) => {
-            if (!isMounted) return;
-            const mid = (bid + ask) / 2;
-            if (!mid || !validateInstrumentPrice(symbol, mid)) return;
-
-            refs.currentPrice.current = mid;
-            if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(mid)}`;
-            if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(mid);
-
-            // Animate the last candle's close/high/low with the quoted midpoint
-            const candles = refs.candles.current;
-            if (candles.length > 0 && refs.chartEngine.current) {
-              const last = candles[candles.length - 1];
-              const updated: ChartCandle = {
-                ...last,
-                close: mid,
-                high: Math.max(last.high, mid),
-                low: Math.min(last.low, mid),
-              };
-              refs.chartEngine.current.updateCandle(updated);
-              candles[candles.length - 1] = updated;
-            }
-
-            if (mid > refs.sessionHigh.current) refs.sessionHigh.current = mid;
-            if (mid < refs.sessionLow.current) refs.sessionLow.current = mid;
-            updatePricePositionIndicator();
-
-            const now = Date.now();
-            if (now - refs.lastAlertCheck.current > 500) {
-              refs.lastAlertCheck.current = now;
-              checkAlerts(symbol, mid);
-              updatePositionPrices(symbol.toUpperCase(), mid);
-            }
-          });
-          refs.unsubscribers.current.push(unsubDxQuote);
-        } catch {
-          console.warn('[dxFeed] Quote subscription failed');
-        }
-
-        // Polling fallback: dxFeed demo rarely emits Candle events for CME instruments.
-        // Every 30s fetch fresh history from Yahoo Finance, add any new bars to the chart,
-        // and keep the price display / OHLC header alive.
+        // ── Yahoo Finance polling — the primary live data source for CME ──────
+        // dxFeed demo WebSocket is unreliable (times out 10s per attempt, blocked
+        // in many environments). Start polling immediately so charts are live from
+        // the first second, regardless of dxFeed status.
         type CandleRow = { time: number; open: number; high: number; low: number; close: number; volume: number };
         const toLC = (c: CandleRow): LiveCandle => ({
           time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
@@ -551,7 +465,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
             const last = polled[polled.length - 1];
             if (!validateInstrumentPrice(symbol, last.close)) return;
 
-            // Add candles newer than the last known history time
+            // Append candles newer than the last known history time
             const newBars = polled.filter(c => c.time > refs.lastHistoryTime.current);
             if (newBars.length > 0 && refs.chartEngine.current) {
               newBars.forEach(c => {
@@ -568,7 +482,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               refs.lastHistoryTime.current = newBars[newBars.length - 1].time;
             }
 
-            // Always update the last candle's OHLC with the freshest Yahoo quote
+            // Patch the last candle with the freshest Yahoo close
             const existingCandles = refs.candles.current;
             if (existingCandles.length > 0 && refs.chartEngine.current) {
               const tail = existingCandles[existingCandles.length - 1];
@@ -585,7 +499,6 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               }
             }
 
-            // Update price display + OHLC header
             refs.currentPrice.current = last.close;
             if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(last.close)}`;
             if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(last.open);
@@ -604,10 +517,82 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           }
         };
 
-        // Fire immediately so chart / price are up to date right after initial load
+        // Fire immediately, then every 30s
         pollCME();
         const pollTimer = setInterval(pollCME, 30_000);
         refs.unsubscribers.current.push(() => clearInterval(pollTimer));
+
+        // ── dxFeed as optional high-frequency supplement (fire-and-forget) ───
+        // If dxFeed connects (paid plan), it provides per-tick quotes / closed bars.
+        // We do NOT await it — connection can take 10s to time out and would freeze
+        // the chart init. All failures are silently swallowed.
+        void (async () => {
+          const TF_TO_DX: Partial<Record<TimeframeSeconds, string>> = {
+            15: '15s', 30: '30s', 60: '1m', 180: '1m', 300: '5m',
+            900: '15m', 1800: '30m', 3600: '1h', 14400: '4h', 86400: '1d',
+          };
+          const dxTF = TF_TO_DX[timeframe] ?? '1m';
+          const dxSym = getDxFeedSymbol(symbol);
+
+          try {
+            const unsubDxCandle = await dxFeedWS.subscribeCandles(dxSym, dxTF, (candle) => {
+              if (!isMounted) return;
+              if (!validateCandle(candle, symbol) || !validateInstrumentPrice(symbol, candle.close)) return;
+              const cc: ChartCandle = {
+                time: candle.time, open: candle.open, high: candle.high,
+                low: candle.low, close: candle.close, volume: candle.volume,
+                buyVolume: candle.volume * 0.5, sellVolume: candle.volume * 0.5,
+              };
+              refs.currentPrice.current = candle.close;
+              if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
+              if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(candle.open);
+              if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(candle.high);
+              if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = priceFormatter.format(candle.low);
+              if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(candle.close);
+              if (candle.high > refs.sessionHigh.current) refs.sessionHigh.current = candle.high;
+              if (candle.low < refs.sessionLow.current) refs.sessionLow.current = candle.low;
+              updatePricePositionIndicator();
+              if (refs.chartEngine.current && candle.time >= refs.lastHistoryTime.current) {
+                refs.chartEngine.current.updateCandle(cc);
+                refs.candleData.current.set(candle.time, {
+                  open: candle.open, high: candle.high, low: candle.low, close: candle.close,
+                });
+                const idx = refs.candles.current.findIndex(c => c.time === candle.time);
+                if (idx >= 0) refs.candles.current[idx] = cc;
+                else refs.candles.current.push(cc);
+              }
+            });
+            if (isMounted) refs.unsubscribers.current.push(unsubDxCandle);
+          } catch { /* dxFeed unavailable — polling handles everything */ }
+
+          try {
+            const unsubDxQuote = await dxFeedWS.subscribeQuotes(symbol, ({ bid, ask }) => {
+              if (!isMounted) return;
+              const mid = (bid + ask) / 2;
+              if (!mid || !validateInstrumentPrice(symbol, mid)) return;
+              refs.currentPrice.current = mid;
+              if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(mid)}`;
+              if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(mid);
+              const candles = refs.candles.current;
+              if (candles.length > 0 && refs.chartEngine.current) {
+                const last = candles[candles.length - 1];
+                const updated: ChartCandle = { ...last, close: mid, high: Math.max(last.high, mid), low: Math.min(last.low, mid) };
+                refs.chartEngine.current.updateCandle(updated);
+                candles[candles.length - 1] = updated;
+              }
+              if (mid > refs.sessionHigh.current) refs.sessionHigh.current = mid;
+              if (mid < refs.sessionLow.current) refs.sessionLow.current = mid;
+              updatePricePositionIndicator();
+              const now = Date.now();
+              if (now - refs.lastAlertCheck.current > 500) {
+                refs.lastAlertCheck.current = now;
+                checkAlerts(symbol, mid);
+                updatePositionPrices(symbol.toUpperCase(), mid);
+              }
+            });
+            if (isMounted) refs.unsubscribers.current.push(unsubDxQuote);
+          } catch { /* dxFeed unavailable */ }
+        })();
       }
     };
 

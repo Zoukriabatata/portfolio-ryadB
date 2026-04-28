@@ -293,14 +293,14 @@ class DxFeedWebSocket {
         }
       };
 
-      // Timeout after 10s
+      // Timeout after 5s — keep short so fire-and-forget paths don't delay the chart
       setTimeout(() => {
         if (this.state !== 'connected') {
-          console.error('[dxFeed] Connection timeout');
+          console.warn('[dxFeed] Connection timeout');
           this.cleanup();
           resolve(false);
         }
-      }, 10_000);
+      }, 5_000);
     });
   }
 
