@@ -270,8 +270,7 @@ class DxFeedWebSocket {
         }
       };
 
-      this.ws.onerror = (err) => {
-        console.error('[dxFeed] WebSocket error:', err);
+      this.ws.onerror = () => {
         this.state = 'error';
         resolve(false);
       };
@@ -296,7 +295,6 @@ class DxFeedWebSocket {
       // Timeout after 5s — keep short so fire-and-forget paths don't delay the chart
       setTimeout(() => {
         if (this.state !== 'connected') {
-          console.warn('[dxFeed] Connection timeout');
           this.cleanup();
           resolve(false);
         }
