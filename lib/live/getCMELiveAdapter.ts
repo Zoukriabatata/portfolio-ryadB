@@ -26,14 +26,20 @@ export interface CMEAdapter {
 export function getCMELiveAdapter(): CMEAdapter {
   const configs = useDataFeedStore.getState().configs;
 
-  // Prefer dxFeed if configured (cheaper, no broker account)
+  // Prefer dxFeed if explicitly configured (paid, real-time)
   const dxfeed = configs['dxfeed'];
   if (dxfeed?.status === 'connected' || dxfeed?.status === 'configured') {
     return getDxFeedLiveAdapter();
   }
 
-  // Fall back to Tradovate
-  return getTradovateLiveAdapter();
+  // Use Tradovate if explicitly configured
+  const tradovate = configs['tradovate'];
+  if (tradovate?.status === 'connected' || tradovate?.status === 'configured') {
+    return getTradovateLiveAdapter();
+  }
+
+  // Default: dxFeed demo mode — 15-min delayed, no credentials needed
+  return getDxFeedLiveAdapter();
 }
 
 /** Returns a human-readable label for the active CME adapter */
@@ -43,5 +49,20 @@ export function getCMEAdapterLabel(): string {
   if (dxfeed?.status === 'connected' || dxfeed?.status === 'configured') {
     return 'CME · dxFeed';
   }
-  return 'CME · Tradovate';
+  const tradovate = configs['tradovate'];
+  if (tradovate?.status === 'connected' || tradovate?.status === 'configured') {
+    return 'CME · Tradovate';
+  }
+  return 'CME · démo (15min)';
+}
+
+/** True when no live CME feed is configured — data will be 15 minutes delayed. */
+export function isCMEDelayedFeed(): boolean {
+  const configs = useDataFeedStore.getState().configs;
+  const dxfeed = configs['dxfeed'];
+  const tradovate = configs['tradovate'];
+  return (
+    dxfeed?.status !== 'connected' && dxfeed?.status !== 'configured' &&
+    tradovate?.status !== 'connected' && tradovate?.status !== 'configured'
+  );
 }

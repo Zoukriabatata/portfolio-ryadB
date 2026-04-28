@@ -10,6 +10,7 @@ import { DATA_FEED_PROVIDERS, type ProviderCategory } from '@/lib/boutique/provi
 import ProviderCard from '@/components/boutique/ProviderCard';
 import ConfigureModal from '@/components/boutique/ConfigureModal';
 import ComparisonTable from '@/components/boutique/ComparisonTable';
+import FundedAccountSection from '@/components/boutique/FundedAccountSection';
 
 type FilterCategory = ProviderCategory | 'all';
 
@@ -89,6 +90,9 @@ export default function BoutiquePage() {
             </div>
           )}
         </div>
+
+        {/* Funded Account Section */}
+        <FundedAccountSection onConfigure={setConfigureProvider} />
 
         {/* Category filter */}
         <div className="flex items-center justify-center mb-8">

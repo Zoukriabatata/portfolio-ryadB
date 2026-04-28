@@ -1,657 +1,307 @@
 /**
- * BINANCE LIVE WEBSOCKET
+ * LIVE WEBSOCKET — Bybit Linear Perpetuals
  *
- * Connexion WebSocket à Binance pour recevoir les trades en temps réel.
+ * Remplace Binance Futures (bloqué régionalement) par Bybit V5.
+ * Interface publique identique — aucune modification requise côté consumers.
  *
- * STREAMS UTILISÉS :
- * ==================
- *
- * 1. aggTrade : Trades agrégés (meilleur compromis débit/latence)
- *    - ws://stream.binance.com:9443/ws/btcusdt@aggTrade
- *    - Données : { p: price, q: quantity, T: timestamp, m: isBuyerMaker }
- *
- * 2. kline_1m : Bougies M1 (pour historique initial)
- *    - ws://stream.binance.com:9443/ws/btcusdt@kline_1m
+ * STREAMS (multiplexés sur une seule connexion) :
+ * ================================================
+ * publicTrade.{SYMBOL}    — ticks temps réel (prix, quantité, side)
+ * orderbook.50.{SYMBOL}   — carnet d'ordres 50 niveaux (snapshot + delta)
+ * tickers.{SYMBOL}        — mark price, index price, funding rate
+ * liquidation.{SYMBOL}    — ordres liquidés
  *
  * ARCHITECTURE :
  * ==============
- *
- * BinanceLiveWS ──► TickAggregator ──► LiveChart
- *     │                   │
- *     │ trades            │ candles 15s/30s/1m
- *     ▼                   ▼
- *   WebSocket          Events
+ * BybitLiveWS ──► HierarchicalAggregator ──► FootprintChartPro
+ *     │                     │
+ *     │ ticks               │ candles 15s/30s/1m/5m
+ *     ▼                     ▼
+ *   WebSocket            Events
  */
 
 import { getAggregator, type Tick, type LiveCandle, type TimeframeSeconds } from './HierarchicalAggregator';
 import type { MarkPriceUpdate, LiquidationEvent } from '@/types/futures';
 
+const BYBIT_LINEAR_WS = 'wss://stream.bybit.com/v5/public/linear';
+const PING_INTERVAL_MS = 18_000;
+const BASE_RECONNECT_DELAY = 1_000;
+const MAX_RECONNECT_DELAY = 30_000;
+const MAX_RECONNECT_ATTEMPTS = 10;
+
 type MarkPriceCallback = (update: MarkPriceUpdate) => void;
 type LiquidationCallback = (event: LiquidationEvent) => void;
+type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+type StatusCallback = (status: ConnectionStatus) => void;
+type TickCallback = (tick: Tick) => void;
 
-// Types pour les messages Binance
-interface BinanceAggTrade {
-  e: 'aggTrade';
-  E: number;  // Event time
-  s: string;  // Symbol
-  a: number;  // Aggregate trade ID
-  p: string;  // Price
-  q: string;  // Quantity
-  f: number;  // First trade ID
-  l: number;  // Last trade ID
-  T: number;  // Trade time
-  m: boolean; // Is buyer maker
-}
-
-interface BinanceKline {
-  e: 'kline';
-  E: number;
-  s: string;
-  k: {
-    t: number;  // Kline start time
-    T: number;  // Kline close time
-    s: string;  // Symbol
-    i: string;  // Interval
-    o: string;  // Open
-    c: string;  // Close
-    h: string;  // High
-    l: string;  // Low
-    v: string;  // Volume
-    n: number;  // Number of trades
-    x: boolean; // Is closed
-  };
-}
-
-interface BinanceDepth {
-  e: 'depthUpdate';
-  E: number;  // Event time
-  s: string;  // Symbol
-  U: number;  // First update ID
-  u: number;  // Final update ID
-  b: [string, string][]; // Bids [price, qty]
-  a: [string, string][]; // Asks [price, qty]
-}
-
-interface DepthSnapshot {
+export interface DepthSnapshot {
   bids: [string, string][];
   asks: [string, string][];
   lastUpdateId: number;
 }
-
-type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
-type StatusCallback = (status: ConnectionStatus) => void;
-type TickCallback = (tick: Tick) => void;
 type DepthCallback = (depth: DepthSnapshot) => void;
 
-/**
- * Gestionnaire WebSocket Binance Live
- */
-class BinanceLiveWS {
+class BybitLiveWS {
   private ws: WebSocket | null = null;
-  private symbol: string = 'btcusdt';
+  private symbol = 'BTCUSDT';
   private status: ConnectionStatus = 'disconnected';
+  private intentionalDisconnect = false;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10; // Increased from 5 to 10 for better resilience
-  private reconnectDelay = 1000;
-  private reconnectTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private pingTimer: ReturnType<typeof setInterval> | null = null;
 
-  // Reconnection tracking for auxiliary streams
-  private depthReconnectAttempts = 0;
-  private markPriceReconnectAttempts = 0;
-  private liquidationReconnectAttempts = 0;
-  private maxAuxReconnectAttempts = 8;
+  private statusListeners = new Set<StatusCallback>();
+  private tickListeners = new Set<TickCallback>();
+  private depthListeners = new Set<DepthCallback>();
+  private markPriceListeners = new Set<MarkPriceCallback>();
+  private liquidationListeners = new Set<LiquidationCallback>();
 
-  // Callbacks
-  private statusListeners: Set<StatusCallback> = new Set();
-  private tickListeners: Set<TickCallback> = new Set();
-  private depthListeners: Set<DepthCallback> = new Set();
+  private pendingTick: Tick | null = null;
+  private rafId: number | null = null;
+  private pendingDepth: DepthSnapshot | null = null;
+  private depthRafId: number | null = null;
+  private depthSnapshot: DepthSnapshot | null = null;
 
-  // Stats
   private tickCount = 0;
   private lastTickTime = 0;
   private currentPrice = 0;
 
-  // rAF batching — UI listeners fire at display refresh rate, not WS rate
-  private pendingTick: Tick | null = null;
-  private rafId: number | null = null;
-  private depthRafId: number | null = null;
-
-  // Depth WebSocket
-  private depthWs: WebSocket | null = null;
-  private depthSnapshot: DepthSnapshot | null = null;
-
-  // Mark Price WebSocket (futures stream)
-  private markPriceWs: WebSocket | null = null;
-  private markPriceListeners: Set<MarkPriceCallback> = new Set();
-
-  // Liquidation WebSocket (futures stream)
-  private liquidationWs: WebSocket | null = null;
-  private liquidationListeners: Set<LiquidationCallback> = new Set();
-
-  /**
-   * Connecte au stream Binance
-   */
-  connect(symbol: string = 'btcusdt'): void {
-    this.symbol = symbol.toLowerCase();
+  connect(symbol = 'BTCUSDT'): void {
+    this.symbol = symbol.toUpperCase();
     this.intentionalDisconnect = false;
     this.depthSnapshot = null;
     this.doConnect();
-    this.connectDepth();
-    this.connectMarkPrice();
-    this.connectLiquidation();
   }
 
-  /**
-   * Effectue la connexion WebSocket
-   */
-  private intentionalDisconnect = false;
-
   private doConnect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
-      return;
-    }
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
 
     this.setStatus('connecting');
-
-    // URL du stream aggTrade
-    const wsUrl = `wss://stream.binance.com:9443/ws/${this.symbol}@aggTrade`;
-
     try {
-      this.ws = new WebSocket(wsUrl);
+      this.ws = new WebSocket(BYBIT_LINEAR_WS);
 
       this.ws.onopen = () => {
-        console.debug(`[Binance WS] Connected to ${this.symbol}`);
+        console.debug(`[Bybit WS] Connected — ${this.symbol}`);
         this.setStatus('connected');
         this.reconnectAttempts = 0;
-        this.tickCount = 0;
+        this.sendSubscribe();
+        this.startPing();
       };
 
-      this.ws.onmessage = (event) => {
-        this.handleMessage(event.data);
-      };
+      this.ws.onmessage = (event) => this.handleMessage(event.data as string);
 
       this.ws.onerror = () => {
-        // WebSocket errors don't contain useful info in browsers
-        // The actual error details come in the onclose event
-        console.warn('[Binance WS] Connection error occurred - waiting for close event');
+        console.warn('[Bybit WS] Connection error — waiting for close event');
       };
 
       this.ws.onclose = (event) => {
-        // Common close codes:
-        // 1000 - Normal closure
-        // 1001 - Going away (page unload)
-        // 1006 - Abnormal closure (no close frame received) - usually network issue
-        // 1015 - TLS handshake failure
-        const reason = event.reason || this.getCloseReason(event.code);
-        console.debug(`[Binance WS] Closed: ${event.code} - ${reason}`);
-
-        if (event.code === 1006) {
-          console.warn('[Binance WS] Network issue detected - check your internet connection');
-        }
-
+        console.debug(`[Bybit WS] Closed: ${event.code}`);
+        this.stopPing();
         this.setStatus('disconnected');
-        if (!this.intentionalDisconnect) {
-          this.attemptReconnect();
-        }
+        if (!this.intentionalDisconnect) this.scheduleReconnect();
       };
-    } catch (error) {
-      console.error('[Binance WS] Connection error:', error);
+    } catch (err) {
+      console.error('[Bybit WS] Failed to open:', err);
       this.setStatus('error');
-      this.attemptReconnect();
+      this.scheduleReconnect();
     }
   }
 
-  /**
-   * Traite un message reçu
-   */
-  private handleMessage(data: string): void {
-    try {
-      const message = JSON.parse(data) as BinanceAggTrade;
+  private sendSubscribe(): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    const sym = this.symbol;
+    this.ws.send(JSON.stringify({
+      op: 'subscribe',
+      args: [
+        `publicTrade.${sym}`,
+        `orderbook.50.${sym}`,
+        `tickers.${sym}`,
+        `liquidation.${sym}`,
+      ],
+    }));
+  }
 
-      if (message.e === 'aggTrade') {
-        const tick: Tick = {
-          price: parseFloat(message.p),
-          quantity: parseFloat(message.q),
-          timestamp: message.T,
-          isBuyerMaker: message.m,
-        };
-
-        this.tickCount++;
-        this.lastTickTime = Date.now();
-
-        // Envoie au agrégateur
-        const aggregator = getAggregator();
-        aggregator.processTick(tick);
-
-        // Store current price
-        this.currentPrice = tick.price;
-
-        // Batch UI listener notifications to display refresh rate (~60fps).
-        // The aggregator already received the tick above — candle data stays accurate.
-        this.pendingTick = tick;
-        if (this.rafId === null) {
-          this.rafId = requestAnimationFrame(() => {
-            this.rafId = null;
-            if (this.pendingTick) {
-              const t = this.pendingTick;
-              this.pendingTick = null;
-              this.tickListeners.forEach(cb => cb(t));
-            }
-          });
-        }
+  private startPing(): void {
+    this.stopPing();
+    this.pingTimer = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ op: 'ping' }));
       }
-    } catch (error) {
-      console.error('[Binance WS] Parse error:', error);
-    }
+    }, PING_INTERVAL_MS);
   }
 
-  /**
-   * Connect to depth stream (order book)
-   */
-  private connectDepth(): void {
-    if (this.depthWs?.readyState === WebSocket.OPEN || this.depthWs?.readyState === WebSocket.CONNECTING) {
-      return;
-    }
-
-    // Depth stream URL (20 levels, 100ms updates)
-    const depthUrl = `wss://stream.binance.com:9443/ws/${this.symbol}@depth20@100ms`;
-
-    try {
-      this.depthWs = new WebSocket(depthUrl);
-
-      this.depthWs.onopen = () => {
-        console.debug(`[Binance Depth] Connected to ${this.symbol}`);
-        this.depthReconnectAttempts = 0; // Reset on successful connection
-      };
-
-      this.depthWs.onmessage = (event) => {
-        this.handleDepthMessage(event.data);
-      };
-
-      this.depthWs.onerror = () => {
-        console.warn('[Binance Depth] Connection error');
-      };
-
-      this.depthWs.onclose = (event) => {
-        console.debug(`[Binance Depth] Closed: ${this.getCloseReason(event.code)}`);
-        if (!this.intentionalDisconnect) {
-          this.attemptDepthReconnect();
-        }
-      };
-    } catch (error) {
-      console.error('[Binance Depth] Connection error:', error);
-    }
+  private stopPing(): void {
+    if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
   }
 
-  /**
-   * Handle depth message
-   */
-  private handleDepthMessage(data: string): void {
+  private handleMessage(raw: string): void {
     try {
-      const message = JSON.parse(data);
+      const msg = JSON.parse(raw) as Record<string, unknown>;
+      if (msg['op'] === 'pong' || msg['success'] !== undefined) return;
 
-      // Depth snapshot
-      if (message.lastUpdateId) {
-        this.depthSnapshot = {
-          bids: message.bids || [],
-          asks: message.asks || [],
-          lastUpdateId: message.lastUpdateId,
-        };
+      const topic = (msg['topic'] as string) ?? '';
 
-        // Batch depth listener notifications to display refresh rate
-        if (this.depthSnapshot && this.depthRafId === null) {
-          this.depthRafId = requestAnimationFrame(() => {
-            this.depthRafId = null;
-            if (this.depthSnapshot) {
-              this.depthListeners.forEach(cb => cb(this.depthSnapshot!));
-            }
-          });
-        }
+      if (topic.startsWith('publicTrade.')) {
+        this.handleTrade(msg['data'] as Array<{ T: number; p: string; v: string; S: string }>);
+      } else if (topic.startsWith('orderbook.')) {
+        this.handleOrderbook(msg['data'] as { b: [string, string][]; a: [string, string][]; u: number });
+      } else if (topic.startsWith('tickers.')) {
+        this.handleTicker(msg['data'] as Record<string, string>);
+      } else if (topic.startsWith('liquidation.')) {
+        this.handleLiquidation(msg['data'] as Record<string, unknown>);
       }
-    } catch (error) {
-      console.error('[Binance Depth] Parse error:', error);
+    } catch (err) {
+      console.error('[Bybit WS] Parse error:', err);
     }
   }
 
-  /**
-   * Connect to mark price stream (futures)
-   */
-  private connectMarkPrice(): void {
-    if (this.markPriceWs?.readyState === WebSocket.OPEN || this.markPriceWs?.readyState === WebSocket.CONNECTING) return;
-
-    const url = `wss://fstream.binance.com/ws/${this.symbol}@markPrice@1s`;
-
-    try {
-      this.markPriceWs = new WebSocket(url);
-
-      this.markPriceWs.onopen = () => {
-        console.debug(`[Binance MarkPrice] Connected to ${this.symbol}`);
-        this.markPriceReconnectAttempts = 0; // Reset on successful connection
+  private handleTrade(data: Array<{ T: number; p: string; v: string; S: string }>): void {
+    if (!data?.length) return;
+    for (const t of data) {
+      const tick: Tick = {
+        price: parseFloat(t.p),
+        quantity: parseFloat(t.v),
+        timestamp: t.T,
+        isBuyerMaker: t.S === 'Sell', // Sell aggressor = buyer is maker (passive)
       };
-
-      this.markPriceWs.onmessage = (event) => {
-        this.handleMarkPriceMessage(event.data);
-      };
-
-      this.markPriceWs.onerror = () => {
-        console.warn('[Binance MarkPrice] Connection error');
-      };
-
-      this.markPriceWs.onclose = (event) => {
-        console.debug(`[Binance MarkPrice] Closed: ${this.getCloseReason(event.code)}`);
-        if (!this.intentionalDisconnect) {
-          this.attemptMarkPriceReconnect();
+      this.tickCount++;
+      this.lastTickTime = Date.now();
+      this.currentPrice = tick.price;
+      getAggregator().processTick(tick);
+      this.pendingTick = tick;
+    }
+    if (this.rafId === null) {
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        if (this.pendingTick) {
+          const t = this.pendingTick;
+          this.pendingTick = null;
+          this.tickListeners.forEach(cb => cb(t));
         }
-      };
-    } catch (error) {
-      console.error('[Binance MarkPrice] Connection error:', error);
+      });
     }
   }
 
-  /**
-   * Handle mark price message
-   */
-  private handleMarkPriceMessage(data: string): void {
-    try {
-      const msg = JSON.parse(data);
-      if (msg.e === 'markPriceUpdate') {
-        const update: MarkPriceUpdate = {
-          symbol: msg.s,
-          markPrice: parseFloat(msg.p),
-          indexPrice: parseFloat(msg.i),
-          fundingRate: parseFloat(msg.r),
-          nextFundingTime: msg.T,
-          estimatedSettlePrice: parseFloat(msg.P || '0'),
-        };
-        this.markPriceListeners.forEach(cb => cb(update));
-      }
-    } catch (error) {
-      console.error('[Binance MarkPrice] Parse error:', error);
-    }
-  }
-
-  /**
-   * Connect to liquidation stream (futures)
-   */
-  private connectLiquidation(): void {
-    if (this.liquidationWs?.readyState === WebSocket.OPEN || this.liquidationWs?.readyState === WebSocket.CONNECTING) return;
-
-    const url = `wss://fstream.binance.com/ws/${this.symbol}@forceOrder`;
-
-    try {
-      this.liquidationWs = new WebSocket(url);
-
-      this.liquidationWs.onopen = () => {
-        console.debug(`[Binance Liquidation] Connected to ${this.symbol}`);
-        this.liquidationReconnectAttempts = 0; // Reset on successful connection
-      };
-
-      this.liquidationWs.onmessage = (event) => {
-        this.handleLiquidationMessage(event.data);
-      };
-
-      this.liquidationWs.onerror = () => {
-        console.warn('[Binance Liquidation] Connection error');
-      };
-
-      this.liquidationWs.onclose = (event) => {
-        console.debug(`[Binance Liquidation] Closed: ${this.getCloseReason(event.code)}`);
-        if (!this.intentionalDisconnect) {
-          this.attemptLiquidationReconnect();
+  private handleOrderbook(data: { b: [string, string][]; a: [string, string][]; u: number }): void {
+    if (!data) return;
+    this.depthSnapshot = { bids: data.b, asks: data.a, lastUpdateId: data.u };
+    this.pendingDepth = this.depthSnapshot;
+    if (this.depthRafId === null) {
+      this.depthRafId = requestAnimationFrame(() => {
+        this.depthRafId = null;
+        if (this.pendingDepth) {
+          const d = this.pendingDepth;
+          this.pendingDepth = null;
+          this.depthListeners.forEach(cb => cb(d));
         }
-      };
-    } catch (error) {
-      console.error('[Binance Liquidation] Connection error:', error);
+      });
     }
   }
 
-  /**
-   * Handle liquidation message
-   */
-  private handleLiquidationMessage(data: string): void {
-    try {
-      const msg = JSON.parse(data);
-      if (msg.e === 'forceOrder') {
-        const o = msg.o;
-        const event: LiquidationEvent = {
-          symbol: o.s,
-          side: o.S,
-          quantity: parseFloat(o.q),
-          price: parseFloat(o.p),
-          averagePrice: parseFloat(o.ap),
-          status: o.X,
-          lastFilledQty: parseFloat(o.l),
-          cumulativeFilledQty: parseFloat(o.z),
-          time: o.T,
-        };
-        this.liquidationListeners.forEach(cb => cb(event));
-      }
-    } catch (error) {
-      console.error('[Binance Liquidation] Parse error:', error);
-    }
+  private handleTicker(data: Record<string, string>): void {
+    if (!data?.markPrice) return;
+    const update: MarkPriceUpdate = {
+      symbol: this.symbol,
+      markPrice: parseFloat(data.markPrice),
+      indexPrice: parseFloat(data.indexPrice ?? data.markPrice),
+      fundingRate: parseFloat(data.fundingRate ?? '0'),
+      nextFundingTime: parseInt(data.nextFundingTime ?? '0'),
+      estimatedSettlePrice: parseFloat(data.markPrice),
+    };
+    this.markPriceListeners.forEach(cb => cb(update));
   }
 
-  /**
-   * Tente une reconnexion — infiniment, avec backoff plafonné à 30s
-   */
-  private attemptReconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
+  private handleLiquidation(data: Record<string, unknown>): void {
+    if (!data) return;
+    const event: LiquidationEvent = {
+      symbol: (data.symbol as string) ?? this.symbol,
+      side: ((data.side as string) === 'SELL' ? 'SELL' : 'BUY') as 'BUY' | 'SELL',
+      quantity: parseFloat((data.size as string) ?? '0'),
+      price: parseFloat((data.price as string) ?? '0'),
+      averagePrice: parseFloat((data.price as string) ?? '0'),
+      status: 'Filled',
+      lastFilledQty: parseFloat((data.size as string) ?? '0'),
+      cumulativeFilledQty: parseFloat((data.size as string) ?? '0'),
+      time: (data.time as number) ?? Date.now(),
+    };
+    this.liquidationListeners.forEach(cb => cb(event));
+  }
 
-    // Cap at 30s; after maxReconnectAttempts just keep retrying at that cadence
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts), 30_000);
-    console.debug(`[Binance WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
-
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, this.reconnectAttempts), MAX_RECONNECT_DELAY);
+    console.debug(`[Bybit WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
     this.reconnectTimer = setTimeout(() => {
-      this.reconnectAttempts++;
-      // Reset counter so backoff stays at max (30s) rather than growing forever
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        this.reconnectAttempts = this.maxReconnectAttempts;
-      }
+      if (this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) this.reconnectAttempts++;
       this.doConnect();
     }, delay);
   }
 
-  /**
-   * Attempt to reconnect depth stream with exponential backoff
-   */
-  private attemptDepthReconnect(): void {
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.depthReconnectAttempts), 30_000);
-    setTimeout(() => {
-      if (this.depthReconnectAttempts < this.maxAuxReconnectAttempts) this.depthReconnectAttempts++;
-      this.connectDepth();
-    }, delay);
-  }
-
-  /**
-   * Attempt to reconnect mark price stream with exponential backoff
-   */
-  private attemptMarkPriceReconnect(): void {
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.markPriceReconnectAttempts), 30_000);
-    setTimeout(() => {
-      if (this.markPriceReconnectAttempts < this.maxAuxReconnectAttempts) this.markPriceReconnectAttempts++;
-      this.connectMarkPrice();
-    }, delay);
-  }
-
-  /**
-   * Attempt to reconnect liquidation stream with exponential backoff
-   */
-  private attemptLiquidationReconnect(): void {
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.liquidationReconnectAttempts), 30_000);
-    setTimeout(() => {
-      if (this.liquidationReconnectAttempts < this.maxAuxReconnectAttempts) this.liquidationReconnectAttempts++;
-      this.connectLiquidation();
-    }, delay);
-  }
-
-  /**
-   * Get human-readable close reason from code
-   */
-  private getCloseReason(code: number): string {
-    const reasons: Record<number, string> = {
-      1000: 'Normal closure',
-      1001: 'Going away (page unload)',
-      1002: 'Protocol error',
-      1003: 'Unsupported data',
-      1005: 'No status received',
-      1006: 'Abnormal closure (network issue)',
-      1007: 'Invalid data',
-      1008: 'Policy violation',
-      1009: 'Message too big',
-      1010: 'Missing extension',
-      1011: 'Internal error',
-      1012: 'Service restart',
-      1013: 'Try again later',
-      1014: 'Bad gateway',
-      1015: 'TLS handshake failure',
-    };
-    return reasons[code] || `Unknown (${code})`;
-  }
-
-  /**
-   * Déconnecte du stream
-   */
   disconnect(): void {
     this.intentionalDisconnect = true;
-
-    // Cancel pending rAF batches
+    this.stopPing();
     if (this.rafId !== null) { cancelAnimationFrame(this.rafId); this.rafId = null; }
     if (this.depthRafId !== null) { cancelAnimationFrame(this.depthRafId); this.depthRafId = null; }
     this.pendingTick = null;
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-
-    if (this.depthWs) {
-      this.depthWs.close();
-      this.depthWs = null;
-    }
-
-    if (this.markPriceWs) {
-      this.markPriceWs.close();
-      this.markPriceWs = null;
-    }
-
-    if (this.liquidationWs) {
-      this.liquidationWs.close();
-      this.liquidationWs = null;
-    }
-
+    this.pendingDepth = null;
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.ws) { this.ws.close(); this.ws = null; }
     this.setStatus('disconnected');
   }
 
-  /**
-   * Change de symbole
-   */
   changeSymbol(symbol: string): void {
-    const newSymbol = symbol.toLowerCase();
-    if (newSymbol === this.symbol) return;
-
-    // Reset l'agrégateur
+    const newSym = symbol.toUpperCase();
+    if (newSym === this.symbol) return;
     getAggregator().reset();
-
-    // Reconnecte avec le nouveau symbole
     this.disconnect();
-    this.connect(newSymbol);
+    this.connect(newSym);
   }
 
-  /**
-   * Met à jour le status et notifie
-   */
   private setStatus(status: ConnectionStatus): void {
     this.status = status;
     this.statusListeners.forEach(cb => cb(status));
   }
 
-  /**
-   * S'abonne aux changements de status
-   */
-  onStatus(callback: StatusCallback): () => void {
-    this.statusListeners.add(callback);
-    // Envoie le status actuel immédiatement
-    callback(this.status);
-    return () => this.statusListeners.delete(callback);
+  onStatus(cb: StatusCallback): () => void {
+    this.statusListeners.add(cb);
+    cb(this.status);
+    return () => this.statusListeners.delete(cb);
   }
 
-  /**
-   * S'abonne aux ticks
-   */
-  onTick(callback: TickCallback): () => void {
-    this.tickListeners.add(callback);
-    return () => this.tickListeners.delete(callback);
+  onTick(cb: TickCallback): () => void {
+    this.tickListeners.add(cb);
+    return () => this.tickListeners.delete(cb);
   }
 
-  /**
-   * S'abonne aux mises à jour du carnet d'ordres
-   */
-  onDepthUpdate(callback: DepthCallback): () => void {
-    this.depthListeners.add(callback);
-    // Send current snapshot if available
-    if (this.depthSnapshot) {
-      callback(this.depthSnapshot);
-    }
-    return () => this.depthListeners.delete(callback);
+  onDepthUpdate(cb: DepthCallback): () => void {
+    this.depthListeners.add(cb);
+    if (this.depthSnapshot) cb(this.depthSnapshot);
+    return () => this.depthListeners.delete(cb);
   }
 
-  /**
-   * S'abonne aux mises à jour du mark price
-   */
-  onMarkPrice(callback: MarkPriceCallback): () => void {
-    this.markPriceListeners.add(callback);
-    return () => this.markPriceListeners.delete(callback);
+  onMarkPrice(cb: MarkPriceCallback): () => void {
+    this.markPriceListeners.add(cb);
+    return () => this.markPriceListeners.delete(cb);
   }
 
-  /**
-   * S'abonne aux liquidations
-   */
-  onLiquidation(callback: LiquidationCallback): () => void {
-    this.liquidationListeners.add(callback);
-    return () => this.liquidationListeners.delete(callback);
+  onLiquidation(cb: LiquidationCallback): () => void {
+    this.liquidationListeners.add(cb);
+    return () => this.liquidationListeners.delete(cb);
   }
 
-  /**
-   * Getters
-   */
-  getStatus(): ConnectionStatus {
-    return this.status;
-  }
-
-  getSymbol(): string {
-    return this.symbol.toUpperCase();
-  }
-
-  getTickCount(): number {
-    return this.tickCount;
-  }
-
-  getLastTickTime(): number {
-    return this.lastTickTime;
-  }
-
-  getCurrentPrice(): number {
-    return this.currentPrice;
-  }
+  getStatus(): ConnectionStatus { return this.status; }
+  getSymbol(): string { return this.symbol; }
+  getTickCount(): number { return this.tickCount; }
+  getLastTickTime(): number { return this.lastTickTime; }
+  getCurrentPrice(): number { return this.currentPrice; }
 }
 
-/**
- * Instance singleton
- */
-let wsInstance: BinanceLiveWS | null = null;
+let wsInstance: BybitLiveWS | null = null;
 
-export function getBinanceLiveWS(): BinanceLiveWS {
-  if (!wsInstance) {
-    wsInstance = new BinanceLiveWS();
-  }
+export function getBinanceLiveWS(): BybitLiveWS {
+  if (!wsInstance) wsInstance = new BybitLiveWS();
   return wsInstance;
 }
 
-export type { ConnectionStatus, Tick, DepthSnapshot, MarkPriceCallback, LiquidationCallback };
+export type { ConnectionStatus, TickCallback, DepthCallback, MarkPriceCallback, LiquidationCallback };

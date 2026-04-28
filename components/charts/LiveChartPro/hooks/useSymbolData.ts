@@ -305,8 +305,10 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       const ws = isCME ? getCMELiveAdapter() : getBinanceLiveWS();
       const aggregator = getAggregator();
 
-      // Disconnect previous WebSocket to ensure clean reconnect with new symbol
-      ws.disconnect();
+      // Disconnect BOTH adapters — prevents cross-source tick contamination
+      // (e.g. Binance still pushing BTC ticks into the aggregator while on a CME symbol)
+      getBinanceLiveWS().disconnect();
+      getCMELiveAdapter().disconnect();
 
       const unsubStatus = ws.onStatus((s) => {
         if (!isMounted) return;
@@ -446,15 +448,12 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
   /**
    * Change timeframe
    */
-  const handleTimeframeChange = useCallback(async (newTf: TimeframeSeconds) => {
+  const handleTimeframeChange = useCallback((newTf: TimeframeSeconds) => {
     if (newTf === timeframe) return;
+    // setTimeframe triggers useEffect([symbol, timeframe]) which handles
+    // history reload + adapter reconnect — no manual loadHistory needed here
     setTimeframe(newTf);
-
-    const history = await loadHistory(symbol, newTf);
-    if (history.length > 0) {
-      updateChartData(history);
-    }
-  }, [timeframe, symbol, loadHistory, updateChartData]);
+  }, [timeframe]);
 
   // Keep ref in sync
   refs.handleTimeframeChange.current = handleTimeframeChange;

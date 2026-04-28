@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const res = await fetch(
-      `${base}${path}?symbol=${symbol}&limit=20`,
+      `${base}${path}?symbol=${symbol}&limit=500`,
       { cache: 'no-store' }
     );
 

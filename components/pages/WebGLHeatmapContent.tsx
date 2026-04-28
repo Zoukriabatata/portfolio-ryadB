@@ -219,30 +219,29 @@ export default function WebGLHeatmapContent() {
       const visCols = Math.floor(hmW / colW);
       const startIdx = Math.max(0, cols.length - visCols);
 
-      // Price range
+      // Price range — fixed visible ticks (Bookmap-style), independent of depth limit
+      // Default: 60 ticks visible at zoom=1 → zoom in/out scales this
       const lastCol = cols[cols.length - 1];
-      let depthMin = Infinity, depthMax = -Infinity;
-      for (let i = 0; i < lastCol.bids.length; i += 2) {
-        if (lastCol.bids[i] < depthMin) depthMin = lastCol.bids[i];
-        if (lastCol.bids[i] > depthMax) depthMax = lastCol.bids[i];
-      }
-      for (let i = 0; i < lastCol.asks.length; i += 2) {
-        if (lastCol.asks[i] < depthMin) depthMin = lastCol.asks[i];
-        if (lastCol.asks[i] > depthMax) depthMax = lastCol.asks[i];
-      }
-      const baseSpread = depthMax - depthMin || 200 * tickSize;
-      const visSpread = baseSpread / Math.max(0.8, zoomRef.current);
+      const BASE_VIS_TICKS = 60;
+      const visSpread = (BASE_VIS_TICKS * tickSize) / Math.max(0.1, zoomRef.current);
       const center = priceRangeRef.current.center;
       const pMin = center - visSpread / 2 + panYRef.current;
       const pMax = center + visSpread / 2 + panYRef.current;
 
-      // Build smoothed max for intensity normalization
+      // Build smoothed max for intensity normalization — filter to visible price range
+      // so outlier levels far from spread don't crush all visible cell intensities
       let frameMax = 0;
       const step = Math.max(1, Math.floor(visCols / 150));
       for (let ci = startIdx; ci < cols.length; ci += step) {
         const c = cols[ci];
-        for (let j = 1; j < c.bids.length; j += 2) if (c.bids[j] > frameMax) frameMax = c.bids[j];
-        for (let j = 1; j < c.asks.length; j += 2) if (c.asks[j] > frameMax) frameMax = c.asks[j];
+        for (let j = 0; j < c.bids.length; j += 2) {
+          const price = c.bids[j], qty = c.bids[j + 1];
+          if (price >= pMin && price <= pMax && qty > frameMax) frameMax = qty;
+        }
+        for (let j = 0; j < c.asks.length; j += 2) {
+          const price = c.asks[j], qty = c.asks[j + 1];
+          if (price >= pMin && price <= pMax && qty > frameMax) frameMax = qty;
+        }
       }
       if (frameMax > 0) smoothMaxRef.current = smoothMaxRef.current * 0.93 + frameMax * 0.07;
       const maxD = smoothMaxRef.current || 1;
@@ -365,21 +364,11 @@ export default function WebGLHeatmapContent() {
         const factor = e.deltaY > 0 ? 0.9 : 1.1;
         zoomRef.current = Math.max(0.8, Math.min(20, zoomRef.current * factor));
       } else {
-        const pSpan = (depthRange() / zoomRef.current) || 200;
+        const pSpan = (60 * tickSize / Math.max(0.1, zoomRef.current)) || 60;
         panYRef.current += (e.deltaY / heatmapH()) * pSpan * 40;
         autoCenter.current = false;
       }
     };
-    const depthRange = () => {
-      const c = columnsRef.current;
-      if (c.length === 0) return 200;
-      const last = c[c.length - 1];
-      let mn = Infinity, mx = -Infinity;
-      for (let i = 0; i < last.bids.length; i += 2) { if (last.bids[i] < mn) mn = last.bids[i]; if (last.bids[i] > mx) mx = last.bids[i]; }
-      for (let i = 0; i < last.asks.length; i += 2) { if (last.asks[i] < mn) mn = last.asks[i]; if (last.asks[i] > mx) mx = last.asks[i]; }
-      return mx - mn || 200;
-    };
-
     const onMouseDown = (e: MouseEvent) => { draggingRef.current = true; lastMouseY.current = e.clientY; };
     const onMouseUp = () => { draggingRef.current = false; };
     const onMouseMove = (e: MouseEvent) => {
@@ -387,7 +376,7 @@ export default function WebGLHeatmapContent() {
       mouseRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
       if (draggingRef.current) {
         const dy = e.clientY - lastMouseY.current;
-        const pSpan = (depthRange() / zoomRef.current) || 200;
+        const pSpan = (60 * tickSize / Math.max(0.1, zoomRef.current)) || 60;
         panYRef.current -= (dy / heatmapH()) * pSpan;
         autoCenter.current = false;
         lastMouseY.current = e.clientY;

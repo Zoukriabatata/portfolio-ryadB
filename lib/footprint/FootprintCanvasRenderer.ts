@@ -418,7 +418,14 @@ export class FootprintCanvasRenderer {
         // Text visible only when there is enough vertical AND horizontal space
         const showLevelText = effectiveRowH >= 8 && fpWidth >= 38;
         const isPOC = price === candle.poc;
-        const textY = y + fontSize / 3;
+
+        // Adaptive font & padding per cell — scales with actual pixel height of the row
+        // so text is never too small in tall cells or too large in compressed cells
+        const cellFontSize = Math.max(7, Math.min(20, Math.floor(effectiveRowH * 0.72)));
+        const textPad = Math.max(3, Math.min(14, Math.round(cellFontSize * 0.6)));
+        const cellMonoFont = `${boldPrefix}${cellFontSize}px ${fontFamily}`;
+        const cellBoldFont = `bold ${cellFontSize}px ${fontFamily}`;
+        const textY = y + cellFontSize / 3;
         const totalVol = level.bidVolume + level.askVolume;
 
         // ─── LAYER 0: Heatmap cell background (Phase 2) ───
@@ -509,22 +516,22 @@ export class FootprintCanvasRenderer {
           if (level.bidVolume > 0) {
             if (features.showImbalances && level.imbalanceSell) {
               ctx.fillStyle = '#ff4757';
-              ctx.font = boldMonoFont;
+              ctx.font = cellBoldFont;
             } else if (isLargeTrade) {
               ctx.fillStyle = largeTradeColor;
-              ctx.font = boldMonoFont;
+              ctx.font = cellBoldFont;
             } else {
               ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
-              ctx.font = isPOC ? boldMonoFont : monoFont;
+              ctx.font = isPOC ? cellBoldFont : cellMonoFont;
             }
             ctx.textAlign = 'right';
-            ctx.fillText(this.formatVolCached(level.bidVolume, zoom), centerX - 5, textY);
+            ctx.fillText(this.formatVolCached(level.bidVolume, zoom), centerX - textPad, textY);
           }
 
           // Separator
           ctx.fillStyle = '#ffffff';
           ctx.globalAlpha = 0.6;
-          ctx.font = `${fontSize - 1}px monospace`;
+          ctx.font = `${Math.max(6, cellFontSize - 1)}px monospace`;
           ctx.textAlign = 'center';
           ctx.fillText(separator, centerX, textY);
           ctx.globalAlpha = 1;
@@ -533,16 +540,16 @@ export class FootprintCanvasRenderer {
           if (level.askVolume > 0) {
             if (features.showImbalances && level.imbalanceBuy) {
               ctx.fillStyle = '#2ed573';
-              ctx.font = boldMonoFont;
+              ctx.font = cellBoldFont;
             } else if (isLargeTrade) {
               ctx.fillStyle = largeTradeColor;
-              ctx.font = boldMonoFont;
+              ctx.font = cellBoldFont;
             } else {
               ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
-              ctx.font = isPOC ? boldMonoFont : monoFont;
+              ctx.font = isPOC ? cellBoldFont : cellMonoFont;
             }
             ctx.textAlign = 'left';
-            ctx.fillText(this.formatVolCached(level.askVolume, zoom), centerX + 5, textY);
+            ctx.fillText(this.formatVolCached(level.askVolume, zoom), centerX + textPad, textY);
           }
         } else if (clusterMode === 'delta') {
           // ── Delta mode: single centered value ──
@@ -550,10 +557,10 @@ export class FootprintCanvasRenderer {
           const deltaStr = (delta >= 0 ? '+' : '') + this.formatVolCached(Math.abs(delta), zoom);
           if (isLargeTrade) {
             ctx.fillStyle = largeTradeColor;
-            ctx.font = boldMonoFont;
+            ctx.font = cellBoldFont;
           } else {
             ctx.fillStyle = isPOC ? '#fbbf24' : (delta >= 0 ? colors.deltaPositive : colors.deltaNegative);
-            ctx.font = isPOC ? boldMonoFont : monoFont;
+            ctx.font = isPOC ? cellBoldFont : cellMonoFont;
           }
           ctx.textAlign = 'center';
           ctx.fillText(deltaStr, centerX, textY);
@@ -563,12 +570,12 @@ export class FootprintCanvasRenderer {
           const intensity = Math.min(1, totalVol / maxLevelVol);
           if (isLargeTrade) {
             ctx.fillStyle = largeTradeColor;
-            ctx.font = boldMonoFont;
+            ctx.font = cellBoldFont;
           } else {
             // Brightness based on intensity
             const brightness = Math.round(160 + intensity * 95);
             ctx.fillStyle = isPOC ? '#fbbf24' : `rgb(${brightness},${brightness},${brightness})`;
-            ctx.font = isPOC ? boldMonoFont : monoFont;
+            ctx.font = isPOC ? cellBoldFont : cellMonoFont;
           }
           ctx.textAlign = 'center';
           ctx.fillText(volStr, centerX, textY);

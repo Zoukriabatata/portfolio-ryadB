@@ -98,6 +98,7 @@ class DxFeedWebSocket {
 
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private channelOpen = false;
+  private demoMode = false;
 
   // symbol → handlers
   private klineHandlers: Map<string, Set<KlineHandler>> = new Map();
@@ -133,12 +134,15 @@ class DxFeedWebSocket {
     try {
       const creds = await this.fetchCredentials();
       if (!creds) {
-        console.error('[dxFeed] No credentials configured — go to /boutique to connect dxFeed');
-        this.state = 'error';
-        return false;
+        // No paid subscription — fall back to demo endpoint (15-min delay, no credentials needed)
+        this.demoMode = true;
+        this.apiToken = 'demo';
+        this.endpoint = DEFAULT_ENDPOINT;
+      } else {
+        this.demoMode = false;
+        this.apiToken = creds.apiKey;
+        this.endpoint = creds.host || DEFAULT_ENDPOINT;
       }
-      this.apiToken = creds.apiKey;
-      this.endpoint = creds.host || DEFAULT_ENDPOINT;
     } catch (err) {
       console.error('[dxFeed] Failed to fetch credentials:', err);
       this.state = 'error';
@@ -227,6 +231,11 @@ class DxFeedWebSocket {
 
   isConnected(): boolean {
     return this.state === 'connected';
+  }
+
+  /** True when running on the free demo endpoint (15-min delayed data). */
+  isDelayedFeed(): boolean {
+    return this.demoMode;
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
