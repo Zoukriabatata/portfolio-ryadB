@@ -525,53 +525,88 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           console.warn('[dxFeed] Quote subscription failed');
         }
 
-        // Polling fallback: dxFeed demo streams infrequently for many CME symbols.
-        // Poll Yahoo Finance every 15s to keep the price display alive.
-        const pollPrice = async () => {
+        // Polling fallback: dxFeed demo rarely emits Candle events for CME instruments.
+        // Every 30s fetch fresh history from Yahoo Finance, add any new bars to the chart,
+        // and keep the price display / OHLC header alive.
+        type CandleRow = { time: number; open: number; high: number; low: number; close: number; volume: number };
+        const toLC = (c: CandleRow): LiveCandle => ({
+          time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+          volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
+        });
+
+        const pollCME = async () => {
           if (!isMounted) return;
           try {
             const res = await fetch(
-              `/api/futures-price?symbol=${encodeURIComponent(symbol)}`,
-              { signal: AbortSignal.timeout(6_000) }
+              `/api/futures-history?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&days=2`,
+              { signal: AbortSignal.timeout(10_000) }
             );
-            if (!res.ok) return;
-            const q = await res.json() as {
-              price: number; open: number; high: number; low: number; timestamp: number;
-            };
-            if (!q?.price || !isMounted) return;
-            if (!validateInstrumentPrice(symbol, q.price)) return;
+            if (!res.ok || !isMounted) return;
+            const data = await res.json();
+            if (!Array.isArray(data) || data.length === 0) return;
 
-            refs.currentPrice.current = q.price;
-            if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(q.price)}`;
-            if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(q.price);
+            const polled = (data as CandleRow[]).map(toLC).filter(c => validateCandle(c, symbol));
+            if (polled.length === 0) return;
 
-            // Animate the last candle on the chart with the polled close
-            const candles = refs.candles.current;
-            if (candles.length > 0 && refs.chartEngine.current) {
-              const last = candles[candles.length - 1];
-              const updated = {
-                ...last,
-                close: q.price,
-                high: Math.max(last.high, q.price),
-                low: Math.min(last.low, q.price),
-              };
-              refs.chartEngine.current.updateCandle(updated);
-              candles[candles.length - 1] = updated;
+            const last = polled[polled.length - 1];
+            if (!validateInstrumentPrice(symbol, last.close)) return;
+
+            // Add candles newer than the last known history time
+            const newBars = polled.filter(c => c.time > refs.lastHistoryTime.current);
+            if (newBars.length > 0 && refs.chartEngine.current) {
+              newBars.forEach(c => {
+                const cc: ChartCandle = {
+                  time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+                  volume: c.volume, buyVolume: c.buyVolume, sellVolume: c.sellVolume,
+                };
+                refs.chartEngine.current!.updateCandle(cc);
+                refs.candleData.current.set(c.time, { open: c.open, high: c.high, low: c.low, close: c.close });
+                const idx = refs.candles.current.findIndex(x => x.time === c.time);
+                if (idx >= 0) refs.candles.current[idx] = cc;
+                else refs.candles.current.push(cc);
+              });
+              refs.lastHistoryTime.current = newBars[newBars.length - 1].time;
             }
 
-            if (q.price > refs.sessionHigh.current) refs.sessionHigh.current = q.price;
-            if (q.price < refs.sessionLow.current) refs.sessionLow.current = q.price;
+            // Always update the last candle's OHLC with the freshest Yahoo quote
+            const existingCandles = refs.candles.current;
+            if (existingCandles.length > 0 && refs.chartEngine.current) {
+              const tail = existingCandles[existingCandles.length - 1];
+              if (tail.time === last.time) {
+                const updated: ChartCandle = {
+                  ...tail,
+                  close: last.close,
+                  high: Math.max(tail.high, last.high),
+                  low: Math.min(tail.low, last.low),
+                  volume: last.volume,
+                };
+                refs.chartEngine.current.updateCandle(updated);
+                existingCandles[existingCandles.length - 1] = updated;
+              }
+            }
+
+            // Update price display + OHLC header
+            refs.currentPrice.current = last.close;
+            if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(last.close)}`;
+            if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(last.open);
+            if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(last.high);
+            if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = priceFormatter.format(last.low);
+            if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(last.close);
+            if (refs.footerVolume?.current) refs.footerVolume.current.textContent = formatVolumeCompact(last.volume);
+
+            if (last.close > refs.sessionHigh.current) refs.sessionHigh.current = last.close;
+            if (last.close < refs.sessionLow.current) refs.sessionLow.current = last.close;
             updatePricePositionIndicator();
-            checkAlerts(symbol, q.price);
-            updatePositionPrices(symbol.toUpperCase(), q.price);
+            checkAlerts(symbol, last.close);
+            updatePositionPrices(symbol.toUpperCase(), last.close);
           } catch {
-            // Poll failed — silently retry next interval
+            // Silent — retry next interval
           }
         };
 
-        // Kick off an immediate poll so price shows right away, then every 15s
-        pollPrice();
-        const pollTimer = setInterval(pollPrice, 15_000);
+        // Fire immediately so chart / price are up to date right after initial load
+        pollCME();
+        const pollTimer = setInterval(pollCME, 30_000);
         refs.unsubscribers.current.push(() => clearInterval(pollTimer));
       }
     };
