@@ -310,12 +310,14 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       if (history.length > 0) {
         updateChartData(history);
       } else {
-        // No history — wait 3s for live data before showing "no data"
+        // CME polling fires immediately but the fetch can take several seconds.
+        // Give it 15s before declaring "no data"; crypto WebSocket is faster so 3s is fine.
+        const noDataDelay = isCMESymbol(symbol) ? 15_000 : 3_000;
         const noDataTimer = setTimeout(() => {
           if (isMounted && refs.candles.current.length === 0) {
             setNoData(true);
           }
-        }, 3_000);
+        }, noDataDelay);
         refs.unsubscribers.current.push(() => clearTimeout(noDataTimer));
       }
 
@@ -464,6 +466,9 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
 
             const last = polled[polled.length - 1];
             if (!validateInstrumentPrice(symbol, last.close)) return;
+
+            // Clear the "no data" overlay as soon as polling returns valid candles
+            setNoData(false);
 
             // Append candles newer than the last known history time
             const newBars = polled.filter(c => c.time > refs.lastHistoryTime.current);

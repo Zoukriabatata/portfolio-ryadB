@@ -925,7 +925,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                 </svg>
                 <span className="text-xs" style={{ color: theme.colors.textMuted }}>
                   {symbolData.symbol && /^[A-Z]{1,3}$/.test(symbolData.symbol)
-                    ? 'Market closed — CME futures trade Sun 6PM – Fri 5PM ET'
+                    ? 'Loading CME data… (market may be outside trading hours)'
                     : 'No data available for this symbol'}
                 </span>
               </div>
