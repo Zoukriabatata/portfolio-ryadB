@@ -309,16 +309,16 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
 
       if (history.length > 0) {
         updateChartData(history);
-      } else {
-        // CME polling fires immediately but the fetch can take several seconds.
-        // Give it 15s before declaring "no data"; crypto WebSocket is faster so 3s is fine.
-        const noDataDelay = isCMESymbol(symbol) ? 15_000 : 3_000;
+      } else if (!isCMESymbol(symbol)) {
+        // Crypto: WebSocket should deliver candles within 3s; if not, show no-data state
         const noDataTimer = setTimeout(() => {
           if (isMounted && refs.candles.current.length === 0) {
             setNoData(true);
           }
-        }, noDataDelay);
+        }, 3_000);
         refs.unsubscribers.current.push(() => clearTimeout(noDataTimer));
+        // CME: polling (30s interval) handles data delivery — never show the overlay,
+        // an empty chart while loading is better than a confusing "no data" message.
       }
 
       // Step 4 — connect the right live adapter
