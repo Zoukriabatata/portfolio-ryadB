@@ -38,14 +38,14 @@ export interface InstrumentDef {
 export const CME_INSTRUMENTS: Record<string, InstrumentDef> = {
 
   // ── INDICES ──────────────────────────────────────────────────────────────
-  NQ:  { symbol: 'NQ',  name: 'E-mini Nasdaq 100', exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 20,       yahooTicker: 'NQ=F',  dxFeedSymbol: '/NQ',  priceRange: { min: 10000, max: 30000  } },
-  MNQ: { symbol: 'MNQ', name: 'Micro Nasdaq 100',  exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 2,        yahooTicker: 'NQ=F',  dxFeedSymbol: '/MNQ', priceRange: { min: 10000, max: 30000  } },
-  ES:  { symbol: 'ES',  name: 'E-mini S&P 500',    exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 50,       yahooTicker: 'ES=F',  dxFeedSymbol: '/ES',  priceRange: { min: 3000,  max: 7000   } },
-  MES: { symbol: 'MES', name: 'Micro S&P 500',     exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 5,        yahooTicker: 'ES=F',  dxFeedSymbol: '/MES', priceRange: { min: 3000,  max: 7000   } },
-  YM:  { symbol: 'YM',  name: 'E-mini Dow Jones',  exchange: 'CBOT',  category: 'indices',    tickSize: 1,         pointValue: 5,        yahooTicker: 'YM=F',  dxFeedSymbol: '/YM',  priceRange: { min: 20000, max: 50000  } },
-  MYM: { symbol: 'MYM', name: 'Micro Dow Jones',   exchange: 'CBOT',  category: 'indices',    tickSize: 1,         pointValue: 0.5,      yahooTicker: 'YM=F',  dxFeedSymbol: '/MYM', priceRange: { min: 20000, max: 50000  } },
-  RTY: { symbol: 'RTY', name: 'E-mini Russell 2000',exchange: 'CME',  category: 'indices',    tickSize: 0.1,       pointValue: 50,       yahooTicker: 'RTY=F', dxFeedSymbol: '/RTY', priceRange: { min: 1000,  max: 4000   } },
-  M2K: { symbol: 'M2K', name: 'Micro Russell 2000',exchange: 'CME',  category: 'indices',    tickSize: 0.1,       pointValue: 5,        yahooTicker: 'RTY=F', dxFeedSymbol: '/M2K', priceRange: { min: 1000,  max: 4000   } },
+  NQ:  { symbol: 'NQ',  name: 'E-mini Nasdaq 100', exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 20,       yahooTicker: 'NQ=F',  dxFeedSymbol: '/NQ',  priceRange: { min: 5000,  max: 40000  } },
+  MNQ: { symbol: 'MNQ', name: 'Micro Nasdaq 100',  exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 2,        yahooTicker: 'NQ=F',  dxFeedSymbol: '/MNQ', priceRange: { min: 5000,  max: 40000  } },
+  ES:  { symbol: 'ES',  name: 'E-mini S&P 500',    exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 50,       yahooTicker: 'ES=F',  dxFeedSymbol: '/ES',  priceRange: { min: 1500,  max: 12000  } },
+  MES: { symbol: 'MES', name: 'Micro S&P 500',     exchange: 'CME',   category: 'indices',    tickSize: 0.25,      pointValue: 5,        yahooTicker: 'ES=F',  dxFeedSymbol: '/MES', priceRange: { min: 1500,  max: 12000  } },
+  YM:  { symbol: 'YM',  name: 'E-mini Dow Jones',  exchange: 'CBOT',  category: 'indices',    tickSize: 1,         pointValue: 5,        yahooTicker: 'YM=F',  dxFeedSymbol: '/YM',  priceRange: { min: 10000, max: 70000  } },
+  MYM: { symbol: 'MYM', name: 'Micro Dow Jones',   exchange: 'CBOT',  category: 'indices',    tickSize: 1,         pointValue: 0.5,      yahooTicker: 'YM=F',  dxFeedSymbol: '/MYM', priceRange: { min: 10000, max: 70000  } },
+  RTY: { symbol: 'RTY', name: 'E-mini Russell 2000',exchange: 'CME',  category: 'indices',    tickSize: 0.1,       pointValue: 50,       yahooTicker: 'RTY=F', dxFeedSymbol: '/RTY', priceRange: { min: 500,   max: 6000   } },
+  M2K: { symbol: 'M2K', name: 'Micro Russell 2000',exchange: 'CME',  category: 'indices',    tickSize: 0.1,       pointValue: 5,        yahooTicker: 'RTY=F', dxFeedSymbol: '/M2K', priceRange: { min: 500,   max: 6000   } },
 
   // ── ENERGY ───────────────────────────────────────────────────────────────
   CL:  { symbol: 'CL',  name: 'Crude Oil WTI',     exchange: 'NYMEX', category: 'energy',     tickSize: 0.01,      pointValue: 1000,     yahooTicker: 'CL=F',  dxFeedSymbol: '/CL',  priceRange: { min: 20,    max: 200    } },
@@ -56,10 +56,10 @@ export const CME_INSTRUMENTS: Record<string, InstrumentDef> = {
   HO:  { symbol: 'HO',  name: 'Heating Oil',       exchange: 'NYMEX', category: 'energy',     tickSize: 0.0001,    pointValue: 42000,    yahooTicker: 'HO=F',  dxFeedSymbol: '/HO',  priceRange: { min: 0.5,   max: 5      } },
 
   // ── METALS ───────────────────────────────────────────────────────────────
-  GC:  { symbol: 'GC',  name: 'Gold',              exchange: 'COMEX', category: 'metals',     tickSize: 0.1,       pointValue: 100,      yahooTicker: 'GC=F',  dxFeedSymbol: '/GC',  priceRange: { min: 1200,  max: 5000   } },
-  MGC: { symbol: 'MGC', name: 'Micro Gold',        exchange: 'COMEX', category: 'metals',     tickSize: 0.1,       pointValue: 10,       yahooTicker: 'GC=F',  dxFeedSymbol: '/MGC', priceRange: { min: 1200,  max: 5000   } },
-  SI:  { symbol: 'SI',  name: 'Silver',            exchange: 'COMEX', category: 'metals',     tickSize: 0.005,     pointValue: 5000,     yahooTicker: 'SI=F',  dxFeedSymbol: '/SI',  priceRange: { min: 10,    max: 80     } },
-  SIL: { symbol: 'SIL', name: 'Micro Silver',      exchange: 'COMEX', category: 'metals',     tickSize: 0.005,     pointValue: 1000,     yahooTicker: 'SI=F',  dxFeedSymbol: '/SIL', priceRange: { min: 10,    max: 80     } },
+  GC:  { symbol: 'GC',  name: 'Gold',              exchange: 'COMEX', category: 'metals',     tickSize: 0.1,       pointValue: 100,      yahooTicker: 'GC=F',  dxFeedSymbol: '/GC',  priceRange: { min: 800,   max: 8000   } },
+  MGC: { symbol: 'MGC', name: 'Micro Gold',        exchange: 'COMEX', category: 'metals',     tickSize: 0.1,       pointValue: 10,       yahooTicker: 'GC=F',  dxFeedSymbol: '/MGC', priceRange: { min: 800,   max: 8000   } },
+  SI:  { symbol: 'SI',  name: 'Silver',            exchange: 'COMEX', category: 'metals',     tickSize: 0.005,     pointValue: 5000,     yahooTicker: 'SI=F',  dxFeedSymbol: '/SI',  priceRange: { min: 10,    max: 200    } },
+  SIL: { symbol: 'SIL', name: 'Micro Silver',      exchange: 'COMEX', category: 'metals',     tickSize: 0.005,     pointValue: 1000,     yahooTicker: 'SI=F',  dxFeedSymbol: '/SIL', priceRange: { min: 10,    max: 200    } },
   HG:  { symbol: 'HG',  name: 'Copper',            exchange: 'COMEX', category: 'metals',     tickSize: 0.0005,    pointValue: 25000,    yahooTicker: 'HG=F',  dxFeedSymbol: '/HG',  priceRange: { min: 1.5,   max: 7      } },
   PL:  { symbol: 'PL',  name: 'Platinum',          exchange: 'NYMEX', category: 'metals',     tickSize: 0.1,       pointValue: 50,       yahooTicker: 'PL=F',  dxFeedSymbol: '/PL',  priceRange: { min: 500,   max: 2000   } },
 
