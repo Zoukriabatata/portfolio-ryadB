@@ -9,6 +9,7 @@ import {
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
 import { getCMELiveAdapter } from '@/lib/live/getCMELiveAdapter';
 import { isCMESymbol } from '@/lib/utils/symbolUtils';
+import { validateInstrumentPrice, validateCandle } from '@/lib/instruments';
 import { useAlertsStore } from '@/stores/useAlertsStore';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { type AssetCategory, SYMBOL_CATEGORIES_BY_ASSET } from '../constants/symbols';
@@ -101,7 +102,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           });
         });
 
-        if (tradovateCandles.length > 0) return tradovateCandles;
+        if (tradovateCandles.length > 0) return tradovateCandles.filter(c => validateCandle(c, sym));
 
         // Fallback: dxFeed history API (works without Tradovate credentials)
         // dxFeed uses /ES, /NQ format — add slash prefix for CME symbols
@@ -114,7 +115,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               return dxData.map((c: { time: number; open: number; high: number; low: number; close: number; volume: number }) => ({
                 time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
                 volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
-              }));
+              })).filter((c: LiveCandle) => validateCandle(c, sym));
             }
           }
         } catch { /* dxFeed unavailable */ }
@@ -128,7 +129,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               return yahooData.map((c: { time: number; open: number; high: number; low: number; close: number; volume: number }) => ({
                 time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
                 volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
-              }));
+              })).filter((c: LiveCandle) => validateCandle(c, sym));
             }
           }
         } catch { /* Yahoo unavailable */ }
@@ -325,6 +326,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       // Update price and chart without React re-renders
       const unsubCandle = aggregator.on('candle:update', (candle, tf) => {
         if (tf !== timeframe || !isMounted) return;
+        if (!validateInstrumentPrice(symbol, candle.close)) return;
 
         // Clear "no data" state on first live candle
         if (refs.candles.current.length === 0) {

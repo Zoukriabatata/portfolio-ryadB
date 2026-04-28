@@ -1,28 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/api-middleware';
-
-/**
- * GET /api/futures-history?symbol=NQ&timeframe=60&days=5
- *
- * Fetches CME futures historical candles via Yahoo Finance (free, no API key).
- * Used as fallback when Tradovate/dxFeed are unavailable (weekends, no credentials).
- *
- * Symbol mapping: NQ → NQ=F, ES → ES=F, YM → YM=F, GC → GC=F, CL → CL=F
- */
-
-const CME_TO_YAHOO: Record<string, string> = {
-  'ES': 'ES=F', 'MES': 'ES=F',
-  'NQ': 'NQ=F', 'MNQ': 'NQ=F',
-  'YM': 'YM=F',
-  'RTY': 'RTY=F',
-  'GC': 'GC=F',
-  'SI': 'SI=F',
-  'CL': 'CL=F',
-  'NG': 'NG=F',
-  'ZB': 'ZB=F',
-  'ZN': 'ZN=F',
-  'ZF': 'ZF=F',
-};
+import { getYahooTicker, validateCandle } from '@/lib/instruments';
 
 function tfToYahooInterval(tf: number): string {
   if (tf <= 60) return '1m';
@@ -53,7 +31,7 @@ export async function GET(request: NextRequest) {
   const timeframe = parseInt(searchParams.get('timeframe') || '60');
   const days = parseInt(searchParams.get('days') || '5');
 
-  const yahooSymbol = CME_TO_YAHOO[symbol];
+  const yahooSymbol = getYahooTicker(symbol);
   if (!yahooSymbol) {
     return NextResponse.json({ error: `Unknown CME symbol: ${symbol}` }, { status: 400 });
   }
@@ -93,14 +71,9 @@ export async function GET(request: NextRequest) {
       const c = quote.close?.[i];
       const v = quote.volume?.[i];
       if (o == null || h == null || l == null || c == null) continue;
-      candles.push({
-        time: timestamp[i],
-        open: o,
-        high: h,
-        low: l,
-        close: c,
-        volume: v || 0,
-      });
+      const candle = { time: timestamp[i], open: o, high: h, low: l, close: c, volume: v || 0 };
+      if (!validateCandle(candle, symbol)) continue;
+      candles.push(candle);
     }
 
     return NextResponse.json(candles, {

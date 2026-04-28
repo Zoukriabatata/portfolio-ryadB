@@ -1,15 +1,11 @@
 /**
  * CME Symbol Utilities
- * Determines whether a symbol is a CME future (routes to IB Gateway)
- * vs. a crypto symbol (routes to Binance public WS).
+ * Determines whether a symbol is a CME future (routes to dxFeed/Tradovate)
+ * vs. a crypto symbol (routes to Bybit/Binance public WS).
  */
 
-const CME_SYMBOLS = new Set([
-  'NQ', 'MNQ', 'ES', 'MES', 'YM', 'RTY',
-  'GC', 'MGC', 'SI', 'CL', 'NG',
-  'ZB', 'ZN', 'ZF',
-]);
+import { ALL_CME_SYMBOLS } from '@/lib/instruments';
 
 export function isCMESymbol(symbol: string): boolean {
-  return CME_SYMBOLS.has(symbol.toUpperCase());
+  return ALL_CME_SYMBOLS.has(symbol.toUpperCase());
 }

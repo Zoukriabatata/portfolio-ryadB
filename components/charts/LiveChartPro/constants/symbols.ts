@@ -77,21 +77,42 @@ export const SYMBOL_CATEGORIES_BY_ASSET: Record<AssetCategory, Record<string, { 
   },
   futures: {
     'Index Futures': [
-      { value: 'ES', label: 'E-mini S&P 500', exchange: 'CME' },
-      { value: 'NQ', label: 'E-mini Nasdaq', exchange: 'CME' },
-      { value: 'YM', label: 'E-mini Dow', exchange: 'CBOT' },
-      { value: 'RTY', label: 'E-mini Russell', exchange: 'CME' },
+      { value: 'ES',  label: 'E-mini S&P 500',    exchange: 'CME'  },
+      { value: 'MES', label: 'Micro S&P 500',      exchange: 'CME'  },
+      { value: 'NQ',  label: 'E-mini Nasdaq 100',  exchange: 'CME'  },
+      { value: 'MNQ', label: 'Micro Nasdaq 100',   exchange: 'CME'  },
+      { value: 'YM',  label: 'E-mini Dow Jones',   exchange: 'CBOT' },
+      { value: 'MYM', label: 'Micro Dow Jones',    exchange: 'CBOT' },
+      { value: 'RTY', label: 'E-mini Russell 2000',exchange: 'CME'  },
+      { value: 'M2K', label: 'Micro Russell 2000', exchange: 'CME'  },
     ],
-    'Commodities': [
-      { value: 'GC', label: 'Gold', exchange: 'COMEX' },
-      { value: 'SI', label: 'Silver', exchange: 'COMEX' },
-      { value: 'CL', label: 'Crude Oil', exchange: 'NYMEX' },
-      { value: 'NG', label: 'Natural Gas', exchange: 'NYMEX' },
+    'Energy': [
+      { value: 'CL',  label: 'Crude Oil WTI',  exchange: 'NYMEX' },
+      { value: 'QM',  label: 'Mini Crude Oil', exchange: 'NYMEX' },
+      { value: 'MCL', label: 'Micro Crude Oil',exchange: 'NYMEX' },
+      { value: 'NG',  label: 'Natural Gas',    exchange: 'NYMEX' },
     ],
-    'Bonds': [
+    'Metals': [
+      { value: 'GC',  label: 'Gold',         exchange: 'COMEX' },
+      { value: 'MGC', label: 'Micro Gold',   exchange: 'COMEX' },
+      { value: 'SI',  label: 'Silver',       exchange: 'COMEX' },
+      { value: 'SIL', label: 'Micro Silver', exchange: 'COMEX' },
+      { value: 'HG',  label: 'Copper',       exchange: 'COMEX' },
+      { value: 'PL',  label: 'Platinum',     exchange: 'NYMEX' },
+    ],
+    'Rates': [
       { value: 'ZB', label: '30Y T-Bond', exchange: 'CBOT' },
       { value: 'ZN', label: '10Y T-Note', exchange: 'CBOT' },
-      { value: 'ZF', label: '5Y T-Note', exchange: 'CBOT' },
+      { value: 'ZF', label: '5Y T-Note',  exchange: 'CBOT' },
+      { value: 'ZT', label: '2Y T-Note',  exchange: 'CBOT' },
+    ],
+    'FX Futures': [
+      { value: '6E', label: 'EUR/USD', exchange: 'CME' },
+      { value: '6J', label: 'JPY',     exchange: 'CME' },
+      { value: '6B', label: 'GBP',     exchange: 'CME' },
+      { value: '6A', label: 'AUD',     exchange: 'CME' },
+      { value: '6C', label: 'CAD',     exchange: 'CME' },
+      { value: '6S', label: 'CHF',     exchange: 'CME' },
     ],
   },
   forex: {

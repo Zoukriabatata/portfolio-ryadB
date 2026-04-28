@@ -18,6 +18,7 @@
  */
 
 import type { Candle, Trade } from '@/types/market';
+import { CME_INSTRUMENTS } from '@/lib/instruments';
 
 const DEFAULT_ENDPOINT = 'wss://demo.dxfeed.com/dxlink-ws';
 const FEED_CHANNEL = 1;
@@ -31,22 +32,10 @@ export type DOMSnapshot = { bids: DOMLevel[]; asks: DOMLevel[]; timestamp: numbe
 type DOMHandler = (dom: DOMSnapshot) => void;
 
 // Map our generic root symbols → dxFeed CME continuous-contract format (/ES = front month)
-export const CME_SYMBOL_MAP: Record<string, string> = {
-  ES:  '/ES',
-  MES: '/MES',
-  NQ:  '/NQ',
-  MNQ: '/MNQ',
-  YM:  '/YM',
-  MYM: '/MYM',
-  RTY: '/RTY',
-  M2K: '/M2K',
-  GC:  '/GC',
-  MGC: '/MGC',
-  SI:  '/SI',
-  CL:  '/CL',
-  MCL: '/MCL',
-  NG:  '/NG',
-};
+// Generated from the central instrument registry so all 35+ instruments are covered.
+export const CME_SYMBOL_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(CME_INSTRUMENTS).map(([sym, def]) => [sym, def.dxFeedSymbol ?? `/${sym}`])
+);
 
 /** Convert our internal symbol (e.g. "MNQ") to dxFeed format ("/MNQ"). */
 export function toCMEDxSymbol(symbol: string): string {

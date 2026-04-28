@@ -33,6 +33,8 @@ const KeyboardShortcutsModal = dynamic(() => import('@/components/ui/KeyboardSho
 import { MarketProfileEngine } from '@/lib/orderflow/MarketProfileEngine';
 import AlertButton from '@/components/ui/AlertButton';
 import { ASSET_CATEGORY_ICONS, ASSET_CATEGORIES } from './constants/symbols';
+import { isCMESymbol } from '@/lib/utils/symbolUtils';
+import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { TF_GROUPS } from './constants/timeframes';
 import LoadingOverlay from './components/LoadingOverlay';
 import ZoomControls from './components/ZoomControls';
@@ -295,6 +297,12 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
 
   // Contrast text for active buttons: auto black/white based on toolActive luminance
   const { textColor: activeTextColor } = useAutoContrast(theme.colors.toolActive);
+
+  // Data source badge: true when on a CME symbol without a live feed
+  const hasCMEFeed = useDataFeedStore(s =>
+    s.configs['tradovate']?.status === 'connected' ||
+    s.configs['dxfeed']?.status === 'connected'
+  );
   const { positions, activeBroker, connections, placeOrder, closePosition, contractQuantity, showTradeBar, setShowTradeBar } = useTradingStore(
     useShallow(s => ({
       positions: s.positions,
@@ -677,6 +685,20 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
               <span style={{ color: theme.colors.textMuted }}>C</span>
               <span ref={refs.ohlcClose}>--</span>
             </div>
+
+            {/* Data source badge — CME demo mode (15-min delayed) */}
+            {isCMESymbol(symbolData.symbol.toUpperCase()) && !hasCMEFeed && (
+              <span
+                className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                style={{ color: '#eab308', background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)' }}
+                title="CME delayed 15 minutes — connect a live feed for real-time data"
+              >
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                +15m
+              </span>
+            )}
 
             {/* Active Indicators Pills */}
             {indicatorConfigs.filter(i => i.enabled).length > 0 && (

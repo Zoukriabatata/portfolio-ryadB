@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { useDataFeedStore } from '@/stores/useDataFeedStore';
 import { SYMBOLS, type Symbol, type Timeframe } from '@/types/market';
+import { isCMESymbol } from '@/lib/utils/symbolUtils';
 
 // Symbol groups
 const SYMBOL_GROUPS_BASE = [
@@ -16,16 +17,29 @@ const SYMBOL_GROUPS_BASE = [
   {
     label: 'CME Index',
     isCME: true,
-    symbols: ['NQ', 'MNQ', 'ES', 'MES'] as Symbol[],
+    symbols: ['NQ', 'MNQ', 'ES', 'MES', 'YM', 'MYM', 'RTY', 'M2K'] as Symbol[],
   },
   {
-    label: 'CME Gold',
+    label: 'CME Energy',
     isCME: true,
-    symbols: ['GC', 'MGC'] as Symbol[],
+    symbols: ['CL', 'QM', 'MCL', 'NG'] as Symbol[],
+  },
+  {
+    label: 'CME Metals',
+    isCME: true,
+    symbols: ['GC', 'MGC', 'SI', 'SIL', 'HG', 'PL'] as Symbol[],
+  },
+  {
+    label: 'CME Rates',
+    isCME: true,
+    symbols: ['ZB', 'ZN', 'ZF', 'ZT'] as Symbol[],
+  },
+  {
+    label: 'CME FX',
+    isCME: true,
+    symbols: ['6E', '6J', '6B', '6A', '6C', '6S', '6N'] as Symbol[],
   },
 ];
-
-const CME_SYMBOLS = new Set(['NQ', 'MNQ', 'ES', 'MES', 'GC', 'MGC']);
 
 const timeframes: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
@@ -107,7 +121,7 @@ export default function SymbolSelector() {
     setIsOpen(false);
     setSearch('');
     // Show delay notice when selecting CME in demo mode (not a blocker)
-    if (CME_SYMBOLS.has(s) && isCMEDelayed) {
+    if (isCMESymbol(s) && isCMEDelayed) {
       setShowCMEPrompt(true);
     } else {
       setShowCMEPrompt(false);
@@ -196,7 +210,7 @@ export default function SymbolSelector() {
             </div>
 
             {/* Symbol list */}
-            <div className="max-h-64 overflow-y-auto py-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}>
+            <div className="max-h-72 overflow-y-auto py-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}>
               {filteredGroups.map((group) => (
                 <div key={group.label}>
                   {/* Group header */}
@@ -209,7 +223,7 @@ export default function SymbolSelector() {
                   {group.symbols.map((s) => {
                     const info = SYMBOLS[s];
                     const isActive = s === symbol;
-                    const isCME = CME_SYMBOLS.has(s);
+                    const isCME = isCMESymbol(s);
                     return (
                       <button
                         key={s}
