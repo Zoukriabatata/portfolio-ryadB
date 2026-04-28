@@ -157,7 +157,7 @@ class BybitLiveWS {
   }
 
   private handleTrade(data: Array<{ T: number; p: string; v: string; S: string }>): void {
-    if (!data?.length) return;
+    if (!data?.length || this.intentionalDisconnect) return;
     for (const t of data) {
       const tick: Tick = {
         price: parseFloat(t.p),

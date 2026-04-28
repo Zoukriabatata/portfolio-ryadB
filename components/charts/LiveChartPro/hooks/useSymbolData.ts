@@ -281,11 +281,25 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       getBinanceLiveWS().disconnect();
       getCMELiveAdapter().disconnect();
 
-      // Step 2 — clean slate
+      // Step 2 — clean slate: DOM, canvas, aggregator, refs
       refs.unsubscribers.current.forEach(unsub => unsub());
       refs.unsubscribers.current = [];
       resetAggregator();
       refs.lastHistoryTime.current = 0;
+      refs.currentPrice.current = 0;
+      refs.candles.current = [];
+      refs.candleData.current.clear();
+      refs.sessionHigh.current = -Infinity;
+      refs.sessionLow.current = Infinity;
+      // Clear chart canvas so old symbol's candles don't bleed through
+      refs.chartEngine.current?.setCandles([]);
+      // Clear price/OHLC display immediately so stale values don't linger
+      if (refs.price.current) refs.price.current.textContent = '---';
+      if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = '---';
+      if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = '---';
+      if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = '---';
+      if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = '---';
+      if (refs.footerVolume?.current) refs.footerVolume.current.textContent = '---';
       setNoData(false);
 
       // Step 3 — load history (adapters are disconnected, aggregator is clean)
