@@ -32,13 +32,15 @@ export function getCMELiveAdapter(): CMEAdapter {
     return getDxFeedLiveAdapter();
   }
 
-  // Use Tradovate if explicitly configured
+  // Use Tradovate if explicitly configured via the Boutique / Data Feeds page
   const tradovate = configs['tradovate'];
   if (tradovate?.status === 'connected' || tradovate?.status === 'configured') {
     return getTradovateLiveAdapter();
   }
 
-  // Default: dxFeed demo mode — 15-min delayed, no credentials needed
+  // Default: dxFeed demo mode — failures are silenced after 3 retries.
+  // CME data is provided by Yahoo polling + smooth interpolation in
+  // useSymbolData.ts, so this adapter is essentially a no-op for free users.
   return getDxFeedLiveAdapter();
 }
 

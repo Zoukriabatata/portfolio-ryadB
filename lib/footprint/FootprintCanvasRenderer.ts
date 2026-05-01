@@ -337,22 +337,27 @@ export class FootprintCanvasRenderer {
       const centerX = cellStartX + fpWidth / 2;
       const isBullish = candle.close >= candle.open;
 
-      // Container — bounded by actual level range, not OHLC high/low.
-      // When 418 cuts tick loading short, OHLC high/low can span a large price range
-      // with only a few levels at the extremes, creating a large empty box (false gap).
+      // Container — wraps the FULL price range of the candle (wick + body),
+      // matching ATAS / Bookmap convention. Using candle.high/low (not just
+      // the level range) means the gray box always encloses the wick too,
+      // so cells never appear to overflow the candle outline.
+      // We still consider the level extremes as a safety net so the box never
+      // shrinks BELOW where data actually sits.
       let levelMinPrice = Infinity, levelMaxPrice = -Infinity;
       candle.levels.forEach((_, p) => {
         if (p < levelMinPrice) levelMinPrice = p;
         if (p > levelMaxPrice) levelMaxPrice = p;
       });
-      const boundLow  = levelMinPrice === Infinity ? candle.low  : levelMinPrice;
-      const boundHigh = levelMaxPrice === -Infinity ? candle.high : levelMaxPrice;
+      const boundLow  = Math.min(candle.low,  levelMinPrice === Infinity ? candle.low  : levelMinPrice);
+      const boundHigh = Math.max(candle.high, levelMaxPrice === -Infinity ? candle.high : levelMaxPrice);
 
       const containerX = cellStartX + 2;
       const containerW = fpWidth - 4;
-      const containerTop = layout.priceToY(boundHigh, metrics) - rowH / 2;
-      const containerBottom = layout.priceToY(boundLow, metrics) + rowH / 2;
-      const containerH = containerBottom - containerTop;
+      // priceToY(boundHigh) = top y, priceToY(boundLow + tickSize) is the bottom-edge of the lowest cell.
+      // We extend by half a tick on each side so the container hugs the cells flush.
+      const containerTop = layout.priceToY(boundHigh + tickSize, metrics);
+      const containerBottom = layout.priceToY(boundLow, metrics);
+      const containerH = Math.max(2, containerBottom - containerTop);
 
       // Container background
       const containerOpacity = colors.footprintContainerOpacity ?? 0.03;
@@ -408,49 +413,65 @@ export class FootprintCanvasRenderer {
           if (levelVol < threshold) return;
         }
 
-        // Actual pixel spacing between this level and the next — caps cell height to prevent overlap
-        const pixelSpacing = Math.abs(layout.priceToY(price + tickSize, metrics) - y);
-        const effectiveRowH = Math.min(rowH, pixelSpacing);
-        if (effectiveRowH < 2) return; // cell invisible at this zoom — skip entirely
+        // ── Cell anchored to the [price, price+tickSize) pixel range ──
+        // Convention (ATAS / Bookmap): a cell at price p represents trades in
+        // [p, p+tickSize). Its pixel band is therefore from priceToY(p+tickSize)
+        // (top, because higher price = lower y) to priceToY(p) (bottom).
+        // Centering on `y` (previous bug) made the top cell overflow above the
+        // candle high and the bottom cell overflow below the candle low.
+        const yTop = layout.priceToY(price + tickSize, metrics);
+        const yBot = y; // = priceToY(price)
+        const cellSpan = Math.abs(yBot - yTop);
+        const MAX_VISUAL_H = 22; // px — clamp content height so it never bloats
+        const effectiveRowH = Math.min(MAX_VISUAL_H, cellSpan);
+        if (cellSpan < 2) return; // cell physically invisible — skip entirely
 
-        const cellY = y - effectiveRowH / 2;
+        const cellY = Math.min(yTop, yBot);
+        const cellCenterY = cellY + cellSpan / 2;
+        const contentY = cellCenterY - effectiveRowH / 2;
         const barH = effectiveRowH;
-        // Text visible only when there is enough vertical AND horizontal space
-        const showLevelText = effectiveRowH >= 8 && fpWidth >= 38;
         const isPOC = price === candle.poc;
 
-        // Adaptive font & padding per cell — scales with actual pixel height of the row
-        // so text is never too small in tall cells or too large in compressed cells
-        const cellFontSize = Math.max(7, Math.min(20, Math.floor(effectiveRowH * 0.72)));
+        // ── Text visibility: needs BOTH enough vertical AND horizontal room ──
+        // At extreme zoom imbalance (skinny cells OR narrow columns) we drop
+        // text entirely and let the colored bars carry the signal — the
+        // "profile-only" view the user described, ATAS-style.
+        const MIN_TEXT_VERTICAL = 9;   // px — anything tighter and text overlaps neighbours
+        const MIN_TEXT_HORIZONTAL = 38; // px — anything narrower and bid×ask is illegible
+        const showLevelText = cellSpan >= MIN_TEXT_VERTICAL && fpWidth >= MIN_TEXT_HORIZONTAL;
+
+        // Adaptive font — bounded by BOTH the cell's vertical space and the cap
+        const cellFontSize = Math.max(7, Math.min(13, Math.floor(cellSpan * 0.72)));
         const textPad = Math.max(3, Math.min(14, Math.round(cellFontSize * 0.6)));
         const cellMonoFont = `${boldPrefix}${cellFontSize}px ${fontFamily}`;
         const cellBoldFont = `bold ${cellFontSize}px ${fontFamily}`;
-        const textY = y + cellFontSize / 3;
+        // Text centered on the cell's vertical center, not on the price tick
+        const textY = cellCenterY + cellFontSize / 3;
         const totalVol = level.bidVolume + level.askVolume;
 
-        // ─── LAYER 0: Heatmap cell background (Phase 2) ───
+        // ─── LAYER 0: Heatmap cell background — fills the FULL tick span ───
+        // (no gaps between adjacent cells thanks to cellSpan)
         if (heatmapEnabled && totalVol > 0) {
           const intensity = Math.min(1, totalVol / maxLevelVol);
           const heatColor = this.getHeatmapColor(intensity);
           ctx.fillStyle = heatColor;
           ctx.globalAlpha = intensity * heatmapIntensity;
-          ctx.fillRect(cellStartX, cellY, fpWidth, effectiveRowH);
+          ctx.fillRect(cellStartX, cellY, fpWidth, cellSpan);
           ctx.globalAlpha = 1;
         }
 
-        // ─── LAYER 1: Delta bars ───
-        // In compact mode (no text), bars are more opaque to carry the full visual signal
+        // ─── LAYER 1: Delta bars — centered, bounded height ───
+        // Bars use contentY/barH so they don't stretch into giant blobs at high zoom
         const barBaseAlpha  = showLevelText ? 0.15 : 0.45;
         const barRangeAlpha = showLevelText ? 0.25 : 0.45;
         const clusterMode = features.clusterDisplayMode ?? 'bid-ask';
         if (clusterMode === 'bid-ask' || clusterMode === 'bid-ask-split') {
-          // Two-sided bars (bid left, ask right)
           if (level.bidVolume > 0) {
             const intensity = level.bidVolume / maxLevelVol;
             const bidW = intensity * barMaxW;
             ctx.fillStyle = colors.bidColor;
             ctx.globalAlpha = barBaseAlpha + intensity * barRangeAlpha;
-            ctx.fillRect(centerX - 1 - bidW, cellY, bidW, barH);
+            ctx.fillRect(centerX - 1 - bidW, contentY, bidW, barH);
             ctx.globalAlpha = 1;
           }
           if (level.askVolume > 0) {
@@ -458,40 +479,44 @@ export class FootprintCanvasRenderer {
             const askW = intensity * barMaxW;
             ctx.fillStyle = colors.askColor;
             ctx.globalAlpha = barBaseAlpha + intensity * barRangeAlpha;
-            ctx.fillRect(centerX + 1, cellY, askW, barH);
+            ctx.fillRect(centerX + 1, contentY, askW, barH);
             ctx.globalAlpha = 1;
           }
         } else if (clusterMode === 'delta') {
-          // Single centered bar colored by delta direction
           const delta = level.askVolume - level.bidVolume;
           const absDelta = Math.abs(delta);
-          const maxDelta = maxLevelVol; // normalize against max level vol
+          const maxDelta = maxLevelVol;
           const intensity = Math.min(1, absDelta / maxDelta);
           const fullBarW = (fpWidth - 2) * intensity;
           ctx.fillStyle = delta >= 0 ? colors.deltaPositive : colors.deltaNegative;
           ctx.globalAlpha = 0.2 + intensity * 0.3;
-          ctx.fillRect(centerX - fullBarW / 2, cellY, fullBarW, barH);
+          ctx.fillRect(centerX - fullBarW / 2, contentY, fullBarW, barH);
           ctx.globalAlpha = 1;
         } else if (clusterMode === 'volume') {
-          // Single centered bar showing total volume
           const intensity = Math.min(1, totalVol / maxLevelVol);
           const fullBarW = (fpWidth - 2) * intensity;
-          // Gradient from muted to bright based on intensity
           const r = Math.round(80 + intensity * 100);
           const g = Math.round(130 + intensity * 80);
           const b = Math.round(220 - intensity * 40);
           ctx.fillStyle = `rgb(${r},${g},${b})`;
           ctx.globalAlpha = 0.2 + intensity * 0.35;
-          ctx.fillRect(centerX - fullBarW / 2, cellY, fullBarW, barH);
+          ctx.fillRect(centerX - fullBarW / 2, contentY, fullBarW, barH);
           ctx.globalAlpha = 1;
         }
 
-        // ─── LAYER 2: POC highlight ───
+        // ─── LAYER 2: POC highlight — bounded so it's a tasteful marker ───
+        // Uses contentY/effectiveRowH (max 22px) instead of cellSpan: a 100px
+        // yellow blob at high zoom looks bloated. We keep a 2px tick at the
+        // exact price y for a precise position cue.
         if (isPOC && features.showPOC) {
-          ctx.fillStyle = 'rgba(251, 191, 36, 0.08)';
-          ctx.fillRect(cellStartX, cellY, fpWidth, effectiveRowH);
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.10)';
+          ctx.fillRect(cellStartX, contentY, fpWidth, effectiveRowH);
+          // Left edge accent (2px golden bar) — same bounded height
           ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(cellStartX, cellY, 2, effectiveRowH);
+          ctx.fillRect(cellStartX, contentY, 2, effectiveRowH);
+          // Hairline at the cell center for precision (1px golden line)
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.55)';
+          ctx.fillRect(cellStartX, Math.round(cellCenterY) - 0.5, fpWidth, 1);
         }
 
         // ─── LAYER 2.5: Large trade highlight (Phase 2) ───
@@ -500,7 +525,7 @@ export class FootprintCanvasRenderer {
           ctx.strokeStyle = largeTradeColor;
           ctx.lineWidth = 1.5;
           ctx.globalAlpha = 0.7;
-          ctx.strokeRect(cellStartX, cellY, fpWidth, effectiveRowH);
+          ctx.strokeRect(cellStartX, cellY, fpWidth, cellSpan);
           ctx.globalAlpha = 1;
         }
 
@@ -511,46 +536,99 @@ export class FootprintCanvasRenderer {
         if (clusterMode === 'bid-ask' || clusterMode === 'bid-ask-split') {
           // ── Bid x Ask / Bid | Ask modes ──
           const separator = clusterMode === 'bid-ask' ? 'x' : '|';
+          const hasBid = level.bidVolume > 0;
+          const hasAsk = level.askVolume > 0;
 
-          // Bid text
-          if (level.bidVolume > 0) {
+          // ── Pre-measure the full string and shrink font if needed ──
+          // The cell has fpWidth pixels of horizontal room. We need
+          // bid + sep + ask to fit cleanly with some padding on each side.
+          // If the natural cellFontSize blows the budget, scale the font down
+          // proportionally — never letting it go below 6px (illegible).
+          const bidStr = hasBid ? this.formatVolCached(level.bidVolume, zoom) : '';
+          const askStr = hasAsk ? this.formatVolCached(level.askVolume, zoom) : '';
+          const sepStr = (hasBid && hasAsk) ? separator : '';
+
+          ctx.font = cellMonoFont;
+          const bidW = bidStr ? ctx.measureText(bidStr).width : 0;
+          const askW = askStr ? ctx.measureText(askStr).width : 0;
+          const sepW = sepStr ? ctx.measureText(sepStr).width : 0;
+          // Required: text widths + breathing room around separator + cell padding
+          const requiredW = bidW + askW + sepW + (sepStr ? 8 : 0) + 6;
+          const availableW = fpWidth - 4;
+
+          let fontScale = 1;
+          if (requiredW > availableW) fontScale = availableW / requiredW;
+
+          // Compute raw fitted size first — if it's below the readability floor,
+          // skip text entirely. Math.max would otherwise mask this case.
+          const rawSize = Math.floor(cellFontSize * fontScale);
+          if (rawSize < 6) {
+            // Profile-only mode: bars carry the signal, text would be illegible
+            return;
+          }
+          const fittedSize = rawSize;
+
+          const fittedMono = `${boldPrefix}${fittedSize}px ${fontFamily}`;
+          const fittedBold = `bold ${fittedSize}px ${fontFamily}`;
+          const fittedSepFont = `${Math.max(6, fittedSize - 1)}px monospace`;
+
+          // Defensive clip — even with the size fit, never bleed to neighbours
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(cellStartX, cellY, fpWidth, cellSpan);
+          ctx.clip();
+
+          if (hasBid && hasAsk) {
+            // ── Both sides: bid (right of centerX) + separator + ask (left of centerX) ──
             if (features.showImbalances && level.imbalanceSell) {
-              ctx.fillStyle = '#ff4757';
-              ctx.font = cellBoldFont;
+              ctx.fillStyle = '#ff4757'; ctx.font = fittedBold;
             } else if (isLargeTrade) {
-              ctx.fillStyle = largeTradeColor;
-              ctx.font = cellBoldFont;
+              ctx.fillStyle = largeTradeColor; ctx.font = fittedBold;
             } else {
               ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
-              ctx.font = isPOC ? cellBoldFont : cellMonoFont;
+              ctx.font = isPOC ? fittedBold : fittedMono;
             }
             ctx.textAlign = 'right';
-            ctx.fillText(this.formatVolCached(level.bidVolume, zoom), centerX - textPad, textY);
-          }
+            ctx.fillText(bidStr, centerX - textPad, textY);
 
-          // Separator
-          ctx.fillStyle = '#ffffff';
-          ctx.globalAlpha = 0.6;
-          ctx.font = `${Math.max(6, cellFontSize - 1)}px monospace`;
-          ctx.textAlign = 'center';
-          ctx.fillText(separator, centerX, textY);
-          ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ffffff';
+            ctx.globalAlpha = 0.6;
+            ctx.font = fittedSepFont;
+            ctx.textAlign = 'center';
+            ctx.fillText(separator, centerX, textY);
+            ctx.globalAlpha = 1;
 
-          // Ask text
-          if (level.askVolume > 0) {
             if (features.showImbalances && level.imbalanceBuy) {
-              ctx.fillStyle = '#2ed573';
-              ctx.font = cellBoldFont;
+              ctx.fillStyle = '#2ed573'; ctx.font = fittedBold;
             } else if (isLargeTrade) {
-              ctx.fillStyle = largeTradeColor;
-              ctx.font = cellBoldFont;
+              ctx.fillStyle = largeTradeColor; ctx.font = fittedBold;
             } else {
               ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
-              ctx.font = isPOC ? cellBoldFont : cellMonoFont;
+              ctx.font = isPOC ? fittedBold : fittedMono;
             }
             ctx.textAlign = 'left';
-            ctx.fillText(this.formatVolCached(level.askVolume, zoom), centerX + textPad, textY);
+            ctx.fillText(askStr, centerX + textPad, textY);
+          } else if (hasBid) {
+            if (features.showImbalances && level.imbalanceSell) {
+              ctx.fillStyle = '#ff4757'; ctx.font = fittedBold;
+            } else {
+              ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
+              ctx.font = isPOC ? fittedBold : fittedMono;
+            }
+            ctx.textAlign = 'center';
+            ctx.fillText(bidStr, centerX, textY);
+          } else if (hasAsk) {
+            if (features.showImbalances && level.imbalanceBuy) {
+              ctx.fillStyle = '#2ed573'; ctx.font = fittedBold;
+            } else {
+              ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
+              ctx.font = isPOC ? fittedBold : fittedMono;
+            }
+            ctx.textAlign = 'center';
+            ctx.fillText(askStr, centerX, textY);
           }
+
+          ctx.restore();
         } else if (clusterMode === 'delta') {
           // ── Delta mode: single centered value ──
           const delta = level.askVolume - level.bidVolume;
@@ -582,10 +660,44 @@ export class FootprintCanvasRenderer {
         }
       });
 
-      // ─── Per-candle delta label (compact mode only) ────────────────────────
-      // In compact mode (no cell text), show the candle's total delta centered on the body.
-      // Positive delta → green, negative → red.  Shown only when body is tall enough.
-      if (!showCellText && candle.levels.size > 0) {
+      // ─── Per-candle delta label — ALWAYS above the high with arrow icon ───
+      // Standard orderflow convention: delta sits above the candle high with a
+      // ▲ (positive) / ▼ (negative) / ● (neutral) marker so traders read direction
+      // instantly without color-only cues.
+      if (candle.levels.size > 0) {
+        let candleDelta = 0;
+        candle.levels.forEach(l => { candleDelta += l.askVolume - l.bidVolume; });
+
+        // Adaptive font: hide label if footprint column is too narrow to be readable
+        let labelFontSize = 0;
+        if (fpWidth > 60) labelFontSize = 11;
+        else if (fpWidth >= 30) labelFontSize = 9;
+        // else < 30px → too narrow, skip the delta label entirely
+
+        if (labelFontSize > 0) {
+          const arrow = candleDelta > 0 ? '▲' : candleDelta < 0 ? '▼' : '●';
+          const sign = candleDelta > 0 ? '+' : candleDelta < 0 ? '-' : '';
+          const valStr = this.formatVolCached(Math.abs(candleDelta), zoom);
+          const deltaStr = `${arrow} ${sign}${valStr}`;
+
+          const highY = layout.priceToY(candle.high, metrics);
+          const labelY = highY - 6; // 6px above the high wick
+
+          ctx.font         = `bold ${labelFontSize}px ${fontFamily}`;
+          ctx.textAlign    = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillStyle    = candleDelta > 0 ? colors.deltaPositive
+                            : candleDelta < 0 ? colors.deltaNegative
+                            : (colors.textMuted ?? '#9ca3af');
+          ctx.globalAlpha  = 0.95;
+          ctx.fillText(deltaStr, centerX, labelY);
+          ctx.globalAlpha  = 1;
+          ctx.textBaseline = 'alphabetic';
+        }
+      }
+
+      // ─── Legacy in-body delta label (kept for non-compact mode if needed) ──
+      if (false && !showCellText && candle.levels.size > 0) {
         let candleDelta = 0;
         candle.levels.forEach(l => { candleDelta += l.askVolume - l.bidVolume; });
         const deltaStr  = (candleDelta >= 0 ? '+' : '') + this.formatVolCached(Math.abs(candleDelta), zoom);
@@ -839,21 +951,38 @@ export class FootprintCanvasRenderer {
         ctx.restore();
       }
 
-      // Label — shows "VWAP/TWAP" when both active (fused like ATAS)
+      // Label — anchored at the rightmost VWAP point with full-opacity pill +
+      // border for clean readability against any background (bullish/bearish bars).
       if (features.vwapShowLabel !== false) {
         const lastVP = vwapPoints[vwapPoints.length - 1];
-        const labelText = showTWAP ? 'VWAP/TWAP' : 'VWAP';
-        ctx.font = 'bold 9px "Consolas", monospace';
+        const lastPriceVal = layout.yToPrice(lastVP.y, metrics);
+        const labelText = showTWAP
+          ? `VWAP ${lastPriceVal.toFixed(2)}`
+          : `VWAP ${lastPriceVal.toFixed(2)}`;
+        ctx.font = 'bold 10px "Consolas", monospace';
         const tw = ctx.measureText(labelText).width;
+        const boxW = tw + 10;
+        const boxH = 16;
+        // Clamp x so the label can never overflow past the price-scale area
+        const maxX = (metrics.footprintAreaX + metrics.footprintAreaWidth) - boxW - 4;
+        const boxX = Math.min(lastVP.x + 6, maxX);
+        const boxY = lastVP.y - boxH / 2;
+
+        // Solid pill (no transparency) so candles never bleed through
         ctx.fillStyle = vwapColor;
-        ctx.globalAlpha = 0.85;
         ctx.beginPath();
-        ctx.roundRect(lastVP.x + 4, lastVP.y - 8, tw + 8, 14, 3);
+        ctx.roundRect(boxX, boxY, boxW, boxH, 3);
         ctx.fill();
-        ctx.globalAlpha = 1;
+        // Subtle outline for separation
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
         ctx.fillStyle = '#0a0a0f';
         ctx.textAlign = 'left';
-        ctx.fillText(labelText, lastVP.x + 8, lastVP.y + 2);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelText, boxX + 5, boxY + boxH / 2 + 0.5);
+        ctx.textBaseline = 'alphabetic';
       }
 
       // ─── VWAP Standard Deviation Bands (individual config per band) ───
@@ -907,14 +1036,21 @@ export class FootprintCanvasRenderer {
           ctx.setLineDash([]);
           ctx.restore();
 
-          // Band label
-          const lastUP = upperPoints[upperPoints.length - 1];
-          ctx.font = '8px "Consolas", monospace';
-          ctx.fillStyle = band.color;
-          ctx.globalAlpha = 0.5;
-          ctx.textAlign = 'left';
-          ctx.fillText(`${band.mult}σ`, lastUP.x + 4, lastUP.y + 3);
-          ctx.globalAlpha = 1;
+          // Band label — only show when VWAP label is also visible AND there's
+          // enough vertical space between this band and the next one (≥14px)
+          if (features.vwapShowLabel !== false) {
+            const lastUP = upperPoints[upperPoints.length - 1];
+            const maxX = (metrics.footprintAreaX + metrics.footprintAreaWidth) - 26;
+            const lblX = Math.min(lastUP.x + 4, maxX);
+            ctx.font = 'bold 8px "Consolas", monospace';
+            ctx.fillStyle = band.color;
+            ctx.globalAlpha = 0.85;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${band.mult}σ`, lblX, lastUP.y);
+            ctx.textBaseline = 'alphabetic';
+            ctx.globalAlpha = 1;
+          }
         }
       }
     }
@@ -1486,6 +1622,13 @@ export class FootprintCanvasRenderer {
     const fmtQty = (q: number) => q >= 1000 ? `${(q / 1000).toFixed(1)}k` : `${Math.round(q)}`;
     const cpY = layout.priceToY(currentPrice, metrics);
 
+    // Minimum vertical separation between adjacent DOM bars. If the current
+    // bar would land within MIN_GAP px of the previously drawn one, skip it
+    // entirely to prevent the overlap mush at low Y zoom.
+    const MIN_GAP_PX = 2;
+    let lastDrawnYBid = -Infinity;
+    let lastDrawnYAsk = Infinity;
+
     const drawSide = (
       entries: [number, number][],
       clr: string, nearClr: string,
@@ -1498,6 +1641,18 @@ export class FootprintCanvasRenderer {
         if (side === 'bid' && price >= currentPrice) return;
         if (side === 'ask' && price <= currentPrice) return;
         if (y2 < footprintAreaY || y1 > footprintAreaY + footprintAreaHeight) return;
+
+        // Anti-overlap guard: skip levels that collapse onto the previous one
+        if (side === 'bid') {
+          if (y1 - lastDrawnYBid < MIN_GAP_PX) return;
+          lastDrawnYBid = y2;
+        } else {
+          if (lastDrawnYAsk - y2 < MIN_GAP_PX) return;
+          lastDrawnYAsk = y1;
+        }
+
+        // Cell height fills the full pixel span between the two ticks (matches
+        // the footprint cells now), -1 for a 1px hairline separator
         const barH  = Math.max(1, y2 - y1 - 1);
         const ratio = Math.min(1, qty / maxQty);
         const barW  = Math.min(barMaxW, Math.max(3, Math.round(ratio * barMaxW)));
@@ -1664,21 +1819,64 @@ export class FootprintCanvasRenderer {
     ctx.lineTo(width - 60, footprintAreaY + footprintAreaHeight);
     ctx.stroke();
 
-    // Price labels
+    // ── Use the FULL canvas Y span, not just the candle range ──
+    // The canvas extends above the highest candle and below the lowest. We
+    // need labels across the entire Y axis so the user sees a continuous
+    // price ladder ($76,340 → $76,360 → $76,380 …) instead of stopping at
+    // visiblePriceMax.
+    const topPrice = layout.yToPrice(footprintAreaY, metrics);
+    const bottomPrice = layout.yToPrice(footprintAreaY + footprintAreaHeight, metrics);
+    const fullMin = Math.min(topPrice, bottomPrice);
+    const fullMax = Math.max(topPrice, bottomPrice);
+
+    // ── Pixel-based label spacing (TradingView/ATAS approach) ──
+    const TARGET_LABEL_GAP_PX = 35;
+    const visibleRange = Math.max(tickSize, fullMax - fullMin);
+    const maxLabels = Math.max(2, Math.floor(footprintAreaHeight / TARGET_LABEL_GAP_PX));
+    const rawStep = visibleRange / maxLabels;
+
+    // Round rawStep to a "nice" number: 1, 2, 2.5, 5, 10, 20, 25, 50, 100, ...
+    const pow = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const norm = rawStep / pow;
+    let niceMult: number;
+    if (norm <= 1) niceMult = 1;
+    else if (norm <= 2) niceMult = 2;
+    else if (norm <= 2.5) niceMult = 2.5;
+    else if (norm <= 5) niceMult = 5;
+    else niceMult = 10;
+    const step = Math.max(tickSize, niceMult * pow);
+
+    // ── Build label list spanning the full canvas Y range ──
+    const startPrice = Math.ceil(fullMin / step) * step;
+    const labels: number[] = [];
+    for (let p = startPrice; p <= fullMax; p += step) {
+      labels.push(p);
+      if (labels.length > 80) break; // safety cap
+    }
+
+    // Format helper: thousand separators, no K/M abbreviation unless extreme range
+    const precision = layout.getPricePrecision(tickSize, isCME ? 2 : 2);
+    const formatLabel = (price: number): string => {
+      // Only abbreviate when visible range > $50,000 (truly macro view)
+      if (visibleRange >= 50_000 && Math.abs(price) >= 10_000) {
+        return (price / 1000).toFixed(precision > 0 ? 1 : 0) + 'K';
+      }
+      const txt = price.toFixed(precision);
+      // Add thousand separators on the integer part
+      const [intPart, decPart] = txt.split('.');
+      const withSep = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return decPart !== undefined ? `${withSep}.${decPart}` : withSep;
+    };
+
     ctx.fillStyle = colors.textSecondary;
     ctx.font = `${fonts.priceFontSize}px "Consolas", "Monaco", monospace`;
     ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
 
-    const priceLevels = layout.getVisiblePriceLevels(metrics, tickSize);
-    const zoomY = layout.getZoomY();
-    const labelSkip = zoomY < 0.3 ? 3 : zoomY < 0.7 ? 2 : 1;
-
-    priceLevels.forEach((price, idx) => {
-      if (idx % labelSkip !== 0) return;
-
+    const prefix = isCME ? '' : '$';
+    for (const price of labels) {
       const y = layout.priceToY(price, metrics);
-      const labelPadding = 15;
-      if (y < footprintAreaY - labelPadding || y > footprintAreaY + footprintAreaHeight + labelPadding) return;
+      if (y < footprintAreaY - 8 || y > footprintAreaY + footprintAreaHeight + 8) continue;
 
       // Tick mark
       ctx.strokeStyle = colors.gridColor;
@@ -1687,10 +1885,9 @@ export class FootprintCanvasRenderer {
       ctx.lineTo(width - 56, y);
       ctx.stroke();
 
-      const formattedPrice = layout.formatPriceWithZoom(price, tickSize, isCME);
-      const prefix = isCME ? '' : '$';
-      ctx.fillText(`${prefix}${formattedPrice}`, width - 4, y + 3);
-    });
+      ctx.fillText(`${prefix}${formatLabel(price)}`, width - 4, y);
+    }
+    ctx.textBaseline = 'alphabetic';
   }
 
   // ═══════════════════════════════════════════════════════════════

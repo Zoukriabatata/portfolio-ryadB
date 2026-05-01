@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/api-middleware';
-import { getYahooTicker } from '@/lib/instruments';
+import { getYahooTicker, validateInstrumentPrice } from '@/lib/instruments';
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  if ('error' in authResult) {
-    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
-  }
-
+  // Public endpoint — proxies Yahoo Finance public quote data (no auth needed).
   const { searchParams } = request.nextUrl;
   const symbol = (searchParams.get('symbol') || '').toUpperCase();
 
@@ -34,8 +29,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No quote data' }, { status: 404 });
     }
 
+    const price = quote.regularMarketPrice;
+    if (!validateInstrumentPrice(symbol, price)) {
+      console.warn(`[INVALID_PRICE] futures-price symbol=${symbol} value=${price}`);
+      return NextResponse.json({ error: `Price out of expected range for ${symbol}: ${price}` }, { status: 422 });
+    }
+
     return NextResponse.json({
-      price: quote.regularMarketPrice,
+      price,
       open: quote.regularMarketOpen,
       high: quote.regularMarketDayHigh,
       low: quote.regularMarketDayLow,

@@ -187,7 +187,7 @@ function MiniSlider({ label, value, min, max, step, unit, onChange }: { label: s
 // ═══ Position Global Settings — colors, zones, arrow, opacity ═══
 function PositionGlobalSettings() {
   const {
-    posTpColor, posSlColor, posEntryColor,
+    posTpColor, posSlColor, posEntryColor, posLineWidth,
     posZoneOpacity, posShowZoneFill, posShowLabels, posDefaultCompact,
     posSmartArrow, posDynamicOpacity, posOpacityCurve, posOpacityIntensity,
     posArrowExponent, posArrowIntensity, posArrowThickness,
@@ -217,9 +217,14 @@ function PositionGlobalSettings() {
         </div>
       </div>
 
-      {/* Zone opacity */}
+      {/* Line width */}
       <div className="mt-2">
-        <MiniSlider label="Opacité zone" value={Math.round(posZoneOpacity * 100)} min={2} max={40} step={1} unit="%" onChange={(v) => setVPSetting('posZoneOpacity', v / 100)} />
+        <MiniSlider label="Épaisseur ligne entry" value={posLineWidth} min={1} max={4} step={0.5} unit="px" onChange={(v) => setVPSetting('posLineWidth', v)} />
+      </div>
+
+      {/* Zone opacity */}
+      <div className="mt-1.5">
+        <MiniSlider label="Opacité zone" value={Math.round(posZoneOpacity * 100)} min={2} max={60} step={1} unit="%" onChange={(v) => setVPSetting('posZoneOpacity', v / 100)} />
       </div>
 
       {/* Toggles */}

@@ -774,6 +774,11 @@ export class CanvasChartEngine {
     });
   }
 
+  /** Public hook for external code (settings panels, theme switches) to force a repaint. */
+  requestRedraw(): void {
+    this.scheduleRender();
+  }
+
   private drawGrid(): void {
     const { width, height, priceAxisWidth, timeAxisHeight, volumeHeight } = this.dimensions;
     const { priceMin, priceMax } = this.viewport;

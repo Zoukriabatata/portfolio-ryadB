@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/api-middleware';
-import { getYahooTicker, validateCandle } from '@/lib/instruments';
+import { getYahooTicker, validateCandle, validateInstrumentPrice } from '@/lib/instruments';
 
 function tfToYahooInterval(tf: number): string {
   if (tf <= 60) return '1m';
@@ -102,11 +101,9 @@ async function fetchStooq(yahooSymbol: string, interval: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  if ('error' in authResult) {
-    return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
-  }
-
+  // Public endpoint — Yahoo Finance and Stooq are publicly accessible market data,
+  // no licensing reason to gate behind auth. Required for unauthenticated visitors
+  // viewing the live chart for CME symbols (MNQ, ES, NQ, GC, CL, etc.).
   const { searchParams } = request.nextUrl;
   const symbol = (searchParams.get('symbol') || '').toUpperCase();
   const timeframe = parseInt(searchParams.get('timeframe') || '60');
@@ -136,6 +133,7 @@ export async function GET(request: NextRequest) {
         if (o == null || h == null || l == null || c == null) continue;
         const candle = { time: timestamp[i], open: o, high: h, low: l, close: c, volume: v || 0 };
         if (!validateCandle(candle, symbol)) continue;
+        if (!validateInstrumentPrice(symbol, candle.close)) continue;
         candles.push(candle);
       }
       if (candles.length > 0) {
@@ -147,7 +145,7 @@ export async function GET(request: NextRequest) {
   // 2. Stooq fallback
   const stooqRows = await fetchStooq(yahooSymbol, interval);
   if (stooqRows && stooqRows.length > 0) {
-    const candles = stooqRows.filter(c => validateCandle(c, symbol));
+    const candles = stooqRows.filter(c => validateCandle(c, symbol) && validateInstrumentPrice(symbol, c.close));
     if (candles.length > 0) {
       return NextResponse.json(candles, { headers: { 'Cache-Control': 'no-store' } });
     }

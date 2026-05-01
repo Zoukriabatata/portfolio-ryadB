@@ -7,6 +7,12 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  // 'standalone' bundles the Node.js server for Electron packaging.
+  // Not set for Vercel (uses serverless by default).
+  output: process.env.ELECTRON_BUILD ? 'standalone' : undefined,
+
+  serverExternalPackages: ['@prisma/client', 'bcryptjs', 'jsonwebtoken'],
+
   devIndicators: false,
   reactStrictMode: false,
   poweredByHeader: false,

@@ -28,11 +28,50 @@ function createPositionDefinition(isLong: boolean): ToolDefinition<PositionTool>
       const posStartTime = Math.min(points[0].time, points[1].time);
       // Fixed compact width: 20 candles (~20min on 1m chart) — times are in SECONDS
       const fixedWidth = 20 * 60;
+
+      // Default 1:1 R:R — the user usually drags only ONE direction (toward TP).
+      // If we naively set TP=max(entry,other) and SL=min(entry,other), one side
+      // ends up at the entry price (distance = 0) and R:R becomes infinite.
+      // Mirror the dragged distance to the opposite side so we start at 1:1
+      // and the user can adjust SL by dragging the handle afterward.
+      let stopLoss: number;
+      let takeProfit: number;
+      if (isLong) {
+        const tpDistance = Math.max(0, other - entry);
+        const slDistanceFromDrag = Math.max(0, entry - other);
+        if (tpDistance > 0) {
+          // Dragged upward → TP above, SL mirrored below at same distance
+          takeProfit = entry + tpDistance;
+          stopLoss = entry - tpDistance;
+        } else if (slDistanceFromDrag > 0) {
+          // Dragged downward → treat as SL distance, mirror TP above
+          stopLoss = entry - slDistanceFromDrag;
+          takeProfit = entry + slDistanceFromDrag;
+        } else {
+          // Same point twice — fall back to a tiny default
+          takeProfit = entry * 1.01;
+          stopLoss = entry * 0.99;
+        }
+      } else {
+        const tpDistance = Math.max(0, entry - other);
+        const slDistanceFromDrag = Math.max(0, other - entry);
+        if (tpDistance > 0) {
+          takeProfit = entry - tpDistance;
+          stopLoss = entry + tpDistance;
+        } else if (slDistanceFromDrag > 0) {
+          stopLoss = entry + slDistanceFromDrag;
+          takeProfit = entry - slDistanceFromDrag;
+        } else {
+          takeProfit = entry * 0.99;
+          stopLoss = entry * 1.01;
+        }
+      }
+
       return {
         type,
         entry,
-        stopLoss: isLong ? Math.min(entry, other) : Math.max(entry, other),
-        takeProfit: isLong ? Math.max(entry, other) : Math.min(entry, other),
+        stopLoss,
+        takeProfit,
         startTime: posStartTime,
         endTime: posStartTime + fixedWidth,
         showRR: true,
@@ -189,8 +228,9 @@ function createPositionDefinition(isLong: boolean): ToolDefinition<PositionTool>
     },
 
     settingsSchema: [
-      { key: 'style.color', label: 'Color', type: 'color', group: 'Style' },
-      { key: 'style.lineWidth', label: 'Line width', type: 'lineWidth', group: 'Style' },
+      // Style colors removed — replaced by the dedicated TP/SL/Entry color
+      // pickers + line width slider in the Apparence section of the panel.
+      // Keeping a generic "Color" picker here was redundant and confusing.
       { key: 'compactMode', label: 'Compact mode', type: 'boolean', group: 'Display' },
       { key: 'showZoneFill', label: 'Zone fills', type: 'boolean', group: 'Display' },
       { key: 'showRR', label: 'Show R:R', type: 'boolean', group: 'Labels' },

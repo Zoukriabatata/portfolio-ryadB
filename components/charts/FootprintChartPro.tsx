@@ -33,7 +33,9 @@ import {
   type InteractionMode,
 } from '@/lib/tools/InteractionController';
 import { getBinanceLiveWS, type ConnectionStatus } from '@/lib/live/BinanceLiveWS';
-import { binanceWS } from '@/lib/websocket/BinanceWS';
+// Binance Futures WS is geo-blocked from France — we use Bybit linear instead.
+// Same OrderbookUpdate type, so the handler below works unchanged.
+import { bybitWS } from '@/lib/websocket/BybitWS';
 import { getCMELiveAdapter, getCMEAdapterLabel } from '@/lib/live/getCMELiveAdapter';
 import { type TimeframeSeconds, TIMEFRAME_LABELS } from '@/lib/live/HierarchicalAggregator';
 import {
@@ -696,7 +698,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     domAsksRef.current = new Map();
     if (CME_SYMS.has(symbol.toLowerCase())) return; // CME DOM populated from simulator each frame
     const SMOOTH = 0.4; // blend factor for fluid DOM rendering
-    const unsub = binanceWS.subscribeDepth(symbol.toLowerCase(), (update) => {
+    const unsub = bybitWS.subscribeDepth(symbol.toUpperCase(), (update) => {
       hasRealDOMRef.current = true;
       // Merge bids with smoothing
       update.bids.forEach(([p, q]: [string, string]) => {
@@ -720,7 +722,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           domAsksRef.current.delete(price);
         }
       });
-    }, 'futures', '500ms');
+      // Bybit signature: (symbol, handler, market='linear', depth=50|200|500)
+    }, 'linear', 50);
     return unsub;
   }, [symbol, settings.features.showPassiveLiquidity, CME_SYMS, isActive]);
 

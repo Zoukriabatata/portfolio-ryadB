@@ -11,7 +11,11 @@ const contractCache = new Map<string, { id: number; name: string; tickSize: numb
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // Production: require auth. Dev: env-var credentials are accepted upstream
+  // (/api/tradovate/auth handles its own dev fallback).
+  if (!isDev && !session?.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 

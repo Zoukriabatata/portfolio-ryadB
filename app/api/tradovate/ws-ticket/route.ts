@@ -43,7 +43,11 @@ function encryptCredential(plaintext: string): string {
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // Production: require auth. Dev: allow env-var credentials so contributors
+  // can run a Tradovate sim without the auth/DB stack.
+  if (!isDev && !session?.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
@@ -52,16 +56,18 @@ export async function GET(req: NextRequest) {
   let password: string | undefined;
   let mode: 'demo' | 'live' = 'demo';
 
-  try {
-    const config = await prisma.dataFeedConfig.findFirst({
-      where: { userId: session.user.id, provider: 'TRADOVATE' },
-    });
+  if (session?.user) {
+    try {
+      const config = await prisma.dataFeedConfig.findFirst({
+        where: { userId: session.user.id, provider: 'TRADOVATE' },
+      });
 
-    if (config?.username) username = config.username;
-    if (config?.apiKey) password = config.apiKey; // password stored as apiKey
-    if (config?.host === 'live') mode = 'live';
-  } catch {
-    // Fall through to env vars
+      if (config?.username) username = config.username;
+      if (config?.apiKey) password = config.apiKey; // password stored as apiKey
+      if (config?.host === 'live') mode = 'live';
+    } catch {
+      // Fall through to env vars
+    }
   }
 
   // Fallback to environment variables (useful for single-user dev setups)
@@ -88,7 +94,7 @@ export async function GET(req: NextRequest) {
   // 60 second expiry — long enough for the browser to connect, short enough to be useless if leaked
   const ticket = jwt.sign(
     {
-      userId: session.user.id,
+      userId: session?.user?.id ?? 'dev-env',
       username: encryptCredential(username),
       password: encryptCredential(password),
       mode,

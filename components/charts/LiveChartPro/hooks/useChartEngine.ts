@@ -222,6 +222,26 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
     });
   }, [refs, volBarBull, volBarBear, volBarOpacity]);
 
+  // Force chart redraw when ANY Long/Short position setting changes — the
+  // ToolsRenderer reads usePreferencesStore.getState() at render time, but
+  // without an explicit redraw trigger, settings changes wait for the next
+  // tick (or never apply on a static chart).
+  useEffect(() => {
+    const unsub = usePreferencesStore.subscribe((state, prevState) => {
+      const posKeys = [
+        'posTpColor', 'posSlColor', 'posEntryColor', 'posLineWidth',
+        'posZoneOpacity', 'posShowZoneFill', 'posShowLabels', 'posDefaultCompact',
+        'posSmartArrow', 'posDynamicOpacity', 'posOpacityCurve', 'posOpacityIntensity',
+        'posArrowExponent', 'posArrowIntensity', 'posArrowThickness', 'posArrowFill',
+        'posProgressTrail', 'posTrailIntensity', 'posHeatFill', 'posHeatIntensity',
+        'posTimeWeight', 'posGradientMode',
+      ] as const;
+      const changed = posKeys.some(k => state[k] !== prevState[k]);
+      if (changed) refs.chartEngine.current?.requestRedraw();
+    });
+    return unsub;
+  }, [refs]);
+
   // Sync preferences store → chart engine
   const prefShowVolume = usePreferencesStore((s) => s.showVolume);
   const prefShowVolumeBubbles = usePreferencesStore((s) => s.showVolumeBubbles);

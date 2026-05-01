@@ -136,6 +136,7 @@ export interface PreferencesState {
   posTpColor: string;
   posSlColor: string;
   posEntryColor: string;
+  posLineWidth: number;          // 1-4 px, applies to entry line
   posZoneOpacity: number;
   posShowZoneFill: boolean;
   posShowLabels: boolean;
@@ -243,6 +244,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       posTpColor: '#22c55e',
       posSlColor: '#ef4444',
       posEntryColor: '#a3a3a3',
+      posLineWidth: 1.5,
       posZoneOpacity: 0.12,
       posShowZoneFill: true,
       posShowLabels: false,

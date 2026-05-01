@@ -36,6 +36,9 @@ export interface RenderContext {
   hoveredHandle?: string | null;
   altKey?: boolean; // Show handles when Alt is held
   dpr?: number; // Device pixel ratio for sharp rendering
+  /** Candles in the visible viewport — used by the position renderer to
+   *  compute the actual high/low excursion within a position's time window. */
+  candles?: ReadonlyArray<{ time: number; open: number; high: number; low: number; close: number }>;
 }
 
 // ============ PIXEL-PERFECT HELPERS ============
@@ -65,8 +68,22 @@ export class ToolsRenderer {
   private lastRenderTime = 0;
   private frameRequest: number | null = null;
 
+  /**
+   * Per-position high-water marks for the TradingView-style progress fill.
+   * Tracks the most favorable AND most adverse price reached since the
+   * position was placed. The fill bar stays at the max, even when price
+   * retraces — showing the trader how far the move actually extended.
+   * Map key = tool id.
+   */
+  private positionExcursions: Map<string, { maxFavorable: number; maxAdverse: number }> = new Map();
+
   constructor() {
     this.engine = getToolsEngine();
+  }
+
+  /** Clear excursion tracking when a position is removed. */
+  clearPositionExcursion(toolId: string): void {
+    this.positionExcursions.delete(toolId);
   }
 
   /**
@@ -881,75 +898,77 @@ export class ToolsRenderer {
           ctx.fillRect(leftX, riskTop, zoneW, riskH);
         }
 
-      } else if (gradientMode === 'static' || livePrice <= 0) {
-        // ── Static: gentle vertical gradient (entry dim → target bright) ──
-        if (profitH > 1) {
-          ctx.fillStyle = makeZoneGradient(profitLine, entryY, tpY, baseAlpha * 0.1, baseAlpha * 0.5, baseAlpha);
-          ctx.fillRect(leftX, profitTop, zoneW, profitH);
-        }
-        if (riskH > 1) {
-          ctx.fillStyle = makeZoneGradient(riskLine, entryY, slY, baseAlpha * 0.1, baseAlpha * 0.5, baseAlpha);
-          ctx.fillRect(leftX, riskTop, zoneW, riskH);
-        }
-
       } else {
-        // ── Dynamic / Heat: price-responsive vertical gradient ──
-        const inProfit = isLong ? livePrice > tool.entry : livePrice < tool.entry;
-        const inLoss = isLong ? livePrice < tool.entry : livePrice > tool.entry;
-        const tpDist = Math.abs(tool.takeProfit - tool.entry);
-        const slDist = Math.abs(tool.stopLoss - tool.entry);
-
-        const profitProgress = tpDist > 0
-          ? Math.min(1, Math.max(0, (isLong ? livePrice - tool.entry : tool.entry - livePrice) / tpDist))
-          : 0;
-        const riskProgress = slDist > 0
-          ? Math.min(1, Math.max(0, (isLong ? tool.entry - livePrice : livePrice - tool.entry) / slDist))
-          : 0;
-
-        // ── PROFIT ZONE (entry ↔ TP) — always visible, gradient intensifies with progress ──
+        // ── Static uniform fill — clean TradingView look, no vertical gradient ──
+        // Both profit and risk zones get a flat color at the configured opacity.
+        // The TradingView-style progress bar drawn below provides the visual
+        // dynamics, so we don't need gradient noise on the base layer.
         if (profitH > 1) {
-          if (inProfit && profitProgress > 0 && dynamicOpacityEnabled) {
-            const intensity = applyCurve(profitProgress) * dynamicFactor;
-            const peakAlpha = Math.min(baseAlpha + intensity, maxAlpha);
-            ctx.fillStyle = makeZoneGradient(profitLine, entryY, tpY, baseAlpha * 0.08, baseAlpha * 0.35, peakAlpha);
-          } else {
-            // Inactive: very subtle gradient (not flat)
-            ctx.fillStyle = makeZoneGradient(profitLine, entryY, tpY, baseAlpha * 0.05, baseAlpha * 0.15, baseAlpha * 0.3);
-          }
+          ctx.fillStyle = hexToRgba(profitLine, baseAlpha);
           ctx.fillRect(leftX, profitTop, zoneW, profitH);
         }
-
-        // ── RISK ZONE (entry ↔ SL) — always visible, gradient intensifies with progress ──
         if (riskH > 1) {
-          if (inLoss && riskProgress > 0 && dynamicOpacityEnabled) {
-            const intensity = applyCurve(riskProgress) * dynamicFactor;
-            const peakAlpha = Math.min(baseAlpha + intensity, maxAlpha);
-            ctx.fillStyle = makeZoneGradient(riskLine, entryY, slY, baseAlpha * 0.08, baseAlpha * 0.35, peakAlpha);
-          } else {
-            // Inactive: very subtle gradient (not flat)
-            ctx.fillStyle = makeZoneGradient(riskLine, entryY, slY, baseAlpha * 0.05, baseAlpha * 0.15, baseAlpha * 0.3);
-          }
+          ctx.fillStyle = hexToRgba(riskLine, baseAlpha);
           ctx.fillRect(leftX, riskTop, zoneW, riskH);
         }
+      }
 
-        // ── Heat mode overlay: radial glow near live price ──
-        if (gradientMode === 'heat' && dynamicOpacityEnabled) {
-          const livePriceY = Math.round(priceToY(
-            isLong
-              ? Math.max(tool.stopLoss, Math.min(livePrice, tool.takeProfit))
-              : Math.min(tool.stopLoss, Math.max(livePrice, tool.takeProfit))
-          ));
-          const heatColor = inProfit ? profitLine : riskLine;
-          const heatBand = 14;
-          const heatAlpha = Math.min(0.25, baseAlpha + applyCurve(Math.max(profitProgress, riskProgress)) * 0.2);
-          const heatGrad = ctx.createLinearGradient(0, livePriceY - heatBand, 0, livePriceY + heatBand);
-          heatGrad.addColorStop(0, hexToRgba(heatColor, 0));
-          heatGrad.addColorStop(0.35, hexToRgba(heatColor, heatAlpha * 0.6));
-          heatGrad.addColorStop(0.5, hexToRgba(heatColor, heatAlpha));
-          heatGrad.addColorStop(0.65, hexToRgba(heatColor, heatAlpha * 0.6));
-          heatGrad.addColorStop(1, hexToRgba(heatColor, 0));
-          ctx.fillStyle = heatGrad;
-          ctx.fillRect(leftX, livePriceY - heatBand, zoneW, heatBand * 2);
+      // ═══ TRADINGVIEW-STYLE PROGRESS FILL — REAL CANDLE EXCURSION ═══
+      // Scan every candle in the position's [startTime, endTime] window and
+      // find the actual MAX HIGH and MIN LOW. The fill bars use those true
+      // extremes — so dragging the position over a spike retroactively shows
+      // the fill at the spike level, and shrinking the time window auto-recomputes.
+      if (!isClosed && context.candles && context.candles.length > 0) {
+        let highReached = -Infinity;
+        let lowReached  = Infinity;
+        for (const c of context.candles) {
+          if (c.time < tool.startTime) continue;
+          if (c.time > tool.endTime) break;
+          if (c.high > highReached) highReached = c.high;
+          if (c.low  < lowReached)  lowReached  = c.low;
+        }
+        // Include the live tick if it falls within the position's time window
+        if (hasLivePrice && curPrice > 0) {
+          const nowSec = Date.now() / 1000;
+          if (nowSec >= tool.startTime && nowSec <= tool.endTime) {
+            if (curPrice > highReached) highReached = curPrice;
+            if (curPrice < lowReached)  lowReached  = curPrice;
+          }
+        }
+
+        if (highReached !== -Infinity && lowReached !== Infinity) {
+          const zoneW = rightX - leftX;
+          const progressAlpha = Math.min(0.45, zoneAlpha * 2.2);
+
+          // ── Favorable band: entry → best reached price, capped at TP ──
+          const favorablePrice = isLong
+            ? Math.min(highReached, tool.takeProfit)
+            : Math.max(lowReached, tool.takeProfit);
+          const favorableHasMoved = isLong ? favorablePrice > tool.entry : favorablePrice < tool.entry;
+          if (favorableHasMoved) {
+            const favY = Math.round(priceToY(favorablePrice));
+            const bandTop = Math.min(entryY, favY);
+            const bandH   = Math.abs(favY - entryY);
+            if (bandH >= 1) {
+              ctx.fillStyle = hexToRgba(profitLine, progressAlpha);
+              ctx.fillRect(leftX, bandTop, zoneW, bandH);
+            }
+          }
+
+          // ── Adverse band: entry → worst reached price, capped at SL ──
+          const adversePrice = isLong
+            ? Math.max(lowReached, tool.stopLoss)
+            : Math.min(highReached, tool.stopLoss);
+          const adverseHasMoved = isLong ? adversePrice < tool.entry : adversePrice > tool.entry;
+          if (adverseHasMoved) {
+            const advY = Math.round(priceToY(adversePrice));
+            const bandTop = Math.min(entryY, advY);
+            const bandH   = Math.abs(advY - entryY);
+            if (bandH >= 1) {
+              ctx.fillStyle = hexToRgba(riskLine, progressAlpha);
+              ctx.fillRect(leftX, bandTop, zoneW, bandH);
+            }
+          }
         }
       }
     }
@@ -957,32 +976,18 @@ export class ToolsRenderer {
     // ═══ BORDER LINES — fade to 50% on close ═══
     const borderAlpha = 1.0 - fadeFactor * 0.5;
 
-    // ═══ ENTRY LINE ═══
+    // ═══ ENTRY LINE — solid midline, the visual anchor of the position ═══
     ctx.strokeStyle = fadeFactor > 0 ? hexToRgba(entryColor.startsWith('#') ? entryColor : '#a3a3a3', borderAlpha) : entryColor;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = prefs.posLineWidth;
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(leftX, entryY + 0.5);
     ctx.lineTo(rightX, entryY + 0.5);
     ctx.stroke();
 
-    // ═══ TP LINE ═══
-    ctx.strokeStyle = fadeFactor > 0 ? hexToRgba(profitLine, borderAlpha) : profitLine;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(leftX, tpY + 0.5);
-    ctx.lineTo(rightX, tpY + 0.5);
-    ctx.stroke();
-
-    // ═══ SL LINE ═══
-    ctx.strokeStyle = fadeFactor > 0 ? hexToRgba(riskLine, borderAlpha) : riskLine;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(leftX, slY + 0.5);
-    ctx.lineTo(rightX, slY + 0.5);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // TP / SL borders intentionally removed — the colored fill zones + the
+    // right-side TP/SL labels already convey the price levels. Drawing
+    // explicit horizontal lines at tpY/slY only adds visual noise.
 
     // ═══ SMOOTH PROGRESS ARROW v3 — Bézier curve + chevron arrowhead ═══
     const livePrice = isClosed ? (tool.exitPrice || 0) : (context.currentPrice || 0);
@@ -1045,79 +1050,56 @@ export class ToolsRenderer {
         const dy = endY - startY;
         const arrowLength = Math.sqrt(dx * dx + dy * dy);
 
-        // ── Bézier control point: smooth S-curve ──
-        // Horizontal first, then curves toward price target
-        const cpX = startX + dx * 0.65;
-        const cpY = startY + dy * 0.15;
+        // ── Straight dashed trendline (TradingView style) ──
+        // Solid color, dashed pattern, simple line from entry → live price.
+        // No bézier curves, no per-segment gradient — just a clean trend marker.
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
 
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        // ── Trail: faded Bézier shadow behind curve ──
+        // Trail: faint solid line behind the main dashed line
         if (trailEnabled && arrowLength > 10) {
-          // Trail control point — offset behind the main curve
-          const tCpX = startX + dx * (0.65 - trailFactor * 0.3);
-          const tCpY = startY + dy * (0.15 + trailFactor * 0.2);
-          const tEndX = endX - dx * trailFactor;
-          const tEndY = endY - dy * trailFactor;
-          // Gradient trail: fades from transparent → arrowColor
-          const trailGrad = ctx.createLinearGradient(startX, startY, tEndX, tEndY);
-          trailGrad.addColorStop(0, hexToRgba(arrowColor, 0));
-          trailGrad.addColorStop(1, hexToRgba(arrowColor, arrowOpacity * 0.3));
-          ctx.strokeStyle = trailGrad;
-          ctx.lineWidth = Math.max(0.5, arrowThickness * 0.5);
+          ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity * 0.25);
+          ctx.lineWidth = Math.max(0.5, arrowThickness * 0.6);
           ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(startX, startY);
-          ctx.quadraticCurveTo(tCpX, tCpY, tEndX, tEndY);
+          ctx.lineTo(endX, endY);
           ctx.stroke();
         }
 
-        // ── Main curve: smooth quadratic Bézier ──
+        // Main dashed trendline — single static color, no gradient
         if (arrowLength > 6) {
-          // Gradient along curve: dim start → bright end
-          const shaftGrad = ctx.createLinearGradient(startX, startY, endX, endY);
-          shaftGrad.addColorStop(0, hexToRgba(arrowColor, arrowOpacity * 0.25));
-          shaftGrad.addColorStop(0.4, hexToRgba(arrowColor, arrowOpacity * 0.6));
-          shaftGrad.addColorStop(1, hexToRgba(arrowColor, arrowOpacity));
-          ctx.strokeStyle = shaftGrad;
+          ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity);
           ctx.lineWidth = arrowThickness;
-          ctx.setLineDash([]);
+          ctx.setLineDash([6, 4]);
           ctx.beginPath();
           ctx.moveTo(startX, startY);
-          ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+          ctx.lineTo(endX, endY);
           ctx.stroke();
+          ctx.setLineDash([]);
         }
 
-        // ── Chevron arrowhead (proper ±30° wings) ──
+        // Chevron arrowhead at the tip (angle = direction of the straight line)
         if (arrowLength > 12) {
-          // Tangent at curve endpoint: derivative of quadratic Bézier at t=1
-          // P'(1) = 2 * (P2 - P1_control) = 2 * (end - cp)
-          const tangentX = endX - cpX;
-          const tangentY = endY - cpY;
-          const angle = Math.atan2(tangentY, tangentX);
+          const angle = Math.atan2(dy, dx);
           const wingLength = Math.min(7, arrowThickness * 4);
           const wingAngle = Math.PI / 6; // 30°
 
           ctx.strokeStyle = hexToRgba(arrowColor, arrowOpacity);
           ctx.lineWidth = Math.max(1, arrowThickness * 0.85);
+          ctx.setLineDash([]);
           ctx.beginPath();
-          // Left wing
           ctx.moveTo(
             endX - wingLength * Math.cos(angle - wingAngle),
             endY - wingLength * Math.sin(angle - wingAngle)
           );
           ctx.lineTo(endX, endY);
-          // Right wing
           ctx.lineTo(
             endX - wingLength * Math.cos(angle + wingAngle),
             endY - wingLength * Math.sin(angle + wingAngle)
           );
           ctx.stroke();
         }
-
-        ctx.lineCap = 'butt';
-        ctx.lineJoin = 'miter';
       }
     }
 
@@ -1302,8 +1284,68 @@ export class ToolsRenderer {
       }
     }
 
-    // ═══ COMPACT LIVE P&L PILL (shown in compact mode when price is live) ═══
+    // ═══ COMPACT MODE PILLS — stacked horizontally based on enabled toggles ═══
+    // Each toggle (showPnL %, showDollarPnL, showRR, showPositionSize) renders
+    // its own pill. Always shows the % pill if at least price is live.
     if (compact && hasLivePrice && !isClosed) {
+      const pillColor = liveInProfit ? profitLine : riskLine;
+      const sign = liveInProfit ? '+' : '';
+      ctx.font = 'bold 9px "SF Mono", Consolas, monospace';
+      const pillH = 15;
+      const pillY = entryY - pillH / 2;
+      const pillGap = 4;
+
+      // Build the list of pills to display
+      const pills: { text: string; color: string }[] = [];
+      // % pill — always shown unless explicitly disabled (default: showPnL=false → still show as primary)
+      if (tool.showPnL !== false) {
+        pills.push({ text: `${sign}${livePnlPct.toFixed(2)}%`, color: pillColor });
+      }
+      if (tool.showDollarPnL === true) {
+        pills.push({ text: `${sign}$${liveDollarPnl.toFixed(0)}`, color: pillColor });
+      }
+      if (tool.showRR !== false) {
+        pills.push({ text: `${liveRR.toFixed(2)}R`, color: hexToRgba(pillColor, 0.85) });
+      }
+      if (tool.showPositionSize === true) {
+        pills.push({ text: `${leveragedSize.toFixed(3)}`, color: '#9ca3af' });
+      }
+
+      // Fallback: if all toggles off, show at least the % so the position isn't silent
+      if (pills.length === 0) {
+        pills.push({ text: `${sign}${livePnlPct.toFixed(2)}%`, color: pillColor });
+      }
+
+      // Measure all pills, then render right-aligned
+      const measured = pills.map(p => {
+        const w = ctx.measureText(p.text).width + 10;
+        return { ...p, w };
+      });
+      const totalW = measured.reduce((s, p) => s + p.w, 0) + pillGap * (measured.length - 1);
+      let cursorX = rightX - totalW - 6;
+
+      for (const p of measured) {
+        ctx.fillStyle = hexToRgba(p.color.startsWith('#') ? p.color : pillColor, 0.12);
+        ctx.beginPath();
+        ctx.roundRect(cursorX, pillY, p.w, pillH, 3);
+        ctx.fill();
+        ctx.strokeStyle = hexToRgba(p.color.startsWith('#') ? p.color : pillColor, 0.35);
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+
+        ctx.fillStyle = p.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.text, cursorX + p.w / 2, pillY + pillH / 2);
+        cursorX += p.w + pillGap;
+      }
+      ctx.textBaseline = 'alphabetic';
+    }
+
+    // Legacy single-pill block — only render the master pill if compact mode
+    // is OFF and labels are off (edge case). The compact stacked pills above
+    // handle the standard compact path.
+    if (false && compact && hasLivePrice && !isClosed) {
       const sign = liveInProfit ? '+' : '';
       const pillText = `${sign}${livePnlPct.toFixed(2)}%`;
       const pillColor = liveInProfit ? profitLine : riskLine;

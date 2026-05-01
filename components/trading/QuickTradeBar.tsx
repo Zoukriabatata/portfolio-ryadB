@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { toast } from 'sonner';
 import { useTradingStore, BROKER_INFO, type OrderType } from '@/stores/useTradingStore';
 import { useFuturesStore } from '@/stores/useFuturesStore';
 import { useMarketStore } from '@/stores/useMarketStore';
@@ -143,20 +144,39 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   const isConnected = activeBroker && connections[activeBroker]?.connected;
 
   const handleTrade = useCallback(async (side: 'buy' | 'sell') => {
-    if (!activeBroker || !isConnected || isSubmitting) return;
+    if (!activeBroker) {
+      toast.error('No broker selected — open Data Feeds to configure one');
+      return;
+    }
+    if (!isConnected) {
+      toast.error(`Broker ${activeBroker} not connected`);
+      return;
+    }
+    if (isSubmitting) return;
 
-    const price = (orderType === 'limit' || orderType === 'stop_limit')
-      ? parseFloat(limitPrice) : currentPrice;
-    if (isNaN(price) || price <= 0) return;
+    const isLimit = orderType === 'limit' || orderType === 'stop_limit';
+    const isStop = orderType === 'stop' || orderType === 'stop_limit';
 
-    const stp = (orderType === 'stop' || orderType === 'stop_limit')
-      ? parseFloat(stopPrice) : undefined;
-    if ((orderType === 'stop' || orderType === 'stop_limit') && (!stp || isNaN(stp))) return;
+    // For MARKET orders the price is whatever the market gives — we don't
+    // validate currentPrice here because the store falls back to useMarketStore
+    // and the broker/sim sets the actual fill. We only validate user-entered
+    // prices (limit/stop) which MUST be positive numbers.
+    const price = isLimit ? parseFloat(limitPrice) : currentPrice;
+    if (isLimit && (isNaN(price) || price <= 0)) {
+      toast.error('Invalid limit price');
+      return;
+    }
+
+    const stp = isStop ? parseFloat(stopPrice) : undefined;
+    if (isStop && (!stp || isNaN(stp) || stp <= 0)) {
+      toast.error('Invalid stop price');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       // Place main order
-      await placeOrder({
+      const result = await placeOrder({
         broker: activeBroker,
         symbol: symbol.toUpperCase(),
         side,
@@ -166,6 +186,17 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         stopPrice: stp,
         marketPrice: currentPrice,
       });
+
+      if (result) {
+        const sideLabel = side === 'buy' ? 'BUY' : 'SELL';
+        const fillPrice = result.avgFillPrice ?? price;
+        toast.success(
+          `${sideLabel} ${contractQuantity} ${symbol.toUpperCase()} @ ${fillPrice.toFixed(decimals)}`,
+          { duration: 2500 },
+        );
+      } else {
+        toast.error('Order failed');
+      }
 
       // Place bracket orders (TP + SL) if enabled
       if (bracketEnabled) {

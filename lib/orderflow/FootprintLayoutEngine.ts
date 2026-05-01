@@ -840,38 +840,38 @@ export class FootprintLayoutEngine {
    * Lower zoomY = less detail = rounded prices
    */
   getPricePrecision(tickSize: number, baseDecimals: number = 2): number {
-    const zoomY = this.viewport.zoomY;
-
-    // Determine base precision from tick size
+    // Precision is dictated by the instrument's tick size — never show decimals
+    // that the price physically can't resolve. For BTC (tick=$10) we show 0
+    // decimals: "$76,180" not "$76,180.000".
     let tickDecimals = 0;
     if (tickSize < 1) {
-      // For fractional tick sizes (0.25, 0.5, etc), count decimals
       const str = tickSize.toString();
       const decIndex = str.indexOf('.');
       if (decIndex >= 0) {
         tickDecimals = str.length - decIndex - 1;
       }
+    } else if (tickSize >= 1) {
+      // Integer-valued tick (BTC $10, ES $0.25 → wait that's <1, MNQ $0.25 → <1).
+      // For ticks like $10 / $5 / $1 we want 0 decimals (price always rounds to tick).
+      tickDecimals = 0;
     }
 
-    const minDecimals = Math.max(tickDecimals, baseDecimals);
+    // Honour caller's baseDecimals only if tick is sub-integer; otherwise the
+    // tick wins (decimals beyond the tick are meaningless).
+    const minDecimals = tickSize < 1
+      ? Math.max(tickDecimals, baseDecimals)
+      : tickDecimals;
 
-    // Scale precision based on zoom level
-    // zoomY < 0.5: very zoomed out → fewer decimals (rounded)
-    // zoomY 0.5-2: normal → standard decimals
-    // zoomY > 2: zoomed in → more decimals
-    // zoomY > 5: very zoomed in → maximum detail
-
-    if (zoomY < 0.3) {
-      return Math.max(0, minDecimals - 2); // Very rounded
-    } else if (zoomY < 0.7) {
-      return Math.max(0, minDecimals - 1); // Rounded
-    } else if (zoomY < 2) {
-      return minDecimals; // Normal
-    } else if (zoomY < 5) {
-      return minDecimals + 1; // More detail
-    } else {
-      return minDecimals + 2; // Maximum detail
+    // Light zoom-based scaling — only matters for sub-tick instruments.
+    const zoomY = this.viewport.zoomY;
+    if (tickSize < 1) {
+      if (zoomY < 0.3) return Math.max(0, minDecimals - 2);
+      if (zoomY < 0.7) return Math.max(0, minDecimals - 1);
+      if (zoomY < 2) return minDecimals;
+      if (zoomY < 5) return minDecimals + 1;
+      return minDecimals + 2;
     }
+    return minDecimals;
   }
 
   /**

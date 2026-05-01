@@ -344,27 +344,32 @@ export default function InlineToolSettings({
       <Sep />
 
       {/* ── Stroke Color ────────────────────────────────────────────────── */}
-      <InlineColorSwatch
-        value={style.color}
-        onChange={(color) => updateStyle({ color })}
-        mini
-        showAlpha
-        alpha={style.opacity ?? 1}
-        onAlphaChange={(a) => updateStyle({ opacity: a })}
-        className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors cursor-pointer"
-      >
-        <div
-          className="w-3.5 h-3.5 rounded-sm flex-shrink-0"
-          style={{
-            backgroundColor: style.color,
-            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
-          }}
-        />
-        <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
-      </InlineColorSwatch>
+      {/* Hidden for Long/Short positions — they use dedicated TP/SL/Entry color
+          pickers in the advanced settings panel; this generic stroke swatch
+          would be redundant and confusing. */}
+      {!isPosition && (
+        <InlineColorSwatch
+          value={style.color}
+          onChange={(color) => updateStyle({ color })}
+          mini
+          showAlpha
+          alpha={style.opacity ?? 1}
+          onAlphaChange={(a) => updateStyle({ opacity: a })}
+          className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-[var(--surface)] transition-colors cursor-pointer"
+        >
+          <div
+            className="w-3.5 h-3.5 rounded-sm flex-shrink-0"
+            style={{
+              backgroundColor: style.color,
+              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
+            }}
+          />
+          <ChevronDown size={9} className="text-[var(--text-dimmed)]" />
+        </InlineColorSwatch>
+      )}
 
       {/* ── Fill Color (shapes only) ─────────────────────────────────── */}
-      {hasFill && (
+      {hasFill && !isPosition && (
         <InlineColorSwatch
           value={(style as any).fillColor || 'transparent'}
           onChange={(color) => updateStyle({ fillColor: color } as any)}

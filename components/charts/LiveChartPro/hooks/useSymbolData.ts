@@ -12,9 +12,9 @@ import { isCMESymbol } from '@/lib/utils/symbolUtils';
 import { validateInstrumentPrice, validateCandle, getDxFeedSymbol } from '@/lib/instruments';
 import { dxFeedWS } from '@/lib/websocket/DxFeedWS';
 import { useAlertsStore } from '@/stores/useAlertsStore';
+import { useMarketStore } from '@/stores/useMarketStore';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { type AssetCategory, SYMBOL_CATEGORIES_BY_ASSET } from '../constants/symbols';
-import { TF_TO_BINANCE } from '../constants/timeframes';
 import { fetchRealSubCandles } from '../utils/candles';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
@@ -40,14 +40,51 @@ interface UseSymbolDataParams {
 }
 
 export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSymbolChange }: UseSymbolDataParams) {
-  const [symbol, setSymbol] = useState('btcusdt');
-  const [timeframe, setTimeframe] = useState<TimeframeSeconds>(60);
+  // Restore last viewed symbol/timeframe/asset from localStorage so a refresh
+  // keeps the user where they were instead of dumping them back on BTC/USDT.
+  const STORAGE_KEY = 'liveChart.session';
+  const [symbol, setSymbol] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'btcusdt';
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || 'null');
+      return typeof saved?.symbol === 'string' && saved.symbol ? saved.symbol : 'btcusdt';
+    } catch { return 'btcusdt'; }
+  });
+  const [timeframe, setTimeframe] = useState<TimeframeSeconds>(() => {
+    if (typeof window === 'undefined') return 60;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || 'null');
+      const tf = saved?.timeframe;
+      return typeof tf === 'number' && tf > 0 ? (tf as TimeframeSeconds) : 60;
+    } catch { return 60; }
+  });
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [loadingPhase, setLoadingPhase] = useState<'fetching' | 'rendering' | 'connecting' | null>('fetching');
   const [noData, setNoData] = useState(false);
-  const [assetCategory, setAssetCategory] = useState<AssetCategory>('crypto');
+  const [assetCategory, setAssetCategory] = useState<AssetCategory>(() => {
+    if (typeof window === 'undefined') return 'crypto';
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || 'null');
+      const cat = saved?.assetCategory;
+      const valid: AssetCategory[] = ['crypto', 'futures', 'options'] as AssetCategory[];
+      return (valid as string[]).includes(cat) ? (cat as AssetCategory) : 'crypto';
+    } catch { return 'crypto'; }
+  });
+
+  // Persist current symbol / TF / asset on every change so a Ctrl+Shift+R
+  // brings the user back to the same chart.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ symbol, timeframe, assetCategory }));
+    } catch { /* localStorage full or blocked — silently ignore */ }
+  }, [symbol, timeframe, assetCategory]);
   const [showSymbolSearch, _setShowSymbolSearch] = useState(false);
   const [searchOpenedAt, setSearchOpenedAt] = useState(0);
+  // CME data source state — tracks Yahoo Finance polling health
+  const [cmeDataMode, setCmeDataMode] = useState<'ok' | 'stale' | 'error' | null>(null);
+  const [lastPollAt, setLastPollAt] = useState<number | null>(null);
+  const [staleAgo, setStaleAgo] = useState('');
   const setShowSymbolSearch = useCallback((v: boolean) => {
     _setShowSymbolSearch(v);
     if (v) setSearchOpenedAt(Date.now());
@@ -73,12 +110,16 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
    * Load history from Binance API (CME requires IB Gateway)
    */
   const loadHistory = useCallback(async (sym: string, tf: TimeframeSeconds) => {
-    setLoadingPhase('fetching');
     try {
       if (isCMESymbol(sym)) {
         type CandleRow = { time: number; open: number; high: number; low: number; close: number; volume: number };
+        // Align time to TF boundary — Yahoo / Stooq sometimes return timestamps
+        // a few seconds off from the minute boundary. Without alignment, two polls
+        // returning slightly different timestamps for the same minute would create
+        // two separate candles in the chart instead of updating one.
+        const align = (t: number) => Math.floor(t / tf) * tf;
         const toCandle = (c: CandleRow): LiveCandle => ({
-          time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+          time: align(c.time), open: c.open, high: c.high, low: c.low, close: c.close,
           volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
         });
 
@@ -91,7 +132,9 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           if (yahooRes.ok) {
             const yahooData = await yahooRes.json();
             if (Array.isArray(yahooData) && yahooData.length > 0) {
-              const candles = yahooData.map(toCandle).filter((c: LiveCandle) => validateCandle(c, sym));
+              const candles = yahooData.map(toCandle).filter((c: LiveCandle) =>
+                validateCandle(c, sym) && validateInstrumentPrice(sym, c.close)
+              );
               if (candles.length > 0) return candles;
             }
           }
@@ -117,7 +160,9 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               })));
             });
           });
-          if (tradovateCandles.length > 0) return tradovateCandles.filter(c => validateCandle(c, sym));
+          if (tradovateCandles.length > 0) return tradovateCandles.filter(c =>
+            validateCandle(c, sym) && validateInstrumentPrice(sym, c.close)
+          );
         }
 
         // 3. dxFeed history REST endpoint
@@ -130,7 +175,9 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           if (dxRes.ok) {
             const dxData = await dxRes.json();
             if (Array.isArray(dxData) && dxData.length > 0) {
-              return dxData.map(toCandle).filter((c: LiveCandle) => validateCandle(c, sym));
+              return dxData.map(toCandle).filter((c: LiveCandle) =>
+                validateCandle(c, sym) && validateInstrumentPrice(sym, c.close)
+              );
             }
           }
         } catch { /* dxFeed history unavailable */ }
@@ -143,45 +190,48 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         return await fetchRealSubCandles(sym, tf, 300, AbortSignal.timeout(30_000));
       }
 
-      const binanceInterval = TF_TO_BINANCE[tf] || '1m';
+      // Crypto history from Bybit linear (same exchange as the live WebSocket).
+      // Mixing Binance history with Bybit live data was creating visible chart
+      // divergence vs TradingView (different basis, different liquidity).
+      const TF_TO_BYBIT: Partial<Record<TimeframeSeconds, string>> = {
+        60: '1', 180: '3', 300: '5', 900: '15', 1800: '30',
+        3600: '60', 14400: '240', 86400: 'D', 604800: 'W',
+      };
+      const bybitInterval = TF_TO_BYBIT[tf] ?? '1';
       const limit = 500;
 
-      // Use Futures API (fapi) to match the live WebSocket feed
       const response = await fetch(
-        `/api/binance/fapi/v1/klines?symbol=${sym.toUpperCase()}&interval=${binanceInterval}&limit=${limit}`,
+        `/api/bybit/v5/market/kline?category=linear&symbol=${sym.toUpperCase()}&interval=${bybitInterval}&limit=${limit}`,
         { signal: AbortSignal.timeout(15_000) }
       );
 
-      const data = await response.json();
+      const json = await response.json();
+      const list = json?.result?.list;
+      if (!Array.isArray(list) || list.length === 0) return [];
 
-      if (!Array.isArray(data)) {
-        return [];
-      }
-
-      return data.map((k: (string | number)[]) => {
-        const totalVolume = parseFloat(k[5] as string);
-        // k[9] = Taker buy base asset volume (from Binance klines API)
-        const takerBuyVolume = k[9] != null ? parseFloat(k[9] as string) : 0;
-        const takerSellVolume = totalVolume - takerBuyVolume;
-        return {
+      // Bybit returns klines NEWEST-FIRST — reverse for chronological order.
+      // Format per item: [startTime(ms), open, high, low, close, volume, turnover]
+      const rows: LiveCandle[] = [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const k = list[i] as string[];
+        const totalVolume = parseFloat(k[5]);
+        rows.push({
           time: Math.floor(Number(k[0]) / 1000),
-          open: parseFloat(k[1] as string),
-          high: parseFloat(k[2] as string),
-          low: parseFloat(k[3] as string),
-          close: parseFloat(k[4] as string),
+          open: parseFloat(k[1]),
+          high: parseFloat(k[2]),
+          low: parseFloat(k[3]),
+          close: parseFloat(k[4]),
           volume: totalVolume,
-          buyVolume: takerBuyVolume,
-          sellVolume: Math.max(0, takerSellVolume),
-          trades: Number(k[8]),
-        };
-      }) as LiveCandle[];
+          // Bybit klines don't expose taker-buy vs taker-sell — split 50/50 as fallback.
+          // Real buy/sell breakdown comes from the live WS publicTrade stream.
+          buyVolume: totalVolume * 0.5,
+          sellVolume: totalVolume * 0.5,
+          trades: 0,
+        });
+      }
+      return rows;
     } catch {
       return [];
-    } finally {
-      setLoadingPhase('rendering');
-      requestAnimationFrame(() => {
-        setLoadingPhase(null);
-      });
     }
   }, []);
 
@@ -253,6 +303,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     // Update price
     if (lastCandle && refs.price.current) {
       refs.currentPrice.current = lastCandle.close;
+      useMarketStore.getState().setCurrentPrice(lastCandle.close);
       refs.price.current.textContent = `$${priceFormatter.format(lastCandle.close)}`;
     }
 
@@ -302,9 +353,15 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = '---';
       if (refs.footerVolume?.current) refs.footerVolume.current.textContent = '---';
       setNoData(false);
+      setLoadingPhase('fetching');
 
       // Step 3 — load history (adapters are disconnected, aggregator is clean)
       const history = await loadHistory(symbol, timeframe);
+      if (!isMounted) return;
+
+      setLoadingPhase('rendering');
+      // Yield one frame so React can flush the 'rendering' phase before we update canvas
+      await new Promise<void>(r => requestAnimationFrame(() => r()));
       if (!isMounted) return;
 
       if (history.length > 0) {
@@ -317,8 +374,15 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
           }
         }, 3_000);
         refs.unsubscribers.current.push(() => clearTimeout(noDataTimer));
-        // CME: polling (30s interval) handles data delivery — never show the overlay,
-        // an empty chart while loading is better than a confusing "no data" message.
+      } else {
+        // CME: polling fires immediately below; if still empty after 12s (enough for
+        // one poll attempt + Stooq fallback), show a message instead of a black canvas.
+        const cmeNoDataTimer = setTimeout(() => {
+          if (isMounted && refs.candles.current.length === 0) {
+            setNoData(true);
+          }
+        }, 12_000);
+        refs.unsubscribers.current.push(() => clearTimeout(cmeNoDataTimer));
       }
 
       // Step 4 — connect the right live adapter
@@ -338,87 +402,126 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
       });
       refs.unsubscribers.current.push(unsubStatus);
 
-      // Update price and chart without React re-renders
-      const unsubCandle = aggregator.on('candle:update', (candle, tf) => {
-        if (!isMounted) return;
-        if (!validateInstrumentPrice(symbol, candle.close)) return;
+      // ── 60fps RAF batcher ─────────────────────────────────────────────────
+      // BTC can deliver 30-50 ticks/sec. Without batching, every tick would
+      // cause 7+ DOM textContent writes + a chart redraw → main-thread thrash.
+      // Solution: collect the latest values in `pending`, flush ONCE per frame.
+      type Pending = {
+        price: number;
+        selected: LiveCandle | null;
+        liveHigh: number;
+        liveLow: number;
+      };
+      let pending: Pending | null = null;
+      let rafId: number | null = null;
+      let lastPrice = NaN;
+      let lastOhlcOpen = NaN, lastOhlcHigh = NaN, lastOhlcLow = NaN, lastOhlcClose = NaN, lastVol = NaN;
 
-        // Price indicator updates on EVERY tick (primary 15s TF), not just selected TF.
-        // This keeps the price display live even on 1m/5m/1h charts where candle:update
-        // fires for the selected TF only every 15s (on slot boundaries).
-        if (refs.price.current) {
-          refs.currentPrice.current = candle.close;
-          refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
+      const flush = () => {
+        rafId = null;
+        const p = pending;
+        pending = null;
+        if (!p || !isMounted) return;
+
+        // Price (skip if unchanged — avoids needless DOM mutation)
+        if (p.price !== lastPrice) {
+          lastPrice = p.price;
+          refs.currentPrice.current = p.price;
+          // Publish to global market store so trading panel can read it
+          useMarketStore.getState().setCurrentPrice(p.price);
+          if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(p.price)}`;
         }
 
-        // All remaining updates (OHLC, chart, alerts) are TF-specific
-        if (tf !== timeframe) return;
+        if (!p.selected) return;
+        const sel = p.selected;
 
         // Clear "no data" state on first live candle
-        if (refs.candles.current.length === 0) {
-          setNoData(false);
+        if (refs.candles.current.length === 0) setNoData(false);
+
+        // OHLC — diff each before writing to skip redundant DOM work
+        if (sel.open !== lastOhlcOpen && refs.ohlcOpen?.current) {
+          lastOhlcOpen = sel.open;
+          refs.ohlcOpen.current.textContent = priceFormatter.format(sel.open);
+        }
+        if (p.liveHigh !== lastOhlcHigh && refs.ohlcHigh?.current) {
+          lastOhlcHigh = p.liveHigh;
+          refs.ohlcHigh.current.textContent = priceFormatter.format(p.liveHigh);
+        }
+        if (p.liveLow !== lastOhlcLow && refs.ohlcLow?.current) {
+          lastOhlcLow = p.liveLow;
+          refs.ohlcLow.current.textContent = priceFormatter.format(p.liveLow);
+        }
+        if (p.price !== lastOhlcClose && refs.ohlcClose?.current) {
+          lastOhlcClose = p.price;
+          refs.ohlcClose.current.textContent = priceFormatter.format(p.price);
+        }
+        if (sel.volume !== lastVol && refs.footerVolume?.current) {
+          lastVol = sel.volume;
+          refs.footerVolume.current.textContent = formatVolumeCompact(sel.volume);
         }
 
-        // Update OHLC + volume directly in DOM (no re-render)
-        if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(candle.open);
-        if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(candle.high);
-        if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = priceFormatter.format(candle.low);
-        if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(candle.close);
-        if (refs.footerVolume?.current) refs.footerVolume.current.textContent = formatVolumeCompact(candle.volume);
-
-        // Check price alerts + update positions + viewport (throttled)
+        // Throttled side-effects (alerts/positions/viewport)
         const now = Date.now();
         if (now - refs.lastAlertCheck.current > 250) {
           refs.lastAlertCheck.current = now;
-          checkAlerts(symbol, candle.close);
-          updatePositionPrices(symbol.toUpperCase(), candle.close);
+          checkAlerts(symbol, p.price);
+          updatePositionPrices(symbol.toUpperCase(), p.price);
           if (refs.chartEngine.current) {
             const vp = refs.chartEngine.current.getViewport();
             setViewportState({ priceMin: vp.priceMin, priceMax: vp.priceMax, chartHeight: vp.chartHeight });
           }
         }
 
-        // Update session high/low
-        if (candle.high > refs.sessionHigh.current) {
-          refs.sessionHigh.current = candle.high;
-        }
-        if (candle.low < refs.sessionLow.current) {
-          refs.sessionLow.current = candle.low;
-        }
+        if (p.liveHigh > refs.sessionHigh.current) refs.sessionHigh.current = p.liveHigh;
+        if (p.liveLow  < refs.sessionLow.current)  refs.sessionLow.current  = p.liveLow;
         updatePricePositionIndicator();
 
-        // Only update chart if candle time >= last history time
-        if (candle.time >= refs.lastHistoryTime.current) {
-          refs.candleData.current.set(candle.time, {
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-          });
-
-          if (refs.chartEngine.current) {
-            const chartCandle: ChartCandle = {
-              time: candle.time,
-              open: candle.open,
-              high: candle.high,
-              low: candle.low,
-              close: candle.close,
-              volume: candle.volume,
-              buyVolume: candle.buyVolume,
-              sellVolume: candle.sellVolume,
-            };
-            refs.chartEngine.current.updateCandle(chartCandle);
-
-            const existingIndex = refs.candles.current.findIndex(c => c.time === candle.time);
-            if (existingIndex >= 0) {
-              refs.candles.current[existingIndex] = chartCandle;
-            } else {
-              refs.candles.current.push(chartCandle);
-            }
+        // Chart canvas update (engine throttles to 60fps internally)
+        if (sel.time >= refs.lastHistoryTime.current && refs.chartEngine.current) {
+          const chartCandle: ChartCandle = {
+            time: sel.time, open: sel.open, high: p.liveHigh, low: p.liveLow, close: p.price,
+            volume: sel.volume, buyVolume: sel.buyVolume, sellVolume: sel.sellVolume,
+          };
+          refs.chartEngine.current.updateCandle(chartCandle);
+          refs.candleData.current.set(sel.time, { open: sel.open, high: p.liveHigh, low: p.liveLow, close: p.price });
+          const existingIndex = refs.candles.current.findIndex(c => c.time === sel.time);
+          if (existingIndex >= 0) {
+            refs.candles.current[existingIndex] = chartCandle;
+          } else {
+            refs.candles.current.push(chartCandle);
           }
         }
+      };
+
+      // Lightweight tick handler: stash latest values, let RAF flush them at 60fps.
+      // Gates on tf=15 (the primary, fires every tick) and reads the selected TF
+      // candle from the aggregator directly — see flush() for the heavy work.
+      const unsubCandle = aggregator.on('candle:update', (candle, tf) => {
+        if (!isMounted) return;
+        if (!validateInstrumentPrice(symbol, candle.close)) return;
+
+        if (tf !== (15 as TimeframeSeconds)) {
+          // Non-primary TFs only refresh the price snapshot, no scheduling needed
+          // (RAF will pick it up on the next primary tick anyway).
+          if (!pending) pending = { price: candle.close, selected: null, liveHigh: candle.close, liveLow: candle.close };
+          else pending.price = candle.close;
+          if (rafId === null) rafId = requestAnimationFrame(flush);
+          return;
+        }
+
+        const sel = aggregator.getCurrentCandle(timeframe);
+        if (!sel) return;
+
+        const liveHigh = Math.max(sel.high, candle.close);
+        const liveLow  = Math.min(sel.low,  candle.close);
+        pending = { price: candle.close, selected: sel, liveHigh, liveLow };
+        if (rafId === null) rafId = requestAnimationFrame(flush);
       });
       refs.unsubscribers.current.push(unsubCandle);
+      refs.unsubscribers.current.push(() => {
+        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+        pending = null;
+      });
 
       // Tick counter (throttled)
       let tickUpdateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -437,44 +540,99 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
         if (tickUpdateTimer) clearTimeout(tickUpdateTimer);
       });
 
-      await ws.connect(symbol);
+      // Clear the overlay now — chart has data. WS connects in the background;
+      // connection status is shown via the status dot in the header.
+      if (isMounted) setLoadingPhase(null);
+
+      // Connect the live adapter without blocking the chart
+      void ws.connect(symbol);
 
       if (isCME) {
-        // ── Yahoo Finance polling — the primary live data source for CME ──────
-        // dxFeed demo WebSocket is unreliable (times out 10s per attempt, blocked
-        // in many environments). Start polling immediately so charts are live from
-        // the first second, regardless of dxFeed status.
+        // ── Yahoo Finance adaptive polling — primary CME data source ─────────
+        // Adaptive interval: faster polling for short timeframes so the last
+        // candle stays fresh (Yahoo refreshes ~every 15s on 1m data).
+        // Tab-aware: pauses when hidden, resumes immediately on focus.
+        // Aggressive polling for short TFs to maximize the number of Yahoo
+        // refreshes per minute. Yahoo blocks requests under ~5s so we stay
+        // just above that threshold for 1m and below.
+        const POLL_INTERVALS: Partial<Record<TimeframeSeconds, number>> = {
+          15: 5_000, 30: 5_000, 60: 5_000, 180: 15_000,
+          300: 30_000, 900: 60_000, 1800: 60_000,
+          3600: 120_000, 14400: 120_000, 86400: 120_000,
+        };
+        const POLL_INTERVAL = POLL_INTERVALS[timeframe] ?? 30_000;
+
         type CandleRow = { time: number; open: number; high: number; low: number; close: number; volume: number };
+        // Align to TF boundary so two polls of the same minute don't create
+        // duplicate candles when Yahoo returns slightly different timestamps.
+        const alignTime = (t: number) => Math.floor(t / timeframe) * timeframe;
         const toLC = (c: CandleRow): LiveCandle => ({
-          time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+          time: alignTime(c.time), open: c.open, high: c.high, low: c.low, close: c.close,
           volume: c.volume || 0, buyVolume: (c.volume || 0) * 0.5, sellVolume: (c.volume || 0) * 0.5, trades: 0,
         });
 
+        let pollTimer: ReturnType<typeof setTimeout> | null = null;
+        let pollErrors = 0;
+        // RAF id for the close-interpolation animation (smooths Yahoo's
+        // discrete updates into a fluid visual transition).
+        let interpRafId: number | null = null;
+
         const pollCME = async () => {
           if (!isMounted) return;
+          // Pause when tab is hidden — onVisibility will restart us on focus
+          if (document.visibilityState === 'hidden') return;
           try {
             const res = await fetch(
               `/api/futures-history?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&days=2`,
               { signal: AbortSignal.timeout(10_000) }
             );
-            if (!res.ok || !isMounted) return;
+            if (!res.ok || !isMounted) throw new Error('fetch_error');
             const data = await res.json();
-            if (!Array.isArray(data) || data.length === 0) return;
+            if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
 
             const polled = (data as CandleRow[]).map(toLC).filter(c => validateCandle(c, symbol));
-            if (polled.length === 0) return;
+            if (polled.length === 0) throw new Error('no_valid_candles');
 
             const last = polled[polled.length - 1];
-            if (!validateInstrumentPrice(symbol, last.close)) return;
+            if (!validateInstrumentPrice(symbol, last.close)) throw new Error('invalid_price');
 
-            // Clear the "no data" overlay as soon as polling returns valid candles
+            // Successful poll — reset error counter and record timestamp
+            pollErrors = 0;
+            if (isMounted) { setCmeDataMode('ok'); setLastPollAt(Date.now()); }
+
             setNoData(false);
 
             if (refs.candles.current.length === 0) {
-              // Chart is empty — do a full load so the viewport auto-scales properly
               updateChartData(polled);
             } else {
-              // Append candles newer than the last known history time
+              // ── Gap detection: Yahoo sometimes skips minutes during quiet periods.
+              // Check if we received a candle that's MORE than 1 TF interval after
+              // our last known candle. If so, log it (visibility) and merge what
+              // Yahoo returned for the missing slots — Yahoo often has the data,
+              // just not in the most recent batch.
+              const lastTime = refs.lastHistoryTime.current;
+              const expectedNext = lastTime + timeframe;
+              const firstNew = polled.find(c => c.time > lastTime);
+              if (firstNew && firstNew.time > expectedNext + timeframe / 2) {
+                const missingCount = Math.floor((firstNew.time - lastTime) / timeframe) - 1;
+                if (missingCount > 0 && missingCount < 100) {
+                  // Backfill: take any polled candle whose time falls in the gap
+                  const backfillCandles = polled.filter(c => c.time > lastTime && c.time < firstNew.time);
+                  if (backfillCandles.length > 0) {
+                    console.debug(`[CME poll] Backfilling ${backfillCandles.length} missing ${timeframe}s candles before ${firstNew.time}`);
+                    backfillCandles.forEach(c => {
+                      const cc: ChartCandle = {
+                        time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+                        volume: c.volume, buyVolume: c.buyVolume, sellVolume: c.sellVolume,
+                      };
+                      refs.chartEngine.current?.updateCandle(cc);
+                      refs.candleData.current.set(c.time, { open: c.open, high: c.high, low: c.low, close: c.close });
+                      refs.candles.current.push(cc);
+                    });
+                  }
+                }
+              }
+
               const newBars = polled.filter(c => c.time > refs.lastHistoryTime.current);
               if (newBars.length > 0 && refs.chartEngine.current) {
                 newBars.forEach(c => {
@@ -491,46 +649,102 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
                 refs.lastHistoryTime.current = newBars[newBars.length - 1].time;
               }
 
-              // Patch the last candle with the freshest close
               const existingCandles = refs.candles.current;
               if (existingCandles.length > 0 && refs.chartEngine.current) {
                 const tail = existingCandles[existingCandles.length - 1];
                 if (tail.time === last.time) {
-                  const updated: ChartCandle = {
-                    ...tail,
-                    close: last.close,
-                    high: Math.max(tail.high, last.high),
-                    low: Math.min(tail.low, last.low),
-                    volume: last.volume,
+                  // ── Smooth interpolation toward the new Yahoo close ──
+                  // Instead of jumping the close from old → new in one frame,
+                  // animate it over 800ms with ease-out so the chart feels
+                  // alive between Yahoo's discrete updates (every ~15-30s).
+                  const startClose = tail.close;
+                  const targetClose = last.close;
+                  const targetVolume = last.volume;
+                  const targetHigh = Math.max(tail.high, last.high);
+                  const targetLow  = Math.min(tail.low, last.low);
+                  const startMs = performance.now();
+                  const durationMs = 800;
+
+                  // Cancel any prior interpolation so we don't fight ourselves
+                  if (interpRafId !== null) cancelAnimationFrame(interpRafId);
+
+                  const animate = () => {
+                    if (!isMounted) { interpRafId = null; return; }
+                    const elapsed = performance.now() - startMs;
+                    const t = Math.min(1, elapsed / durationMs);
+                    // Ease-out cubic for natural deceleration
+                    const eased = 1 - Math.pow(1 - t, 3);
+                    const interpClose = startClose + (targetClose - startClose) * eased;
+
+                    const tailNow = refs.candles.current[refs.candles.current.length - 1];
+                    if (tailNow && tailNow.time === last.time && refs.chartEngine.current) {
+                      const updated: ChartCandle = {
+                        ...tailNow,
+                        close: interpClose,
+                        high: Math.max(tailNow.high, interpClose, targetHigh),
+                        low:  Math.min(tailNow.low,  interpClose, targetLow),
+                        volume: targetVolume,
+                      };
+                      refs.chartEngine.current.updateCandle(updated);
+                      refs.candles.current[refs.candles.current.length - 1] = updated;
+
+                      // Sync price + OHLC display in real time
+                      refs.currentPrice.current = interpClose;
+                      useMarketStore.getState().setCurrentPrice(interpClose);
+                      if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(interpClose)}`;
+                      if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(interpClose);
+                      if (refs.ohlcHigh?.current)  refs.ohlcHigh.current.textContent  = priceFormatter.format(updated.high);
+                      if (refs.ohlcLow?.current)   refs.ohlcLow.current.textContent   = priceFormatter.format(updated.low);
+                    }
+
+                    interpRafId = t < 1 ? requestAnimationFrame(animate) : null;
                   };
-                  refs.chartEngine.current.updateCandle(updated);
-                  existingCandles[existingCandles.length - 1] = updated;
+                  interpRafId = requestAnimationFrame(animate);
                 }
               }
             }
 
             refs.currentPrice.current = last.close;
+            useMarketStore.getState().setCurrentPrice(last.close);
             if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(last.close)}`;
             if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(last.open);
             if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(last.high);
             if (refs.ohlcLow?.current) refs.ohlcLow.current.textContent = priceFormatter.format(last.low);
             if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(last.close);
             if (refs.footerVolume?.current) refs.footerVolume.current.textContent = formatVolumeCompact(last.volume);
-
             if (last.close > refs.sessionHigh.current) refs.sessionHigh.current = last.close;
             if (last.close < refs.sessionLow.current) refs.sessionLow.current = last.close;
             updatePricePositionIndicator();
             checkAlerts(symbol, last.close);
             updatePositionPrices(symbol.toUpperCase(), last.close);
           } catch {
-            // Silent — retry next interval
+            pollErrors++;
+            if (isMounted) setCmeDataMode(pollErrors >= 3 ? 'error' : 'stale');
+          } finally {
+            // Reschedule only if mounted and tab is visible (visibilitychange restarts otherwise)
+            if (isMounted && document.visibilityState === 'visible') {
+              pollTimer = setTimeout(pollCME, POLL_INTERVAL);
+            }
           }
         };
 
-        // Fire immediately, then every 30s
-        pollCME();
-        const pollTimer = setInterval(pollCME, 30_000);
-        refs.unsubscribers.current.push(() => clearInterval(pollTimer));
+        // Resume immediately when tab regains focus
+        const onVisibility = () => {
+          if (!isMounted) return;
+          if (document.visibilityState === 'visible') {
+            if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+            void pollCME();
+          }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        refs.unsubscribers.current.push(() => {
+          if (pollTimer) clearTimeout(pollTimer);
+          if (interpRafId !== null) { cancelAnimationFrame(interpRafId); interpRafId = null; }
+          document.removeEventListener('visibilitychange', onVisibility);
+        });
+
+        // Fire immediately
+        void pollCME();
 
         // ── dxFeed as optional high-frequency supplement (fire-and-forget) ───
         // If dxFeed connects (paid plan), it provides per-tick quotes / closed bars.
@@ -548,12 +762,16 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
             const unsubDxCandle = await dxFeedWS.subscribeCandles(dxSym, dxTF, (candle) => {
               if (!isMounted) return;
               if (!validateCandle(candle, symbol) || !validateInstrumentPrice(symbol, candle.close)) return;
+              // Align dxFeed timestamps to TF boundary (defensive — dxFeed bars
+              // should already be aligned but better safe than duplicate candles).
+              const alignedTime = Math.floor(candle.time / timeframe) * timeframe;
               const cc: ChartCandle = {
-                time: candle.time, open: candle.open, high: candle.high,
+                time: alignedTime, open: candle.open, high: candle.high,
                 low: candle.low, close: candle.close, volume: candle.volume,
                 buyVolume: candle.volume * 0.5, sellVolume: candle.volume * 0.5,
               };
               refs.currentPrice.current = candle.close;
+              useMarketStore.getState().setCurrentPrice(candle.close);
               if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(candle.close)}`;
               if (refs.ohlcOpen?.current) refs.ohlcOpen.current.textContent = priceFormatter.format(candle.open);
               if (refs.ohlcHigh?.current) refs.ohlcHigh.current.textContent = priceFormatter.format(candle.high);
@@ -562,12 +780,12 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               if (candle.high > refs.sessionHigh.current) refs.sessionHigh.current = candle.high;
               if (candle.low < refs.sessionLow.current) refs.sessionLow.current = candle.low;
               updatePricePositionIndicator();
-              if (refs.chartEngine.current && candle.time >= refs.lastHistoryTime.current) {
+              if (refs.chartEngine.current && alignedTime >= refs.lastHistoryTime.current) {
                 refs.chartEngine.current.updateCandle(cc);
-                refs.candleData.current.set(candle.time, {
+                refs.candleData.current.set(alignedTime, {
                   open: candle.open, high: candle.high, low: candle.low, close: candle.close,
                 });
-                const idx = refs.candles.current.findIndex(c => c.time === candle.time);
+                const idx = refs.candles.current.findIndex(c => c.time === alignedTime);
                 if (idx >= 0) refs.candles.current[idx] = cc;
                 else refs.candles.current.push(cc);
               }
@@ -581,6 +799,7 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
               const mid = (bid + ask) / 2;
               if (!mid || !validateInstrumentPrice(symbol, mid)) return;
               refs.currentPrice.current = mid;
+              useMarketStore.getState().setCurrentPrice(mid);
               if (refs.price.current) refs.price.current.textContent = `$${priceFormatter.format(mid)}`;
               if (refs.ohlcClose?.current) refs.ohlcClose.current.textContent = priceFormatter.format(mid);
               const candles = refs.candles.current;
@@ -658,6 +877,19 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     return () => engine.removeViewportChangeListener(updateViewport);
   }, [refs]);
 
+  // Keep staleAgo text fresh (updates every 30s while data is stale/error)
+  useEffect(() => {
+    if (cmeDataMode !== 'stale' && cmeDataMode !== 'error') { setStaleAgo(''); return; }
+    const compute = () => {
+      if (!lastPollAt) { setStaleAgo(''); return; }
+      const min = Math.floor((Date.now() - lastPollAt) / 60_000);
+      setStaleAgo(min < 1 ? '< 1min' : `${min}min`);
+    };
+    compute();
+    const t = setInterval(compute, 30_000);
+    return () => clearInterval(t);
+  }, [cmeDataMode, lastPollAt]);
+
   // Selected symbol label
   const allSymbols = Object.values(currentSymbolCategories).flat();
   const selectedSymbolLabel = allSymbols.find(s => s.value === symbol)?.label || symbol.toUpperCase();
@@ -683,5 +915,8 @@ export function useSymbolData({ refs, theme, updatePricePositionIndicator, onSym
     viewportState,
     notifications,
     dismissNotification,
+    cmeDataMode,
+    lastPollAt,
+    staleAgo,
   };
 }

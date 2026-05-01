@@ -686,18 +686,49 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
               <span ref={refs.ohlcClose}>--</span>
             </div>
 
-            {/* Data source badge — CME demo mode (15-min delayed) */}
+            {/* Data source badge — CME Yahoo Finance mode */}
             {isCMESymbol(symbolData.symbol.toUpperCase()) && !hasCMEFeed && (
-              <span
-                className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
-                style={{ color: '#eab308', background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)' }}
-                title="CME delayed 15 minutes — connect a live feed for real-time data"
-              >
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                +15m
-              </span>
+              <>
+                {/* Normal: data flowing, 15min delayed */}
+                {(symbolData.cmeDataMode === 'ok' || symbolData.cmeDataMode === null) && (
+                  <span
+                    className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                    style={{ color: '#eab308', background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)' }}
+                    title="Données retardées de 15 minutes — Yahoo Finance"
+                  >
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    +15m
+                  </span>
+                )}
+                {/* Stale: last fetch failed but not critical yet */}
+                {symbolData.cmeDataMode === 'stale' && (
+                  <span
+                    className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                    style={{ color: '#9ca3af', background: 'rgba(156,163,175,0.10)', border: '1px solid rgba(156,163,175,0.25)' }}
+                    title="Données non actualisées — dernière MAJ il y a quelques instants"
+                  >
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    {symbolData.staleAgo ? `Stale ${symbolData.staleAgo}` : 'Données stale'}
+                  </span>
+                )}
+                {/* Error: 3+ consecutive failures */}
+                {symbolData.cmeDataMode === 'error' && (
+                  <span
+                    className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)' }}
+                    title="Erreur de connexion aux données — nouvelle tentative en cours"
+                  >
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    Erreur données
+                  </span>
+                )}
+              </>
             )}
 
             {/* Active Indicators Pills */}

@@ -66,6 +66,7 @@ class BybitLiveWS {
   private tickCount = 0;
   private lastTickTime = 0;
   private currentPrice = 0;
+  private lastPongTime = Date.now();
 
   connect(symbol = 'BTCUSDT'): void {
     this.symbol = symbol.toUpperCase();
@@ -96,7 +97,7 @@ class BybitLiveWS {
       };
 
       this.ws.onclose = (event) => {
-        console.debug(`[Bybit WS] Closed: ${event.code}`);
+        console.debug(`[Bybit WS] Closed: code=${event.code} reason=${event.reason || '(none)'} clean=${event.wasClean}`);
         this.stopPing();
         this.setStatus('disconnected');
         if (!this.intentionalDisconnect) this.scheduleReconnect();
@@ -111,23 +112,36 @@ class BybitLiveWS {
   private sendSubscribe(): void {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
     const sym = this.symbol;
+    // Bybit V5 batch subscriptions are all-or-nothing: one invalid topic rejects all.
+    // `liquidation.{sym}` was deprecated → renamed `allLiquidation.{sym}` in V5.
     this.ws.send(JSON.stringify({
       op: 'subscribe',
       args: [
         `publicTrade.${sym}`,
         `orderbook.50.${sym}`,
         `tickers.${sym}`,
-        `liquidation.${sym}`,
+        `allLiquidation.${sym}`,
       ],
     }));
   }
 
   private startPing(): void {
     this.stopPing();
+    this.lastPongTime = Date.now();
     this.pingTimer = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({ op: 'ping' }));
+      if (this.ws?.readyState !== WebSocket.OPEN) return;
+
+      // Pong not received since last ping → silent death → force reconnect.
+      // NOTE: browsers only allow close codes 1000 or 3000-4999 from JS.
+      // Code 1001 ("going away") is reserved server-side and throws
+      // InvalidAccessError if used here, blocking the reconnect entirely.
+      if (Date.now() - this.lastPongTime > PING_INTERVAL_MS + 5_000) {
+        console.warn('[Bybit WS] Pong timeout — forcing reconnect');
+        try { this.ws.close(4000, 'pong timeout'); } catch { /* ignore */ }
+        return;
       }
+
+      this.ws.send(JSON.stringify({ op: 'ping' }));
     }, PING_INTERVAL_MS);
   }
 
@@ -138,7 +152,10 @@ class BybitLiveWS {
   private handleMessage(raw: string): void {
     try {
       const msg = JSON.parse(raw) as Record<string, unknown>;
-      if (msg['op'] === 'pong' || msg['success'] !== undefined) return;
+      if (msg['op'] === 'pong' || msg['success'] !== undefined) {
+        this.lastPongTime = Date.now();
+        return;
+      }
 
       const topic = (msg['topic'] as string) ?? '';
 
@@ -148,8 +165,12 @@ class BybitLiveWS {
         this.handleOrderbook(msg['data'] as { b: [string, string][]; a: [string, string][]; u: number });
       } else if (topic.startsWith('tickers.')) {
         this.handleTicker(msg['data'] as Record<string, string>);
-      } else if (topic.startsWith('liquidation.')) {
-        this.handleLiquidation(msg['data'] as Record<string, unknown>);
+      } else if (topic.startsWith('allLiquidation.')) {
+        // V5 allLiquidation pushes an array of liquidations, not a single object
+        const arr = msg['data'] as Array<Record<string, unknown>>;
+        if (Array.isArray(arr)) {
+          for (const item of arr) this.handleLiquidation(item);
+        }
       }
     } catch (err) {
       console.error('[Bybit WS] Parse error:', err);

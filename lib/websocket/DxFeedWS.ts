@@ -280,8 +280,21 @@ class DxFeedWebSocket {
         this.stopKeepalive();
         this.state = 'disconnected';
         if (!this.intentionalDisconnect && this.activeSubscriptions.size > 0) {
+          // Cap retries in demo mode — the demo endpoint is unreliable and
+          // there's no point spamming the console + network when the user
+          // hasn't configured paid dxFeed credentials. With paid auth we
+          // allow more retries because the upstream is genuinely available.
+          const maxAttempts = this.demoMode ? 3 : 10;
+          if (this.reconnectAttempts >= maxAttempts) {
+            if (this.demoMode) {
+              console.warn('[dxFeed] Demo endpoint unreachable after 3 attempts — giving up. Polling will handle market data.');
+            } else {
+              console.error('[dxFeed] Failed to reconnect after 10 attempts — giving up.');
+            }
+            return;
+          }
           const delay = Math.min(1_000 * Math.pow(2, this.reconnectAttempts), 30_000);
-          console.log(`[dxFeed] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+          console.log(`[dxFeed] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${maxAttempts})`);
           this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
             if (!this.intentionalDisconnect) {

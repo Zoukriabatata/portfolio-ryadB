@@ -179,13 +179,15 @@ const initialConnections: Record<BrokerType, BrokerConnection> = {
   tradovate: { broker: 'tradovate', connected: false, connecting: false, error: null },
   rithmic: { broker: 'rithmic', connected: false, connecting: false, error: null },
   deribit: { broker: 'deribit', connected: false, connecting: false, error: null },
-  demo: { broker: 'demo', connected: false, connecting: false, error: null },
+  // Demo broker is always available — no real auth needed, all orders simulated
+  demo: { broker: 'demo', connected: true, connecting: false, error: null, balance: 100000 },
 };
 
 export const useTradingStore = create<TradingState>()(
   persist(
     (set, get) => ({
-      activeBroker: null,
+      // Default to demo so BUY/SELL buttons work out-of-the-box without setup
+      activeBroker: 'demo',
       connections: initialConnections,
       credentials: {
         binance: null,
@@ -337,29 +339,48 @@ export const useTradingStore = create<TradingState>()(
             return order;
           }
 
-          // Capture price at click time
-          const clickTimePrice = orderData.marketPrice || useMarketStore.getState().currentPrice || orderData.price || 0;
-          const fillPrice = clickTimePrice;
-
-          // Play sound asynchronously (don't block state update)
-          queueMicrotask(() => {
+          // Capture price at click time, walking through every available source
+          // before giving up. If we still end up with 0 it's a real "no live
+          // price" situation — abort with a clear log instead of opening a
+          // position at $0 which would corrupt the P&L.
+          let fillPrice = orderData.marketPrice
+            || useMarketStore.getState().currentPrice
+            || orderData.price
+            || 0;
+          if (fillPrice <= 0) {
             try {
-              const { soundEnabled, alertSound } = useAccountPrefsStore.getState();
-              if (soundEnabled && alertSound !== 'none') {
-                const sm = getSoundManager();
-                if (alertSound === 'voice_male') {
-                  sm.playVoiceAlert(orderData.side, 'male');
-                } else if (alertSound === 'voice_female') {
-                  sm.playVoiceAlert(orderData.side, 'female');
-                } else if (alertSound === 'voice_senzoukria') {
-                  sm.playVoiceAlert(orderData.side, 'senzoukria');
-                } else {
-                  if (orderData.side === 'buy') sm.playBuyFilled();
-                  else sm.playSellFilled();
-                }
-              }
+              const { useSymbolPriceStore } = require('@/stores/useSymbolPriceStore');
+              const fallback = useSymbolPriceStore.getState().getPrice(orderData.symbol)
+                ?? useSymbolPriceStore.getState().getPrice(orderData.symbol.toLowerCase());
+              if (typeof fallback === 'number' && fallback > 0) fillPrice = fallback;
             } catch {}
-          });
+          }
+          if (fillPrice <= 0) {
+            console.error('[placeOrder] No live price available for', orderData.symbol);
+            // Roll back the pending order entry
+            set((s) => ({ orders: s.orders.filter(o => o.id !== order.id) }));
+            return null;
+          }
+
+          // Play sound SYNCHRONOUSLY in the user-gesture chain — browsers
+          // require the AudioContext.start() to happen during a gesture or
+          // it gets blocked. queueMicrotask was just slightly too late.
+          try {
+            const { soundEnabled, alertSound } = useAccountPrefsStore.getState();
+            if (soundEnabled && alertSound !== 'none') {
+              const sm = getSoundManager();
+              if (alertSound === 'voice_male') {
+                sm.playVoiceAlert(orderData.side, 'male');
+              } else if (alertSound === 'voice_female') {
+                sm.playVoiceAlert(orderData.side, 'female');
+              } else if (alertSound === 'voice_senzoukria') {
+                sm.playVoiceAlert(orderData.side, 'senzoukria');
+              } else {
+                if (orderData.side === 'buy') sm.playBuyFilled();
+                else sm.playSellFilled();
+              }
+            }
+          } catch {}
 
           // Fill immediately — no delay
           set((state) => {
@@ -771,6 +792,28 @@ export const useTradingStore = create<TradingState>()(
         orders: state.orders.filter(o => o.status === 'filled' || o.status === 'pending').slice(0, 50),
         connections: state.activeBroker === 'demo' ? { demo: state.connections.demo } : undefined,
       }),
+      merge: (persisted, current) => {
+        // Force the demo broker to ALWAYS be connected, regardless of what
+        // an old persisted state had. Avoids the "BUY does nothing" bug
+        // when localStorage held connected:false for demo.
+        const p = (persisted ?? {}) as Partial<typeof current>;
+        return {
+          ...current,
+          ...p,
+          activeBroker: p.activeBroker ?? 'demo',
+          connections: {
+            ...current.connections,
+            ...(p.connections ?? {}),
+            demo: {
+              broker: 'demo' as const,
+              connected: true,
+              connecting: false,
+              error: null,
+              balance: p.connections?.demo?.balance ?? 100000,
+            },
+          },
+        };
+      },
     }
   )
 );

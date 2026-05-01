@@ -28,7 +28,12 @@ function getCachedToken(cacheKey: string): CachedToken | null {
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // In production we require a logged-in session. In dev we accept env-var
+  // credentials so contributors can run a Tradovate sim without touching
+  // the auth/DB stack.
+  if (!isDev && !session?.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
@@ -37,19 +42,21 @@ export async function GET(req: NextRequest) {
   let password = process.env.TRADOVATE_PASSWORD;
   let isDemo = process.env.TRADOVATE_DEMO !== 'false'; // default from env
 
-  try {
-    const config = await prisma.dataFeedConfig.findFirst({
-      where: { userId: session.user.id, provider: 'TRADOVATE' },
-    });
-    if (config?.username && config?.apiKey) {
-      username = config.username;
-      password = config.apiKey; // ConfigureModal stores password as apiKey
+  if (session?.user) {
+    try {
+      const config = await prisma.dataFeedConfig.findFirst({
+        where: { userId: session.user.id, provider: 'TRADOVATE' },
+      });
+      if (config?.username && config?.apiKey) {
+        username = config.username;
+        password = config.apiKey; // ConfigureModal stores password as apiKey
+      }
+      // host column repurposed to store 'demo' | 'live' mode chosen by user
+      if (config?.host === 'live') isDemo = false;
+      else if (config?.host === 'demo') isDemo = true;
+    } catch {
+      // DB read failed — fall through to env vars
     }
-    // host column repurposed to store 'demo' | 'live' mode chosen by user
-    if (config?.host === 'live') isDemo = false;
-    else if (config?.host === 'demo') isDemo = true;
-  } catch {
-    // DB read failed — fall through to env vars
   }
 
   const appId = process.env.TRADOVATE_APP_ID || 'Senzoukria';
@@ -65,7 +72,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Check cache before hitting Tradovate API
-  const cacheKey = `${session.user.id}:${isDemo ? 'demo' : 'live'}`;
+  const userKey = session?.user?.id ?? 'dev-env';
+  const cacheKey = `${userKey}:${isDemo ? 'demo' : 'live'}`;
   const cached = getCachedToken(cacheKey);
   if (cached) {
     return NextResponse.json({
@@ -77,59 +85,89 @@ export async function GET(req: NextRequest) {
 
   try {
     const apiUrl = isDemo ? TRADOVATE_DEMO_API : TRADOVATE_LIVE_API;
+    const baseBody = {
+      name: username,
+      password,
+      appId,
+      appVersion,
+      cid: cid || undefined,
+      sec: sec || undefined,
+    };
 
-    const response = await fetch(`${apiUrl}/auth/accesstokenrequest`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        name: username,
-        password,
-        appId,
-        appVersion,
-        cid: cid || undefined,
-        sec: sec || undefined,
-      }),
-    });
+    /**
+     * Tradovate's "penalty" auth flow:
+     *   1. First request returns 200 with { p-ticket, p-time, p-captcha }.
+     *   2. Wait p-time seconds, resubmit with the same body + the p-ticket.
+     *   3. If p-captcha === true, a HUMAN must solve a captcha at
+     *      https://trader.tradovate.com first — we cannot bypass that.
+     *
+     * This loop handles steps 1+2 automatically, up to 3 cycles.
+     */
+    let attempt = 0;
+    let pTicket: string | undefined;
+    let lastResponse: Response | null = null;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Tradovate Auth] Failed:', errorText);
-      let errorMsg = 'Authentication failed';
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMsg = errorJson['p-ticket']
-          ? 'Captcha required — log into Tradovate website first, then retry'
-          : errorJson.errorText || errorJson.message || errorMsg;
-      } catch {
-        // use default
+    while (attempt < 4) {
+      const body = pTicket ? { ...baseBody, 'p-ticket': pTicket } : baseBody;
+      lastResponse = await fetch(`${apiUrl}/auth/accesstokenrequest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!lastResponse.ok) {
+        const errorText = await lastResponse.text();
+        console.error('[Tradovate Auth] HTTP error:', lastResponse.status, errorText);
+        return NextResponse.json(
+          { error: errorText || 'Authentication failed' },
+          { status: lastResponse.status },
+        );
       }
-      return NextResponse.json({ error: errorMsg }, { status: response.status });
+
+      const data = await lastResponse.json();
+
+      // Hard captcha — needs human, abort
+      if (data['p-captcha']) {
+        console.warn('[Tradovate Auth] Captcha required — open trader.tradovate.com and log in to clear it');
+        return NextResponse.json({
+          error: 'Captcha required — go to https://trader.tradovate.com, log in, then retry',
+        }, { status: 403 });
+      }
+
+      // Penalty ticket — wait and retry automatically
+      if (data['p-ticket'] && data['p-time']) {
+        const waitSec = Math.min(data['p-time'], 30);
+        console.log(`[Tradovate Auth] Penalty ticket received — waiting ${waitSec}s before retry (attempt ${attempt + 1}/3)`);
+        pTicket = data['p-ticket'];
+        await new Promise(r => setTimeout(r, waitSec * 1000));
+        attempt++;
+        continue;
+      }
+
+      // Got the real token
+      if (data.accessToken) {
+        tokenCache.set(cacheKey, {
+          accessToken: data.accessToken,
+          name: data.name,
+          expiresAt: new Date(data.expirationTime).getTime(),
+        });
+        console.log('[Tradovate Auth] Authenticated as', data.name);
+        return NextResponse.json({
+          accessToken: data.accessToken,
+          expirationTime: data.expirationTime,
+          userId: data.userId,
+          name: data.name,
+        });
+      }
+
+      // Unknown response shape
+      console.error('[Tradovate Auth] Unexpected response:', data);
+      return NextResponse.json({ error: data.errorText || 'Unknown auth response' }, { status: 500 });
     }
-
-    const data = await response.json();
-
-    if (data['p-ticket']) {
-      return NextResponse.json({
-        error: 'Captcha required — log into Tradovate website first, then retry',
-      }, { status: 403 });
-    }
-
-    // Store in cache so repeated WS reconnects don't re-authenticate
-    tokenCache.set(cacheKey, {
-      accessToken: data.accessToken,
-      name: data.name,
-      expiresAt: new Date(data.expirationTime).getTime(),
-    });
 
     return NextResponse.json({
-      accessToken: data.accessToken,
-      expirationTime: data.expirationTime,
-      userId: data.userId,
-      name: data.name,
-    });
+      error: 'Tradovate kept returning penalty tickets — try again in a few minutes',
+    }, { status: 429 });
   } catch (error) {
     console.error('[Tradovate Auth] Error:', error);
     return NextResponse.json({

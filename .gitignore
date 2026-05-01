@@ -39,6 +39,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# electron
+.electron/
+dist-electron/
+electron/assets/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
