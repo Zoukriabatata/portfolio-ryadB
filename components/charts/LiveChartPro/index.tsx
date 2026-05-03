@@ -486,6 +486,32 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
     }
   }, [refs, symbolData.timeframe]);
 
+  // === DISCIPLINE MODE — lock zoom-out while a position is open ===
+  // When the trader has an open position on the current symbol, the chart's
+  // wheel zoom-out is blocked so they can't visually escape their entry / SL
+  // / TP zone (Topstep-style focus). Zoom-IN remains allowed.
+  const hasOpenPosition = useMemo(
+    () => positions.some(p => p.symbol.toLowerCase() === symbolData.symbol.toLowerCase()),
+    [positions, symbolData.symbol],
+  );
+  const lastZoomToastRef = useRef(0);
+  useEffect(() => {
+    const eng = refs.chartEngine.current;
+    if (!eng?.setZoomOutLocked) return;
+    eng.setZoomOutLocked(hasOpenPosition, () => {
+      // Throttle the "locked" feedback toast — fires at most once per 1.5s
+      const now = performance.now();
+      if (now - lastZoomToastRef.current < 1500) return;
+      lastZoomToastRef.current = now;
+      // Lazy-import sonner to avoid pulling it into the chart bundle path
+      import('sonner').then(({ toast }) => {
+        toast('🔒 Zoom locked while in position — close to free up the chart', {
+          duration: 1500,
+        });
+      });
+    });
+  }, [hasOpenPosition, refs]);
+
   // Keep trading ref in sync
   tradingRef.current = { activeBroker, connections, placeOrder, closePosition, contractQuantity, symbol: symbolData.symbol, showTradeBar };
 

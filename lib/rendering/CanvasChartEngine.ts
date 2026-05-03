@@ -152,6 +152,10 @@ export class CanvasChartEngine {
   private autoScalePrice = true; // Auto-scale price axis
   private autoScaleButtonBounds: { x: number; y: number; w: number; h: number } | null = null;
   private userHasPanned = false; // Track if user has panned away from latest
+  // When true, wheel zoom-out is blocked. Used to keep the trader focused on
+  // their entry/SL/TP while a position is open (Topstep-style discipline mode).
+  private zoomOutLocked = false;
+  private onZoomOutBlocked: (() => void) | null = null;
   // Track last viewport state to detect actual changes (avoid firing onViewportChange for crosshair moves)
   private lastNotifiedViewport = { startIndex: -1, endIndex: -1, priceMin: -1, priceMax: -1 };
   private crosshairStyle: CrosshairStyle = {
@@ -777,6 +781,21 @@ export class CanvasChartEngine {
   /** Public hook for external code (settings panels, theme switches) to force a repaint. */
   requestRedraw(): void {
     this.scheduleRender();
+  }
+
+  /**
+   * Lock or unlock wheel zoom-out. Used to keep the trader focused on their
+   * entry / SL / TP zone while a position is open. Zoom-IN remains allowed.
+   * @param locked  true to block zoom-out
+   * @param onBlocked optional callback fired each time a zoom-out gesture is rejected
+   */
+  setZoomOutLocked(locked: boolean, onBlocked?: () => void): void {
+    this.zoomOutLocked = locked;
+    this.onZoomOutBlocked = onBlocked ?? null;
+  }
+
+  isZoomOutLocked(): boolean {
+    return this.zoomOutLocked;
   }
 
   private drawGrid(): void {
@@ -2172,6 +2191,15 @@ export class CanvasChartEngine {
 
   private handleWheel = (e: WheelEvent): void => {
     e.preventDefault();
+
+    // Discipline mode: block zoom-OUT only (deltaY > 0). Zoom-in stays
+    // available so the user can lean in on their entry. This is what the
+    // setZoomOutLocked flag is for — typically toggled when a position is
+    // open so the trader can't run away from their SL/TP visually.
+    if (this.zoomOutLocked && e.deltaY > 0) {
+      this.onZoomOutBlocked?.();
+      return;
+    }
 
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;

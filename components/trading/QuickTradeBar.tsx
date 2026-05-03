@@ -504,6 +504,34 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
                 className="w-[48px] px-0.5 text-center text-[10px] tabular-nums focus:outline-none bg-transparent"
                 style={{ color: colors.text }} />
             </div>
+
+            {/* Live $ preview: profit if TP hit, loss if SL hit */}
+            {(() => {
+              const slNum = parseFloat(slOffset);
+              const tpNum = parseFloat(tpOffset);
+              const slUsd = (!isNaN(slNum) && slNum > 0) ? slNum * contractQuantity : null;
+              const tpUsd = (!isNaN(tpNum) && tpNum > 0) ? tpNum * contractQuantity : null;
+              if (slUsd === null && tpUsd === null) return null;
+              return (
+                <div className="flex items-center gap-1 shrink-0 text-[9px] tabular-nums px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: `1px solid ${colors.border}` }}>
+                  {tpUsd !== null && (
+                    <span style={{ color: '#22c55e' }}>+${tpUsd.toFixed(0)}</span>
+                  )}
+                  {tpUsd !== null && slUsd !== null && (
+                    <span style={{ color: colors.textMuted, opacity: 0.5 }}>·</span>
+                  )}
+                  {slUsd !== null && (
+                    <span style={{ color: '#ef4444' }}>-${slUsd.toFixed(0)}</span>
+                  )}
+                  {tpUsd !== null && slUsd !== null && slUsd > 0 && (
+                    <span className="font-bold opacity-70" style={{ color: tpUsd / slUsd >= 1 ? '#fbbf24' : colors.textMuted }}>
+                      {(tpUsd / slUsd).toFixed(1)}R
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
       </div>
