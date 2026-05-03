@@ -234,7 +234,16 @@ function LoginForm() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>Password</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm" style={{ color: 'var(--text-muted)' }}>Password</label>
+                    <Link
+                      href="/auth/forgot-password"
+                      className="text-xs font-medium hover:underline"
+                      style={{ color: 'var(--primary-light)' }}
+                    >
+                      Forgot?
+                    </Link>
+                  </div>
                   <input
                     type="password"
                     value={password}

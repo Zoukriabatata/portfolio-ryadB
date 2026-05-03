@@ -18,6 +18,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic        from '@anthropic-ai/sdk';
 import { ollamaIsRunning, listModels, DEFAULT_MODEL } from '@/lib/ai/ollama';
+import { geminiChatStream, geminiAvailable, type GeminiMessage, type GeminiImage } from '@/lib/ai/gemini';
+import { groqChatStream, groqAvailable, type GroqMessage, type GroqImage } from '@/lib/ai/groq';
 import { requireAuth } from '@/lib/auth/api-middleware';
 
 // ─── Config ────────────────────────────────────────────────────────────────────
@@ -113,7 +115,7 @@ Use exact price numbers from the chart wherever readable. Be specific and direct
 
 function sseResponse(
   stream: ReadableStream<Uint8Array>,
-  backend: 'claude' | 'ollama',
+  backend: 'claude' | 'groq' | 'gemini' | 'ollama',
 ): Response {
   return new Response(stream, {
     headers: {
@@ -322,11 +324,65 @@ export async function POST(req: NextRequest) {
     return sseResponse(stream, 'claude');
   }
 
-  // ── 2. Fallback: Ollama ─────────────────────────────────────────────────────
+  // ── 2. Groq Llama 4 Scout (free, multimodal — PRIMARY public backend) ──────
+  if (groqAvailable()) {
+    try {
+      const groqMessages: GroqMessage[] = [
+        { role: 'system', content: hasImage ? SYSTEM_VISION : SYSTEM_TEXT },
+        ...history.slice(-12).map(m => ({
+          role:    m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+        { role: 'user', content: userText },
+      ];
+
+      const image: GroqImage | undefined = hasImage
+        ? { base64: base64Image, mediaType }
+        : undefined;
+
+      const stream = await groqChatStream(groqMessages, {
+        maxTokens:   hasImage ? 1500 : 1000,
+        temperature: hasImage ? 0.2 : 0.65,
+        image,
+      });
+      return sseResponse(stream, 'groq');
+    } catch (err) {
+      console.warn('[vision] Groq failed, falling back to Gemini:', err);
+    }
+  }
+
+  // ── 3. Gemini 2.5 Flash (free, multimodal — fallback if key set) ────────────
+  if (geminiAvailable()) {
+    try {
+      const geminiMessages: GeminiMessage[] = [
+        { role: 'system', content: hasImage ? SYSTEM_VISION : SYSTEM_TEXT },
+        ...history.slice(-12).map(m => ({
+          role:    m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+        { role: 'user', content: userText },
+      ];
+
+      const image: GeminiImage | undefined = hasImage
+        ? { base64: base64Image, mediaType }
+        : undefined;
+
+      const stream = await geminiChatStream(geminiMessages, {
+        maxTokens:   hasImage ? 1500 : 1000,
+        temperature: hasImage ? 0.2 : 0.65,
+        image,
+      });
+      return sseResponse(stream, 'gemini');
+    } catch (err) {
+      console.warn('[vision] Gemini failed, falling back to Ollama:', err);
+    }
+  }
+
+  // ── 4. Fallback: Ollama (local dev only) ────────────────────────────────────
   if (!(await ollamaIsRunning())) {
     return Response.json({
-      error: 'Ollama not running and no ANTHROPIC_API_KEY set.',
-      hint:  'Either set ANTHROPIC_API_KEY in .env.local or run: ollama serve',
+      error: 'No vision backend available. Set GROQ_API_KEY (free, no billing) or run: ollama serve',
+      hint:  'Get a free Groq key at https://console.groq.com/keys',
     }, { status: 503 });
   }
 

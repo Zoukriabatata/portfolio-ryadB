@@ -237,6 +237,7 @@ export async function sendEmail(options: {
   subject: string;
   content: string;  // Inner HTML content (wrapped in base template)
   text?: string;    // Plain text fallback
+  replyTo?: string; // Reply-To header — clicking "Reply" sends here, not to `from`
 }): Promise<boolean> {
   const config = getSmtpConfig();
   const transporter = createTransport();
@@ -246,6 +247,7 @@ export async function sendEmail(options: {
     console.log(`SMTP not configured - ${options.subject}`);
     console.log('========================================');
     console.log(`To:      ${options.to}`);
+    if (options.replyTo) console.log(`ReplyTo: ${options.replyTo}`);
     console.log(`Subject: ${options.subject}`);
     console.log('========================================');
     return false;
@@ -253,11 +255,12 @@ export async function sendEmail(options: {
 
   try {
     await transporter.sendMail({
-      from: config.from,
-      to: options.to,
+      from:    config.from,
+      to:      options.to,
+      replyTo: options.replyTo,
       subject: options.subject,
-      html: getBaseEmailTemplate(options.content),
-      text: options.text,
+      html:    getBaseEmailTemplate(options.content),
+      text:    options.text,
     });
     return true;
   } catch (error) {

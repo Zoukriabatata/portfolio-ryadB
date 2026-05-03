@@ -15,6 +15,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { ollamaChatStream, ollamaIsRunning, DEFAULT_MODEL } from '@/lib/ai/ollama';
+import { geminiChatStream, geminiAvailable } from '@/lib/ai/gemini';
+import { groqChatStream, groqAvailable } from '@/lib/ai/groq';
 import { buildSupportMessages, type ChatMessage } from '@/lib/ai/agents/supportAgent';
 
 export const runtime = 'nodejs';
@@ -126,79 +128,44 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // ── Groq API (free, cloud) ───────────────────────────────────────────────────
-  if (process.env.GROQ_API_KEY) {
-    const systemMsg = messages.find(m => m.role === 'system');
-    const groqMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  // ── Groq Llama 3.3 70B (free, cloud — PRIMARY public backend) ───────────────
+  if (groqAvailable()) {
+    try {
+      const stream = await groqChatStream(
+        messages.map(m => ({ role: m.role, content: m.content })),
+        { maxTokens: 512, temperature: 0.7 },
+      );
+      return new Response(stream, {
+        headers: {
+          'Content-Type':  'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection':    'keep-alive',
+          'X-AI-Backend':  'groq',
+        },
+      });
+    } catch (err) {
+      console.warn('[support] Groq failed, falling back to Gemini:', err);
+    }
+  }
 
-    const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        try {
-          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'llama-3.1-8b-instant',
-              messages: systemMsg
-                ? groqMessages
-                : [{ role: 'system', content: 'Tu es un assistant support pour OrderFlow, une plateforme de trading professionnelle.' }, ...groqMessages],
-              stream: true,
-              max_tokens: 512,
-              temperature: 0.7,
-            }),
-            signal: AbortSignal.timeout(30_000),
-          });
-
-          if (!res.ok) {
-            const errText = await res.text();
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: `Groq error: ${errText.slice(0, 100)}` })}\n\n`));
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-            return;
-          }
-
-          const reader = res.body!.getReader();
-          const dec = new TextDecoder();
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = dec.decode(value, { stream: true });
-            for (const line of chunk.split('\n')) {
-              if (!line.startsWith('data: ')) continue;
-              const raw = line.slice(6).trim();
-              if (raw === '[DONE]') break;
-              try {
-                const ev = JSON.parse(raw) as { choices?: Array<{ delta?: { content?: string } }> };
-                const token = ev.choices?.[0]?.delta?.content;
-                if (token) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
-                }
-              } catch { /* skip malformed */ }
-            }
-          }
-
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Groq error';
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
-        } finally {
-          controller.close();
-        }
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-AI-Backend': 'groq',
-      },
-    });
+  // ── Gemini API (optional fallback if GEMINI_API_KEY is set) ─────────────────
+  if (geminiAvailable()) {
+    try {
+      const stream = await geminiChatStream(messages, {
+        maxTokens:   512,
+        temperature: 0.7,
+      });
+      return new Response(stream, {
+        headers: {
+          'Content-Type':  'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection':    'keep-alive',
+          'X-AI-Backend':  'gemini',
+        },
+      });
+    } catch (err) {
+      console.warn('[support] Gemini failed, falling back to Ollama:', err);
+    }
   }
 
   // ── Ollama fallback (local dev only) ────────────────────────────────────────
@@ -237,8 +204,11 @@ export async function GET() {
   if (anthropic) {
     return Response.json({ status: 'ok', model: 'claude-haiku-4-5', agent: 'support', backend: 'claude' });
   }
-  if (process.env.GROQ_API_KEY) {
-    return Response.json({ status: 'ok', model: 'llama-3.1-8b-instant', agent: 'support', backend: 'groq' });
+  if (groqAvailable()) {
+    return Response.json({ status: 'ok', model: 'llama-3.3-70b-versatile', agent: 'support', backend: 'groq' });
+  }
+  if (geminiAvailable()) {
+    return Response.json({ status: 'ok', model: 'gemini-2.5-flash', agent: 'support', backend: 'gemini' });
   }
   const isUp = await ollamaIsRunning();
   return Response.json({

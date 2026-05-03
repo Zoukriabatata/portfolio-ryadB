@@ -24,6 +24,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { geminiGenerate, geminiAvailable } from '@/lib/ai/gemini';
+import { groqGenerate, groqAvailable } from '@/lib/ai/groq';
 import { requireAuth } from '@/lib/auth/api-middleware';
 
 export const runtime = 'nodejs';
@@ -37,14 +39,13 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   : null;
 
 /**
- * Generate a concise natural-language explanation using Claude.
+ * Generate a concise natural-language explanation.
+ * Tries Claude first (if key set, dev only), then Gemini (free).
  * Non-blocking — returns null on any error so the deterministic result is
- * always delivered even if Claude is unavailable or rate-limited.
+ * always delivered even if all LLM backends are unavailable.
  */
 async function generateLlmExplanation(result: EngineAnalysisResult): Promise<string | null> {
-  if (!anthropic) return null;
-  try {
-    const prompt = `You are a professional trading analyst. Given the following deterministic market analysis, write a concise 2-3 sentence natural language explanation suitable for a trader. Be direct and actionable. Do not invent data — only interpret what is provided.
+  const prompt = `You are a professional trading analyst. Given the following deterministic market analysis, write a concise 2-3 sentence natural language explanation suitable for a trader. Be direct and actionable. Do not invent data — only interpret what is provided.
 
 Analysis:
 - Bias: ${result.bias} (confidence: ${(result.confidence * 100).toFixed(0)}%)
@@ -58,17 +59,37 @@ Analysis:
 - Key levels: support ${result.key_levels.support.join(', ') || 'none'}, resistance ${result.key_levels.resistance.join(', ') || 'none'}, gamma flip ${result.key_levels.gamma_flip}
 - Setup: ${result.setup.entry} | target ${result.setup.target} | invalidation ${result.setup.invalidation}`;
 
-    const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : null;
-    return text || null;
-  } catch {
-    return null;
+  // Try Claude first (dev only, if key set)
+  if (anthropic) {
+    try {
+      const msg = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 256,
+        messages: [{ role: 'user', content: prompt }],
+      });
+      const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : null;
+      if (text) return text;
+    } catch { /* fall through */ }
   }
+
+  // Groq Llama 3.3 70B (free, primary public backend)
+  if (groqAvailable()) {
+    const text = await groqGenerate(
+      [{ role: 'user', content: prompt }],
+      { maxTokens: 256, temperature: 0.5 },
+    );
+    if (text) return text;
+  }
+
+  // Gemini fallback (only if user has set GEMINI_API_KEY)
+  if (geminiAvailable()) {
+    return geminiGenerate(
+      [{ role: 'user', content: prompt }],
+      { maxTokens: 256, temperature: 0.5 },
+    );
+  }
+
+  return null;
 }
 
 // ─── Output type ──────────────────────────────────────────────────────────────
@@ -282,11 +303,12 @@ export async function GET() {
     pythonOnline = res.ok;
   } catch { /* offline */ }
 
+  const llmBackend = anthropic ? 'claude' : groqAvailable() ? 'groq' : geminiAvailable() ? 'gemini' : 'none';
   return Response.json({
     engine:        pythonOnline ? 'python' : 'js_fallback',
     python_online: pythonOnline,
     deterministic: true,
     llm_role:      'explanation_only',
-    llm_backend:   anthropic ? 'claude' : 'none',
+    llm_backend:   llmBackend,
   });
 }
