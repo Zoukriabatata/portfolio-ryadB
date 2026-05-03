@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { toast } from 'sonner';
 import { useTradingStore } from '@/stores/useTradingStore';
 import {
   useAccountRulesStore,
   ruleProgress,
   type AccountState,
 } from '@/stores/useAccountRulesStore';
+import CertificateButton from './CertificateButton';
 
 const STATE_STYLES: Record<AccountState, { label: string; bg: string; color: string; pulse: boolean }> = {
   ACTIVE:  { label: 'ACTIVE',  bg: 'rgba(16,185,129,0.18)', color: '#10b981', pulse: false },
@@ -53,6 +55,19 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
     // and the rule values themselves are stable references inside zustand.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [equity, rules.enabled]);
+
+  // Fire a celebration toast the first time the account transitions to
+  // PASSED in this session. We track the previous state in a ref so we
+  // only toast on the *transition*, not every render while still PASSED.
+  const prevStateRef = useRef<AccountState>(rules.accountState);
+  useEffect(() => {
+    if (prevStateRef.current !== 'PASSED' && rules.accountState === 'PASSED') {
+      toast.success('🏆 Challenge passed! Download your certificate below.', {
+        duration: 6000,
+      });
+    }
+    prevStateRef.current = rules.accountState;
+  }, [rules.accountState]);
 
   const dayPnl   = rules.dayStartBalance != null ? equity - rules.dayStartBalance : 0;
   const drawdown = Math.max(0, rules.peakEquity - equity);
@@ -122,8 +137,32 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
         </div>
       </div>
 
-      {/* Locked reason */}
-      {rules.lockedReason && (
+      {/* PASSED — celebration banner with download cert button */}
+      {rules.accountState === 'PASSED' && (
+        <div
+          className="px-3 py-2.5 rounded flex items-center justify-between gap-3"
+          style={{
+            background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(74,222,128,0.12))',
+            border: '1px solid rgba(168,85,247,0.35)',
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <span className="text-lg">🏆</span>
+            <div>
+              <div className="text-[12px] font-bold" style={{ color: '#a78bfa' }}>
+                Challenge passed!
+              </div>
+              <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {rules.lockedReason ?? 'Profit target reached.'}
+              </div>
+            </div>
+          </div>
+          <CertificateButton />
+        </div>
+      )}
+
+      {/* Locked / failed reason — only shown when NOT passed */}
+      {rules.lockedReason && rules.accountState !== 'PASSED' && (
         <div
           className="px-2.5 py-1.5 rounded text-[11px] flex items-start gap-1.5"
           style={{ background: 'rgba(239,68,68,0.08)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.25)' }}
