@@ -232,6 +232,58 @@ function getPasswordResetEmailContent(resetUrl: string): string {
  * Generic email sender — reusable across the app
  * Falls back to console logging if SMTP is not configured
  */
+/**
+ * Send via Resend HTTPS API. More reliable than SMTP on serverless platforms
+ * (Vercel) which often have outbound port 465/587 issues. Used automatically
+ * when the SMTP password looks like a Resend API key (`re_...`).
+ */
+async function sendViaResend(options: {
+  apiKey:   string;
+  from:     string;
+  to:       string;
+  replyTo?: string;
+  subject:  string;
+  html:     string;
+  text?:    string;
+}): Promise<boolean> {
+  const recipients = options.to
+    .split(',')
+    .map(e => e.trim())
+    .filter(Boolean);
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${options.apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({
+        from:     options.from,
+        to:       recipients,
+        reply_to: options.replyTo,
+        subject:  options.subject,
+        html:     options.html,
+        text:     options.text,
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      console.error(`[Resend] HTTP ${res.status}: ${errText.slice(0, 300)}`);
+      return false;
+    }
+
+    const json = await res.json().catch(() => ({})) as { id?: string };
+    console.log(`[Resend] Email sent — id=${json.id ?? '?'} to=${recipients.join(',')}`);
+    return true;
+  } catch (err) {
+    console.error('[Resend] Send failed:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 export async function sendEmail(options: {
   to: string;
   subject: string;
@@ -240,11 +292,28 @@ export async function sendEmail(options: {
   replyTo?: string; // Reply-To header — clicking "Reply" sends here, not to `from`
 }): Promise<boolean> {
   const config = getSmtpConfig();
+  const html = getBaseEmailTemplate(options.content);
+
+  // ── Resend HTTPS API (preferred — works reliably on Vercel serverless) ──
+  // Triggered when SMTP_PASS looks like a Resend key, regardless of SMTP_HOST.
+  if (config.pass && config.pass.startsWith('re_')) {
+    return sendViaResend({
+      apiKey:  config.pass,
+      from:    config.from,
+      to:      options.to,
+      replyTo: options.replyTo,
+      subject: options.subject,
+      html,
+      text:    options.text,
+    });
+  }
+
+  // ── Generic SMTP fallback (Gmail, custom, etc.) ──
   const transporter = createTransport();
 
   if (!transporter) {
     console.log('========================================');
-    console.log(`SMTP not configured - ${options.subject}`);
+    console.log(`Email backend not configured - ${options.subject}`);
     console.log('========================================');
     console.log(`To:      ${options.to}`);
     if (options.replyTo) console.log(`ReplyTo: ${options.replyTo}`);
@@ -259,12 +328,12 @@ export async function sendEmail(options: {
       to:      options.to,
       replyTo: options.replyTo,
       subject: options.subject,
-      html:    getBaseEmailTemplate(options.content),
+      html,
       text:    options.text,
     });
     return true;
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('Failed to send email via SMTP:', error);
     return false;
   }
 }
@@ -358,28 +427,11 @@ export async function sendVerificationEmail(
   baseUrl: string
 ): Promise<void> {
   const verificationUrl = `${baseUrl}/api/auth/verify-email?token=${token}`;
-  const config = getSmtpConfig();
-  const transporter = createTransport();
-
-  if (!transporter) {
-    console.log('========================================');
-    console.log('SMTP not configured - Verification Email');
-    console.log('========================================');
-    console.log(`To:    ${email}`);
-    console.log(`Token: ${token}`);
-    console.log(`URL:   ${verificationUrl}`);
-    console.log('========================================');
-    return;
-  }
-
-  const html = getBaseEmailTemplate(getVerificationEmailContent(verificationUrl));
-
-  await transporter.sendMail({
-    from: config.from,
-    to: email,
+  await sendEmail({
+    to:      email,
     subject: 'Verify your Senzoukria account',
-    html,
-    text: `Welcome to Senzoukria!\n\nPlease verify your email address by visiting the following link:\n${verificationUrl}\n\nThis link expires in 24 hours.\n\nIf you did not create an account, you can safely ignore this email.`,
+    content: getVerificationEmailContent(verificationUrl),
+    text:    `Welcome to Senzoukria!\n\nPlease verify your email address by visiting the following link:\n${verificationUrl}\n\nThis link expires in 24 hours.\n\nIf you did not create an account, you can safely ignore this email.`,
   });
 }
 
@@ -393,27 +445,10 @@ export async function sendPasswordResetEmail(
   baseUrl: string
 ): Promise<void> {
   const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
-  const config = getSmtpConfig();
-  const transporter = createTransport();
-
-  if (!transporter) {
-    console.log('========================================');
-    console.log('SMTP not configured - Password Reset Email');
-    console.log('========================================');
-    console.log(`To:    ${email}`);
-    console.log(`Token: ${token}`);
-    console.log(`URL:   ${resetUrl}`);
-    console.log('========================================');
-    return;
-  }
-
-  const html = getBaseEmailTemplate(getPasswordResetEmailContent(resetUrl));
-
-  await transporter.sendMail({
-    from: config.from,
-    to: email,
+  await sendEmail({
+    to:      email,
     subject: 'Reset your Senzoukria password',
-    html,
-    text: `Password Reset Request\n\nYou requested a password reset for your Senzoukria account. Visit the following link to choose a new password:\n${resetUrl}\n\nThis link expires in 24 hours.\n\nIf you did not request this, please ignore this email. Your password will remain unchanged.`,
+    content: getPasswordResetEmailContent(resetUrl),
+    text:    `Password Reset Request\n\nYou requested a password reset for your Senzoukria account. Visit the following link to choose a new password:\n${resetUrl}\n\nThis link expires in 24 hours.\n\nIf you did not request this, please ignore this email. Your password will remain unchanged.`,
   });
 }
