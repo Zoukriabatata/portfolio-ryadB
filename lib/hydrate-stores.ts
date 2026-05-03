@@ -42,6 +42,7 @@ export function hydrateStores() {
     import('@/stores/useSymbolPriceStore').then(m => m.useSymbolPriceStore.persist.rehydrate());
     import('@/stores/useWatchlistStore').then(m => m.useWatchlistStore.persist.rehydrate());
     import('@/stores/useTradingStore').then(m => m.useTradingStore.persist.rehydrate());
+    import('@/stores/useAccountRulesStore').then(m => m.useAccountRulesStore.persist.rehydrate());
   };
 
   // Use requestIdleCallback so hydration happens after first paint,
