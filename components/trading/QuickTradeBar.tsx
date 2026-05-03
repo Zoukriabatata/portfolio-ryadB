@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useTradingStore, BROKER_INFO, type OrderType } from '@/stores/useTradingStore';
 import { useFuturesStore } from '@/stores/useFuturesStore';
 import { useMarketStore } from '@/stores/useMarketStore';
+import { useAccountRulesStore } from '@/stores/useAccountRulesStore';
 import DemoAccountPanel from './DemoAccountPanel';
 
 /** Poll /api/spot-price every 5s; returns 0 while loading or on error */
@@ -90,6 +91,16 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   const marketPrice = useMarketStore((s) => s.currentPrice);
   const spotPrice = useSpotPrice(symbol);
 
+  // Account rules — read live so the trade bar reflects locked / passed state
+  const { rulesEnabled, accountState, lockedReason } = useAccountRulesStore(
+    useShallow(s => ({
+      rulesEnabled: s.enabled,
+      accountState: s.accountState,
+      lockedReason: s.lockedReason,
+    })),
+  );
+  const accountBlocked = rulesEnabled && (accountState === 'LOCKED' || accountState === 'PASSED');
+
   const { tick, decimals } = useMemo(() => getTickSize(symbol), [symbol]);
 
   // Priority: live WebSocket price > futures mark price > spot API
@@ -159,6 +170,17 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     }
     if (!isConnected) {
       toast.error(`Broker ${activeBroker} not connected`);
+      return;
+    }
+
+    // Account rules guard — clear feedback before even firing the order
+    if (accountBlocked) {
+      toast.error(
+        accountState === 'PASSED'
+          ? `Challenge passed — open a new account to keep trading.`
+          : `Account locked: ${lockedReason ?? 'risk limit hit'}`,
+        { duration: 2500 },
+      );
       return;
     }
 
@@ -253,7 +275,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         }
       });
     }
-  }, [activeBroker, isConnected, orderType, limitPrice, stopPrice, currentPrice, contractQuantity, symbol, placeOrder, bracketEnabled, tpOffset, slOffset, decimals]);
+  }, [activeBroker, isConnected, accountBlocked, accountState, lockedReason, orderType, limitPrice, stopPrice, currentPrice, contractQuantity, symbol, placeOrder, bracketEnabled, tpOffset, slOffset, decimals]);
 
   const handleFlatten = useCallback(async () => {
     if (!activeBroker || !isConnected) return;
@@ -563,12 +585,32 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         </>
       )}
 
+      {/* Account state banner — shown only when blocked */}
+      {accountBlocked && (
+        <a
+          href="/trading"
+          title={lockedReason ?? (accountState === 'PASSED' ? 'Challenge passed' : 'Account locked')}
+          className="px-2 h-6 rounded text-[10px] font-bold tracking-wider flex items-center gap-1.5 shrink-0 transition-colors hover:brightness-110"
+          style={{
+            background: accountState === 'PASSED' ? 'rgba(168,85,247,0.18)' : 'rgba(239,68,68,0.18)',
+            color:      accountState === 'PASSED' ? '#a78bfa' : '#ef4444',
+            border:     `1px solid ${accountState === 'PASSED' ? 'rgba(168,85,247,0.4)' : 'rgba(239,68,68,0.4)'}`,
+          }}
+        >
+          {accountState === 'PASSED' ? '🏆 PASSED' : '🔒 LOCKED'}
+          <span className="hidden md:inline opacity-70 font-medium normal-case tracking-normal">
+            · view rules
+          </span>
+        </a>
+      )}
+
       {/* Buy / Sell — TradingView/Topstep style with hotkey badge */}
       <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={() => handleTrade('sell')}
-          title="Sell at market (S)"
-          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5"
+          disabled={accountBlocked}
+          title={accountBlocked ? lockedReason ?? 'Account locked' : 'Sell at market (S)'}
+          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:brightness-100"
           style={{
             backgroundColor: lastAction?.side === 'sell' ? '#b91c1c' : '#ef4444',
             color: '#fff',
@@ -583,8 +625,9 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         </button>
         <button
           onClick={() => handleTrade('buy')}
-          title="Buy at market (B)"
-          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5"
+          disabled={accountBlocked}
+          title={accountBlocked ? lockedReason ?? 'Account locked' : 'Buy at market (B)'}
+          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:brightness-100"
           style={{
             backgroundColor: lastAction?.side === 'buy' ? '#047857' : '#10b981',
             color: '#fff',

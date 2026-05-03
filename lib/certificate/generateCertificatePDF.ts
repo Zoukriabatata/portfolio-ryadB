@@ -7,10 +7,11 @@
  * client when the user actually clicks "Download Certificate".
  */
 
-export async function generateCertificatePDF(
-  element: HTMLElement,
-  filename: string,
-): Promise<void> {
+/**
+ * Builds the jsPDF document — shared by the download and email flows.
+ * Lazy-imports the heavy PDF deps so they only ship when actually used.
+ */
+async function buildPdfDoc(element: HTMLElement) {
   // Lazy-load — adds ~150 KB gzipped only when the user actually exports
   const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
     import('html2canvas'),
@@ -37,8 +38,8 @@ export async function generateCertificatePDF(
   const pageHeight = pdf.internal.pageSize.getHeight();
 
   // Fit the rendered image into the page while preserving aspect ratio
-  const imgRatio    = canvas.width / canvas.height;
-  const pageRatio   = pageWidth / pageHeight;
+  const imgRatio  = canvas.width / canvas.height;
+  const pageRatio = pageWidth / pageHeight;
   let drawWidth, drawHeight;
   if (imgRatio > pageRatio) {
     drawWidth  = pageWidth;
@@ -61,7 +62,27 @@ export async function generateCertificatePDF(
     'FAST',
   );
 
+  return pdf;
+}
+
+export async function generateCertificatePDF(
+  element: HTMLElement,
+  filename: string,
+): Promise<void> {
+  const pdf = await buildPdfDoc(element);
   pdf.save(filename);
+}
+
+/**
+ * Same render path but returns the raw base64 of the PDF — used by
+ * /api/trading/send-certificate to attach to a Resend email.
+ */
+export async function generateCertificateBase64(element: HTMLElement): Promise<string> {
+  const pdf = await buildPdfDoc(element);
+  // jsPDF .output('datauristring') returns "data:application/pdf;base64,..."
+  // so we strip the prefix to get pure base64.
+  const dataUri = pdf.output('datauristring');
+  return dataUri.replace(/^data:application\/pdf;base64,/, '');
 }
 
 /**

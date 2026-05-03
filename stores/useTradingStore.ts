@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { getSoundManager } from '@/lib/audio/SoundManager';
 import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
 import { useMarketStore } from '@/stores/useMarketStore';
+import { useAccountRulesStore } from '@/stores/useAccountRulesStore';
 
 /**
  * TRADING STORE
@@ -316,6 +317,24 @@ export const useTradingStore = create<TradingState>()(
         if (!connection.connected) {
           console.error('Broker not connected');
           return null;
+        }
+
+        // ── Account rules guard (Topstep / Apex sim) ──────────────────────
+        // If rules are enabled, re-evaluate state against the current equity
+        // BEFORE accepting a new order. Reject when LOCKED or PASSED.
+        // closePosition() doesn't go through here, so flatten/close still
+        // works even when the account is locked.
+        const rules = useAccountRulesStore.getState();
+        if (rules.enabled) {
+          const balance    = state.connections[state.activeBroker]?.balance ?? 0;
+          const unrealized = state.positions.reduce((s, p) => s + p.pnl, 0);
+          rules.evaluate(balance + unrealized);
+
+          const next = useAccountRulesStore.getState().accountState;
+          if (next === 'LOCKED' || next === 'PASSED') {
+            console.warn('[placeOrder] Blocked by account rules — state:', next);
+            return null;
+          }
         }
 
         const order: Order = {
