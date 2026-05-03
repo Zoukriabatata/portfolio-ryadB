@@ -1,13 +1,18 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
+
+interface OrdersTableProps {
+  symbolFilter?: string | null;
+}
 
 /**
  * Pending orders table (limit / stop / stop_limit).
  * Each row has a Cancel action.
  */
-export default function OrdersTable() {
+export default function OrdersTable({ symbolFilter = null }: OrdersTableProps) {
   const { orders, cancelOrder } = useTradingStore(
     useShallow(s => ({
       orders:      s.orders,
@@ -15,7 +20,10 @@ export default function OrdersTable() {
     })),
   );
 
-  const pending = orders.filter(o => o.status === 'pending');
+  const pending = useMemo(() => {
+    const open = orders.filter(o => o.status === 'pending');
+    return symbolFilter ? open.filter(o => o.symbol === symbolFilter) : open;
+  }, [orders, symbolFilter]);
 
   if (pending.length === 0) {
     return (

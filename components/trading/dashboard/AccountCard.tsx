@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
+import PulseValue from './PulseValue';
 
 /**
  * AccountCard — Topstep / TradingView-style account summary.
@@ -70,10 +71,10 @@ export default function AccountCard() {
         border:     '1px solid var(--border)',
       }}
     >
-      <Stat label="Account Balance"  value={fmt(balance)}    color="primary" />
-      <Stat label="Equity"           value={fmt(equity)}     color={unrealized >= 0 ? 'success' : 'error'} sub={unrealized !== 0 ? `${unrealized >= 0 ? '+' : ''}${fmt(unrealized, false)} unrealized` : 'no open positions'} />
-      <Stat label="Day P&L"          value={`${dayPnl >= 0 ? '+' : ''}${fmt(dayPnl, false)}`}   color={dayPnl >= 0 ? 'success' : 'error'} />
-      <Stat label="Total P&L"        value={`${totalPnl >= 0 ? '+' : ''}${fmt(totalPnl, false)}`} color={totalPnl >= 0 ? 'success' : 'error'} />
+      <Stat label="Account Balance"  numeric={balance}    value={fmt(balance)}    color="primary" pulse />
+      <Stat label="Equity"           numeric={equity}     value={fmt(equity)}     color={unrealized >= 0 ? 'success' : 'error'} sub={unrealized !== 0 ? `${unrealized >= 0 ? '+' : ''}${fmt(unrealized, false)} unrealized` : 'no open positions'} pulse />
+      <Stat label="Day P&L"          numeric={dayPnl}     value={`${dayPnl >= 0 ? '+' : ''}${fmt(dayPnl, false)}`}     color={dayPnl >= 0 ? 'success' : 'error'} pulse />
+      <Stat label="Total P&L"        numeric={totalPnl}   value={`${totalPnl >= 0 ? '+' : ''}${fmt(totalPnl, false)}`} color={totalPnl >= 0 ? 'success' : 'error'} pulse />
       <Stat label="Win Rate"         value={`${winRate.toFixed(1)}%`} sub={`${wins}W · ${losses}L`} color={winRate >= 50 ? 'success' : winRate > 0 ? 'warning' : 'muted'} />
       <Stat label="Open Positions"   value={positions.length.toString()} sub={positions.length > 0 ? positions.map(p => p.symbol).join(', ') : 'flat'} />
     </div>
@@ -90,13 +91,17 @@ function fmt(n: number, prefix = true): string {
 function Stat({
   label,
   value,
+  numeric,
   sub,
   color = 'default',
+  pulse = false,
 }: {
-  label: string;
-  value: string;
-  sub?:  string;
-  color?: 'default' | 'success' | 'error' | 'warning' | 'primary' | 'muted';
+  label:   string;
+  value:   string;
+  numeric?: number;
+  sub?:    string;
+  color?:  'default' | 'success' | 'error' | 'warning' | 'primary' | 'muted';
+  pulse?:  boolean;
 }) {
   const colorMap = {
     default: 'var(--text-primary)',
@@ -112,9 +117,18 @@ function Stat({
       <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
         {label}
       </span>
-      <span className="text-lg font-bold tabular-nums leading-tight" style={{ color: colorMap[color] }}>
-        {value}
-      </span>
+      {pulse && typeof numeric === 'number' ? (
+        <PulseValue
+          value={numeric}
+          display={value}
+          color={colorMap[color]}
+          className="text-lg font-bold tabular-nums leading-tight"
+        />
+      ) : (
+        <span className="text-lg font-bold tabular-nums leading-tight" style={{ color: colorMap[color] }}>
+          {value}
+        </span>
+      )}
       {sub && (
         <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-dimmed)' }}>
           {sub}

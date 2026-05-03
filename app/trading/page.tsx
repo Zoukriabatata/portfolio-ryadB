@@ -15,24 +15,13 @@ import PerformanceMetrics  from '@/components/trading/dashboard/PerformanceMetri
 import PerformanceBySymbol from '@/components/trading/dashboard/PerformanceBySymbol';
 import TimeRangeTabs, { type TimeRange } from '@/components/trading/dashboard/TimeRangeTabs';
 import QuickActions        from '@/components/trading/dashboard/QuickActions';
+import QuickTradePanel     from '@/components/trading/dashboard/QuickTradePanel';
+import RiskCalculator      from '@/components/trading/dashboard/RiskCalculator';
+import SymbolFilter        from '@/components/trading/dashboard/SymbolFilter';
 import DemoAccountPanel    from '@/components/trading/DemoAccountPanel';
 
 /**
  * /trading — Topstep / TradingView-style trading dashboard.
- *
- * Layout:
- *   ┌──────────────── Quick Actions ─────────────────┐
- *   │ Flatten All · Cancel All · ...· Reset Account  │
- *   ├─────────────────────────────────────────────────┤
- *   │  AccountCard (balance, equity, day/total P&L)  │
- *   ├──────────────────┬──────────────────────────────┤
- *   │  EquityCurve     │  AccountRulesCard (Topstep)  │
- *   ├──────────────────┴──────────────────────────────┤
- *   │  ┌─ Period: [Today | 7D | 30D | All] ─┐        │
- *   │  PerformanceMetrics  │  PerformanceBySymbol    │
- *   ├─────────────────────────────────────────────────┤
- *   │  Open Positions  /  Pending Orders / History    │
- *   └─────────────────────────────────────────────────┘
  */
 export default function TradingPage() {
   const { positions, orders, closedTrades, activeBroker, connections } = useTradingStore(
@@ -48,6 +37,7 @@ export default function TradingPage() {
   const [showDemoPanel, setShowDemoPanel]   = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [range, setRange]                   = useState<TimeRange>('all');
+  const [symbolFilter, setSymbolFilter]     = useState<string | null>(null);
 
   const broker  = activeBroker ?? 'demo';
   const balance = connections[broker]?.balance ?? 0;
@@ -103,7 +93,7 @@ export default function TradingPage() {
             className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors hover:brightness-110"
             style={{ background: 'var(--primary)', color: 'var(--text-primary)' }}
           >
-            Trade →
+            Open Chart →
           </a>
         </div>
       </div>
@@ -111,17 +101,23 @@ export default function TradingPage() {
       {/* ─── Quick actions ────────────────────── */}
       <QuickActions onReset={handleResetAccount} />
 
-      {/* ─── Account stats card ───────────────── */}
+      {/* ─── Account stats ────────────────────── */}
       <AccountCard />
 
-      {/* ─── Equity curve + Topstep rules ─────── */}
+      {/* ─── Quick trade + Risk calculator ─────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <QuickTradePanel />
+        <RiskCalculator />
+      </div>
+
+      {/* ─── Equity + Topstep rules ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <EquityCurve />
         <AccountRulesCard onConfigure={() => setShowRulesModal(true)} />
       </div>
 
       {/* ─── Performance section with time filter ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Performance</h2>
         <TimeRangeTabs value={range} onChange={setRange} />
       </div>
@@ -130,14 +126,17 @@ export default function TradingPage() {
         <PerformanceBySymbol range={range} />
       </div>
 
-      {/* ─── Positions / Orders / History ─────── */}
-      <PositionsTable />
-      <OrdersTable />
-      <TradeHistory />
+      {/* ─── Positions / Orders / History — with symbol filter ─── */}
+      <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
+        <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Activity</h2>
+        <SymbolFilter value={symbolFilter} onChange={setSymbolFilter} />
+      </div>
+      <PositionsTable symbolFilter={symbolFilter} />
+      <OrdersTable    symbolFilter={symbolFilter} />
+      <TradeHistory   symbolFilter={symbolFilter} />
 
       {/* Footer */}
       <div className="text-center pt-4 pb-8 text-[11px]" style={{ color: 'var(--text-dimmed)' }}>
-        Place orders from the trade bar at the bottom of the <a href="/live" className="underline hover:text-[var(--primary)]">/live</a> chart.
         Open positions <span className="tabular-nums">{positions.length}</span> · Pending <span className="tabular-nums">{orders.filter(o => o.status === 'pending').length}</span> · Closed <span className="tabular-nums">{closedTrades.length}</span>
       </div>
 

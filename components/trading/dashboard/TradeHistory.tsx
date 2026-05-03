@@ -1,24 +1,44 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useTradingStore } from '@/stores/useTradingStore';
+import { toast } from 'sonner';
+import { useTradingStore, type ClosedTrade } from '@/stores/useTradingStore';
 
 const MAX_ROWS = 20;
+
+interface TradeHistoryProps {
+  symbolFilter?: string | null;
+}
 
 /**
  * Trade history — last 20 closed trades, newest first.
  * Shows entry/exit/P&L per trade with timestamps.
  */
-export default function TradeHistory() {
+export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps) {
   const { closedTrades } = useTradingStore(
     useShallow(s => ({ closedTrades: s.closedTrades })),
   );
 
-  const recent = useMemo(
-    () => [...closedTrades].sort((a, b) => b.exitTime - a.exitTime).slice(0, MAX_ROWS),
-    [closedTrades],
+  const filtered = useMemo(
+    () => symbolFilter ? closedTrades.filter(t => t.symbol === symbolFilter) : closedTrades,
+    [closedTrades, symbolFilter],
   );
+
+  const recent = useMemo(
+    () => [...filtered].sort((a, b) => b.exitTime - a.exitTime).slice(0, MAX_ROWS),
+    [filtered],
+  );
+
+  const handleExportCsv = useCallback(() => {
+    if (filtered.length === 0) {
+      toast.error('No trades to export');
+      return;
+    }
+    const csv = tradesToCsv(filtered);
+    downloadCsv(csv, `senzoukria-trades-${new Date().toISOString().slice(0, 10)}.csv`);
+    toast.success(`Exported ${filtered.length} trade${filtered.length > 1 ? 's' : ''}`, { duration: 1500 });
+  }, [filtered]);
 
   if (recent.length === 0) {
     return (
@@ -29,7 +49,21 @@ export default function TradeHistory() {
   }
 
   return (
-    <Card title="Recent Trades" badge={`${closedTrades.length}`} subBadge={recent.length < closedTrades.length ? `showing last ${recent.length}` : undefined}>
+    <Card
+      title="Recent Trades"
+      badge={`${filtered.length}`}
+      subBadge={recent.length < filtered.length ? `showing last ${recent.length}` : undefined}
+      action={
+        <button
+          onClick={handleExportCsv}
+          title="Export trade history as CSV"
+          className="ml-auto px-2 py-0.5 rounded text-[10px] font-semibold transition-colors hover:brightness-110 flex items-center gap-1"
+          style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+        >
+          ⬇ CSV
+        </button>
+      }
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead>
@@ -110,11 +144,13 @@ function Card({
   title,
   badge,
   subBadge,
+  action,
   children,
 }: {
   title:     string;
   badge?:    string;
   subBadge?: string;
+  action?:   React.ReactNode;
   children:  React.ReactNode;
 }) {
   return (
@@ -129,6 +165,7 @@ function Card({
         {subBadge && (
           <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>{subBadge}</span>
         )}
+        {action}
       </div>
       {children}
     </div>
@@ -141,4 +178,44 @@ function EmptyRow({ text }: { text: string }) {
       {text}
     </div>
   );
+}
+
+// ─── CSV export helpers ───────────────────────────────────────────────────
+
+function tradesToCsv(trades: ClosedTrade[]): string {
+  const header = [
+    'id','symbol','side','quantity','entryPrice','exitPrice','pnl',
+    'entryTime','exitTime','holdSeconds','broker',
+  ].join(',');
+
+  const rows = [...trades]
+    .sort((a, b) => a.exitTime - b.exitTime)
+    .map(t => [
+      t.id,
+      t.symbol,
+      t.side,
+      t.quantity,
+      t.entryPrice,
+      t.exitPrice,
+      t.pnl.toFixed(4),
+      new Date(t.entryTime).toISOString(),
+      new Date(t.exitTime).toISOString(),
+      Math.round((t.exitTime - t.entryTime) / 1000),
+      t.broker,
+    ].join(','))
+    .join('\n');
+
+  return `${header}\n${rows}`;
+}
+
+function downloadCsv(content: string, filename: string): void {
+  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

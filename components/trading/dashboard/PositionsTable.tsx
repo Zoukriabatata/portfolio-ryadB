@@ -1,19 +1,29 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
+
+interface PositionsTableProps {
+  symbolFilter?: string | null;
+}
 
 /**
  * Live positions table — TradingView style.
  * Each row updates automatically as prices change (driven by
  * `updatePositionPrices()` calls from chart feeds).
  */
-export default function PositionsTable() {
-  const { positions, closePosition } = useTradingStore(
+export default function PositionsTable({ symbolFilter = null }: PositionsTableProps) {
+  const { positions: allPositions, closePosition } = useTradingStore(
     useShallow(s => ({
       positions:     s.positions,
       closePosition: s.closePosition,
     })),
+  );
+
+  const positions = useMemo(
+    () => symbolFilter ? allPositions.filter(p => p.symbol === symbolFilter) : allPositions,
+    [allPositions, symbolFilter],
   );
 
   if (positions.length === 0) {
