@@ -84,26 +84,28 @@ const Certificate = forwardRef<HTMLDivElement, CertificateProps>(({ data }, ref)
         }}
       />
 
-      {/* ─── Corner ornaments (gold cross) ─── */}
+      {/* ─── Corner ornaments (clean L-shaped flourishes via SVG) ─── */}
       {([
-        { top: '38px', left: '38px' },
-        { top: '38px', right: '38px' },
-        { bottom: '38px', left: '38px' },
-        { bottom: '38px', right: '38px' },
+        { top: '36px', left: '36px',   transform: 'rotate(0deg)'   },
+        { top: '36px', right: '36px',  transform: 'rotate(90deg)'  },
+        { bottom: '36px', right: '36px', transform: 'rotate(180deg)' },
+        { bottom: '36px', left: '36px',  transform: 'rotate(270deg)' },
       ] as const).map((pos, i) => (
-        <div
+        <svg
           key={i}
-          style={{
-            position: 'absolute',
-            ...pos,
-            width: '14px',
-            height: '14px',
-            pointerEvents: 'none',
-          }}
+          width="22" height="22" viewBox="0 0 22 22"
+          style={{ position: 'absolute', pointerEvents: 'none', ...pos }}
+          aria-hidden="true"
         >
-          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'rgba(212,175,55,0.55)' }} />
-          <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '1px', background: 'rgba(212,175,55,0.55)' }} />
-        </div>
+          <path
+            d="M 1 7 L 1 1 L 7 1 M 11 1 L 13 1 M 1 11 L 1 13"
+            stroke="rgba(212,175,55,0.7)"
+            strokeWidth="1"
+            strokeLinecap="round"
+            fill="none"
+          />
+          <circle cx="1" cy="1" r="1.2" fill="rgba(212,175,55,0.85)" />
+        </svg>
       ))}
 
       {/* ─── Content wrapper (everything inside the inner border) ─── */}
@@ -136,16 +138,30 @@ const Certificate = forwardRef<HTMLDivElement, CertificateProps>(({ data }, ref)
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                lineHeight: 1,
+                flexShrink: 0,
               }}
             >
-              <span style={{ fontSize: '24px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>S</span>
+              <span
+                style={{
+                  fontSize: '26px',
+                  fontWeight: 900,
+                  color: '#fff',
+                  lineHeight: 1,
+                  display: 'block',
+                  // Optical centering — capital S sits ~1px high in most fonts
+                  transform: 'translateY(1px)',
+                }}
+              >
+                S
+              </span>
             </div>
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px', lineHeight: 1 }}>
               <div
                 style={{
-                  fontSize: '24px',
+                  fontSize: '22px',
                   fontWeight: 800,
-                  letterSpacing: '4px',
+                  letterSpacing: '3.5px',
                   background: 'linear-gradient(to right, #4ade80 0%, #a78bfa 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
@@ -154,7 +170,14 @@ const Certificate = forwardRef<HTMLDivElement, CertificateProps>(({ data }, ref)
               >
                 SENZOUKRIA
               </div>
-              <div style={{ fontSize: '9px', color: '#64748b', letterSpacing: '2.5px', marginTop: '5px' }}>
+              <div
+                style={{
+                  fontSize: '9px',
+                  color: '#64748b',
+                  letterSpacing: '2.5px',
+                  lineHeight: 1,
+                }}
+              >
                 PROFESSIONAL TRADING PLATFORM
               </div>
             </div>
@@ -326,30 +349,62 @@ const Certificate = forwardRef<HTMLDivElement, CertificateProps>(({ data }, ref)
           {/* Verified seal */}
           <div
             style={{
-              width: '92px',
-              height: '92px',
+              width: '96px',
+              height: '96px',
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(212,175,55,0.10), rgba(212,175,55,0.02))',
+              background: 'radial-gradient(circle, rgba(212,175,55,0.12), rgba(212,175,55,0.02))',
               border: '2px solid rgba(212,175,55,0.55)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               position: 'relative',
               boxShadow: 'inset 0 0 12px rgba(212,175,55,0.15)',
+              flexShrink: 0,
             }}
           >
-            {/* Inner ring */}
+            {/* Inner dashed ring */}
             <div
               style={{
                 position: 'absolute',
-                inset: '6px',
+                top: '6px', left: '6px', right: '6px', bottom: '6px',
                 borderRadius: '50%',
                 border: '1px dashed rgba(212,175,55,0.4)',
+                pointerEvents: 'none',
               }}
             />
-            <div style={{ textAlign: 'center', lineHeight: 1.05 }}>
-              <div style={{ fontSize: '20px', fontWeight: 900, color: '#d4af37', letterSpacing: '1px' }}>SZK</div>
-              <div style={{ fontSize: '7px', color: '#94a3b8', letterSpacing: '1.5px', marginTop: '3px' }}>VERIFIED</div>
+            {/* Centered text — explicit flex column with gap */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                lineHeight: 1,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '20px',
+                  fontWeight: 900,
+                  color: '#d4af37',
+                  letterSpacing: '1.5px',
+                  lineHeight: 1,
+                }}
+              >
+                SZK
+              </div>
+              <div
+                style={{
+                  fontSize: '7px',
+                  color: '#94a3b8',
+                  letterSpacing: '2px',
+                  lineHeight: 1,
+                  fontWeight: 600,
+                }}
+              >
+                VERIFIED
+              </div>
             </div>
           </div>
 
