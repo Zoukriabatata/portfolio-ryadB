@@ -31,7 +31,7 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
   } = useTradingStore();
 
   const panelRef = useRef<HTMLDivElement>(null);
-  const [selectedBalance, setSelectedBalance] = useState('$100K');
+  const [selectedBalance, setSelectedBalance] = useState('$50K');
 
   // Click outside
   useEffect(() => {

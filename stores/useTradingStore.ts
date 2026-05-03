@@ -180,7 +180,7 @@ const initialConnections: Record<BrokerType, BrokerConnection> = {
   rithmic: { broker: 'rithmic', connected: false, connecting: false, error: null },
   deribit: { broker: 'deribit', connected: false, connecting: false, error: null },
   // Demo broker is always available — no real auth needed, all orders simulated
-  demo: { broker: 'demo', connected: true, connecting: false, error: null, balance: 100000 },
+  demo: { broker: 'demo', connected: true, connecting: false, error: null, balance: 50000 },
 };
 
 export const useTradingStore = create<TradingState>()(
@@ -238,7 +238,7 @@ export const useTradingStore = create<TradingState>()(
                   ...state.connections[broker],
                   connected: true,
                   connecting: false,
-                  balance: 100000,
+                  balance: state.connections[broker]?.balance ?? 50000,
                   currency: 'USD',
                   lastUpdate: Date.now(),
                 },
@@ -809,7 +809,7 @@ export const useTradingStore = create<TradingState>()(
               connected: true,
               connecting: false,
               error: null,
-              balance: p.connections?.demo?.balance ?? 100000,
+              balance: p.connections?.demo?.balance ?? 50000,
             },
           },
         };

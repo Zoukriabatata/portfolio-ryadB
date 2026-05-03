@@ -173,6 +173,13 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
       return;
     }
 
+    // Optimistic visual feedback — flash button immediately, before placeOrder
+    // resolves. Makes the UI feel zero-latency even though the order is already
+    // synchronous internally. If the order fails, the toast.error compensates.
+    setLastAction({ side, time: Date.now() });
+    if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current);
+    lastActionTimerRef.current = setTimeout(() => setLastAction(null), 600);
+
     setIsSubmitting(true);
     try {
       // Place main order
@@ -192,10 +199,10 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         const fillPrice = result.avgFillPrice ?? price;
         toast.success(
           `${sideLabel} ${contractQuantity} ${symbol.toUpperCase()} @ ${fillPrice.toFixed(decimals)}`,
-          { duration: 2500 },
+          { duration: 1200 },
         );
       } else {
-        toast.error('Order failed');
+        toast.error('Order failed', { duration: 1500 });
       }
 
       // Place bracket orders (TP + SL) if enabled
@@ -234,11 +241,8 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         }
       }
 
-      setLastAction({ side, time: Date.now() });
-      if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current);
-      lastActionTimerRef.current = setTimeout(() => setLastAction(null), 800);
     } catch {
-      // Order failed
+      // Order failed — error toast already shown above
     } finally {
       setIsSubmitting(false);
     }
@@ -477,19 +481,25 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
       <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
 
-      {/* Position info */}
+      {/* Position info — TradingView/Topstep style */}
       {currentPosition && (
         <>
-          <div className="flex items-center gap-1 shrink-0 text-[10px] tabular-nums">
-            <span className="px-1 py-px rounded text-[9px] font-bold"
+          <div className="flex items-center gap-1.5 shrink-0 text-[10px] tabular-nums">
+            <span className="px-1.5 py-px rounded text-[9px] font-bold tracking-wide"
               style={{
-                backgroundColor: currentPosition.side === 'buy' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                backgroundColor: currentPosition.side === 'buy' ? 'rgba(16,185,129,0.18)' : 'rgba(239,68,68,0.18)',
                 color: currentPosition.side === 'buy' ? '#10b981' : '#ef4444',
               }}>
-              {currentPosition.side === 'buy' ? 'L' : 'S'}{currentPosition.quantity}
+              {currentPosition.side === 'buy' ? 'LONG' : 'SHORT'} {currentPosition.quantity}
             </span>
-            <span className="font-medium" style={{ color: currentPosition.pnl >= 0 ? '#10b981' : '#ef4444' }}>
+            <span className="text-[9px]" style={{ color: colors.textMuted }}>
+              @ {currentPosition.entryPrice.toFixed(decimals)}
+            </span>
+            <span className="font-bold text-[10px]" style={{ color: currentPosition.pnl >= 0 ? '#10b981' : '#ef4444' }}>
               {currentPosition.pnl >= 0 ? '+' : ''}{currentPosition.pnl.toFixed(2)}
+            </span>
+            <span className="text-[9px] font-medium" style={{ color: currentPosition.pnl >= 0 ? '#10b98199' : '#ef444499' }}>
+              ({currentPosition.pnlPercent >= 0 ? '+' : ''}{currentPosition.pnlPercent.toFixed(2)}%)
             </span>
           </div>
           <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
@@ -533,25 +543,54 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
       <div className="flex-1" />
 
-      {/* Buy / Sell */}
+      {/* Live price ticker (TradingView style) */}
+      {currentPrice > 0 && (
+        <>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[9px] uppercase tracking-wider" style={{ color: colors.textMuted }}>Last</span>
+            <span className="text-[11px] font-bold tabular-nums" style={{ color: colors.text }}>
+              {currentPrice.toFixed(decimals)}
+            </span>
+          </div>
+          <div className="w-px h-4 shrink-0" style={{ backgroundColor: colors.border }} />
+        </>
+      )}
+
+      {/* Buy / Sell — TradingView/Topstep style with hotkey badge */}
       <div className="flex items-center gap-1 shrink-0">
-        <button onClick={() => handleTrade('sell')} disabled={isSubmitting}
-          className="h-6 px-3.5 rounded font-bold text-[10px] tracking-wider transition-all active:scale-95 disabled:opacity-40"
+        <button
+          onClick={() => handleTrade('sell')}
+          disabled={isSubmitting}
+          title="Sell at market (S)"
+          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 disabled:opacity-40 hover:brightness-110 flex items-center gap-1.5"
           style={{
-            backgroundColor: lastAction?.side === 'sell' ? '#dc2626' : '#ef4444',
+            backgroundColor: lastAction?.side === 'sell' ? '#b91c1c' : '#ef4444',
             color: '#fff',
-            boxShadow: lastAction?.side === 'sell' ? '0 0 8px rgba(239,68,68,0.4)' : 'none',
-          }}>
+            boxShadow: lastAction?.side === 'sell'
+              ? '0 0 12px rgba(239,68,68,0.7), inset 0 0 6px rgba(0,0,0,0.3)'
+              : '0 1px 2px rgba(0,0,0,0.2)',
+            transform: lastAction?.side === 'sell' ? 'scale(0.95)' : 'scale(1)',
+          }}
+        >
           SELL
+          <span className="hidden sm:inline-flex h-3.5 min-w-[12px] px-1 items-center justify-center rounded text-[8px] font-mono opacity-70 bg-black/25">S</span>
         </button>
-        <button onClick={() => handleTrade('buy')} disabled={isSubmitting}
-          className="h-6 px-3.5 rounded font-bold text-[10px] tracking-wider transition-all active:scale-95 disabled:opacity-40"
+        <button
+          onClick={() => handleTrade('buy')}
+          disabled={isSubmitting}
+          title="Buy at market (B)"
+          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 disabled:opacity-40 hover:brightness-110 flex items-center gap-1.5"
           style={{
-            backgroundColor: lastAction?.side === 'buy' ? '#059669' : '#10b981',
+            backgroundColor: lastAction?.side === 'buy' ? '#047857' : '#10b981',
             color: '#fff',
-            boxShadow: lastAction?.side === 'buy' ? '0 0 8px rgba(16,185,129,0.4)' : 'none',
-          }}>
+            boxShadow: lastAction?.side === 'buy'
+              ? '0 0 12px rgba(16,185,129,0.7), inset 0 0 6px rgba(0,0,0,0.3)'
+              : '0 1px 2px rgba(0,0,0,0.2)',
+            transform: lastAction?.side === 'buy' ? 'scale(0.95)' : 'scale(1)',
+          }}
+        >
           BUY
+          <span className="hidden sm:inline-flex h-3.5 min-w-[12px] px-1 items-center justify-center rounded text-[8px] font-mono opacity-70 bg-black/25">B</span>
         </button>
       </div>
 

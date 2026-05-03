@@ -33,6 +33,7 @@ import {
   BrainCircuit,
   ClipboardList,
   FileText,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -194,6 +195,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Tools',
     items: [
+      { href: '/trading', labelKey: 'nav.trading', Icon: Wallet,         shortcut: '' },
       { href: '/replay',  labelKey: 'nav.replay',  Icon: History,        shortcut: '9', requiresUltra: true },
       { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8', requiresUltra: true },
       { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7', requiresUltra: true },
