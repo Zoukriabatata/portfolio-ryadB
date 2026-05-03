@@ -646,6 +646,9 @@ export const useTradingStore = create<TradingState>()(
       },
 
       updatePositionPrices: (symbol, currentPrice) => {
+        // Track which symbols had a trailing stop crossed by this tick
+        const trailingHits: string[] = [];
+
         set((state) => {
           const hasMatch = state.positions.some((p) => p.symbol === symbol);
           if (!hasMatch) return state;
@@ -656,10 +659,42 @@ export const useTradingStore = create<TradingState>()(
                 ? (currentPrice - p.entryPrice) * p.quantity
                 : (p.entryPrice - currentPrice) * p.quantity;
               const pnlPercent = p.entryPrice > 0 ? (pnl / (p.entryPrice * p.quantity)) * 100 : 0;
-              return { ...p, currentPrice, pnl, pnlPercent };
+
+              // ── Trailing stop ratchet ────────────────────────────────────
+              // Long: peak rises with price → stop = peak - distance
+              // Short: peak falls with price → stop = peak + distance
+              // Stop NEVER moves backwards (towards a worse price for the trader).
+              let trailingStop = p.trailingStop;
+              if (trailingStop && trailingStop.distance > 0) {
+                if (p.side === 'buy') {
+                  const newPeak = Math.max(trailingStop.peakPrice, currentPrice);
+                  const newStop = Math.max(trailingStop.currentStop, newPeak - trailingStop.distance);
+                  trailingStop = { ...trailingStop, peakPrice: newPeak, currentStop: newStop };
+                  // Trigger if price drops to or below the trailing stop
+                  if (currentPrice <= newStop) trailingHits.push(p.symbol);
+                } else {
+                  const newPeak = Math.min(trailingStop.peakPrice, currentPrice);
+                  const newStop = Math.min(trailingStop.currentStop, newPeak + trailingStop.distance);
+                  trailingStop = { ...trailingStop, peakPrice: newPeak, currentStop: newStop };
+                  if (currentPrice >= newStop) trailingHits.push(p.symbol);
+                }
+              }
+
+              return { ...p, currentPrice, pnl, pnlPercent, trailingStop };
             }),
           };
         });
+
+        // Auto-close any positions whose trailing stop was crossed.
+        // Done outside the set() to keep the mutation atomic and reuse
+        // closePosition()'s margin-return + closedTrades append logic.
+        if (trailingHits.length > 0) {
+          const closeFn = get().closePosition;
+          for (const sym of trailingHits) {
+            // Fire-and-forget — closePosition already plays sound + updates DB
+            closeFn(sym).catch(() => { /* swallow — position may have been closed manually */ });
+          }
+        }
 
         // Demo mode: check pending limit/stop orders against current price
         const state = get();
@@ -818,8 +853,8 @@ export const useTradingStore = create<TradingState>()(
         }));
       },
 
-      // Trailing stop — stub. Sets the field on the position; the price-cross
-      // close logic in updatePositionPrices will be wired in the next iteration.
+      // Trailing stop — attaches/clears a trailing SL on an open position.
+      // The ratchet + auto-close logic lives in updatePositionPrices().
       setTrailingStop: (symbol, distance) => {
         set((state) => ({
           positions: state.positions.map(p => {

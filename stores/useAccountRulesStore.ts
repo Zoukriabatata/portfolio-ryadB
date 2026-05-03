@@ -45,6 +45,13 @@ interface AccountRulesState {
   lockedReason:      string | null;
   lockedAt:          number | null;
 
+  // Discipline tracking — set true the first time the account ever
+  // entered the WARNING state, and the first time it ever LOCKED.
+  // Both reset on reset(). Used to compute the "Discipline Achievement"
+  // certificate trigger (everWarning && !everLocked && enough trades).
+  everWarning:       boolean;
+  everLocked:        boolean;
+
   // ── Actions ────────────────────────────────────────────────────────────
   setEnabled:        (on: boolean) => void;
   applyPreset:       (preset: AccountPreset) => void;
@@ -106,6 +113,8 @@ export const useAccountRulesStore = create<AccountRulesState>()(
       accountState:     'ACTIVE',
       lockedReason:     null,
       lockedAt:         null,
+      everWarning:      false,
+      everLocked:       false,
 
       setEnabled: (on) => set({ enabled: on }),
 
@@ -184,6 +193,10 @@ export const useAccountRulesStore = create<AccountRulesState>()(
           accountState:    nextState,
           lockedReason,
           lockedAt,
+          // Sticky flags — once set, never go back to false within the same
+          // account life (only cleared by reset()).
+          everWarning: state.everWarning || nextState === 'WARNING',
+          everLocked:  state.everLocked  || nextState === 'LOCKED',
         });
       },
 
@@ -202,6 +215,8 @@ export const useAccountRulesStore = create<AccountRulesState>()(
           accountState:    'ACTIVE',
           lockedReason:    null,
           lockedAt:        null,
+          everWarning:     false,
+          everLocked:      false,
         });
       },
 

@@ -157,18 +157,59 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
               </div>
             </div>
           </div>
-          <CertificateButton />
+          <CertificateButton variant="PASSED" />
         </div>
       )}
 
-      {/* Locked / failed reason — only shown when NOT passed */}
-      {rules.lockedReason && rules.accountState !== 'PASSED' && (
+      {/* LOCKED — failure banner with download "Combine Concluded" cert */}
+      {rules.accountState === 'LOCKED' && (
         <div
-          className="px-2.5 py-1.5 rounded text-[11px] flex items-start gap-1.5"
-          style={{ background: 'rgba(239,68,68,0.08)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.25)' }}
+          className="px-3 py-2.5 rounded flex items-center justify-between gap-3"
+          style={{
+            background: 'rgba(239,68,68,0.10)',
+            border:     '1px solid rgba(239,68,68,0.35)',
+          }}
         >
-          <span className="mt-px">⚠</span>
-          <span>{rules.lockedReason}</span>
+          <div className="flex items-start gap-2">
+            <span className="text-lg">📜</span>
+            <div>
+              <div className="text-[12px] font-bold" style={{ color: '#fca5a5' }}>
+                Combine concluded
+              </div>
+              <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {rules.lockedReason ?? 'Risk limit hit. Reset and try again.'}
+              </div>
+            </div>
+          </div>
+          <CertificateButton variant="FAILED" />
+        </div>
+      )}
+
+      {/* DISCIPLINE — recovered from WARNING without locking, ≥ 5 trades */}
+      {rules.accountState === 'ACTIVE'
+        && rules.everWarning
+        && !rules.everLocked
+        && positions.length >= 0
+        && useTradingStore.getState().closedTrades.length >= 5 && (
+        <div
+          className="px-3 py-2.5 rounded flex items-center justify-between gap-3"
+          style={{
+            background: 'rgba(168,139,250,0.10)',
+            border:     '1px solid rgba(168,139,250,0.35)',
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <span className="text-lg">🎖️</span>
+            <div>
+              <div className="text-[12px] font-bold" style={{ color: '#a78bfa' }}>
+                Discipline maintained
+              </div>
+              <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                You faced drawdown pressure and stayed within limits — pull a discipline cert.
+              </div>
+            </div>
+          </div>
+          <CertificateButton variant="DISCIPLINE" />
         </div>
       )}
 

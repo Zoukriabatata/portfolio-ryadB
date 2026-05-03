@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { toast } from 'sonner';
 import { useTradingStore } from '@/stores/useTradingStore';
 
 interface PositionsTableProps {
@@ -14,12 +15,45 @@ interface PositionsTableProps {
  * `updatePositionPrices()` calls from chart feeds).
  */
 export default function PositionsTable({ symbolFilter = null }: PositionsTableProps) {
-  const { positions: allPositions, closePosition } = useTradingStore(
+  const { positions: allPositions, closePosition, setTrailingStop } = useTradingStore(
     useShallow(s => ({
-      positions:     s.positions,
-      closePosition: s.closePosition,
+      positions:       s.positions,
+      closePosition:   s.closePosition,
+      setTrailingStop: s.setTrailingStop,
     })),
   );
+
+  // Inline editor state — which symbol is currently editing its trail, and
+  // the input value. Only one editor open at a time across the table.
+  const [editing, setEditing]       = useState<string | null>(null);
+  const [trailInput, setTrailInput] = useState('');
+
+  const openEditor = useCallback((symbol: string, current?: number) => {
+    setEditing(symbol);
+    setTrailInput(current ? current.toString() : '');
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    setEditing(null);
+    setTrailInput('');
+  }, []);
+
+  const applyTrail = useCallback((symbol: string) => {
+    const val = parseFloat(trailInput);
+    if (isNaN(val) || val <= 0) {
+      toast.error('Enter a positive trail distance');
+      return;
+    }
+    setTrailingStop(symbol, val);
+    toast.success(`Trailing stop set on ${symbol}`, { duration: 1500 });
+    closeEditor();
+  }, [trailInput, setTrailingStop, closeEditor]);
+
+  const clearTrail = useCallback((symbol: string) => {
+    setTrailingStop(symbol, null);
+    toast(`Trailing stop cleared on ${symbol}`, { duration: 1200 });
+    closeEditor();
+  }, [setTrailingStop, closeEditor]);
 
   const positions = useMemo(
     () => symbolFilter ? allPositions.filter(p => p.symbol === symbolFilter) : allPositions,
@@ -48,6 +82,7 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
               <th className="px-3 py-2 font-medium text-right">P&L</th>
               <th className="px-3 py-2 font-medium text-right">P&L %</th>
               <th className="px-3 py-2 font-medium text-right">Opened</th>
+              <th className="px-3 py-2 font-medium text-center">Trail</th>
               <th className="px-3 py-2 font-medium text-center">Action</th>
             </tr>
           </thead>
@@ -92,6 +127,69 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
                   </td>
                   <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {formatDuration(Date.now() - p.openedAt)}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {editing === p.symbol ? (
+                      <div className="inline-flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0.0001}
+                          step={0.01}
+                          value={trailInput}
+                          onChange={e => setTrailInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') applyTrail(p.symbol);
+                            if (e.key === 'Escape') closeEditor();
+                          }}
+                          autoFocus
+                          placeholder="dist"
+                          className="w-14 px-1.5 py-0.5 rounded text-[10px] tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                        />
+                        <button
+                          onClick={() => applyTrail(p.symbol)}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors"
+                          style={{ background: 'rgba(74,222,128,0.15)', color: 'var(--primary)', border: '1px solid rgba(74,222,128,0.3)' }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={closeEditor}
+                          className="px-1.5 py-0.5 rounded text-[10px] transition-colors"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : p.trailingStop ? (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          onClick={() => openEditor(p.symbol, p.trailingStop?.distance)}
+                          title={`Trail distance: ${p.trailingStop.distance.toFixed(2)} · current stop ${p.trailingStop.currentStop.toFixed(2)}`}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold tabular-nums transition-colors hover:brightness-110"
+                          style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}
+                        >
+                          ⬆ {p.trailingStop.currentStop.toFixed(2)}
+                        </button>
+                        <button
+                          onClick={() => clearTrail(p.symbol)}
+                          title="Clear trailing stop"
+                          className="text-[10px] px-1 transition-colors"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => openEditor(p.symbol)}
+                        title="Set a trailing stop on this position"
+                        className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors"
+                        style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}
+                      >
+                        + Trail
+                      </button>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <button

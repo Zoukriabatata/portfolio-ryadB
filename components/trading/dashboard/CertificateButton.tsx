@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { useTradingStore, type ClosedTrade } from '@/stores/useTradingStore';
 import { useAccountRulesStore, type AccountPreset } from '@/stores/useAccountRulesStore';
-import Certificate, { type CertificateData } from './Certificate';
+import Certificate, { type CertificateData, type CertificateVariant } from './Certificate';
 import {
   generateCertificatePDF,
   generateCertificateBase64,
@@ -29,7 +29,18 @@ const PRESET_LABELS: Record<AccountPreset, string> = {
  * so it doesn't affect layout or interfere with the user, but html2canvas
  * can still snapshot it because it's in the DOM.
  */
-export default function CertificateButton() {
+interface CertificateButtonProps {
+  /** PASSED / FAILED / DISCIPLINE — affects template + filename + auto-email key */
+  variant?: CertificateVariant;
+  /** When true, suppresses the auto-email side-effect (use for non-default variants
+   * where you only want a manual download — e.g. DISCIPLINE) */
+  noAutoEmail?: boolean;
+}
+
+export default function CertificateButton({
+  variant     = 'PASSED',
+  noAutoEmail = false,
+}: CertificateButtonProps = {}) {
   const { data: session } = useSession();
   const certRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -80,7 +91,7 @@ export default function CertificateButton() {
       || session?.user?.email?.split('@')[0]
       || 'Demo Trader';
 
-    const certId = makeCertificateId(`${userName}-${rules.preset}-${passedAt.getTime()}`);
+    const certId = makeCertificateId(`${variant}-${userName}-${rules.preset}-${passedAt.getTime()}`);
 
     return {
       userName,
@@ -95,8 +106,9 @@ export default function CertificateButton() {
       startDate,
       passedAt,
       certId,
+      variant,
     };
-  }, [activeBroker, connections, positions, closedTrades, rules, session]);
+  }, [activeBroker, connections, positions, closedTrades, rules, session, variant]);
 
   const filename = useMemo(() => `senzoukria-certificate-${certData.certId}.pdf`, [certData.certId]);
 
@@ -163,7 +175,10 @@ export default function CertificateButton() {
 
   // ── Auto-email on first PASSED transition (once per cert, persisted) ──
   // Tracks via localStorage so we don't re-email on every page reload.
+  // Only fires for the PASSED variant — FAILED and DISCIPLINE are
+  // download-only by default (the user pulls them when they want them).
   useEffect(() => {
+    if (variant !== 'PASSED' || noAutoEmail) return;
     if (rules.accountState !== 'PASSED') return;
     if (!session?.user?.email) return;
     if (!certRef.current) return;
@@ -187,7 +202,7 @@ export default function CertificateButton() {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules.accountState, certData.certId, session?.user?.email]);
+  }, [rules.accountState, certData.certId, session?.user?.email, variant, noAutoEmail]);
 
   return (
     <>
@@ -197,9 +212,15 @@ export default function CertificateButton() {
           disabled={isExporting}
           className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
           style={{
-            background: 'linear-gradient(135deg, #16a34a, #4ade80)',
+            background:
+              variant === 'FAILED'     ? 'linear-gradient(135deg, #b91c1c, #ef4444)' :
+              variant === 'DISCIPLINE' ? 'linear-gradient(135deg, #6d28d9, #a78bfa)' :
+                                         'linear-gradient(135deg, #16a34a, #4ade80)',
             color:      '#fff',
-            boxShadow:  '0 0 12px rgba(74,222,128,0.35)',
+            boxShadow:
+              variant === 'FAILED'     ? '0 0 12px rgba(239,68,68,0.35)' :
+              variant === 'DISCIPLINE' ? '0 0 12px rgba(168,139,250,0.35)' :
+                                         '0 0 12px rgba(74,222,128,0.35)',
           }}
         >
           {isExporting ? (
@@ -208,7 +229,7 @@ export default function CertificateButton() {
               Generating…
             </>
           ) : (
-            <>🏆 Download</>
+            <>{variant === 'FAILED' ? '📜' : variant === 'DISCIPLINE' ? '🎖️' : '🏆'} Download</>
           )}
         </button>
         {session?.user?.email && (
