@@ -6,6 +6,7 @@ import {
   PRESET_DEFAULTS,
   type AccountPreset,
 } from '@/stores/useAccountRulesStore';
+import { useTradingStore } from '@/stores/useTradingStore';
 
 interface AccountRulesModalProps {
   isOpen:  boolean;
@@ -67,25 +68,75 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
     }
   };
 
+  // Snapshot of the trading store's current equity so we can warn the user
+  // if their actual balance is wildly different from the rules baseline they
+  // are about to apply (which would otherwise instantly trigger PASSED/LOCKED).
+  const currentBalance = useTradingStore.getState().connections.demo?.balance ?? 0;
+  const currentUnrealized = useTradingStore.getState().positions.reduce((s, p) => s + p.pnl, 0);
+  const currentEquity = currentBalance + currentUnrealized;
+
   const handleSave = () => {
+    // Detect the situation that triggered the bug: user enables rules with
+    // a preset whose nominal starting balance is far from their actual
+    // equity. Without warning, evaluate() would instantly compute a huge
+    // delta and flip them to PASSED or LOCKED on first render.
+    const targetStart = preset !== 'custom' ? PRESET_DEFAULTS[preset].starting : startingBalance;
+    const drift = Math.abs(currentEquity - targetStart);
+    const driftPct = targetStart > 0 ? (drift / targetStart) * 100 : 0;
+
+    if (enabled && driftPct > 5) {
+      const ok = confirm(
+        `Your current equity ($${currentEquity.toFixed(0)}) doesn't match the preset's starting balance ($${targetStart.toFixed(0)}).\n\n` +
+        `Apply anyway? — your existing balance will be measured against the preset baseline (this can flip the account state immediately).\n\n` +
+        `Recommended: click "Reset & Apply" instead to start a clean combine at $${targetStart.toFixed(0)}.`,
+      );
+      if (!ok) return;
+    }
+
     rules.setEnabled(enabled);
     if (preset !== 'custom') {
       rules.applyPreset(preset);
     } else {
       rules.setCustomLimits({ startingBalance, dailyLossLimit, maxDrawdown, profitTarget });
     }
-    // Trigger evaluation against current equity (parent dashboard will too)
     onClose();
   };
 
   const handleResetAndApply = () => {
-    if (!confirm('Reset account rules and clear day P&L baseline + drawdown peak? This does NOT touch your positions or balance.')) return;
+    const targetStart = preset !== 'custom' ? PRESET_DEFAULTS[preset].starting : startingBalance;
+    if (!confirm(
+      `Start a clean combine at $${targetStart.toFixed(0)}?\n\n` +
+      `This will:\n` +
+      `  • Reset balance to $${targetStart.toFixed(0)}\n` +
+      `  • Close all open positions\n` +
+      `  • Clear pending orders and trade history\n` +
+      `  • Reset day baseline + drawdown peak\n\n` +
+      `Cannot be undone.`,
+    )) return;
+
+    // Apply rule values first
     if (preset !== 'custom') {
       rules.applyPreset(preset);
     } else {
       rules.setCustomLimits({ startingBalance, dailyLossLimit, maxDrawdown, profitTarget });
     }
-    rules.reset(startingBalance);
+
+    // Wipe trading state + reset balance to the preset nominal — this is
+    // what makes "Reset & Apply" a true clean-slate combine, not just a
+    // rule baseline tweak.
+    useTradingStore.setState({
+      positions:    [],
+      orders:       [],
+      closedTrades: [],
+    });
+    useTradingStore.setState(s => ({
+      connections: {
+        ...s.connections,
+        demo: { ...s.connections.demo, balance: targetStart },
+      },
+    }));
+
+    rules.reset(targetStart);
     rules.setEnabled(enabled);
     onClose();
   };
@@ -157,9 +208,24 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
             <NumberField label="Profit Target"    value={profitTarget}    onChange={setProfitTarget}   prefix="$" disabled={preset !== 'custom'} />
           </div>
 
-          <div className="text-[11px] p-2.5 rounded" style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
-            ℹ Rules are display-only for now — they show your progress against the limits.
-            Order auto-blocking when limits are hit is coming in the next update.
+          <div
+            className="text-[11px] p-2.5 rounded flex flex-col gap-1.5"
+            style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
+          >
+            <div>
+              <strong style={{ color: 'var(--text-primary)' }}>Save</strong> — applies the rule
+              thresholds to your current account. Day baseline and drawdown peak are preserved.
+            </div>
+            <div>
+              <strong style={{ color: 'var(--text-primary)' }}>Reset &amp; Apply</strong> — starts
+              a fresh combine at the preset's nominal balance. Wipes positions, orders,
+              trade history and resets the balance to ${
+                preset !== 'custom' ? PRESET_DEFAULTS[preset].starting.toLocaleString() : startingBalance.toLocaleString()
+              }.
+            </div>
+            <div className="pt-1" style={{ color: 'var(--text-dimmed)' }}>
+              Current equity: <span className="tabular-nums" style={{ color: 'var(--text-primary)' }}>${currentEquity.toFixed(2)}</span>
+            </div>
           </div>
         </div>
 
