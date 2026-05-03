@@ -142,6 +142,39 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
     CLOSE_X_HOVER: 'rgba(255,255,255,0.85)',
   };
 
+  /**
+   * Build the segment list shown on a pending-order badge:
+   *   ["6x", "LIMIT", "78742.86"]                      (no matching position)
+   *   ["6x", "LIMIT", "78742.86", "+$439"]             (matched against position)
+   *
+   * If the symbol has an open position, computes the P&L delta the order
+   * would realize if it filled at its trigger price. Green for profit,
+   * shown verbatim as the segment text — the colour decoration happens
+   * inside drawSegmentedBadge via the colorSet.
+   */
+  const buildOrderSegments = useCallback((
+    order: Order,
+    orderPrice: number,
+  ): string[] => {
+    const isStop    = order.type === 'stop' || order.type === 'stop_limit';
+    const typeLabel = isStop ? 'STOP' : 'LIMIT';
+    const segs: string[] = [`${order.quantity}x`, typeLabel, orderPrice.toFixed(2)];
+
+    // Match against open position on the same symbol. The pending order is
+    // assumed to be a closing leg (TP/SL bracket on the position).
+    const pos = positionsRef.current.find(p => p.symbol === order.symbol);
+    if (!pos || pos.entryPrice <= 0) return segs;
+
+    const closeQty = Math.min(order.quantity, pos.quantity);
+    const pnl = pos.side === 'buy'
+      ? (orderPrice - pos.entryPrice) * closeQty
+      : (pos.entryPrice - orderPrice) * closeQty;
+
+    const sign = pnl > 0 ? '+' : (pnl < 0 ? '-' : '');
+    segs.push(`${sign}$${Math.abs(pnl).toFixed(0)}`);
+    return segs;
+  }, []);
+
   // ═══ HIT-TEST HELPERS for PnL badge & order buttons ═══
 
   /** Measure a segmented badge and return centered geometry */
@@ -224,16 +257,15 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const orderPrice = order.price || order.stopPrice || 0;
       if (orderPrice <= 0) continue;
       const oy = priceToY(orderPrice);
-      const isStop = order.type === 'stop' || order.type === 'stop_limit';
-      const typeLabel = isStop ? 'STOP' : 'LIMIT';
-      const { closeX } = measureBadge(ctx, [`${order.quantity}x`, typeLabel, orderPrice.toFixed(2)], chartWidth, true);
+      const segments = buildOrderSegments(order, orderPrice);
+      const { closeX } = measureBadge(ctx, segments, chartWidth, true);
       const cbY = oy - CLOSE_SIZE / 2;
       if (mx >= closeX - 2 && mx <= closeX + CLOSE_SIZE + 2 && my >= cbY - 2 && my <= cbY + CLOSE_SIZE + 2) {
         return order;
       }
     }
     return null;
-  }, [symbol, measureBadge]);
+  }, [symbol, measureBadge, buildOrderSegments]);
 
   /** Hit-test order BADGE area (for drag-to-modify) */
   const hitTestOrderBadge = useCallback((
@@ -249,16 +281,15 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const orderPrice = order.price || order.stopPrice || 0;
       if (orderPrice <= 0) continue;
       const oy = priceToY(orderPrice);
-      const isStop = order.type === 'stop' || order.type === 'stop_limit';
-      const typeLabel = isStop ? 'STOP' : 'LIMIT';
-      const { badgeX, totalW } = measureBadge(ctx, [`${order.quantity}x`, typeLabel, orderPrice.toFixed(2)], chartWidth, true);
+      const segments = buildOrderSegments(order, orderPrice);
+      const { badgeX, totalW } = measureBadge(ctx, segments, chartWidth, true);
       const badgeY = oy - BADGE_H / 2;
       if (mx >= badgeX && mx <= badgeX + totalW && my >= badgeY && my <= badgeY + BADGE_H) {
         return order;
       }
     }
     return null;
-  }, [symbol, measureBadge]);
+  }, [symbol, measureBadge, buildOrderSegments]);
 
   /**
    * Handle tool change (for drawing new tools)
@@ -600,12 +631,14 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       ctx.lineTo(chartWidth, Math.round(y) + 0.5);
       ctx.stroke();
 
-      // Segmented badge
+      // Segmented badge — adds a "+$X" / "-$Y" segment when there's a
+      // matching open position, so the trader sees their realized P&L
+      // impact directly on the chart instead of just the price level.
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       const isOrderHovered = hoveredOrderId.current === order.id;
       drawSegmentedBadge(
-        [`${order.quantity}x`, typeLabel, orderPrice.toFixed(2)],
+        buildOrderSegments(order, orderPrice),
         y, colorSet, true, isOrderHovered,
       );
 
@@ -679,9 +712,11 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
 
         ctx.setLineDash([]);
         ctx.globalAlpha = 0.9;
-        const typeLabel = isStop ? 'STOP' : 'LIMIT';
+        // Build segments using the live drag price so the $ figure
+        // updates as the user drags the SL/TP up and down.
+        const dragSegments = buildOrderSegments(orderDrag.order, orderDrag.dragPrice);
         drawSegmentedBadge(
-          [`${orderDrag.order.quantity}x`, typeLabel, orderDrag.dragPrice.toFixed(2)],
+          dragSegments,
           ghostY, ghostColors, false, false,
         );
         ctx.restore();

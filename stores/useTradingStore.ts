@@ -59,6 +59,24 @@ export interface Position {
   pnl: number;
   pnlPercent: number;
   openedAt: number; // timestamp for journal tracking
+
+  /**
+   * Trailing stop. When set, the position auto-closes once the market
+   * crosses `currentStop`. The stop only ratchets in the favourable
+   * direction — it never moves backwards.
+   *
+   *   distance     — fixed price distance to maintain from peak (long) /
+   *                  trough (short). User sets this in price units.
+   *   currentStop  — the live stop price, updated by updatePositionPrices
+   *                  as the market moves.
+   *   peakPrice    — the best price reached since the trail was set
+   *                  (highest for long, lowest for short).
+   */
+  trailingStop?: {
+    distance:    number;
+    currentStop: number;
+    peakPrice:   number;
+  };
 }
 
 // Closed trade record for auto-journaling
@@ -123,6 +141,12 @@ interface TradingState {
   // Position actions
   closePosition: (symbol: string) => Promise<boolean>;
   updatePositionPrices: (symbol: string, currentPrice: number) => void;
+
+  /**
+   * Attach a trailing stop to an open position.
+   * Pass distance=0 (or null) to remove an existing trail.
+   */
+  setTrailingStop: (symbol: string, distance: number | null) => void;
 
   // Auto-journal actions
   markTradesSynced: (ids: string[]) => void;
@@ -791,6 +815,23 @@ export const useTradingStore = create<TradingState>()(
           closedTrades: state.closedTrades.map((t) =>
             ids.includes(t.id) ? { ...t, synced: true } : t
           ).filter((t) => t.synced), // Remove synced trades to keep the array small
+        }));
+      },
+
+      // Trailing stop — stub. Sets the field on the position; the price-cross
+      // close logic in updatePositionPrices will be wired in the next iteration.
+      setTrailingStop: (symbol, distance) => {
+        set((state) => ({
+          positions: state.positions.map(p => {
+            if (p.symbol !== symbol) return p;
+            if (distance === null || distance <= 0) {
+              const { trailingStop: _drop, ...rest } = p;
+              return rest;
+            }
+            const peak = p.currentPrice || p.entryPrice;
+            const stop = p.side === 'buy' ? peak - distance : peak + distance;
+            return { ...p, trailingStop: { distance, currentStop: stop, peakPrice: peak } };
+          }),
         }));
       },
     }),
