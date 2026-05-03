@@ -117,7 +117,6 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
     }
   }, [orderType, currentPrice]);
   const [lastAction, setLastAction] = useState<{ side: 'buy' | 'sell'; time: number } | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDemoPanel, setShowDemoPanel] = useState(false);
 
   // Bracket order state (TP + SL)
@@ -127,6 +126,16 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
   const [slOffset, setSlOffset] = useState(''); // offset from entry in price units
 
   const lastActionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Spam-friendly per-side gate. Refs so the check is synchronous — no
+  // React re-render needed between clicks (the previous `isSubmitting`
+  // state was the source of perceived spam-click latency).
+  // 25ms = 40 fires/sec per side, faster than any human can spam.
+  const SPAM_GATE_MS = 25;
+  const lastFireRef    = useRef<{ buy: number; sell: number }>({ buy: 0, sell: 0 });
+  // Throttle toasts so spamming 10 buys in 1s doesn't stack 10 toasts.
+  const lastToastRef   = useRef<{ buy: number; sell: number }>({ buy: 0, sell: 0 });
+  const TOAST_THROTTLE_MS = 250;
 
   useEffect(() => {
     return () => { if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current); };
@@ -143,7 +152,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
   const isConnected = activeBroker && connections[activeBroker]?.connected;
 
-  const handleTrade = useCallback(async (side: 'buy' | 'sell') => {
+  const handleTrade = useCallback((side: 'buy' | 'sell') => {
     if (!activeBroker) {
       toast.error('No broker selected — open Data Feeds to configure one');
       return;
@@ -152,101 +161,99 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
       toast.error(`Broker ${activeBroker} not connected`);
       return;
     }
-    if (isSubmitting) return;
+
+    // Spam gate (synchronous via ref — no React render needed)
+    const now = performance.now();
+    if (now - lastFireRef.current[side] < SPAM_GATE_MS) return;
+    lastFireRef.current[side] = now;
 
     const isLimit = orderType === 'limit' || orderType === 'stop_limit';
-    const isStop = orderType === 'stop' || orderType === 'stop_limit';
+    const isStop  = orderType === 'stop'  || orderType === 'stop_limit';
 
-    // For MARKET orders the price is whatever the market gives — we don't
-    // validate currentPrice here because the store falls back to useMarketStore
-    // and the broker/sim sets the actual fill. We only validate user-entered
-    // prices (limit/stop) which MUST be positive numbers.
     const price = isLimit ? parseFloat(limitPrice) : currentPrice;
     if (isLimit && (isNaN(price) || price <= 0)) {
       toast.error('Invalid limit price');
       return;
     }
-
     const stp = isStop ? parseFloat(stopPrice) : undefined;
     if (isStop && (!stp || isNaN(stp) || stp <= 0)) {
       toast.error('Invalid stop price');
       return;
     }
 
-    // Optimistic visual feedback — flash button immediately, before placeOrder
-    // resolves. Makes the UI feel zero-latency even though the order is already
-    // synchronous internally. If the order fails, the toast.error compensates.
+    // Optimistic visual feedback — fires immediately on click
     setLastAction({ side, time: Date.now() });
     if (lastActionTimerRef.current) clearTimeout(lastActionTimerRef.current);
-    lastActionTimerRef.current = setTimeout(() => setLastAction(null), 600);
+    lastActionTimerRef.current = setTimeout(() => setLastAction(null), 500);
 
-    setIsSubmitting(true);
-    try {
-      // Place main order
-      const result = await placeOrder({
-        broker: activeBroker,
-        symbol: symbol.toUpperCase(),
-        side,
-        type: orderType,
-        quantity: contractQuantity,
-        price: (orderType === 'limit' || orderType === 'stop_limit') ? price : undefined,
-        stopPrice: stp,
-        marketPrice: currentPrice,
-      });
+    // Fire-and-forget the order. placeOrder is synchronous internally for
+    // demo market orders — the store mutation lands on the same tick — but
+    // we don't AWAIT it so the click handler returns instantly and the
+    // next click is unblocked immediately.
+    const promise = placeOrder({
+      broker:      activeBroker,
+      symbol:      symbol.toUpperCase(),
+      side,
+      type:        orderType,
+      quantity:    contractQuantity,
+      price:       isLimit ? price : undefined,
+      stopPrice:   stp,
+      marketPrice: currentPrice,
+    });
 
+    // Toast handling — throttled per side so spam doesn't stack 10 toasts.
+    promise.then(result => {
+      const t = performance.now();
+      if (t - lastToastRef.current[side] < TOAST_THROTTLE_MS) return;
+      lastToastRef.current[side] = t;
       if (result) {
-        const sideLabel = side === 'buy' ? 'BUY' : 'SELL';
         const fillPrice = result.avgFillPrice ?? price;
         toast.success(
-          `${sideLabel} ${contractQuantity} ${symbol.toUpperCase()} @ ${fillPrice.toFixed(decimals)}`,
-          { duration: 1200 },
+          `${side === 'buy' ? 'BUY' : 'SELL'} ${contractQuantity} ${symbol.toUpperCase()} @ ${fillPrice.toFixed(decimals)}`,
+          { duration: 900 },
         );
       } else {
-        toast.error('Order failed', { duration: 1500 });
+        toast.error('Order failed', { duration: 1200 });
       }
+    });
 
-      // Place bracket orders (TP + SL) if enabled
-      if (bracketEnabled) {
+    // Bracket orders (TP + SL) — fired in parallel after main resolves so
+    // they get the actual entry price.
+    if (bracketEnabled) {
+      promise.then(() => {
         const tp = parseFloat(tpOffset);
         const sl = parseFloat(slOffset);
-        const entryPrice = (orderType === 'limit' || orderType === 'stop_limit') ? price : currentPrice;
+        const entryPrice = isLimit ? price : currentPrice;
         const oppositeSide = side === 'buy' ? 'sell' : 'buy';
 
-        // TP order (limit on opposite side)
         if (tp > 0) {
           const tpPrice = side === 'buy' ? entryPrice + tp : entryPrice - tp;
-          await placeOrder({
-            broker: activeBroker,
-            symbol: symbol.toUpperCase(),
-            side: oppositeSide,
-            type: 'limit',
-            quantity: contractQuantity,
-            price: parseFloat(tpPrice.toFixed(decimals)),
+          placeOrder({
+            broker:      activeBroker,
+            symbol:      symbol.toUpperCase(),
+            side:        oppositeSide,
+            type:        'limit',
+            quantity:    contractQuantity,
+            price:       parseFloat(tpPrice.toFixed(decimals)),
             marketPrice: currentPrice,
           });
         }
 
-        // SL order (stop on opposite side)
         if (sl > 0) {
           const slPrice = side === 'buy' ? entryPrice - sl : entryPrice + sl;
-          await placeOrder({
-            broker: activeBroker,
-            symbol: symbol.toUpperCase(),
-            side: oppositeSide,
-            type: 'stop',
-            quantity: contractQuantity,
-            stopPrice: parseFloat(slPrice.toFixed(decimals)),
+          placeOrder({
+            broker:      activeBroker,
+            symbol:      symbol.toUpperCase(),
+            side:        oppositeSide,
+            type:        'stop',
+            quantity:    contractQuantity,
+            stopPrice:   parseFloat(slPrice.toFixed(decimals)),
             marketPrice: currentPrice,
           });
         }
-      }
-
-    } catch {
-      // Order failed — error toast already shown above
-    } finally {
-      setIsSubmitting(false);
+      });
     }
-  }, [activeBroker, isConnected, isSubmitting, orderType, limitPrice, stopPrice, currentPrice, contractQuantity, symbol, placeOrder, bracketEnabled, tpOffset, slOffset, decimals]);
+  }, [activeBroker, isConnected, orderType, limitPrice, stopPrice, currentPrice, contractQuantity, symbol, placeOrder, bracketEnabled, tpOffset, slOffset, decimals]);
 
   const handleFlatten = useCallback(async () => {
     if (!activeBroker || !isConnected) return;
@@ -560,9 +567,8 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
       <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={() => handleTrade('sell')}
-          disabled={isSubmitting}
           title="Sell at market (S)"
-          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 disabled:opacity-40 hover:brightness-110 flex items-center gap-1.5"
+          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5"
           style={{
             backgroundColor: lastAction?.side === 'sell' ? '#b91c1c' : '#ef4444',
             color: '#fff',
@@ -577,9 +583,8 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         </button>
         <button
           onClick={() => handleTrade('buy')}
-          disabled={isSubmitting}
           title="Buy at market (B)"
-          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 disabled:opacity-40 hover:brightness-110 flex items-center gap-1.5"
+          className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5"
           style={{
             backgroundColor: lastAction?.side === 'buy' ? '#047857' : '#10b981',
             color: '#fff',
