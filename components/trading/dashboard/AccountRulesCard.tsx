@@ -140,7 +140,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
       {/* PASSED — celebration banner with download cert button */}
       {rules.accountState === 'PASSED' && (
         <div
-          className="px-3 py-2.5 rounded flex items-center justify-between gap-3"
+          className="px-3 py-2.5 rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3"
           style={{
             background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(74,222,128,0.12))',
             border: '1px solid rgba(168,85,247,0.35)',
@@ -164,7 +164,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
       {/* LOCKED — failure banner with download "Combine Concluded" cert */}
       {rules.accountState === 'LOCKED' && (
         <div
-          className="px-3 py-2.5 rounded flex items-center justify-between gap-3"
+          className="px-3 py-2.5 rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3"
           style={{
             background: 'rgba(239,68,68,0.10)',
             border:     '1px solid rgba(239,68,68,0.35)',
@@ -192,7 +192,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
         && positions.length >= 0
         && useTradingStore.getState().closedTrades.length >= 5 && (
         <div
-          className="px-3 py-2.5 rounded flex items-center justify-between gap-3"
+          className="px-3 py-2.5 rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3"
           style={{
             background: 'rgba(168,139,250,0.10)',
             border:     '1px solid rgba(168,139,250,0.35)',

@@ -18,6 +18,7 @@ import QuickActions        from '@/components/trading/dashboard/QuickActions';
 import QuickTradePanel     from '@/components/trading/dashboard/QuickTradePanel';
 import RiskCalculator      from '@/components/trading/dashboard/RiskCalculator';
 import SymbolFilter        from '@/components/trading/dashboard/SymbolFilter';
+import HotkeysModal        from '@/components/trading/dashboard/HotkeysModal';
 import DemoAccountPanel    from '@/components/trading/DemoAccountPanel';
 
 /**
@@ -34,10 +35,11 @@ export default function TradingPage() {
     })),
   );
 
-  const [showDemoPanel, setShowDemoPanel]   = useState(false);
-  const [showRulesModal, setShowRulesModal] = useState(false);
-  const [range, setRange]                   = useState<TimeRange>('all');
-  const [symbolFilter, setSymbolFilter]     = useState<string | null>(null);
+  const [showDemoPanel, setShowDemoPanel]     = useState(false);
+  const [showRulesModal, setShowRulesModal]   = useState(false);
+  const [showHotkeysModal, setShowHotkeysModal] = useState(false);
+  const [range, setRange]                     = useState<TimeRange>('all');
+  const [symbolFilter, setSymbolFilter]       = useState<string | null>(null);
 
   const broker  = activeBroker ?? 'demo';
   const balance = connections[broker]?.balance ?? 0;
@@ -99,7 +101,7 @@ export default function TradingPage() {
       </div>
 
       {/* ─── Quick actions ────────────────────── */}
-      <QuickActions onReset={handleResetAccount} />
+      <QuickActions onReset={handleResetAccount} onHotkeys={() => setShowHotkeysModal(true)} />
 
       {/* ─── Account stats ────────────────────── */}
       <AccountCard />
@@ -140,8 +142,9 @@ export default function TradingPage() {
         Open positions <span className="tabular-nums">{positions.length}</span> · Pending <span className="tabular-nums">{orders.filter(o => o.status === 'pending').length}</span> · Closed <span className="tabular-nums">{closedTrades.length}</span>
       </div>
 
-      <DemoAccountPanel  isOpen={showDemoPanel}  onClose={() => setShowDemoPanel(false)} />
-      <AccountRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
+      <DemoAccountPanel  isOpen={showDemoPanel}    onClose={() => setShowDemoPanel(false)} />
+      <AccountRulesModal isOpen={showRulesModal}   onClose={() => setShowRulesModal(false)} />
+      <HotkeysModal      isOpen={showHotkeysModal} onClose={() => setShowHotkeysModal(false)} />
     </div>
   );
 }

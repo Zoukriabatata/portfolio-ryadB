@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { useAccountRulesStore } from '@/stores/useAccountRulesStore';
+import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
 
 const POPULAR_SYMBOLS = [
   'BTCUSDT', 'ETHUSDT', 'SOLUSDT',
@@ -40,6 +41,11 @@ export default function QuickTradePanel() {
     lockedReason: s.lockedReason,
   })));
   const blocked = rulesEnabled && (accountState === 'LOCKED' || accountState === 'PASSED');
+
+  const { soundEnabled, setSoundEnabled } = useAccountPrefsStore(useShallow(s => ({
+    soundEnabled:    s.soundEnabled,
+    setSoundEnabled: s.setSoundEnabled,
+  })));
 
   const [symbolInput, setSymbolInput] = useState(tradingSymbol.toUpperCase());
   useEffect(() => setSymbolInput(tradingSymbol.toUpperCase()), [tradingSymbol]);
@@ -113,7 +119,17 @@ export default function QuickTradePanel() {
       style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Quick Trade</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Quick Trade</h3>
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            title={soundEnabled ? 'Mute trade sounds' : 'Unmute trade sounds'}
+            className="text-[12px] px-1.5 py-0.5 rounded transition-colors hover:bg-[var(--surface-elevated)]"
+            style={{ color: soundEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}
+          >
+            {soundEnabled ? '🔊' : '🔇'}
+          </button>
+        </div>
         {livePrice > 0 && (
           <span className="text-[11px] tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
             {livePrice.toFixed(2)}

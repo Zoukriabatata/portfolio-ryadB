@@ -1,18 +1,19 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
 import { useTradingStore, type ClosedTrade } from '@/stores/useTradingStore';
 
-const MAX_ROWS = 20;
+const PAGE_SIZE = 20;
+const PAGE_SIZES = [10, 20, 50, 100];
 
 interface TradeHistoryProps {
   symbolFilter?: string | null;
 }
 
 /**
- * Trade history — last 20 closed trades, newest first.
+ * Trade history — paginated, newest first.
  * Shows entry/exit/P&L per trade with timestamps.
  */
 export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps) {
@@ -20,14 +21,29 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
     useShallow(s => ({ closedTrades: s.closedTrades })),
   );
 
+  const [page, setPage]         = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE);
+
   const filtered = useMemo(
     () => symbolFilter ? closedTrades.filter(t => t.symbol === symbolFilter) : closedTrades,
     [closedTrades, symbolFilter],
   );
 
-  const recent = useMemo(
-    () => [...filtered].sort((a, b) => b.exitTime - a.exitTime).slice(0, MAX_ROWS),
+  const sorted = useMemo(
+    () => [...filtered].sort((a, b) => b.exitTime - a.exitTime),
     [filtered],
+  );
+
+  // When the dataset shrinks (e.g. symbolFilter switched, account reset),
+  // snap back to a valid page so we never display an empty page.
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+  useEffect(() => {
+    if (page >= pageCount) setPage(0);
+  }, [page, pageCount]);
+
+  const visible = useMemo(
+    () => sorted.slice(page * pageSize, page * pageSize + pageSize),
+    [sorted, page, pageSize],
   );
 
   const handleExportCsv = useCallback(() => {
@@ -40,7 +56,7 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
     toast.success(`Exported ${filtered.length} trade${filtered.length > 1 ? 's' : ''}`, { duration: 1500 });
   }, [filtered]);
 
-  if (recent.length === 0) {
+  if (visible.length === 0) {
     return (
       <Card title="Recent Trades" badge="0">
         <EmptyRow text="No trades closed yet. Once you close a position, the trade history shows up here." />
@@ -48,11 +64,14 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
     );
   }
 
+  const startIdx = page * pageSize + 1;
+  const endIdx   = Math.min(sorted.length, (page + 1) * pageSize);
+
   return (
     <Card
       title="Recent Trades"
       badge={`${filtered.length}`}
-      subBadge={recent.length < filtered.length ? `showing last ${recent.length}` : undefined}
+      subBadge={sorted.length > pageSize ? `showing ${startIdx}–${endIdx}` : undefined}
       action={
         <button
           onClick={handleExportCsv}
@@ -79,7 +98,7 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
             </tr>
           </thead>
           <tbody>
-            {recent.map(t => {
+            {visible.map(t => {
               const isLong = t.side === 'buy';
               const pnlColor = t.pnl >= 0 ? '#10b981' : '#ef4444';
               return (
@@ -118,7 +137,54 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
           </tbody>
         </table>
       </div>
+
+      {/* Pagination footer — only when more than one page exists */}
+      {sorted.length > pageSize && (
+        <div
+          className="flex items-center justify-between px-4 py-2 border-t text-[11px]"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+        >
+          <div className="flex items-center gap-2">
+            <span>Rows</span>
+            <select
+              value={pageSize}
+              onChange={e => { setPageSize(parseInt(e.target.value, 10)); setPage(0); }}
+              className="px-1.5 py-0.5 rounded text-[11px] tabular-nums focus:outline-none"
+              style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            >
+              {PAGE_SIZES.map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <PageButton onClick={() => setPage(0)}            disabled={page === 0}>«</PageButton>
+            <PageButton onClick={() => setPage(p => p - 1)}   disabled={page === 0}>‹</PageButton>
+            <span className="px-2 tabular-nums">
+              <span style={{ color: 'var(--text-primary)' }}>{page + 1}</span>
+              <span> / {pageCount}</span>
+            </span>
+            <PageButton onClick={() => setPage(p => p + 1)}   disabled={page >= pageCount - 1}>›</PageButton>
+            <PageButton onClick={() => setPage(pageCount - 1)} disabled={page >= pageCount - 1}>»</PageButton>
+          </div>
+        </div>
+      )}
     </Card>
+  );
+}
+
+function PageButton({
+  children, onClick, disabled,
+}: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-6 h-6 rounded text-[12px] font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125"
+      style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+    >
+      {children}
+    </button>
   );
 }
 

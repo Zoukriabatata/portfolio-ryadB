@@ -6,14 +6,15 @@ import { toast } from 'sonner';
 import { useTradingStore } from '@/stores/useTradingStore';
 
 interface QuickActionsProps {
-  onReset: () => void;
+  onReset:    () => void;
+  onHotkeys?: () => void;
 }
 
 /**
  * Quick action bar for the trading dashboard — global actions across
  * all symbols / all positions. Sits at the top of the dashboard.
  */
-export default function QuickActions({ onReset }: QuickActionsProps) {
+export default function QuickActions({ onReset, onHotkeys }: QuickActionsProps) {
   const { positions, orders, closePosition, cancelOrder } = useTradingStore(
     useShallow(s => ({
       positions:     s.positions,
@@ -68,6 +69,14 @@ export default function QuickActions({ onReset }: QuickActionsProps) {
         title="Cancel all pending limit/stop orders"
       />
       <div className="flex-1" />
+      {onHotkeys && (
+        <Action
+          label="? Hotkeys"
+          onClick={onHotkeys}
+          color="default"
+          title="Show keyboard shortcuts for /live trading"
+        />
+      )}
       <Action
         label="Reset Account"
         onClick={onReset}
