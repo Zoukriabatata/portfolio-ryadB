@@ -61,7 +61,7 @@ model User {
   promoCodeUsages   PromoCodeUsage[]
   dailyNotes        DailyNote[]
   playbookSetups    PlaybookSetup[]
-  priceAlerts       PriceAlert[]
+  license           License?
 
   @@index([email])
   @@index([customerId])
@@ -331,24 +331,65 @@ model PlaybookSetup {
   @@index([userId])
 }
 
-// ============ PRICE ALERT MODEL ============
-model PriceAlert {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+// NOTE: PriceAlert model temporarily removed to align schema with live DB
+// (the table was never pushed). Will be reintroduced in a dedicated PR
+// with a proper add_price_alert migration. Client-side hook usePriceAlerts
+// continues to fetch /api/alerts/* which now returns HTTP 503 stubs.
 
-  symbol      String   // e.g. "BTCUSDT"
-  condition   String   // "above" | "below"
-  targetPrice Float
-  label       String?  // optional user note
+// ============ LICENSE STATUS ENUM ============
+enum LicenseStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
 
-  triggered   Boolean  @default(false)
-  triggeredAt DateTime?
+// ============ LICENSE MODEL (desktop app) ============
+// One license per user. Created automatically when their first Stripe
+// subscription becomes 'active' (handled in /api/stripe/webhook in step 1.2).
+//
+// IMPORTANT: this is the IDENTITY the desktop app authenticates against.
+// Independent from the web `Session` / `Device` models which track
+// browser sessions on the website.
+model License {
+  id           String        @id @default(cuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  emailSent   Boolean  @default(false)
+  // Format "OFV2-<uuid v4>" — generated server-side at License creation time.
+  // The desktop app sends it back to /api/license/heartbeat for fast lookup.
+  licenseKey   String        @unique
 
-  createdAt   DateTime @default(now())
+  status       LicenseStatus @default(ACTIVE)  // kill-switch for credential sharing abuse
+  maxMachines  Int           @default(2)       // PC + laptop (Topstep / ATAS standard)
 
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  machines     Machine[]
+
+  @@index([licenseKey])
   @@index([userId])
-  @@index([symbol, triggered])
+}
+
+// ============ MACHINE MODEL (desktop installs) ============
+// Tracks desktop app installs per license. Hardware-fingerprint based.
+// Different from `Device` which tracks web browser fingerprints.
+//
+// `lastHeartbeatAt > now() - 7 days` defines an "active" machine for
+// the max-machines counting in /api/license/login.
+model Machine {
+  id              String   @id @default(cuid())
+  licenseId       String
+  license         License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  machineId       String   // hardware fingerprint from Tauri (machine-uid crate)
+  os              String?  // "windows" | "macos" | "linux" — optional for tolerant edge cases
+  appVersion      String?  // semver of installed app, e.g. "0.1.3"
+
+  firstSeenAt     DateTime @default(now())
+  lastHeartbeatAt DateTime @default(now())
+
+  @@unique([licenseId, machineId])
+  @@index([licenseId])
+  @@index([lastHeartbeatAt])
 }
