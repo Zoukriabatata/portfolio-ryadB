@@ -58,3 +58,5 @@ prisma/dev.db-journal
 nul
 
 .vercel
+
+backups/
