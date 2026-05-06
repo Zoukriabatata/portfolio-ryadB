@@ -1,0 +1,140 @@
+//! OrderflowV2 Desktop — Tauri entry point + IPC commands.
+//!
+//! The desktop app is a thin shell whose only responsibility for the MVP
+//! is to authenticate the user against /api/license/login and keep the
+//! session alive via /api/license/heartbeat. The actual trading UI will
+//! land in later phases.
+
+mod auth;
+mod machine;
+
+use auth::{LoginResponse, Session};
+use std::path::PathBuf;
+use std::sync::Arc;
+use tauri::{AppHandle, Manager, State};
+use tokio::sync::Mutex;
+
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Shared app state — holds the current session in memory so subsequent
+/// invokes don't have to re-read the session file.
+struct AppState {
+    session: Mutex<Option<Session>>,
+    /// Where session.json lives. Captured at startup so async commands
+    /// don't need an AppHandle to resolve it.
+    data_dir: PathBuf,
+}
+
+fn err_to_string<E: std::fmt::Display>(e: E) -> String {
+    e.to_string()
+}
+
+/* ─── IPC commands ─────────────────────────────────────────────── */
+
+#[tauri::command]
+async fn cmd_get_session(state: State<'_, Arc<AppState>>) -> Result<Option<Session>, String> {
+    Ok(state.session.lock().await.clone())
+}
+
+#[tauri::command]
+async fn cmd_get_machine_id() -> Result<String, String> {
+    machine::get_machine_id().map_err(err_to_string)
+}
+
+#[tauri::command]
+async fn cmd_login(
+    email: String,
+    password: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<LoginResponse, String> {
+    let machine_id = machine::get_machine_id().map_err(err_to_string)?;
+    let os = machine::get_os();
+
+    let resp = auth::login(&email, &password, &machine_id, Some(os), Some(APP_VERSION))
+        .await
+        .map_err(err_to_string)?;
+
+    let session = Session {
+        token:      resp.token.clone(),
+        expires_at: resp.expires_at.clone(),
+        license:    resp.license.clone(),
+    };
+    auth::save_session(&state.data_dir, &session)
+        .await
+        .map_err(err_to_string)?;
+    *state.session.lock().await = Some(session);
+
+    Ok(resp)
+}
+
+#[tauri::command]
+async fn cmd_logout(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+    auth::clear_session(&state.data_dir).await.map_err(err_to_string)?;
+    *state.session.lock().await = None;
+    Ok(())
+}
+
+#[tauri::command]
+async fn cmd_heartbeat(state: State<'_, Arc<AppState>>) -> Result<LoginResponse, String> {
+    let token = {
+        let guard = state.session.lock().await;
+        guard.as_ref().ok_or_else(|| "NO_SESSION".to_string())?.token.clone()
+    };
+    let os = machine::get_os();
+
+    let resp = auth::heartbeat(&token, Some(os), Some(APP_VERSION))
+        .await
+        .map_err(err_to_string)?;
+
+    let session = Session {
+        token:      resp.token.clone(),
+        expires_at: resp.expires_at.clone(),
+        license:    resp.license.clone(),
+    };
+    auth::save_session(&state.data_dir, &session)
+        .await
+        .map_err(err_to_string)?;
+    *state.session.lock().await = Some(session);
+
+    Ok(resp)
+}
+
+/* ─── setup ────────────────────────────────────────────────────── */
+
+fn build_state(app: &AppHandle) -> Arc<AppState> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .expect("could not resolve app data dir");
+
+    // Best-effort load of any persisted session — failures fall through
+    // to "logged out" rather than crashing on first launch.
+    let initial = std::fs::read(data_dir.join("session.json"))
+        .ok()
+        .and_then(|b| serde_json::from_slice::<Session>(&b).ok());
+
+    Arc::new(AppState {
+        session: Mutex::new(initial),
+        data_dir,
+    })
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let state = build_state(&app.handle());
+            app.manage(state);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            cmd_get_session,
+            cmd_get_machine_id,
+            cmd_login,
+            cmd_logout,
+            cmd_heartbeat,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

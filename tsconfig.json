@@ -41,6 +41,7 @@
     "gateway",
     "PORTFOLIO",
     "electron",
-    ".electron"
+    ".electron",
+    "desktop"
   ]
 }

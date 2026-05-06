@@ -1,0 +1,198 @@
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import "./App.css";
+
+interface LicenseSnapshot {
+  license_key:     string;
+  status:          string;
+  max_machines:    number;
+  active_machines: number;
+}
+
+interface Session {
+  token:      string;
+  expires_at: string;
+  license:    LicenseSnapshot;
+}
+
+const HEARTBEAT_MS = 4 * 60 * 60 * 1000; // 4h
+
+function App() {
+  const [session, setSession]   = useState<Session | null>(null);
+  const [machineId, setMachineId] = useState<string>("");
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  // Load any persisted session + machineId on mount.
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await invoke<Session | null>("cmd_get_session");
+        setSession(s);
+      } catch (e) {
+        console.error("get_session failed", e);
+      }
+      try {
+        const id = await invoke<string>("cmd_get_machine_id");
+        setMachineId(id);
+      } catch (e) {
+        console.error("get_machine_id failed", e);
+      }
+      setBootstrapped(true);
+    })();
+  }, []);
+
+  // Periodic heartbeat — refreshes the JWT every 4h while the app is open.
+  useEffect(() => {
+    if (!session) return;
+    const tick = async () => {
+      try {
+        const refreshed = await invoke<{ token: string; expiresAt: string; license: LicenseSnapshot }>("cmd_heartbeat");
+        setSession({ token: refreshed.token, expires_at: refreshed.expiresAt, license: refreshed.license });
+      } catch (e) {
+        console.warn("heartbeat failed", e);
+        // If the backend rejects the token (cancelled sub, revoked
+        // license, expired JWT, machine removed) — sign the user out
+        // so they get a clean re-login flow.
+        const msg = String(e);
+        if (msg.includes("NOT_SUBSCRIBED") ||
+            msg.includes("LICENSE_INACTIVE") ||
+            msg.includes("LICENSE_NOT_FOUND") ||
+            msg.includes("MACHINE_NOT_FOUND") ||
+            msg.includes("EXPIRED") ||
+            msg.includes("INVALID_SIGNATURE") ||
+            msg.includes("LICENSE_MISMATCH")) {
+          await invoke("cmd_logout").catch(() => {});
+          setSession(null);
+        }
+      }
+    };
+    const id = window.setInterval(tick, HEARTBEAT_MS);
+    return () => window.clearInterval(id);
+  }, [session]);
+
+  if (!bootstrapped) return <main className="boot">Loading…</main>;
+
+  return (
+    <main className="container">
+      {session
+        ? <Welcome session={session} machineId={machineId} onLogout={async () => { await invoke("cmd_logout"); setSession(null); }} />
+        : <Login onLogin={setSession} />}
+    </main>
+  );
+}
+
+function Login({ onLogin }: { onLogin: (s: Session) => void }) {
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy]         = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const resp = await invoke<{ token: string; expiresAt: string; license: LicenseSnapshot }>(
+        "cmd_login",
+        { email: email.trim(), password },
+      );
+      onLogin({ token: resp.token, expires_at: resp.expiresAt, license: resp.license });
+    } catch (raw) {
+      const msg = String(raw);
+      setError(prettifyError(msg));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="card" onSubmit={submit}>
+      <h1>OrderflowV2</h1>
+      <p className="muted">Sign in with your web account to unlock the desktop app.</p>
+
+      <label>
+        <span>Email</span>
+        <input
+          type="email"
+          autoComplete="username"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          disabled={busy}
+        />
+      </label>
+
+      <label>
+        <span>Password</span>
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          disabled={busy}
+        />
+      </label>
+
+      {error && <div className="error">{error}</div>}
+
+      <button type="submit" disabled={busy || !email || !password}>
+        {busy ? "Signing in…" : "Sign in"}
+      </button>
+
+      <p className="muted small">
+        No account yet? Sign up at <code>orderflowv2.com/auth/register</code>.
+      </p>
+    </form>
+  );
+}
+
+function Welcome({
+  session,
+  machineId,
+  onLogout,
+}: {
+  session: Session;
+  machineId: string;
+  onLogout: () => void;
+}) {
+  const expires = new Date(session.expires_at);
+  return (
+    <div className="card">
+      <h1>Welcome back</h1>
+      <p className="muted">Your desktop license is active.</p>
+
+      <dl>
+        <dt>License key</dt>
+        <dd><code>{session.license.license_key}</code></dd>
+
+        <dt>Status</dt>
+        <dd>{session.license.status}</dd>
+
+        <dt>Machines in use</dt>
+        <dd>{session.license.active_machines} / {session.license.max_machines}</dd>
+
+        <dt>This machine</dt>
+        <dd><code>{machineId.slice(0, 16)}…</code></dd>
+
+        <dt>Token expires</dt>
+        <dd>{expires.toLocaleString()}</dd>
+      </dl>
+
+      <button type="button" onClick={onLogout}>Sign out</button>
+    </div>
+  );
+}
+
+function prettifyError(raw: string): string {
+  if (raw.includes("INVALID_CREDENTIALS"))   return "Invalid email or password.";
+  if (raw.includes("ACCOUNT_LOCKED"))        return "Account temporarily locked. Try again in a few minutes.";
+  if (raw.includes("NOT_SUBSCRIBED"))        return "A PRO subscription is required to use the desktop app.";
+  if (raw.includes("SUBSCRIPTION_EXPIRED"))  return "Your subscription has expired.";
+  if (raw.includes("LICENSE_INACTIVE"))      return "Your license is suspended. Contact support.";
+  if (raw.includes("MAX_MACHINES_REACHED"))  return "This license is already in use on the maximum number of machines.";
+  if (raw.includes("network error"))         return "Network error — is the backend running?";
+  return raw;
+}
+
+export default App;

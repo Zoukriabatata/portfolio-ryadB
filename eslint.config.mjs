@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Tauri desktop app has its own toolchain — skip from web lint.
+    "desktop/**",
   ]),
   {
     rules: {
