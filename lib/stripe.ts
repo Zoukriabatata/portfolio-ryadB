@@ -90,26 +90,36 @@ export async function createOrGetCustomer(
 export interface CreateCheckoutParams {
   customerId: string;
   userId: string;
-  tier: 'ULTRA';
-  billingPeriod: 'monthly' | 'yearly';
+  // 'PRO' = new single-plan ($29/mo only, monthly). 'ULTRA' = legacy multi-tier kept for back-compat.
+  tier: 'PRO' | 'ULTRA';
+  // Required for ULTRA. Optional for PRO (defaults to 'monthly' — the only PRO billing).
+  billingPeriod?: 'monthly' | 'yearly';
   successUrl: string;
   cancelUrl: string;
   couponId?: string; // Optional Stripe coupon ID
   promoCodeUsageId?: string; // Optional promo code usage tracking ID
-  trialDays?: number; // Optional trial period in days
+  trialDays?: number; // Override default trial (PRO defaults to PRO_TRIAL_DAYS=14)
 }
 
 export async function createCheckoutSession(params: CreateCheckoutParams): Promise<string> {
   const { customerId, userId, tier, billingPeriod, successUrl, cancelUrl, couponId, promoCodeUsageId, trialDays } = params;
 
-  const priceId = STRIPE_PRICES[tier][billingPeriod];
+  // Resolve price ID per tier. PRO is monthly-only; ULTRA needs an explicit billingPeriod.
+  const resolvedBilling = billingPeriod ?? 'monthly';
+  const priceId = tier === 'PRO'
+    ? STRIPE_PRICES.PRO.monthly
+    : STRIPE_PRICES.ULTRA[resolvedBilling];
 
   if (!priceId || !priceId.startsWith('price_')) {
     throw new Error(
-      `Stripe price not configured for ${tier} ${billingPeriod}. ` +
+      `Stripe price not configured for ${tier} ${tier === 'PRO' ? 'monthly' : resolvedBilling}. ` +
       `Run: npx tsx scripts/setup-stripe.ts to create prices, then add IDs to .env.local`
     );
   }
+
+  // Auto-apply 14-day trial on every PRO subscription unless caller overrides.
+  // ULTRA (legacy) keeps the existing behavior — trial only via promo code.
+  const effectiveTrialDays = trialDays ?? (tier === 'PRO' ? PRO_TRIAL_DAYS : undefined);
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
@@ -127,7 +137,7 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
     metadata: {
       userId,
       tier,
-      billingPeriod,
+      billingPeriod: tier === 'PRO' ? 'monthly' : resolvedBilling,
       ...(promoCodeUsageId && { promoCodeUsageId }), // Include usage ID for webhook
     },
     subscription_data: {
@@ -135,7 +145,7 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
         userId,
         tier,
       },
-      ...(trialDays && { trial_period_days: trialDays }), // Add trial period if provided
+      ...(effectiveTrialDays && { trial_period_days: effectiveTrialDays }),
     },
     allow_promotion_codes: true,
   });
