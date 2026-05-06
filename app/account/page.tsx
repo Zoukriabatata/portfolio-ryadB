@@ -45,6 +45,23 @@ interface SupportTicket {
   response?: string;
 }
 
+interface LicenseMachine {
+  id: string;
+  machineId: string;
+  os: string | null;
+  appVersion: string | null;
+  firstSeenAt: string;
+  lastHeartbeatAt: string;
+}
+
+interface LicenseData {
+  licenseKey: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'REVOKED';
+  maxMachines: number;
+  createdAt: string;
+  machines: LicenseMachine[];
+}
+
 interface BrokerConnection {
   id: string;
   name: string;
@@ -179,6 +196,11 @@ function AccountContent() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
+  // License (desktop app)
+  const [license, setLicense] = useState<LicenseData | null>(null);
+  const [licenseLoaded, setLicenseLoaded] = useState(false);
+  const [licenseCopied, setLicenseCopied] = useState(false);
+
   // Connections
   const [expandedBroker, setExpandedBroker] = useState<string | null>(null);
   const [brokerFields, setBrokerFields] = useState<Record<string, Record<string, string>>>({});
@@ -217,6 +239,22 @@ function AccountContent() {
       return () => controller.abort();
     }
   }, [session, profileLoaded]);
+
+  // Load license info from API on mount (only for authenticated users)
+  useEffect(() => {
+    if (!session?.user || licenseLoaded) return;
+    const controller = new AbortController();
+    throttledFetch('/api/account/license', { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => {
+        if (data?.ok && data.data) setLicense(data.data as LicenseData);
+        setLicenseLoaded(true);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') setLicenseLoaded(true);
+      });
+    return () => controller.abort();
+  }, [session, licenseLoaded]);
 
   // Refresh session after successful payment
   useEffect(() => {
@@ -647,6 +685,96 @@ function AccountContent() {
                       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
                       {isLoading ? t('common.loading') : t('account.manageSubscription')}
                     </button>
+                  )}
+                </SectionCard>
+
+                <SectionCard title="Desktop License">
+                  {!licenseLoaded ? (
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</div>
+                  ) : !license ? (
+                    <div className="text-xs space-y-3" style={{ color: 'var(--text-muted)' }}>
+                      <p>
+                        No license yet. Your desktop license is generated automatically once your
+                        PRO subscription becomes active.
+                      </p>
+                      {session.user.tier !== 'PRO' && (
+                        <Link
+                          href="/pricing"
+                          className="inline-block px-4 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-90"
+                          style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #000)' }}
+                        >
+                          Start 14-day free trial
+                        </Link>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-0">
+                      <SettingRow label="License key" description="Used by the desktop app to authenticate">
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs px-2 py-1 rounded font-mono"
+                            style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                            {license.licenseKey}
+                          </code>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(license.licenseKey);
+                                setLicenseCopied(true);
+                                setTimeout(() => setLicenseCopied(false), 2000);
+                              } catch {}
+                            }}
+                            className="text-xs px-2 py-1 rounded transition-colors"
+                            style={{ color: 'var(--primary)' }}
+                          >
+                            {licenseCopied ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                      </SettingRow>
+                      <SettingRow label="Status">
+                        <span
+                          className="text-xs px-2 py-1 rounded-full font-medium"
+                          style={
+                            license.status === 'ACTIVE'
+                              ? { background: 'var(--success-bg)', color: 'var(--success)' }
+                              : license.status === 'SUSPENDED'
+                              ? { background: 'var(--warning-bg)', color: 'var(--warning)' }
+                              : { background: 'var(--error-bg)', color: 'var(--error)' }
+                          }
+                        >
+                          {license.status}
+                        </span>
+                      </SettingRow>
+                      <SettingRow label="Machines" description="PC + laptop allowed">
+                        <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
+                          {license.machines.length} / {license.maxMachines}
+                        </span>
+                      </SettingRow>
+                      {license.machines.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {license.machines.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between p-3 rounded-lg"
+                              style={{ background: 'var(--surface-elevated)' }}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                                  {m.os ?? 'Unknown OS'}
+                                  {m.appVersion ? ` · v${m.appVersion}` : ''}
+                                </div>
+                                <div className="text-[11px] mt-0.5 font-mono truncate" style={{ color: 'var(--text-muted)' }}>
+                                  {m.machineId.slice(0, 16)}…
+                                </div>
+                              </div>
+                              <div className="text-[11px] text-right shrink-0 ml-3" style={{ color: 'var(--text-muted)' }}>
+                                Last seen<br />
+                                {new Date(m.lastHeartbeatAt).toLocaleString()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </SectionCard>
               </>
