@@ -10,6 +10,7 @@
  */
 
 import { prisma } from '@/lib/db';
+import type { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 
 interface PromoCodeValidation {
@@ -216,15 +217,21 @@ export async function recordPromoCodeAttempt(
 }
 
 /**
- * Confirmer l'utilisation après paiement réussi
+ * Confirmer l'utilisation après paiement réussi.
+ *
+ * If called from inside an outer Prisma transaction, pass the tx client
+ * to ensure atomicity (the promo confirmation rolls back together with
+ * the surrounding payment row if anything fails). Without tx, falls back
+ * to a standalone $transaction — the original behavior.
  */
 export async function confirmPromoCodeUsage(
   usageId: string,
-  paymentId: string
+  paymentId: string,
+  tx?: Prisma.TransactionClient,
 ): Promise<void> {
+  const client = tx ?? prisma;
 
-  // Récupérer l'usage pour obtenir le promoCodeId
-  const usage = await prisma.promoCodeUsage.findUnique({
+  const usage = await client.promoCodeUsage.findUnique({
     where: { id: usageId },
     select: { promoCodeId: true },
   });
@@ -234,22 +241,30 @@ export async function confirmPromoCodeUsage(
     return;
   }
 
-  await prisma.$transaction([
-    // Marquer l'usage comme confirmé
-    prisma.promoCodeUsage.update({
+  // When called inside an outer interactive transaction, run the two
+  // updates directly on `tx` — they participate in the surrounding atomicity.
+  // Standalone call (no tx) wraps in its own atomic $transaction array.
+  if (tx) {
+    await tx.promoCodeUsage.update({
       where: { id: usageId },
-      data: {
-        paymentCompleted: true,
-        paymentId,
-      },
-    }),
-
-    // Incrémenter le compteur du code promo
-    prisma.promoCode.update({
+      data:  { paymentCompleted: true, paymentId },
+    });
+    await tx.promoCode.update({
       where: { id: usage.promoCodeId },
-      data: { usedCount: { increment: 1 } },
-    }),
-  ]);
+      data:  { usedCount: { increment: 1 } },
+    });
+  } else {
+    await prisma.$transaction([
+      prisma.promoCodeUsage.update({
+        where: { id: usageId },
+        data:  { paymentCompleted: true, paymentId },
+      }),
+      prisma.promoCode.update({
+        where: { id: usage.promoCodeId },
+        data:  { usedCount: { increment: 1 } },
+      }),
+    ]);
+  }
 }
 
 /**

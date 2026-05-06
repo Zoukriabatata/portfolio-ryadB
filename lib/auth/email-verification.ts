@@ -452,3 +452,65 @@ export async function sendPasswordResetEmail(
     text:    `Password Reset Request\n\nYou requested a password reset for your Senzoukria account. Visit the following link to choose a new password:\n${resetUrl}\n\nThis link expires in 24 hours.\n\nIf you did not request this, please ignore this email. Your password will remain unchanged.`,
   });
 }
+
+// ============ PRO WELCOME EMAIL ============
+
+/**
+ * Welcome email fired after a successful PRO subscription checkout.
+ * Differs from sendPaymentConfirmationEmail in tone (download-app oriented,
+ * not feature-list) and respects trial state (different banner copy).
+ * No tier/feature lists — the desktop app IS the product.
+ */
+export async function sendProWelcomeEmail(opts: {
+  email:           string;
+  name:            string | null;
+  amount:          number;       // in cents
+  currency:        string;
+  nextBillingDate: Date | null;
+  isInTrial:       boolean;
+}): Promise<boolean> {
+  const displayName = opts.name || opts.email.split('@')[0];
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://orderflow-v2.vercel.app';
+  const amountStr = new Intl.NumberFormat('en-US', {
+    style:                 'currency',
+    currency:              opts.currency.toUpperCase(),
+    minimumFractionDigits: 0,
+  }).format(opts.amount / 100);
+  const nextBilling = opts.nextBillingDate
+    ? opts.nextBillingDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
+
+  const trialBanner = opts.isInTrial && nextBilling
+    ? `<p style="margin: 0 0 16px; padding: 12px 16px; background: #1a1520; border-left: 3px solid #4ade80; border-radius: 8px; font-size: 13px; color: #94a3b8;">
+         <strong style="color: #4ade80;">Your free 14-day trial is active</strong> — first charge of ${amountStr} on ${nextBilling}.
+       </p>`
+    : '';
+
+  const content = `
+    <h2 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #e2e8f0;">Welcome to Pro, ${displayName}!</h2>
+    <p style="margin: 0 0 24px; font-size: 15px; color: #94a3b8; line-height: 1.6;">
+      Your OrderflowV2 Pro license has been activated. Use your account email to log in to the desktop app.
+    </p>
+    ${trialBanner}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+      <tr><td align="center">
+        <a href="${baseUrl}/download" target="_blank"
+           style="display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #4ade80, #22c55e); color: #0a0a0f; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px;">
+          Download Desktop App
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin: 0 0 16px; font-size: 13px; color: #94a3b8; text-align: center;">
+      Manage your subscription anytime from <a href="${baseUrl}/account" style="color: #a78bfa;">your account page</a>.
+    </p>
+  `;
+
+  const text = `Welcome to OrderflowV2 Pro, ${displayName}!\n\nYour license is active. Use your account email to log in to the desktop app.\n${opts.isInTrial && nextBilling ? `Free 14-day trial — first charge ${amountStr} on ${nextBilling}.\n` : ''}\nDownload: ${baseUrl}/download\nManage billing: ${baseUrl}/account`;
+
+  return sendEmail({
+    to:      opts.email,
+    subject: 'Welcome to OrderflowV2 Pro · Download your app',
+    content,
+    text,
+  });
+}
