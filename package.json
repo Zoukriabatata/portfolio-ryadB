@@ -82,6 +82,7 @@
     "express": "^4.22.1",
     "geist": "^1.7.0",
     "html2canvas": "^1.4.1",
+    "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",
     "lightweight-charts": "^5.1.0",
