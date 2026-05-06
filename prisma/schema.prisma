@@ -393,3 +393,21 @@ model Machine {
   @@index([licenseId])
   @@index([lastHeartbeatAt])
 }
+
+// ============ WEBHOOK IDEMPOTENCE TABLE ============
+// Tracks every Stripe webhook event we've processed so we can safely
+// ignore replays (Stripe retries failed deliveries up to 3 days).
+// Insert at the very start of the webhook handler — unique-violation
+// on eventId means "already processed, skip".
+//
+// No relation to User: events can concern any account, we don't need
+// to navigate from a user back to their events for this table's purpose.
+// processedAt indexed so a future cron can purge rows > 90 days old.
+model ProcessedWebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique  // Stripe event.id, e.g. "evt_1Ab..."
+  eventType   String              // e.g. "checkout.session.completed" — for debug / observability
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+}
