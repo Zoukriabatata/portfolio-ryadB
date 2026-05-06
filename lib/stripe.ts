@@ -10,13 +10,45 @@ if (!process.env.STRIPE_SECRET_KEY) {
   console.warn('Missing STRIPE_SECRET_KEY - payments will not work');
 }
 
+/**
+ * STRIPE_PRO_MONTHLY_PRICE_ID — required for the new single-plan ($29/mo)
+ * checkout flow. Throws at module load when running in production to fail
+ * fast on a misconfigured deploy; just warns in dev so localhost can boot
+ * without it (e.g. before the Stripe product has been created).
+ */
+if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[stripe] STRIPE_PRO_MONTHLY_PRICE_ID is required in production. ' +
+      'Create the "OrderflowV2 Pro" product in Stripe Dashboard ($29/mo recurring) ' +
+      'and set STRIPE_PRO_MONTHLY_PRICE_ID in Vercel env vars.',
+    );
+  } else {
+    console.warn('[stripe] STRIPE_PRO_MONTHLY_PRICE_ID is not set — PRO checkout will fail. OK in dev until the Stripe product is created.');
+  }
+}
+
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
   typescript: true,
 });
 
+/**
+ * Trial duration applied automatically on every PRO subscription.
+ * 14 days matches the standard SaaS funnel — long enough for the user
+ * to install the desktop app, connect their broker, and feel value.
+ */
+export const PRO_TRIAL_DAYS = 14;
+
 // ============ PRICE CONFIG ============
 
 export const STRIPE_PRICES = {
+  // NEW: single-plan replacement for the multi-tier ULTRA setup.
+  // The PRO tier is the only plan exposed to new users from now on.
+  PRO: {
+    monthly: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || '',
+  },
+  // Kept for back-compat with any existing ULTRA subscriptions in flight.
+  // Do NOT expose in new UI — see /pricing for the PRO-only frontend.
   ULTRA: {
     monthly: process.env.STRIPE_MONTHLY_PRICE_ID || process.env.STRIPE_ULTRA_MONTHLY_PRICE_ID || '',
     yearly: process.env.STRIPE_YEARLY_PRICE_ID || process.env.STRIPE_ULTRA_YEARLY_PRICE_ID || '',
