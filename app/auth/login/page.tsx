@@ -62,6 +62,18 @@ function LoginForm() {
     OAuthCallback:         'Google sign-in failed. Please try again.',
     oauth_error:           'Google sign-in failed. Try email & password instead.',
     account_locked:        'Your account is temporarily locked. Please try again later.',
+    desktop_bridge_no_token:            'Missing authentication token. Please open the desktop app and login again.',
+    desktop_bridge_stale_handoff:       'Login expired. Please retry from the desktop app.',
+    desktop_bridge_user_not_found:      'Account not found. Please contact support.',
+    desktop_bridge_not_subscribed:      'Your Pro subscription is not active.',
+    desktop_bridge_license_inactive:    'Your license has been suspended. Please contact support.',
+    desktop_bridge_machine_not_found:   'This device is not registered. Please open the desktop app and login again.',
+    desktop_bridge_db_unavailable:      'Service temporarily unavailable. Please retry in a moment.',
+    desktop_bridge_encode_error:        'Service temporarily unavailable. Please retry in a moment.',
+    desktop_bridge_invalid_signature:   'Invalid session. Please retry from the desktop app.',
+    desktop_bridge_expired:             'Login expired. Please retry from the desktop app.',
+    desktop_bridge_bad_payload:         'Invalid session. Please retry from the desktop app.',
+    desktop_bridge_keys_not_configured: 'Service misconfigured. Please contact support.',
   };
 
   const sessionData = useSession();

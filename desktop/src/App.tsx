@@ -15,12 +15,16 @@ interface Session {
   license:    LicenseSnapshot;
 }
 
+type HandoffState = { phase: 'loading' | 'failed'; token: string };
+
+const API_BASE     = 'http://localhost:3000';
 const HEARTBEAT_MS = 4 * 60 * 60 * 1000; // 4h
 
 function App() {
-  const [session, setSession]   = useState<Session | null>(null);
+  const [session, setSession]     = useState<Session | null>(null);
   const [machineId, setMachineId] = useState<string>("");
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [handoff, setHandoff]     = useState<HandoffState | null>(null);
 
   // Load any persisted session + machineId on mount.
   useEffect(() => {
@@ -41,6 +45,19 @@ function App() {
     })();
   }, []);
 
+  // If a session was restored from storage at boot, re-bridge directly
+  // to the web dashboard. The Welcome screen never shows in normal flow.
+  useEffect(() => {
+    if (!bootstrapped || !session || handoff) return;
+    setHandoff({ phase: 'loading', token: session.token });
+  }, [bootstrapped, session, handoff]);
+
+  // Run the actual handoff (with cleanup on unmount / re-trigger).
+  useEffect(() => {
+    if (!handoff || handoff.phase !== 'loading') return;
+    return navigateBridge(handoff.token, setHandoff);
+  }, [handoff]);
+
   // Periodic heartbeat — refreshes the JWT every 4h while the app is open.
   useEffect(() => {
     if (!session) return;
@@ -50,9 +67,6 @@ function App() {
         setSession({ token: refreshed.token, expires_at: refreshed.expiresAt, license: refreshed.license });
       } catch (e) {
         console.warn("heartbeat failed", e);
-        // If the backend rejects the token (cancelled sub, revoked
-        // license, expired JWT, machine removed) — sign the user out
-        // so they get a clean re-login flow.
         const msg = String(e);
         if (msg.includes("NOT_SUBSCRIBED") ||
             msg.includes("LICENSE_INACTIVE") ||
@@ -72,12 +86,80 @@ function App() {
 
   if (!bootstrapped) return <main className="boot">Loading…</main>;
 
+  if (handoff) return (
+    <main className="container">
+      <HandoffSplash
+        phase={handoff.phase}
+        onRetry={() => setHandoff({ phase: 'loading', token: handoff.token })}
+      />
+    </main>
+  );
+
   return (
     <main className="container">
       {session
-        ? <Welcome session={session} machineId={machineId} onLogout={async () => { await invoke("cmd_logout"); setSession(null); }} />
-        : <Login onLogin={setSession} />}
+        ? <Welcome
+            session={session}
+            machineId={machineId}
+            onLogout={async () => { await invoke("cmd_logout"); setSession(null); }}
+          />
+        : <Login onLogin={(s) => {
+            setSession(s);
+            setHandoff({ phase: 'loading', token: s.token });
+          }} />}
     </main>
+  );
+}
+
+/**
+ * After license/login the desktop hands off to the web backend's
+ * /api/auth/desktop-bridge so the webview gets a NextAuth session
+ * cookie and lands on /live. Splash is shown 1s minimum; if the
+ * navigation hasn't taken over after another 5s we surface a Retry
+ * control. Returns a cleanup that cancels both timers — designed to
+ * be the body of a useEffect (React strict-mode safe).
+ */
+function navigateBridge(
+  token: string,
+  setHandoff: (h: HandoffState | null) => void,
+): () => void {
+  const url = `${API_BASE}/api/auth/desktop-bridge`
+    + `?token=${encodeURIComponent(token)}`
+    + `&next=${encodeURIComponent('/live')}`;
+
+  let failTimerId: number | null = null;
+
+  const navTimerId = window.setTimeout(() => {
+    failTimerId = window.setTimeout(() => {
+      setHandoff({ phase: 'failed', token });
+    }, 5000);
+    window.location.href = url;
+  }, 1000);
+
+  return () => {
+    window.clearTimeout(navTimerId);
+    if (failTimerId !== null) window.clearTimeout(failTimerId);
+  };
+}
+
+function HandoffSplash({
+  phase, onRetry,
+}: {
+  phase: 'loading' | 'failed';
+  onRetry: () => void;
+}) {
+  return (
+    <div className="card">
+      <h1>{phase === 'loading' ? 'Loading dashboard…' : 'Connection failed'}</h1>
+      {phase === 'loading'
+        ? <p className="muted">Setting up your secure session.</p>
+        : (
+          <>
+            <p className="muted">Could not reach the dashboard. Check your connection and retry.</p>
+            <button type="button" onClick={onRetry}>Retry</button>
+          </>
+        )}
+    </div>
   );
 }
 
