@@ -60,3 +60,6 @@ nul
 .vercel
 
 backups/
+
+# session recap files (local notes, never committed)
+SESSION_*.md
