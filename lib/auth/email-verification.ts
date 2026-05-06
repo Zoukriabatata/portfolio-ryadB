@@ -341,7 +341,7 @@ export async function sendEmail(options: {
 // ============ PAYMENT CONFIRMATION EMAIL ============
 
 /**
- * Send a payment confirmation email after successful ULTRA subscription.
+ * Send a payment confirmation email after successful PRO subscription.
  * Non-blocking — fire and forget. Returns false if SMTP is not configured.
  */
 export async function sendPaymentConfirmationEmail(
@@ -369,14 +369,14 @@ export async function sendPaymentConfirmationEmail(
     : null;
 
   const content = `
-    <h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #e2e8f0;">Welcome to ULTRA, ${displayName}!</h2>
+    <h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #e2e8f0;">Welcome to PRO, ${displayName}!</h2>
     <p style="margin: 0 0 28px; font-size: 15px; color: #94a3b8; line-height: 1.6;">Your payment was successful. You now have full access to the Senzoukria professional suite.</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #0f0f1a; border: 1px solid #1e1e2e; border-radius: 10px; margin-bottom: 28px;">
       <tr><td style="padding: 24px 28px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr><td style="padding-bottom: 14px; border-bottom: 1px solid #1e1e2e;">
             <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Plan</span><br/>
-            <span style="font-size: 16px; font-weight: 600; color: #e2e8f0;">ULTRA — ${amountFormatted}/${periodLabel}</span>
+            <span style="font-size: 16px; font-weight: 600; color: #e2e8f0;">PRO — ${amountFormatted}/${periodLabel}</span>
           </td></tr>
           ${nextBilling ? `<tr><td style="padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid #1e1e2e;"><span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Next billing date</span><br/><span style="font-size: 15px; color: #cbd5e1;">${nextBilling}</span></td></tr>` : ''}
           <tr><td style="padding-top: 14px;">
@@ -409,9 +409,9 @@ export async function sendPaymentConfirmationEmail(
 
   return sendEmail({
     to: email,
-    subject: 'Welcome to Senzoukria ULTRA — Payment Confirmed',
+    subject: 'Welcome to Senzoukria PRO — Payment Confirmed',
     content,
-    text: `Welcome to ULTRA, ${displayName}!\n\nPayment: ${amountFormatted}/${periodLabel}\n${nextBilling ? `Next billing: ${nextBilling}\n` : ''}Status: Active\n\nOpen your dashboard: ${options.dashboardUrl}\n\nSenzoukria Team`,
+    text: `Welcome to PRO, ${displayName}!\n\nPayment: ${amountFormatted}/${periodLabel}\n${nextBilling ? `Next billing: ${nextBilling}\n` : ''}Status: Active\n\nOpen your dashboard: ${options.dashboardUrl}\n\nSenzoukria Team`,
   });
 }
 

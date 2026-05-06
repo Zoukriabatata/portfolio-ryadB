@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            subscriptionTier: 'ULTRA',
+            subscriptionTier: 'PRO',
             subscriptionId,
             subscriptionStart: new Date(),
             subscriptionEnd,
@@ -142,13 +142,13 @@ export async function POST(req: NextRequest) {
             amount: 5000, // 50€ in cents
             currency: 'eur',
             status: 'COMPLETED',
-            tier: 'ULTRA',
+            tier: 'PRO',
             billingPeriod: 'MONTHLY',
             completedAt: new Date(),
           },
         });
 
-        console.debug(`[PayPal] Activated ULTRA for ${payerEmail} until ${subscriptionEnd.toISOString()}`);
+        console.debug(`[PayPal] Activated PRO for ${payerEmail} until ${subscriptionEnd.toISOString()}`);
         break;
       }
 
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
             amount: 5000,
             currency: 'eur',
             status: 'FAILED',
-            tier: 'ULTRA',
+            tier: 'PRO',
             billingPeriod: 'MONTHLY',
           },
         });
@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            subscriptionTier: 'ULTRA',
+            subscriptionTier: 'PRO',
             subscriptionStart: new Date(),
             subscriptionEnd,
           },
@@ -227,13 +227,13 @@ export async function POST(req: NextRequest) {
             amount: Math.round(parseFloat(capture.amount?.value || '50') * 100),
             currency: capture.amount?.currency_code?.toLowerCase() || 'eur',
             status: 'COMPLETED',
-            tier: 'ULTRA',
+            tier: 'PRO',
             billingPeriod: 'MONTHLY',
             completedAt: new Date(),
           },
         });
 
-        console.debug(`[PayPal] One-time payment activated ULTRA for ${payerEmail}`);
+        console.debug(`[PayPal] One-time payment activated PRO for ${payerEmail}`);
         break;
       }
 

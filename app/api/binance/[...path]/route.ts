@@ -33,12 +33,12 @@ export async function GET(
     }
 
     // ✅ STEP 2: TIER VALIDATION FOR PREMIUM ENDPOINTS
-    // Real-time data streams require ULTRA subscription
+    // Real-time data streams require PRO subscription
     const premiumEndpoints = ['aggTrade', 'depth', 'ticker', 'bookTicker', 'trade'];
     const isPremiumEndpoint = premiumEndpoints.some(endpoint => pathStr.includes(endpoint));
 
     if (isPremiumEndpoint) {
-      const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+      const tierCheck = await requireTier('PRO', authResult.user.tier);
       if (tierCheck) {
         return NextResponse.json(
           { error: tierCheck.error },

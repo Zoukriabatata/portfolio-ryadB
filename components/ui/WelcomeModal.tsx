@@ -33,7 +33,7 @@ export default function WelcomeModal() {
 
   if (!mounted || !open) return null;
 
-  const isUltra = session?.user?.tier === 'ULTRA';
+  const isUltra = session?.user?.tier === 'PRO';
   const name = session?.user?.name?.split(' ')[0] || null;
 
   const modal = (
@@ -75,7 +75,7 @@ export default function WelcomeModal() {
           </h2>
           <p className="text-sm text-white/45 leading-relaxed mb-6">
             {isUltra
-              ? 'Your ULTRA plan is active. All professional tools are unlocked and ready.'
+              ? 'Your PRO plan is active. All professional tools are unlocked and ready.'
               : 'Your free account is ready. Start exploring live charts — upgrade anytime to unlock the full suite.'}
           </p>
 
@@ -93,8 +93,8 @@ export default function WelcomeModal() {
               : [
                   { icon: '📊', label: 'Live Charts' },
                   { icon: '⚙️', label: 'Drawing Tools' },
-                  { icon: '🔒', label: 'Footprint — ULTRA' },
-                  { icon: '🔒', label: 'Heatmap — ULTRA' },
+                  { icon: '🔒', label: 'Footprint — PRO' },
+                  { icon: '🔒', label: 'Heatmap — PRO' },
                 ]
             ).map((f, i) => (
               <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"

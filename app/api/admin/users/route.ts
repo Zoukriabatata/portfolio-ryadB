@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       const updatedUser = await prisma.user.update({
         where: { email },
         data: {
-          subscriptionTier: 'ULTRA',
+          subscriptionTier: 'PRO',
           subscriptionStart: new Date(),
           subscriptionEnd: endDate,
           maxDevices: 2,

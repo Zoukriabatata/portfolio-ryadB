@@ -81,13 +81,13 @@ export async function requireAuth(req: NextRequest): Promise<AuthResult | AuthEr
       };
     }
 
-    // Admin emails get ULTRA access regardless of subscription
+    // Admin emails get PRO access regardless of subscription
     const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
     const BETA_TESTER_EMAILS = (process.env.BETA_TESTER_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
     const userEmail = (token.email as string || '').toLowerCase();
     const isAdmin = ADMIN_EMAILS.includes(userEmail);
     const isBetaTester = BETA_TESTER_EMAILS.includes(userEmail);
-    const effectiveTier = (isAdmin || isBetaTester) ? 'ULTRA' : ((token.tier as string) || 'FREE');
+    const effectiveTier = (isAdmin || isBetaTester) ? 'PRO' : ((token.tier as string) || 'FREE');
 
     // Success - return user info and rate limit headers
     return {
@@ -121,14 +121,14 @@ export async function requireAuth(req: NextRequest): Promise<AuthResult | AuthEr
  *
  * Usage:
  * ```typescript
- * const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+ * const tierCheck = await requireTier('PRO', authResult.user.tier);
  * if (tierCheck) {
  *   return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
  * }
  * ```
  */
 export async function requireTier(
-  requiredTier: 'FREE' | 'ULTRA',
+  requiredTier: 'FREE' | 'PRO',
   userTier: string
 ): Promise<AuthError | null> {
   // FREE tier check (always passes)
@@ -136,9 +136,9 @@ export async function requireTier(
     return null;
   }
 
-  if (requiredTier === 'ULTRA' && userTier !== 'ULTRA') {
+  if (requiredTier === 'PRO' && userTier !== 'PRO') {
     return {
-      error: 'ULTRA subscription required for this feature. Please upgrade your plan.',
+      error: 'PRO subscription required for this feature. Please upgrade your plan.',
       status: 403,
     };
   }

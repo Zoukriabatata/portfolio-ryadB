@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         subject:  safeSubject,
         message:  safeMessage,
         category,
-        priority: session.user.tier === 'ULTRA' ? 'HIGH' : 'NORMAL',
+        priority: session.user.tier === 'PRO' ? 'HIGH' : 'NORMAL',
       },
     });
 
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const userName  = session.user.name  ?? userEmail.split('@')[0];
     const tier      = session.user.tier  ?? 'FREE';
     const catLabel  = CATEGORY_LABEL[category] ?? category;
-    const priority  = tier === 'ULTRA' ? 'HIGH' : 'NORMAL';
+    const priority  = tier === 'PRO' ? 'HIGH' : 'NORMAL';
 
     const emailContent = `
       <h2 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #e2e8f0;">
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
             </td></tr>
             <tr><td style="padding: 6px 0;">
               <span style="display:inline-block; min-width:90px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Tier</span>
-              <span style="font-size: 14px; color: ${tier === 'ULTRA' ? '#a78bfa' : '#94a3b8'};">${escapeHtml(tier)}</span>
+              <span style="font-size: 14px; color: ${tier === 'PRO' ? '#a78bfa' : '#94a3b8'};">${escapeHtml(tier)}</span>
             </td></tr>
             <tr><td style="padding: 6px 0;">
               <span style="display:inline-block; min-width:90px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #475569;">Priority</span>

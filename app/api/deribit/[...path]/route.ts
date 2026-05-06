@@ -25,8 +25,8 @@ export async function GET(
   const searchParams = request.nextUrl.searchParams.toString();
   const isTestnet = request.headers.get('x-testnet') === 'true';
 
-  // ✅ TIER VALIDATION - Options data requires ULTRA
-  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  // ✅ TIER VALIDATION - Options data requires PRO
+  const tierCheck = await requireTier('PRO', authResult.user.tier);
   if (tierCheck) {
     return NextResponse.json(
       { error: tierCheck.error },

@@ -22,7 +22,7 @@ const ROUTE_LABELS: Record<string, { name: string; icon: string }> = {
   '/footprint':  { name: 'Footprint Analysis', icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18' },
 };
 
-const ULTRA_FEATURES = [
+const PRO_FEATURES = [
   { label: 'Footprint charts (delta, volume, imbalance)', icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18' },
   { label: 'Liquidity heatmap (WebGL, real-time)', icon: 'M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z' },
   { label: 'GEX dashboard & gamma exposure', icon: 'M18 20V10M12 20V4M6 20v-6' },
@@ -72,7 +72,7 @@ function UpgradeContent() {
                 Your subscription has expired
               </h1>
               <p className="text-white/45 text-sm leading-relaxed max-w-sm mx-auto">
-                Renew your ULTRA plan to regain access to all professional tools.
+                Renew your PRO plan to regain access to all professional tools.
               </p>
             </>
           ) : featureInfo ? (
@@ -85,20 +85,20 @@ function UpgradeContent() {
                 {featureInfo.name}
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white/90 mb-3">
-                ULTRA plan required
+                PRO plan required
               </h1>
               <p className="text-white/45 text-sm leading-relaxed max-w-sm mx-auto">
-                <span style={{ color: 'var(--primary-light, #86efac)' }}>{featureInfo.name}</span> is only available on the ULTRA plan.
+                <span style={{ color: 'var(--primary-light, #86efac)' }}>{featureInfo.name}</span> is only available on the PRO plan.
                 Upgrade to unlock the full professional suite.
               </p>
             </>
           ) : (
             <>
               <h1 className="text-2xl md:text-3xl font-bold text-white/90 mb-3">
-                ULTRA plan required
+                PRO plan required
               </h1>
               <p className="text-white/45 text-sm leading-relaxed max-w-sm mx-auto">
-                This feature is only available on the ULTRA plan. Upgrade to unlock the full professional suite.
+                This feature is only available on the PRO plan. Upgrade to unlock the full professional suite.
               </p>
             </>
           )}
@@ -126,7 +126,7 @@ function UpgradeContent() {
 
           {/* Features grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4">
-            {ULTRA_FEATURES.map((f, i) => (
+            {PRO_FEATURES.map((f, i) => (
               <div key={i} className="flex items-center gap-2.5">
                 <div className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center"
                   style={{ background: 'rgb(var(--primary-rgb, 74 222 128) / 0.12)' }}>
@@ -148,7 +148,7 @@ function UpgradeContent() {
             className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-black transition-all duration-200 hover:-translate-y-0.5"
             style={{ background: 'linear-gradient(to right, var(--primary-light, #86efac), var(--primary, #4ade80))', boxShadow: '0 0 30px rgb(var(--primary-rgb, 74 222 128) / 0.3)' }}
           >
-            Upgrade to ULTRA — $29/mo
+            Upgrade to PRO — $29/mo
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>

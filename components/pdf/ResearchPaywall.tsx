@@ -176,7 +176,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
   const [purchaseError, setPurchaseError] = useState('');
 
   const isLoading = status === 'loading';
-  const isUltra = session?.user?.tier === 'ULTRA';
+  const isUltra = session?.user?.tier === 'PRO';
   const hasResearchPack = session?.user?.hasResearchPack === true;
   const hasAccess = isUltra || hasResearchPack;
   const isLoggedIn = !!session?.user;
@@ -284,7 +284,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
                 <span className="text-[11px]" style={{ color: 'var(--accent)' }}>
-                  Aussi inclus avec l&apos;abonnement SENULTRA
+                  Aussi inclus avec l&apos;abonnement SENPRO
                 </span>
               </div>
             </div>
@@ -371,7 +371,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <p className="text-center text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
                     Ou souscris à{' '}
                     <Link href="/pricing" className="underline" style={{ color: 'var(--accent)' }}>
-                      SENULTRA
+                      SENPRO
                     </Link>
                     {' '}pour accéder à tout
                   </p>

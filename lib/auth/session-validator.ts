@@ -105,8 +105,8 @@ export async function detectConcurrentSession(
     select: { subscriptionTier: true },
   }) : null;
 
-  // Max concurrent sessions: FREE=1, ULTRA=2
-  const maxSessions = user?.subscriptionTier === 'ULTRA' ? 2 : 1;
+  // Max concurrent sessions: FREE=1, PRO=2
+  const maxSessions = user?.subscriptionTier === 'PRO' ? 2 : 1;
 
   if (uniqueSessions > maxSessions) {
     await logSecurityEvent(userId, 'too_many_sessions', {

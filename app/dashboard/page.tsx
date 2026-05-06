@@ -1773,7 +1773,7 @@ function FearGreedWidget({ fg }: { fg: { value: number; classification: string }
 function UpgradeBanner() {
   const { data: session } = useSession();
   const [dismissed, setDismissed] = useState(false);
-  if (dismissed || session?.user?.tier === 'ULTRA') return null;
+  if (dismissed || session?.user?.tier === 'PRO') return null;
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12px] relative"
       style={{ background: 'linear-gradient(to right, rgba(74,222,128,0.06), rgba(139,92,246,0.06))', border: '1px solid rgba(74,222,128,0.12)' }}>

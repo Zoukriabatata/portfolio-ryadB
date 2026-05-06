@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // ✅ TIER VALIDATION - Trades data requires ULTRA
-  const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+  // ✅ TIER VALIDATION - Trades data requires PRO
+  const tierCheck = await requireTier('PRO', authResult.user.tier);
   if (tierCheck) {
     return NextResponse.json(
       { success: false, error: tierCheck.error },

@@ -13,7 +13,7 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  subscriptionTier: 'FREE' | 'ULTRA';
+  subscriptionTier: 'FREE' | 'PRO';
   subscriptionStart: string | null;
   subscriptionEnd: string | null;
   createdAt: string;
@@ -248,7 +248,7 @@ export default function AdminPage() {
           <div className="text-right text-sm" style={{ color: 'var(--text-dimmed)' }}>
             <div>Total utilisateurs: {users.length}</div>
             <div style={{ color: 'var(--primary-light)' }}>
-              Ultra actifs: {users.filter(u => u.subscriptionTier === 'ULTRA' && !isExpired(u.subscriptionEnd)).length}
+              Ultra actifs: {users.filter(u => u.subscriptionTier === 'PRO' && !isExpired(u.subscriptionEnd)).length}
             </div>
           </div>
         </div>
@@ -425,7 +425,7 @@ export default function AdminPage() {
                       <span
                         className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
                         style={
-                          user.subscriptionTier === 'ULTRA'
+                          user.subscriptionTier === 'PRO'
                             ? isExpired(user.subscriptionEnd)
                               ? { background: 'var(--error-bg)', color: 'var(--error)' }
                               : { background: 'var(--primary-glow)', color: 'var(--primary-light)' }
@@ -433,7 +433,7 @@ export default function AdminPage() {
                         }
                       >
                         {user.subscriptionTier}
-                        {user.subscriptionTier === 'ULTRA' && isExpired(user.subscriptionEnd) && ' (expiré)'}
+                        {user.subscriptionTier === 'PRO' && isExpired(user.subscriptionEnd) && ' (expiré)'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
@@ -449,7 +449,7 @@ export default function AdminPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
-                        {user.subscriptionTier !== 'ULTRA' || isExpired(user.subscriptionEnd) ? (
+                        {user.subscriptionTier !== 'PRO' || isExpired(user.subscriptionEnd) ? (
                           <button
                             onClick={() => handleAction(user.email, 'activate')}
                             disabled={actionLoading === user.email}

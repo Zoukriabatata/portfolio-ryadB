@@ -45,7 +45,7 @@ const FREE_FEATURES = [
   'Standard timeframes',
 ];
 
-const ULTRA_FEATURES = [
+const PRO_FEATURES = [
   'Everything in Free, plus:',
   'Footprint charts (delta, volume, imbalance)',
   'Liquidity heatmap (WebGL)',
@@ -74,7 +74,7 @@ function PricingContent() {
   const upgrade = searchParams.get('upgrade');
   const from = searchParams.get('from');
 
-  const isUltra = session?.user?.tier === 'ULTRA';
+  const isUltra = session?.user?.tier === 'PRO';
   const { t } = useTranslation();
 
   // Payment proof form state
@@ -157,7 +157,7 @@ function PricingContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tier: 'ULTRA',
+          tier: 'PRO',
           billingPeriod,
           promoCode: promoCode.trim() || undefined,
         }),
@@ -281,7 +281,7 @@ function PricingContent() {
                 color: 'var(--warning)',
               }}
             >
-              Upgrade required to access <strong>{from}</strong>. Choose the SENULTRA plan below.
+              Upgrade required to access <strong>{from}</strong>. Choose the SENPRO plan below.
             </div>
           )}
         </div>
@@ -348,7 +348,7 @@ function PricingContent() {
             </div>
           </div>
 
-          {/* SENULTRA Card */}
+          {/* SENPRO Card */}
           <div
             className="group stagger-fade-up rounded-2xl flex flex-col relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_40px_var(--primary-glow)] overflow-hidden"
             style={{
@@ -381,7 +381,7 @@ function PricingContent() {
                 className="text-xl font-semibold mb-1"
                 style={{ color: 'var(--text-primary)' }}
               >
-                SEN<span style={{ color: 'var(--primary-light)' }}>ULTRA</span>
+                SEN<span style={{ color: 'var(--primary-light)' }}>PRO</span>
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 {t('pricing.ultraDesc')}
@@ -414,7 +414,7 @@ function PricingContent() {
             </p>
 
             <ul className="space-y-3 mb-10 flex-1">
-              {ULTRA_FEATURES.map((feature, i) => (
+              {PRO_FEATURES.map((feature, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm">
                   <span style={{ color: 'var(--primary)' }} className="mt-0.5 shrink-0">
                     &#10003;
@@ -440,7 +440,7 @@ function PricingContent() {
                   color: 'var(--primary-light)',
                 }}
               >
-                You already have SENULTRA
+                You already have SENPRO
               </div>
             ) : session ? (
               <button
@@ -473,7 +473,7 @@ function PricingContent() {
         </div>
 
         {/* ----------------------------------------------------------------- */}
-        {/* Payment Methods (hidden if already ULTRA)                          */}
+        {/* Payment Methods (hidden if already PRO)                          */}
         {/* ----------------------------------------------------------------- */}
         {!isUltra && (
           <div id="payment-methods" className="max-w-4xl mx-auto mb-20">
@@ -691,7 +691,7 @@ function PricingContent() {
                 <tr style={{ background: 'var(--surface-elevated)' }}>
                   <th className="text-left py-3 px-4 font-medium" style={{ color: 'var(--text-muted)' }}>Feature</th>
                   <th className="text-center py-3 px-4 font-medium" style={{ color: 'var(--text-muted)' }}>Free</th>
-                  <th className="text-center py-3 px-4 font-medium" style={{ color: 'var(--primary-light)' }}>SENULTRA</th>
+                  <th className="text-center py-3 px-4 font-medium" style={{ color: 'var(--primary-light)' }}>SENPRO</th>
                 </tr>
               </thead>
               <tbody>
@@ -753,8 +753,8 @@ function PricingContent() {
                 a: 'All data is encrypted in transit (TLS) and at rest. We never store your broker credentials on our servers — they stay in your browser\'s local storage.',
               },
               {
-                q: 'Can I use SENULTRA on multiple devices?',
-                a: 'SENULTRA supports up to 2 concurrent devices. If a third device connects, the oldest session is automatically disconnected.',
+                q: 'Can I use SENPRO on multiple devices?',
+                a: 'SENPRO supports up to 2 concurrent devices. If a third device connects, the oldest session is automatically disconnected.',
               },
               {
                 q: 'Do I need a broker account to use the platform?',
@@ -796,7 +796,7 @@ function PricingContent() {
               Anti-Sharing Policy
             </h3>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Each SENULTRA account is limited to <strong style={{ color: 'var(--text-secondary)' }}>2 devices maximum</strong>.
+              Each SENPRO account is limited to <strong style={{ color: 'var(--text-secondary)' }}>2 devices maximum</strong>.
               Account sharing is automatically detected and will result in immediate suspension.
             </p>
           </div>

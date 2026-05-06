@@ -606,7 +606,7 @@ export async function GET(req: NextRequest) {
     if ('error' in authResult) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status, headers: authResult.headers });
     }
-    const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+    const tierCheck = await requireTier('PRO', authResult.user.tier);
     if (tierCheck) {
       return NextResponse.json({ error: tierCheck.error }, { status: tierCheck.status });
     }

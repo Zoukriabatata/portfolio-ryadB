@@ -28,7 +28,7 @@ model User {
   resetTokenExpiry  DateTime?
 
   // Subscription
-  subscriptionTier  String    @default("FREE") // FREE | ULTRA
+  subscriptionTier  String    @default("FREE") // FREE | PRO
   subscriptionId    String?   // Stripe subscription ID
   customerId        String?   // Stripe customer ID
   subscriptionStart DateTime?
@@ -142,7 +142,7 @@ model Payment {
   currency        String  @default("eur")
   status          String  @default("PENDING") // PENDING | COMPLETED | FAILED | REFUNDED | CANCELLED
 
-  tier            String  // FREE | ULTRA
+  tier            String  // FREE | PRO
   billingPeriod   String  // MONTHLY | YEARLY
 
   // Payment method

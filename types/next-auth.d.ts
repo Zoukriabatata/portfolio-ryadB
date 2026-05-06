@@ -8,7 +8,7 @@ declare module 'next-auth' {
       email: string;
       name: string | null;
       image?: string | null;
-      tier: 'FREE' | 'ULTRA';
+      tier: 'FREE' | 'PRO';
       deviceId: string;
       sessionId: string;
       hasResearchPack: boolean;
@@ -17,7 +17,7 @@ declare module 'next-auth' {
 
   interface User extends DefaultUser {
     id: string;
-    tier: 'FREE' | 'ULTRA';
+    tier: 'FREE' | 'PRO';
     deviceId?: string;
     sessionId?: string;
     hasResearchPack?: boolean;
@@ -31,7 +31,7 @@ declare module 'next-auth/jwt' {
     email: string;
     name: string | null;
     picture?: string | null;
-    tier: 'FREE' | 'ULTRA';
+    tier: 'FREE' | 'PRO';
     deviceId: string;
     sessionId: string;
     hasResearchPack: boolean;

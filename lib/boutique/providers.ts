@@ -11,7 +11,7 @@ import type { DataFeedProvider } from '@/stores/useDataFeedStore';
 export type { DataFeedProvider };
 
 export type ProviderCategory = 'crypto' | 'futures' | 'multi-asset';
-export type ProviderTier = 'FREE' | 'ULTRA';
+export type ProviderTier = 'FREE' | 'PRO';
 
 export interface ProviderField {
   key: string;
@@ -161,7 +161,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'rithmic',
     name: 'Rithmic',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'PRO',
     color: '#00c853',
     iconName: 'RithmicIcon',
     description: 'Industry-leading low-latency trading infrastructure. Direct exchange connectivity with sub-millisecond execution.',
@@ -190,7 +190,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'ib',
     name: 'Interactive Brokers',
     category: 'multi-asset',
-    tier: 'ULTRA',
+    tier: 'PRO',
     color: '#e31937',
     iconName: 'InteractiveBrokersIcon',
     description: 'Professional-grade broker with direct market access. Futures, options, stocks with low commissions and global coverage.',
@@ -209,7 +209,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'cqg',
     name: 'CQG',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'PRO',
     color: '#1976d2',
     iconName: 'CQGIcon',
     description: 'Institutional-grade market data and trading. Advanced charting and analytics with direct exchange connectivity.',
@@ -228,7 +228,7 @@ export const DATA_FEED_PROVIDERS: DataFeedProviderInfo[] = [
     id: 'amp',
     name: 'AMP Futures',
     category: 'futures',
-    tier: 'ULTRA',
+    tier: 'PRO',
     color: '#7c3aed',
     iconName: 'AMPIcon',
     description: 'Ultra-low commissions, multiple platform support. Direct market access for futures trading.',

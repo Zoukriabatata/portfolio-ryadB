@@ -25,7 +25,7 @@ const DEV_USER = {
   id: 'dev-user',
   email: 'dev@localhost',
   name: 'Developer',
-  tier: 'ULTRA' as SubscriptionTier,
+  tier: 'PRO' as SubscriptionTier,
   deviceId: 'dev-device',
   sessionId: 'dev-session',
 };
@@ -213,7 +213,7 @@ export const authOptions: NextAuthOptions = {
         // DEV MODE: Skip DB operations when not available
         if (!isPrismaAvailable() && process.env.NODE_ENV === 'development') {
           user.id = 'dev-user';
-          user.tier = 'ULTRA' as SubscriptionTier;
+          user.tier = 'PRO' as SubscriptionTier;
           user.deviceId = 'dev-device';
           user.sessionId = 'dev-session';
           return true;

@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         amount: amount || 5000, // 50€ in cents by default
         currency: 'eur',
         status: 'PENDING',
-        tier: 'ULTRA',
+        tier: 'PRO',
         billingPeriod: 'MONTHLY',
         paymentMethod: paymentMethod,
         proofText: proofText,

@@ -178,7 +178,7 @@ export function recordLoginAttempt(identifier: string, success: boolean): void {
 
 // ============ SUBSCRIPTION TIERS ============
 
-export type SubscriptionTier = 'FREE' | 'ULTRA';
+export type SubscriptionTier = 'FREE' | 'PRO';
 
 export interface TierConfig {
   name: string;
@@ -204,9 +204,9 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierConfig> = {
     ],
     pages: ['/', '/account'],
   },
-  ULTRA: {
-    name: 'ULTRA',
-    displayName: 'SENULTRA',
+  PRO: {
+    name: 'PRO',
+    displayName: 'SENPRO',
     price: 50,
     yearlyPrice: 480, // 2 months free
     maxDevices: 2,
@@ -244,12 +244,12 @@ export function canAccessPage(tier: SubscriptionTier, pathname: string): boolean
 
 export function getRequiredTierForPage(pathname: string): SubscriptionTier {
   // Check from lowest tier to highest
-  for (const tier of ['FREE', 'ULTRA'] as SubscriptionTier[]) {
+  for (const tier of ['FREE', 'PRO'] as SubscriptionTier[]) {
     if (canAccessPage(tier, pathname)) {
       return tier;
     }
   }
-  return 'ULTRA'; // Default to highest if not found
+  return 'PRO'; // Default to highest if not found
 }
 
 // ============ ENCRYPTION ============

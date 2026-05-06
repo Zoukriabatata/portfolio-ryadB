@@ -16,7 +16,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
 interface ProviderCardProps {
   provider: DataFeedProviderInfo;
   status: DataFeedStatus;
-  userTier?: 'FREE' | 'ULTRA';
+  userTier?: 'FREE' | 'PRO';
   onConfigure: (providerId: string) => void;
 }
 
@@ -83,7 +83,7 @@ export default function ProviderCard({ provider, status, onConfigure }: Provider
               color: provider.tier === 'FREE' ? 'var(--success)' : 'var(--accent)',
             }}
           >
-            {provider.tier === 'FREE' ? t('boutique.free') : 'ULTRA'}
+            {provider.tier === 'FREE' ? t('boutique.free') : 'PRO'}
           </span>
         </div>
 

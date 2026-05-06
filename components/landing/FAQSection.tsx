@@ -36,7 +36,7 @@ const FAQS = [
   {
     question: 'Is there a free trial?',
     answer:
-      'Yes, you can start with a free plan. No credit card required to explore the platform. The free plan includes the live candlestick chart, basic order flow data, and the trading journal. ULTRA tools (footprint, heatmap, GEX, volatility surface) are available with the paid plan.',
+      'Yes, you can start with a free plan. No credit card required to explore the platform. The free plan includes the live candlestick chart, basic order flow data, and the trading journal. PRO tools (footprint, heatmap, GEX, volatility surface) are available with the paid plan.',
   },
   {
     question: 'What markets are covered?',

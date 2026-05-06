@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
   if (!rl.allowed) return tooManyRequests(rl);
 
   const tier = token.tier as string;
-  if (tier !== 'ULTRA') {
+  if (tier !== 'PRO') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 

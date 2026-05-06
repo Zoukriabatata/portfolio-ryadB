@@ -99,7 +99,7 @@ async function checkRateLimit(ip: string, pathname: string): Promise<boolean> {
 // Admin emails (from env var, fallback to empty)
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 
-// Beta testers — get ULTRA access without payment (max 3 emails)
+// Beta testers — get PRO access without payment (max 3 emails)
 const BETA_TESTER_EMAILS = (process.env.BETA_TESTER_EMAILS || '')
   .split(',').map(e => e.trim().toLowerCase()).filter(Boolean).slice(0, 3);
 
@@ -126,24 +126,24 @@ const PROTECTED_ROUTES = [
 ];
 
 // Routes that require specific subscription tiers
-// ALL app features require ULTRA — FREE tier only gets landing, pricing, account
-const TIER_ROUTES: Record<string, ('FREE' | 'ULTRA')[]> = {
-  '/account': ['FREE', 'ULTRA'],
-  '/chart': ['ULTRA'],
-  '/live': ['ULTRA'],
-  '/bias': ['ULTRA'],
-  '/boutique': ['ULTRA'],
-  '/ai': ['ULTRA'],
-  '/reports': ['ULTRA'],
-  '/footprint': ['ULTRA'],
-  '/orderflow': ['ULTRA'],
-  '/volatility': ['ULTRA'],
-  '/gex': ['ULTRA'],
-  '/journal': ['ULTRA'],
-  '/replay': ['ULTRA'],
-  '/backtest': ['ULTRA'],
-  '/news': ['ULTRA'],
-  '/heatmap': ['ULTRA'],
+// ALL app features require PRO — FREE tier only gets landing, pricing, account
+const TIER_ROUTES: Record<string, ('FREE' | 'PRO')[]> = {
+  '/account': ['FREE', 'PRO'],
+  '/chart': ['PRO'],
+  '/live': ['PRO'],
+  '/bias': ['PRO'],
+  '/boutique': ['PRO'],
+  '/ai': ['PRO'],
+  '/reports': ['PRO'],
+  '/footprint': ['PRO'],
+  '/orderflow': ['PRO'],
+  '/volatility': ['PRO'],
+  '/gex': ['PRO'],
+  '/journal': ['PRO'],
+  '/replay': ['PRO'],
+  '/backtest': ['PRO'],
+  '/news': ['PRO'],
+  '/heatmap': ['PRO'],
 };
 
 // Public routes (no auth required)
@@ -421,7 +421,7 @@ async function runMiddleware(request: NextRequest, pathname: string) {
     }).catch(err => console.error('Geo check error:', err));
   }
 
-  // Beta testers get ULTRA access regardless of subscription
+  // Beta testers get PRO access regardless of subscription
   const userEmail = (token.email as string || '').toLowerCase();
 
   // Admin route protection — show 404 to non-admins (don't reveal /admin exists)
@@ -434,13 +434,13 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   const isBetaTester = BETA_TESTER_EMAILS.length > 0 && BETA_TESTER_EMAILS.includes(userEmail);
 
   // Check subscription tier for route access
-  const rawTier = token.tier as 'FREE' | 'ULTRA';
-  const userTier: 'FREE' | 'ULTRA' = (isAdmin || isBetaTester) ? 'ULTRA' : (rawTier || 'FREE');
+  const rawTier = token.tier as 'FREE' | 'PRO';
+  const userTier: 'FREE' | 'PRO' = (isAdmin || isBetaTester) ? 'PRO' : (rawTier || 'FREE');
 
-  // Special: /academy requires ULTRA OR hasResearchPack (one-time $39 purchase)
+  // Special: /academy requires PRO OR hasResearchPack (one-time $39 purchase)
   if (pathname.startsWith('/academy')) {
     const hasResearchPack = token.hasResearchPack === true;
-    if (userTier !== 'ULTRA' && !hasResearchPack && !isAdmin && !isBetaTester) {
+    if (userTier !== 'PRO' && !hasResearchPack && !isAdmin && !isBetaTester) {
       return NextResponse.redirect(new URL(`/upgrade?from=${encodeURIComponent(pathname)}`, request.url));
     }
   }
@@ -464,7 +464,7 @@ async function runMiddleware(request: NextRequest, pathname: string) {
   if (isExpired) {
     const expiredTier = 'FREE' as const;
 
-    // /academy: expired ULTRA still has access IF hasResearchPack (one-time purchase)
+    // /academy: expired PRO still has access IF hasResearchPack (one-time purchase)
     if (pathname.startsWith('/academy')) {
       const hasResearchPack = token.hasResearchPack === true;
       if (!hasResearchPack) {

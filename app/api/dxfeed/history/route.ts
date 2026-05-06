@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // ✅ TIER VALIDATION - Futures data requires ULTRA (unless user has own dxFeed key)
+  // ✅ TIER VALIDATION - Futures data requires PRO (unless user has own dxFeed key)
   let userDxFeedToken: string | null = null;
   try {
     const cfg = await prisma.dataFeedConfig.findFirst({
@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (!userDxFeedToken) {
-    // No personal token → require ULTRA tier for server-side public feed
-    const tierCheck = await requireTier('ULTRA', authResult.user.tier);
+    // No personal token → require PRO tier for server-side public feed
+    const tierCheck = await requireTier('PRO', authResult.user.tier);
     if (tierCheck) {
       return NextResponse.json(
         { error: tierCheck.error, requiresKey: true },

@@ -14,11 +14,11 @@ import { validatePromoCodeUsage, recordPromoCodeAttempt } from '@/lib/stripe/pro
 import { z } from 'zod';
 
 const subscriptionSchema = z.object({
-  // PRO = new single-plan ($29/mo monthly only). ULTRA = legacy multi-tier kept
-  // for back-compat; new UI exposes only PRO. Promo codes only apply to ULTRA
+  // PRO = new single-plan ($29/mo monthly only). PRO = legacy multi-tier kept
+  // for back-compat; new UI exposes only PRO. Promo codes only apply to PRO
   // for now (see 1.2.B notes — PRO promo codes will land in a dedicated PR).
-  tier: z.enum(['PRO', 'ULTRA']),
-  // Required for ULTRA. Optional for PRO — defaults to 'monthly' downstream.
+  tier: z.enum(['PRO', 'PRO']),
+  // Required for PRO. Optional for PRO — defaults to 'monthly' downstream.
   billingPeriod: z.enum(['monthly', 'yearly']).optional(),
   promoCode: z.string().max(30).optional(),
 }).strict();
@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'You already own the Research Pack' }, { status: 400 });
       }
 
-      // Already ULTRA? They get it for free
-      if (user.subscriptionTier === 'ULTRA') {
+      // Already PRO? They get it for free
+      if (user.subscriptionTier === 'PRO') {
         return NextResponse.json({ error: 'Research Pack is included in your Ultra subscription' }, { status: 400 });
       }
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ url: checkoutUrl });
     }
 
-    // ── Subscription purchase (ULTRA) ──
+    // ── Subscription purchase (PRO) ──
     const { tier, billingPeriod, promoCode } = data;
 
     // Get device fingerprint and IP for anti-abuse detection

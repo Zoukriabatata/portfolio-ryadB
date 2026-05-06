@@ -436,7 +436,7 @@ function AccountContent() {
 
   const tierStyles: Record<string, React.CSSProperties> = {
     FREE: { color: 'var(--text-muted)', background: 'var(--surface-elevated)' },
-    ULTRA: { color: 'var(--accent, #c084fc)', background: 'var(--accent-bg, rgba(168, 85, 247, 0.2))' },
+    PRO: { color: 'var(--accent, #c084fc)', background: 'var(--accent-bg, rgba(168, 85, 247, 0.2))' },
   };
 
   const inputStyle: React.CSSProperties = {
@@ -456,7 +456,7 @@ function AccountContent() {
             </Link>
             <span className="text-xs px-2 py-1 rounded-full font-medium"
               style={tierStyles[session.user.tier as keyof typeof tierStyles] || tierStyles.FREE}>
-              {session.user.tier === 'ULTRA' ? 'SENULTRA' : 'FREE'}
+              {session.user.tier === 'PRO' ? 'SENPRO' : 'FREE'}
             </span>
           </div>
           <button
@@ -628,9 +628,9 @@ function AccountContent() {
                     <div>
                       <span className="inline-block px-3 py-1 rounded-full text-sm font-medium"
                         style={tierStyles[session.user.tier as keyof typeof tierStyles] || tierStyles.FREE}>
-                        {session.user.tier === 'ULTRA' ? 'SENULTRA' : 'Free Plan'}
+                        {session.user.tier === 'PRO' ? 'SENPRO' : 'Free Plan'}
                       </span>
-                      {session.user.tier === 'ULTRA' && (
+                      {session.user.tier === 'PRO' && (
                         <span className="text-xs ml-3" style={{ color: 'var(--text-muted)' }}>$29/mo</span>
                       )}
                     </div>
@@ -932,12 +932,12 @@ function AccountContent() {
                 <SectionCard title="Limits">
                   <SettingRow label="Connected Devices">
                     <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
-                      2 / {session.user.tier === 'ULTRA' ? '5' : '2'}
+                      2 / {session.user.tier === 'PRO' ? '5' : '2'}
                     </span>
                   </SettingRow>
                   <SettingRow label="API Requests / day">
                     <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
-                      {session.user.tier === 'ULTRA' ? 'Unlimited' : '1,000'}
+                      {session.user.tier === 'PRO' ? 'Unlimited' : '1,000'}
                     </span>
                   </SettingRow>
                 </SectionCard>

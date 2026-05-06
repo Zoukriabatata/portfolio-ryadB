@@ -123,14 +123,14 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Activate user subscription: ULTRA for 30 days
+      // Activate user subscription: PRO for 30 days
       const subscriptionEnd = new Date(now);
       subscriptionEnd.setDate(subscriptionEnd.getDate() + 30);
 
       await prisma.user.update({
         where: { id: payment.userId },
         data: {
-          subscriptionTier: 'ULTRA',
+          subscriptionTier: 'PRO',
           subscriptionStart: now,
           subscriptionEnd: subscriptionEnd,
         },
