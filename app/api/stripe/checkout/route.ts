@@ -14,8 +14,12 @@ import { validatePromoCodeUsage, recordPromoCodeAttempt } from '@/lib/stripe/pro
 import { z } from 'zod';
 
 const subscriptionSchema = z.object({
-  tier: z.literal('ULTRA'),
-  billingPeriod: z.enum(['monthly', 'yearly']),
+  // PRO = new single-plan ($29/mo monthly only). ULTRA = legacy multi-tier kept
+  // for back-compat; new UI exposes only PRO. Promo codes only apply to ULTRA
+  // for now (see 1.2.B notes — PRO promo codes will land in a dedicated PR).
+  tier: z.enum(['PRO', 'ULTRA']),
+  // Required for ULTRA. Optional for PRO — defaults to 'monthly' downstream.
+  billingPeriod: z.enum(['monthly', 'yearly']).optional(),
   promoCode: z.string().max(30).optional(),
 }).strict();
 
