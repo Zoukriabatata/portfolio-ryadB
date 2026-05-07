@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { label: 'Features', href: '#features' },
   { label: 'Brokers', href: '#brokers' },
   { label: 'Pricing', href: '/pricing' },
+  { label: 'Download', href: '/download' },
   { label: 'Community', href: '#community' },
 ];
 
