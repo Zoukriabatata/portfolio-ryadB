@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { createPortalSession } from '@/lib/stripe';
+import { getAppUrl } from '@/lib/config/app-url';
 import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export async function POST(req: NextRequest) {
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = getAppUrl();
     const portalUrl = await createPortalSession(
       user.customerId,
       `${baseUrl}/account`

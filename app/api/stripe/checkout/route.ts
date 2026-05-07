@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { createOrGetCustomer, createCheckoutSession, createOneTimeCheckoutSession, stripe } from '@/lib/stripe';
+import { getAppUrl } from '@/lib/config/app-url';
 import { validatePromoCodeUsage, recordPromoCodeAttempt } from '@/lib/stripe/promo-code-service';
 import { z } from 'zod';
 
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
         await prisma.user.update({ where: { id: user.id }, data: { customerId } });
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = getAppUrl();
       const checkoutUrl = await createOneTimeCheckoutSession({
         customerId,
         userId: user.id,
@@ -178,7 +179,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create checkout session
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = getAppUrl();
     const checkoutUrl = await createCheckoutSession({
       customerId,
       userId: user.id,
