@@ -22,7 +22,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getLatestRelease, fetchSignatureContent } from '@/lib/github/releases';
+import { getLatestReleaseFresh, fetchSignatureContent } from '@/lib/github/releases';
 
 const SUPPORTED_TARGETS = ['windows-x86_64'];
 
@@ -63,7 +63,7 @@ export async function GET(
     return noUpdate();
   }
 
-  const release = await getLatestRelease();
+  const release = await getLatestReleaseFresh();
   if (!release) {
     return noUpdate();
   }
