@@ -140,3 +140,21 @@ body, html, #root {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: #cbd5e1;
 }
+
+.welcome { gap: 12px; }
+
+.welcome-link {
+  text-align: center;
+  margin: 4px 0 8px;
+}
+
+.card button.secondary {
+  background: transparent;
+  color: #cbd5e1;
+  border: 1px solid #1e1e2e;
+}
+
+.card button.secondary:hover {
+  border-color: #4ade80;
+  color: #4ade80;
+}

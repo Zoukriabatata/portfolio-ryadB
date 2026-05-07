@@ -7,6 +7,7 @@
 
 mod auth;
 mod machine;
+mod prefs;
 
 use auth::{LoginResponse, Session};
 use std::path::PathBuf;
@@ -75,6 +76,18 @@ async fn cmd_logout(state: State<'_, Arc<AppState>>) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn cmd_get_first_launch_completed(state: State<'_, Arc<AppState>>) -> Result<bool, String> {
+    Ok(prefs::load_prefs(&state.data_dir).await.first_launch_completed)
+}
+
+#[tauri::command]
+async fn cmd_mark_first_launch_completed(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+    prefs::mark_first_launch_completed(&state.data_dir)
+        .await
+        .map_err(err_to_string)
+}
+
+#[tauri::command]
 async fn cmd_heartbeat(state: State<'_, Arc<AppState>>) -> Result<LoginResponse, String> {
     let token = {
         let guard = state.session.lock().await;
@@ -113,6 +126,18 @@ fn build_state(app: &AppHandle) -> Arc<AppState> {
         .ok()
         .and_then(|b| serde_json::from_slice::<Session>(&b).ok());
 
+    // Migration: if a session exists but prefs.json doesn't, the user
+    // upgraded from v0.1.0 — they've seen the app already, so mark
+    // first_launch as completed so we don't re-show the welcome screen.
+    let prefs_path = data_dir.join("prefs.json");
+    if initial.is_some() && !prefs_path.exists() {
+        let migrated = prefs::Prefs { first_launch_completed: true };
+        if let Ok(json) = serde_json::to_vec_pretty(&migrated) {
+            let _ = std::fs::create_dir_all(&data_dir);
+            let _ = std::fs::write(&prefs_path, json);
+        }
+    }
+
     Arc::new(AppState {
         session: Mutex::new(initial),
         data_dir,
@@ -134,6 +159,8 @@ pub fn run() {
             cmd_login,
             cmd_logout,
             cmd_heartbeat,
+            cmd_get_first_launch_completed,
+            cmd_mark_first_launch_completed,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

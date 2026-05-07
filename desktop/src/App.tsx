@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { WelcomeScreen } from "./WelcomeScreen";
 import "./App.css";
 
 interface LicenseSnapshot {
@@ -25,6 +26,7 @@ function App() {
   const [machineId, setMachineId] = useState<string>("");
   const [bootstrapped, setBootstrapped] = useState(false);
   const [handoff, setHandoff]     = useState<HandoffState | null>(null);
+  const [firstLaunchCompleted, setFirstLaunchCompleted] = useState(false);
 
   // Load any persisted session + machineId on mount.
   useEffect(() => {
@@ -40,6 +42,15 @@ function App() {
         setMachineId(id);
       } catch (e) {
         console.error("get_machine_id failed", e);
+      }
+      try {
+        const flag = await invoke<boolean>("cmd_get_first_launch_completed");
+        setFirstLaunchCompleted(flag);
+      } catch (e) {
+        console.error("get_first_launch_completed failed", e);
+        // On IPC failure, default to dismissed — less annoying than
+        // re-showing the welcome on every launch when the bridge is broken.
+        setFirstLaunchCompleted(true);
       }
       setBootstrapped(true);
     })();
@@ -94,6 +105,14 @@ function App() {
       />
     </main>
   );
+
+  if (!session && !firstLaunchCompleted) {
+    return (
+      <main className="container">
+        <WelcomeScreen onDismiss={() => setFirstLaunchCompleted(true)} />
+      </main>
+    );
+  }
 
   return (
     <main className="container">
