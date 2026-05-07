@@ -21,6 +21,10 @@ export interface ReleaseInfo {
   fileSize:     number;
   releaseDate:  string;
   releaseNotes: string;
+  /** URL of the .msi.sig asset, or null if the release didn't ship one
+   *  (e.g. an unsigned build pre-Phase 6.4). The updater route fetches
+   *  the .sig content from this URL and embeds it in the manifest. */
+  signatureUrl: string | null;
 }
 
 interface GitHubAsset {
@@ -50,9 +54,9 @@ export async function getLatestRelease(): Promise<ReleaseInfo | null> {
     if (!res.ok) return null;
 
     const data = (await res.json()) as GitHubRelease;
-    const msiAsset = (data.assets ?? []).find(
-      (a) => a.name.toLowerCase().endsWith('.msi'),
-    );
+    const assets = data.assets ?? [];
+    const msiAsset = assets.find((a) => a.name.toLowerCase().endsWith('.msi'));
+    const sigAsset = assets.find((a) => a.name.toLowerCase().endsWith('.msi.sig'));
 
     if (!msiAsset) return null;
 
@@ -62,7 +66,24 @@ export async function getLatestRelease(): Promise<ReleaseInfo | null> {
       fileSize:     msiAsset.size,
       releaseDate:  data.published_at ?? '',
       releaseNotes: data.body ?? '',
+      signatureUrl: sigAsset?.browser_download_url ?? null,
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read a .msi.sig asset's plaintext content. Tauri's updater manifest
+ * embeds the signature *inline* (not as a URL), so the route has to
+ * pull the file. Cached the same 5 min as the release lookup so each
+ * cache window costs at most one extra request.
+ */
+export async function fetchSignatureContent(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { next: { revalidate: REVALIDATE_SECONDS } });
+    if (!res.ok) return null;
+    return (await res.text()).trim();
   } catch {
     return null;
   }
