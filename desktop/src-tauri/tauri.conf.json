@@ -33,5 +33,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://orderflow-v2.vercel.app/api/updater/{{target}}/{{current_version}}"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZGQjkwQUQxMDg4RjRGNzAKUldSd1Q0OEkwUXE1YndmZlhaMzIrdC8rZERyNDg4dEhHUW1ONVA1ZlM3RFNvaDBDSG50TThEeHAK",
+      "windows": { "installMode": "passive" }
+    }
   }
 }
