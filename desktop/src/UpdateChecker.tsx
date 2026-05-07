@@ -23,23 +23,13 @@ export function useUpdateCheck(enabled: boolean): {
     if (!enabled) return;
     let cancelled = false;
     void (async () => {
-      console.log('[updater] enabling check...');
       try {
         const u = await check();
-        console.log('[updater] check() resolved:', u);
-        if (!cancelled && u) {
-          console.log('[updater] update available, version:', u.version);
-          setUpdate(u);
-        } else {
-          console.log('[updater] no update or cancelled');
-        }
+        if (!cancelled && u) setUpdate(u);
       } catch (err) {
-        console.error('[updater] check() threw:', err);
+        console.warn('updater.check failed:', err);
       }
-      if (!cancelled) {
-        console.log('[updater] setting checked=true');
-        setChecked(true);
-      }
+      if (!cancelled) setChecked(true);
     })();
     return () => { cancelled = true; };
   }, [enabled]);
