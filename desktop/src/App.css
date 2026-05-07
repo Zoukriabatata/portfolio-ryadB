@@ -172,3 +172,45 @@ body, html, #root {
 .card button.link:hover {
   color: #22c55e;
 }
+
+.updater-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.updater-card {
+  max-width: 480px;
+}
+
+.updater-notes {
+  background: #0b0b14;
+  border: 1px solid #1e1e2e;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 4px 0 6px;
+  font-size: 12px;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.updater-progress {
+  height: 6px;
+  background: #1e1e2e;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.updater-progress > div {
+  height: 100%;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  transition: width 0.15s ease-out;
+}

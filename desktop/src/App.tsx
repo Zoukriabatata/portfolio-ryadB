@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WelcomeScreen } from "./WelcomeScreen";
+import { UpdateChecker } from "./UpdateChecker";
 import "./App.css";
 
 interface LicenseSnapshot {
@@ -117,16 +118,21 @@ function App() {
 
   return (
     <main className="container">
-      {session
-        ? <Welcome
+      {session ? (
+        <>
+          <UpdateChecker />
+          <Welcome
             session={session}
             machineId={machineId}
             onLogout={async () => { await invoke("cmd_logout"); setSession(null); }}
           />
-        : <Login onLogin={(s) => {
-            setSession(s);
-            setHandoff({ phase: 'loading', token: s.token });
-          }} />}
+        </>
+      ) : (
+        <Login onLogin={(s) => {
+          setSession(s);
+          setHandoff({ phase: 'loading', token: s.token });
+        }} />
+      )}
     </main>
   );
 }
