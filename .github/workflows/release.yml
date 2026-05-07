@@ -45,13 +45,18 @@ jobs:
       - name: Tauri build
         run: npm run tauri build
         working-directory: desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY:          ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
 
       - name: Upload .msi to release (tag push only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
-          files: desktop/src-tauri/target/release/bundle/msi/*.msi
+          files: |
+            desktop/src-tauri/target/release/bundle/msi/*.msi
+            desktop/src-tauri/target/release/bundle/msi/*.msi.sig
           generate_release_notes: true
           draft: false
           prerelease: false
@@ -61,5 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: orderflowv2-windows-msi-run${{ github.run_id }}
-          path: desktop/src-tauri/target/release/bundle/msi/*.msi
+          path: |
+            desktop/src-tauri/target/release/bundle/msi/*.msi
+            desktop/src-tauri/target/release/bundle/msi/*.msi.sig
           retention-days: 30
