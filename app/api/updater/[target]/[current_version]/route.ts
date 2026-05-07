@@ -13,6 +13,12 @@
  *   - 204 No Content if the running version is already the latest, the
  *     platform is unsupported, no signature is published yet, or the
  *     GitHub fetch fails — Tauri treats all of these as "no update"
+ *
+ * No-store cache headers are set on every response to bypass any
+ * intermediate edge cache (Vercel CDN, browser, etc.). The route
+ * itself relies on the Next.js Data Cache inside getLatestRelease()
+ * (5 min revalidate on the GitHub API call) to keep us under the
+ * GitHub rate limit. The two layers serve different purposes.
  */
 
 import { NextResponse } from 'next/server';
@@ -36,6 +42,17 @@ function isNewer(latest: string, current: string): boolean {
   return false;
 }
 
+function withNoStore(res: NextResponse): NextResponse {
+  res.headers.set('Cache-Control', 'no-store, max-age=0');
+  res.headers.set('CDN-Cache-Control', 'no-store');
+  res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+  return res;
+}
+
+function noUpdate(): NextResponse {
+  return withNoStore(new NextResponse(null, { status: 204 }));
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ target: string; current_version: string }> },
@@ -43,34 +60,36 @@ export async function GET(
   const { target, current_version } = await params;
 
   if (!SUPPORTED_TARGETS.includes(target)) {
-    return new NextResponse(null, { status: 204 });
+    return noUpdate();
   }
 
   const release = await getLatestRelease();
   if (!release) {
-    return new NextResponse(null, { status: 204 });
+    return noUpdate();
   }
   if (!isNewer(release.version, current_version)) {
-    return new NextResponse(null, { status: 204 });
+    return noUpdate();
   }
   if (!release.signatureUrl) {
-    return new NextResponse(null, { status: 204 });
+    return noUpdate();
   }
 
   const signature = await fetchSignatureContent(release.signatureUrl);
   if (!signature) {
-    return new NextResponse(null, { status: 204 });
+    return noUpdate();
   }
 
-  return NextResponse.json({
-    version:  release.version.replace(/^v/, ''),
-    notes:    release.releaseNotes,
-    pub_date: release.releaseDate,
-    platforms: {
-      'windows-x86_64': {
-        signature,
-        url: release.downloadUrl,
+  return withNoStore(
+    NextResponse.json({
+      version:  release.version.replace(/^v/, ''),
+      notes:    release.releaseNotes,
+      pub_date: release.releaseDate,
+      platforms: {
+        'windows-x86_64': {
+          signature,
+          url: release.downloadUrl,
+        },
       },
-    },
-  });
+    }),
+  );
 }
