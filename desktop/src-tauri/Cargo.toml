@@ -1,6 +1,6 @@
 [package]
 name = "desktop"
-version = "0.1.8"
+version = "0.1.9"
 description = "OrderflowV2 Desktop"
 authors = ["OrderflowV2"]
 edition = "2021"
