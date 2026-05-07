@@ -119,7 +119,7 @@ function DownloadCard({
       }}
     >
       <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
-        {highlighted && active ? 'Detected' : 'Available'}
+        {!active ? 'Coming soon' : highlighted ? 'Detected' : 'Available'}
       </div>
       <h3 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{meta.name}</h3>
       <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>{meta.ext}</p>
