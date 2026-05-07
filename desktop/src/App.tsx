@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WelcomeScreen } from "./WelcomeScreen";
-import { UpdateChecker } from "./UpdateChecker";
+import { useUpdateCheck, UpdateModal } from "./UpdateChecker";
 import "./App.css";
 
 interface LicenseSnapshot {
@@ -29,6 +29,12 @@ function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   const [handoff, setHandoff]     = useState<HandoffState | null>(null);
   const [firstLaunchCompleted, setFirstLaunchCompleted] = useState(false);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+
+  // Updater check fires once bootstrap is done. Auto-handoff (below) is
+  // gated on `updateChecked && (no update || dismissed)` so the modal
+  // takes precedence over the bridge to the web dashboard.
+  const { update, checked: updateChecked } = useUpdateCheck(true);
 
   // Load any persisted session + machineId on mount.
   useEffect(() => {
@@ -60,10 +66,14 @@ function App() {
 
   // If a session was restored from storage at boot, re-bridge directly
   // to the web dashboard. The Welcome screen never shows in normal flow.
+  // Gated on `updateChecked && !pendingUpdate` so a queued update modal
+  // can render BEFORE the webview takes over the React tree.
   useEffect(() => {
     if (!bootstrapped || !session || handoff) return;
+    if (!updateChecked) return;
+    if (update && !updateDismissed) return;
     setHandoff({ phase: 'loading', token: session.token });
-  }, [bootstrapped, session, handoff]);
+  }, [bootstrapped, session, handoff, updateChecked, update, updateDismissed]);
 
   // Run the actual handoff (with cleanup on unmount / re-trigger).
   useEffect(() => {
@@ -99,6 +109,18 @@ function App() {
 
   if (!bootstrapped) return <main className="boot">Loading…</main>;
 
+  // Update modal takes precedence over every other branch — the user
+  // installs or dismisses before the app proceeds. This is the only
+  // reliable mount point: by the time `handoff` fires, navigateBridge
+  // is about to swap the entire webview to the Vercel /live page.
+  if (update && !updateDismissed) {
+    return (
+      <main className="container">
+        <UpdateModal update={update} onDismiss={() => setUpdateDismissed(true)} />
+      </main>
+    );
+  }
+
   if (handoff) return (
     <main className="container">
       <HandoffSplash
@@ -119,14 +141,11 @@ function App() {
   return (
     <main className="container">
       {session ? (
-        <>
-          <UpdateChecker />
-          <Welcome
-            session={session}
-            machineId={machineId}
-            onLogout={async () => { await invoke("cmd_logout"); setSession(null); }}
-          />
-        </>
+        <Welcome
+          session={session}
+          machineId={machineId}
+          onLogout={async () => { await invoke("cmd_logout"); setSession(null); }}
+        />
       ) : (
         <Login onLogin={(s) => {
           setSession(s);

@@ -2,46 +2,63 @@ import { useEffect, useState } from 'react';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
-type State =
-  | { kind: 'idle' }
-  | { kind: 'available';  update: Update }
-  | { kind: 'installing'; update: Update; progress: number }
-  | { kind: 'error';      update: Update; message: string };
-
 /**
- * Mounted once the user is logged in. Hits the /api/updater manifest
- * endpoint via the Tauri plugin, and surfaces a modal if a newer .msi
- * is available on GitHub Releases. The user opts in: nothing happens
- * if they hit "Remind me later". The check re-runs on every fresh app
- * launch — no persistent snooze for the MVP.
+ * Hook: kick off a single updater check when `enabled` flips true.
+ * Returns the resolved Update (or null) and a `checked` flag so the
+ * caller can gate other side effects (e.g. the auto-handoff bridge)
+ * on the check completing.
+ *
+ * Network errors, GitHub outages, missing signatures on the latest
+ * release — none of these should block the user, so we swallow and
+ * return `{ update: null, checked: true }`.
  */
-export function UpdateChecker() {
-  const [state, setState] = useState<State>({ kind: 'idle' });
+export function useUpdateCheck(enabled: boolean): {
+  update: Update | null;
+  checked: boolean;
+} {
+  const [update, setUpdate] = useState<Update | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     void (async () => {
       try {
-        const update = await check();
-        if (cancelled || !update) return;
-        setState({ kind: 'available', update });
+        const u = await check();
+        if (!cancelled && u) setUpdate(u);
       } catch (err) {
-        // Network error, GitHub down, missing signature on the latest
-        // release — none of these should block the user from using the
-        // app, so swallow.
         console.warn('updater.check failed:', err);
       }
+      if (!cancelled) setChecked(true);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [enabled]);
 
-  if (state.kind === 'idle') return null;
+  return { update, checked };
+}
 
-  const { update } = state;
-  const installing = state.kind === 'installing';
+/**
+ * Presentational modal — receives an Update object and a dismiss
+ * callback. Renders the install / progress / error UI. The "Remind
+ * me later" path is just `onDismiss()`; the parent decides what to
+ * do (typically: clear the update state and proceed with the normal
+ * flow).
+ */
+export function UpdateModal({
+  update,
+  onDismiss,
+}: {
+  update: Update;
+  onDismiss: () => void;
+}) {
+  const [installing, setInstalling] = useState(false);
+  const [progress, setProgress]     = useState(0);
+  const [error, setError]           = useState<string | null>(null);
 
   const install = async () => {
-    setState({ kind: 'installing', update, progress: 0 });
+    setInstalling(true);
+    setError(null);
+    setProgress(0);
     try {
       let downloaded = 0;
       let total = 0;
@@ -49,22 +66,15 @@ export function UpdateChecker() {
         if (event.event === 'Started')  total = event.data.contentLength ?? 0;
         if (event.event === 'Progress') {
           downloaded += event.data.chunkLength;
-          if (total > 0) {
-            setState({ kind: 'installing', update, progress: downloaded / total });
-          }
+          if (total > 0) setProgress(downloaded / total);
         }
       });
       await relaunch();
     } catch (err) {
-      setState({
-        kind:    'error',
-        update,
-        message: err instanceof Error ? err.message : 'Install failed',
-      });
+      setError(err instanceof Error ? err.message : 'Install failed');
+      setInstalling(false);
     }
   };
-
-  const dismiss = () => setState({ kind: 'idle' });
 
   return (
     <div className="updater-overlay">
@@ -77,20 +87,18 @@ export function UpdateChecker() {
 
         {update.body && <pre className="updater-notes">{update.body}</pre>}
 
-        {state.kind === 'installing' && (
+        {installing && (
           <div className="updater-progress">
-            <div style={{ width: `${(state.progress * 100).toFixed(0)}%` }} />
+            <div style={{ width: `${(progress * 100).toFixed(0)}%` }} />
           </div>
         )}
 
-        {state.kind === 'error' && (
-          <div className="error">Install failed: {state.message}</div>
-        )}
+        {error && <div className="error">Install failed: {error}</div>}
 
         <button type="button" onClick={install} disabled={installing}>
           {installing ? 'Installing…' : 'Install now'}
         </button>
-        <button type="button" className="secondary" onClick={dismiss} disabled={installing}>
+        <button type="button" className="secondary" onClick={onDismiss} disabled={installing}>
           Remind me later
         </button>
       </div>
