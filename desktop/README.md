@@ -54,11 +54,21 @@ lifecycles:
 | `VITE_API_BASE` | Frontend (Vite) | **Build-time** — inlined into the JS bundle by `tauri build` | `desktop/.env.production` (committed) or `desktop/.env.local` (gitignored) |
 | `ORDERFLOWV2_API_BASE` | Rust (`auth.rs`) | **Runtime** — read on every launch, can be overridden without rebuild | Shell env before launching the binary |
 
-Both fall back to `http://localhost:3000` when unset, so `npm run tauri
-dev` works out of the box. For a production release, `tauri build`
-auto-loads `.env.production` and bakes `VITE_API_BASE` into the bundle;
-the Rust runtime override remains useful for staging/QA on a signed
-binary without rebuilding.
+Fallback behavior differs by side and build profile:
+
+- **`VITE_API_BASE`** falls back to `http://localhost:3000` when unset
+  (used both in `tauri dev` and a `tauri build` without `.env.production`).
+- **`ORDERFLOWV2_API_BASE`** falls back to `http://localhost:3000` in
+  **dev builds** (`cargo run`, `tauri dev`) and to
+  `https://orderflow-v2.vercel.app` in **release builds**
+  (`tauri build`, the .msi distributable). The split uses
+  `cfg!(debug_assertions)` — set the env var to override either mode
+  (handy for staging/QA on a signed binary without rebuilding).
+
+For a production release, `tauri build` auto-loads `.env.production`
+to bake `VITE_API_BASE` into the bundle; the Rust release fallback
+covers the IPC path (`/api/license/login`, `/api/license/heartbeat`)
+that does not flow through the frontend.
 
 ## What this MVP does
 

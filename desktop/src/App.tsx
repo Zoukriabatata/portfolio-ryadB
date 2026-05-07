@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { WelcomeScreen } from "./WelcomeScreen";
 import "./App.css";
 
@@ -242,7 +243,18 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
       </button>
 
       <p className="muted small">
-        No account yet? Sign up at <code>orderflowv2.com/auth/register</code>.
+        No account yet?{" "}
+        <button
+          type="button"
+          className="link"
+          onClick={() => {
+            void openUrl("https://orderflow-v2.vercel.app/auth/register").catch(err =>
+              console.error("openUrl failed:", err),
+            );
+          }}
+        >
+          Sign up on the web
+        </button>
       </p>
     </form>
   );

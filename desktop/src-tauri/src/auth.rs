@@ -14,8 +14,16 @@ use tokio::fs;
 const SESSION_FILE: &str = "session.json";
 
 fn default_api_base() -> String {
-    std::env::var("ORDERFLOWV2_API_BASE")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string())
+    std::env::var("ORDERFLOWV2_API_BASE").unwrap_or_else(|_| {
+        if cfg!(debug_assertions) {
+            // Dev (cargo run, tauri dev): Next.js usually runs locally.
+            "http://localhost:3000".to_string()
+        } else {
+            // Release build (tauri build / .msi distributable): no backend
+            // is shipped with the binary, point at the deployed prod app.
+            "https://orderflow-v2.vercel.app".to_string()
+        }
+    })
 }
 
 /* ─── wire types (mirror the Next.js routes) ─────────────────────── */

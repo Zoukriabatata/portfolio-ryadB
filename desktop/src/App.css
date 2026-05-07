@@ -158,3 +158,17 @@ body, html, #root {
   border-color: #4ade80;
   color: #4ade80;
 }
+
+.card button.link {
+  background: transparent;
+  border: none;
+  color: #4ade80;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.card button.link:hover {
+  color: #22c55e;
+}
