@@ -35,6 +35,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Desktop config templates are non-secret and committed
+!desktop/.env.example
+!desktop/.env.production
 
 # vercel
 .vercel

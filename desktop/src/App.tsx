@@ -17,7 +17,7 @@ interface Session {
 
 type HandoffState = { phase: 'loading' | 'failed'; token: string };
 
-const API_BASE     = 'http://localhost:3000';
+const API_BASE     = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:3000';
 const HEARTBEAT_MS = 4 * 60 * 60 * 1000; // 4h
 
 function App() {

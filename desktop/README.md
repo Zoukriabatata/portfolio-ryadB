@@ -41,7 +41,24 @@ npm run tauri dev
 
 The app opens a window with a sign-in screen. Use a PRO web account to
 log in — the desktop authenticates against `/api/license/login` on
-`http://localhost:3000` (override with `ORDERFLOWV2_API_BASE` env var).
+`http://localhost:3000` by default.
+
+## Configuring the backend URL
+
+The desktop app talks to the web backend from two places (Rust client +
+React webview), each with its own env var because they have different
+lifecycles:
+
+| Var | Side | Lifecycle | Set in… |
+|---|---|---|---|
+| `VITE_API_BASE` | Frontend (Vite) | **Build-time** — inlined into the JS bundle by `tauri build` | `desktop/.env.production` (committed) or `desktop/.env.local` (gitignored) |
+| `ORDERFLOWV2_API_BASE` | Rust (`auth.rs`) | **Runtime** — read on every launch, can be overridden without rebuild | Shell env before launching the binary |
+
+Both fall back to `http://localhost:3000` when unset, so `npm run tauri
+dev` works out of the box. For a production release, `tauri build`
+auto-loads `.env.production` and bakes `VITE_API_BASE` into the bundle;
+the Rust runtime override remains useful for staging/QA on a signed
+binary without rebuilding.
 
 ## What this MVP does
 
