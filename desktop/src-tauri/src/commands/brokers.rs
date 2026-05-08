@@ -113,8 +113,13 @@ pub async fn test_broker_connection(args: TestBrokerConnectionArgs) -> Result<()
     };
 
     let mut adapter = RithmicAdapter::new();
+    // Phase 7.9 follow-up: must connect to the user-supplied gateway,
+    // not the hardcoded UAT default — otherwise testing prod creds
+    // (Apex, Rithmic 01, …) lands on UAT, which has only the "Rithmic
+    // Test" system and rejects every prop-firm system_name with
+    // rp_code=1067.
     adapter
-        .open_socket()
+        .open_socket_with(&creds.gateway_url)
         .await
         .map_err(|e| format!("connect failed: {e}"))?;
     let result = adapter.login(&creds).await;

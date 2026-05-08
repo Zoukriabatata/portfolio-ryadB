@@ -95,8 +95,13 @@ pub async fn rithmic_login(
     }
 
     let mut adapter = RithmicAdapter::new();
+    // Phase 7.9 follow-up: open the socket against the user's chosen
+    // gateway, not the hardcoded UAT default. The vault flow plumbs
+    // creds.gateway_url through here, so prod accounts (Apex etc.)
+    // land on the right host instead of rituz00100 (UAT) which would
+    // reject "Apex"/"Rithmic 01"/etc with rp_code=1067.
     adapter
-        .open_socket()
+        .open_socket_with(&creds.gateway_url)
         .await
         .map_err(|e| format!("connect failed: {e}"))?;
     adapter
