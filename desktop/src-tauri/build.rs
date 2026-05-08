@@ -15,16 +15,32 @@ fn compile_rithmic_protos() -> Result<()> {
     println!("cargo:rerun-if-changed=../rithmic-sdk/proto");
 
     if !proto_dir.exists() {
+        // The Rithmic SDK is gitignored (Omnesys redistribution license)
+        // so on a clean clone — and in CI — the .proto sources aren't on
+        // disk. We fall back to the COMMITTED `proto/mod.rs` (a vendored
+        // generated file) and skip regeneration.
+        //
+        // Only if NO committed file is found do we write a stub, so the
+        // failure mode is "compile error with a clear missing-types
+        // message" rather than "file not found, build halts here".
+        let committed = out_dir.join("mod.rs");
+        if committed.exists() {
+            println!(
+                "cargo:warning=rithmic-sdk/proto absent — using the committed proto/mod.rs ({})",
+                committed.display()
+            );
+            return Ok(());
+        }
         println!(
-            "cargo:warning=rithmic-sdk/proto not found at {:?} — skipping Rithmic adapter compilation",
+            "cargo:warning=rithmic-sdk/proto not found at {:?} and no committed proto/mod.rs — Rithmic connector will not link",
             proto_dir
         );
-        // Always provide a stub mod.rs so the connectors module compiles
-        // even when the SDK is absent (e.g. CI without local SDK copy).
         fs::create_dir_all(&out_dir)?;
         fs::write(
-            out_dir.join("mod.rs"),
-            "// stub — rithmic-sdk/proto absent at build time\n",
+            &committed,
+            "// stub — rithmic-sdk/proto absent at build time and no\n\
+             // committed mod.rs to fall back to. Phase 7 connector code\n\
+             // will not compile until the SDK is restored.\n",
         )?;
         return Ok(());
     }

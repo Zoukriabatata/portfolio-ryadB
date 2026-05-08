@@ -70,5 +70,9 @@ SESSION_*.md
 # Rithmic SDK (not redistributable per Omnesys license — kept local only)
 desktop/rithmic-sdk/
 
-# Generated protobuf files (rebuilt by build.rs from rithmic-sdk/proto/)
-desktop/src-tauri/src/connectors/rithmic/proto/
+# Generated protobuf files (rebuilt by build.rs from rithmic-sdk/proto/).
+# We commit the final mod.rs as a vendored artifact (license-safe — the
+# .proto sources stay out of the repo, only the compiled Rust output
+# ships) so CI without the SDK can still build. The intermediate rti.rs
+# that prost emits before the rename stays ignored.
+desktop/src-tauri/src/connectors/rithmic/proto/rti.rs
