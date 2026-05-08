@@ -1,11 +1,11 @@
-// Wrapper minimaliste : on remonte le composant existant sans changer
-// son comportement. Tout le state (phase = checking / needs-creds /
-// settings / connecting / ready / failed), les abonnements aux events
-// Tauri et la pipeline Rithmic vivent dans RithmicFootprint, on n'y
-// touche pas — c'est la contrainte explicite de la Phase 7.7.5.
+// Phase B / M3 — Footprint route now ships a source switcher
+// (Rithmic / Bybit / Binance). The full Rithmic flow (vault →
+// connect → subscribe) is preserved verbatim inside RithmicFootprint;
+// CryptoFootprint provides the auth-less path for the public
+// crypto feeds. The switcher lives in MultiSourceFootprint.
 
-import { RithmicFootprint } from "../components/RithmicFootprint";
+import { MultiSourceFootprint } from "../components/MultiSourceFootprint";
 
 export function FootprintRoute() {
-  return <RithmicFootprint />;
+  return <MultiSourceFootprint />;
 }
