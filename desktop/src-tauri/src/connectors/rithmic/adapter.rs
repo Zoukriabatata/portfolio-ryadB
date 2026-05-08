@@ -15,6 +15,7 @@ use crate::connectors::rithmic::proto::{
     RequestLogin, RequestLogout, RequestMarketDataUpdate, RequestRithmicSystemInfo,
     ResponseLogin, ResponseRithmicSystemInfo,
 };
+use crate::connectors::rithmic::heartbeat::{self, HeartbeatHandle};
 use crate::connectors::rithmic::reader;
 use crate::connectors::tick::Tick;
 
@@ -32,6 +33,10 @@ const PROTOCOL_TEMPLATE_VERSION: &str = "3.9";
 /// How long disconnect() will wait for the reader task to drain
 /// after we issue logout, before we forcibly tear the socket down.
 const READER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Same idea for the heartbeat task — it just needs one tick to
+/// observe the shutdown signal, so 2s is comfortable.
+const HEARTBEAT_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Template IDs we exchange in Phase 7.3–7.5. The full table lives in
 /// the Reference Guide; defining only what we use keeps the surface
@@ -57,6 +62,10 @@ pub struct RithmicAdapter {
     reader_handle: Option<JoinHandle<()>>,
     shutdown_tx: Option<oneshot::Sender<()>>,
     subscriptions: HashSet<(String, String)>,
+
+    // Phase 7.6 — heartbeat task. Spawned alongside the reader so
+    // the connection survives Rithmic's idle timeout (~60–120s).
+    heartbeat: Option<HeartbeatHandle>,
 }
 
 impl RithmicAdapter {
@@ -70,6 +79,7 @@ impl RithmicAdapter {
             reader_handle: None,
             shutdown_tx: None,
             subscriptions: HashSet::new(),
+            heartbeat: None,
         }
     }
 
@@ -244,6 +254,7 @@ impl MarketDataAdapter for RithmicAdapter {
             session.heartbeat_interval_secs,
         );
 
+        let heartbeat_interval = session.heartbeat_interval_secs;
         self.session = Some(session);
 
         // Split the connection and hand the read half off to the
@@ -251,9 +262,15 @@ impl MarketDataAdapter for RithmicAdapter {
         // updates will all arrive through it.
         let (stream, sink) = self.client.into_split()?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
-        let handle = reader::spawn(stream, sink, self.tick_tx.clone(), shutdown_rx);
+        let handle = reader::spawn(stream, sink.clone(), self.tick_tx.clone(), shutdown_rx);
         self.reader_handle = Some(handle);
         self.shutdown_tx = Some(shutdown_tx);
+
+        // Spawn the heartbeat task last — by this point the reader is
+        // already draining incoming frames, so the gateway's
+        // ResponseHeartbeat won't pile up against a closed receive
+        // window.
+        self.heartbeat = Some(heartbeat::spawn(sink, heartbeat_interval));
 
         Ok(())
     }
@@ -342,6 +359,20 @@ impl MarketDataAdapter for RithmicAdapter {
             );
             if let Err(e) = self.client.send(&req).await {
                 tracing::warn!("Failed to send logout: {}", e);
+            }
+        }
+
+        // Stop the heartbeat first so we don't race a final tick
+        // against the closing socket.
+        if let Some(hb) = self.heartbeat.take() {
+            let _ = hb.shutdown.send(());
+            match tokio::time::timeout(HEARTBEAT_SHUTDOWN_TIMEOUT, hb.handle).await {
+                Ok(Ok(())) => tracing::info!("Heartbeat task ended cleanly"),
+                Ok(Err(e)) => tracing::warn!("Heartbeat task panicked: {}", e),
+                Err(_) => tracing::warn!(
+                    "Heartbeat task did not exit within {:?} — abandoning",
+                    HEARTBEAT_SHUTDOWN_TIMEOUT
+                ),
             }
         }
 

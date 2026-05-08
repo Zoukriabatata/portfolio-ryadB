@@ -53,3 +53,7 @@ path = "examples/rithmic_login.rs"
 [[example]]
 name = "rithmic_subscribe"
 path = "examples/rithmic_subscribe.rs"
+
+[[example]]
+name = "rithmic_heartbeat"
+path = "examples/rithmic_heartbeat.rs"

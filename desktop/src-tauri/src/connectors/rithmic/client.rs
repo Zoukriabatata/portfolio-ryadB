@@ -163,6 +163,16 @@ impl RithmicClient {
         }
     }
 
+    /// Clone of the shared sink, available only after `into_split()`.
+    /// Used by background tasks (reader, heartbeat) that need to send
+    /// frames without holding `&mut self` on the adapter.
+    pub fn shared_sink(&self) -> Option<SharedSink> {
+        match &self.inner {
+            Inner::Split(sink) => Some(Arc::clone(sink)),
+            _ => None,
+        }
+    }
+
     /// Close the WebSocket cleanly. Safe to call when not connected.
     pub async fn close(&mut self) -> Result<()> {
         match std::mem::replace(&mut self.inner, Inner::Disconnected) {
