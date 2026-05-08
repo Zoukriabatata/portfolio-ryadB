@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use crate::brokers::vault;
 use crate::connectors::adapter::{Credentials, MarketDataAdapter};
 use crate::connectors::rithmic::RithmicAdapter;
 use crate::engine::{FootprintBar, Timeframe};
@@ -114,6 +115,35 @@ pub async fn rithmic_login(
     *state.adapter.lock().await = Some(adapter);
 
     Ok(status)
+}
+
+/// Connect using the credentials persisted in the OS-native vault.
+/// This is the production path: the React app saves credentials once
+/// via `saveBrokerCredentials`, and from then on it only ever calls
+/// `rithmicLoginFromVault` — the plaintext password never crosses
+/// the IPC boundary again.
+///
+/// Returns the same `RithmicStatus` as `rithmic_login(args)` so the
+/// frontend can render either path identically.
+#[tauri::command]
+pub async fn rithmic_login_from_vault(
+    state: State<'_, RithmicState>,
+) -> Result<RithmicStatus, String> {
+    let stored = tokio::task::spawn_blocking(vault::load)
+        .await
+        .map_err(|e| format!("vault task panicked: {e}"))?
+        .map_err(|e| format!("vault load failed: {e}"))?;
+    let stored = stored.ok_or_else(|| "no broker credentials saved".to_string())?;
+
+    let args = LoginArgs {
+        username: stored.username,
+        password: stored.password,
+        system_name: stored.system_name,
+        gateway_url: Some(stored.gateway_url),
+        app_name: None,
+        app_version: None,
+    };
+    rithmic_login(state, args).await
 }
 
 #[tauri::command]

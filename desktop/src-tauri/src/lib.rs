@@ -178,6 +178,7 @@ pub fn run() {
             cmd_get_first_launch_completed,
             cmd_mark_first_launch_completed,
             commands::rithmic::rithmic_login,
+            commands::rithmic::rithmic_login_from_vault,
             commands::rithmic::rithmic_subscribe,
             commands::rithmic::rithmic_unsubscribe,
             commands::rithmic::rithmic_get_bars,
