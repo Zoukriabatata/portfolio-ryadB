@@ -46,18 +46,40 @@ const nextConfig: NextConfig = {
       { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=(), payment=()' },
     ];
 
-    // Origins autorisées à framer /live et /account. Tauri 2 peut servir
-    // l'app sous tauri://localhost (Linux) ou https://tauri.localhost
-    // (Windows / macOS depuis Tauri 2) — on liste les deux.
+    // Origins autorisées à framer /live et /account.
+    // - tauri://localhost  : Tauri 2 sur Linux + macOS en build packagé
+    // - https://tauri.localhost : Tauri 2 sur Windows en build packagé
+    // - http://localhost:1420 : Vite dev server (npm run tauri dev) —
+    //   en dev le webview charge depuis cette URL, pas depuis
+    //   tauri://localhost, donc sans cette entrée le frame-ancestors
+    //   bloque l'iframe et on voit "orderflow-v2.vercel.app a refusé
+    //   de se connecter" dans la webview.
+    // - http://localhost:3000 : si quelqu'un override VITE_API_BASE
+    //   pour viser un Next.js local, l'iframe est servie par cette
+    //   origine pour le contenu mais c'est l'orderflow-v2.vercel.app
+    //   qui doit autoriser le framing — pas pertinent ici, mais on
+    //   liste pour cohérence dev.
+    // On exempte aussi /api/auth/desktop-bridge du DENY plus bas,
+    // pour qu'un browser strict qui appliquerait X-Frame-Options sur
+    // un 302 intermédiaire ne casse pas le redirect-flow.
     const tauriFrameAncestors =
-      "frame-ancestors 'self' tauri://localhost https://tauri.localhost";
+      "frame-ancestors 'self' tauri://localhost https://tauri.localhost http://localhost:1420 http://localhost:3000";
 
     return [
-      // Toutes les routes SAUF /live et /account : on garde
-      // X-Frame-Options DENY. La regex `(?!live$|live/|account$|account/)`
-      // exclut /live, /live/<sub>, /account, /account/<sub> du match.
+      // Toutes les routes SAUF /live, /account et le bridge endpoint :
+      // on garde X-Frame-Options DENY. La regex
+      // `(?!live$|live/|account$|account/|api/auth/desktop-bridge$)`
+      // exclut ces paths du match.
+      //
+      // Pourquoi exempter aussi le bridge : l'iframe charge
+      // /api/auth/desktop-bridge?token=…&next=/live, qui répond en
+      // 302 vers /live. La spec Chromium n'applique X-Frame-Options
+      // qu'à la réponse finale, mais certains browsers/webviews
+      // strictes le checkent sur chaque hop du redirect chain. On
+      // ne perd rien à l'exempter — la réponse est un 302 sans
+      // body, donc le risque de clickjacking est nul.
       {
-        source: '/((?!live$|live/|account$|account/).*)',
+        source: '/((?!live$|live/|account$|account/|api/auth/desktop-bridge$).*)',
         headers: [
           ...baseSecurityHeaders,
           { key: 'X-Frame-Options', value: 'DENY' },
@@ -78,6 +100,16 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/account/:path*',
+        headers: [
+          ...baseSecurityHeaders,
+          { key: 'Content-Security-Policy', value: tauriFrameAncestors },
+        ],
+      },
+      // Bridge endpoint : pas de X-Frame-Options, et frame-ancestors
+      // permissive pour que les browsers strictes laissent passer
+      // le redirect chain iframe → bridge → /live.
+      {
+        source: '/api/auth/desktop-bridge',
         headers: [
           ...baseSecurityHeaders,
           { key: 'Content-Security-Policy', value: tauriFrameAncestors },
