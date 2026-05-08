@@ -183,6 +183,11 @@ pub fn run() {
             commands::rithmic::rithmic_get_bars,
             commands::rithmic::rithmic_disconnect,
             commands::rithmic::rithmic_status,
+            commands::brokers::list_broker_presets,
+            commands::brokers::save_broker_credentials,
+            commands::brokers::load_broker_credentials,
+            commands::brokers::delete_broker_credentials,
+            commands::brokers::test_broker_connection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
