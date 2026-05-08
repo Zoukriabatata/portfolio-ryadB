@@ -1,0 +1,112 @@
+.welcome-route {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 32px;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: #c9d1d9;
+}
+
+.welcome-hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.welcome-hero h1 {
+  margin: 0 0 12px 0;
+  font-size: 38px;
+  font-weight: 700;
+  color: #f0f6fc;
+  letter-spacing: -0.02em;
+}
+
+.welcome-tagline {
+  margin: 0 auto;
+  max-width: 580px;
+  font-size: 15px;
+  color: #8b949e;
+  line-height: 1.5;
+}
+
+.welcome-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.welcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.welcome-card:hover {
+  transform: translateY(-2px);
+  border-color: #1f6feb;
+  background: #1c2230;
+}
+
+.welcome-card-icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.welcome-card h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.welcome-card p {
+  margin: 0;
+  font-size: 13px;
+  color: #8b949e;
+  line-height: 1.5;
+  flex-grow: 1;
+}
+
+.welcome-card-cta {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #58a6ff;
+  letter-spacing: 0.02em;
+}
+
+.welcome-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #6e7681;
+  border-top: 1px solid #21262d;
+  padding-top: 16px;
+}
+
+.welcome-footer a {
+  color: #6e7681;
+  text-decoration: none;
+}
+
+.welcome-footer a:hover {
+  color: #58a6ff;
+  text-decoration: underline;
+}
