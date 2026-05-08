@@ -4,5 +4,6 @@
 //! (Binance, dxFeed, …) get their own siblings here.
 
 pub mod brokers;
+pub mod crypto;
 pub mod rithmic;
 pub mod rithmic_events;

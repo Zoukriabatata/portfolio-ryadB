@@ -215,6 +215,13 @@ pub fn run() {
             commands::rithmic_events::spawn_emitter(app.handle().clone(), &rithmic_state.engine);
             app.manage(rithmic_state);
 
+            // Phase B / M2 — public crypto adapters share their own
+            // FootprintEngine. No event emitter for now (no UI in M2);
+            // the M3 milestone will subscribe a second emitter when
+            // the crypto routes land.
+            let crypto_state = state::CryptoState::new();
+            app.manage(crypto_state);
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -238,6 +245,11 @@ pub fn run() {
             commands::brokers::load_broker_credentials,
             commands::brokers::delete_broker_credentials,
             commands::brokers::test_broker_connection,
+            commands::crypto::crypto_connect,
+            commands::crypto::crypto_subscribe,
+            commands::crypto::crypto_unsubscribe,
+            commands::crypto::crypto_disconnect,
+            commands::crypto::crypto_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
