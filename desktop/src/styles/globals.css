@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+/* ============================================================
+   SENZOUKRIA — DESIGN SYSTEM (Tradytics-inspired)
+   Minimal · Data-First · Professional Financial Tool
+   ============================================================
+   Ported verbatim from app/globals.css of the web codebase
+   (M0 audit reference). Variables stay synced via copy-paste
+   when the web side updates them — V1 doesn't share a CSS
+   package across surfaces, see V1_MIGRATION_PLAN.md.
+*/
+
+:root {
+  /* === CORE PALETTE === */
+  /* Deep navy-black — warmer than pure black, easier on eyes */
+  --background: #07080f;
+  --surface: #0d0f1b;
+  --surface-elevated: #12152a;
+  --surface-hover: #181b30;
+  --surface-active: #1d2138;
+
+  /* === TEXT ===
+     Cool-white hierarchy — primary is near white, each step
+     is visibly dimmer for clear data hierarchy */
+  --foreground: #dde1f0;
+  --text-primary: #e8eaf6;
+  --text-secondary: #8890b0;
+  --text-muted: #515878;
+  --text-dimmed: #333650;
+
+  /* === BORDERS === */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-light: rgba(255, 255, 255, 0.11);
+  --border-focus: rgba(74, 222, 128, 0.4);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* === PRIMARY — Lime Green === */
+  --primary: #4ade80;
+  --primary-light: #86efac;
+  --primary-dark: #22c55e;
+  --primary-glow: rgba(74, 222, 128, 0.12);
+  --primary-rgb: 74 222 128;
+
+  /* === ACCENT — Teal/cyan === */
+  --accent: #2dd4bf;
+  --accent-light: #5eead4;
+  --accent-dark: #0d9488;
+  --accent-glow: rgba(45, 212, 191, 0.12);
+
+  /* === SEMANTIC COLORS === */
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.08);
+  --error: #f04f4f;
+  --error-bg: rgba(240, 79, 79, 0.08);
+  --warning: #e8a020;
+  --warning-bg: rgba(232, 160, 32, 0.08);
+
+  /* === TRADING COLORS === */
+  --bull: #26d97f;
+  --bull-dim: #1ca55e;
+  --bull-bg: rgba(38, 217, 127, 0.08);
+  --bear: #f04f4f;
+  --bear-dim: #c43d3d;
+  --bear-bg: rgba(240, 79, 79, 0.08);
+
+  /* === SHADOWS === */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.6);
+
+  /* === GLASSMORPHISM === */
+  --glass-bg: rgba(13, 15, 27, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+
+  /* === SPACING === */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* === BORDER RADIUS === */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-full: 9999px;
+
+  /* === Z-INDEX === */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+
+  /* === TRANSITIONS === */
+  --transition-fast: 120ms ease;
+  --transition-normal: 180ms ease;
+  --transition-slow: 280ms ease;
+
+  /* === NAV === */
+  --nav-height: 44px;
+}
+
+/* Tailwind v4 theme bridge — exposes our CSS variables as
+   Tailwind theme tokens so utilities like `bg-primary`,
+   `text-bull`, etc. resolve to the right colors. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-bull: var(--bull);
+  --color-bear: var(--bear);
+  --color-success: var(--success);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-dimmed: var(--text-dimmed);
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-border-strong: var(--border-strong);
+}
+
+/* ============================================================
+   LAYOUT — fixed viewport, no page scroll. Same as web shell.
+   ============================================================ */
+
+html,
+body {
+  min-height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ============================================================
+   SCROLLBARS — elegant & minimal (matches web)
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+}
