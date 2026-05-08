@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { BrokerSettings } from "./BrokerSettings";
 import "./RithmicFootprint.css";
 
 // Mirror of RithmicStatus on the Rust side (camelCase via serde rename).
@@ -38,10 +39,25 @@ type FootprintBar = {
   levels: PriceLevel[];
 };
 
+type RedactedCreds = {
+  preset: string;
+  gatewayUrl: string;
+  systemName: string;
+  username: string;
+  hasPassword: boolean;
+};
+
+type Phase =
+  | { kind: "checking" }
+  | { kind: "needs-creds" }
+  | { kind: "settings"; creds: RedactedCreds | null }
+  | { kind: "connecting" }
+  | { kind: "ready"; creds: RedactedCreds }
+  | { kind: "failed"; error: string };
+
 const TIMEFRAMES = ["5s", "15s", "1m", "5m"] as const;
 type Timeframe = (typeof TIMEFRAMES)[number];
 const MAX_BARS = 20;
-const SYSTEM_NAMES = ["Rithmic Test", "Rithmic Paper Trading", "Rithmic 01"] as const;
 
 const EMPTY_STATUS: RithmicStatus = {
   connected: false,
@@ -50,12 +66,169 @@ const EMPTY_STATUS: RithmicStatus = {
 };
 
 export function RithmicFootprint() {
+  const [phase, setPhase] = useState<Phase>({ kind: "checking" });
+
+  // Bootstrap: read vault → either route to BrokerSettings or auto-login.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const creds = await invoke<RedactedCreds | null>(
+          "load_broker_credentials",
+        );
+        if (cancelled) return;
+        if (!creds) {
+          setPhase({ kind: "needs-creds" });
+          return;
+        }
+        setPhase({ kind: "connecting" });
+        try {
+          await invoke<RithmicStatus>("rithmic_login_from_vault");
+          if (cancelled) return;
+          setPhase({ kind: "ready", creds });
+        } catch (e) {
+          if (!cancelled) setPhase({ kind: "failed", error: String(e) });
+        }
+      } catch (e) {
+        if (!cancelled) setPhase({ kind: "failed", error: String(e) });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onCredsSaved = useCallback(async (creds: RedactedCreds) => {
+    setPhase({ kind: "connecting" });
+    try {
+      await invoke<RithmicStatus>("rithmic_login_from_vault");
+      setPhase({ kind: "ready", creds });
+    } catch (e) {
+      setPhase({ kind: "failed", error: String(e) });
+    }
+  }, []);
+
+  const onOpenSettings = useCallback(() => {
+    setPhase((p) =>
+      p.kind === "ready"
+        ? { kind: "settings", creds: p.creds }
+        : { kind: "settings", creds: null },
+    );
+  }, []);
+
+  const onCloseSettings = useCallback(() => {
+    // If creds still exist, go back to ready (re-login if needed); else
+    // back to needs-creds.
+    (async () => {
+      const creds = await invoke<RedactedCreds | null>(
+        "load_broker_credentials",
+      );
+      if (!creds) {
+        setPhase({ kind: "needs-creds" });
+        return;
+      }
+      // Try rebooting the connection in case credentials changed.
+      setPhase({ kind: "connecting" });
+      try {
+        await invoke("rithmic_disconnect").catch(() => {});
+        await invoke<RithmicStatus>("rithmic_login_from_vault");
+        setPhase({ kind: "ready", creds });
+      } catch (e) {
+        setPhase({ kind: "failed", error: String(e) });
+      }
+    })();
+  }, []);
+
+  if (phase.kind === "checking") {
+    return (
+      <div className="rithmic-footprint">
+        <div className="rf-splash">Loading saved broker configuration…</div>
+      </div>
+    );
+  }
+
+  if (phase.kind === "needs-creds") {
+    return (
+      <div className="rithmic-footprint">
+        <header className="rf-header">
+          <h1>OrderflowV2 — Rithmic Live</h1>
+        </header>
+        <BrokerSettings onSaved={onCredsSaved} />
+      </div>
+    );
+  }
+
+  if (phase.kind === "settings") {
+    return (
+      <div className="rithmic-footprint">
+        <header className="rf-header">
+          <h1>OrderflowV2 — Rithmic Live</h1>
+        </header>
+        <BrokerSettings onSaved={onCredsSaved} onClose={onCloseSettings} />
+      </div>
+    );
+  }
+
+  if (phase.kind === "connecting") {
+    return (
+      <div className="rithmic-footprint">
+        <div className="rf-splash">Connecting to broker…</div>
+      </div>
+    );
+  }
+
+  if (phase.kind === "failed") {
+    return (
+      <div className="rithmic-footprint">
+        <header className="rf-header">
+          <h1>OrderflowV2 — Rithmic Live</h1>
+        </header>
+        <div className="rf-failed">
+          <h2>Connection failed</h2>
+          <pre className="rf-failed-msg">{phase.error}</pre>
+          <div className="rf-failed-actions">
+            <button type="button" onClick={onOpenSettings}>
+              Edit broker settings
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const creds = await invoke<RedactedCreds | null>(
+                  "load_broker_credentials",
+                );
+                if (!creds) {
+                  setPhase({ kind: "needs-creds" });
+                  return;
+                }
+                setPhase({ kind: "connecting" });
+                try {
+                  await invoke<RithmicStatus>("rithmic_login_from_vault");
+                  setPhase({ kind: "ready", creds });
+                } catch (e) {
+                  setPhase({ kind: "failed", error: String(e) });
+                }
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // phase.kind === "ready"
+  return <FootprintLive creds={phase.creds} onOpenSettings={onOpenSettings} />;
+}
+
+function FootprintLive({
+  creds,
+  onOpenSettings,
+}: {
+  creds: RedactedCreds;
+  onOpenSettings: () => void;
+}) {
   const [status, setStatus] = useState<RithmicStatus>(EMPTY_STATUS);
-  const [credentials, setCredentials] = useState({
-    username: "",
-    password: "",
-    systemName: "Rithmic Test",
-  });
   const [symbol, setSymbol] = useState("MNQM6");
   const [exchange, setExchange] = useState("CME");
   const [timeframe, setTimeframe] = useState<Timeframe>("5s");
@@ -65,16 +238,12 @@ export function RithmicFootprint() {
 
   const fullSymbol = useMemo(() => `${symbol}.${exchange}`, [symbol, exchange]);
 
-  // Initial status query — picks up an already-running session if the
-  // user reloads the dev shell with cargo running.
   useEffect(() => {
     invoke<RithmicStatus>("rithmic_status")
       .then(setStatus)
       .catch((e) => console.error("rithmic_status failed:", e));
   }, []);
 
-  // Subscribe to live bar updates. Re-registers on filter change so
-  // the closure always sees the current (symbol, timeframe).
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     let cancelled = false;
@@ -105,30 +274,6 @@ export function RithmicFootprint() {
     };
   }, [fullSymbol, timeframe]);
 
-  // Best-effort cleanup on unmount: tell Rust to disconnect so we
-  // don't leak the WebSocket / heartbeat task across React reloads.
-  useEffect(
-    () => () => {
-      void invoke("rithmic_disconnect").catch(() => {});
-    },
-    [],
-  );
-
-  const handleLogin = useCallback(async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const next = await invoke<RithmicStatus>("rithmic_login", {
-        args: credentials,
-      });
-      setStatus(next);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [credentials]);
-
   const handleSubscribe = useCallback(async () => {
     setError(null);
     setBusy(true);
@@ -137,11 +282,7 @@ export function RithmicFootprint() {
         args: { symbol, exchange },
       });
       setStatus(next);
-      // Reset chart state — we're watching a different bucket layout
-      // even if the symbol is the same.
       setBars(new Map());
-      // Backfill from snapshot in case the engine already collected
-      // a few bars before this subscribe wave.
       const initial = await invoke<FootprintBar[]>("rithmic_get_bars", {
         args: { symbol: fullSymbol, timeframe, nBars: MAX_BARS },
       });
@@ -170,20 +311,6 @@ export function RithmicFootprint() {
     }
   }, [symbol, exchange]);
 
-  const handleDisconnect = useCallback(async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      await invoke("rithmic_disconnect");
-      setStatus(EMPTY_STATUS);
-      setBars(new Map());
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
   const sortedBars = useMemo(
     () => [...bars.values()].sort((a, b) => b.bucketTsNs - a.bucketTsNs),
     [bars],
@@ -197,167 +324,95 @@ export function RithmicFootprint() {
     <div className="rithmic-footprint">
       <header className="rf-header">
         <h1>OrderflowV2 — Rithmic Live</h1>
-        <StatusBadge status={status} />
-      </header>
-
-      {!status.loggedIn && (
-        <section className="rf-login">
-          <h2>Login Rithmic</h2>
-          <div className="rf-form">
-            <label>
-              <span>Username</span>
-              <input
-                type="email"
-                autoComplete="username"
-                value={credentials.username}
-                onChange={(e) =>
-                  setCredentials((c) => ({ ...c, username: e.target.value }))
-                }
-                disabled={busy}
-              />
-            </label>
-            <label>
-              <span>Password</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={credentials.password}
-                onChange={(e) =>
-                  setCredentials((c) => ({ ...c, password: e.target.value }))
-                }
-                disabled={busy}
-              />
-            </label>
-            <label>
-              <span>System</span>
-              <select
-                value={credentials.systemName}
-                onChange={(e) =>
-                  setCredentials((c) => ({ ...c, systemName: e.target.value }))
-                }
-                disabled={busy}
-              >
-                {SYSTEM_NAMES.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              onClick={handleLogin}
-              disabled={busy || !credentials.username || !credentials.password}
-            >
-              {busy ? "Connecting…" : "Login"}
-            </button>
-          </div>
-        </section>
-      )}
-
-      {status.loggedIn && (
-        <section className="rf-controls">
-          <label>
-            <span>Symbol</span>
-            <input
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              disabled={busy}
-            />
-          </label>
-          <label>
-            <span>Exchange</span>
-            <input
-              value={exchange}
-              onChange={(e) => setExchange(e.target.value.toUpperCase())}
-              disabled={busy}
-            />
-          </label>
-          <label>
-            <span>Timeframe</span>
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value as Timeframe)}
-              disabled={busy}
-            >
-              {TIMEFRAMES.map((tf) => (
-                <option key={tf} value={tf}>
-                  {tf}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" onClick={handleSubscribe} disabled={busy}>
-            Subscribe
-          </button>
-          {status.subscriptions.includes(fullSymbol) && (
-            <button
-              type="button"
-              onClick={handleUnsubscribe}
-              disabled={busy}
-              className="rf-secondary"
-            >
-              Unsubscribe
-            </button>
+        <div className="rf-status-info">
+          <span className="rf-status rf-status-connected">Connected</span>
+          <span className="rf-status-detail">
+            {creds.systemName} · {creds.username}
+          </span>
+          {status.fcm && (
+            <span className="rf-status-detail">
+              FCM {status.fcm} · {status.country} · heartbeat{" "}
+              {status.heartbeatSecs ?? "?"}s
+            </span>
           )}
           <button
             type="button"
-            onClick={handleDisconnect}
-            disabled={busy}
-            className="rf-danger"
+            className="rf-link"
+            onClick={onOpenSettings}
           >
-            Disconnect
+            Edit broker settings
           </button>
-        </section>
-      )}
+        </div>
+      </header>
+
+      <section className="rf-controls">
+        <label>
+          <span>Symbol</span>
+          <input
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+            disabled={busy}
+          />
+        </label>
+        <label>
+          <span>Exchange</span>
+          <input
+            value={exchange}
+            onChange={(e) => setExchange(e.target.value.toUpperCase())}
+            disabled={busy}
+          />
+        </label>
+        <label>
+          <span>Timeframe</span>
+          <select
+            value={timeframe}
+            onChange={(e) => setTimeframe(e.target.value as Timeframe)}
+            disabled={busy}
+          >
+            {TIMEFRAMES.map((tf) => (
+              <option key={tf} value={tf}>
+                {tf}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" onClick={handleSubscribe} disabled={busy}>
+          Subscribe
+        </button>
+        {status.subscriptions.includes(fullSymbol) && (
+          <button
+            type="button"
+            onClick={handleUnsubscribe}
+            disabled={busy}
+            className="rf-secondary"
+          >
+            Unsubscribe
+          </button>
+        )}
+      </section>
 
       {error && <div className="rf-error">{error}</div>}
 
-      {status.loggedIn && (
-        <section className="rf-footprint">
-          <h2>
-            {fullSymbol} · {timeframe} · {sortedBars.length} bar
-            {sortedBars.length === 1 ? "" : "s"} · {totalTrades} trade
-            {totalTrades === 1 ? "" : "s"}
-          </h2>
-          {sortedBars.length === 0 ? (
-            <div className="rf-empty">
-              {status.subscriptions.includes(fullSymbol)
-                ? "Waiting for ticks…"
-                : "Subscribe to start streaming."}
-            </div>
-          ) : (
-            <div className="rf-bars">
-              {sortedBars.map((bar) => (
-                <BarView key={bar.bucketTsNs} bar={bar} />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: RithmicStatus }) {
-  if (!status.connected) {
-    return (
-      <span className="rf-status rf-status-disconnected">Disconnected</span>
-    );
-  }
-  if (!status.loggedIn) {
-    return <span className="rf-status rf-status-connecting">Connecting…</span>;
-  }
-  return (
-    <div className="rf-status-info">
-      <span className="rf-status rf-status-connected">Connected</span>
-      <span className="rf-status-detail">
-        {status.systemName} · {status.user}
-      </span>
-      <span className="rf-status-detail">
-        FCM {status.fcm} · IB {status.ib} · {status.country} · heartbeat{" "}
-        {status.heartbeatSecs ?? "?"}s
-      </span>
+      <section className="rf-footprint">
+        <h2>
+          {fullSymbol} · {timeframe} · {sortedBars.length} bar
+          {sortedBars.length === 1 ? "" : "s"} · {totalTrades} trade
+          {totalTrades === 1 ? "" : "s"}
+        </h2>
+        {sortedBars.length === 0 ? (
+          <div className="rf-empty">
+            {status.subscriptions.includes(fullSymbol)
+              ? "Waiting for ticks…"
+              : "Subscribe to start streaming."}
+          </div>
+        ) : (
+          <div className="rf-bars">
+            {sortedBars.map((bar) => (
+              <BarView key={bar.bucketTsNs} bar={bar} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
