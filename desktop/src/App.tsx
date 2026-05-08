@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { useUpdateCheck, UpdateModal } from "./UpdateChecker";
-import { RithmicFootprint } from "./components/RithmicFootprint";
+import { WelcomeRoute } from "./routes/WelcomeRoute";
+import { FootprintRoute } from "./routes/FootprintRoute";
+import { LiveRoute } from "./routes/LiveRoute";
+import { AccountRoute } from "./routes/AccountRoute";
 import "./App.css";
 
 // Phase 7.7.3 dev flag — when false, the desktop app stays inside the
@@ -143,12 +147,24 @@ function App() {
     );
   }
 
-  // Phase 7.7.3: post-login goes straight to the local footprint
-  // instead of the Vercel /live bridge. The license-info `Welcome`
-  // card stays defined below so Phase 7.7.4's router can mount it
-  // alongside the footprint.
+  // Phase 7.7.5 — post-login on monte un router en mémoire.
+  // MemoryRouter plutôt que BrowserRouter parce que Tauri sert l'app
+  // depuis un schéma `tauri://` / `https://tauri.localhost` qui n'a pas
+  // de serveur HTTP derrière pour résoudre des paths arbitraires : si
+  // l'utilisateur recharge la webview alors qu'il est sur `/footprint`,
+  // BrowserRouter taperait sur l'URL physique et planterait. Memory
+  // garde l'historique en JS, l'URL reste à la racine.
   if (session) {
-    return <RithmicFootprint />;
+    return (
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<WelcomeRoute />} />
+          <Route path="/footprint" element={<FootprintRoute />} />
+          <Route path="/live" element={<LiveRoute />} />
+          <Route path="/account" element={<AccountRoute />} />
+        </Routes>
+      </MemoryRouter>
+    );
   }
 
   return (
