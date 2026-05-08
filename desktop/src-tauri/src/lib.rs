@@ -6,10 +6,12 @@
 //! land in later phases.
 
 mod auth;
+mod commands;
 pub mod connectors;
 pub mod engine;
 mod machine;
 mod prefs;
+mod state;
 
 use auth::{LoginResponse, Session};
 use std::path::PathBuf;
@@ -155,6 +157,15 @@ pub fn run() {
         .setup(|app| {
             let state = build_state(&app.handle());
             app.manage(state);
+
+            // Rithmic + footprint state lives alongside the auth state.
+            // The footprint event emitter outlives login/logout cycles —
+            // it subscribes to the long-lived engine, not to any
+            // particular adapter.
+            let rithmic_state = state::RithmicState::new();
+            commands::rithmic_events::spawn_emitter(app.handle().clone(), &rithmic_state.engine);
+            app.manage(rithmic_state);
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -165,6 +176,12 @@ pub fn run() {
             cmd_heartbeat,
             cmd_get_first_launch_completed,
             cmd_mark_first_launch_completed,
+            commands::rithmic::rithmic_login,
+            commands::rithmic::rithmic_subscribe,
+            commands::rithmic::rithmic_unsubscribe,
+            commands::rithmic::rithmic_get_bars,
+            commands::rithmic::rithmic_disconnect,
+            commands::rithmic::rithmic_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
