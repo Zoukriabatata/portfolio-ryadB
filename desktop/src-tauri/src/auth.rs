@@ -14,16 +14,14 @@ use tokio::fs;
 const SESSION_FILE: &str = "session.json";
 
 fn default_api_base() -> String {
-    std::env::var("ORDERFLOWV2_API_BASE").unwrap_or_else(|_| {
-        if cfg!(debug_assertions) {
-            // Dev (cargo run, tauri dev): Next.js usually runs locally.
-            "http://localhost:3000".to_string()
-        } else {
-            // Release build (tauri build / .msi distributable): no backend
-            // is shipped with the binary, point at the deployed prod app.
-            "https://orderflow-v2.vercel.app".to_string()
-        }
-    })
+    // Default to the deployed prod backend in both debug and release
+    // builds. We almost never run Next.js locally during desktop iteration
+    // (Phase 7+ work is all about the Rithmic connector + footprint
+    // engine), and the prod license endpoint is what we want to validate
+    // against anyway. Devs who actively work on the Next.js side can
+    // still point at localhost via the ORDERFLOWV2_API_BASE override.
+    std::env::var("ORDERFLOWV2_API_BASE")
+        .unwrap_or_else(|_| "https://orderflow-v2.vercel.app".to_string())
 }
 
 /* ─── wire types (mirror the Next.js routes) ─────────────────────── */
