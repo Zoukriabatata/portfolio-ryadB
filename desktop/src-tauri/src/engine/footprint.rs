@@ -89,6 +89,7 @@ impl Timeframe {
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PriceLevel {
     pub price: f64,
     pub buy_volume: f64,
@@ -108,6 +109,7 @@ impl PriceLevel {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FootprintBar {
     pub symbol: String,
     pub timeframe: &'static str,
