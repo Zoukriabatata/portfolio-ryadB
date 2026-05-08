@@ -10,6 +10,9 @@
 #![allow(dead_code)]
 
 pub mod adapter;
+pub mod binance;
+pub mod bybit;
+pub mod deribit;
 pub mod error;
 pub mod rithmic;
 pub mod tick;

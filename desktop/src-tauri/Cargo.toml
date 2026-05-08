@@ -75,3 +75,15 @@ path = "examples/rithmic_heartbeat.rs"
 [[example]]
 name = "rithmic_footprint"
 path = "examples/rithmic_footprint.rs"
+
+[[example]]
+name = "binance_subscribe"
+path = "examples/binance_subscribe.rs"
+
+[[example]]
+name = "bybit_subscribe"
+path = "examples/bybit_subscribe.rs"
+
+[[example]]
+name = "deribit_subscribe"
+path = "examples/deribit_subscribe.rs"
