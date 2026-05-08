@@ -6,6 +6,7 @@
 //! land in later phases.
 
 mod auth;
+pub mod brokers;
 mod commands;
 pub mod connectors;
 pub mod engine;
