@@ -139,6 +139,20 @@ pub async fn login(
     serde_json::from_slice::<LoginResponse>(&bytes).map_err(|e| AuthError::Parse(e.to_string()))
 }
 
+/// Build the URL the desktop webview should navigate to (or set as
+/// an iframe src) to land on `next_path` with a NextAuth session
+/// cookie set. The token must be a fresh license JWT — the bridge
+/// endpoint enforces a 60s freshness guard, so callers should
+/// hit `heartbeat()` immediately before invoking this.
+pub fn build_bridge_url(token: &str, next_path: &str) -> Result<String, AuthError> {
+    let base = format!("{}/api/auth/desktop-bridge", default_api_base());
+    let mut u = url::Url::parse(&base).map_err(|e| AuthError::Parse(e.to_string()))?;
+    u.query_pairs_mut()
+        .append_pair("token", token)
+        .append_pair("next", next_path);
+    Ok(u.into())
+}
+
 pub async fn heartbeat(
     token:       &str,
     os:          Option<&str>,
