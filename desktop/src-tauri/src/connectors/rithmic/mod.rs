@@ -10,6 +10,7 @@
 pub mod adapter;
 pub mod auth;
 pub mod client;
+pub mod reader;
 
 // The proto module is fully generated from rithmic-sdk/proto/ at build
 // time. We deliberately compile every Rithmic message type even though
