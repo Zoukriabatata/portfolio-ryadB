@@ -1,30 +1,63 @@
-// Phase B / M4 — slim Canvas2D footprint renderer with the
-// Senzoukria theme. Mirrors the column layout of the web renderer
-// (bid · ohlc · ask · profile per bar) but ships under 500 LOC and
-// has no external deps beyond the theme module.
+// Phase B / M4 + M4.5 — Canvas2D footprint renderer with pan/zoom,
+// crosshair, and session POC.
 //
 // Render contract:
-//   1. caller creates a renderer with a canvas + theme
-//   2. on every frame (or whenever bars change) caller invokes
-//      `renderer.draw(bars, priceDecimals?)`
-//   3. renderer auto-handles DPR scaling on `resize(width, height)`
+//   1. caller creates a renderer with a canvas + theme + an
+//      interaction-state getter (the React component owns the state
+//      ref so the renderer reads the latest scrollX/cellWidth/hover
+//      coords on every frame without React rerenders).
+//   2. caller calls setBars(bars) when bar data changes, and
+//      render() any time it wants a paint (after interaction events,
+//      after data changes, on resize).
+//   3. caller calls getCellAtPixel(x,y) when it needs the cell under
+//      the cursor (e.g. for tooltip text outside the canvas).
 //
-// The renderer is purely imperative — no internal animation loop,
-// no React state. The React wrapper (`<FootprintCanvas/>`) decides
-// when to call `draw()`.
+// The renderer holds no React/DOM state of its own and runs entirely
+// from the caller's getter — keeps it portable to Rithmic / replay
+// in M5+.
 
 import {
   DEFAULT_LAYOUT,
-  barTotalWidth,
   type LayoutConfig,
   type RendererBar,
+  type RendererPriceLevel,
 } from "./types";
 import type { FootprintTheme } from "./theme";
 import { SENZOUKRIA_DARK } from "./theme";
+import {
+  DEFAULT_INTERACTION,
+  type InteractionState,
+} from "./interactions";
+import { sessionPOC } from "./valueArea";
 
 export interface RendererOptions {
   theme?: FootprintTheme;
   layout?: Partial<LayoutConfig>;
+  /** Called every frame to read the latest pan/zoom/hover state. */
+  getInteractionState?: () => InteractionState;
+}
+
+interface FrameLayout {
+  chartRight: number;
+  chartTop: number;
+  chartBottom: number;
+  rowH: number;
+  totalRows: number;
+  gridTop: number;
+  minPrice: number;
+  maxPrice: number;
+  tickSize: number;
+  cellWidth: number;
+  scrollX: number;
+  // bars[i].right = mostRecentRightX - (sortedBars.length-1 - i) * cellWidth
+  mostRecentRightX: number;
+  sortedBars: RendererBar[];
+  sessionPocPrice: number | null;
+  // Per-cell column widths derived from cellWidth.
+  bidW: number;
+  ohlcW: number;
+  askW: number;
+  profileW: number;
 }
 
 export class FootprintCanvasRenderer {
@@ -34,6 +67,12 @@ export class FootprintCanvasRenderer {
   private dpr = 1;
   private theme: FootprintTheme;
   private layout: LayoutConfig;
+  private getInteraction: () => InteractionState;
+
+  // Cached state across calls.
+  private bars: RendererBar[] = [];
+  private priceDecimals = 2;
+  private lastFrame: FrameLayout | null = null;
 
   constructor(canvas: HTMLCanvasElement, opts: RendererOptions = {}) {
     const ctx = canvas.getContext("2d");
@@ -43,6 +82,8 @@ export class FootprintCanvasRenderer {
     this.ctx = ctx;
     this.theme = opts.theme ?? SENZOUKRIA_DARK;
     this.layout = { ...DEFAULT_LAYOUT, ...(opts.layout ?? {}) };
+    this.getInteraction =
+      opts.getInteractionState ?? (() => DEFAULT_INTERACTION);
     this.dpr = window.devicePixelRatio || 1;
 
     const rect = canvas.getBoundingClientRect();
@@ -51,6 +92,21 @@ export class FootprintCanvasRenderer {
 
   setTheme(theme: FootprintTheme) {
     this.theme = theme;
+  }
+
+  setBars(bars: RendererBar[]) {
+    this.bars = bars;
+  }
+
+  setPriceDecimals(n: number) {
+    this.priceDecimals = n;
+  }
+
+  /** Convenience for one-shot draws. */
+  draw(bars: RendererBar[], priceDecimals = 2) {
+    this.setBars(bars);
+    this.setPriceDecimals(priceDecimals);
+    this.render();
   }
 
   resize(width: number, height: number) {
@@ -69,161 +125,204 @@ export class FootprintCanvasRenderer {
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
   }
 
-  draw(bars: RendererBar[], priceDecimals = 2) {
+  /** Visible bar capacity at the current cell width — used by the
+   *  React layer to compute scroll bounds in `clampScrollX`. */
+  getVisibleBarsCapacity(): number {
+    const cellW = this.getInteraction().cellWidth;
+    const usable = this.cssWidth - this.layout.priceAxisWidth - this.layout.paddingLeft;
+    return Math.max(1, Math.floor(usable / cellW));
+  }
+
+  /** Returns the bar + level under the given canvas-relative pixel,
+   *  or null when the pointer is outside the chart area or the cell
+   *  is empty. Caller must ensure render() ran at least once first. */
+  getCellAtPixel(
+    x: number,
+    y: number,
+  ): { bar: RendererBar; level: RendererPriceLevel } | null {
+    const f = this.lastFrame;
+    if (!f) return null;
+    if (x < this.layout.paddingLeft || x > f.chartRight) return null;
+    if (y < f.chartTop || y > f.chartBottom) return null;
+
+    // Figure out which bar's rectangle contains x.
+    const offsetFromRight = f.mostRecentRightX - x;
+    const barFromRight = Math.floor(offsetFromRight / f.cellWidth);
+    const idx = f.sortedBars.length - 1 - barFromRight;
+    if (idx < 0 || idx >= f.sortedBars.length) return null;
+    const bar = f.sortedBars[idx];
+
+    // Snap y to the nearest price row.
+    const rowIdx = Math.floor((y - f.gridTop) / f.rowH);
+    if (rowIdx < 0 || rowIdx >= f.totalRows) return null;
+    const price = f.maxPrice - rowIdx * f.tickSize;
+
+    // O(N) is fine — N is the levels-per-bar count, typically <50.
+    const level = bar.levels.find(
+      (l) => Math.abs(l.price - price) < f.tickSize / 2,
+    );
+    if (!level) return null;
+    return { bar, level };
+  }
+
+  render() {
     const { ctx, cssWidth, cssHeight, theme, layout } = this;
 
     ctx.fillStyle = theme.background;
     ctx.fillRect(0, 0, cssWidth, cssHeight);
 
-    if (bars.length === 0) {
+    if (this.bars.length === 0) {
+      this.lastFrame = null;
       this.drawEmpty();
       return;
     }
 
-    const barW = barTotalWidth(layout);
-    const stepX = barW + layout.barGap;
+    const frame = this.computeFrame();
+    if (!frame) {
+      this.lastFrame = null;
+      this.drawEmpty();
+      return;
+    }
+    this.lastFrame = frame;
 
-    // Right edge of the chart area = canvas - price axis.
+    // Background grid.
+    ctx.strokeStyle = theme.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let r = 0; r <= frame.totalRows; r += 5) {
+      const y = Math.round(frame.gridTop + r * frame.rowH) + 0.5;
+      ctx.moveTo(layout.paddingLeft, y);
+      ctx.lineTo(frame.chartRight, y);
+    }
+    ctx.stroke();
+
+    // Bars (clip-skip if outside the chart viewport).
+    for (let i = 0; i < frame.sortedBars.length; i++) {
+      const bar = frame.sortedBars[i];
+      const rightX =
+        frame.mostRecentRightX -
+        (frame.sortedBars.length - 1 - i) * frame.cellWidth;
+      const leftX = rightX - frame.cellWidth;
+      if (rightX < layout.paddingLeft) continue;
+      if (leftX > frame.chartRight) continue;
+      this.drawBar(bar, leftX, frame);
+    }
+
+    // Session POC overlay (drawn after all bars so it sits on top).
+    if (frame.sessionPocPrice !== null) {
+      this.drawSessionPOC(frame);
+    }
+
+    this.drawPriceAxis(frame);
+    this.drawTimeAxis(frame);
+
+    // Crosshair + tooltips on top of everything except the chrome.
+    const interaction = this.getInteraction();
+    if (
+      interaction.hoverX !== null &&
+      interaction.hoverY !== null &&
+      !interaction.isDragging
+    ) {
+      this.drawCrosshair(interaction.hoverX, interaction.hoverY, frame);
+    }
+  }
+
+  private computeFrame(): FrameLayout | null {
+    const interaction = this.getInteraction();
+    const { layout, cssWidth, cssHeight, bars } = this;
+
     const chartRight = cssWidth - layout.priceAxisWidth;
     const chartTop = layout.paddingTop;
     const chartBottom = cssHeight - layout.timeAxisHeight;
     const chartHeight = chartBottom - chartTop;
 
-    // Compute global price range across all visible bars so all bars
-    // share the same Y axis. Drop bars whose levels fall outside the
-    // chart height — that limits per-bar zoom but keeps the layout
-    // aligned across the whole canvas, which is what footprint
-    // traders expect.
     let minPrice = Infinity;
     let maxPrice = -Infinity;
     for (const bar of bars) {
       if (bar.low < minPrice) minPrice = bar.low;
       if (bar.high > maxPrice) maxPrice = bar.high;
     }
-    if (!isFinite(minPrice) || !isFinite(maxPrice)) {
-      this.drawEmpty();
-      return;
-    }
+    if (!isFinite(minPrice) || !isFinite(maxPrice)) return null;
 
-    // Tick spacing inferred from the densest bar's level grid. Every
-    // bar shares the same tick (engine groups by rounded price), so
-    // any non-empty bar yields a valid value.
     const tickSize = inferTickSize(bars);
-    if (tickSize <= 0) {
-      this.drawEmpty();
-      return;
-    }
+    if (tickSize <= 0) return null;
 
-    // How many price rows fit into the chart height? If too many,
-    // the Y axis will compress — that's intentional, the alternative
-    // (scrolling) doesn't fit a single-screen overview.
     const totalRows = Math.max(
       1,
       Math.round((maxPrice - minPrice) / tickSize) + 1,
     );
     const rowH = Math.max(2, Math.min(layout.rowHeight, chartHeight / totalRows));
     const usedHeight = rowH * totalRows;
-    // Center the price grid vertically when the chart is taller than
-    // the rows need.
     const gridTop = chartTop + Math.max(0, (chartHeight - usedHeight) / 2);
 
-    const priceToY = (price: number): number => {
-      const idx = Math.round((maxPrice - price) / tickSize);
-      return gridTop + idx * rowH + rowH / 2;
-    };
+    // Cell width comes from interaction state but the on-bar split
+    // (bid/ohlc/ask/profile) scales proportionally so wide cells let
+    // numbers breathe and narrow cells degrade to color-only.
+    const cellWidth = Math.max(8, interaction.cellWidth);
+    const bidW = Math.round(cellWidth * 0.36);
+    const ohlcW = Math.max(2, Math.round(cellWidth * 0.06));
+    const profileW = Math.round(cellWidth * 0.22);
+    const askW = Math.max(0, cellWidth - bidW - ohlcW - profileW);
 
-    // Bars are right-anchored: the most recent bar sits flush
-    // against the price axis, older bars stack to the left.
     const sortedBars = [...bars].sort((a, b) => a.timeMs - b.timeMs);
-    const visibleN = Math.min(
-      sortedBars.length,
-      Math.floor((chartRight - layout.paddingLeft) / stepX),
-    );
-    const startIdx = sortedBars.length - visibleN;
+    const mostRecentRightX = chartRight + interaction.scrollX;
 
-    // Background grid (faint horizontal lines every 5 rows).
-    ctx.strokeStyle = theme.grid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let r = 0; r <= totalRows; r += 5) {
-      const y = Math.round(gridTop + r * rowH) + 0.5;
-      ctx.moveTo(layout.paddingLeft, y);
-      ctx.lineTo(chartRight, y);
-    }
-    ctx.stroke();
-
-    for (let i = 0; i < visibleN; i++) {
-      const bar = sortedBars[startIdx + i];
-      const x = chartRight - (visibleN - i) * stepX;
-      this.drawBar(bar, x, gridTop, rowH, priceToY);
-    }
-
-    // Axes painted last so they sit on top.
-    this.drawPriceAxis(
-      maxPrice,
-      tickSize,
+    return {
+      chartRight,
+      chartTop,
+      chartBottom,
+      rowH,
       totalRows,
       gridTop,
-      rowH,
-      chartRight,
-      priceDecimals,
-    );
-    this.drawTimeAxis(
-      sortedBars.slice(startIdx, startIdx + visibleN),
-      chartRight,
-      cssHeight,
-      stepX,
-      visibleN,
-    );
+      minPrice,
+      maxPrice,
+      tickSize,
+      cellWidth,
+      scrollX: interaction.scrollX,
+      mostRecentRightX,
+      sortedBars,
+      sessionPocPrice: sessionPOC(sortedBars),
+      bidW,
+      ohlcW,
+      askW,
+      profileW,
+    };
   }
 
-  private drawBar(
-    bar: RendererBar,
-    x: number,
-    gridTop: number,
-    rowH: number,
-    priceToY: (p: number) => number,
-  ) {
-    const { ctx, theme, layout } = this;
-    const bidX = x;
-    const ohlcX = bidX + layout.bidWidth;
-    const askX = ohlcX + layout.ohlcWidth;
-    const profileX = askX + layout.askWidth;
+  private drawBar(bar: RendererBar, leftX: number, f: FrameLayout) {
+    const { ctx, theme } = this;
+    const bidX = leftX;
+    const ohlcX = bidX + f.bidW;
+    const askX = ohlcX + f.ohlcW;
+    const profileX = askX + f.askW;
 
     const maxVol = Math.max(1, bar.maxLevelVolume ?? 1);
+    const showText = f.cellWidth >= 90 && f.rowH >= 9;
 
-    // Cells: one row per level. Buy on the right (ask) col, sell on
-    // the left (bid) col, both aligned to the same Y so the eye can
-    // read the imbalance horizontally.
     ctx.font = `${theme.cellFontSize}px ${theme.fontFamily}`;
     ctx.textBaseline = "middle";
-    for (const level of bar.levels) {
-      const y = priceToY(level.price);
-      const yTop = y - rowH / 2;
 
-      // Bid (sell aggressors) cell — left side.
+    for (const level of bar.levels) {
+      const y = priceToY(level.price, f);
+      const yTop = y - f.rowH / 2;
+
       if (level.sellVolume > 0) {
         const intensity = Math.min(1, level.sellVolume / maxVol);
         ctx.fillStyle = lerpHeat(theme.sellHeat, intensity);
-        ctx.fillRect(bidX, yTop, layout.bidWidth, rowH - 0.5);
-        if (rowH >= 9) {
+        ctx.fillRect(bidX, yTop, f.bidW, f.rowH - 0.5);
+        if (showText) {
           ctx.fillStyle =
             intensity > 0.55 ? theme.background : theme.textPrimary;
           ctx.textAlign = "right";
-          ctx.fillText(
-            formatVol(level.sellVolume),
-            bidX + layout.bidWidth - 4,
-            y,
-          );
+          ctx.fillText(formatVol(level.sellVolume), bidX + f.bidW - 4, y);
         }
       }
 
-      // Ask (buy aggressors) cell — right side.
       if (level.buyVolume > 0) {
         const intensity = Math.min(1, level.buyVolume / maxVol);
         ctx.fillStyle = lerpHeat(theme.buyHeat, intensity);
-        ctx.fillRect(askX, yTop, layout.askWidth, rowH - 0.5);
-        if (rowH >= 9) {
+        ctx.fillRect(askX, yTop, f.askW, f.rowH - 0.5);
+        if (showText) {
           ctx.fillStyle =
             intensity > 0.55 ? theme.background : theme.textPrimary;
           ctx.textAlign = "left";
@@ -232,15 +331,14 @@ export class FootprintCanvasRenderer {
       }
     }
 
-    // OHLC outline in the centre column (open/close as ticks, body
-    // shaded by delta sign).
-    const yHigh = priceToY(bar.high) - rowH / 2;
-    const yLow = priceToY(bar.low) + rowH / 2;
-    const yOpen = priceToY(bar.open);
-    const yClose = priceToY(bar.close);
+    // OHLC center column.
+    const yHigh = priceToY(bar.high, f) - f.rowH / 2;
+    const yLow = priceToY(bar.low, f) + f.rowH / 2;
+    const yOpen = priceToY(bar.open, f);
+    const yClose = priceToY(bar.close, f);
     const bodyTop = Math.min(yOpen, yClose);
     const bodyBot = Math.max(yOpen, yClose);
-    const wickX = ohlcX + layout.ohlcWidth / 2;
+    const wickX = ohlcX + f.ohlcW / 2;
 
     ctx.strokeStyle = theme.textSecondary;
     ctx.lineWidth = 1;
@@ -249,109 +347,97 @@ export class FootprintCanvasRenderer {
     ctx.lineTo(wickX, yLow);
     ctx.stroke();
 
-    ctx.fillStyle =
-      bar.totalDelta >= 0 ? theme.buy : theme.sell;
+    ctx.fillStyle = bar.totalDelta >= 0 ? theme.buy : theme.sell;
     ctx.fillRect(
       ohlcX + 1,
       bodyTop,
-      layout.ohlcWidth - 2,
+      Math.max(1, f.ohlcW - 2),
       Math.max(1, bodyBot - bodyTop),
     );
 
-    // POC marker (yellow tick on the highest-volume row).
+    // Per-bar POC marker (cyan thin line). Distinct from session POC
+    // (gold thick line, drawn later in drawSessionPOC).
     if (bar.poc !== undefined && bar.pocVolume && bar.pocVolume > 0) {
-      const yPoc = priceToY(bar.poc);
-      ctx.strokeStyle = theme.poc;
-      ctx.lineWidth = 2;
+      const yPoc = priceToY(bar.poc, f);
+      ctx.strokeStyle = "#22d3ee";
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(bidX, yPoc);
-      ctx.lineTo(askX + layout.askWidth, yPoc);
+      ctx.lineTo(askX + f.askW, yPoc);
       ctx.stroke();
-      ctx.lineWidth = 1;
     }
 
-    // Volume profile column on the right of the bar — single bar
-    // showing total volume per price as a horizontal line.
-    const profileMaxW = layout.profileWidth - 2;
+    // Volume profile column.
+    const profileMaxW = Math.max(1, f.profileW - 2);
     for (const level of bar.levels) {
       const total = level.buyVolume + level.sellVolume;
       const w = Math.max(1, (total / maxVol) * profileMaxW);
-      const y = priceToY(level.price) - rowH / 2 + 1;
+      const y = priceToY(level.price, f) - f.rowH / 2 + 1;
       const buyW = total > 0 ? (level.buyVolume / total) * w : 0;
       ctx.fillStyle = theme.profileBuy;
-      ctx.fillRect(profileX, y, buyW, rowH - 2);
+      ctx.fillRect(profileX, y, buyW, f.rowH - 2);
       ctx.fillStyle = theme.profileSell;
-      ctx.fillRect(profileX + buyW, y, w - buyW, rowH - 2);
+      ctx.fillRect(profileX + buyW, y, w - buyW, f.rowH - 2);
     }
 
-    // Bar separator + footer with delta + total.
-    ctx.fillStyle =
-      bar.totalDelta >= 0 ? theme.buy : theme.sell;
-    ctx.font = `${theme.cellFontSize}px ${theme.fontFamily}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-    const yDelta =
-      gridTop +
-      Math.max(0, this.cssHeight - this.layout.timeAxisHeight - gridTop) -
-      4;
-    if (yDelta > gridTop) {
+    // Bar footer with delta sum (shown only when there's room).
+    if (showText) {
+      ctx.fillStyle = bar.totalDelta >= 0 ? theme.buy : theme.sell;
+      ctx.font = `${theme.cellFontSize}px ${theme.fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      const yDelta = f.chartBottom - 4;
+      const cx = bidX + (f.bidW + f.ohlcW + f.askW) / 2;
       const deltaLabel =
         (bar.totalDelta >= 0 ? "+" : "") +
         Math.round(bar.totalDelta).toString();
-      ctx.fillText(
-        deltaLabel,
-        bidX + (layout.bidWidth + layout.ohlcWidth + layout.askWidth) / 2,
-        yDelta,
-      );
+      ctx.fillText(deltaLabel, cx, yDelta);
     }
   }
 
-  private drawPriceAxis(
-    maxPrice: number,
-    tickSize: number,
-    totalRows: number,
-    gridTop: number,
-    rowH: number,
-    chartRight: number,
-    priceDecimals: number,
-  ) {
+  private drawSessionPOC(f: FrameLayout) {
+    if (f.sessionPocPrice === null) return;
+    const { ctx, theme, layout } = this;
+    const y = priceToY(f.sessionPocPrice, f);
+    ctx.strokeStyle = theme.poc;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(layout.paddingLeft, y);
+    ctx.lineTo(f.chartRight, y);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+
+  private drawPriceAxis(f: FrameLayout) {
     const { ctx, theme, layout } = this;
     ctx.fillStyle = theme.surface;
-    ctx.fillRect(chartRight, 0, layout.priceAxisWidth, this.cssHeight);
+    ctx.fillRect(f.chartRight, 0, layout.priceAxisWidth, this.cssHeight);
     ctx.strokeStyle = theme.axis;
     ctx.beginPath();
-    ctx.moveTo(chartRight + 0.5, 0);
-    ctx.lineTo(chartRight + 0.5, this.cssHeight);
+    ctx.moveTo(f.chartRight + 0.5, 0);
+    ctx.lineTo(f.chartRight + 0.5, this.cssHeight);
     ctx.stroke();
 
     ctx.fillStyle = theme.textSecondary;
     ctx.font = `${theme.priceFontSize}px ${theme.fontFamily}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    // Label every 5th row to avoid cramming.
-    for (let r = 0; r <= totalRows; r += 5) {
-      const price = maxPrice - r * tickSize;
-      const y = gridTop + r * rowH;
-      ctx.fillText(price.toFixed(priceDecimals), chartRight + 6, y);
+    for (let r = 0; r <= f.totalRows; r += 5) {
+      const price = f.maxPrice - r * f.tickSize;
+      const y = f.gridTop + r * f.rowH;
+      ctx.fillText(price.toFixed(this.priceDecimals), f.chartRight + 6, y);
     }
   }
 
-  private drawTimeAxis(
-    visibleBars: RendererBar[],
-    chartRight: number,
-    canvasHeight: number,
-    stepX: number,
-    visibleN: number,
-  ) {
+  private drawTimeAxis(f: FrameLayout) {
     const { ctx, theme, layout } = this;
-    const axisY = canvasHeight - layout.timeAxisHeight;
-
+    const axisY = this.cssHeight - layout.timeAxisHeight;
     ctx.fillStyle = theme.surface;
-    ctx.fillRect(0, axisY, chartRight, layout.timeAxisHeight);
+    ctx.fillRect(0, axisY, f.chartRight, layout.timeAxisHeight);
     ctx.strokeStyle = theme.axis;
     ctx.beginPath();
     ctx.moveTo(0, axisY + 0.5);
-    ctx.lineTo(chartRight, axisY + 0.5);
+    ctx.lineTo(f.chartRight, axisY + 0.5);
     ctx.stroke();
 
     ctx.fillStyle = theme.textMuted;
@@ -359,20 +445,99 @@ export class FootprintCanvasRenderer {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Label every 4th bar to avoid overlap.
-    for (let i = 0; i < visibleN; i += 4) {
-      const bar = visibleBars[i];
-      if (!bar) continue;
-      const x = chartRight - (visibleN - i) * stepX + barTotalWidth(layout) / 2;
+    // Label every Nth bar to avoid overlap. N depends on cell width.
+    const stride = f.cellWidth >= 110 ? 2 : f.cellWidth >= 70 ? 4 : 6;
+    for (let i = 0; i < f.sortedBars.length; i += stride) {
+      const bar = f.sortedBars[i];
+      const rightX =
+        f.mostRecentRightX -
+        (f.sortedBars.length - 1 - i) * f.cellWidth;
+      const cx = rightX - f.cellWidth / 2;
+      if (cx < layout.paddingLeft || cx > f.chartRight) continue;
       const date = new Date(bar.timeMs);
-      const label =
-        date.toLocaleTimeString("fr-FR", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-      ctx.fillText(label, x, axisY + layout.timeAxisHeight / 2);
+      const label = date.toLocaleTimeString("fr-FR", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      ctx.fillText(label, cx, axisY + layout.timeAxisHeight / 2);
+    }
+  }
+
+  private drawCrosshair(hx: number, hy: number, f: FrameLayout) {
+    const { ctx, theme, layout } = this;
+    if (hx < layout.paddingLeft || hx > f.chartRight) return;
+    if (hy < f.chartTop || hy > f.chartBottom) return;
+
+    // Snap horizontal line to the price row under cursor.
+    const rowIdx = Math.max(
+      0,
+      Math.min(f.totalRows - 1, Math.floor((hy - f.gridTop) / f.rowH)),
+    );
+    const snappedY = f.gridTop + rowIdx * f.rowH + f.rowH / 2;
+    const snappedPrice = f.maxPrice - rowIdx * f.tickSize;
+
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = "#94a3b8";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(hx) + 0.5, f.chartTop);
+    ctx.lineTo(Math.round(hx) + 0.5, f.chartBottom);
+    ctx.moveTo(layout.paddingLeft, snappedY);
+    ctx.lineTo(f.chartRight, snappedY);
+    ctx.stroke();
+    ctx.restore();
+
+    // Price tag on the right axis.
+    const priceLabel = snappedPrice.toFixed(this.priceDecimals);
+    ctx.font = `${theme.priceFontSize}px ${theme.fontFamily}`;
+    const tagW = Math.max(48, ctx.measureText(priceLabel).width + 12);
+    const tagH = 16;
+    const tagX = f.chartRight + 1;
+    const tagY = snappedY - tagH / 2;
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(tagX, tagY, tagW, tagH);
+    ctx.strokeStyle = theme.poc;
+    ctx.strokeRect(tagX + 0.5, tagY + 0.5, tagW - 1, tagH - 1);
+    ctx.fillStyle = "#fbbf24";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(priceLabel, tagX + 6, snappedY);
+
+    // Volume tooltip near cursor when there's a cell under it.
+    const cell = this.getCellAtPixel(hx, hy);
+    if (cell) {
+      const buy = cell.level.buyVolume;
+      const sell = cell.level.sellVolume;
+      const delta = buy - sell;
+      const lines = [
+        `bid ${formatVol(sell)}`,
+        `ask ${formatVol(buy)}`,
+        `Δ ${delta >= 0 ? "+" : ""}${Math.round(delta)}`,
+      ];
+      const padX = 8;
+      const padY = 6;
+      const lineH = 13;
+      ctx.font = `${theme.cellFontSize}px ${theme.fontFamily}`;
+      const w = Math.max(...lines.map((l) => ctx.measureText(l).width)) + padX * 2;
+      const h = lines.length * lineH + padY * 2;
+      let tx = hx + 14;
+      let ty = hy + 14;
+      // Flip the tooltip if it'd run off the chart edges.
+      if (tx + w > f.chartRight) tx = hx - w - 14;
+      if (ty + h > f.chartBottom) ty = hy - h - 14;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
+      ctx.fillRect(tx, ty, w, h);
+      ctx.strokeStyle = "#334155";
+      ctx.strokeRect(tx + 0.5, ty + 0.5, w - 1, h - 1);
+      ctx.fillStyle = theme.textPrimary;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], tx + padX, ty + padY + i * lineH);
+      }
     }
   }
 
@@ -386,10 +551,12 @@ export class FootprintCanvasRenderer {
   }
 }
 
+function priceToY(price: number, f: FrameLayout): number {
+  const idx = Math.round((f.maxPrice - price) / f.tickSize);
+  return f.gridTop + idx * f.rowH + f.rowH / 2;
+}
+
 function inferTickSize(bars: RendererBar[]): number {
-  // Find the smallest non-zero gap between consecutive level prices
-  // across all visible bars. The footprint engine groups by rounded
-  // price so this is the engine's tick size.
   let smallest = Infinity;
   for (const bar of bars) {
     const sorted = bar.levels.map((l) => l.price).sort((a, b) => a - b);
@@ -398,13 +565,11 @@ function inferTickSize(bars: RendererBar[]): number {
       if (gap > 0 && gap < smallest) smallest = gap;
     }
   }
-  if (!isFinite(smallest)) return 0.10; // crypto-friendly default
+  if (!isFinite(smallest)) return 0.1;
   return smallest;
 }
 
 function lerpHeat(ramp: [string, string, string], t: number): string {
-  // Discrete lookup is fine — the eye doesn't see a 3-step gradient
-  // as banded once the cells are <14px tall.
   if (t < 0.33) return ramp[0];
   if (t < 0.66) return ramp[1];
   return ramp[2];
