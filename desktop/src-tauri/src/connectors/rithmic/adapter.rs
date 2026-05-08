@@ -117,8 +117,18 @@ impl RithmicAdapter {
     /// XOR rithmicLogin() on a given WebSocket, never both. Use this
     /// method when the next call will be `login()`.
     pub async fn open_socket(&mut self) -> Result<()> {
-        tracing::info!("Connecting to {}", DEFAULT_GATEWAY_URL);
-        self.client.connect(DEFAULT_GATEWAY_URL).await?;
+        self.open_socket_with(DEFAULT_GATEWAY_URL).await
+    }
+
+    /// Same as `open_socket()` but lets callers point at a non-default
+    /// gateway — useful for prop-firm accounts (Apex, MFFU, BluSky)
+    /// that route through a Rithmic prod host different from the UAT
+    /// endpoint. The vault flow (`rithmic_login_from_vault`) doesn't
+    /// use this directly today; it's the connect helper for the
+    /// rithmic_apex example and any future custom-URL probe.
+    pub async fn open_socket_with(&mut self, url: &str) -> Result<()> {
+        tracing::info!("Connecting to {}", url);
+        self.client.connect(url).await?;
         tracing::info!("WebSocket connected");
         Ok(())
     }
