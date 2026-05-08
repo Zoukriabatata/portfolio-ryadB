@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Routes, Route, Navigate } from "react-router-dom";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { useUpdateCheck, UpdateModal } from "./UpdateChecker";
 import { Layout } from "./routes/Layout";
@@ -156,6 +156,14 @@ function App() {
   // BrowserRouter taperait sur l'URL physique et planterait. Memory
   // garde l'historique en JS, l'URL reste à la racine.
   if (session) {
+    // initialEntries=["/"] : à chaque nouveau login (et donc à chaque
+    // remount du router), on entre par la Welcome route. On ne saute
+    // plus directement sur /footprint comme en Phase 7.7.3 — la
+    // navigation est explicite via les CTAs Welcome ou la navbar.
+    //
+    // path="*" -> Navigate to "/" : sécurise les paths inconnus
+    // (en pratique impossible avec MemoryRouter mais ça coûte rien
+    // et fait office de safety net si un Link rate sa cible).
     return (
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
@@ -164,6 +172,7 @@ function App() {
             <Route path="/footprint" element={<FootprintRoute />} />
             <Route path="/live" element={<LiveRoute />} />
             <Route path="/account" element={<AccountRoute />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </MemoryRouter>
