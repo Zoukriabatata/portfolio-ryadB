@@ -45,3 +45,7 @@ tokio              = { version = "1", features = ["sync", "rt", "macros", "time"
 [[example]]
 name = "rithmic_connect"
 path = "examples/rithmic_connect.rs"
+
+[[example]]
+name = "rithmic_login"
+path = "examples/rithmic_login.rs"

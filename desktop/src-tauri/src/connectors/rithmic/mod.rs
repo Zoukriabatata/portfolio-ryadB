@@ -8,6 +8,7 @@
 //! generated into `proto/mod.rs` by `build.rs` and re-exported here.
 
 pub mod adapter;
+pub mod auth;
 pub mod client;
 
 // The proto module is fully generated from rithmic-sdk/proto/ at build
@@ -17,3 +18,4 @@ pub mod client;
 pub mod proto;
 
 pub use adapter::RithmicAdapter;
+pub use auth::RithmicSession;

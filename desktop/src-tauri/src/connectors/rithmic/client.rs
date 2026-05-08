@@ -52,6 +52,7 @@ impl RithmicClient {
         let ws = self.ws.as_mut().ok_or(ConnectorError::NotConnected)?;
         let mut buf = Vec::with_capacity(msg.encoded_len());
         msg.encode(&mut buf)?;
+        tracing::trace!("send {} bytes", buf.len());
         ws.send(Message::Binary(buf)).await?;
         Ok(())
     }
@@ -109,3 +110,4 @@ impl Default for RithmicClient {
         Self::new()
     }
 }
+
