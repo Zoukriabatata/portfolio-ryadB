@@ -3,10 +3,19 @@ import "./AppNavbar.css";
 
 type BrokerStatus = "checking" | "connected" | "missing";
 
+// Phase B / M1 — extended to 8 routes for the V1 Senzoukria migration.
+// Heatmap / GEX / Volatility / Replay are placeholder routes today
+// (see routes/PlaceholderRoute.tsx); they get filled in over M3-M9.
+// Order matches the typical user funnel: orientation → real-time
+// charts → analytics → replay → account.
 const NAV_LINKS = [
   { to: "/", label: "Welcome", end: true },
-  { to: "/footprint", label: "Footprint" },
   { to: "/live", label: "Live" },
+  { to: "/footprint", label: "Footprint" },
+  { to: "/heatmap", label: "Heatmap" },
+  { to: "/gex", label: "GEX" },
+  { to: "/volatility", label: "Volatility" },
+  { to: "/replay", label: "Replay" },
   { to: "/account", label: "Account" },
 ];
 
@@ -25,7 +34,7 @@ export function AppNavbar({
         <span className="nav-brand-icon" aria-hidden>
           ⚡
         </span>
-        <span className="nav-brand-text">OrderflowV2</span>
+        <span className="nav-brand-text">Senzoukria</span>
       </div>
 
       <ul className="nav-links">

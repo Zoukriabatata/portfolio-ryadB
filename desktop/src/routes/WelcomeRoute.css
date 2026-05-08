@@ -1,3 +1,8 @@
+/* Phase B / M1 — re-themed with Senzoukria tokens.
+ * Pre-M1 the colors were hardcoded GitHub-ish (#1f6feb blue, etc.);
+ * now everything routes through CSS variables in globals.css so the
+ * shell visually matches what the rest of M3+ ports from web. */
+
 .welcome-route {
   max-width: 1080px;
   margin: 0 auto;
@@ -8,7 +13,7 @@
     "Segoe UI",
     system-ui,
     sans-serif;
-  color: #c9d1d9;
+  color: var(--text-primary);
 }
 
 .welcome-hero {
@@ -20,15 +25,17 @@
   margin: 0 0 12px 0;
   font-size: 38px;
   font-weight: 700;
-  color: #f0f6fc;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
+  /* Subtle lime glow on the brand name */
+  text-shadow: 0 0 24px var(--primary-glow);
 }
 
 .welcome-tagline {
   margin: 0 auto;
   max-width: 580px;
   font-size: 15px;
-  color: #8b949e;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -44,21 +51,22 @@
   flex-direction: column;
   gap: 10px;
   padding: 24px;
-  background: #161b22;
-  border: 1px solid #21262d;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   text-decoration: none;
   color: inherit;
   transition:
-    transform 0.12s,
-    border-color 0.12s,
-    background 0.12s;
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .welcome-card:hover {
   transform: translateY(-2px);
-  border-color: #1f6feb;
-  background: #1c2230;
+  border-color: var(--primary);
+  background: var(--surface-elevated);
+  box-shadow: 0 0 0 1px var(--primary-glow), var(--shadow-lg);
 }
 
 .welcome-card-icon {
@@ -71,13 +79,13 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #f0f6fc;
+  color: var(--text-primary);
 }
 
 .welcome-card p {
   margin: 0;
   font-size: 13px;
-  color: #8b949e;
+  color: var(--text-secondary);
   line-height: 1.5;
   flex-grow: 1;
 }
@@ -86,7 +94,7 @@
   margin-top: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #58a6ff;
+  color: var(--primary);
   letter-spacing: 0.02em;
 }
 
@@ -96,17 +104,18 @@
   align-items: center;
   gap: 16px;
   font-size: 12px;
-  color: #6e7681;
-  border-top: 1px solid #21262d;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
   padding-top: 16px;
 }
 
 .welcome-footer a {
-  color: #6e7681;
+  color: var(--text-muted);
   text-decoration: none;
+  transition: color var(--transition-fast);
 }
 
 .welcome-footer a:hover {
-  color: #58a6ff;
+  color: var(--primary);
   text-decoration: underline;
 }

@@ -39,7 +39,7 @@ export function WelcomeRoute() {
   return (
     <div className="welcome-route">
       <header className="welcome-hero">
-        <h1>OrderflowV2</h1>
+        <h1>Senzoukria</h1>
         <p className="welcome-tagline">
           Native order-flow tooling for CME futures traders. Pick where you
           want to start.
