@@ -9,6 +9,10 @@ import { WelcomeRoute } from "./routes/WelcomeRoute";
 import { FootprintRoute } from "./routes/FootprintRoute";
 import { LiveRoute } from "./routes/LiveRoute";
 import { AccountRoute } from "./routes/AccountRoute";
+import { HeatmapRoute } from "./routes/HeatmapRoute";
+import { GexRoute } from "./routes/GexRoute";
+import { VolatilityRoute } from "./routes/VolatilityRoute";
+import { ReplayRoute } from "./routes/ReplayRoute";
 import "./App.css";
 
 // Phase 7.7.3 dev flag — when false, the desktop app stays inside the
@@ -169,8 +173,12 @@ function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<WelcomeRoute />} />
-            <Route path="/footprint" element={<FootprintRoute />} />
             <Route path="/live" element={<LiveRoute />} />
+            <Route path="/footprint" element={<FootprintRoute />} />
+            <Route path="/heatmap" element={<HeatmapRoute />} />
+            <Route path="/gex" element={<GexRoute />} />
+            <Route path="/volatility" element={<VolatilityRoute />} />
+            <Route path="/replay" element={<ReplayRoute />} />
             <Route path="/account" element={<AccountRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
