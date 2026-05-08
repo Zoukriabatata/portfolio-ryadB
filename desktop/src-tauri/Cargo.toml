@@ -41,6 +41,7 @@ tracing        = "0.1"
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi"] }
 tokio              = { version = "1", features = ["sync", "rt", "macros", "time", "net"] }
+chrono             = { version = "0.4", default-features = false, features = ["clock"] }
 
 [[example]]
 name = "rithmic_connect"
@@ -57,3 +58,7 @@ path = "examples/rithmic_subscribe.rs"
 [[example]]
 name = "rithmic_heartbeat"
 path = "examples/rithmic_heartbeat.rs"
+
+[[example]]
+name = "rithmic_footprint"
+path = "examples/rithmic_footprint.rs"

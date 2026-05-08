@@ -7,6 +7,7 @@
 
 mod auth;
 pub mod connectors;
+pub mod engine;
 mod machine;
 mod prefs;
 
