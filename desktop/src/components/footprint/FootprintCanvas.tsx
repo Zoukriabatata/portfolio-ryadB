@@ -1,20 +1,26 @@
-// Phase B / M4 — React wrapper around the imperative
+// Phase B / M4 + M4.5 — React wrapper around the imperative
 // FootprintCanvasRenderer.
 //
-// Responsibilities:
-//   - mount/unmount the renderer on the canvas ref
-//   - observe container size and forward resizes
-//   - throttle re-renders to one per RAF when bars change
-//
-// The underlying renderer has no internal animation loop; this
-// component is the only place that calls .draw(). Bars come in via
-// props from CryptoFootprint, which already filters by symbol +
-// timeframe.
+// Owns the InteractionState ref (pan/zoom/hover) so the renderer
+// can pull the latest values inside its draw loop without React
+// rerenders. Mouse/wheel/keyboard handlers update the ref through
+// the pure helpers in `lib/footprint/interactions.ts` and then ask
+// the renderer for a paint via `tickRender()`.
 
 import { useEffect, useMemo, useRef } from "react";
 import type { FootprintBar } from "../FootprintBarView";
 import { FootprintCanvasRenderer } from "../../lib/footprint/FootprintCanvasRenderer";
 import { tauriBarToRendererBar } from "../../lib/footprint/adapter";
+import {
+  DEFAULT_INTERACTION,
+  applyWheelZoom,
+  clampScrollX,
+  endDrag,
+  setHover,
+  startDrag,
+  updateDrag,
+  type InteractionState,
+} from "../../lib/footprint/interactions";
 import "./FootprintCanvas.css";
 
 export interface FootprintCanvasProps {
@@ -37,13 +43,17 @@ export function FootprintCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<FootprintCanvasRenderer | null>(null);
   const rafRef = useRef<number | null>(null);
+  const interactionRef = useRef<InteractionState>({ ...DEFAULT_INTERACTION });
+  const barsCountRef = useRef<number>(0);
 
-  // Mount the renderer once + tear it down on unmount. Theme is
-  // baked in (Senzoukria default); switching themes later means
-  // calling rendererRef.current?.setTheme(t) inside an effect.
+  // Mount renderer once. The interaction getter closes over
+  // `interactionRef.current` so the renderer always reads the
+  // latest state.
   useEffect(() => {
     if (!canvasRef.current) return;
-    rendererRef.current = new FootprintCanvasRenderer(canvasRef.current);
+    rendererRef.current = new FootprintCanvasRenderer(canvasRef.current, {
+      getInteractionState: () => interactionRef.current,
+    });
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -53,8 +63,8 @@ export function FootprintCanvas({
     };
   }, []);
 
-  // ResizeObserver keeps the canvas DPR-correct as the route
-  // re-flows (e.g. when devtools opens, fullscreen toggles).
+  // ResizeObserver — keep DPR + canvas dimensions in sync with the
+  // container as the layout reflows.
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver((entries) => {
@@ -62,37 +72,130 @@ export function FootprintCanvas({
       if (!entry) return;
       const { width, height } = entry.contentRect;
       rendererRef.current?.resize(width, height);
-      scheduleDraw();
+      tickRender();
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Translate Tauri bars to the renderer's shape lazily — adapter
-  // is ~50ns per bar so this is cheap, but useMemo means we don't
-  // recompute when only an unrelated prop (title) changed.
   const rendererBars = useMemo(
     () => bars.map(tauriBarToRendererBar),
     [bars],
   );
 
-  // RAF-throttle redraws so a 50-tick burst can't trigger 50 paints
-  // — at most one paint per displayed frame.
-  function scheduleDraw() {
+  // Push bars + decimals into the renderer when they change, then
+  // request a paint.
+  useEffect(() => {
+    barsCountRef.current = rendererBars.length;
+    const r = rendererRef.current;
+    if (!r) return;
+    r.setBars(rendererBars);
+    r.setPriceDecimals(priceDecimals);
+    tickRender();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rendererBars, priceDecimals]);
+
+  function tickRender() {
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      const r = rendererRef.current;
-      if (!r) return;
-      r.draw(rendererBars, priceDecimals);
+      rendererRef.current?.render();
     });
   }
 
+  // Re-clamp scrollX after any change that shifts content (zoom,
+  // drag, new bars). Called from event handlers below.
+  function clampAndRender() {
+    const r = rendererRef.current;
+    if (r) {
+      const cap = r.getVisibleBarsCapacity();
+      interactionRef.current = {
+        ...interactionRef.current,
+        scrollX: clampScrollX(
+          interactionRef.current.scrollX,
+          barsCountRef.current,
+          interactionRef.current.cellWidth,
+          cap,
+        ),
+      };
+    }
+    tickRender();
+  }
+
+  // Mouse / wheel handlers. Mousemove + mouseup live on `window` so
+  // a drag that escapes the canvas still updates correctly.
   useEffect(() => {
-    scheduleDraw();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      interactionRef.current = applyWheelZoom(
+        interactionRef.current,
+        e.deltaY,
+        e.clientX - rect.left,
+        rect.width,
+      );
+      clampAndRender();
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      interactionRef.current = startDrag(interactionRef.current, e.clientX);
+      canvas.classList.add("fp-canvas-dragging");
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (interactionRef.current.isDragging) {
+        interactionRef.current = updateDrag(interactionRef.current, e.clientX);
+        clampAndRender();
+      } else {
+        const inside =
+          x >= 0 && x <= rect.width && y >= 0 && y <= rect.height;
+        interactionRef.current = setHover(
+          interactionRef.current,
+          inside ? x : null,
+          inside ? y : null,
+        );
+        tickRender();
+      }
+    };
+
+    const onMouseUp = () => {
+      if (!interactionRef.current.isDragging) return;
+      interactionRef.current = endDrag(interactionRef.current);
+      canvas.classList.remove("fp-canvas-dragging");
+    };
+
+    const onMouseLeave = () => {
+      interactionRef.current = setHover(interactionRef.current, null, null);
+      tickRender();
+    };
+
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("mouseleave", onMouseLeave);
+    return () => {
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("mouseleave", onMouseLeave);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rendererBars, priceDecimals]);
+  }, []);
+
+  function onResetView() {
+    interactionRef.current = { ...DEFAULT_INTERACTION };
+    tickRender();
+  }
 
   return (
     <div className="fp-canvas-wrap">
@@ -100,6 +203,14 @@ export function FootprintCanvas({
         <span className="fp-canvas-title">{title ?? `${symbol} · ${timeframe}`}</span>
         <span className="fp-canvas-meta">
           {bars.length} bar{bars.length === 1 ? "" : "s"}
+          <button
+            type="button"
+            className="fp-reset-view"
+            onClick={onResetView}
+            title="Reset pan + zoom to defaults"
+          >
+            Reset view
+          </button>
         </span>
       </header>
       <div ref={containerRef} className="fp-canvas-container">
