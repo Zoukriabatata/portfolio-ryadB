@@ -1,8 +1,12 @@
-// Route placeholder — commit 5 monte une iframe vers /live.
+import { LIVE_URL } from "../config";
+import { WebFrame } from "./WebFrame";
+
 export function LiveRoute() {
   return (
-    <div style={{ padding: 24, color: "#c9d1d9" }}>
-      <h1>Live (placeholder)</h1>
-    </div>
+    <WebFrame
+      url={LIVE_URL}
+      title="OrderflowV2 Live"
+      emptyHint="The web /live page didn't load in time. Check your connection or visit the URL directly."
+    />
   );
 }

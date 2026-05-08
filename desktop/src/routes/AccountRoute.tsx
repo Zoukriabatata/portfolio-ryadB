@@ -1,8 +1,12 @@
-// Route placeholder — commit 5 monte une iframe vers /account.
+import { ACCOUNT_URL } from "../config";
+import { WebFrame } from "./WebFrame";
+
 export function AccountRoute() {
   return (
-    <div style={{ padding: 24, color: "#c9d1d9" }}>
-      <h1>Account (placeholder)</h1>
-    </div>
+    <WebFrame
+      url={ACCOUNT_URL}
+      title="OrderflowV2 Account"
+      emptyHint="The web /account page didn't load in time. Check your connection or visit the URL directly."
+    />
   );
 }
