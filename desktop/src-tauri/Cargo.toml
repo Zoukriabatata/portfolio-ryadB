@@ -28,6 +28,19 @@ tokio          = { version = "1", features = ["sync", "rt", "macros", "time"] }
 machine-uid    = "0.5"
 thiserror      = "1"
 
+# OS-native encrypted credential storage. We chose the `keyring` crate
+# over Tauri Stronghold for two reasons:
+#   1. Stronghold v2 plugin is JS-first and would route credential I/O
+#      through the webview when our connector lives in Rust — awkward
+#      and racy.
+#   2. `keyring` wraps the OS-native vaults (Windows Credential Manager,
+#      macOS Keychain, Linux Secret Service) which already handle
+#      encryption-at-rest and per-user isolation. Same security
+#      property as Stronghold without managing a snapshot password.
+# The `Vault` interface is opaque so swapping back to Stronghold (or
+# adding it as a second implementation) later is a one-file change.
+keyring        = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
+
 # Rithmic R|Protocol connector (Phase 7)
 tokio-tungstenite = { version = "0.21", default-features = false, features = ["rustls-tls-webpki-roots", "connect"] }
 prost          = "0.12"

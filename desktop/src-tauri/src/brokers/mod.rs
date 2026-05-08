@@ -10,6 +10,7 @@
 
 pub mod credentials;
 pub mod presets;
+pub mod vault;
 
 pub use credentials::{BrokerCredentials, BrokerCredentialsRedacted, BrokerPreset};
 pub use presets::{all_presets, preset_info, PresetInfo};
