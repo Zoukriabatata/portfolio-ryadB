@@ -168,6 +168,59 @@ Subsequent launches:
 manual / dev paths but the production flow only uses
 `rithmic_login_from_vault()`.
 
+## Navigation (Phase 7.7.5)
+
+After the license login, the app mounts a small react-router-dom
+shell with four routes and a global navbar:
+
+```
+Login license screen
+      │
+      ▼
+   ┌──────────────────────────────────────────────────┐
+   │  AppNavbar  (visible on every route)             │
+   │  Welcome  Footprint  Live  Account     [CONNECTED] │
+   ├──────────────────────────────────────────────────┤
+   │                                                   │
+   │  <Outlet />  — one of the four routes below       │
+   │                                                   │
+   └──────────────────────────────────────────────────┘
+```
+
+| Route | Component | Behavior |
+|---|---|---|
+| `/` | `WelcomeRoute` | 3-CTA grid (Footprint / Live / Account) + version + What's new link |
+| `/footprint` | `FootprintRoute` | Mounts the existing `RithmicFootprint` — vault check, broker login, live MNQ stream |
+| `/live` | `LiveRoute` | `<iframe>` of `${WEB_BASE}/live` |
+| `/account` | `AccountRoute` | `<iframe>` of `${WEB_BASE}/account` |
+
+`WEB_BASE` is read from `desktop/src/config.ts` (defaults to
+`https://orderflow-v2.vercel.app`, override via `VITE_API_BASE`).
+
+The navbar shows a broker connection badge on the right (green
+**CONNECTED** when a record exists in the keyring vault, grey
+**No broker** otherwise) and an "Edit broker settings" button that
+opens a global `BrokerSettings` modal — accessible from any route.
+
+Why **`MemoryRouter`** rather than `BrowserRouter`:
+Tauri serves the webview from `tauri://` / `https://tauri.localhost`,
+which has no HTTP server behind it. A page reload at
+`/footprint` with `BrowserRouter` would request a physical URL
+that doesn't exist. `MemoryRouter` keeps history in JS only — the
+address bar stays at the root, navigation works.
+
+Why **iframes** for `/live` and `/account` (rather than a second
+`tauri::WebviewWindow`):
+A second WebviewWindow opens an OS-level secondary window, which
+isn't what users expect when clicking a navbar tab. Iframes keep
+the embedded site inside the existing chrome.
+
+**Open TODO:** the iframe is anonymous. The web app uses
+NextAuth cookies which aren't shared cross-frame, so the iframe
+shows the public version of `/live` and `/account`. Solving this
+needs either a SameSite=None contortion or a proper SSO/handoff
+flow — explicitly deferred to Phase 7.8+.
+
 ## Production build
 
 ```pwsh
