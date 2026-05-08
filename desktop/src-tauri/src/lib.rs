@@ -6,8 +6,13 @@
 //! land in later phases.
 
 mod auth;
+pub mod brokers;
+mod commands;
+pub mod connectors;
+pub mod engine;
 mod machine;
 mod prefs;
+mod state;
 
 use auth::{LoginResponse, Session};
 use std::path::PathBuf;
@@ -87,6 +92,54 @@ async fn cmd_mark_first_launch_completed(state: State<'_, Arc<AppState>>) -> Res
         .map_err(err_to_string)
 }
 
+/// Build a one-shot bridge URL the webview can use to land on a
+/// whitelisted web path (`/live`, `/account`, …) with a valid
+/// NextAuth session cookie set.
+///
+/// Phase 7.8 — drives the iframe-bridge flow:
+///   1. Re-issue the license JWT via heartbeat so its `iat` is
+///      within the bridge endpoint's 60s freshness guard.
+///   2. Persist the rotated token (parity with cmd_heartbeat).
+///   3. Build the `?token=…&next=…` URL the webview can navigate to
+///      or set as an iframe src.
+///
+/// Frontend side: see WebFrame.tsx, which calls this on mount and
+/// uses the result as the iframe src.
+#[tauri::command]
+async fn cmd_get_bridge_url(
+    next_path: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<String, String> {
+    let current_token = {
+        let guard = state.session.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "NO_SESSION".to_string())?
+            .token
+            .clone()
+    };
+    let os = machine::get_os();
+
+    let resp = auth::heartbeat(&current_token, Some(os), Some(APP_VERSION))
+        .await
+        .map_err(err_to_string)?;
+
+    // Persist the rotated token before handing it out, so the
+    // freshness guard sees the same value the rest of the shell uses
+    // for subsequent IPC calls.
+    let session = Session {
+        token:      resp.token.clone(),
+        expires_at: resp.expires_at.clone(),
+        license:    resp.license.clone(),
+    };
+    auth::save_session(&state.data_dir, &session)
+        .await
+        .map_err(err_to_string)?;
+    *state.session.lock().await = Some(session);
+
+    auth::build_bridge_url(&resp.token, &next_path).map_err(err_to_string)
+}
+
 #[tauri::command]
 async fn cmd_heartbeat(state: State<'_, Arc<AppState>>) -> Result<LoginResponse, String> {
     let token = {
@@ -153,6 +206,15 @@ pub fn run() {
         .setup(|app| {
             let state = build_state(&app.handle());
             app.manage(state);
+
+            // Rithmic + footprint state lives alongside the auth state.
+            // The footprint event emitter outlives login/logout cycles —
+            // it subscribes to the long-lived engine, not to any
+            // particular adapter.
+            let rithmic_state = state::RithmicState::new();
+            commands::rithmic_events::spawn_emitter(app.handle().clone(), &rithmic_state.engine);
+            app.manage(rithmic_state);
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -161,8 +223,21 @@ pub fn run() {
             cmd_login,
             cmd_logout,
             cmd_heartbeat,
+            cmd_get_bridge_url,
             cmd_get_first_launch_completed,
             cmd_mark_first_launch_completed,
+            commands::rithmic::rithmic_login,
+            commands::rithmic::rithmic_login_from_vault,
+            commands::rithmic::rithmic_subscribe,
+            commands::rithmic::rithmic_unsubscribe,
+            commands::rithmic::rithmic_get_bars,
+            commands::rithmic::rithmic_disconnect,
+            commands::rithmic::rithmic_status,
+            commands::brokers::list_broker_presets,
+            commands::brokers::save_broker_credentials,
+            commands::brokers::load_broker_credentials,
+            commands::brokers::delete_broker_credentials,
+            commands::brokers::test_broker_connection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

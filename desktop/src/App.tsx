@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { MemoryRouter, Routes, Route, Navigate } from "react-router-dom";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { useUpdateCheck, UpdateModal } from "./UpdateChecker";
+import { Layout } from "./routes/Layout";
+import { WelcomeRoute } from "./routes/WelcomeRoute";
+import { FootprintRoute } from "./routes/FootprintRoute";
+import { LiveRoute } from "./routes/LiveRoute";
+import { AccountRoute } from "./routes/AccountRoute";
 import "./App.css";
+
+// Phase 7.7.3 dev flag — when false, the desktop app stays inside the
+// Tauri webview and shows the local RithmicFootprint screen post-login
+// instead of bridging to the Vercel /live page. Phase 7.7.4 will
+// introduce a proper router so both views are reachable; for now we
+// prefer the local footprint because that's what we're actively
+// validating against MNQ live.
+const BRIDGE_TO_WEB = false;
 
 interface LicenseSnapshot {
   license_key:     string;
@@ -25,7 +39,6 @@ const HEARTBEAT_MS = 4 * 60 * 60 * 1000; // 4h
 
 function App() {
   const [session, setSession]     = useState<Session | null>(null);
-  const [machineId, setMachineId] = useState<string>("");
   const [bootstrapped, setBootstrapped] = useState(false);
   const [handoff, setHandoff]     = useState<HandoffState | null>(null);
   const [firstLaunchCompleted, setFirstLaunchCompleted] = useState(false);
@@ -46,12 +59,6 @@ function App() {
         console.error("get_session failed", e);
       }
       try {
-        const id = await invoke<string>("cmd_get_machine_id");
-        setMachineId(id);
-      } catch (e) {
-        console.error("get_machine_id failed", e);
-      }
-      try {
         const flag = await invoke<boolean>("cmd_get_first_launch_completed");
         setFirstLaunchCompleted(flag);
       } catch (e) {
@@ -68,7 +75,10 @@ function App() {
   // to the web dashboard. The Welcome screen never shows in normal flow.
   // Gated on `updateChecked && !pendingUpdate` so a queued update modal
   // can render BEFORE the webview takes over the React tree.
+  // Phase 7.7.3: skipped while BRIDGE_TO_WEB=false so the local
+  // footprint UI gets to render instead.
   useEffect(() => {
+    if (!BRIDGE_TO_WEB) return;
     if (!bootstrapped || !session || handoff) return;
     if (!updateChecked) return;
     if (update && !updateDismissed) return;
@@ -138,20 +148,45 @@ function App() {
     );
   }
 
+  // Phase 7.7.5 — post-login on monte un router en mémoire.
+  // MemoryRouter plutôt que BrowserRouter parce que Tauri sert l'app
+  // depuis un schéma `tauri://` / `https://tauri.localhost` qui n'a pas
+  // de serveur HTTP derrière pour résoudre des paths arbitraires : si
+  // l'utilisateur recharge la webview alors qu'il est sur `/footprint`,
+  // BrowserRouter taperait sur l'URL physique et planterait. Memory
+  // garde l'historique en JS, l'URL reste à la racine.
+  if (session) {
+    // initialEntries=["/"] : à chaque nouveau login (et donc à chaque
+    // remount du router), on entre par la Welcome route. On ne saute
+    // plus directement sur /footprint comme en Phase 7.7.3 — la
+    // navigation est explicite via les CTAs Welcome ou la navbar.
+    //
+    // path="*" -> Navigate to "/" : sécurise les paths inconnus
+    // (en pratique impossible avec MemoryRouter mais ça coûte rien
+    // et fait office de safety net si un Link rate sa cible).
+    return (
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<WelcomeRoute />} />
+            <Route path="/footprint" element={<FootprintRoute />} />
+            <Route path="/live" element={<LiveRoute />} />
+            <Route path="/account" element={<AccountRoute />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
   return (
     <main className="container">
-      {session ? (
-        <Welcome
-          session={session}
-          machineId={machineId}
-          onLogout={async () => { await invoke("cmd_logout"); setSession(null); }}
-        />
-      ) : (
-        <Login onLogin={(s) => {
-          setSession(s);
+      <Login onLogin={(s) => {
+        setSession(s);
+        if (BRIDGE_TO_WEB) {
           setHandoff({ phase: 'loading', token: s.token });
-        }} />
-      )}
+        }
+      }} />
     </main>
   );
 }
@@ -285,7 +320,9 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   );
 }
 
-function Welcome({
+// Exported (rather than removed) so Phase 7.7.4's router can mount it
+// alongside the footprint when the user wants to inspect their license.
+export function Welcome({
   session,
   machineId,
   onLogout,

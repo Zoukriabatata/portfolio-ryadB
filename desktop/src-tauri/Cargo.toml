@@ -11,6 +11,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+prost-build  = "0.12"
+# Vendored protoc binary so the build doesn't need a system-wide
+# protobuf compiler on every dev machine and CI runner.
+protoc-bin-vendored = "3"
 
 [dependencies]
 tauri          = { version = "2", features = [] }
@@ -23,3 +27,51 @@ reqwest        = { version = "0.12", default-features = false, features = ["json
 tokio          = { version = "1", features = ["sync", "rt", "macros", "time"] }
 machine-uid    = "0.5"
 thiserror      = "1"
+
+# OS-native encrypted credential storage. We chose the `keyring` crate
+# over Tauri Stronghold for two reasons:
+#   1. Stronghold v2 plugin is JS-first and would route credential I/O
+#      through the webview when our connector lives in Rust — awkward
+#      and racy.
+#   2. `keyring` wraps the OS-native vaults (Windows Credential Manager,
+#      macOS Keychain, Linux Secret Service) which already handle
+#      encryption-at-rest and per-user isolation. Same security
+#      property as Stronghold without managing a snapshot password.
+# The `Vault` interface is opaque so swapping back to Stronghold (or
+# adding it as a second implementation) later is a one-file change.
+keyring        = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
+
+# Rithmic R|Protocol connector (Phase 7)
+tokio-tungstenite = { version = "0.21", default-features = false, features = ["rustls-tls-webpki-roots", "connect"] }
+prost          = "0.12"
+prost-types    = "0.12"
+tokio-stream   = "0.1"
+futures-util   = { version = "0.3", default-features = false, features = ["sink"] }
+url            = "2.5"
+async-trait    = "0.1"
+tracing        = "0.1"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi"] }
+tokio              = { version = "1", features = ["sync", "rt", "macros", "time", "net"] }
+chrono             = { version = "0.4", default-features = false, features = ["clock"] }
+
+[[example]]
+name = "rithmic_connect"
+path = "examples/rithmic_connect.rs"
+
+[[example]]
+name = "rithmic_login"
+path = "examples/rithmic_login.rs"
+
+[[example]]
+name = "rithmic_subscribe"
+path = "examples/rithmic_subscribe.rs"
+
+[[example]]
+name = "rithmic_heartbeat"
+path = "examples/rithmic_heartbeat.rs"
+
+[[example]]
+name = "rithmic_footprint"
+path = "examples/rithmic_footprint.rs"

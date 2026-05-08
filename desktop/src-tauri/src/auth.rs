@@ -14,16 +14,14 @@ use tokio::fs;
 const SESSION_FILE: &str = "session.json";
 
 fn default_api_base() -> String {
-    std::env::var("ORDERFLOWV2_API_BASE").unwrap_or_else(|_| {
-        if cfg!(debug_assertions) {
-            // Dev (cargo run, tauri dev): Next.js usually runs locally.
-            "http://localhost:3000".to_string()
-        } else {
-            // Release build (tauri build / .msi distributable): no backend
-            // is shipped with the binary, point at the deployed prod app.
-            "https://orderflow-v2.vercel.app".to_string()
-        }
-    })
+    // Default to the deployed prod backend in both debug and release
+    // builds. We almost never run Next.js locally during desktop iteration
+    // (Phase 7+ work is all about the Rithmic connector + footprint
+    // engine), and the prod license endpoint is what we want to validate
+    // against anyway. Devs who actively work on the Next.js side can
+    // still point at localhost via the ORDERFLOWV2_API_BASE override.
+    std::env::var("ORDERFLOWV2_API_BASE")
+        .unwrap_or_else(|_| "https://orderflow-v2.vercel.app".to_string())
 }
 
 /* ─── wire types (mirror the Next.js routes) ─────────────────────── */
@@ -139,6 +137,20 @@ pub async fn login(
     }
 
     serde_json::from_slice::<LoginResponse>(&bytes).map_err(|e| AuthError::Parse(e.to_string()))
+}
+
+/// Build the URL the desktop webview should navigate to (or set as
+/// an iframe src) to land on `next_path` with a NextAuth session
+/// cookie set. The token must be a fresh license JWT — the bridge
+/// endpoint enforces a 60s freshness guard, so callers should
+/// hit `heartbeat()` immediately before invoking this.
+pub fn build_bridge_url(token: &str, next_path: &str) -> Result<String, AuthError> {
+    let base = format!("{}/api/auth/desktop-bridge", default_api_base());
+    let mut u = url::Url::parse(&base).map_err(|e| AuthError::Parse(e.to_string()))?;
+    u.query_pairs_mut()
+        .append_pair("token", token)
+        .append_pair("next", next_path);
+    Ok(u.into())
 }
 
 pub async fn heartbeat(

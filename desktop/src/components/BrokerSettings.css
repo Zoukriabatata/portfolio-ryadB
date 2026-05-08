@@ -1,0 +1,165 @@
+.broker-settings {
+  max-width: 560px;
+  margin: 32px auto;
+  padding: 24px 28px;
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  color: #c9d1d9;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+}
+
+.bs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.bs-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.bs-intro {
+  font-size: 13px;
+  color: #8b949e;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.bs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  font-size: 11px;
+  color: #8b949e;
+}
+
+.bs-field span {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bs-field input,
+.bs-field select {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  border-radius: 4px;
+  outline: none;
+}
+
+.bs-field input:focus,
+.bs-field select:focus {
+  border-color: #1f6feb;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
+}
+
+.bs-field input:disabled,
+.bs-field select:disabled {
+  opacity: 0.6;
+}
+
+.bs-help {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #6e7681;
+  line-height: 1.4;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bs-error {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  color: #f85149;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 12px 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.bs-success {
+  background: rgba(46, 160, 67, 0.1);
+  border: 1px solid rgba(46, 160, 67, 0.4);
+  color: #3fb950;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 12px 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+}
+
+.bs-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.bs-actions button {
+  cursor: pointer;
+  background: #30363d;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.bs-actions button:hover:not(:disabled) {
+  background: #484f58;
+}
+
+.bs-actions button.bs-primary {
+  background: #2ea043;
+  border-color: #2ea043;
+  color: #fff;
+}
+.bs-actions button.bs-primary:hover:not(:disabled) {
+  background: #3fb950;
+}
+
+.bs-actions button.bs-danger {
+  background: transparent;
+  border-color: #da3633;
+  color: #f85149;
+  margin-left: auto;
+}
+.bs-actions button.bs-danger:hover:not(:disabled) {
+  background: rgba(218, 54, 51, 0.15);
+}
+
+.bs-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.bs-secondary {
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button.bs-secondary:hover:not(:disabled) {
+  background: #21262d;
+}
