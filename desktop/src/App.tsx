@@ -4,6 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { useUpdateCheck, UpdateModal } from "./UpdateChecker";
+import { Layout } from "./routes/Layout";
 import { WelcomeRoute } from "./routes/WelcomeRoute";
 import { FootprintRoute } from "./routes/FootprintRoute";
 import { LiveRoute } from "./routes/LiveRoute";
@@ -158,10 +159,12 @@ function App() {
     return (
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
-          <Route path="/" element={<WelcomeRoute />} />
-          <Route path="/footprint" element={<FootprintRoute />} />
-          <Route path="/live" element={<LiveRoute />} />
-          <Route path="/account" element={<AccountRoute />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<WelcomeRoute />} />
+            <Route path="/footprint" element={<FootprintRoute />} />
+            <Route path="/live" element={<LiveRoute />} />
+            <Route path="/account" element={<AccountRoute />} />
+          </Route>
         </Routes>
       </MemoryRouter>
     );
