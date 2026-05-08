@@ -1,8 +1,11 @@
-// Route placeholder — commit 4 montera le RithmicFootprint existant ici.
+// Wrapper minimaliste : on remonte le composant existant sans changer
+// son comportement. Tout le state (phase = checking / needs-creds /
+// settings / connecting / ready / failed), les abonnements aux events
+// Tauri et la pipeline Rithmic vivent dans RithmicFootprint, on n'y
+// touche pas — c'est la contrainte explicite de la Phase 7.7.5.
+
+import { RithmicFootprint } from "../components/RithmicFootprint";
+
 export function FootprintRoute() {
-  return (
-    <div style={{ padding: 24, color: "#c9d1d9" }}>
-      <h1>Footprint (placeholder)</h1>
-    </div>
-  );
+  return <RithmicFootprint />;
 }
