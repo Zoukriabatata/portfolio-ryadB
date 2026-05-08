@@ -76,11 +76,97 @@ that does not flow through the frontend.
   `/api/license/login` along with email + password.
 - Persists the returned 24h Ed25519 JWT to
   `<app-data>/session.json` (plaintext for now — Stronghold migration
-  is queued).
+  is queued for the license token specifically).
 - Calls `/api/license/heartbeat` every 4 hours while the app is open
   to refresh the JWT and update `Machine.lastHeartbeatAt`.
 - Signs out automatically if the backend revokes the session
   (subscription cancelled, license suspended, machine removed, etc.).
+- Connects to a Rithmic R|Protocol gateway from the Rust side and
+  streams `LastTrade` + `BestBidOffer` ticks into a footprint engine
+  whose updates are emitted to the React UI as `footprint-update`
+  events.
+
+## Broker credentials
+
+After the license login, the desktop asks for **broker credentials** in
+a separate panel (`BrokerSettings`). These are the username/password
+that route to a Rithmic gateway (Rithmic Test UAT, Apex, MyFundedFutures,
+etc.) — distinct from the OrderflowV2 web account.
+
+### Storage
+
+Broker credentials live in the OS-native credential manager via the
+[`keyring`](https://docs.rs/keyring) crate:
+
+- Windows : Credential Manager (DPAPI under the hood)
+- macOS : Keychain
+- Linux : libsecret / Secret Service
+
+Storage key: `service="OrderflowV2"`, `account="broker_credentials_v1"`.
+The full record (including username + gateway URL + system_name) is
+JSON-serialized and stored as a single keyring entry, so all reads
+return everything the connector needs in one call.
+
+> **Note:** the project's original spec called for Tauri Stronghold.
+> We chose `keyring` instead because Stronghold v2's plugin is JS-first
+> and would force us to manage a snapshot password. The vault interface
+> in `brokers/vault.rs` is opaque, so swapping back to Stronghold or
+> running both is a single-file change.
+
+### Preset registry
+
+`desktop/src-tauri/src/brokers/presets.rs` is the single source of truth
+for the broker dropdown. Exposed to the React UI via `list_broker_presets`,
+so the JS list is always in sync with the Rust registry.
+
+| Preset | Default `system_name` | Default gateway URL | Notes |
+|---|---|---|---|
+| RithmicTest | `Rithmic Test` | `wss://rituz00100.rithmic.com:443` | UAT — throttled, dev only |
+| RithmicPaperTrading | `Rithmic Paper Trading` | _user-supplied_ | retail Paper Trading |
+| Rithmic01 | `Rithmic 01` | _user-supplied_ | retail live via FCM |
+| Apex | `Apex` | _user-supplied_ | Apex Trader Funding |
+| MyFundedFutures | `Rithmic Paper Trading` | _user-supplied_ | ⚠ system varies eval/funded |
+| BluSky | `Rithmic Paper Trading` | _user-supplied_ | |
+| Bulenox | `Rithmic Paper Trading` | _user-supplied_ | per Bulenox docs |
+| TakeProfitTrader | `Rithmic Paper Trading` | _user-supplied_ | ⚠ PRO+ uses `Rithmic 01-US` |
+| FourPropTrader | `Rithmic Paper Trading` | _user-supplied_ | per ATAS integration |
+| Topstep | `TopstepTrader` | _user-supplied_ | dedicated system |
+| Custom | _empty_ | _empty_ | user enters everything |
+
+Most presets ship `default_gateway_url=None` because for R|Protocol API
+(versus R|Trader Pro) Rithmic does not publish their prod gateway URLs.
+The URL arrives by email at onboarding; the UI lets the user paste it.
+
+**Open TODOs** (flagged inline in `presets.rs`):
+
+- Confirm MFFU R|Protocol `system_name` (eval vs funded — current default
+  is "Rithmic Paper Trading", a best guess).
+- Take Profit Trader: the eval (`Rithmic Paper Trading`) vs PRO+
+  (`Rithmic 01-US`) split is currently a manual override; could be
+  auto-detected via `RequestRithmicSystemInfo`.
+- Confirm Apex prod gateway URL once we have a contributor with Apex
+  access.
+
+### Connection lifecycle
+
+```
+First launch:
+  React mount → load_broker_credentials → null
+              → render <BrokerSettings>
+  User saves → save_broker_credentials (creds → OS keyring)
+             → rithmic_login_from_vault (vault → connector)
+             → render <FootprintLive>
+
+Subsequent launches:
+  React mount → load_broker_credentials → redacted record
+              → rithmic_login_from_vault → render <FootprintLive>
+  (the plaintext password never re-enters the React tree;
+   it stays in the OS vault and is read directly by the Rust side)
+```
+
+`rithmic_login(args)` and `test_broker_connection(args)` exist for
+manual / dev paths but the production flow only uses
+`rithmic_login_from_vault()`.
 
 ## Production build
 
