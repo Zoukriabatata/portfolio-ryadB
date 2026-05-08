@@ -48,7 +48,10 @@ pub fn agg_trade_to_tick(msg: &BinanceAggTrade) -> Option<Tick> {
         price,
         qty,
         side,
-        symbol: msg.symbol.clone(),
+        // Suffix the source so the FootprintEngine doesn't merge
+        // BTCUSDT bars from Binance with BTCUSDT bars from Bybit
+        // when both adapters share the engine.
+        symbol: format!("{}.BINANCE", msg.symbol),
         source: SOURCE_NAME.to_string(),
     })
 }
@@ -65,7 +68,7 @@ mod tests {
         assert_eq!(tick.side, Side::Sell);
         assert_eq!(tick.price, 60000.5);
         assert_eq!(tick.qty, 0.5);
-        assert_eq!(tick.symbol, "BTCUSDT");
+        assert_eq!(tick.symbol, "BTCUSDT.BINANCE");
     }
 
     #[test]

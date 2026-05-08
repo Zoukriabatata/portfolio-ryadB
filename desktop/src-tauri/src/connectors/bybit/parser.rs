@@ -48,7 +48,9 @@ pub fn trade_to_tick(d: &BybitTradeData) -> Option<Tick> {
         price,
         qty,
         side,
-        symbol: d.symbol.clone(),
+        // Suffix the source so the shared FootprintEngine doesn't
+        // merge BTCUSDT bars across exchanges.
+        symbol: format!("{}.BYBIT", d.symbol),
         source: SOURCE_NAME.to_string(),
     })
 }

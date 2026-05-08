@@ -44,7 +44,7 @@ pub fn trade_to_tick(t: &DeribitTrade) -> Option<Tick> {
         price: t.price,
         qty: t.amount,
         side,
-        symbol: t.instrument_name.clone(),
+        symbol: format!("{}.DERIBIT", t.instrument_name),
         source: SOURCE_NAME.to_string(),
     })
 }
@@ -105,7 +105,7 @@ mod tests {
         assert_eq!(ticks.len(), 1);
         assert_eq!(ticks[0].side, Side::Sell);
         assert_eq!(ticks[0].price, 8950.0);
-        assert_eq!(ticks[0].symbol, "BTC-PERPETUAL");
+        assert_eq!(ticks[0].symbol, "BTC-PERPETUAL.DERIBIT");
     }
 
     #[test]

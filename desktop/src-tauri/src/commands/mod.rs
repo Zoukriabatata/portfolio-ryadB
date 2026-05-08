@@ -5,5 +5,6 @@
 
 pub mod brokers;
 pub mod crypto;
+pub mod crypto_events;
 pub mod rithmic;
 pub mod rithmic_events;
