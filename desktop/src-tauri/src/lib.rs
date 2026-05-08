@@ -6,6 +6,7 @@
 //! land in later phases.
 
 mod auth;
+mod connectors;
 mod machine;
 mod prefs;
 

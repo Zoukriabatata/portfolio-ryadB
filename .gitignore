@@ -66,3 +66,9 @@ backups/
 
 # session recap files (local notes, never committed)
 SESSION_*.md
+
+# Rithmic SDK (not redistributable per Omnesys license — kept local only)
+desktop/rithmic-sdk/
+
+# Generated protobuf files (rebuilt by build.rs from rithmic-sdk/proto/)
+desktop/src-tauri/src/connectors/rithmic/proto/
