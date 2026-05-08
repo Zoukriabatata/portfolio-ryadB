@@ -14,7 +14,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { BarView, type FootprintBar } from "./FootprintBarView";
+import { type FootprintBar } from "./FootprintBarView";
+import { FootprintCanvas } from "./footprint/FootprintCanvas";
 
 type CryptoExchange = "bybit" | "binance";
 
@@ -249,28 +250,16 @@ export function CryptoFootprint({
       {error && <div className="rf-error">{error}</div>}
 
       <section className="rf-footprint">
-        <h2>
-          {symbol} · {timeframe} · {sortedBars.length} bar
-          {sortedBars.length === 1 ? "" : "s"} · {totalTrades} trade
-          {totalTrades === 1 ? "" : "s"}
-        </h2>
-        {sortedBars.length === 0 ? (
-          <div className="rf-empty">
-            {isSubscribed
-              ? "Waiting for ticks…"
-              : "Subscribe to start streaming."}
-          </div>
-        ) : (
-          <div className="rf-bars">
-            {sortedBars.map((bar) => (
-              <BarView
-                key={bar.bucketTsNs}
-                bar={bar}
-                priceDecimals={PRICE_DECIMALS}
-              />
-            ))}
-          </div>
-        )}
+        {/* M4 — Canvas2D Senzoukria renderer for crypto. Rithmic
+            still uses BarView (HTML/CSS) until M5 promotes it to
+            the canvas as well. */}
+        <FootprintCanvas
+          bars={sortedBars}
+          symbol={symbol}
+          timeframe={timeframe}
+          priceDecimals={PRICE_DECIMALS}
+          title={`${symbol} · ${timeframe} · ${totalTrades} trade${totalTrades === 1 ? "" : "s"}${isSubscribed ? "" : " · subscribe to start"}`}
+        />
       </section>
     </>
   );
