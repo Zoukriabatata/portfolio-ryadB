@@ -37,3 +37,11 @@ futures-util   = { version = "0.3", default-features = false, features = ["sink"
 url            = "2.5"
 async-trait    = "0.1"
 tracing        = "0.1"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi"] }
+tokio              = { version = "1", features = ["sync", "rt", "macros", "time", "net"] }
+
+[[example]]
+name = "rithmic_connect"
+path = "examples/rithmic_connect.rs"
