@@ -35,19 +35,53 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
-    const securityHeaders = [
+    // Headers de sécurité communs à toutes les routes. X-Frame-Options
+    // a été retiré d'ici parce qu'on a besoin de l'omettre sur /live et
+    // /account (qui sont embeddées dans une iframe par l'app desktop
+    // Tauri) — voir les rules dédiées plus bas.
+    const baseSecurityHeaders = [
       { key: 'X-Content-Type-Options',    value: 'nosniff' },
-      { key: 'X-Frame-Options',           value: 'DENY' },
       { key: 'X-XSS-Protection',          value: '1; mode=block' },
       { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=(), payment=()' },
     ];
 
+    // Origins autorisées à framer /live et /account. Tauri 2 peut servir
+    // l'app sous tauri://localhost (Linux) ou https://tauri.localhost
+    // (Windows / macOS depuis Tauri 2) — on liste les deux.
+    const tauriFrameAncestors =
+      "frame-ancestors 'self' tauri://localhost https://tauri.localhost";
+
     return [
-      // Apply security headers to all routes
+      // Toutes les routes SAUF /live et /account : on garde
+      // X-Frame-Options DENY. La regex `(?!live$|live/|account$|account/)`
+      // exclut /live, /live/<sub>, /account, /account/<sub> du match.
       {
-        source: '/:path*',
-        headers: securityHeaders,
+        source: '/((?!live$|live/|account$|account/).*)',
+        headers: [
+          ...baseSecurityHeaders,
+          { key: 'X-Frame-Options', value: 'DENY' },
+        ],
+      },
+      // /live et /account (et leurs sous-routes) : on remplace
+      // X-Frame-Options par un CSP frame-ancestors qui autorise
+      // l'app desktop Tauri. Les browsers modernes ignorent
+      // X-Frame-Options en présence de frame-ancestors, donc on
+      // l'omet entièrement plutôt que d'envoyer deux directives en
+      // conflit.
+      {
+        source: '/live/:path*',
+        headers: [
+          ...baseSecurityHeaders,
+          { key: 'Content-Security-Policy', value: tauriFrameAncestors },
+        ],
+      },
+      {
+        source: '/account/:path*',
+        headers: [
+          ...baseSecurityHeaders,
+          { key: 'Content-Security-Policy', value: tauriFrameAncestors },
+        ],
       },
       // SEO: allow Google to index public pages
       {
