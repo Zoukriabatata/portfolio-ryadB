@@ -44,14 +44,23 @@ varying float v_side;
 void main() {
   float r = length(v_quadVertex);
   if (r > 1.0) discard;
-  // Soft edge but full alpha at the centre — keeps bubbles
-  // readable against a dense heatmap bg without the previous
-  // 0.85-cap washout. Saturated greens/reds also pop more on
-  // the cyan/blue passive-orders palette.
-  float alpha = smoothstep(1.0, 0.6, r);
-  vec3 buyColor  = vec3(0.20, 0.95, 0.45);
+  // Soft alpha falloff with full opacity in the centre, plus a
+  // white-tinted outline at r > 0.85 so the bubble always reads
+  // crisp against the dense passive-orders bg regardless of the
+  // local heat colour. Side ∈ {0=buy, 1=sell, 2=sanity-blue}.
+  float alpha = smoothstep(1.0, 0.5, r);
+  vec3 buyColor  = vec3(0.20, 1.00, 0.50);
   vec3 sellColor = vec3(1.00, 0.30, 0.30);
-  vec3 color = mix(buyColor, sellColor, v_side);
+  vec3 sanityColor = vec3(0.40, 0.70, 1.00);
+  vec3 color;
+  if (v_side > 1.5) {
+    color = sanityColor;
+  } else {
+    color = mix(buyColor, sellColor, v_side);
+  }
+  if (r > 0.85) {
+    color = mix(color, vec3(1.0), 0.6);
+  }
   gl_FragColor = vec4(color, alpha);
 }
 `;
@@ -140,51 +149,77 @@ export class TradeBubblesCommand {
     nowMs: number,
   ) {
     const priceSpan = priceMax - priceMin;
-    if (priceSpan <= 0 || trades.length === 0) {
-      this.instanceCount = 0;
-      return;
-    }
-
     let count = 0;
     const buf = this.instanceBuf;
-    const cap = Math.min(trades.length, Math.floor(buf.length / 4));
+    const cap = Math.floor(buf.length / 4);
 
-    for (let i = 0; i < trades.length && count < cap; i++) {
-      const t = trades[i];
-      const dtMs = nowMs - t.timestampMs;
-      if (dtMs < 0 || dtMs > HISTORY_MS) continue;
-      const timeUv = 1 - dtMs / HISTORY_MS;
-      const priceUv = (t.price - priceMin) / priceSpan;
-      if (priceUv < 0 || priceUv > 1) continue;
+    // SANITY BUBBLE — fixed at viewport centre, large, blue.
+    // Bypasses the per-trade math entirely so a missing bubble
+    // here points to a WebGL pipeline issue (extension, draw
+    // call, blend, z-order) rather than a math/data issue.
+    // Remove once bubble rendering is confirmed working.
+    buf[0] = 0.5; // timeUv = centre of the time texture
+    buf[1] = 0.5; // priceUv = centre of the price band
+    buf[2] = 50; // radius in CSS px
+    buf[3] = 2; // side = 2 → shader paints sanity-blue
+    count = 1;
 
-      // Radius scales log-ishly. Floor bumped 2 → 5 so a dust
-      // print still produces a 10-px-diameter dot the eye can
-      // see against a dense heatmap bg; ceiling 12 → 20 so big
-      // prints earn proportionally more visual weight; multiplier
-      // 4 → 6 widens the spread so 1 vs 100 quantity reads as a
-      // clear size difference.
-      //   1   ETH  → ~5  px (clamped from 1.8)
-      //   10  ETH  → ~6  px
-      //   100 ETH  → ~12 px
-      //   1k+ ETH  → 20 px (clamped)
-      const radius = Math.max(
-        5,
-        Math.min(20, Math.log10(t.quantity + 1) * 6),
+    let firstTradeUv = -1;
+    let firstTradePriceUv = -1;
+    let firstTradeRadius = -1;
+
+    if (priceSpan > 0) {
+      for (let i = 0; i < trades.length && count < cap; i++) {
+        const t = trades[i];
+        const dtMs = nowMs - t.timestampMs;
+        if (dtMs < 0 || dtMs > HISTORY_MS) continue;
+        const timeUv = 1 - dtMs / HISTORY_MS;
+        const priceUv = (t.price - priceMin) / priceSpan;
+        if (priceUv < 0 || priceUv > 1) continue;
+
+        // Radius scales log-ishly with quantity. Bumped from
+        // M6b-1's [5, 20] × 6 to [8, 25] × 8 so even quiet-pit
+        // dust draws a 16-px dot that punches through the dense
+        // bg without saturating the canvas during a Bybit
+        // pit-storm.
+        const radius = Math.max(
+          8,
+          Math.min(25, Math.log10(t.quantity + 1) * 8),
+        );
+
+        const off = count * 4;
+        buf[off] = timeUv;
+        buf[off + 1] = priceUv;
+        buf[off + 2] = radius;
+        buf[off + 3] = t.side === "sell" ? 1 : 0;
+
+        if (firstTradeUv < 0) {
+          firstTradeUv = timeUv;
+          firstTradePriceUv = priceUv;
+          firstTradeRadius = radius;
+        }
+        count++;
+      }
+    }
+
+    // Diagnostic — first 5 updates + every 30th. String-formatted
+    // so file exports show values inline. Remove with the sanity
+    // bubble once the visibility issue is closed.
+    const dbg = this as unknown as { __upd?: number };
+    if (dbg.__upd === undefined) dbg.__upd = 0;
+    if (dbg.__upd < 5 || dbg.__upd % 30 === 0) {
+      const t0 = trades[0];
+      const tN = trades[trades.length - 1];
+      // eslint-disable-next-line no-console
+      console.log(
+        `[BUBBLES UPDATE] tradeCount=${trades.length} priceRange=[${priceMin.toFixed(2)},${priceMax.toFixed(2)}] firstTradePrice=${t0?.price} lastTradePrice=${tN?.price} firstTradeUv=${firstTradeUv.toFixed(4)} firstPriceUv=${firstTradePriceUv.toFixed(4)} firstRadius=${firstTradeRadius.toFixed(2)} instances=${count}`,
       );
-
-      const off = count * 4;
-      buf[off] = timeUv;
-      buf[off + 1] = priceUv;
-      buf[off + 2] = radius;
-      buf[off + 3] = t.side === "sell" ? 1 : 0;
-      count++;
     }
+    dbg.__upd += 1;
 
-    if (count > 0) {
-      // subdata accepts a Float32Array view; pass exactly the
-      // populated slice so we don't upload stale instance data.
-      this.instanceBuffer.subdata(buf.subarray(0, count * 4));
-    }
+    // subdata accepts a Float32Array view; pass exactly the
+    // populated slice so we don't upload stale instance data.
+    this.instanceBuffer.subdata(buf.subarray(0, count * 4));
     this.instanceCount = count;
   }
 
