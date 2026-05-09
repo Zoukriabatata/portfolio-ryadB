@@ -1,13 +1,24 @@
-// Phase B / M4 + M4.5 — React wrapper around the imperative
-// FootprintCanvasRenderer.
+// Phase B / M4 + M4.5 + M4.7a — React wrapper around the
+// imperative FootprintCanvasRenderer.
 //
 // Owns the InteractionState ref (pan/zoom/hover) so the renderer
 // can pull the latest values inside its draw loop without React
 // rerenders. Mouse/wheel/keyboard handlers update the ref through
 // the pure helpers in `lib/footprint/interactions.ts` and then ask
 // the renderer for a paint via `tickRender()`.
+//
+// M4.7a — exposes an imperative `FootprintCanvasHandle`
+// (zoomIn/zoomOut/resetView) via forwardRef + useImperativeHandle
+// so the floating ZoomControls toolbar can drive the same internal
+// state that the wheel/drag listeners mutate.
 
-import { useEffect, useMemo, useRef } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import type { FootprintBar } from "../FootprintBarView";
 import { FootprintCanvasRenderer } from "../../lib/footprint/FootprintCanvasRenderer";
 import { tauriBarToRendererBar } from "../../lib/footprint/adapter";
@@ -32,15 +43,26 @@ export interface FootprintCanvasProps {
   priceDecimals?: number;
   /** Header label shown above the canvas. Optional override. */
   title?: string;
+  /** When true the component renders just the canvas + header
+   *  (no internal toolbars). Caller is responsible for any chrome
+   *  around it — used by CryptoFootprint M4.7a where the
+   *  ZoomControls floats over the canvas at the route level. */
+  bare?: boolean;
 }
 
-export function FootprintCanvas({
-  bars,
-  symbol,
-  timeframe,
-  priceDecimals = 2,
-  title,
-}: FootprintCanvasProps) {
+export type FootprintCanvasHandle = {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+};
+
+export const FootprintCanvas = forwardRef<
+  FootprintCanvasHandle,
+  FootprintCanvasProps
+>(function FootprintCanvas(
+  { bars, symbol, timeframe, priceDecimals = 2, title, bare = false },
+  ref,
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<FootprintCanvasRenderer | null>(null);
@@ -240,6 +262,51 @@ export function FootprintCanvas({
     tickRender();
   }
 
+  // Imperative API for ZoomControls. Both zoom buttons synthesise a
+  // wheel event anchored at the centre of the canvas — same pure
+  // helper the wheel listener uses, so the buttons end up in the
+  // exact same state the user would reach by scrolling.
+  useImperativeHandle(
+    ref,
+    () => ({
+      zoomIn: () => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        interactionRef.current = applyWheelZoom(
+          interactionRef.current,
+          -100,
+          rect.width / 2,
+          rect.width,
+        );
+        tickRender();
+      },
+      zoomOut: () => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        interactionRef.current = applyWheelZoom(
+          interactionRef.current,
+          100,
+          rect.width / 2,
+          rect.width,
+        );
+        tickRender();
+      },
+      resetView: onResetView,
+    }),
+    // The handlers read mutable refs only, so a stable identity is
+    // fine — useImperativeHandle deps stay empty.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  if (bare) {
+    return (
+      <div ref={containerRef} className="fp-canvas-container fp-canvas-container-bare">
+        <canvas ref={canvasRef} className="fp-canvas" />
+      </div>
+    );
+  }
+
   return (
     <div className="fp-canvas-wrap">
       <header className="fp-canvas-header">
@@ -261,4 +328,4 @@ export function FootprintCanvas({
       </div>
     </div>
   );
-}
+});
