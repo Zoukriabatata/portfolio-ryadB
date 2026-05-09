@@ -15,7 +15,7 @@
 // heatmap renders the latest texel's mid-row. Tested by eyeballing
 // a single bubble vs the right edge of the bg.
 
-import type { Regl, Buffer, DrawCommand } from "regl";
+import type { Buffer, DrawCommand, Regl } from "regl";
 
 import type { Trade } from "./TradeStateAdapter";
 
@@ -66,6 +66,15 @@ export class TradeBubblesCommand {
   private instanceBuffer: Buffer;
   private drawCmd: DrawCommand;
   private instanceCount = 0;
+  // Live uniforms — read by the regl closures on every draw call.
+  // We avoid regl.prop() for vec2/vec4 because the runtime
+  // accessor occasionally passes the wrong shape (causing the
+  // shader to read u_resolution as ~1 and bubbles to render as
+  // canvas-sized blobs). Mirror the heatmap renderer's pattern of
+  // direct closures over class state — known-good for vec/array
+  // uniforms.
+  private liveViewport: number[] = [0.5, 0.5, 1, 1];
+  private liveResolution: number[] = [800, 480];
   // Pre-allocated typed array reused across update() calls. Sized
   // generously — Bybit BTC pit hits ~50 trades/sec, 5min window
   // → ~15K trades upper bound. 30K headroom = 480 KB, negligible.
@@ -86,11 +95,8 @@ export class TradeBubblesCommand {
         a_instance: { buffer: this.instanceBuffer, divisor: 1 },
       },
       uniforms: {
-        u_viewport: regl.prop<{ viewport: number[] }, "viewport">("viewport"),
-        u_resolution: regl.prop<
-          { resolution: number[] },
-          "resolution"
-        >("resolution"),
+        u_viewport: () => this.liveViewport,
+        u_resolution: () => this.liveResolution,
       },
       blend: {
         enable: true,
@@ -99,7 +105,7 @@ export class TradeBubblesCommand {
       depth: { enable: false },
       primitive: "triangle strip",
       count: 4,
-      instances: regl.prop<{ instances: number }, "instances">("instances"),
+      instances: () => this.instanceCount,
     });
   }
 
@@ -157,11 +163,9 @@ export class TradeBubblesCommand {
 
   draw(viewport: number[], resolution: number[]) {
     if (this.instanceCount === 0) return;
-    this.drawCmd({
-      viewport,
-      resolution,
-      instances: this.instanceCount,
-    });
+    this.liveViewport = viewport;
+    this.liveResolution = resolution;
+    this.drawCmd({});
   }
 
   getInstanceCount(): number {
