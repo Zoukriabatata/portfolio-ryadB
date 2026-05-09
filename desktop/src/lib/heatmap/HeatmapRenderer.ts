@@ -37,6 +37,41 @@ export interface RendererStats {
   priceRange: [number, number];
 }
 
+/** Viewport in texture-uv space, applied by the fragment shader.
+ *  M6a-2 — `x` is the centre of the visible window in [0, 1]
+ *  texture-X (0=oldest, 1=newest). `xZoom` is the zoom factor;
+ *  larger = more zoomed in = narrower window. Same shape on Y.
+ *  Default: x = 1 - 0.5/xZoom (right-anchored), y = 0.5 (centred). */
+export type HeatmapViewport = {
+  x: number;
+  y: number;
+  xZoom: number;
+  yZoom: number;
+};
+
+export const DEFAULT_VIEWPORT: HeatmapViewport = {
+  x: 0.5,
+  y: 0.5,
+  xZoom: 1,
+  yZoom: 1,
+};
+
+/** Reverse-mapping payload returned by `getCellAt(x, y)` — exposed
+ *  so the React overlay can render the price tag, time tag, and
+ *  the cell tooltip (bid/ask quantities at the snap target). */
+export type HeatmapCellInfo = {
+  /** Index in the adapter's history array. */
+  snapshotIdx: number;
+  /** Snapped price (rounded to the nearest priceBucket centre). */
+  price: number;
+  /** Quantity at this price level on the bid side, or null when
+   *  the level isn't present in the snapshot. */
+  bidQty: number | null;
+  /** Same for the ask side. */
+  askQty: number | null;
+  timestampMs: number;
+};
+
 export class HeatmapRenderer {
   private regl: Regl;
   private canvas: HTMLCanvasElement;
@@ -49,12 +84,16 @@ export class HeatmapRenderer {
 
   private dpr = 1;
   private rafId: number | null = null;
+  private viewport: HeatmapViewport = { ...DEFAULT_VIEWPORT };
 
-  // Per-frame computed range cached for the overlay axes.
+  // Per-frame computed range cached for the overlay axes + the
+  // reverse mapping in getCellAt.
   private lastRange: [number, number] = [0, 0];
   private lastMid = 0;
   private lastFps = 0;
   private frameTimes: number[] = [];
+  private lastState: HeatmapMarketState | null = null;
+  private lastTimeStartIdx = 0; // history idx that maps to time bucket 0
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -108,14 +147,25 @@ export class HeatmapRenderer {
           gl_Position = vec4(a_position, 0.0, 1.0);
         }
       `,
+      // M6a-2 viewport: u_viewport = (xCenter, yCenter, xZoom, yZoom).
+      // sample uv = viewport.xy + (frag uv - 0.5) / viewport.zw.
+      // Out-of-range samples paint the background instead of
+      // wrapping (no GL_REPEAT semantics — explicit branch).
       frag: `
         precision highp float;
         uniform sampler2D u_intensity;
         uniform sampler2D u_gradient;
         uniform vec4 u_bg;
+        uniform vec4 u_viewport;
         varying vec2 v_uv;
         void main() {
-          float i = texture2D(u_intensity, v_uv).r;
+          vec2 sampleUV = u_viewport.xy + (v_uv - 0.5) / u_viewport.zw;
+          if (sampleUV.x < 0.0 || sampleUV.x > 1.0 ||
+              sampleUV.y < 0.0 || sampleUV.y > 1.0) {
+            gl_FragColor = u_bg;
+            return;
+          }
+          float i = texture2D(u_intensity, sampleUV).r;
           if (i <= 0.0) {
             gl_FragColor = u_bg;
           } else {
@@ -136,6 +186,12 @@ export class HeatmapRenderer {
         u_intensity: this.intensityTex,
         u_gradient: this.gradientTex,
         u_bg: theme.background,
+        u_viewport: () => [
+          this.viewport.x,
+          this.viewport.y,
+          this.viewport.xZoom,
+          this.viewport.yZoom,
+        ],
       },
       count: 4,
       primitive: "triangle strip",
@@ -192,6 +248,76 @@ export class HeatmapRenderer {
     });
   }
 
+  /** Push a new viewport. The next frame's draw call will sample
+   *  the texture through the updated transform. */
+  setViewport(v: HeatmapViewport) {
+    this.viewport = v;
+  }
+
+  getViewport(): HeatmapViewport {
+    return this.viewport;
+  }
+
+  /** Reverse-map a CSS-pixel cursor coordinate (origin top-left of
+   *  the canvas) to a snapshot + price + bid/ask qty. Returns null
+   *  when the pointer is outside the rendered chart area or no
+   *  frame has run yet. */
+  getCellAt(canvasX: number, canvasY: number): HeatmapCellInfo | null {
+    const state = this.lastState;
+    if (!state || state.history.length === 0) return null;
+    const w = parseFloat(this.canvas.style.width || "0");
+    const h = parseFloat(this.canvas.style.height || "0");
+    if (w <= 0 || h <= 0) return null;
+    if (canvasX < 0 || canvasX > w || canvasY < 0 || canvasY > h) return null;
+
+    // CSS px → fragment UV. Fragment UV has Y up (origin bottom-
+    // left) so we flip Y.
+    const fragU = canvasX / w;
+    const fragV = 1 - canvasY / h;
+
+    // Apply viewport transform to land in texture UV space.
+    const sampleU = this.viewport.x + (fragU - 0.5) / this.viewport.xZoom;
+    const sampleV = this.viewport.y + (fragV - 0.5) / this.viewport.yZoom;
+    if (sampleU < 0 || sampleU > 1 || sampleV < 0 || sampleV > 1) return null;
+
+    const tBucket = Math.min(
+      TIME_BUCKETS - 1,
+      Math.max(0, Math.floor(sampleU * TIME_BUCKETS)),
+    );
+    const pBucket = Math.min(
+      PRICE_BUCKETS - 1,
+      Math.max(0, Math.floor(sampleV * PRICE_BUCKETS)),
+    );
+
+    // tBucket → snapshotIdx via the right-anchoring offset cached
+    // by renderFrame. Snapshots earlier than the visible window
+    // (left of the right-anchored start) yield no cell.
+    const snapshotIdx = tBucket - this.lastTimeStartIdx;
+    if (snapshotIdx < 0 || snapshotIdx >= state.history.length) return null;
+
+    const [minPrice, maxPrice] = this.lastRange;
+    if (maxPrice <= minPrice) return null;
+    const priceStep = (maxPrice - minPrice) / PRICE_BUCKETS;
+    const price = minPrice + (pBucket + 0.5) * priceStep;
+
+    const snap = state.history[snapshotIdx];
+    // Snap to the closest exchange tick price present in the
+    // snapshot's bid/ask Maps. We can't trust the bucket midpoint
+    // because the exchange ticks at a finer granularity than our
+    // 200-bucket Y grid.
+    const closestPrice = closestKey(snap.bids, snap.asks, price);
+    const bidQty = closestPrice !== null ? snap.bids.get(closestPrice) ?? null : null;
+    const askQty = closestPrice !== null ? snap.asks.get(closestPrice) ?? null : null;
+
+    return {
+      snapshotIdx,
+      price: closestPrice ?? price,
+      bidQty,
+      askQty,
+      timestampMs: snap.timestampMs,
+    };
+  }
+
   /** Last frame's price range and mid — used by the React overlay
    *  to paint axis labels in CSS coordinates without recomputing
    *  the same data. */
@@ -219,6 +345,7 @@ export class HeatmapRenderer {
       this.lastFps = avg > 0 ? Math.min(60, 1000 / avg) : 0;
     }
 
+    this.lastState = state;
     if (state.history.length === 0) {
       this.regl.clear({
         color: this.theme.background,
@@ -268,6 +395,7 @@ export class HeatmapRenderer {
     // window (history.length < TIME_BUCKETS) we right-anchor the
     // data so the latest snapshot stays at the right edge.
     const startIdx = Math.max(0, TIME_BUCKETS - state.history.length);
+    this.lastTimeStartIdx = startIdx;
     for (let i = 0; i < state.history.length; i++) {
       const snap = state.history[i];
       const tBucket = startIdx + i;
@@ -306,6 +434,33 @@ function scanRange(history: OrderbookSnapshot[]): {
     }
   }
   return { minPrice, maxPrice };
+}
+
+/** Find the price key (across both bid and ask Maps) whose value
+ *  is closest to `target`. Used by getCellAt to snap to an actual
+ *  exchange tick rather than the bucket midpoint. */
+function closestKey(
+  bids: Map<number, number>,
+  asks: Map<number, number>,
+  target: number,
+): number | null {
+  let best: number | null = null;
+  let bestDist = Infinity;
+  for (const k of bids.keys()) {
+    const d = Math.abs(k - target);
+    if (d < bestDist) {
+      bestDist = d;
+      best = k;
+    }
+  }
+  for (const k of asks.keys()) {
+    const d = Math.abs(k - target);
+    if (d < bestDist) {
+      bestDist = d;
+      best = k;
+    }
+  }
+  return best;
 }
 
 function writeSide(

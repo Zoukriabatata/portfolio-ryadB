@@ -16,6 +16,11 @@ export type UseHeatmapResult = {
    *  values. Sufficient for an axis overlay refreshed at 4 Hz. */
   stats: RendererStats;
   state: HeatmapMarketState;
+  /** Imperative handle to the live renderer instance. The hook
+   *  owns the lifecycle; consumers use the ref to push viewport
+   *  updates (M6a-2) or query getCellAt() for tooltips without
+   *  going through React state. Null while no symbol is mounted. */
+  rendererRef: React.RefObject<HeatmapRenderer | null>;
 };
 
 export function useHeatmap(
@@ -107,5 +112,5 @@ export function useHeatmap(
     return () => clearInterval(id);
   }, [ready]);
 
-  return { ready, stats, state };
+  return { ready, stats, state, rendererRef };
 }
