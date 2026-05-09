@@ -28,9 +28,19 @@ export function HeatmapRoute() {
     setBusy(true);
     setError(null);
     try {
-      await invoke<CryptoStatus>("crypto_orderbook_subscribe", {
-        args: { exchange: "bybit", symbol },
-      });
+      // Two parallel subscriptions: orderbook for the heatmap bg,
+      // trade stream for bubbles + key levels. crypto_connect is
+      // idempotent so this is safe to call even if the footprint
+      // route already opened a Bybit connection.
+      await invoke("crypto_connect", { args: { exchange: "bybit" } });
+      await Promise.all([
+        invoke<CryptoStatus>("crypto_orderbook_subscribe", {
+          args: { exchange: "bybit", symbol },
+        }),
+        invoke<CryptoStatus>("crypto_subscribe", {
+          args: { exchange: "bybit", symbol },
+        }),
+      ]);
       setSubscribed(true);
     } catch (e) {
       setError(String(e));
@@ -44,9 +54,17 @@ export function HeatmapRoute() {
     setBusy(true);
     setError(null);
     try {
-      await invoke<CryptoStatus>("crypto_orderbook_unsubscribe", {
-        args: { exchange: "bybit", symbol },
-      });
+      await Promise.all([
+        invoke<CryptoStatus>("crypto_orderbook_unsubscribe", {
+          args: { exchange: "bybit", symbol },
+        }),
+        invoke<CryptoStatus>("crypto_unsubscribe", {
+          args: { exchange: "bybit", symbol },
+        }).catch(() => {
+          // Silent: if footprint also unsubscribed already, this
+          // throws "no adapter for symbol" — safe to ignore.
+        }),
+      ]);
       setSubscribed(false);
     } catch (e) {
       setError(String(e));
@@ -63,6 +81,9 @@ export function HeatmapRoute() {
     return () => {
       if (subscribed && symbol) {
         void invoke("crypto_orderbook_unsubscribe", {
+          args: { exchange: "bybit", symbol },
+        }).catch(() => {});
+        void invoke("crypto_unsubscribe", {
           args: { exchange: "bybit", symbol },
         }).catch(() => {});
       }

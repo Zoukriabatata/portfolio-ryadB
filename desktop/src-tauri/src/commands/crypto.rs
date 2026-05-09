@@ -65,8 +65,11 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 }
 
 /// Open the WebSocket for `exchange` and start the engine pump.
-/// Idempotent: a second call with the same exchange tears the
-/// previous adapter down before opening a fresh one.
+/// Idempotent: a second call when the adapter is already
+/// connected is a no-op so two routes (footprint + heatmap) can
+/// share the same Bybit connection without tearing each other's
+/// pumps down. Force-reconnect goes through `crypto_disconnect`
+/// first.
 ///
 /// `app` is the Tauri AppHandle the framework injects on every
 /// command; passed through to the per-adapter connect helpers so
@@ -88,7 +91,9 @@ pub async fn crypto_connect(
 }
 
 async fn connect_binance(state: &CryptoState) -> Result<(), String> {
-    disconnect_binance_inner(state).await;
+    if state.binance.lock().await.is_some() {
+        return Ok(());
+    }
     let mut adapter = BinanceAdapter::new();
     adapter.connect().await.map_err(err)?;
     let pump = state.engine.clone().spawn(adapter.ticks());
@@ -98,7 +103,13 @@ async fn connect_binance(state: &CryptoState) -> Result<(), String> {
 }
 
 async fn connect_bybit(state: &CryptoState, app: &AppHandle) -> Result<(), String> {
-    disconnect_bybit_inner(state).await;
+    // M6b-1 fix — make this idempotent so two routes (footprint
+    // + heatmap) can both call crypto_connect("bybit") without
+    // tearing each other's adapters down. Force-reconnect goes
+    // through `crypto_disconnect` first.
+    if state.bybit.lock().await.is_some() {
+        return Ok(());
+    }
     let mut adapter = BybitAdapter::new();
     adapter.connect().await.map_err(err)?;
     // Two independent broadcast receivers from the same Sender:
@@ -114,7 +125,9 @@ async fn connect_bybit(state: &CryptoState, app: &AppHandle) -> Result<(), Strin
 }
 
 async fn connect_deribit(state: &CryptoState) -> Result<(), String> {
-    disconnect_deribit_inner(state).await;
+    if state.deribit.lock().await.is_some() {
+        return Ok(());
+    }
     let mut adapter = DeribitAdapter::new();
     adapter.connect().await.map_err(err)?;
     let pump = state.engine.clone().spawn(adapter.ticks());
