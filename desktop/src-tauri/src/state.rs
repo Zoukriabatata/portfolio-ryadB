@@ -14,12 +14,14 @@
 //! FootprintEngine because their tick size and bar cadence differ
 //! from CME futures.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 use crate::connectors::binance::BinanceAdapter;
+use crate::connectors::bybit::orderbook::OrderbookSubscriberHandle;
 use crate::connectors::bybit::BybitAdapter;
 use crate::connectors::deribit::DeribitAdapter;
 use crate::connectors::rithmic::RithmicAdapter;
@@ -80,6 +82,11 @@ pub struct CryptoState {
     pub binance_pump: Mutex<Option<JoinHandle<()>>>,
     pub bybit_pump: Mutex<Option<JoinHandle<()>>>,
     pub deribit_pump: Mutex<Option<JoinHandle<()>>>,
+    /// M3.5 — independent Bybit orderbook subscribers, keyed by
+    /// upper-case symbol. Each entry owns a tokio task + a oneshot
+    /// shutdown sender; dropping the sender (via remove + send)
+    /// stops the task gracefully.
+    pub bybit_orderbooks: Mutex<HashMap<String, OrderbookSubscriberHandle>>,
 }
 
 impl CryptoState {
@@ -101,6 +108,7 @@ impl CryptoState {
             binance_pump: Mutex::new(None),
             bybit_pump: Mutex::new(None),
             deribit_pump: Mutex::new(None),
+            bybit_orderbooks: Mutex::new(HashMap::new()),
         }
     }
 }

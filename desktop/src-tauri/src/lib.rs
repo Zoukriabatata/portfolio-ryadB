@@ -251,6 +251,8 @@ pub fn run() {
             commands::crypto::crypto_unsubscribe,
             commands::crypto::crypto_disconnect,
             commands::crypto::crypto_status,
+            commands::crypto::crypto_orderbook_subscribe,
+            commands::crypto::crypto_orderbook_unsubscribe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

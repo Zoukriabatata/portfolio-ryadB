@@ -9,8 +9,11 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use tauri::AppHandle;
+
 use crate::connectors::adapter::MarketDataAdapter;
 use crate::connectors::binance::BinanceAdapter;
+use crate::connectors::bybit::orderbook::{self as bybit_orderbook};
 use crate::connectors::bybit::BybitAdapter;
 use crate::connectors::deribit::DeribitAdapter;
 use crate::state::CryptoState;
@@ -40,6 +43,20 @@ pub struct CryptoStatus {
     pub binance_subscriptions: Vec<String>,
     pub bybit_subscriptions: Vec<String>,
     pub deribit_subscriptions: Vec<String>,
+    /// M3.5 — active Bybit orderbook subscriptions (upper-case
+    /// symbols). Independent from the trade-stream
+    /// `bybit_subscriptions` because the heatmap and footprint can
+    /// run on different pairs simultaneously.
+    pub bybit_orderbook_subscriptions: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CryptoOrderbookArgs {
+    /// Currently only "bybit" — Binance/Deribit orderbooks land in
+    /// later milestones if the heatmap demands them.
+    pub exchange: String,
+    pub symbol: String,
 }
 
 fn err<E: std::fmt::Display>(e: E) -> String {
@@ -192,7 +209,78 @@ pub async fn crypto_status(state: State<'_, CryptoState>) -> Result<CryptoStatus
         status.deribit_connected = true;
         status.deribit_subscriptions = a.subscriptions().iter().cloned().collect();
     }
+    {
+        let books = state.bybit_orderbooks.lock().await;
+        let mut subs: Vec<String> = books.keys().cloned().collect();
+        subs.sort();
+        status.bybit_orderbook_subscriptions = subs;
+    }
     Ok(status)
+}
+
+/// M3.5 — open a Bybit linear orderbook subscriber for `symbol`
+/// (upper-case ticker, e.g. "BTCUSDT"). Idempotent: a second call
+/// for the same symbol is a no-op (returns the current status).
+#[tauri::command]
+pub async fn crypto_orderbook_subscribe(
+    state: State<'_, CryptoState>,
+    app: AppHandle,
+    args: CryptoOrderbookArgs,
+) -> Result<CryptoStatus, String> {
+    if args.exchange != "bybit" {
+        return Err(format!(
+            "orderbook only supports bybit for now, got {}",
+            args.exchange
+        ));
+    }
+    let symbol = args.symbol.to_uppercase();
+    {
+        let books = state.bybit_orderbooks.lock().await;
+        if books.contains_key(&symbol) {
+            // Caller will see the existing subscription in status —
+            // no point in spawning a duplicate task.
+            drop(books);
+            return crypto_status(state).await;
+        }
+    }
+    let handle = bybit_orderbook::spawn(symbol.clone(), app);
+    state
+        .bybit_orderbooks
+        .lock()
+        .await
+        .insert(symbol, handle);
+    crypto_status(state).await
+}
+
+#[tauri::command]
+pub async fn crypto_orderbook_unsubscribe(
+    state: State<'_, CryptoState>,
+    args: CryptoOrderbookArgs,
+) -> Result<CryptoStatus, String> {
+    if args.exchange != "bybit" {
+        return Err(format!(
+            "orderbook only supports bybit for now, got {}",
+            args.exchange
+        ));
+    }
+    let symbol = args.symbol.to_uppercase();
+    if let Some(handle) = state.bybit_orderbooks.lock().await.remove(&symbol) {
+        let _ = handle.shutdown.send(());
+        // Best-effort wait: if the task doesn't exit within 1 s,
+        // just abort it. The WS goes away when the task drops.
+        match tokio::time::timeout(std::time::Duration::from_secs(1), handle.join).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => tracing::warn!(
+                "orderbook task for {} panicked on shutdown: {}",
+                symbol, e
+            ),
+            Err(_) => tracing::warn!(
+                "orderbook task for {} did not exit in 1s — already torn down",
+                symbol
+            ),
+        }
+    }
+    crypto_status(state).await
 }
 
 async fn disconnect_binance_inner(state: &CryptoState) {
