@@ -133,6 +133,23 @@ export class FootprintCanvasRenderer {
     return Math.max(1, Math.floor(usable / cellW));
   }
 
+  /** Returns the Y geometry the React layer needs to call
+   *  `clampScrollY`. Recomputed off the last frame so it reflects
+   *  whatever bars are currently mounted. */
+  getYExtent(): { totalContentHeight: number; chartHeight: number } {
+    const f = this.lastFrame;
+    if (!f) {
+      return {
+        totalContentHeight: 0,
+        chartHeight: Math.max(0, this.cssHeight - this.layout.timeAxisHeight - this.layout.paddingTop),
+      };
+    }
+    return {
+      totalContentHeight: f.totalRows * f.rowH,
+      chartHeight: f.chartBottom - f.chartTop,
+    };
+  }
+
   /** Returns the bar + level under the given canvas-relative pixel,
    *  or null when the pointer is outside the chart area or the cell
    *  is empty. Caller must ensure render() ran at least once first. */
@@ -185,12 +202,27 @@ export class FootprintCanvasRenderer {
     }
     this.lastFrame = frame;
 
-    // Background grid.
+    // Clip bars + grid + POC to the chart area so vertical pan/zoom
+    // can't bleed cells over the price/time axis chrome.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(
+      layout.paddingLeft,
+      frame.chartTop,
+      frame.chartRight - layout.paddingLeft,
+      frame.chartBottom - frame.chartTop,
+    );
+    ctx.clip();
+
+    // Background grid — only paint rows whose Y lands inside the
+    // visible chart area to skip a few thousand offscreen lines
+    // when the user is zoomed in tight.
     ctx.strokeStyle = theme.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let r = 0; r <= frame.totalRows; r += 5) {
       const y = Math.round(frame.gridTop + r * frame.rowH) + 0.5;
+      if (y < frame.chartTop || y > frame.chartBottom) continue;
       ctx.moveTo(layout.paddingLeft, y);
       ctx.lineTo(frame.chartRight, y);
     }
@@ -212,6 +244,8 @@ export class FootprintCanvasRenderer {
     if (frame.sessionPocPrice !== null) {
       this.drawSessionPOC(frame);
     }
+
+    ctx.restore();
 
     this.drawPriceAxis(frame);
     this.drawTimeAxis(frame);
@@ -251,9 +285,21 @@ export class FootprintCanvasRenderer {
       1,
       Math.round((maxPrice - minPrice) / tickSize) + 1,
     );
-    const rowH = Math.max(2, Math.min(layout.rowHeight, chartHeight / totalRows));
-    const usedHeight = rowH * totalRows;
-    const gridTop = chartTop + Math.max(0, (chartHeight - usedHeight) / 2);
+
+    // M4.6 — Y axis: when the user has zoomed/panned vertically,
+    // honour their rowHeight + scrollY exactly. Otherwise stick to
+    // the autofit (centered, capped at layout.rowHeight) so a
+    // first-render chart fills the viewport sensibly.
+    let rowH: number;
+    let gridTop: number;
+    if (interaction.userOverrodeY) {
+      rowH = Math.max(2, interaction.rowHeight);
+      gridTop = chartTop - interaction.scrollY;
+    } else {
+      rowH = Math.max(2, Math.min(layout.rowHeight, chartHeight / totalRows));
+      const usedHeight = rowH * totalRows;
+      gridTop = chartTop + Math.max(0, (chartHeight - usedHeight) / 2);
+    }
 
     // Cell width comes from interaction state but the on-bar split
     // (bid/ohlc/ask/profile) scales proportionally so wide cells let
@@ -425,6 +471,10 @@ export class FootprintCanvasRenderer {
     for (let r = 0; r <= f.totalRows; r += 5) {
       const price = f.maxPrice - r * f.tickSize;
       const y = f.gridTop + r * f.rowH;
+      // Skip labels whose row centre is outside the chart area —
+      // happens after Y pan/zoom and would otherwise overlap the
+      // time axis chrome.
+      if (y < f.chartTop || y > f.chartBottom) continue;
       ctx.fillText(price.toFixed(this.priceDecimals), f.chartRight + 6, y);
     }
   }
@@ -477,6 +527,12 @@ export class FootprintCanvasRenderer {
     );
     const snappedY = f.gridTop + rowIdx * f.rowH + f.rowH / 2;
     const snappedPrice = f.maxPrice - rowIdx * f.tickSize;
+    // After M4.6 Y pan/zoom, the snapped row can map outside the
+    // visible chart area. Suppress the horizontal line + price tag
+    // in that case — showing a price the user can't see is worse
+    // than not showing one.
+    const horizontalVisible =
+      snappedY >= f.chartTop && snappedY <= f.chartBottom;
 
     ctx.save();
     ctx.setLineDash([3, 3]);
@@ -485,26 +541,30 @@ export class FootprintCanvasRenderer {
     ctx.beginPath();
     ctx.moveTo(Math.round(hx) + 0.5, f.chartTop);
     ctx.lineTo(Math.round(hx) + 0.5, f.chartBottom);
-    ctx.moveTo(layout.paddingLeft, snappedY);
-    ctx.lineTo(f.chartRight, snappedY);
+    if (horizontalVisible) {
+      ctx.moveTo(layout.paddingLeft, snappedY);
+      ctx.lineTo(f.chartRight, snappedY);
+    }
     ctx.stroke();
     ctx.restore();
 
-    // Price tag on the right axis.
-    const priceLabel = snappedPrice.toFixed(this.priceDecimals);
-    ctx.font = `${theme.priceFontSize}px ${theme.fontFamily}`;
-    const tagW = Math.max(48, ctx.measureText(priceLabel).width + 12);
-    const tagH = 16;
-    const tagX = f.chartRight + 1;
-    const tagY = snappedY - tagH / 2;
-    ctx.fillStyle = "#0f172a";
-    ctx.fillRect(tagX, tagY, tagW, tagH);
-    ctx.strokeStyle = theme.poc;
-    ctx.strokeRect(tagX + 0.5, tagY + 0.5, tagW - 1, tagH - 1);
-    ctx.fillStyle = "#fbbf24";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(priceLabel, tagX + 6, snappedY);
+    // Price tag on the right axis (only when its row is on screen).
+    if (horizontalVisible) {
+      const priceLabel = snappedPrice.toFixed(this.priceDecimals);
+      ctx.font = `${theme.priceFontSize}px ${theme.fontFamily}`;
+      const tagW = Math.max(48, ctx.measureText(priceLabel).width + 12);
+      const tagH = 16;
+      const tagX = f.chartRight + 1;
+      const tagY = snappedY - tagH / 2;
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(tagX, tagY, tagW, tagH);
+      ctx.strokeStyle = theme.poc;
+      ctx.strokeRect(tagX + 0.5, tagY + 0.5, tagW - 1, tagH - 1);
+      ctx.fillStyle = "#fbbf24";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(priceLabel, tagX + 6, snappedY);
+    }
 
     // Volume tooltip near cursor when there's a cell under it.
     const cell = this.getCellAtPixel(hx, hy);
