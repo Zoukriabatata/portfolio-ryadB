@@ -42,6 +42,14 @@ export type FootprintSettings = {
   imbalanceRatio: number;
   /** Minimum consecutive imbalanced levels to mark a stacked streak. */
   imbalanceMinConsecutive: number;
+
+  // M6b-1 — heatmap overlay toggles. POC reuses `showPocSession`
+  // (cross-surface). VAH/VAL/VWAP are heatmap-only; the footprint
+  // surface ignores them.
+  showTradeBubbles: boolean;
+  showVAH: boolean;
+  showVAL: boolean;
+  showVWAP: boolean;
 };
 
 const DEFAULTS: FootprintSettings = {
@@ -58,6 +66,10 @@ const DEFAULTS: FootprintSettings = {
   showUnfinishedAuctions: true,
   imbalanceRatio: 3.0,
   imbalanceMinConsecutive: 3,
+  showTradeBubbles: true,
+  showVAH: true,
+  showVAL: true,
+  showVWAP: true,
 };
 
 type Actions = {
