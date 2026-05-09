@@ -29,6 +29,13 @@ import {
   type InteractionState,
 } from "./interactions";
 import { sessionPOC } from "./valueArea";
+import {
+  EMPTY_INDICATORS,
+  type IndicatorsResult,
+  type StackedImbalance,
+  type NakedPOC,
+  type UnfinishedAuction,
+} from "./indicators";
 
 /** Subset of the Zustand FootprintSettings that the renderer
  *  actually consumes. The React layer maps the store to this
@@ -47,6 +54,12 @@ export interface FootprintRendererSettings {
   priceDecimalsOverride: number | null;
   volumeFormat: RendererVolumeFormat;
   magnetMode: RendererMagnetMode;
+  // M4.7c — indicator overlay visibility flags. The actual data is
+  // pushed in via `setIndicators(result)` from the React layer's
+  // async runner; the renderer doesn't compute, only draws.
+  showStackedImbalances: boolean;
+  showNakedPOCs: boolean;
+  showUnfinishedAuctions: boolean;
 }
 
 export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
@@ -58,6 +71,9 @@ export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
   priceDecimalsOverride: null,
   volumeFormat: "raw",
   magnetMode: "none",
+  showStackedImbalances: true,
+  showNakedPOCs: true,
+  showUnfinishedAuctions: true,
 };
 
 export interface RendererOptions {
@@ -103,6 +119,7 @@ export class FootprintCanvasRenderer {
   private bars: RendererBar[] = [];
   private priceDecimals = 2;
   private settings: FootprintRendererSettings = { ...DEFAULT_RENDERER_SETTINGS };
+  private indicators: IndicatorsResult = EMPTY_INDICATORS;
   private lastFrame: FrameLayout | null = null;
 
   constructor(canvas: HTMLCanvasElement, opts: RendererOptions = {}) {
@@ -138,6 +155,13 @@ export class FootprintCanvasRenderer {
    *  the call so the canvas reflects the new state. */
   setSettings(s: FootprintRendererSettings) {
     this.settings = s;
+  }
+
+  /** M4.7c — push the latest indicator pipeline output. The React
+   *  layer's IndicatorsRunner debounces + idle-schedules the
+   *  compute and calls this when the result is ready. */
+  setIndicators(r: IndicatorsResult) {
+    this.indicators = r;
   }
 
   /** Effective price decimals — settings override wins, falls back
@@ -291,6 +315,10 @@ export class FootprintCanvasRenderer {
     if (this.settings.showPocSession && frame.sessionPocPrice !== null) {
       this.drawSessionPOC(frame);
     }
+
+    // M4.7c — indicator overlays. Drawn inside the chart clip so a
+    // naked-POC line can't bleed onto the price axis.
+    this.drawIndicatorOverlays(frame);
 
     ctx.restore();
 
@@ -762,6 +790,147 @@ export class FootprintCanvasRenderer {
     if (idx < 0 || idx >= f.sortedBars.length) return null;
     return f.sortedBars[idx];
   }
+
+  // ---------- M4.7c indicator overlays ----------------------------
+
+  private drawIndicatorOverlays(f: FrameLayout) {
+    if (this.settings.showStackedImbalances) {
+      for (const imb of this.indicators.stackedImbalances) {
+        this.drawStackedImbalance(imb, f);
+      }
+    }
+    if (this.settings.showNakedPOCs) {
+      for (const poc of this.indicators.nakedPOCs) {
+        this.drawNakedPOC(poc, f);
+      }
+    }
+    if (this.settings.showUnfinishedAuctions) {
+      for (const ua of this.indicators.unfinishedAuctions) {
+        this.drawUnfinishedAuction(ua, f);
+      }
+    }
+  }
+
+  /** Translate an indicator's `barTsNs` to the bar's left/right pixel
+   *  X. Returns null if the bar isn't in the current visible window
+   *  (off-screen due to scrollX or just absent — pruned by MAX_BARS). */
+  private barXRangeForTs(
+    barTsNs: number,
+    f: FrameLayout,
+  ): { leftX: number; rightX: number } | null {
+    const targetMs = barTsNs / 1_000_000;
+    const idx = f.sortedBars.findIndex((b) => b.timeMs === targetMs);
+    if (idx === -1) return null;
+    const rightX =
+      f.mostRecentRightX -
+      (f.sortedBars.length - 1 - idx) * f.cellWidth;
+    return { leftX: rightX - f.cellWidth, rightX };
+  }
+
+  private drawStackedImbalance(imb: StackedImbalance, f: FrameLayout) {
+    const range = this.barXRangeForTs(imb.barTsNs, f);
+    if (!range) return;
+    const { ctx } = this;
+
+    // Streak goes from startPrice (lowest) to endPrice (highest).
+    const yTop = priceToY(imb.endPrice, f) - f.rowH / 2;
+    const yBot = priceToY(imb.startPrice, f) + f.rowH / 2;
+    const height = Math.max(2, yBot - yTop);
+
+    // Bullish (buy imbalance) → highlight the ASK column on the
+    // right side of the bar. Bearish → BID column on the left.
+    const ohlcX = range.leftX + f.bidW;
+    const askX = ohlcX + f.ohlcW;
+    const isBull = imb.direction === "bullish";
+    const x = isBull ? askX : range.leftX;
+    const w = isBull ? f.askW : f.bidW;
+
+    ctx.save();
+    ctx.strokeStyle = isBull ? "#22c55e" : "#ef4444";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(
+      Math.round(x) + 0.5,
+      Math.round(yTop) + 0.5,
+      Math.max(1, w - 1),
+      Math.max(1, height - 1),
+    );
+    ctx.restore();
+  }
+
+  private drawNakedPOC(poc: NakedPOC, f: FrameLayout) {
+    const range = this.barXRangeForTs(poc.barTsNs, f);
+    if (!range) return;
+
+    const { ctx, layout } = this;
+    const y = priceToY(poc.price, f);
+    if (y < f.chartTop || y > f.chartBottom) return;
+
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#f97316";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.max(layout.paddingLeft, range.leftX), y + 0.5);
+    ctx.lineTo(f.chartRight, y + 0.5);
+    ctx.stroke();
+    ctx.restore();
+
+    // Label on the right end when there's room.
+    if (f.cellWidth >= 100) {
+      const decimals = this.effectivePriceDecimals();
+      const label = `Naked POC ${poc.price.toFixed(decimals)}`;
+      ctx.font = `9px ${this.theme.fontFamily}`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+      ctx.fillStyle = "#f97316";
+      ctx.fillText(label, f.chartRight - 4, y - 2);
+    }
+  }
+
+  private drawUnfinishedAuction(ua: UnfinishedAuction, f: FrameLayout) {
+    const range = this.barXRangeForTs(ua.barTsNs, f);
+    if (!range) return;
+
+    const y = priceToY(ua.price, f);
+    if (y < f.chartTop || y > f.chartBottom) return;
+
+    const { ctx } = this;
+    // Place the marker just to the right of the bar (between this
+    // bar's right edge and where the next bar would start, in
+    // whatever gap exists). Anchored on the bar so it pans with it.
+    const cx = range.rightX + 4;
+    if (cx > f.chartRight - 4) return;
+
+    const size = 6;
+    const tested = ua.tested;
+    ctx.save();
+    if (ua.side === "high") {
+      // Triangle pointing up, anchored above the y line.
+      ctx.beginPath();
+      ctx.moveTo(cx, y - size);
+      ctx.lineTo(cx - size, y);
+      ctx.lineTo(cx + size, y);
+      ctx.closePath();
+    } else {
+      // Triangle pointing down, anchored below the y line.
+      ctx.beginPath();
+      ctx.moveTo(cx, y + size);
+      ctx.lineTo(cx - size, y);
+      ctx.lineTo(cx + size, y);
+      ctx.closePath();
+    }
+    if (tested) {
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = "#f97316";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ----------------------------------------------------------------
 
   private drawEmpty() {
     const { ctx, theme, cssWidth, cssHeight } = this;
