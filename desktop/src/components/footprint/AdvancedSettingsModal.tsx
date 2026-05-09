@@ -115,6 +115,45 @@ export function AdvancedSettingsModal({ open, onClose }: Props) {
             />
           </section>
 
+          <section className="asm-section">
+            <h4>Indicators</h4>
+            <ToggleRow
+              label="Stacked imbalances"
+              checked={settings.showStackedImbalances}
+              onChange={() => settings.toggle("showStackedImbalances")}
+            />
+            <ToggleRow
+              label="Naked POCs"
+              checked={settings.showNakedPOCs}
+              onChange={() => settings.toggle("showNakedPOCs")}
+            />
+            <ToggleRow
+              label="Unfinished auctions"
+              checked={settings.showUnfinishedAuctions}
+              onChange={() => settings.toggle("showUnfinishedAuctions")}
+            />
+            <SliderRow
+              label="Imbalance ratio"
+              value={settings.imbalanceRatio}
+              valueText={`${settings.imbalanceRatio.toFixed(1)}×`}
+              min={1.5}
+              max={5.0}
+              step={0.1}
+              onChange={(v) => settings.set("imbalanceRatio", v)}
+            />
+            <SliderRow
+              label="Min consecutive levels"
+              value={settings.imbalanceMinConsecutive}
+              valueText={settings.imbalanceMinConsecutive.toString()}
+              min={2}
+              max={6}
+              step={1}
+              onChange={(v) =>
+                settings.set("imbalanceMinConsecutive", Math.round(v))
+              }
+            />
+          </section>
+
           <section className="asm-section asm-section-danger">
             <button
               type="button"
@@ -155,6 +194,42 @@ function ToggleRow({
         />
         <span className="asm-toggle-thumb" />
       </span>
+    </label>
+  );
+}
+
+function SliderRow({
+  label,
+  value,
+  valueText,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  valueText: string;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="asm-slider">
+      <span className="asm-slider-row">
+        <span className="asm-slider-label">{label}</span>
+        <span className="asm-slider-value">{valueText}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="asm-slider-input"
+      />
     </label>
   );
 }
