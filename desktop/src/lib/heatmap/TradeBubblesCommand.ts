@@ -175,24 +175,16 @@ export class TradeBubblesCommand {
       // populated slice so we don't upload stale instance data.
       this.instanceBuffer.subdata(buf.subarray(0, count * 4));
       // Diagnostic — first ingest after a count change. Remove
-      // once bubble sizing is confirmed working.
+      // once bubble sizing is confirmed working. Values formatted
+      // as a string so the export-to-file path doesn't collapse
+      // them to "Object".
       const dbg = this as unknown as { __dbgLogged?: boolean };
       if (!dbg.__dbgLogged && count > 0) {
+        const t0 = trades[0];
         // eslint-disable-next-line no-console
-        console.log("[BUBBLE INSTANCE 0]", {
-          timeUv: buf[0],
-          priceUv: buf[1],
-          radius: buf[2],
-          side: buf[3],
-          count,
-          priceMin,
-          priceMax,
-          firstTradePrice: trades[0]?.price,
-          firstTradeQty: trades[0]?.quantity,
-          firstTradeTimestampMs: trades[0]?.timestampMs,
-          nowMs,
-          dtMs: nowMs - (trades[0]?.timestampMs ?? 0),
-        });
+        console.log(
+          `[BUBBLE INSTANCE 0] timeUv=${buf[0].toFixed(4)} priceUv=${buf[1].toFixed(4)} radius=${buf[2].toFixed(2)} side=${buf[3]} | count=${count} | priceMin=${priceMin.toFixed(2)} priceMax=${priceMax.toFixed(2)} | trade0.price=${t0?.price} qty=${t0?.quantity} ts=${t0?.timestampMs} nowMs=${nowMs} dtMs=${nowMs - (t0?.timestampMs ?? 0)}`,
+        );
         dbg.__dbgLogged = true;
       }
     }
@@ -203,17 +195,17 @@ export class TradeBubblesCommand {
     if (this.instanceCount === 0) return;
     this.liveViewport = viewport;
     this.liveResolution = resolution;
-    // Diagnostic — first 3 frames + every 60th. Remove once bubble
-    // sizing is confirmed working.
+    // Diagnostic — first 3 frames + every 120th. String-formatted
+    // so log-file exports don't collapse arrays to "Object".
     const dbg = this as unknown as { __drawFrames?: number };
     if (dbg.__drawFrames === undefined) dbg.__drawFrames = 0;
-    if (dbg.__drawFrames < 3 || dbg.__drawFrames % 60 === 0) {
+    if (dbg.__drawFrames < 3 || dbg.__drawFrames % 120 === 0) {
+      const v = this.liveViewport;
+      const r = this.liveResolution;
       // eslint-disable-next-line no-console
-      console.log("[BUBBLE DRAW]", {
-        viewport: this.liveViewport,
-        resolution: this.liveResolution,
-        instances: this.instanceCount,
-      });
+      console.log(
+        `[BUBBLE DRAW] vp=[${v[0]?.toFixed(3)},${v[1]?.toFixed(3)},${v[2]?.toFixed(3)},${v[3]?.toFixed(3)}] res=[${r[0]},${r[1]}] inst=${this.instanceCount}`,
+      );
     }
     dbg.__drawFrames += 1;
     this.drawCmd({});
