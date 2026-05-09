@@ -45,6 +45,12 @@ export type InteractionState = {
    *  a new bar lands. Reset to false by `Reset view` and by the
    *  symbol-switch reset in the React layer. */
   userOverrodeY: boolean;
+  /** M6a-2 — mirror of userOverrodeY for the X axis. Heatmap uses
+   *  this to disable auto-follow (right-anchoring on the latest
+   *  snapshot) once the user has panned X manually; footprint
+   *  doesn't currently consume it but the field stays available
+   *  if a future symbol switch / replay needs the same semantic. */
+  userOverrodeX: boolean;
 };
 
 export const DEFAULT_INTERACTION: InteractionState = {
@@ -61,6 +67,7 @@ export const DEFAULT_INTERACTION: InteractionState = {
   hoverX: null,
   hoverY: null,
   userOverrodeY: false,
+  userOverrodeX: false,
 };
 
 export const MIN_CELL_WIDTH = 40;
@@ -91,6 +98,7 @@ export function applyWheelZoom(
     ...state,
     cellWidth: newCellWidth,
     scrollX: newScrollX,
+    userOverrodeX: true,
   };
 }
 
@@ -150,7 +158,11 @@ export function updateDrag(
     };
   }
   const dx = canvasX - state.dragStartX;
-  return { ...state, scrollX: state.dragStartScrollX + dx };
+  return {
+    ...state,
+    scrollX: state.dragStartScrollX + dx,
+    userOverrodeX: true,
+  };
 }
 
 export function endDrag(state: InteractionState): InteractionState {
