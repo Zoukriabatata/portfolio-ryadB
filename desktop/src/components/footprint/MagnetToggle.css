@@ -1,0 +1,45 @@
+/* Phase B / M4.7b — magnet toggle button. */
+
+.mag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  min-height: 28px;
+}
+
+.mag-btn:hover {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.mag-btn-active {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.mag-btn-active:hover {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fde68a;
+}
+
+.mag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mag-mode {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
