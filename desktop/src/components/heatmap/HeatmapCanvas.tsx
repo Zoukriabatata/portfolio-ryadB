@@ -12,8 +12,14 @@
 // every event handler ends with a `tickRender()` that pushes the
 // viewport + redraws the overlay.
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useHeatmap } from "../../lib/heatmap/useHeatmap";
+import { TradeStateAdapter, type Trade } from "../../lib/heatmap/TradeStateAdapter";
+import {
+  EMPTY_KEY_LEVELS,
+  KeyLevelsEngine,
+  type KeyLevels,
+} from "../../lib/heatmap/KeyLevelsEngine";
 import {
   DEFAULT_INTERACTION,
   applyWheelZoom,
@@ -24,6 +30,7 @@ import {
   updateDrag,
   type InteractionState,
 } from "../../lib/footprint/interactions";
+import { useFootprintSettingsStore } from "../../stores/useFootprintSettingsStore";
 import "./HeatmapCanvas.css";
 
 export type HeatmapCanvasProps = {
@@ -44,6 +51,22 @@ export function HeatmapCanvas({ symbol, displaySymbol }: HeatmapCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<InteractionState>({ ...DEFAULT_INTERACTION });
   const { ready, stats, state, rendererRef } = useHeatmap(canvasRef, symbol);
+
+  // M6b-1 — trade-bubbles + key-levels lifecycle. Both consume
+  // the same `crypto-tick-update` Tauri event but live in
+  // separate refs because the bubbles render on the GPU (regl)
+  // while the levels draw in the Canvas2D overlay.
+  const tradeAdapterRef = useRef<TradeStateAdapter | null>(null);
+  const keyLevelsEngineRef = useRef<KeyLevelsEngine>(new KeyLevelsEngine(0.1));
+  const keyLevelsRef = useRef<KeyLevels>(EMPTY_KEY_LEVELS);
+  const tradesRef = useRef<Trade[]>([]);
+  const [, setTradeReady] = useState(false);
+
+  const showTradeBubbles = useFootprintSettingsStore((s) => s.showTradeBubbles);
+  const showPocSession = useFootprintSettingsStore((s) => s.showPocSession);
+  const showVAH = useFootprintSettingsStore((s) => s.showVAH);
+  const showVAL = useFootprintSettingsStore((s) => s.showVAL);
+  const showVWAP = useFootprintSettingsStore((s) => s.showVWAP);
 
   const [minPrice, maxPrice] = stats.priceRange;
   const hasRange = maxPrice > minPrice;
@@ -90,10 +113,11 @@ export function HeatmapCanvas({ symbol, displaySymbol }: HeatmapCanvasProps) {
       xZoom,
       yZoom,
     });
+    rendererRef.current?.setRendererSettings({ showTradeBubbles });
 
     drawOverlay();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [showTradeBubbles]);
 
   // Build N evenly-spaced labels for the price axis.
   const priceLabels: { yPct: number; label: string }[] = [];
@@ -120,6 +144,55 @@ export function HeatmapCanvas({ symbol, displaySymbol }: HeatmapCanvasProps) {
     }
   }
 
+  // M6b-1 — key levels overlay pass. Reads from `keyLevelsRef`
+  // (computed in the trade-adapter effect) + the renderer's last
+  // price range. Maps a price to its Y position by inverting the
+  // viewport transform so the lines stay anchored to the heatmap
+  // bg even after pan/zoom.
+  function drawKeyLevels(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    const levels = keyLevelsRef.current;
+    const r = rendererRef.current;
+    if (!r) return;
+    const [pmin, pmax] = stats.priceRange;
+    if (pmax <= pmin) return;
+    const vp = r.getViewport();
+
+    // priceUv ∈ [0, 1] (0 = bottom, 1 = top in texture space).
+    // fragment v_uv.y = (priceUv - vp.y) * vp.zw.w + 0.5
+    //         in [0,1] = bottom-up CSS coords.
+    // canvas Y (top-down) = (1 - frag v_uv.y) * h
+    const priceToY = (price: number): number => {
+      const priceUv = (price - pmin) / (pmax - pmin);
+      const fragV = (priceUv - vp.y) * vp.yZoom + 0.5;
+      return (1 - fragV) * h;
+    };
+
+    const drawLine = (
+      price: number | null,
+      color: string,
+      width: number,
+      dash: number[],
+    ) => {
+      if (price === null) return;
+      const y = priceToY(price);
+      if (y < 0 || y > h) return;
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    if (showPocSession) drawLine(levels.poc, "#fbbf24", 2, []);
+    if (showVAH) drawLine(levels.vah, "#f59e0b", 1, [6, 4]);
+    if (showVAL) drawLine(levels.val, "#f59e0b", 1, [6, 4]);
+    if (showVWAP) drawLine(levels.vwap, "#22d3ee", 1.5, []);
+  }
+
   function drawOverlay() {
     const overlay = overlayRef.current;
     const wrap = wrapperRef.current;
@@ -142,6 +215,10 @@ export function HeatmapCanvas({ symbol, displaySymbol }: HeatmapCanvasProps) {
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
+
+    // M6b-1 — key levels (POC/VAH/VAL/VWAP) drawn under the
+    // crosshair so a hover doesn't visually clobber the levels.
+    drawKeyLevels(ctx, w, h);
 
     const interaction = interactionRef.current;
     if (
@@ -330,6 +407,46 @@ export function HeatmapCanvas({ symbol, displaySymbol }: HeatmapCanvasProps) {
   useEffect(() => {
     tickRender();
   }, [stats.midPrice, state.history.length, tickRender]);
+
+  // M6b-1 — trade-stream lifecycle. The adapter listens to the
+  // `crypto-tick-update` event emitted by the M6b-1 Rust forwarder;
+  // every ingest recomputes the key-level snapshot and pushes the
+  // raw trade window to the GPU bubble buffer. The recompute is
+  // O(window) — at the 5-min / ~30K-trade upper bound that's
+  // ~0.3 ms on a modern laptop, well below the 1-sec ingest
+  // cadence. If a future Bybit pit moment pushes the cost above
+  // 5 ms we'll move to incremental key levels.
+  useEffect(() => {
+    if (!symbol || !ready) {
+      tradesRef.current = [];
+      keyLevelsRef.current = EMPTY_KEY_LEVELS;
+      setTradeReady(false);
+      return;
+    }
+    let cancelled = false;
+    const adapter = new TradeStateAdapter();
+    void adapter.start(symbol).then(() => {
+      if (cancelled) return;
+      tradeAdapterRef.current = adapter;
+      adapter.subscribe((s) => {
+        tradesRef.current = s.trades;
+        keyLevelsRef.current = keyLevelsEngineRef.current.computeFromTrades(
+          s.trades,
+        );
+        rendererRef.current?.setTrades(s.trades);
+      });
+      setTradeReady(true);
+    });
+    return () => {
+      cancelled = true;
+      void adapter.stop();
+      tradeAdapterRef.current = null;
+      tradesRef.current = [];
+      keyLevelsRef.current = EMPTY_KEY_LEVELS;
+      setTradeReady(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, ready]);
 
   function onResetView() {
     interactionRef.current = { ...DEFAULT_INTERACTION };

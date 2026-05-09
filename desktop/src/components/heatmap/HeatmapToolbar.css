@@ -1,0 +1,52 @@
+/* Phase B / M6b-1 — heatmap overlay toolbar pills. */
+
+.hmt-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hmt-pill {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  min-width: 48px;
+}
+
+.hmt-pill:hover:not(.hmt-active) {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* Active state pulls in the tone of the marker it controls. */
+.hmt-active.hmt-tone-buy {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.hmt-active.hmt-tone-poc {
+  background: rgba(251, 191, 36, 0.18);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.hmt-active.hmt-tone-amber {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.hmt-active.hmt-tone-vwap {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: #22d3ee;
+  color: #22d3ee;
+}

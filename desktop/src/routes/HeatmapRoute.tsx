@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { HeatmapCanvas } from "../components/heatmap/HeatmapCanvas";
+import { HeatmapToolbar } from "../components/heatmap/HeatmapToolbar";
 import { SymbolPickerModal } from "../components/footprint/SymbolPickerModal";
 import "./HeatmapRoute.css";
 
@@ -96,6 +97,7 @@ export function HeatmapRoute() {
         >
           {symbol ?? "Pick symbol"} <span className="hm-symbol-caret">▾</span>
         </button>
+        <HeatmapToolbar />
         <span className="hm-spacer" />
         {!subscribed && (
           <button
