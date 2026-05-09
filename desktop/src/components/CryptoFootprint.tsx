@@ -26,6 +26,10 @@ import {
 } from "./footprint/TimeframePills";
 import { ZoomControls } from "./footprint/ZoomControls";
 import { FootprintStatusBar } from "./footprint/FootprintStatusBar";
+import { MagnetToggle } from "./footprint/MagnetToggle";
+import { AdvancedSettingsModal } from "./footprint/AdvancedSettingsModal";
+import { useFootprintSettingsStore } from "../stores/useFootprintSettingsStore";
+import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvasRenderer";
 import "./footprint/CryptoFootprintNav.css";
 
 type CryptoExchange = "bybit" | "binance";
@@ -62,7 +66,57 @@ export function CryptoFootprint({
   const [busy, setBusy] = useState(false);
   const [connected, setConnected] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const canvasHandle = useRef<FootprintCanvasHandle>(null);
+
+  // Subscribe field-by-field so the effect below only fires on the
+  // bits the renderer actually consumes — avoids a re-render storm
+  // when an unrelated store field is added later.
+  const showGrid = useFootprintSettingsStore((s) => s.showGrid);
+  const showPocSession = useFootprintSettingsStore((s) => s.showPocSession);
+  const showPocBar = useFootprintSettingsStore((s) => s.showPocBar);
+  const showVolumeTooltip = useFootprintSettingsStore(
+    (s) => s.showVolumeTooltip,
+  );
+  const showOhlcHeader = useFootprintSettingsStore((s) => s.showOhlcHeader);
+  const priceDecimalsMode = useFootprintSettingsStore(
+    (s) => s.priceDecimalsMode,
+  );
+  const volumeFormat = useFootprintSettingsStore((s) => s.volumeFormat);
+  const magnetMode = useFootprintSettingsStore((s) => s.magnetMode);
+
+  // Map the store shape to the renderer's settings shape. Resolves
+  // priceDecimalsMode "auto" → null (renderer falls back to the
+  // priceDecimals prop) vs numeric override.
+  const rendererSettings: FootprintRendererSettings = useMemo(
+    () => ({
+      showGrid,
+      showPocSession,
+      showPocBar,
+      showVolumeTooltip,
+      showOhlcHeader,
+      priceDecimalsOverride:
+        priceDecimalsMode === "auto" ? null : parseInt(priceDecimalsMode, 10),
+      volumeFormat,
+      magnetMode,
+    }),
+    [
+      showGrid,
+      showPocSession,
+      showPocBar,
+      showVolumeTooltip,
+      showOhlcHeader,
+      priceDecimalsMode,
+      volumeFormat,
+      magnetMode,
+    ],
+  );
+
+  // Push settings to the renderer whenever they change. The handle
+  // request a paint internally so the canvas updates immediately.
+  useEffect(() => {
+    canvasHandle.current?.applySettings(rendererSettings);
+  }, [rendererSettings]);
 
   // Reset bars + symbol when exchange changes — the operator chose a
   // different venue, the previous bars no longer make sense.
@@ -232,6 +286,16 @@ export function CryptoFootprint({
           onChange={handleTimeframeChange}
           disabled={busy}
         />
+        <MagnetToggle />
+        <button
+          type="button"
+          className="cf-icon-btn"
+          onClick={() => setSettingsOpen(true)}
+          title="Footprint settings"
+          aria-label="Footprint settings"
+        >
+          ⚙
+        </button>
         <span className="cf-controls-spacer" />
         <button
           type="button"
@@ -279,6 +343,11 @@ export function CryptoFootprint({
         currentSymbol={symbol}
         onSelect={handleSymbolPicked}
         onClose={() => setPickerOpen(false)}
+      />
+
+      <AdvancedSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
       />
     </>
   );
