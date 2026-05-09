@@ -25,6 +25,7 @@ import {
   type FootprintRendererSettings,
 } from "../../lib/footprint/FootprintCanvasRenderer";
 import { tauriBarToRendererBar } from "../../lib/footprint/adapter";
+import type { IndicatorsResult } from "../../lib/footprint/indicators";
 import {
   DEFAULT_INTERACTION,
   applyWheelZoom,
@@ -63,6 +64,10 @@ export type FootprintCanvasHandle = {
    *  store directly, so the component stays decoupled from the
    *  store's exact field names. */
   applySettings: (settings: FootprintRendererSettings) => void;
+  /** M4.7c — feed pre-computed indicator overlays into the
+   *  renderer. The React layer's IndicatorsRunner produces these
+   *  off the main thread and pipes them through this method. */
+  applyIndicators: (result: IndicatorsResult) => void;
 };
 
 export const FootprintCanvas = forwardRef<
@@ -303,6 +308,10 @@ export const FootprintCanvas = forwardRef<
       resetView: onResetView,
       applySettings: (settings) => {
         rendererRef.current?.setSettings(settings);
+        tickRender();
+      },
+      applyIndicators: (result) => {
+        rendererRef.current?.setIndicators(result);
         tickRender();
       },
     }),

@@ -30,6 +30,7 @@ import { MagnetToggle } from "./footprint/MagnetToggle";
 import { AdvancedSettingsModal } from "./footprint/AdvancedSettingsModal";
 import { useFootprintSettingsStore } from "../stores/useFootprintSettingsStore";
 import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvasRenderer";
+import { IndicatorsRunner } from "../lib/footprint/indicatorsAsync";
 import "./footprint/CryptoFootprintNav.css";
 
 type CryptoExchange = "bybit" | "binance";
@@ -84,6 +85,17 @@ export function CryptoFootprint({
   );
   const volumeFormat = useFootprintSettingsStore((s) => s.volumeFormat);
   const magnetMode = useFootprintSettingsStore((s) => s.magnetMode);
+  const showStackedImbalances = useFootprintSettingsStore(
+    (s) => s.showStackedImbalances,
+  );
+  const showNakedPOCs = useFootprintSettingsStore((s) => s.showNakedPOCs);
+  const showUnfinishedAuctions = useFootprintSettingsStore(
+    (s) => s.showUnfinishedAuctions,
+  );
+  const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
+  const imbalanceMinConsecutive = useFootprintSettingsStore(
+    (s) => s.imbalanceMinConsecutive,
+  );
 
   // Map the store shape to the renderer's settings shape. Resolves
   // priceDecimalsMode "auto" → null (renderer falls back to the
@@ -99,6 +111,9 @@ export function CryptoFootprint({
         priceDecimalsMode === "auto" ? null : parseInt(priceDecimalsMode, 10),
       volumeFormat,
       magnetMode,
+      showStackedImbalances,
+      showNakedPOCs,
+      showUnfinishedAuctions,
     }),
     [
       showGrid,
@@ -109,6 +124,9 @@ export function CryptoFootprint({
       priceDecimalsMode,
       volumeFormat,
       magnetMode,
+      showStackedImbalances,
+      showNakedPOCs,
+      showUnfinishedAuctions,
     ],
   );
 
@@ -117,6 +135,24 @@ export function CryptoFootprint({
   useEffect(() => {
     canvasHandle.current?.applySettings(rendererSettings);
   }, [rendererSettings]);
+
+  // M4.7c — async indicator pipeline. The runner debounces bursty
+  // FootprintBar updates (Bybit BTC 5s peaks at 10+ updates/sec)
+  // and defers compute to requestIdleCallback. Listener pushes the
+  // result through the canvas handle, which forwards to the
+  // renderer + ticks a paint.
+  const runnerRef = useRef<IndicatorsRunner | null>(null);
+  useEffect(() => {
+    const runner = new IndicatorsRunner();
+    runner.setListener((result) => {
+      canvasHandle.current?.applyIndicators(result);
+    });
+    runnerRef.current = runner;
+    return () => {
+      runner.destroy();
+      runnerRef.current = null;
+    };
+  }, []);
 
   // Reset bars + symbol when exchange changes — the operator chose a
   // different venue, the previous bars no longer make sense.
@@ -259,6 +295,34 @@ export function CryptoFootprint({
     () => [...bars.values()].sort((a, b) => b.bucketTsNs - a.bucketTsNs),
     [bars],
   );
+
+  // Reschedule the indicator pipeline whenever the bar set changes
+  // OR a parameter that affects the compute changes. Visibility-only
+  // toggles don't trigger a recompute — the renderer can flip them
+  // for free using the cached IndicatorsResult.
+  useEffect(() => {
+    const runner = runnerRef.current;
+    if (!runner) return;
+    const currentPrice = sortedBars[0]?.close ?? 0;
+    runner.schedule(
+      sortedBars,
+      {
+        imbalanceRatio,
+        minConsecutive: imbalanceMinConsecutive,
+        enableStackedImbalances: showStackedImbalances,
+        enableNakedPOCs: showNakedPOCs,
+        enableUnfinishedAuctions: showUnfinishedAuctions,
+      },
+      currentPrice,
+    );
+  }, [
+    sortedBars,
+    imbalanceRatio,
+    imbalanceMinConsecutive,
+    showStackedImbalances,
+    showNakedPOCs,
+    showUnfinishedAuctions,
+  ]);
 
   return (
     <>
