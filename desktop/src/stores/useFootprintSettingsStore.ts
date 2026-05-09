@@ -33,6 +33,15 @@ export type FootprintSettings = {
 
   // Crosshair Y snap target.
   magnetMode: MagnetMode;
+
+  // M4.7c — order-flow indicators (computed async, drawn as overlays).
+  showStackedImbalances: boolean;
+  showNakedPOCs: boolean;
+  showUnfinishedAuctions: boolean;
+  /** ATAS-style ratio threshold for a level to count as imbalanced. */
+  imbalanceRatio: number;
+  /** Minimum consecutive imbalanced levels to mark a stacked streak. */
+  imbalanceMinConsecutive: number;
 };
 
 const DEFAULTS: FootprintSettings = {
@@ -44,6 +53,11 @@ const DEFAULTS: FootprintSettings = {
   priceDecimalsMode: "auto",
   volumeFormat: "raw",
   magnetMode: "none",
+  showStackedImbalances: true,
+  showNakedPOCs: true,
+  showUnfinishedAuctions: true,
+  imbalanceRatio: 3.0,
+  imbalanceMinConsecutive: 3,
 };
 
 type Actions = {
