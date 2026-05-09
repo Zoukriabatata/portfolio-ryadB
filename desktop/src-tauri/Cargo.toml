@@ -50,6 +50,9 @@ futures-util   = { version = "0.3", default-features = false, features = ["sink"
 url            = "2.5"
 async-trait    = "0.1"
 tracing        = "0.1"
+# M3.5 — orderbook BTreeMap keyed by price (f64 isn't Ord; OrderedFloat
+# wraps it with a NaN-rejecting Ord impl so the map keys work directly).
+ordered-float  = "4"
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi"] }
@@ -87,3 +90,7 @@ path = "examples/bybit_subscribe.rs"
 [[example]]
 name = "deribit_subscribe"
 path = "examples/deribit_subscribe.rs"
+
+[[example]]
+name = "bybit_orderbook_subscribe"
+path = "examples/bybit_orderbook_subscribe.rs"
