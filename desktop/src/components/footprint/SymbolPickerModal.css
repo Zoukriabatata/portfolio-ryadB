@@ -146,6 +146,18 @@
   text-align: right;
 }
 
+/* M5 — futures contract month badge between symbol and tick. */
+.sp-row-contract {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 10px;
+  color: #94a3b8;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  padding: 1px 6px;
+  letter-spacing: 0.04em;
+}
+
 .sp-empty {
   padding: 32px 16px;
   text-align: center;
