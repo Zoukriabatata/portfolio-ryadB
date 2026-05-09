@@ -1,21 +1,32 @@
-// Phase B / M3 — crypto-side footprint client.
+// Phase B / M3 + M4 + M4.7a — crypto-side footprint client.
 //
 // Public-feed exchanges (Bybit linear, Binance spot) — no broker
 // settings, no vault, no auth flow. The component:
 //   1. on mount: invoke('crypto_connect', { exchange })
-//   2. user picks a symbol → invoke('crypto_subscribe', ...)
+//   2. user picks a symbol via the modal → invoke('crypto_subscribe')
 //   3. listens to `crypto-footprint-update` events filtered to the
-//      current symbol + timeframe
-//   4. seeds historical bars via crypto_get_bars (TODO M4)
+//      current exchange-qualified symbol + timeframe
 //
-// Reuses BarView/LevelRow from FootprintBarView for visual parity
-// with the Rithmic side.
+// M4.7a — visible chrome is now: status bar + symbol picker button +
+// timeframe pills + subscribe / unsubscribe + canvas with a floating
+// zoom toolbar. The legacy text-input + dropdown layout is gone.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { type FootprintBar } from "./FootprintBarView";
-import { FootprintCanvas } from "./footprint/FootprintCanvas";
+import {
+  FootprintCanvas,
+  type FootprintCanvasHandle,
+} from "./footprint/FootprintCanvas";
+import { SymbolPickerModal } from "./footprint/SymbolPickerModal";
+import {
+  TimeframePills,
+  type SupportedTimeframe,
+} from "./footprint/TimeframePills";
+import { ZoomControls } from "./footprint/ZoomControls";
+import { FootprintStatusBar } from "./footprint/FootprintStatusBar";
+import "./footprint/CryptoFootprintNav.css";
 
 type CryptoExchange = "bybit" | "binance";
 
@@ -28,13 +39,7 @@ type CryptoStatus = {
   deribitSubscriptions: string[];
 };
 
-const TIMEFRAMES = ["5s", "15s", "1m", "5m"] as const;
-type Timeframe = (typeof TIMEFRAMES)[number];
 const MAX_BARS = 20;
-
-// Crypto prices on BTC/ETH range from 0.01 to 5+ digits depending on
-// the asset. 2 decimals is enough for BTC/ETH; SOL/lower-cap pairs
-// can pass priceDecimals through if needed later.
 const PRICE_DECIMALS = 2;
 
 const EXCHANGE_LABELS: Record<CryptoExchange, string> = {
@@ -50,12 +55,14 @@ export function CryptoFootprint({
   defaultSymbol: string;
 }) {
   const [symbol, setSymbol] = useState(defaultSymbol);
-  const [timeframe, setTimeframe] = useState<Timeframe>("5s");
+  const [timeframe, setTimeframe] = useState<SupportedTimeframe>("5s");
   const [bars, setBars] = useState<Map<number, FootprintBar>>(new Map());
   const [status, setStatus] = useState<CryptoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const canvasHandle = useRef<FootprintCanvasHandle>(null);
 
   // Reset bars + symbol when exchange changes — the operator chose a
   // different venue, the previous bars no longer make sense.
@@ -169,6 +176,23 @@ export function CryptoFootprint({
     }
   }, [exchange, symbol]);
 
+  // Symbol switch from the picker. Clear the bar cache so the new
+  // ticker doesn't render mixed with stale bars from the previous
+  // symbol while the first new bar forms.
+  const handleSymbolPicked = useCallback((nextSymbol: string) => {
+    setSymbol(nextSymbol);
+    setBars(new Map());
+  }, []);
+
+  // Timeframe switch — same reasoning, drop stale bars.
+  const handleTimeframeChange = useCallback(
+    (next: SupportedTimeframe) => {
+      setTimeframe(next);
+      setBars(new Map());
+    },
+    [],
+  );
+
   const subscriptions = useMemo(() => {
     if (!status) return [];
     if (exchange === "bybit") return status.bybitSubscriptions;
@@ -181,57 +205,39 @@ export function CryptoFootprint({
     () => [...bars.values()].sort((a, b) => b.bucketTsNs - a.bucketTsNs),
     [bars],
   );
-  const totalTrades = useMemo(
-    () => sortedBars.reduce((s, b) => s + b.tradeCount, 0),
-    [sortedBars],
-  );
 
   return (
     <>
-      <header className="rf-header">
-        <div className="rf-status-info">
-          <span
-            className={
-              connected
-                ? "rf-status rf-status-connected"
-                : "rf-status rf-status-disconnected"
-            }
-          >
-            {connected ? "Connected" : "Connecting…"}
-          </span>
-          <span className="rf-status-detail">
-            {EXCHANGE_LABELS[exchange]} · public feed (no auth)
-          </span>
-        </div>
-      </header>
+      <FootprintStatusBar
+        symbol={symbol}
+        exchange={EXCHANGE_LABELS[exchange]}
+        timeframe={timeframe}
+        bars={sortedBars}
+        connected={connected}
+        busy={busy}
+        priceDecimals={PRICE_DECIMALS}
+      />
 
-      <section className="rf-controls">
-        <label>
-          <span>Symbol</span>
-          <input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            disabled={busy}
-          />
-        </label>
-        <label>
-          <span>Timeframe</span>
-          <select
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value as Timeframe)}
-            disabled={busy}
-          >
-            {TIMEFRAMES.map((tf) => (
-              <option key={tf} value={tf}>
-                {tf}
-              </option>
-            ))}
-          </select>
-        </label>
+      <section className="cf-controls">
+        <button
+          type="button"
+          className="cf-symbol-btn"
+          onClick={() => setPickerOpen(true)}
+          disabled={busy}
+        >
+          {symbol} <span className="cf-symbol-caret">▾</span>
+        </button>
+        <TimeframePills
+          value={timeframe}
+          onChange={handleTimeframeChange}
+          disabled={busy}
+        />
+        <span className="cf-controls-spacer" />
         <button
           type="button"
           onClick={handleSubscribe}
           disabled={busy || !connected}
+          className="cf-action-btn cf-action-primary"
         >
           Subscribe
         </button>
@@ -240,7 +246,7 @@ export function CryptoFootprint({
             type="button"
             onClick={handleUnsubscribe}
             disabled={busy}
-            className="rf-secondary"
+            className="cf-action-btn cf-action-secondary"
           >
             Unsubscribe
           </button>
@@ -250,17 +256,30 @@ export function CryptoFootprint({
       {error && <div className="rf-error">{error}</div>}
 
       <section className="rf-footprint">
-        {/* M4 — Canvas2D Senzoukria renderer for crypto. Rithmic
-            still uses BarView (HTML/CSS) until M5 promotes it to
-            the canvas as well. */}
-        <FootprintCanvas
-          bars={sortedBars}
-          symbol={symbol}
-          timeframe={timeframe}
-          priceDecimals={PRICE_DECIMALS}
-          title={`${symbol} · ${timeframe} · ${totalTrades} trade${totalTrades === 1 ? "" : "s"}${isSubscribed ? "" : " · subscribe to start"}`}
-        />
+        <div className="cf-canvas-wrap">
+          <FootprintCanvas
+            ref={canvasHandle}
+            bars={sortedBars}
+            symbol={symbol}
+            timeframe={timeframe}
+            priceDecimals={PRICE_DECIMALS}
+            bare
+          />
+          <ZoomControls
+            onZoomIn={() => canvasHandle.current?.zoomIn()}
+            onZoomOut={() => canvasHandle.current?.zoomOut()}
+            onReset={() => canvasHandle.current?.resetView()}
+          />
+        </div>
       </section>
+
+      <SymbolPickerModal
+        open={pickerOpen}
+        exchange={exchange}
+        currentSymbol={symbol}
+        onSelect={handleSymbolPicked}
+        onClose={() => setPickerOpen(false)}
+      />
     </>
   );
 }
