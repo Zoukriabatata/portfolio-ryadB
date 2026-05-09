@@ -30,14 +30,34 @@ export class TradeStateAdapter {
   async start(symbolFilter: string): Promise<void> {
     if (this.unlisten) await this.stop();
     this.state = { symbol: symbolFilter, trades: [] };
+    // eslint-disable-next-line no-console
+    console.log(`[TRADE ADAPTER] start filter=${symbolFilter}`);
+    let firstEventLogged = false;
+    let firstMatchedLogged = false;
     this.unlisten = await listen<TickUpdate>(
       "crypto-tick-update",
       (event) => {
         const t = event.payload;
+        if (!firstEventLogged) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[TRADE ADAPTER] FIRST event sym=${t.symbol} expected=${symbolFilter} match=${t.symbol === symbolFilter} price=${t.price} qty=${t.quantity}`,
+          );
+          firstEventLogged = true;
+        }
         if (t.symbol !== symbolFilter) return;
+        if (!firstMatchedLogged) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[TRADE ADAPTER] FIRST matched trade ingested sym=${t.symbol} price=${t.price}`,
+          );
+          firstMatchedLogged = true;
+        }
         this.ingest(t);
       },
     );
+    // eslint-disable-next-line no-console
+    console.log(`[TRADE ADAPTER] listener attached for ${symbolFilter}`);
   }
 
   async stop(): Promise<void> {

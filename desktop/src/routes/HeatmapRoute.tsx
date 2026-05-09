@@ -28,12 +28,18 @@ export function HeatmapRoute() {
     setBusy(true);
     setError(null);
     try {
+      // eslint-disable-next-line no-console
+      console.log(`[HEATMAP ROUTE] subscribe start symbol=${symbol}`);
       // Two parallel subscriptions: orderbook for the heatmap bg,
       // trade stream for bubbles + key levels. crypto_connect is
       // idempotent so this is safe to call even if the footprint
       // route already opened a Bybit connection.
-      await invoke("crypto_connect", { args: { exchange: "bybit" } });
-      await Promise.all([
+      const connectResult = await invoke("crypto_connect", {
+        args: { exchange: "bybit" },
+      });
+      // eslint-disable-next-line no-console
+      console.log(`[HEATMAP ROUTE] crypto_connect ok`, connectResult);
+      const [obResult, trResult] = await Promise.all([
         invoke<CryptoStatus>("crypto_orderbook_subscribe", {
           args: { exchange: "bybit", symbol },
         }),
@@ -41,8 +47,17 @@ export function HeatmapRoute() {
           args: { exchange: "bybit", symbol },
         }),
       ]);
+      // eslint-disable-next-line no-console
+      console.log(
+        `[HEATMAP ROUTE] orderbook+trade subscribe ok | orderbook=`,
+        obResult,
+        `trade=`,
+        trResult,
+      );
       setSubscribed(true);
     } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(`[HEATMAP ROUTE] subscribe error`, e);
       setError(String(e));
     } finally {
       setBusy(false);
