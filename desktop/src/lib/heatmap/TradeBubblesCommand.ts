@@ -44,9 +44,13 @@ varying float v_side;
 void main() {
   float r = length(v_quadVertex);
   if (r > 1.0) discard;
-  float alpha = smoothstep(1.0, 0.55, r) * 0.85;
-  vec3 buyColor  = vec3(0.13, 0.77, 0.37);
-  vec3 sellColor = vec3(0.94, 0.27, 0.27);
+  // Soft edge but full alpha at the centre — keeps bubbles
+  // readable against a dense heatmap bg without the previous
+  // 0.85-cap washout. Saturated greens/reds also pop more on
+  // the cyan/blue passive-orders palette.
+  float alpha = smoothstep(1.0, 0.6, r);
+  vec3 buyColor  = vec3(0.20, 0.95, 0.45);
+  vec3 sellColor = vec3(1.00, 0.30, 0.30);
   vec3 color = mix(buyColor, sellColor, v_side);
   gl_FragColor = vec4(color, alpha);
 }
@@ -153,13 +157,19 @@ export class TradeBubblesCommand {
       const priceUv = (t.price - priceMin) / priceSpan;
       if (priceUv < 0 || priceUv > 1) continue;
 
-      // Radius scales log-ishly: 1 BTC ≈ 4 px, 10 BTC ≈ 8 px,
-      // 100 BTC ≈ 12 px. Floor at 2 so dust still draws as a
-      // visible dot, ceiling at 12 so a 1000-BTC print doesn't
-      // fill the screen.
+      // Radius scales log-ishly. Floor bumped 2 → 5 so a dust
+      // print still produces a 10-px-diameter dot the eye can
+      // see against a dense heatmap bg; ceiling 12 → 20 so big
+      // prints earn proportionally more visual weight; multiplier
+      // 4 → 6 widens the spread so 1 vs 100 quantity reads as a
+      // clear size difference.
+      //   1   ETH  → ~5  px (clamped from 1.8)
+      //   10  ETH  → ~6  px
+      //   100 ETH  → ~12 px
+      //   1k+ ETH  → 20 px (clamped)
       const radius = Math.max(
-        2,
-        Math.min(12, Math.log10(t.quantity + 1) * 4),
+        5,
+        Math.min(20, Math.log10(t.quantity + 1) * 6),
       );
 
       const off = count * 4;
@@ -174,19 +184,6 @@ export class TradeBubblesCommand {
       // subdata accepts a Float32Array view; pass exactly the
       // populated slice so we don't upload stale instance data.
       this.instanceBuffer.subdata(buf.subarray(0, count * 4));
-      // Diagnostic — first ingest after a count change. Remove
-      // once bubble sizing is confirmed working. Values formatted
-      // as a string so the export-to-file path doesn't collapse
-      // them to "Object".
-      const dbg = this as unknown as { __dbgLogged?: boolean };
-      if (!dbg.__dbgLogged && count > 0) {
-        const t0 = trades[0];
-        // eslint-disable-next-line no-console
-        console.log(
-          `[BUBBLE INSTANCE 0] timeUv=${buf[0].toFixed(4)} priceUv=${buf[1].toFixed(4)} radius=${buf[2].toFixed(2)} side=${buf[3]} | count=${count} | priceMin=${priceMin.toFixed(2)} priceMax=${priceMax.toFixed(2)} | trade0.price=${t0?.price} qty=${t0?.quantity} ts=${t0?.timestampMs} nowMs=${nowMs} dtMs=${nowMs - (t0?.timestampMs ?? 0)}`,
-        );
-        dbg.__dbgLogged = true;
-      }
     }
     this.instanceCount = count;
   }
@@ -195,19 +192,6 @@ export class TradeBubblesCommand {
     if (this.instanceCount === 0) return;
     this.liveViewport = viewport;
     this.liveResolution = resolution;
-    // Diagnostic — first 3 frames + every 120th. String-formatted
-    // so log-file exports don't collapse arrays to "Object".
-    const dbg = this as unknown as { __drawFrames?: number };
-    if (dbg.__drawFrames === undefined) dbg.__drawFrames = 0;
-    if (dbg.__drawFrames < 3 || dbg.__drawFrames % 120 === 0) {
-      const v = this.liveViewport;
-      const r = this.liveResolution;
-      // eslint-disable-next-line no-console
-      console.log(
-        `[BUBBLE DRAW] vp=[${v[0]?.toFixed(3)},${v[1]?.toFixed(3)},${v[2]?.toFixed(3)},${v[3]?.toFixed(3)}] res=[${r[0]},${r[1]}] inst=${this.instanceCount}`,
-      );
-    }
-    dbg.__drawFrames += 1;
     this.drawCmd({});
   }
 
