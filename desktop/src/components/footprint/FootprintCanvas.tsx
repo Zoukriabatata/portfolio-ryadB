@@ -20,7 +20,10 @@ import {
   useRef,
 } from "react";
 import type { FootprintBar } from "../FootprintBarView";
-import { FootprintCanvasRenderer } from "../../lib/footprint/FootprintCanvasRenderer";
+import {
+  FootprintCanvasRenderer,
+  type FootprintRendererSettings,
+} from "../../lib/footprint/FootprintCanvasRenderer";
 import { tauriBarToRendererBar } from "../../lib/footprint/adapter";
 import {
   DEFAULT_INTERACTION,
@@ -54,6 +57,12 @@ export type FootprintCanvasHandle = {
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
+  /** M4.7b — push the user-controlled settings (visibility flags,
+   *  numeric format, magnet mode) into the renderer and request a
+   *  paint. Caller passes the renderer's shape, not the Zustand
+   *  store directly, so the component stays decoupled from the
+   *  store's exact field names. */
+  applySettings: (settings: FootprintRendererSettings) => void;
 };
 
 export const FootprintCanvas = forwardRef<
@@ -292,6 +301,10 @@ export const FootprintCanvas = forwardRef<
         tickRender();
       },
       resetView: onResetView,
+      applySettings: (settings) => {
+        rendererRef.current?.setSettings(settings);
+        tickRender();
+      },
     }),
     // The handlers read mutable refs only, so a stable identity is
     // fine — useImperativeHandle deps stay empty.
