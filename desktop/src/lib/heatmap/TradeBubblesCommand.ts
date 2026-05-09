@@ -91,8 +91,25 @@ export class TradeBubblesCommand {
       vert: TRADE_BUBBLES_VERTEX,
       frag: TRADE_BUBBLES_FRAGMENT,
       attributes: {
-        a_quadVertex: { buffer: this.quadBuffer, divisor: 0 },
-        a_instance: { buffer: this.instanceBuffer, divisor: 1 },
+        a_quadVertex: {
+          buffer: this.quadBuffer,
+          divisor: 0,
+          size: 2,
+          stride: 0,
+          offset: 0,
+        },
+        // Explicit size/stride/offset — without these, regl can
+        // mis-infer the vec4 layout and read radius from the side
+        // slot (or worse), making bubbles render at NDC offsets
+        // computed from float bit patterns. 4 floats × 4 bytes =
+        // 16-byte stride per instance.
+        a_instance: {
+          buffer: this.instanceBuffer,
+          divisor: 1,
+          size: 4,
+          stride: 16,
+          offset: 0,
+        },
       },
       uniforms: {
         u_viewport: () => this.liveViewport,
@@ -157,6 +174,27 @@ export class TradeBubblesCommand {
       // subdata accepts a Float32Array view; pass exactly the
       // populated slice so we don't upload stale instance data.
       this.instanceBuffer.subdata(buf.subarray(0, count * 4));
+      // Diagnostic — first ingest after a count change. Remove
+      // once bubble sizing is confirmed working.
+      const dbg = this as unknown as { __dbgLogged?: boolean };
+      if (!dbg.__dbgLogged && count > 0) {
+        // eslint-disable-next-line no-console
+        console.log("[BUBBLE INSTANCE 0]", {
+          timeUv: buf[0],
+          priceUv: buf[1],
+          radius: buf[2],
+          side: buf[3],
+          count,
+          priceMin,
+          priceMax,
+          firstTradePrice: trades[0]?.price,
+          firstTradeQty: trades[0]?.quantity,
+          firstTradeTimestampMs: trades[0]?.timestampMs,
+          nowMs,
+          dtMs: nowMs - (trades[0]?.timestampMs ?? 0),
+        });
+        dbg.__dbgLogged = true;
+      }
     }
     this.instanceCount = count;
   }
@@ -165,6 +203,19 @@ export class TradeBubblesCommand {
     if (this.instanceCount === 0) return;
     this.liveViewport = viewport;
     this.liveResolution = resolution;
+    // Diagnostic — first 3 frames + every 60th. Remove once bubble
+    // sizing is confirmed working.
+    const dbg = this as unknown as { __drawFrames?: number };
+    if (dbg.__drawFrames === undefined) dbg.__drawFrames = 0;
+    if (dbg.__drawFrames < 3 || dbg.__drawFrames % 60 === 0) {
+      // eslint-disable-next-line no-console
+      console.log("[BUBBLE DRAW]", {
+        viewport: this.liveViewport,
+        resolution: this.liveResolution,
+        instances: this.instanceCount,
+      });
+    }
+    dbg.__drawFrames += 1;
     this.drawCmd({});
   }
 
