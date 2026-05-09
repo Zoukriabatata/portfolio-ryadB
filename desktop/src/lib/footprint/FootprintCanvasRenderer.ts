@@ -30,6 +30,36 @@ import {
 } from "./interactions";
 import { sessionPOC } from "./valueArea";
 
+/** Subset of the Zustand FootprintSettings that the renderer
+ *  actually consumes. The React layer maps the store to this
+ *  shape — keeps the renderer decoupled from Zustand. */
+export type RendererMagnetMode = "none" | "ohlc" | "poc";
+export type RendererVolumeFormat = "raw" | "K" | "M";
+
+export interface FootprintRendererSettings {
+  showGrid: boolean;
+  showPocSession: boolean;
+  showPocBar: boolean;
+  showVolumeTooltip: boolean;
+  showOhlcHeader: boolean;
+  /** When null the renderer uses the inferred / fallback decimals
+   *  passed via `setPriceDecimals`. When numeric it overrides. */
+  priceDecimalsOverride: number | null;
+  volumeFormat: RendererVolumeFormat;
+  magnetMode: RendererMagnetMode;
+}
+
+export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
+  showGrid: true,
+  showPocSession: true,
+  showPocBar: true,
+  showVolumeTooltip: true,
+  showOhlcHeader: true,
+  priceDecimalsOverride: null,
+  volumeFormat: "raw",
+  magnetMode: "none",
+};
+
 export interface RendererOptions {
   theme?: FootprintTheme;
   layout?: Partial<LayoutConfig>;
@@ -72,6 +102,7 @@ export class FootprintCanvasRenderer {
   // Cached state across calls.
   private bars: RendererBar[] = [];
   private priceDecimals = 2;
+  private settings: FootprintRendererSettings = { ...DEFAULT_RENDERER_SETTINGS };
   private lastFrame: FrameLayout | null = null;
 
   constructor(canvas: HTMLCanvasElement, opts: RendererOptions = {}) {
@@ -100,6 +131,19 @@ export class FootprintCanvasRenderer {
 
   setPriceDecimals(n: number) {
     this.priceDecimals = n;
+  }
+
+  /** Push the user-controlled visibility / format / magnet flags
+   *  into the renderer. Caller (React layer) ticks a render after
+   *  the call so the canvas reflects the new state. */
+  setSettings(s: FootprintRendererSettings) {
+    this.settings = s;
+  }
+
+  /** Effective price decimals — settings override wins, falls back
+   *  to whatever `setPriceDecimals` was called with last. */
+  private effectivePriceDecimals(): number {
+    return this.settings.priceDecimalsOverride ?? this.priceDecimals;
   }
 
   /** Convenience for one-shot draws. */
@@ -216,17 +260,20 @@ export class FootprintCanvasRenderer {
 
     // Background grid — only paint rows whose Y lands inside the
     // visible chart area to skip a few thousand offscreen lines
-    // when the user is zoomed in tight.
-    ctx.strokeStyle = theme.grid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let r = 0; r <= frame.totalRows; r += 5) {
-      const y = Math.round(frame.gridTop + r * frame.rowH) + 0.5;
-      if (y < frame.chartTop || y > frame.chartBottom) continue;
-      ctx.moveTo(layout.paddingLeft, y);
-      ctx.lineTo(frame.chartRight, y);
+    // when the user is zoomed in tight. Gated by the user-visible
+    // showGrid setting.
+    if (this.settings.showGrid) {
+      ctx.strokeStyle = theme.grid;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let r = 0; r <= frame.totalRows; r += 5) {
+        const y = Math.round(frame.gridTop + r * frame.rowH) + 0.5;
+        if (y < frame.chartTop || y > frame.chartBottom) continue;
+        ctx.moveTo(layout.paddingLeft, y);
+        ctx.lineTo(frame.chartRight, y);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
 
     // Bars (clip-skip if outside the chart viewport).
     for (let i = 0; i < frame.sortedBars.length; i++) {
@@ -241,7 +288,7 @@ export class FootprintCanvasRenderer {
     }
 
     // Session POC overlay (drawn after all bars so it sits on top).
-    if (frame.sessionPocPrice !== null) {
+    if (this.settings.showPocSession && frame.sessionPocPrice !== null) {
       this.drawSessionPOC(frame);
     }
 
@@ -360,7 +407,7 @@ export class FootprintCanvasRenderer {
           ctx.fillStyle =
             intensity > 0.55 ? theme.background : theme.textPrimary;
           ctx.textAlign = "right";
-          ctx.fillText(formatVol(level.sellVolume), bidX + f.bidW - 4, y);
+          ctx.fillText(this.formatVolume(level.sellVolume), bidX + f.bidW - 4, y);
         }
       }
 
@@ -372,7 +419,7 @@ export class FootprintCanvasRenderer {
           ctx.fillStyle =
             intensity > 0.55 ? theme.background : theme.textPrimary;
           ctx.textAlign = "left";
-          ctx.fillText(formatVol(level.buyVolume), askX + 4, y);
+          ctx.fillText(this.formatVolume(level.buyVolume), askX + 4, y);
         }
       }
     }
@@ -403,7 +450,12 @@ export class FootprintCanvasRenderer {
 
     // Per-bar POC marker (cyan thin line). Distinct from session POC
     // (gold thick line, drawn later in drawSessionPOC).
-    if (bar.poc !== undefined && bar.pocVolume && bar.pocVolume > 0) {
+    if (
+      this.settings.showPocBar &&
+      bar.poc !== undefined &&
+      bar.pocVolume &&
+      bar.pocVolume > 0
+    ) {
       const yPoc = priceToY(bar.poc, f);
       ctx.strokeStyle = "#22d3ee";
       ctx.lineWidth = 1;
@@ -438,6 +490,41 @@ export class FootprintCanvasRenderer {
         (bar.totalDelta >= 0 ? "+" : "") +
         Math.round(bar.totalDelta).toString();
       ctx.fillText(deltaLabel, cx, yDelta);
+    }
+
+    // M4.7b — OHLC header on top of each bar. Reads the user
+    // setting; only drawn when there's enough horizontal room
+    // (≥130px per bar) to fit the four numbers without overlap.
+    if (this.settings.showOhlcHeader && f.cellWidth >= 130) {
+      const decimals = this.effectivePriceDecimals();
+      const cx = bidX + (f.bidW + f.ohlcW + f.askW) / 2;
+      const yHdr = f.chartTop + 10;
+      ctx.fillStyle = theme.textMuted;
+      ctx.font = `9px ${theme.fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const ohlc =
+        `O ${bar.open.toFixed(decimals)}  ` +
+        `H ${bar.high.toFixed(decimals)}  ` +
+        `L ${bar.low.toFixed(decimals)}  ` +
+        `C ${bar.close.toFixed(decimals)}`;
+      ctx.fillText(ohlc, cx, yHdr);
+    }
+  }
+
+  private formatVolume(vol: number): string {
+    switch (this.settings.volumeFormat) {
+      case "K":
+        if (vol >= 1000) return `${(vol / 1000).toFixed(1)}K`;
+        return vol >= 1 ? Math.round(vol).toString() : vol.toFixed(2);
+      case "M":
+        if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(2)}M`;
+        if (vol >= 1000) return `${(vol / 1000).toFixed(1)}K`;
+        return vol >= 1 ? Math.round(vol).toString() : vol.toFixed(2);
+      case "raw":
+      default:
+        if (vol >= 1) return Math.round(vol).toString();
+        return vol.toFixed(2);
     }
   }
 
@@ -475,7 +562,7 @@ export class FootprintCanvasRenderer {
       // happens after Y pan/zoom and would otherwise overlap the
       // time axis chrome.
       if (y < f.chartTop || y > f.chartBottom) continue;
-      ctx.fillText(price.toFixed(this.priceDecimals), f.chartRight + 6, y);
+      ctx.fillText(price.toFixed(this.effectivePriceDecimals()), f.chartRight + 6, y);
     }
   }
 
@@ -520,13 +607,27 @@ export class FootprintCanvasRenderer {
     if (hx < layout.paddingLeft || hx > f.chartRight) return;
     if (hy < f.chartTop || hy > f.chartBottom) return;
 
-    // Snap horizontal line to the price row under cursor.
+    // Default snap = nearest row floor.
     const rowIdx = Math.max(
       0,
       Math.min(f.totalRows - 1, Math.floor((hy - f.gridTop) / f.rowH)),
     );
-    const snappedY = f.gridTop + rowIdx * f.rowH + f.rowH / 2;
-    const snappedPrice = f.maxPrice - rowIdx * f.tickSize;
+    let snappedY = f.gridTop + rowIdx * f.rowH + f.rowH / 2;
+    let snappedPrice = f.maxPrice - rowIdx * f.tickSize;
+    let snapPrefix = "";
+
+    // M4.7b — magnet snap. Override the default row-floor snap when
+    // the user is in OHLC or POC mode AND a candidate target lies
+    // within the magnet radius of the cursor.
+    if (this.settings.magnetMode !== "none") {
+      const magnet = this.computeMagnetSnap(hx, hy, f);
+      if (magnet !== null) {
+        snappedY = magnet.y;
+        snappedPrice = magnet.price;
+        snapPrefix = magnet.prefix;
+      }
+    }
+
     // After M4.6 Y pan/zoom, the snapped row can map outside the
     // visible chart area. Suppress the horizontal line + price tag
     // in that case — showing a price the user can't see is worse
@@ -550,7 +651,10 @@ export class FootprintCanvasRenderer {
 
     // Price tag on the right axis (only when its row is on screen).
     if (horizontalVisible) {
-      const priceLabel = snappedPrice.toFixed(this.priceDecimals);
+      const priceText = snappedPrice.toFixed(this.effectivePriceDecimals());
+      const priceLabel = snapPrefix
+        ? `${snapPrefix} ${priceText}`
+        : priceText;
       ctx.font = `${theme.priceFontSize}px ${theme.fontFamily}`;
       const tagW = Math.max(48, ctx.measureText(priceLabel).width + 12);
       const tagH = 16;
@@ -567,14 +671,17 @@ export class FootprintCanvasRenderer {
     }
 
     // Volume tooltip near cursor when there's a cell under it.
-    const cell = this.getCellAtPixel(hx, hy);
+    // Gated by the user setting — pure visual noise to some users.
+    const cell = this.settings.showVolumeTooltip
+      ? this.getCellAtPixel(hx, hy)
+      : null;
     if (cell) {
       const buy = cell.level.buyVolume;
       const sell = cell.level.sellVolume;
       const delta = buy - sell;
       const lines = [
-        `bid ${formatVol(sell)}`,
-        `ask ${formatVol(buy)}`,
+        `bid ${this.formatVolume(sell)}`,
+        `ask ${this.formatVolume(buy)}`,
         `Δ ${delta >= 0 ? "+" : ""}${Math.round(delta)}`,
       ];
       const padX = 8;
@@ -599,6 +706,61 @@ export class FootprintCanvasRenderer {
         ctx.fillText(lines[i], tx + padX, ty + padY + i * lineH);
       }
     }
+  }
+
+  /** Compute the magnet snap target near (hx, hy). Returns null
+   *  when no candidate is within the magnet radius — the caller
+   *  falls back to row-floor snap. */
+  private computeMagnetSnap(
+    hx: number,
+    hy: number,
+    f: FrameLayout,
+  ): { y: number; price: number; prefix: string } | null {
+    if (this.settings.magnetMode === "ohlc") {
+      // OHLC magnet needs the bar under the cursor X column.
+      const bar = this.getBarAtX(hx, f);
+      if (!bar) return null;
+      const candidates: { price: number; prefix: string }[] = [
+        { price: bar.open, prefix: "O" },
+        { price: bar.high, prefix: "H" },
+        { price: bar.low, prefix: "L" },
+        { price: bar.close, prefix: "C" },
+      ];
+      let best: { y: number; price: number; prefix: string } | null = null;
+      let bestDist = Infinity;
+      for (const c of candidates) {
+        const y = priceToY(c.price, f);
+        const d = Math.abs(y - hy);
+        if (d < bestDist) {
+          best = { y, price: c.price, prefix: c.prefix };
+          bestDist = d;
+        }
+      }
+      // 20px is wide enough to feel sticky, narrow enough that a
+      // user who moves between OHLC points still gets free
+      // crosshair in the middle of a bar.
+      return best && bestDist <= 20 ? best : null;
+    }
+
+    if (this.settings.magnetMode === "poc") {
+      if (f.sessionPocPrice === null) return null;
+      const y = priceToY(f.sessionPocPrice, f);
+      if (Math.abs(y - hy) > 30) return null;
+      return { y, price: f.sessionPocPrice, prefix: "POC" };
+    }
+
+    return null;
+  }
+
+  /** Find the bar whose horizontal slot contains x. Returns null
+   *  when x is outside the bar grid or no frame has rendered yet. */
+  private getBarAtX(x: number, f: FrameLayout): RendererBar | null {
+    if (x < this.layout.paddingLeft || x > f.chartRight) return null;
+    const offsetFromRight = f.mostRecentRightX - x;
+    const barFromRight = Math.floor(offsetFromRight / f.cellWidth);
+    const idx = f.sortedBars.length - 1 - barFromRight;
+    if (idx < 0 || idx >= f.sortedBars.length) return null;
+    return f.sortedBars[idx];
   }
 
   private drawEmpty() {
@@ -635,8 +797,3 @@ function lerpHeat(ramp: [string, string, string], t: number): string {
   return ramp[2];
 }
 
-function formatVol(vol: number): string {
-  if (vol >= 1000) return `${(vol / 1000).toFixed(1)}k`;
-  if (vol >= 1) return Math.round(vol).toString();
-  return vol.toFixed(2);
-}
