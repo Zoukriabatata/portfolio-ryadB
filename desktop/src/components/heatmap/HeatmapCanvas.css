@@ -1,0 +1,109 @@
+/* Phase B / M6a-1 — wrapper styling for the WebGL heatmap. */
+
+.hm-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #07080f;
+  border: 1px solid var(--border, #1f2333);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.hm-canvas {
+  position: absolute;
+  inset: 0;
+  width: calc(100% - 64px);
+  height: calc(100% - 24px);
+  display: block;
+}
+
+.hm-loading,
+.hm-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  pointer-events: none;
+}
+
+/* Price axis on the right edge. Labels are positioned absolute
+ * inside the strip; the strip itself sits over the canvas's
+ * right gutter (we reserve 64 px in .hm-canvas width). */
+.hm-price-axis {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 24px;
+  width: 64px;
+  background: rgba(7, 8, 15, 0.85);
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+}
+
+.hm-axis-tick {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 10px;
+  color: #a3a7b3;
+  white-space: nowrap;
+}
+
+/* Time axis at the bottom. */
+.hm-time-axis {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 64px;
+  height: 24px;
+  background: rgba(7, 8, 15, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+}
+
+.hm-time-tick {
+  position: absolute;
+  bottom: 4px;
+  transform: translateX(-50%);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 10px;
+  color: #a3a7b3;
+  white-space: nowrap;
+}
+
+/* Top-left status strip — symbol + mid + frame counter. */
+.hm-corner {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  color: #cbd5e1;
+  pointer-events: none;
+}
+
+.hm-symbol-tag {
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.hm-mid-tag {
+  color: #fbbf24;
+}
+
+.hm-meta-tag {
+  color: #64748b;
+}
