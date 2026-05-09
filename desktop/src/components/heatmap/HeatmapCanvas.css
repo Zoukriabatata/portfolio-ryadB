@@ -18,6 +18,57 @@
   display: block;
 }
 
+/* M6a-2 — Canvas2D overlay sits on top of the WebGL canvas for
+ * the crosshair / price tag / time tag / cell tooltip. pointer-
+ * events: none so wheel + drag pass through to the wrapper
+ * element which owns the listeners. */
+.hm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% - 64px);
+  height: calc(100% - 24px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* The wrapper itself is the gesture target. */
+.hm-wrap {
+  cursor: crosshair;
+  user-select: none;
+}
+
+.hm-wrap.hm-dragging {
+  cursor: grabbing;
+}
+
+.hm-wrap.hm-dragging.hm-dragging-y {
+  cursor: ns-resize;
+}
+
+.hm-reset-view {
+  position: absolute;
+  bottom: 32px;
+  right: 76px;
+  z-index: 3;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+
+.hm-reset-view:hover {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
 .hm-loading,
 .hm-empty {
   position: absolute;
