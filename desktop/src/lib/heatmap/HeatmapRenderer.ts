@@ -121,6 +121,12 @@ export class HeatmapRenderer {
         antialias: false,
         preserveDrawingBuffer: false,
       },
+      // ANGLE_instanced_arrays is required by TradeBubblesCommand
+      // (M6b-1) — without it, the `divisor: 1` attribute throws
+      // at draw-call build time. WebGL2 has the equivalent
+      // primitive built in, but regl's WebGL1 default still wants
+      // the extension declared explicitly.
+      extensions: ["ANGLE_instanced_arrays"],
     });
 
     // Intensity texture: (TIME × PRICE) with the bucket value in the
