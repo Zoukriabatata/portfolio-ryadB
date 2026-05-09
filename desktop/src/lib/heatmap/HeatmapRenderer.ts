@@ -95,6 +95,13 @@ export class HeatmapRenderer {
   private settings: HeatmapRendererSettings = { ...DEFAULT_RENDERER_SETTINGS };
 
   private dpr = 1;
+  /** CSS-pixel canvas dimensions cached from the most recent
+   *  `applySize` call. The bubble draw needs these for its
+   *  resolution uniform; we don't read `canvas.style.width` at
+   *  draw time because we no longer set it inline (see applySize
+   *  comment for the reason). */
+  private cssWidth = 800;
+  private cssHeight = 480;
   private rafId: number | null = null;
   private viewport: HeatmapViewport = { ...DEFAULT_VIEWPORT };
 
@@ -374,19 +381,18 @@ export class HeatmapRenderer {
 
   private applySize(width: number, height: number) {
     this.dpr = window.devicePixelRatio || 1;
+    this.cssWidth = width;
+    this.cssHeight = height;
     this.canvas.width = Math.max(1, Math.floor(width * this.dpr));
     this.canvas.height = Math.max(1, Math.floor(height * this.dpr));
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
-    // M6b-1 diagnostic — remove once bubble sizing is verified.
-    // eslint-disable-next-line no-console
-    console.log("[HEATMAP DEBUG applySize]", {
-      cssW: width,
-      cssH: height,
-      physW: this.canvas.width,
-      physH: this.canvas.height,
-      dpr: this.dpr,
-    });
+    // We deliberately DO NOT set canvas.style.width / canvas.style.height
+    // here. Setting them inline would override the CSS
+    // `width: calc(100% - 64px)` rule and lock the canvas at the first
+    // observed size — once locked, ResizeObserver never fires again
+    // because the canvas size never changes when the wrapper grows.
+    // The CSS rule already sizes the display box; we only update the
+    // drawing buffer (canvas.width/height in physical pixels) so the
+    // viewport matches.
   }
 
   private renderFrame(state: HeatmapMarketState) {
@@ -470,34 +476,15 @@ export class HeatmapRenderer {
     // Resolution is in CSS pixels so bubble radii (also CSS px)
     // stay visually constant across DPR.
     if (this.settings.showTradeBubbles) {
-      const cssWidth = parseFloat(this.canvas.style.width || "0") || 1;
-      const cssHeight = parseFloat(this.canvas.style.height || "0") || 1;
-      const viewport = [
-        this.viewport.x,
-        this.viewport.y,
-        this.viewport.xZoom,
-        this.viewport.yZoom,
-      ];
-      const resolution = [cssWidth, cssHeight];
-      // M6b-1 diagnostic — remove once bubble sizing is verified.
-      if ((this as unknown as { __dbgFrames?: number }).__dbgFrames === undefined) {
-        (this as unknown as { __dbgFrames: number }).__dbgFrames = 0;
-      }
-      const dbg = this as unknown as { __dbgFrames: number };
-      if (dbg.__dbgFrames < 5 || dbg.__dbgFrames % 60 === 0) {
-        // eslint-disable-next-line no-console
-        console.log("[BUBBLES DEBUG]", {
-          viewport,
-          resolution,
-          instanceCount: this.bubbles.getInstanceCount(),
-          canvasWidth: this.canvas.width,
-          canvasHeight: this.canvas.height,
-          styleWidth: this.canvas.style.width,
-          styleHeight: this.canvas.style.height,
-        });
-      }
-      dbg.__dbgFrames += 1;
-      this.bubbles.draw(viewport, resolution);
+      this.bubbles.draw(
+        [
+          this.viewport.x,
+          this.viewport.y,
+          this.viewport.xZoom,
+          this.viewport.yZoom,
+        ],
+        [this.cssWidth, this.cssHeight],
+      );
     }
   }
 }
