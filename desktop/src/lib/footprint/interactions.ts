@@ -76,6 +76,11 @@ export const MIN_ROW_HEIGHT = 8;
 export const MAX_ROW_HEIGHT = 40;
 const ZOOM_STEP = 1.15;
 const Y_MIN_VISIBLE_PX = 80; // ≈ 5 rows at default rowHeight
+/** Minimum mouse travel before a drag flips userOverrodeX/Y on.
+ *  Below this we treat the gesture as a click + small jitter and
+ *  stay in auto-follow / autofit. Avoids the M6a-2 footgun where
+ *  a click anywhere on the heatmap canvas locked the viewport. */
+const DRAG_THRESHOLD_PX = 3;
 
 /** Multiplicative X zoom anchored under the cursor. */
 export function applyWheelZoom(
@@ -149,15 +154,26 @@ export function updateDrag(
   canvasY: number,
 ): InteractionState {
   if (!state.isDragging) return state;
+  const dx = canvasX - state.dragStartX;
+  const dy = canvasY - state.dragStartY;
+
   if (state.dragMode === "y") {
-    const dy = canvasY - state.dragStartY;
+    // Below the threshold + no prior override → treat as a quiet
+    // click, return the same state. Once override is on, we
+    // accept any further dy without gating.
+    if (Math.abs(dy) < DRAG_THRESHOLD_PX && !state.userOverrodeY) {
+      return state;
+    }
     return {
       ...state,
       scrollY: state.dragStartScrollY + dy,
       userOverrodeY: true,
     };
   }
-  const dx = canvasX - state.dragStartX;
+
+  if (Math.abs(dx) < DRAG_THRESHOLD_PX && !state.userOverrodeX) {
+    return state;
+  }
   return {
     ...state,
     scrollX: state.dragStartScrollX + dx,
