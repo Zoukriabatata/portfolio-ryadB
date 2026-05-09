@@ -82,6 +82,12 @@ pub struct CryptoState {
     pub binance_pump: Mutex<Option<JoinHandle<()>>>,
     pub bybit_pump: Mutex<Option<JoinHandle<()>>>,
     pub deribit_pump: Mutex<Option<JoinHandle<()>>>,
+    /// M6b-1 — `crypto-tick-update` event emitter task. Symmetric
+    /// to the engine pump but routed at the per-tick rate to a
+    /// Tauri event for the heatmap trade-bubbles overlay. Per-
+    /// adapter Mutex<Option<JoinHandle>> so the cleanup path
+    /// matches the existing pump pattern.
+    pub bybit_tick_emit: Mutex<Option<JoinHandle<()>>>,
     /// M3.5 — independent Bybit orderbook subscribers, keyed by
     /// upper-case symbol. Each entry owns a tokio task + a oneshot
     /// shutdown sender; dropping the sender (via remove + send)
@@ -108,6 +114,7 @@ impl CryptoState {
             binance_pump: Mutex::new(None),
             bybit_pump: Mutex::new(None),
             deribit_pump: Mutex::new(None),
+            bybit_tick_emit: Mutex::new(None),
             bybit_orderbooks: Mutex::new(HashMap::new()),
         }
     }

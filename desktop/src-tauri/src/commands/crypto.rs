@@ -11,6 +11,7 @@ use tauri::State;
 
 use tauri::AppHandle;
 
+use crate::commands::crypto_tick_events;
 use crate::connectors::adapter::MarketDataAdapter;
 use crate::connectors::binance::BinanceAdapter;
 use crate::connectors::bybit::orderbook::{self as bybit_orderbook};
@@ -66,14 +67,20 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 /// Open the WebSocket for `exchange` and start the engine pump.
 /// Idempotent: a second call with the same exchange tears the
 /// previous adapter down before opening a fresh one.
+///
+/// `app` is the Tauri AppHandle the framework injects on every
+/// command; passed through to the per-adapter connect helpers so
+/// the M6b-1 tick emitter can `app.emit("crypto-tick-update", ...)`
+/// without holding a global handle.
 #[tauri::command]
 pub async fn crypto_connect(
     state: State<'_, CryptoState>,
+    app: AppHandle,
     args: CryptoConnectArgs,
 ) -> Result<CryptoStatus, String> {
     match args.exchange.as_str() {
         "binance" => connect_binance(&state).await?,
-        "bybit" => connect_bybit(&state).await?,
+        "bybit" => connect_bybit(&state, &app).await?,
         "deribit" => connect_deribit(&state).await?,
         other => return Err(format!("unknown exchange: {}", other)),
     }
@@ -90,12 +97,18 @@ async fn connect_binance(state: &CryptoState) -> Result<(), String> {
     Ok(())
 }
 
-async fn connect_bybit(state: &CryptoState) -> Result<(), String> {
+async fn connect_bybit(state: &CryptoState, app: &AppHandle) -> Result<(), String> {
     disconnect_bybit_inner(state).await;
     let mut adapter = BybitAdapter::new();
     adapter.connect().await.map_err(err)?;
+    // Two independent broadcast receivers from the same Sender:
+    // one feeds the FootprintEngine (existing M2 path), the other
+    // feeds the per-tick Tauri emitter for the heatmap bubbles
+    // (M6b-1). Neither blocks the other.
     let pump = state.engine.clone().spawn(adapter.ticks());
+    let tick_emit = crypto_tick_events::spawn_emitter(app.clone(), adapter.ticks());
     *state.bybit_pump.lock().await = Some(pump);
+    *state.bybit_tick_emit.lock().await = Some(tick_emit);
     *state.bybit.lock().await = Some(adapter);
     Ok(())
 }
@@ -301,6 +314,9 @@ async fn disconnect_bybit_inner(state: &CryptoState) {
         }
     }
     if let Some(handle) = state.bybit_pump.lock().await.take() {
+        handle.abort();
+    }
+    if let Some(handle) = state.bybit_tick_emit.lock().await.take() {
         handle.abort();
     }
 }
