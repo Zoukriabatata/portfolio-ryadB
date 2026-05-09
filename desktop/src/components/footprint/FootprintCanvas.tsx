@@ -14,7 +14,9 @@ import { tauriBarToRendererBar } from "../../lib/footprint/adapter";
 import {
   DEFAULT_INTERACTION,
   applyWheelZoom,
+  applyWheelZoomY,
   clampScrollX,
+  clampScrollY,
   endDrag,
   setHover,
   startDrag,
@@ -86,7 +88,15 @@ export function FootprintCanvas({
 
   // Push bars + decimals into the renderer when they change, then
   // request a paint.
+  //
+  // Symbol-switch reset: when the bar list collapses to empty (the
+  // user picked a different symbol/exchange), drop any user pan/zoom
+  // — keeping a stale scrollY against a brand-new price range would
+  // leave the new chart looking either empty or off-axis.
   useEffect(() => {
+    if (rendererBars.length === 0 && barsCountRef.current > 0) {
+      interactionRef.current = { ...DEFAULT_INTERACTION };
+    }
     barsCountRef.current = rendererBars.length;
     const r = rendererRef.current;
     if (!r) return;
@@ -104,12 +114,15 @@ export function FootprintCanvas({
     });
   }
 
-  // Re-clamp scrollX after any change that shifts content (zoom,
-  // drag, new bars). Called from event handlers below.
+  // Re-clamp scroll after any change that shifts content (zoom,
+  // drag, new bars). Called from event handlers below. Both axes
+  // are clamped here so we don't have to remember which event
+  // touched which axis.
   function clampAndRender() {
     const r = rendererRef.current;
     if (r) {
       const cap = r.getVisibleBarsCapacity();
+      const { totalContentHeight, chartHeight } = r.getYExtent();
       interactionRef.current = {
         ...interactionRef.current,
         scrollX: clampScrollX(
@@ -118,6 +131,15 @@ export function FootprintCanvas({
           interactionRef.current.cellWidth,
           cap,
         ),
+        // Y clamp only matters when the user has overridden — the
+        // autofit path ignores scrollY entirely.
+        scrollY: interactionRef.current.userOverrodeY
+          ? clampScrollY(
+              interactionRef.current.scrollY,
+              totalContentHeight,
+              chartHeight,
+            )
+          : 0,
       };
     }
     tickRender();
@@ -132,19 +154,35 @@ export function FootprintCanvas({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      interactionRef.current = applyWheelZoom(
-        interactionRef.current,
-        e.deltaY,
-        e.clientX - rect.left,
-        rect.width,
-      );
+      // Ctrl/Cmd+wheel = Y zoom (modifies rowHeight). Plain wheel
+      // stays on the X axis (M4.5 behaviour). We test both keys so
+      // Mac trackpads report the same intent as Windows.
+      if (e.ctrlKey || e.metaKey) {
+        interactionRef.current = applyWheelZoomY(
+          interactionRef.current,
+          e.deltaY,
+        );
+      } else {
+        interactionRef.current = applyWheelZoom(
+          interactionRef.current,
+          e.deltaY,
+          e.clientX - rect.left,
+          rect.width,
+        );
+      }
       clampAndRender();
     };
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
-      interactionRef.current = startDrag(interactionRef.current, e.clientX);
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      // Shift+drag = Y pan, plain drag = X pan (M4.5 behaviour).
+      const mode = e.shiftKey ? "y" : "x";
+      interactionRef.current = startDrag(interactionRef.current, x, y, mode);
       canvas.classList.add("fp-canvas-dragging");
+      if (mode === "y") canvas.classList.add("fp-canvas-y-drag");
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -152,7 +190,11 @@ export function FootprintCanvas({
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (interactionRef.current.isDragging) {
-        interactionRef.current = updateDrag(interactionRef.current, e.clientX);
+        interactionRef.current = updateDrag(
+          interactionRef.current,
+          x,
+          y,
+        );
         clampAndRender();
       } else {
         const inside =
@@ -170,6 +212,7 @@ export function FootprintCanvas({
       if (!interactionRef.current.isDragging) return;
       interactionRef.current = endDrag(interactionRef.current);
       canvas.classList.remove("fp-canvas-dragging");
+      canvas.classList.remove("fp-canvas-y-drag");
     };
 
     const onMouseLeave = () => {

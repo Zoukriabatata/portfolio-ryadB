@@ -53,6 +53,13 @@
   cursor: grabbing;
 }
 
+/* M4.6 — Shift+drag pans the Y axis. ns-resize signals "vertical"
+ * intent more clearly than grabbing in that mode. The class is set
+ * alongside fp-canvas-dragging and overrides via specificity. */
+.fp-canvas.fp-canvas-dragging.fp-canvas-y-drag {
+  cursor: ns-resize;
+}
+
 .fp-canvas-meta {
   display: inline-flex;
   align-items: center;
