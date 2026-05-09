@@ -21,10 +21,20 @@ import {
   generateGradientTexture,
   type HeatmapTheme,
 } from "./theme";
+import { TradeBubblesCommand } from "./TradeBubblesCommand";
+import type { Trade } from "./TradeStateAdapter";
 import type {
   HeatmapMarketState,
   OrderbookSnapshot,
 } from "./types";
+
+export type HeatmapRendererSettings = {
+  showTradeBubbles: boolean;
+};
+
+const DEFAULT_RENDERER_SETTINGS: HeatmapRendererSettings = {
+  showTradeBubbles: true,
+};
 
 const TIME_BUCKETS = 300; // 5 min @ 1 Hz
 const PRICE_BUCKETS = 200;
@@ -81,6 +91,8 @@ export class HeatmapRenderer {
   private intensityBuf: Uint8Array;
   private gradientTex: Texture2D;
   private drawHeatmap: DrawCommand;
+  private bubbles: TradeBubblesCommand;
+  private settings: HeatmapRendererSettings = { ...DEFAULT_RENDERER_SETTINGS };
 
   private dpr = 1;
   private rafId: number | null = null;
@@ -199,8 +211,32 @@ export class HeatmapRenderer {
       blend: { enable: false },
     });
 
+    this.bubbles = new TradeBubblesCommand(this.regl);
+
     const rect = canvas.getBoundingClientRect();
     this.applySize(rect.width || 800, rect.height || 480);
+  }
+
+  /** M6b-1 — push the latest 5-min trade buffer for bubble
+   *  rendering. Caller is the React layer; the command rebuilds
+   *  the instance buffer from the supplied trades + the price
+   *  range cached on the last frame. */
+  setTrades(trades: Trade[]) {
+    if (this.lastRange[1] <= this.lastRange[0]) {
+      // Range hasn't been computed yet — defer until at least one
+      // heatmap frame ran.
+      return;
+    }
+    this.bubbles.update(
+      trades,
+      this.lastRange[0],
+      this.lastRange[1],
+      Date.now(),
+    );
+  }
+
+  setRendererSettings(s: HeatmapRendererSettings) {
+    this.settings = s;
   }
 
   /** Mount the RAF loop. `getState` is called every frame so the
@@ -414,6 +450,23 @@ export class HeatmapRenderer {
     this.regl.poll(); // sync viewport with canvas size in case of resize
     this.regl.clear({ color: this.theme.background, depth: 1 });
     this.drawHeatmap();
+
+    // M6b-1 — alpha-blend trade bubbles on top of the heatmap bg.
+    // Resolution is in CSS pixels so bubble radii (also CSS px)
+    // stay visually constant across DPR.
+    if (this.settings.showTradeBubbles) {
+      const cssWidth = parseFloat(this.canvas.style.width || "0") || 1;
+      const cssHeight = parseFloat(this.canvas.style.height || "0") || 1;
+      this.bubbles.draw(
+        [
+          this.viewport.x,
+          this.viewport.y,
+          this.viewport.xZoom,
+          this.viewport.yZoom,
+        ],
+        [cssWidth, cssHeight],
+      );
+    }
   }
 }
 
