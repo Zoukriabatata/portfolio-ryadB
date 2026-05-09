@@ -164,6 +164,10 @@ export class TradeBubblesCommand {
     });
   }
 
+  getInstanceCount(): number {
+    return this.instanceCount;
+  }
+
   destroy() {
     try {
       this.quadBuffer.destroy();

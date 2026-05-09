@@ -378,6 +378,15 @@ export class HeatmapRenderer {
     this.canvas.height = Math.max(1, Math.floor(height * this.dpr));
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
+    // M6b-1 diagnostic — remove once bubble sizing is verified.
+    // eslint-disable-next-line no-console
+    console.log("[HEATMAP DEBUG applySize]", {
+      cssW: width,
+      cssH: height,
+      physW: this.canvas.width,
+      physH: this.canvas.height,
+      dpr: this.dpr,
+    });
   }
 
   private renderFrame(state: HeatmapMarketState) {
@@ -463,15 +472,32 @@ export class HeatmapRenderer {
     if (this.settings.showTradeBubbles) {
       const cssWidth = parseFloat(this.canvas.style.width || "0") || 1;
       const cssHeight = parseFloat(this.canvas.style.height || "0") || 1;
-      this.bubbles.draw(
-        [
-          this.viewport.x,
-          this.viewport.y,
-          this.viewport.xZoom,
-          this.viewport.yZoom,
-        ],
-        [cssWidth, cssHeight],
-      );
+      const viewport = [
+        this.viewport.x,
+        this.viewport.y,
+        this.viewport.xZoom,
+        this.viewport.yZoom,
+      ];
+      const resolution = [cssWidth, cssHeight];
+      // M6b-1 diagnostic — remove once bubble sizing is verified.
+      if ((this as unknown as { __dbgFrames?: number }).__dbgFrames === undefined) {
+        (this as unknown as { __dbgFrames: number }).__dbgFrames = 0;
+      }
+      const dbg = this as unknown as { __dbgFrames: number };
+      if (dbg.__dbgFrames < 5 || dbg.__dbgFrames % 60 === 0) {
+        // eslint-disable-next-line no-console
+        console.log("[BUBBLES DEBUG]", {
+          viewport,
+          resolution,
+          instanceCount: this.bubbles.getInstanceCount(),
+          canvasWidth: this.canvas.width,
+          canvasHeight: this.canvas.height,
+          styleWidth: this.canvas.style.width,
+          styleHeight: this.canvas.style.height,
+        });
+      }
+      dbg.__dbgFrames += 1;
+      this.bubbles.draw(viewport, resolution);
     }
   }
 }

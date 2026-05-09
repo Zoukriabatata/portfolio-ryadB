@@ -428,11 +428,24 @@ export function HeatmapCanvas({ symbol, displaySymbol }: HeatmapCanvasProps) {
     void adapter.start(symbol).then(() => {
       if (cancelled) return;
       tradeAdapterRef.current = adapter;
+      let tradeDbgCount = 0;
       adapter.subscribe((s) => {
         tradesRef.current = s.trades;
         keyLevelsRef.current = keyLevelsEngineRef.current.computeFromTrades(
           s.trades,
         );
+        // M6b-1 diagnostic — first 3 ingests + every 30th.
+        if (tradeDbgCount < 3 || tradeDbgCount % 30 === 0) {
+          // eslint-disable-next-line no-console
+          console.log("[TRADES DEBUG]", {
+            symbol,
+            tradeCount: s.trades.length,
+            latestPrice: s.trades[s.trades.length - 1]?.price,
+            latestSide: s.trades[s.trades.length - 1]?.side,
+            keyLevels: keyLevelsRef.current,
+          });
+        }
+        tradeDbgCount += 1;
         rendererRef.current?.setTrades(s.trades);
       });
       setTradeReady(true);
