@@ -9,6 +9,7 @@
 pub mod adapter;
 pub mod client;
 pub mod heartbeat;
+pub mod orderbook;
 pub mod parser;
 pub mod reader;
 
