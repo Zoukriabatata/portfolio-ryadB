@@ -111,7 +111,11 @@ export function HeatmapLive() {
     canvas.addEventListener("mousemove", onMouseMove);
     canvas.addEventListener("mouseleave", onMouseLeave);
 
-    if (import.meta.env.DEV) {
+    // REFONTE-7/P1 : sanity red-quad supprimé du flow par défaut.
+    // C'était un artefact de debug visible en haut-gauche (cf. spec
+    // §3.6 carré rouge parasite). Reste activable via VITE_DEV_SANITY=true
+    // pour les régressions futures du pipeline GL (cf. leçon §5.A).
+    if (import.meta.env.VITE_DEV_SANITY === "true") {
       engine.enableDevSanity();
     }
 
@@ -282,19 +286,19 @@ export function HeatmapLive() {
           top: 8,
           right: 8,
           padding: "8px 12px",
-          background: "rgba(0,0,0,0.7)",
-          color: "#e6e6e6",
+          background: "rgba(20, 20, 20, 0.92)",
+          color: "#ffffff",
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
           fontSize: 12,
           lineHeight: 1.6,
           borderRadius: 4,
-          border: "1px solid rgba(255,255,255,0.1)",
+          border: "1px solid #1f1f1f",
           fontVariantNumeric: "tabular-nums",
           pointerEvents: "auto",
           zIndex: 3,
         }}
       >
-        REFONTE-4b live (Bybit BTCUSDT)
+        Senzoukria · Bybit BTCUSDT
         <br />
         Status: <span ref={statusRef}>idle</span>
         <br />
@@ -313,16 +317,16 @@ export function HeatmapLive() {
           style={{
             marginTop: 4,
             padding: "2px 8px",
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.2)",
-            color: "#e6e6e6",
+            background: "#0a0a0a",
+            border: "1px solid #1f1f1f",
+            color: "#ffffff",
             fontFamily: "inherit",
             fontSize: 11,
             cursor: "pointer",
             borderRadius: 3,
           }}
         >
-          🔓 follow ON
+          follow ON
         </button>
       </div>
       {error && (
@@ -332,11 +336,12 @@ export function HeatmapLive() {
             bottom: 8,
             left: 8,
             padding: "8px 12px",
-            background: "rgba(150,30,30,0.85)",
-            color: "#fff",
+            background: "rgba(255, 61, 113, 0.18)",
+            color: "#ff3d71",
             fontFamily: "ui-monospace, monospace",
             fontSize: 12,
             borderRadius: 4,
+            border: "1px solid #ff3d71",
             maxWidth: "60%",
             zIndex: 3,
           }}

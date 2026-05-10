@@ -1,26 +1,48 @@
-/* Heatmap palette froid → chaud (cf. brief refonte §3, Bookmap-grade).
-   7 stops lus par desktop/src/render/gradient.ts pour construire la
-   texture 256×1 du LiquidityHeatmapLayer. */
+/* ============================================================
+   SENZOUKRIA — palette stricte (REFONTE-7/P1)
+   Brand : noir + vert + blanc, accent rouge pour ask side.
+   Aucune couleur hors palette ne doit apparaître dans la heatmap.
+   ============================================================ */
 :root {
-  --heat-0: #0a0d12;
-  --heat-1: #102845;
-  --heat-2: #1f4e8c;
-  --heat-3: #2a8c9e;
-  --heat-4: #d9aa3f;
-  --heat-5: #e07a3a;
-  --heat-6: #e74c3c;
+  /* === Brand tokens (spec REFONTE-7 §2) === */
+  --bg-primary: #0a0a0a;
+  --bg-surface: #141414;
+  --bg-axis: #0f0f0f;
+  --border: #1f1f1f;
+  --brand-green: #00e676;
+  --brand-green-dim: #1f4d2e;
+  --accent-red: #ff3d71;
+  --accent-red-dim: #4d1f2e;
+  --text-primary: #ffffff;
+  --text-muted: #9ca3af;
 
-  /* Trade bubbles (REFONTE-4a). Couleurs côté agresseur :
-     bid = vert (acheteur agresseur, prix monte)
-     ask = rouge (vendeur agresseur, prix descend) */
-  --bid: #26a69a;
-  --ask: #ef5350;
+  /* === Heatmap gradient (LiquidityHeatmapLayer) ===
+     Rampe HSL noir → vert dim → vert vif. Mono-gradient pour la
+     liquidité agrégée (la séparation visuelle bid/ask passe par les
+     trade bubbles + best bid/ask lines). Évite le brun en milieu via
+     stops tirés vers le vert sombre, pas vers une teinte intermédiaire. */
+  --heat-0: #0a0a0a;
+  --heat-1: #0f1f12;
+  --heat-2: #143822;
+  --heat-3: #1f4d2e;
+  --heat-4: #2d7a47;
+  --heat-5: #19a85c;
+  --heat-6: #00e676;
 
-  /* Key levels (REFONTE-4b). POC=jaune, VAH/VAL=violet, VWAP=cyan. */
-  --level-poc: #fde047;
-  --level-va: #c084fc;
-  --level-vwap: #60a5fa;
+  /* === Trade bubbles (TradeBubblesLayer) ===
+     bid = acheteur agresseur (prix monte) → brand-green
+     ask = vendeur agresseur (prix descend) → accent-red */
+  --bid: #00e676;
+  --ask: #ff3d71;
 
-  /* Bars hors value area sur VolumeProfileLayer (REFONTE-4c). Gris froid. */
-  --vp-neutral: #5d6b7e;
+  /* === Key levels (KeyLevelsLayer + VolumeProfileLayer) ===
+     Variantes vert/blanc pour rester distinguables tout en respectant
+     la palette stricte (cf. décision REFONTE-7 choix 2). */
+  --level-poc: #00e676; /* vert plein, ligne dominante */
+  --level-va: #1f4d2e; /* vert dim, VAH/VAL */
+  --level-vwap: #ffffff; /* blanc, VWAP institutionnel */
+
+  /* Bars hors value area sur VolumeProfileLayer. Gris dark cohérent
+     border. */
+  --vp-neutral: #2a2a2a;
 }

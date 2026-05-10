@@ -69,7 +69,8 @@ export function DomPanel({ engineRef }: DomPanelProps) {
         if (a) {
           r.price.textContent = a.price.toFixed(2);
           r.qty.textContent = a.size.toFixed(3);
-          r.bar.style.background = `rgba(239, 83, 80, ${
+          // REFONTE-7/P1 : --accent-red Senzoukria (#ff3d71 = 255,61,113).
+          r.bar.style.background = `rgba(255, 61, 113, ${
             maxQty > 0 ? Math.min(1, a.size / maxQty).toFixed(2) : "0"
           })`;
           r.el.style.visibility = "visible";
@@ -85,7 +86,8 @@ export function DomPanel({ engineRef }: DomPanelProps) {
         if (b) {
           r.price.textContent = b.price.toFixed(2);
           r.qty.textContent = b.size.toFixed(3);
-          r.bar.style.background = `rgba(38, 166, 154, ${
+          // REFONTE-7/P1 : --brand-green Senzoukria (#00e676 = 0,230,118).
+          r.bar.style.background = `rgba(0, 230, 118, ${
             maxQty > 0 ? Math.min(1, b.size / maxQty).toFixed(2) : "0"
           })`;
           r.el.style.visibility = "visible";

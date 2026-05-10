@@ -18,9 +18,12 @@ export interface KeyLevelsData {
   vwap: number | null;
 }
 
-const DEFAULT_POC_COLOR = "#fde047";
-const DEFAULT_VA_COLOR = "#c084fc";
-const DEFAULT_VWAP_COLOR = "#60a5fa";
+// REFONTE-7/P1 : palette Senzoukria (vert/blanc).
+// Variantes nuancées pour distinguer POC (vert plein) / VAH/VAL
+// (vert dim) / VWAP (blanc) sans introduire de couleur hors brand.
+const DEFAULT_POC_COLOR = "#00e676";
+const DEFAULT_VA_COLOR = "#1f4d2e";
+const DEFAULT_VWAP_COLOR = "#ffffff";
 
 function readCssColor(name: string, fallback: string): string {
   if (typeof document === "undefined") return fallback;
@@ -97,7 +100,8 @@ export class KeyLevelsLayer implements Layer<KeyLevelsData> {
       ctx.textBaseline = "bottom";
       const metrics = ctx.measureText(labelText);
       const labelX = lineEndX - metrics.width - 8;
-      ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+      // REFONTE-7/P1 : background label aligné sur --bg-surface.
+      ctx.fillStyle = "rgba(20, 20, 20, 0.85)";
       ctx.fillRect(labelX - 4, y - 18, metrics.width + 8, 18);
       ctx.fillStyle = color;
       ctx.fillText(labelText, labelX, y - 4);
