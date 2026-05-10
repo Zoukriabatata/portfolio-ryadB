@@ -1,7 +1,7 @@
 import type Regl from "regl";
 import type { GridSystem } from "../core";
-import { VOLUME_PROFILE_WIDTH_PX } from "../core";
 import type { Layer } from "./Layer";
+import type { RenderTransform } from "./RenderTransform";
 
 // REFONTE-7/P2 — Best Bid / Best Ask lines (style Bookmap / ATAS).
 //
@@ -77,6 +77,9 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
 
   private ctx: CanvasRenderingContext2D | null = null;
   private currentGrid: GridSystem | null = null;
+  // REFONTE-7/P3 — projection partagée (pan + viewport). Migré depuis la
+  // formule locale de P2 (TODO P3 résolu).
+  private transform: RenderTransform | null = null;
   private bidColor = DEFAULT_BID_COLOR;
   private askColor = DEFAULT_ASK_COLOR;
 
@@ -95,13 +98,20 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
     _regl: Regl.Regl,
     _grid: GridSystem,
     overlayCtx?: CanvasRenderingContext2D,
+    transform?: RenderTransform,
   ): void {
     if (!overlayCtx) {
       throw new Error(
         "BestBidAskLayer: requires overlayCtx (passez overlayCanvas à HeatmapEngineSpec)",
       );
     }
+    if (!transform) {
+      throw new Error(
+        "BestBidAskLayer: requires transform (REFONTE-7/P3 — passez via engine.addLayer)",
+      );
+    }
     this.ctx = overlayCtx;
+    this.transform = transform;
     this.bidColor = readCssColor("--bid", DEFAULT_BID_COLOR);
     this.askColor = readCssColor("--ask", DEFAULT_ASK_COLOR);
   }
@@ -124,9 +134,9 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
 
   draw(): void {
     const ctx = this.ctx;
-    if (!ctx) return;
-    const canvas = ctx.canvas;
-    if (canvas.width === 0 || canvas.height === 0) return;
+    const tr = this.transform;
+    if (!ctx || !tr) return;
+    if (tr.canvasWidth === 0 || tr.canvasHeight === 0) return;
     const grid = this.currentGrid;
     if (!grid) return;
 
@@ -135,47 +145,38 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
     this.bidDisplayed = lerpStep(this.bidDisplayed, this.bidTarget, LERP_FACTOR);
     this.askDisplayed = lerpStep(this.askDisplayed, this.askTarget, LERP_FACTOR);
 
-    const range = grid.priceMax - grid.priceMin;
-    if (range <= 0) return;
+    // REFONTE-7/P3 : projection via transform partagée (applique pan
+    // courant). Plus de calcul local. Bornage visuel : on dessine même si
+    // hors viewport (pan peut amener bid/ask hors zone) — c'est OutOfBuffer
+    // qui décide de griser ou pas.
+    const lineEndX = tr.canvasWidth - tr.axisYWidthPx;
+    const lineBottomY = tr.canvasHeight - tr.axisXHeightPx;
 
-    // TODO P3 : migrer vers la matrice partagée (priceToY global) quand
-    // elle existera. Aujourd'hui formule locale, cohérente avec
-    // KeyLevelsLayer + VolumeProfileLayer.
-    const priceToY = (price: number): number =>
-      ((grid.priceMax - price) / range) * canvas.height;
-
-    // Lignes 2 px traversant la zone heatmap, s'arrêtant avant l'espace
-    // réservé à l'axe Y (= 80 px du panel VolumeProfile aujourd'hui ;
-    // P3 unifiera avec l'AxesLayer à la même largeur).
-    const lineEndX = canvas.width - VOLUME_PROFILE_WIDTH_PX;
-
-    if (
-      !Number.isNaN(this.bidDisplayed) &&
-      this.bidDisplayed >= grid.priceMin &&
-      this.bidDisplayed <= grid.priceMax
-    ) {
-      this.drawLineWithLabel(
-        ctx,
-        priceToY(this.bidDisplayed),
-        lineEndX,
-        this.bidDisplayed,
-        this.bidColor,
-        this.bidLabelCache,
-      );
+    if (!Number.isNaN(this.bidDisplayed)) {
+      const y = tr.priceToY(this.bidDisplayed);
+      if (y >= 0 && y <= lineBottomY) {
+        this.drawLineWithLabel(
+          ctx,
+          y,
+          lineEndX,
+          this.bidDisplayed,
+          this.bidColor,
+          this.bidLabelCache,
+        );
+      }
     }
-    if (
-      !Number.isNaN(this.askDisplayed) &&
-      this.askDisplayed >= grid.priceMin &&
-      this.askDisplayed <= grid.priceMax
-    ) {
-      this.drawLineWithLabel(
-        ctx,
-        priceToY(this.askDisplayed),
-        lineEndX,
-        this.askDisplayed,
-        this.askColor,
-        this.askLabelCache,
-      );
+    if (!Number.isNaN(this.askDisplayed)) {
+      const y = tr.priceToY(this.askDisplayed);
+      if (y >= 0 && y <= lineBottomY) {
+        this.drawLineWithLabel(
+          ctx,
+          y,
+          lineEndX,
+          this.askDisplayed,
+          this.askColor,
+          this.askLabelCache,
+        );
+      }
     }
 
     // Reset shadow pour ne pas polluer les layers suivantes (CrosshairLayer).
@@ -225,6 +226,7 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
   destroy(): void {
     this.ctx = null;
     this.currentGrid = null;
+    this.transform = null;
     this.bidLabelCache.clear();
     this.askLabelCache.clear();
   }

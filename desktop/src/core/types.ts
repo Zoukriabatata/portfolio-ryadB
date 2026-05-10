@@ -25,6 +25,12 @@ export interface Trade {
 export interface Viewport {
   priceMin: number;
   priceMax: number;
+  // REFONTE-7/P3 : bornes temporelles visibles (optionnelles, rétrocompat).
+  // Si omises, dérivées de [now - historyDurationMs, now] par l'engine.
+  // Modifiées par le zoom horizontal (destructif, déclenche re-bin si dims
+  // changent). Pas modifiées par le pan (qui passe par la matrice display).
+  timeMin?: number;
+  timeMax?: number;
 }
 
 export type BucketDurationMs = 50 | 100 | 250 | 500 | 1000;

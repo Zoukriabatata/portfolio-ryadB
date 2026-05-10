@@ -10,6 +10,7 @@ import {
   BestBidAskLayer,
   type BestBidAskData,
 } from "../render/BestBidAskLayer";
+import { AxesLayer } from "../render/AxesLayer";
 import { DomPanel } from "./DomPanel";
 import type { HeatmapEngine as HeatmapEngineType } from "../render/HeatmapEngine";
 import { OrderbookAdapter } from "../adapters/OrderbookAdapter";
@@ -76,6 +77,7 @@ export function HeatmapLive() {
     const volumeProfileLayer = new VolumeProfileLayer();
     const bestBidAskLayer = new BestBidAskLayer();
     const crosshairLayer = new CrosshairLayer();
+    const axesLayer = new AxesLayer();
     // REFONTE-7/P2 : objet réutilisé pour zero-allocation per frame.
     // L'engine appelle getData() à chaque update (always-dirty layer).
     const bestBidAskData: BestBidAskData = { bestBid: null, bestAsk: null };
@@ -110,6 +112,9 @@ export function HeatmapLive() {
       20,
       () => engine.getVolumeProfileSnapshot(),
     );
+    // REFONTE-7/P3 — AxesLayer z=25, masque le VolumeProfile dans le bandeau
+    // Y droite (acceptable, P5 ajoutera toggle settings).
+    engine.addLayer(axesLayer, 25, () => undefined);
 
     // REFONTE-5 — listeners crosshair sur le canvas regl. mousemove
     // capture seulement (pas de compute lookup), engine.setCrosshair
@@ -143,9 +148,10 @@ export function HeatmapLive() {
       initialPriceMin,
       initialPriceMax,
       tickSize: TICK_SIZE,
-      onViewportChange: (priceMin, priceMax) => {
-        engine.setViewport({ priceMin, priceMax });
-      },
+      // REFONTE-7/P3 : engine direct (au lieu de onViewportChange callback)
+      // pour que ViewportController puisse aussi piloter setPan / resetPan
+      // pendant le drag (matrice non-destructive).
+      engine,
       getCurrentPrice: () => {
         try {
           return engine.getTradesBuffer().currentPrice();

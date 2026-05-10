@@ -1,6 +1,7 @@
 import type Regl from "regl";
 import type { GridSystem } from "../core";
 import type { Layer } from "./Layer";
+import type { PannableLayer } from "./HeatmapEngine";
 import type { TradesBuffer } from "./TradesBuffer";
 
 const MAX_BUBBLES = 50_000;
@@ -31,6 +32,11 @@ export function volumeToRadiusPx(
   return Math.max(minPx, Math.min(maxPx, r));
 }
 
+// REFONTE-7/P3 — uPan ajouté pour pan visuel non-destructif (drawing buffer
+// pixels). Convention :
+//  - panX > 0 (drag RIGHT) → bulles glissent à droite → clip X augmente.
+//  - panY > 0 (drag DOWN) → bulles glissent en bas → clip Y diminue (clip
+//    space top = +1, bottom = -1, donc Y inverse).
 const VERT_SRC = `
 precision mediump float;
 attribute vec2 aQuad;
@@ -38,10 +44,12 @@ attribute vec2 aCenter;
 attribute float aRadius;
 attribute vec3 aColor;
 uniform vec2 uResolution;
+uniform vec2 uPan;
 varying vec2 vUV;
 varying vec3 vColor;
 void main() {
-  vec2 centerClip = aCenter * 2.0 - 1.0;
+  vec2 panClip = vec2(uPan.x, -uPan.y) / uResolution * 2.0;
+  vec2 centerClip = aCenter * 2.0 - 1.0 + panClip;
   vec2 offsetClip = (aQuad * aRadius) / uResolution * 2.0;
   gl_Position = vec4(centerClip + offsetClip, 0.0, 1.0);
   vUV = aQuad;
@@ -90,7 +98,7 @@ function readBidAskColors(): {
   return { bid: parseHexColor(bidRaw), ask: parseHexColor(askRaw) };
 }
 
-export class TradeBubblesLayer implements Layer<TradesBuffer> {
+export class TradeBubblesLayer implements Layer<TradesBuffer>, PannableLayer {
   public dirty = false;
   private quadBuf: Regl.Buffer | null = null;
   private instanceBuf: Regl.Buffer | null = null;
@@ -102,6 +110,9 @@ export class TradeBubblesLayer implements Layer<TradesBuffer> {
   private askColor: [number, number, number] = [1, 0, 0];
   private canvasWidth = 1;
   private canvasHeight = 1;
+  // REFONTE-7/P3 : pan en drawing buffer pixels (push par engine via setPan).
+  private _panX = 0;
+  private _panY = 0;
 
   constructor() {
     this.visibleScratch = new Float32Array(
@@ -155,6 +166,8 @@ export class TradeBubblesLayer implements Layer<TradesBuffer> {
       uniforms: {
         // Closure directe (pas regl.prop pour vec2 — leçon §5.B).
         uResolution: () => [this.canvasWidth, this.canvasHeight],
+        // REFONTE-7/P3 : pan en drawing buffer pixels.
+        uPan: () => [this._panX, this._panY],
       },
       primitive: "triangle strip",
       count: 4,
@@ -171,6 +184,13 @@ export class TradeBubblesLayer implements Layer<TradesBuffer> {
   setCanvasSize(width: number, height: number): void {
     this.canvasWidth = Math.max(1, width);
     this.canvasHeight = Math.max(1, height);
+  }
+
+  // REFONTE-7/P3 — push pan depuis l'engine. Les bulles se déplacent via
+  // uniform uPan dans le shader vertex, sans réécrire l'instance buffer.
+  setPan(panX: number, panY: number): void {
+    this._panX = panX;
+    this._panY = panY;
   }
 
   update(grid: GridSystem, buffer: TradesBuffer): void {

@@ -5,6 +5,7 @@ import {
   createGridSystem,
   DEFAULT_VALUE_AREA_WIDTH,
   VolumeProfileBuilder,
+  VOLUME_PROFILE_WIDTH_PX,
   VwapBuilder,
   type BucketDurationMs,
   type GridSystem,
@@ -16,6 +17,17 @@ import { OrderbookHistory } from "./OrderbookHistory";
 import { TradesBuffer } from "./TradesBuffer";
 import type { LiquidityFrame } from "./LiquidityFrame";
 import type { Layer } from "./Layer";
+import type { RenderTransform } from "./RenderTransform";
+
+// REFONTE-7/P3 — Layers WebGL qui acceptent un panning visuel via setPan().
+// Permet l'identification structurelle sans imposer setPan() sur Layer<T>
+// (les overlay canvas2d n'en ont pas besoin — elles utilisent transform).
+export interface PannableLayer {
+  setPan(panX: number, panY: number): void;
+}
+function isPannable(layer: object): layer is PannableLayer {
+  return typeof (layer as PannableLayer).setPan === "function";
+}
 
 const KEY_LEVELS_SCRATCH_TRADES = 50_000;
 const KEY_LEVELS_SCRATCH_FLOATS_PER_TRADE = 4;
@@ -31,6 +43,12 @@ export interface HeatmapEngineSpec {
   tickSize?: number;
   // Largeur Value Area (default DEFAULT_VALUE_AREA_WIDTH = 0.70).
   valueAreaWidth?: number;
+  // REFONTE-7/P3 — réservation de bandes pour AxesLayer.
+  // Width du bandeau Y droite (default 80 px = align sur VOLUME_PROFILE_WIDTH_PX).
+  // Height du bandeau X bas (default 32 px). Les overlay layers consomment
+  // ces valeurs pour ne pas dessiner sous les axes opaques.
+  axisYWidthPx?: number;
+  axisXHeightPx?: number;
 }
 
 export interface KeyLevelsSnapshot {
@@ -133,7 +151,7 @@ const SANITY_QUAD = new Float32Array([
    -0.88, 1.0,
 ]);
 
-export class HeatmapEngine {
+export class HeatmapEngine implements RenderTransform {
   private readonly canvas: HTMLCanvasElement;
   private readonly regl: Regl.Regl;
   private readonly clock = new ClockSource();
@@ -169,6 +187,13 @@ export class HeatmapEngine {
   // REFONTE-5 — crosshair state. -1 = inactif (pas d'allocation per mousemove).
   private crosshairX = -1;
   private crosshairY = -1;
+  // REFONTE-7/P3 — matrice display (pan only en Option C, scale via setViewport).
+  // Drawing buffer pixels. Modifiée par ViewportController (pan libre X+Y).
+  // Push aux PannableLayer (Liquidity, Bubbles) à chaque tick avant draw.
+  private _panX = 0;
+  private _panY = 0;
+  private readonly _axisYWidthPx: number;
+  private readonly _axisXHeightPx: number;
 
   constructor(spec: HeatmapEngineSpec) {
     this.viewport = spec.viewport;
@@ -177,6 +202,11 @@ export class HeatmapEngine {
     this.tickSize = spec.tickSize ?? 0.1;
     this.valueAreaWidth = spec.valueAreaWidth ?? DEFAULT_VALUE_AREA_WIDTH;
     this.overlayCtx = spec.overlayCanvas?.getContext("2d") ?? null;
+    // REFONTE-7/P3 : default 80 px (= VOLUME_PROFILE_WIDTH_PX) pour cohérence
+    // visuelle avec l'existant. AxesLayer dessine par-dessus le VolumeProfile
+    // dans la même bande, masquant l'histogramme (acceptable, P5 toggle).
+    this._axisYWidthPx = spec.axisYWidthPx ?? VOLUME_PROFILE_WIDTH_PX;
+    this._axisXHeightPx = spec.axisXHeightPx ?? 32;
     this.historyLength = Math.floor(
       this.historyDurationMs / this.bucketDurationMs,
     );
@@ -216,7 +246,12 @@ export class HeatmapEngine {
     });
     this.layers.sort((a, b) => a.zIndex - b.zIndex);
     if (this.started) {
-      layer.init(this.regl, this.currentGrid, this.overlayCtx ?? undefined);
+      layer.init(
+        this.regl,
+        this.currentGrid,
+        this.overlayCtx ?? undefined,
+        this,
+      );
     }
   }
 
@@ -273,12 +308,17 @@ export class HeatmapEngine {
   lookupCell(x: number, y: number): CrosshairLookup | null {
     const w = this.canvas.width;
     const h = this.canvas.height;
-    const px = pixelsToGrid(x, y, w, h, this.currentGrid);
-    if (!px) return null;
+    if (w <= 0 || h <= 0) return null;
+    if (x < 0 || x >= w || y < 0 || y >= h) return null;
+    // REFONTE-7/P3 : utilise les helpers transform (qui appliquent le pan
+    // courant). Le tooltip refléte donc le prix/time RÉELLEMENT sous le
+    // curseur après pan, pas la position data brute.
+    const price = this.yToPrice(y);
+    const timestampMs = this.xToTime(x);
 
     let liquidityIntensity = 0;
-    const tIdx = this.currentGrid.bucketIndex(px.timestampMs);
-    const pIdx = this.currentGrid.priceIndex(px.price);
+    const tIdx = this.currentGrid.bucketIndex(timestampMs);
+    const pIdx = this.currentGrid.priceIndex(price);
     if (tIdx >= 0 && pIdx >= 0) {
       const cells = this.liquidityFrameMutable.cells;
       const offset = tIdx * this.currentGrid.priceLevels + pIdx;
@@ -294,8 +334,8 @@ export class HeatmapEngine {
     }
 
     return {
-      price: px.price,
-      timestampMs: px.timestampMs,
+      price,
+      timestampMs,
       liquidityIntensity,
       volume,
     };
@@ -422,11 +462,94 @@ export class HeatmapEngine {
       KEY_LEVELS_SCRATCH_TRADES * KEY_LEVELS_SCRATCH_FLOATS_PER_TRADE,
     );
     for (const reg of this.layers) {
-      reg.layer.init(this.regl, this.currentGrid, this.overlayCtx ?? undefined);
+      reg.layer.init(
+        this.regl,
+        this.currentGrid,
+        this.overlayCtx ?? undefined,
+        this,
+      );
     }
     this.fpsLast = 0;
     this.rafId = requestAnimationFrame(this.tick);
   }
+
+  // ============================================================
+  // REFONTE-7/P3 — RenderTransform implementation + matrix API
+  // ============================================================
+
+  get canvasWidth(): number {
+    return this.canvas.width;
+  }
+  get canvasHeight(): number {
+    return this.canvas.height;
+  }
+  get axisYWidthPx(): number {
+    return this._axisYWidthPx;
+  }
+  get axisXHeightPx(): number {
+    return this._axisXHeightPx;
+  }
+  get panX(): number {
+    return this._panX;
+  }
+  get panY(): number {
+    return this._panY;
+  }
+
+  // Bornes effectives temporelles : viewport explicite ou dérivées de
+  // [now - historyDurationMs, now] (compat avec le viewport priceMin/priceMax-only).
+  private getDisplayTimeMin(): number {
+    return this.viewport.timeMin ?? this.currentGrid.oldestExchangeMs;
+  }
+  private getDisplayTimeMax(): number {
+    return this.viewport.timeMax ?? this.currentGrid.nowExchangeMs;
+  }
+
+  priceToY(price: number): number {
+    const range = this.viewport.priceMax - this.viewport.priceMin;
+    if (range <= 0 || this.canvas.height <= 0) return 0;
+    const yBase =
+      ((this.viewport.priceMax - price) / range) * this.canvas.height;
+    return yBase + this._panY;
+  }
+  yToPrice(y: number): number {
+    const range = this.viewport.priceMax - this.viewport.priceMin;
+    if (this.canvas.height <= 0) return this.viewport.priceMax;
+    return (
+      this.viewport.priceMax -
+      ((y - this._panY) / this.canvas.height) * range
+    );
+  }
+  timeToX(time: number): number {
+    const tMin = this.getDisplayTimeMin();
+    const tMax = this.getDisplayTimeMax();
+    const range = tMax - tMin;
+    if (range <= 0 || this.canvas.width <= 0) return 0;
+    const xBase = ((time - tMin) / range) * this.canvas.width;
+    return xBase + this._panX;
+  }
+  xToTime(x: number): number {
+    const tMin = this.getDisplayTimeMin();
+    const tMax = this.getDisplayTimeMax();
+    const range = tMax - tMin;
+    if (this.canvas.width <= 0) return tMin;
+    return tMin + ((x - this._panX) / this.canvas.width) * range;
+  }
+
+  setPan(panX: number, panY: number): void {
+    if (this.destroyed) return;
+    this._panX = panX;
+    this._panY = panY;
+  }
+
+  resetPan(): void {
+    this._panX = 0;
+    this._panY = 0;
+  }
+
+  // ============================================================
+  // Fin RenderTransform / matrix API
+  // ============================================================
 
   private tick = (): void => {
     if (this.destroyed) return;
@@ -510,6 +633,16 @@ export class HeatmapEngine {
     if (this.overlayCtx) {
       const oc = this.overlayCtx.canvas;
       this.overlayCtx.clearRect(0, 0, oc.width, oc.height);
+    }
+
+    // REFONTE-7/P3 : push pan aux PannableLayer (Liquidity, Bubbles) avant
+    // draw. Les overlay canvas2d lisent transform.priceToY/timeToX qui
+    // appliquent déjà le pan en interne — pas besoin de push pour eux.
+    for (const reg of this.layers) {
+      const l = reg.layer as object;
+      if (isPannable(l)) {
+        l.setPan(this._panX, this._panY);
+      }
     }
 
     for (const reg of this.layers) {

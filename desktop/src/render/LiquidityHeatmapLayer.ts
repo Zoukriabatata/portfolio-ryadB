@@ -1,6 +1,7 @@
 import type Regl from "regl";
 import type { GridSystem } from "../core";
 import type { Layer } from "./Layer";
+import type { PannableLayer } from "./HeatmapEngine";
 import type { LiquidityFrame } from "./LiquidityFrame";
 import { intensityToUint8 } from "./intensityToUint8";
 import { buildGradientTexture256 } from "./gradient";
@@ -18,16 +19,31 @@ void main() {
 // Sampling sans if/switch : intensité (texture R) → gradient (texture 256×1
 // linéaire). Le gradient est prébaké à l'init ; la GPU interpole entre les
 // 256 pixels du gradient via le filtre 'linear'.
+//
+// REFONTE-7/P3 : ajout uniform uPanUV pour pan visuel non-destructif.
+// uPanUV = (panX/canvasW, panY/canvasH) en drawing buffer pixels normalisés.
+// Convention :
+//  - panX > 0 (drag RIGHT) → contenu glisse à droite → screen X montre ce qui
+//    était à gauche → worldUV.x = vUV.x - panX/W.
+//  - panY > 0 (drag DOWN) → contenu glisse en bas → screen Y montre ce qui
+//    était en haut → worldUV.y = vUV.y + panY/H (vUV.y=1 = top screen).
+// Hors [0,1] → fond #0A0A0A (--bg-primary). OutOfBufferLayer dessinera
+// "No data" par-dessus si la zone est hors-buffer Bybit.
 const FRAG_SRC = `
 precision mediump float;
 varying vec2 vUV;
 uniform sampler2D uIntensity;
 uniform sampler2D uGradient;
+uniform vec2 uPanUV;
 void main() {
+  vec2 worldUV = vec2(vUV.x - uPanUV.x, vUV.y + uPanUV.y);
+  if (worldUV.x < 0.0 || worldUV.x > 1.0 || worldUV.y < 0.0 || worldUV.y > 1.0) {
+    gl_FragColor = vec4(0.039, 0.039, 0.039, 1.0); // #0A0A0A
+    return;
+  }
   // .yx swap : screen.x → texture.y (row = bucket temps),
   //            screen.y → texture.x (col = price level).
-  // Bandes horizontales attendues (price levels persistent dans le temps).
-  float i = texture2D(uIntensity, vUV.yx).r;
+  float i = texture2D(uIntensity, worldUV.yx).r;
   vec3 color = texture2D(uGradient, vec2(i, 0.5)).rgb;
   gl_FragColor = vec4(color, 1.0);
 }
@@ -35,7 +51,9 @@ void main() {
 
 const FULL_QUAD = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
 
-export class LiquidityHeatmapLayer implements Layer<LiquidityFrame> {
+export class LiquidityHeatmapLayer
+  implements Layer<LiquidityFrame>, PannableLayer
+{
   // dirty flag — écrit par l'engine uniquement (REFONTE-3 contract).
   // La couche ne le lit ni ne le modifie elle-même.
   public dirty = false;
@@ -47,6 +65,10 @@ export class LiquidityHeatmapLayer implements Layer<LiquidityFrame> {
   private drawCmd: Regl.DrawCommand | null = null;
   private historyLength = 0;
   private priceLevels = 0;
+  // REFONTE-7/P3 : pan en drawing buffer pixels, push par engine via setPan().
+  // Lu via closure dans le uniform uPanUV.
+  private _panX = 0;
+  private _panY = 0;
 
   init(regl: Regl.Regl, grid: GridSystem): void {
     this.regl = regl;
@@ -96,6 +118,7 @@ export class LiquidityHeatmapLayer implements Layer<LiquidityFrame> {
 
     // Closure directe sur intensityTex/gradientTex (pas de regl.prop pour
     // les uniforms — leçon CLAUDE.md §5.B sur les vec en regl.prop).
+    // REFONTE-7/P3 : uPanUV via closure (vec2 = banni regl.prop).
     this.drawCmd = regl({
       vert: VERT_SRC,
       frag: FRAG_SRC,
@@ -103,12 +126,23 @@ export class LiquidityHeatmapLayer implements Layer<LiquidityFrame> {
       uniforms: {
         uIntensity: this.intensityTex,
         uGradient: this.gradientTex,
+        uPanUV: (context: { viewportWidth: number; viewportHeight: number }) => [
+          context.viewportWidth > 0 ? this._panX / context.viewportWidth : 0,
+          context.viewportHeight > 0 ? this._panY / context.viewportHeight : 0,
+        ],
       },
       primitive: "triangle strip",
       count: 4,
       depth: { enable: false },
       blend: { enable: false },
     });
+  }
+
+  // REFONTE-7/P3 — push pan depuis l'engine. Pas d'allocation, pas de
+  // re-bind buffers. La closure de uPanUV lit ces valeurs au prochain draw.
+  setPan(panX: number, panY: number): void {
+    this._panX = panX;
+    this._panY = panY;
   }
 
   update(_grid: GridSystem, data: LiquidityFrame): void {
@@ -161,13 +195,18 @@ export class LiquidityHeatmapLayer implements Layer<LiquidityFrame> {
     });
     // Le draw command capture intensityTex via closure ; il faut le
     // re-fabriquer pour pointer sur la nouvelle texture.
-    this.drawCmd = this.regl({
+    const regl = this.regl;
+    this.drawCmd = regl({
       vert: VERT_SRC,
       frag: FRAG_SRC,
       attributes: { aPosition: this.positionBuf! },
       uniforms: {
         uIntensity: this.intensityTex,
         uGradient: this.gradientTex!,
+        uPanUV: (context: { viewportWidth: number; viewportHeight: number }) => [
+          context.viewportWidth > 0 ? this._panX / context.viewportWidth : 0,
+          context.viewportHeight > 0 ? this._panY / context.viewportHeight : 0,
+        ],
       },
       primitive: "triangle strip",
       count: 4,

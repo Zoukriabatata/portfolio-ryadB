@@ -1,7 +1,7 @@
 import type Regl from "regl";
 import type { GridSystem } from "../core";
-import { VOLUME_PROFILE_WIDTH_PX } from "../core";
 import type { Layer } from "./Layer";
+import type { RenderTransform } from "./RenderTransform";
 
 // 4 lignes horizontales (POC / VAH / VAL / VWAP) rendered en canvas 2D
 // overlay (PAS regl). Trivial à dessiner, font monospace native, texte
@@ -36,8 +36,9 @@ function readCssColor(name: string, fallback: string): string {
 export class KeyLevelsLayer implements Layer<KeyLevelsData> {
   public dirty = false;
   private ctx: CanvasRenderingContext2D | null = null;
-  private currentGrid: GridSystem | null = null;
   private currentData: KeyLevelsData | null = null;
+  // REFONTE-7/P3 — projection partagée (applique pan + viewport courant).
+  private transform: RenderTransform | null = null;
   private colorPoc = DEFAULT_POC_COLOR;
   private colorVa = DEFAULT_VA_COLOR;
   private colorVwap = DEFAULT_VWAP_COLOR;
@@ -46,40 +47,46 @@ export class KeyLevelsLayer implements Layer<KeyLevelsData> {
     _regl: Regl.Regl,
     _grid: GridSystem,
     overlayCtx?: CanvasRenderingContext2D,
+    transform?: RenderTransform,
   ): void {
     if (!overlayCtx) {
       throw new Error(
         "KeyLevelsLayer: requires overlayCtx (passez overlayCanvas à HeatmapEngineSpec)",
       );
     }
+    if (!transform) {
+      throw new Error(
+        "KeyLevelsLayer: requires transform (REFONTE-7/P3 — passez via engine.addLayer)",
+      );
+    }
     this.ctx = overlayCtx;
+    this.transform = transform;
     this.colorPoc = readCssColor("--level-poc", DEFAULT_POC_COLOR);
     this.colorVa = readCssColor("--level-va", DEFAULT_VA_COLOR);
     this.colorVwap = readCssColor("--level-vwap", DEFAULT_VWAP_COLOR);
   }
 
-  update(grid: GridSystem, data: KeyLevelsData): void {
-    this.currentGrid = grid;
+  update(_grid: GridSystem, data: KeyLevelsData): void {
+    // REFONTE-7/P3 : grid n'est plus utilisé dans draw (la projection passe
+    // par transform.priceToY qui lit le viewport courant de l'engine).
     this.currentData = data;
   }
 
   draw(): void {
     const ctx = this.ctx;
-    if (!ctx) return;
-    const canvas = ctx.canvas;
-    if (canvas.width === 0 || canvas.height === 0) return;
+    const tr = this.transform;
+    if (!ctx || !tr) return;
+    if (tr.canvasWidth === 0 || tr.canvasHeight === 0) return;
     // REFONTE-4c : pas de clearRect ici. L'engine clear l'overlay une fois
     // par frame avant les draws des overlay layers.
 
-    const grid = this.currentGrid;
     const data = this.currentData;
-    if (!grid || !data) return;
+    if (!data) return;
 
-    const range = grid.priceMax - grid.priceMin;
-    if (range <= 0) return;
-
-    // REFONTE-4c : tronquage des lignes au panel VolumeProfile (à droite).
-    const lineEndX = canvas.width - VOLUME_PROFILE_WIDTH_PX;
+    // REFONTE-7/P3 : tronquage à l'AxesLayer Y (= 80 px à droite par
+    // default). Bornage vertical à la zone heatmap (= height - axisXHeightPx).
+    const lineEndX = tr.canvasWidth - tr.axisYWidthPx;
+    const lineBottomY = tr.canvasHeight - tr.axisXHeightPx;
 
     const drawLine = (
       price: number | null,
@@ -87,8 +94,9 @@ export class KeyLevelsLayer implements Layer<KeyLevelsData> {
       label: string,
     ): void => {
       if (price == null || !Number.isFinite(price)) return;
-      if (price < grid.priceMin || price > grid.priceMax) return;
-      const y = ((grid.priceMax - price) / range) * canvas.height;
+      // REFONTE-7/P3 : utilise transform.priceToY (applique pan).
+      const y = tr.priceToY(price);
+      if (y < 0 || y > lineBottomY) return;
       // Ligne pleine, tronquée au bord du panel droit.
       ctx.fillStyle = color;
       ctx.fillRect(0, Math.floor(y) - 0.5, lineEndX, 1);
@@ -127,7 +135,7 @@ export class KeyLevelsLayer implements Layer<KeyLevelsData> {
       }
     }
     this.ctx = null;
-    this.currentGrid = null;
     this.currentData = null;
+    this.transform = null;
   }
 }
