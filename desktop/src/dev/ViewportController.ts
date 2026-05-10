@@ -335,9 +335,12 @@ export class ViewportController {
     return "pan";
   }
 
-  // Helper interne : pousse priceMin/Max + (optionnel) timeMin/Max au moteur.
+  // REFONTE-7/P3.5 Fix 2 — pousse au DISPLAY viewport (= ce qui est visible).
+  // L'engine décide en interne si re-bin du dataViewport est nécessaire
+  // (sortie de marge 1.6×). Pendant pan/zoom léger, displayViewport reste
+  // dans la marge data → pas de re-bin = pas de smear visible.
   private commitViewport(extra: { timeMin?: number; timeMax?: number }): void {
-    this.engine.setViewport({
+    this.engine.setDisplayViewport({
       priceMin: this.priceMin,
       priceMax: this.priceMax,
       timeMin: extra.timeMin,

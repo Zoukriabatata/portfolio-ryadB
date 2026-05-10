@@ -3,6 +3,7 @@ import type { GridSystem } from "../core";
 import type { Layer } from "./Layer";
 import type { PannableLayer } from "./HeatmapEngine";
 import type { LiquidityFrame } from "./LiquidityFrame";
+import type { RenderTransform } from "./RenderTransform";
 import { intensityToUint8 } from "./intensityToUint8";
 import { buildGradientTexture256 } from "./gradient";
 
@@ -16,34 +17,41 @@ void main() {
 }
 `;
 
-// Sampling sans if/switch : intensité (texture R) → gradient (texture 256×1
-// linéaire). Le gradient est prébaké à l'init ; la GPU interpole entre les
-// 256 pixels du gradient via le filtre 'linear'.
+// REFONTE-7/P3.5 Fix 2 — sample partial selon displayViewport ⊂ dataViewport.
+// La texture data couvre dataViewport (× 1.6 plus large que display). Le
+// shader sample uniquement la portion correspondant au display + pan.
+// Permet pan/zoom léger sans re-bin = sans smear.
 //
-// REFONTE-7/P3 : ajout uniform uPanUV pour pan visuel non-destructif.
-// uPanUV = (panX/canvasW, panY/canvasH) en drawing buffer pixels normalisés.
-// Convention :
-//  - panX > 0 (drag RIGHT) → contenu glisse à droite → screen X montre ce qui
-//    était à gauche → worldUV.x = vUV.x - panX/W.
-//  - panY > 0 (drag DOWN) → contenu glisse en bas → screen Y montre ce qui
-//    était en haut → worldUV.y = vUV.y + panY/H (vUV.y=1 = top screen).
-// Hors [0,1] → fond #0A0A0A (--bg-primary). OutOfBufferLayer dessinera
-// "No data" par-dessus si la zone est hors-buffer Bybit.
+// Uniforms :
+//  - uPanUV = (panX/canvasW, panY/canvasH) : pan visuel non-destructif.
+//  - uDisplayMinUV = (timeMin_uv, priceMin_uv) du display dans la texture data.
+//  - uDisplayRangeUV = (timeRange_uv, priceRange_uv) du display dans data.
+//
+// Le shader :
+//  1. Calcule worldUV_display ∈ [0,1] = position dans la zone visible (post-pan).
+//  2. Map vers UV texture data : sampleUV = displayMinUV + worldUV * displayRangeUV.
+//  3. Si sampleUV hors [0,1] de la texture data → fond #0a0a0a (hors-buffer).
+//  4. .yx swap pour matcher la layout texture (screen.x = time, screen.y = price).
 const FRAG_SRC = `
 precision mediump float;
 varying vec2 vUV;
 uniform sampler2D uIntensity;
 uniform sampler2D uGradient;
 uniform vec2 uPanUV;
+uniform vec2 uDisplayMinUV;
+uniform vec2 uDisplayRangeUV;
 void main() {
+  // worldUV ∈ [0,1] = position dans la zone display (post-pan).
   vec2 worldUV = vec2(vUV.x - uPanUV.x, vUV.y + uPanUV.y);
-  if (worldUV.x < 0.0 || worldUV.x > 1.0 || worldUV.y < 0.0 || worldUV.y > 1.0) {
+  // Map vers UV texture data.
+  vec2 sampleUV = uDisplayMinUV + worldUV * uDisplayRangeUV;
+  if (sampleUV.x < 0.0 || sampleUV.x > 1.0 || sampleUV.y < 0.0 || sampleUV.y > 1.0) {
     gl_FragColor = vec4(0.039, 0.039, 0.039, 1.0); // #0A0A0A
     return;
   }
   // .yx swap : screen.x → texture.y (row = bucket temps),
   //            screen.y → texture.x (col = price level).
-  float i = texture2D(uIntensity, worldUV.yx).r;
+  float i = texture2D(uIntensity, sampleUV.yx).r;
   vec3 color = texture2D(uGradient, vec2(i, 0.5)).rgb;
   gl_FragColor = vec4(color, 1.0);
 }
@@ -69,9 +77,18 @@ export class LiquidityHeatmapLayer
   // Lu via closure dans le uniform uPanUV.
   private _panX = 0;
   private _panY = 0;
+  // REFONTE-7/P3.5 Fix 2 : transform pour calculer displayMinUV/displayRangeUV
+  // dans les uniforms du shader (sample partial selon display ⊂ data).
+  private transform: RenderTransform | null = null;
 
-  init(regl: Regl.Regl, grid: GridSystem): void {
+  init(
+    regl: Regl.Regl,
+    grid: GridSystem,
+    _overlayCtx?: CanvasRenderingContext2D,
+    transform?: RenderTransform,
+  ): void {
     this.regl = regl;
+    this.transform = transform ?? null;
     this.historyLength = grid.historyLength;
     this.priceLevels = grid.priceLevels;
     const size = this.historyLength * this.priceLevels;
@@ -118,7 +135,8 @@ export class LiquidityHeatmapLayer
 
     // Closure directe sur intensityTex/gradientTex (pas de regl.prop pour
     // les uniforms — leçon CLAUDE.md §5.B sur les vec en regl.prop).
-    // REFONTE-7/P3 : uPanUV via closure (vec2 = banni regl.prop).
+    // REFONTE-7/P3.5 Fix 2 : uDisplayMinUV/uDisplayRangeUV via closure pour
+    // sample partial.
     this.drawCmd = regl({
       vert: VERT_SRC,
       frag: FRAG_SRC,
@@ -130,12 +148,39 @@ export class LiquidityHeatmapLayer
           context.viewportWidth > 0 ? this._panX / context.viewportWidth : 0,
           context.viewportHeight > 0 ? this._panY / context.viewportHeight : 0,
         ],
+        uDisplayMinUV: () => this.computeDisplayMinUV(),
+        uDisplayRangeUV: () => this.computeDisplayRangeUV(),
       },
       primitive: "triangle strip",
       count: 4,
       depth: { enable: false },
       blend: { enable: false },
     });
+  }
+
+  // REFONTE-7/P3.5 Fix 2 — calcul UV display dans la texture data.
+  // Layout texture : .yx swap (screen.x = time = texture.y ; screen.y = price
+  // = texture.x). Donc UV vec : (.x = time UV, .y = price UV).
+  private computeDisplayMinUV(): [number, number] {
+    if (!this.transform) return [0, 0];
+    const tr = this.transform;
+    const dataPriceRange = tr.getDataPriceMax() - tr.getDataPriceMin();
+    const dataTimeRange = tr.getDataTimeMax() - tr.getDataTimeMin();
+    if (dataPriceRange <= 0 || dataTimeRange <= 0) return [0, 0];
+    return [
+      (tr.getDisplayTimeMin() - tr.getDataTimeMin()) / dataTimeRange,
+      (tr.getDisplayPriceMin() - tr.getDataPriceMin()) / dataPriceRange,
+    ];
+  }
+  private computeDisplayRangeUV(): [number, number] {
+    if (!this.transform) return [1, 1];
+    const tr = this.transform;
+    const dataPriceRange = tr.getDataPriceMax() - tr.getDataPriceMin();
+    const dataTimeRange = tr.getDataTimeMax() - tr.getDataTimeMin();
+    if (dataPriceRange <= 0 || dataTimeRange <= 0) return [1, 1];
+    const dispPriceRange = tr.getDisplayPriceMax() - tr.getDisplayPriceMin();
+    const dispTimeRange = tr.getDisplayTimeMax() - tr.getDisplayTimeMin();
+    return [dispTimeRange / dataTimeRange, dispPriceRange / dataPriceRange];
   }
 
   // REFONTE-7/P3 — push pan depuis l'engine. Pas d'allocation, pas de
@@ -207,6 +252,8 @@ export class LiquidityHeatmapLayer
           context.viewportWidth > 0 ? this._panX / context.viewportWidth : 0,
           context.viewportHeight > 0 ? this._panY / context.viewportHeight : 0,
         ],
+        uDisplayMinUV: () => this.computeDisplayMinUV(),
+        uDisplayRangeUV: () => this.computeDisplayRangeUV(),
       },
       primitive: "triangle strip",
       count: 4,

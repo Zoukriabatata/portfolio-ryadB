@@ -46,7 +46,17 @@ function formatTime(ms: number): string {
 }
 
 export class CrosshairLayer implements Layer<CrosshairData> {
-  public dirty = false;
+  // REFONTE-7/P3.5 Fix 1 — always-dirty pour que update() soit appelé chaque
+  // frame (60 Hz). Sans ça, le tick engine flag dirty seulement quand un
+  // bucket avance (~10 Hz) → la position du crosshair stockée dans
+  // currentData reste stale 5-6 frames → effet visuel ~10 FPS.
+  // Setter no-op (l'engine reset à false après update, on l'ignore).
+  get dirty(): boolean {
+    return true;
+  }
+  set dirty(_v: boolean) {
+    void _v;
+  }
   private ctx: CanvasRenderingContext2D | null = null;
   private currentData: CrosshairData | null = null;
   private colorLine = DEFAULT_LINE_COLOR;

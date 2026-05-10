@@ -2,6 +2,7 @@ import type Regl from "regl";
 import type { GridSystem } from "../core";
 import type { Layer } from "./Layer";
 import type { PannableLayer } from "./HeatmapEngine";
+import type { RenderTransform } from "./RenderTransform";
 import type { TradesBuffer } from "./TradesBuffer";
 
 const MAX_BUBBLES = 50_000;
@@ -113,6 +114,10 @@ export class TradeBubblesLayer implements Layer<TradesBuffer>, PannableLayer {
   // REFONTE-7/P3 : pan en drawing buffer pixels (push par engine via setPan).
   private _panX = 0;
   private _panY = 0;
+  // REFONTE-7/P3.5 Fix 2 : transform pour calculer cx/cy en displayViewport
+  // coords (= ce qui est visible). Sans ça les bulles seraient mal placées
+  // après que dataViewport est élargi 1.6× vs ce qui est visible.
+  private transform: RenderTransform | null = null;
 
   constructor() {
     this.visibleScratch = new Float32Array(
@@ -121,12 +126,18 @@ export class TradeBubblesLayer implements Layer<TradesBuffer>, PannableLayer {
     this.instanceData = new Float32Array(MAX_BUBBLES * FLOATS_PER_INSTANCE);
   }
 
-  init(regl: Regl.Regl, _grid: GridSystem): void {
+  init(
+    regl: Regl.Regl,
+    _grid: GridSystem,
+    _overlayCtx?: CanvasRenderingContext2D,
+    transform?: RenderTransform,
+  ): void {
     if (!regl.hasExtension("ANGLE_instanced_arrays")) {
       throw new Error(
         "TradeBubblesLayer: ANGLE_instanced_arrays non supporté par WebGL runtime",
       );
     }
+    this.transform = transform ?? null;
     const colors = readBidAskColors();
     this.bidColor = colors.bid;
     this.askColor = colors.ask;
@@ -202,8 +213,30 @@ export class TradeBubblesLayer implements Layer<TradesBuffer>, PannableLayer {
       );
     }
     const median = buffer.medianRecentVolume(MEDIAN_WINDOW);
-    const range = grid.priceMax - grid.priceMin;
-    const historyDur = grid.historyDurationMs;
+
+    // REFONTE-7/P3.5 Fix 2 : cx/cy en displayViewport coords (ce qui est
+    // visible), pas grid (= dataViewport élargi 1.6×). Sans transform
+    // (rétrocompat), fallback sur grid (= comportement P3 d'origine).
+    let dispTimeMin: number;
+    let dispTimeRange: number;
+    let dispPriceMin: number;
+    let dispPriceRange: number;
+    if (this.transform) {
+      const tr = this.transform;
+      dispTimeMin = tr.getDisplayTimeMin();
+      dispTimeRange = tr.getDisplayTimeMax() - dispTimeMin;
+      dispPriceMin = tr.getDisplayPriceMin();
+      dispPriceRange = tr.getDisplayPriceMax() - dispPriceMin;
+    } else {
+      dispTimeMin = grid.oldestExchangeMs;
+      dispTimeRange = grid.historyDurationMs;
+      dispPriceMin = grid.priceMin;
+      dispPriceRange = grid.priceMax - grid.priceMin;
+    }
+    if (dispTimeRange <= 0 || dispPriceRange <= 0) {
+      this.instanceCount = 0;
+      return;
+    }
 
     let outIdx = 0;
     for (let i = 0; i < visible; i++) {
@@ -213,8 +246,11 @@ export class TradeBubblesLayer implements Layer<TradesBuffer>, PannableLayer {
       const size = this.visibleScratch[base + 2];
       const side01 = this.visibleScratch[base + 3];
 
-      const cx = tDelta / historyDur;
-      const cy = (price - grid.priceMin) / range;
+      // tDelta = (timestamp - grid.oldestExchangeMs). On reconvertit au
+      // timestamp absolu pour le projeter dans displayViewport.
+      const timestamp = grid.oldestExchangeMs + tDelta;
+      const cx = (timestamp - dispTimeMin) / dispTimeRange;
+      const cy = (price - dispPriceMin) / dispPriceRange;
       if (cx < 0 || cx > 1 || cy < 0 || cy > 1) continue;
 
       const radius = volumeToRadiusPx(size, median);

@@ -1,39 +1,30 @@
 import type Regl from "regl";
 import type { GridSystem } from "../core";
+import type { BBOHistoryBuffer } from "../core";
 import type { Layer } from "./Layer";
 import type { RenderTransform } from "./RenderTransform";
 
-// REFONTE-7/P2 — Best Bid / Best Ask lines (style Bookmap / ATAS).
+// REFONTE-7/P3.5 Fix 3 — Best Bid / Best Ask en staircase Bookmap-style.
 //
-// Canvas 2D overlay, z=12 (au-dessus heatmap+bubbles, sous crosshair z=15).
-// 2 lignes horizontales 2 px aux couleurs marque (--bid #00e676 / --ask
-// #ff3d71) traversant la zone heatmap, halo subtil (shadowBlur=4) et label
-// prix collé à droite (juste avant la zone réservée à l'axe Y / panel
-// VolumeProfile, 80 px).
+// Au lieu de 2 lignes horizontales au prix courant (= snapshot instantané,
+// approche P2/P3), on dessine 2 traces qui suivent l'historique des best
+// bid/ask sur l'axe temps. Chaque snap = un point ; on relie en staircase
+// strict (segment horizontal entre snaps + segment vertical au tick) =
+// convention Bookmap/ATAS, honnête (chaque pixel correspond à un snap réel).
 //
-// Lerp 0.2 entre snaps : interpolation de bidDisplayed → bidTarget à chaque
-// frame pour fluidité (pas de saut quand le top-of-book bouge d'un tick).
-// Au premier mount (Number.isNaN check), on init bidDisplayed = bidTarget
-// pour éviter la ligne qui slide depuis 0.
+// Always-dirty pour fluidité 60 Hz (la trace évolue continûment avec les
+// nouveaux snaps + le pan).
 //
-// Always-dirty : la layer override `dirty` en getter/setter pour forcer
-// update() à chaque frame, garantissant que les targets sont vus dès
-// qu'un nouveau snap arrive (pas attendre le bucket advance).
-//
-// Coords : priceToY local (formule triviale `((priceMax - price) / range) *
-// canvasHeight`). TODO P3 : migrer vers la matrice partagée unique quand
-// elle existera (cf. spec §5.3).
+// Coords via transform partagée (priceToY + timeToX), donc bouge avec pan.
+// Lerp interpolation supprimée : la staircase montre la VRAIE chronologie,
+// pas une moyenne mobile.
 
-export interface BestBidAskData {
-  bestBid: number | null;
-  bestAsk: number | null;
-}
+export type BestBidAskData = BBOHistoryBuffer | null;
 
 const DEFAULT_BID_COLOR = "#00e676";
 const DEFAULT_ASK_COLOR = "#ff3d71";
 const LABEL_BG = "#141414";
-const LERP_FACTOR = 0.2;
-const LINE_HEIGHT = 2;
+const LINE_WIDTH = 2;
 const HALO_BLUR = 4;
 const LABEL_PADDING_X = 6;
 const LABEL_HEIGHT = 18;
@@ -41,20 +32,7 @@ const LABEL_FONT =
   '12px "Inter", system-ui, -apple-system, "Segoe UI", Arial, sans-serif';
 const LABEL_RIGHT_GAP = 4;
 const LABEL_CACHE_MAX = 256;
-
-// Pure helper, exporté pour test unitaire. Step de lerp linéaire.
-// `displayed = NaN` (premier frame, pas encore initialisé) → snap direct
-// au target pour éviter la ligne qui slide depuis 0.
-// `target = NaN` (pas de bid/ask reçu) → garde displayed inchangé.
-export function lerpStep(
-  displayed: number,
-  target: number,
-  factor: number,
-): number {
-  if (Number.isNaN(target)) return displayed;
-  if (Number.isNaN(displayed)) return target;
-  return displayed + (target - displayed) * factor;
-}
+const SCRATCH_CAPACITY = 50_000;
 
 function readCssColor(name: string, fallback: string): string {
   if (typeof document === "undefined") return fallback;
@@ -64,33 +42,33 @@ function readCssColor(name: string, fallback: string): string {
   return v || fallback;
 }
 
+function getCachedLabel(price: number, cache: Map<number, string>): string {
+  const rounded = Math.round(price * 100) / 100;
+  const cached = cache.get(rounded);
+  if (cached !== undefined) return cached;
+  if (cache.size >= LABEL_CACHE_MAX) cache.clear();
+  const label = rounded.toFixed(2);
+  cache.set(rounded, label);
+  return label;
+}
+
 export class BestBidAskLayer implements Layer<BestBidAskData> {
-  // Always-dirty : override pour que l'engine appelle update() chaque frame.
-  // Le set est no-op (l'engine reset à false après update, on l'ignore).
+  // Always-dirty : update appelé chaque frame (60 Hz).
   get dirty(): boolean {
     return true;
   }
   set dirty(_v: boolean) {
-    // no-op : on garde l'invariant always-dirty pour le lerp continu.
     void _v;
   }
 
   private ctx: CanvasRenderingContext2D | null = null;
-  private currentGrid: GridSystem | null = null;
-  // REFONTE-7/P3 — projection partagée (pan + viewport). Migré depuis la
-  // formule locale de P2 (TODO P3 résolu).
   private transform: RenderTransform | null = null;
+  private currentBuffer: BBOHistoryBuffer | null = null;
   private bidColor = DEFAULT_BID_COLOR;
   private askColor = DEFAULT_ASK_COLOR;
-
-  private bidTarget = NaN;
-  private askTarget = NaN;
-  private bidDisplayed = NaN;
-  private askDisplayed = NaN;
-
-  // Cache labels par prix arrondi au tick (BTC = 2 décimales).
-  // Évite l'allocation `toFixed` à chaque frame. Bornage à 256 entrées
-  // (≈ 26 USD de range au tick 0.1 → suffisant pour la fenêtre live).
+  // Scratch pré-alloué pour visibleEntries (zero-alloc per frame).
+  private readonly scratch = new Float32Array(SCRATCH_CAPACITY * 3);
+  // Cache labels par prix arrondi au cent.
   private readonly bidLabelCache = new Map<number, string>();
   private readonly askLabelCache = new Map<number, string>();
 
@@ -116,75 +94,145 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
     this.askColor = readCssColor("--ask", DEFAULT_ASK_COLOR);
   }
 
-  update(grid: GridSystem, data: BestBidAskData): void {
-    this.currentGrid = grid;
-    if (data.bestBid != null && Number.isFinite(data.bestBid)) {
-      this.bidTarget = data.bestBid;
-    } else {
-      // bid disparu (carnet vide) → on cesse l'interpolation, mais on
-      // garde la dernière position affichée pour éviter un flash.
-      this.bidTarget = NaN;
-    }
-    if (data.bestAsk != null && Number.isFinite(data.bestAsk)) {
-      this.askTarget = data.bestAsk;
-    } else {
-      this.askTarget = NaN;
-    }
+  update(_grid: GridSystem, data: BestBidAskData): void {
+    this.currentBuffer = data;
   }
 
   draw(): void {
     const ctx = this.ctx;
     const tr = this.transform;
-    if (!ctx || !tr) return;
+    const buffer = this.currentBuffer;
+    if (!ctx || !tr || !buffer) return;
     if (tr.canvasWidth === 0 || tr.canvasHeight === 0) return;
-    const grid = this.currentGrid;
-    if (!grid) return;
+    if (buffer.count() === 0) return;
 
-    // Lerp à chaque frame pour fluidité (60 FPS) indépendamment de la
-    // cadence des snaps. Snap direct si premier frame (NaN check).
-    this.bidDisplayed = lerpStep(this.bidDisplayed, this.bidTarget, LERP_FACTOR);
-    this.askDisplayed = lerpStep(this.askDisplayed, this.askTarget, LERP_FACTOR);
-
-    // REFONTE-7/P3 : projection via transform partagée (applique pan
-    // courant). Plus de calcul local. Bornage visuel : on dessine même si
-    // hors viewport (pan peut amener bid/ask hors zone) — c'est OutOfBuffer
-    // qui décide de griser ou pas.
     const lineEndX = tr.canvasWidth - tr.axisYWidthPx;
     const lineBottomY = tr.canvasHeight - tr.axisXHeightPx;
+    const tMin = tr.getDisplayTimeMin();
+    const tMax = tr.getDisplayTimeMax();
 
-    if (!Number.isNaN(this.bidDisplayed)) {
-      const y = tr.priceToY(this.bidDisplayed);
-      if (y >= 0 && y <= lineBottomY) {
-        this.drawLineWithLabel(
-          ctx,
-          y,
-          lineEndX,
-          this.bidDisplayed,
-          this.bidColor,
-          this.bidLabelCache,
-        );
-      }
-    }
-    if (!Number.isNaN(this.askDisplayed)) {
-      const y = tr.priceToY(this.askDisplayed);
-      if (y >= 0 && y <= lineBottomY) {
-        this.drawLineWithLabel(
-          ctx,
-          y,
-          lineEndX,
-          this.askDisplayed,
-          this.askColor,
-          this.askLabelCache,
-        );
-      }
+    const n = buffer.visibleEntries(tMin, tMax, this.scratch);
+    if (n < 1) {
+      // Aucun snap dans la fenêtre visible. Si on a des entries plus
+      // récentes (au-delà de tMax), on ne dessine rien (l'utilisateur a
+      // pan vers le futur — pas de data future, OK).
+      this.drawLatestLabels(ctx, tr, buffer, lineEndX);
+      return;
     }
 
-    // Reset shadow pour ne pas polluer les layers suivantes (CrosshairLayer).
+    // === BID staircase ===
+    this.drawStaircase(
+      ctx,
+      tr,
+      n,
+      1, // offset bid dans scratch [ts, bid, ask]
+      this.bidColor,
+      lineEndX,
+      lineBottomY,
+    );
+    // === ASK staircase ===
+    this.drawStaircase(
+      ctx,
+      tr,
+      n,
+      2, // offset ask
+      this.askColor,
+      lineEndX,
+      lineBottomY,
+    );
+
+    // Reset shadow pour ne pas polluer les layers suivantes.
     ctx.shadowBlur = 0;
     ctx.shadowColor = "transparent";
+
+    // Labels prix au DERNIER snap (= prix courant le plus à droite visible).
+    this.drawLatestLabels(ctx, tr, buffer, lineEndX);
   }
 
-  private drawLineWithLabel(
+  private drawStaircase(
+    ctx: CanvasRenderingContext2D,
+    tr: RenderTransform,
+    n: number,
+    fieldOffset: 1 | 2, // 1 = bid, 2 = ask
+    color: string,
+    lineEndX: number,
+    lineBottomY: number,
+  ): void {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = HALO_BLUR;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = LINE_WIDTH;
+    ctx.lineJoin = "miter";
+    ctx.lineCap = "butt";
+    ctx.beginPath();
+
+    let prevY = 0;
+    let started = false;
+    for (let i = 0; i < n; i++) {
+      const ts = this.scratch[i * 3];
+      const price = this.scratch[i * 3 + fieldOffset];
+      const x = tr.timeToX(ts);
+      const y = tr.priceToY(price);
+      // Clip horizontal au lineEndX (avant axe Y).
+      const clippedX = Math.min(x, lineEndX);
+      // Clip vertical à la zone heatmap (avant axe X).
+      const clippedY = Math.max(0, Math.min(y, lineBottomY));
+      if (!started) {
+        ctx.moveTo(clippedX, clippedY);
+        prevY = clippedY;
+        started = true;
+        continue;
+      }
+      // Staircase strict : horizontal au prix précédent jusqu'à x du nouveau
+      // point, puis vertical au nouveau prix.
+      ctx.lineTo(clippedX, prevY);
+      ctx.lineTo(clippedX, clippedY);
+      prevY = clippedY;
+    }
+    // Étendre la dernière marche jusqu'au bord droit visible (= prix courant
+    // continue jusqu'à "now").
+    const lastTs = this.scratch[(n - 1) * 3];
+    const lastX = tr.timeToX(lastTs);
+    if (started && lastX < lineEndX) {
+      ctx.lineTo(lineEndX, prevY);
+    }
+    ctx.stroke();
+  }
+
+  private drawLatestLabels(
+    ctx: CanvasRenderingContext2D,
+    tr: RenderTransform,
+    buffer: BBOHistoryBuffer,
+    lineEndX: number,
+  ): void {
+    const latest = buffer.latest();
+    if (!latest) return;
+    const yBid = tr.priceToY(latest.bestBid);
+    const yAsk = tr.priceToY(latest.bestAsk);
+    const lineBottomY = tr.canvasHeight - tr.axisXHeightPx;
+    if (yBid >= 0 && yBid <= lineBottomY) {
+      this.drawLabel(
+        ctx,
+        yBid,
+        lineEndX,
+        latest.bestBid,
+        this.bidColor,
+        this.bidLabelCache,
+      );
+    }
+    if (yAsk >= 0 && yAsk <= lineBottomY) {
+      this.drawLabel(
+        ctx,
+        yAsk,
+        lineEndX,
+        latest.bestAsk,
+        this.askColor,
+        this.askLabelCache,
+      );
+    }
+  }
+
+  private drawLabel(
     ctx: CanvasRenderingContext2D,
     y: number,
     lineEndX: number,
@@ -192,26 +240,15 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
     color: string,
     cache: Map<number, string>,
   ): void {
-    // Ligne 2 px avec halo. Math.floor + 0.5 pour pixel-perfect (cf. spec
-    // §3.2 anti subpixel blur).
     const yPx = Math.floor(y);
-    ctx.shadowColor = color;
-    ctx.shadowBlur = HALO_BLUR;
-    ctx.fillStyle = color;
-    ctx.fillRect(0, yPx - LINE_HEIGHT / 2, lineEndX, LINE_HEIGHT);
-    // Reset shadow avant le label (sinon le label hérite du halo, illisible).
-    ctx.shadowBlur = 0;
-
-    // Label : récupère depuis cache (zero-alloc string si déjà rendu).
     const label = getCachedLabel(price, cache);
-
     ctx.font = LABEL_FONT;
     ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
     const metrics = ctx.measureText(label);
     const labelWidth = metrics.width + LABEL_PADDING_X * 2;
     const labelX = lineEndX - labelWidth - LABEL_RIGHT_GAP;
-    if (labelX < 0) return; // canvas trop étroit, label hors-écran : skip
-
+    if (labelX < 0) return;
     ctx.fillStyle = LABEL_BG;
     ctx.fillRect(labelX, yPx - LABEL_HEIGHT / 2, labelWidth, LABEL_HEIGHT);
     ctx.fillStyle = color;
@@ -219,30 +256,14 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
   }
 
   onViewportChange(_grid: GridSystem): void {
-    // No-op : recompute à chaque draw (priceToY dépend du grid courant
-    // déjà mémorisé via update). Pas de buffer à réallouer.
+    // No-op : recompute à chaque draw via transform.
   }
 
   destroy(): void {
     this.ctx = null;
-    this.currentGrid = null;
     this.transform = null;
+    this.currentBuffer = null;
     this.bidLabelCache.clear();
     this.askLabelCache.clear();
   }
-}
-
-// Cache labels prix arrondi au cent (suffisant pour BTC tick 0.1, et
-// label utilisateur en best-of-book ne demande pas plus que 2 décimales).
-// Bornage à 256 entrées : suffisant pour ~26 USD de range autour du mid
-// avant éviction. Évite la fuite mémoire si BTC drift de 1000 USD pendant
-// la session.
-function getCachedLabel(price: number, cache: Map<number, string>): string {
-  const rounded = Math.round(price * 100) / 100;
-  const cached = cache.get(rounded);
-  if (cached !== undefined) return cached;
-  if (cache.size >= LABEL_CACHE_MAX) cache.clear();
-  const label = rounded.toFixed(2);
-  cache.set(rounded, label);
-  return label;
 }

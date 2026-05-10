@@ -37,4 +37,18 @@ export interface RenderTransform {
   yToPrice(y: number): number;
   timeToX(time: number): number;
   xToTime(x: number): number;
+
+  // REFONTE-7/P3.5 Fix 2 — bornes data vs display.
+  // Data = ce qui est binné (élargi 1.6× pour la marge de pan/zoom léger).
+  // Display = ce qui est visible (modifié par UI ; subset de data).
+  // Lus par les shaders pour le sample partial (LiquidityHeatmapLayer) et
+  // par le code CPU des bubbles pour le calcul cx/cy.
+  getDataPriceMin(): number;
+  getDataPriceMax(): number;
+  getDataTimeMin(): number;
+  getDataTimeMax(): number;
+  getDisplayPriceMin(): number;
+  getDisplayPriceMax(): number;
+  getDisplayTimeMin(): number;
+  getDisplayTimeMax(): number;
 }

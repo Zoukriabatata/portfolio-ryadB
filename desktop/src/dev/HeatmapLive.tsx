@@ -6,10 +6,7 @@ import { TradeBubblesLayer } from "../render/TradeBubblesLayer";
 import { KeyLevelsLayer } from "../render/KeyLevelsLayer";
 import { VolumeProfileLayer } from "../render/VolumeProfileLayer";
 import { CrosshairLayer } from "../render/CrosshairLayer";
-import {
-  BestBidAskLayer,
-  type BestBidAskData,
-} from "../render/BestBidAskLayer";
+import { BestBidAskLayer } from "../render/BestBidAskLayer";
 import { AxesLayer } from "../render/AxesLayer";
 import { DomPanel } from "./DomPanel";
 import type { HeatmapEngine as HeatmapEngineType } from "../render/HeatmapEngine";
@@ -78,9 +75,6 @@ export function HeatmapLive() {
     const bestBidAskLayer = new BestBidAskLayer();
     const crosshairLayer = new CrosshairLayer();
     const axesLayer = new AxesLayer();
-    // REFONTE-7/P2 : objet réutilisé pour zero-allocation per frame.
-    // L'engine appelle getData() à chaque update (always-dirty layer).
-    const bestBidAskData: BestBidAskData = { bestBid: null, bestAsk: null };
     bubblesLayer.setCanvasSize(canvas.width, canvas.height);
 
     // ResizeObserver : suit le wrapper parent pour redimensionner les 2
@@ -100,12 +94,8 @@ export function HeatmapLive() {
     engine.addLayer(liquidityLayer, 1, () => engine.getLiquidityFrame());
     engine.addLayer(bubblesLayer, 5, () => engine.getTradesBuffer());
     engine.addLayer(keyLevelsLayer, 10, () => engine.getKeyLevelsSnapshot());
-    engine.addLayer(bestBidAskLayer, 12, () => {
-      const snap = engine.getLastOrderbookSnap();
-      bestBidAskData.bestBid = snap?.bids[0]?.price ?? null;
-      bestBidAskData.bestAsk = snap?.asks[0]?.price ?? null;
-      return bestBidAskData;
-    });
+    // REFONTE-7/P3.5 Fix 3 : staircase BBO depuis l'historique des snaps.
+    engine.addLayer(bestBidAskLayer, 12, () => engine.getBBOHistory());
     engine.addLayer(crosshairLayer, 15, () => engine.getCrosshairData());
     engine.addLayer(
       volumeProfileLayer,
