@@ -1,0 +1,41 @@
+/* Phase B / M4.7a — horizontal timeframe pills, ATAS-style. */
+
+.tf-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tf-pill {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  min-width: 32px;
+}
+
+.tf-pill:hover:not(:disabled):not(.tf-pill-active) {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.tf-pill-active {
+  background: #fbbf24;
+  border-color: #fbbf24;
+  color: #0f172a;
+}
+
+.tf-pill-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tf-pill:disabled {
+  cursor: not-allowed;
+}

@@ -1,0 +1,83 @@
+/* Phase B / M4 — wrapper styling for the canvas component. The
+ * actual chart pixels are painted by FootprintCanvasRenderer; this
+ * file just owns the bezel/header. */
+
+.fp-canvas-wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 220px);
+  min-height: 360px;
+  border: 1px solid var(--border, #1f2333);
+  border-radius: 8px;
+  background: var(--surface, #0d0f1b);
+  overflow: hidden;
+}
+
+.fp-canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #f0f6fc);
+  border-bottom: 1px solid var(--border, #1f2333);
+  background: var(--surface-elevated, #161a26);
+}
+
+.fp-canvas-title {
+  letter-spacing: 0.02em;
+}
+
+.fp-canvas-meta {
+  color: var(--text-secondary, #a3a7b3);
+  font-weight: 500;
+  font-size: 11px;
+}
+
+.fp-canvas-container {
+  flex: 1;
+  position: relative;
+  background: #07080f;
+}
+
+.fp-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  user-select: none;
+}
+
+.fp-canvas.fp-canvas-dragging {
+  cursor: grabbing;
+}
+
+/* M4.6 — Shift+drag pans the Y axis. ns-resize signals "vertical"
+ * intent more clearly than grabbing in that mode. The class is set
+ * alongside fp-canvas-dragging and overrides via specificity. */
+.fp-canvas.fp-canvas-dragging.fp-canvas-y-drag {
+  cursor: ns-resize;
+}
+
+.fp-canvas-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fp-reset-view {
+  background: transparent;
+  border: 1px solid var(--border, #334155);
+  color: var(--text-secondary, #94a3b8);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+.fp-reset-view:hover {
+  color: var(--text-primary, #e2e8f0);
+  border-color: var(--text-secondary, #475569);
+}

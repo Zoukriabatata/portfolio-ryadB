@@ -71,7 +71,9 @@ export function Layout() {
         brokerLabel={label}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-      <Outlet />
+      <main className="app-main">
+        <Outlet />
+      </main>
       {settingsOpen && (
         <div
           className="app-modal-backdrop"

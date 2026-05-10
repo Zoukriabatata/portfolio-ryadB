@@ -1,8 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { BrokerSettings } from "./BrokerSettings";
+import {
+  FootprintCanvas,
+  type FootprintCanvasHandle,
+} from "./footprint/FootprintCanvas";
+import { SymbolPickerModal } from "./footprint/SymbolPickerModal";
+import {
+  TimeframePills,
+  type SupportedTimeframe,
+} from "./footprint/TimeframePills";
+import { ZoomControls } from "./footprint/ZoomControls";
+import { FootprintStatusBar } from "./footprint/FootprintStatusBar";
+import { MagnetToggle } from "./footprint/MagnetToggle";
+import { AdvancedSettingsModal } from "./footprint/AdvancedSettingsModal";
+import { useFootprintSettingsStore } from "../stores/useFootprintSettingsStore";
+import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvasRenderer";
+import { IndicatorsRunner } from "../lib/footprint/indicatorsAsync";
+import { findSymbol } from "../lib/footprint/symbols";
 import "./RithmicFootprint.css";
+import "./footprint/CryptoFootprintNav.css";
 
 // Mirror of RithmicStatus on the Rust side (camelCase via serde rename).
 type RithmicStatus = {
@@ -55,8 +73,10 @@ type Phase =
   | { kind: "ready"; creds: RedactedCreds }
   | { kind: "failed"; error: string };
 
-const TIMEFRAMES = ["5s", "15s", "1m", "5m"] as const;
-type Timeframe = (typeof TIMEFRAMES)[number];
+// Timeframes come from `TimeframePills` (M4.7a) — same supported set
+// (5s/15s/1m/5m) on both Rithmic and crypto until the Rust side
+// grows 30s/3m/15m. MAX_BARS caps the React-side bar Map; the
+// renderer still pans through whatever's mounted.
 const MAX_BARS = 20;
 
 const EMPTY_STATUS: RithmicStatus = {
@@ -221,6 +241,17 @@ export function RithmicFootprint() {
   return <FootprintLive creds={phase.creds} onOpenSettings={onOpenSettings} />;
 }
 
+/** Map a tick-size hint to a sensible display decimals count. */
+function decimalsFromTick(tick: number | undefined): number {
+  if (!tick || !isFinite(tick)) return 2;
+  if (tick >= 1) return 0;
+  // Count fractional digits — works for 0.25 → 2, 0.005 → 3, 0.001 → 3.
+  const text = tick.toString();
+  const dot = text.indexOf(".");
+  if (dot === -1) return 2;
+  return Math.min(8, text.length - dot - 1);
+}
+
 function FootprintLive({
   creds,
   onOpenSettings,
@@ -231,12 +262,100 @@ function FootprintLive({
   const [status, setStatus] = useState<RithmicStatus>(EMPTY_STATUS);
   const [symbol, setSymbol] = useState("MNQM6");
   const [exchange, setExchange] = useState("CME");
-  const [timeframe, setTimeframe] = useState<Timeframe>("5s");
+  const [timeframe, setTimeframe] = useState<SupportedTimeframe>("5s");
   const [bars, setBars] = useState<Map<number, FootprintBar>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const canvasHandle = useRef<FootprintCanvasHandle>(null);
+  const runnerRef = useRef<IndicatorsRunner | null>(null);
 
   const fullSymbol = useMemo(() => `${symbol}.${exchange}`, [symbol, exchange]);
+
+  // Derive the price decimals from the catalog tick hint. Auto mode
+  // in the renderer falls back to this prop; numeric override in
+  // settings still wins.
+  const priceDecimals = useMemo(() => {
+    const def = findSymbol("rithmic", symbol);
+    return decimalsFromTick(def?.tickSizeHint);
+  }, [symbol]);
+
+  // Subscribe field-by-field to the settings store (same pattern as
+  // CryptoFootprint) so the renderer-effect only fires when a flag
+  // it actually consumes changes.
+  const showGrid = useFootprintSettingsStore((s) => s.showGrid);
+  const showPocSession = useFootprintSettingsStore((s) => s.showPocSession);
+  const showPocBar = useFootprintSettingsStore((s) => s.showPocBar);
+  const showVolumeTooltip = useFootprintSettingsStore(
+    (s) => s.showVolumeTooltip,
+  );
+  const showOhlcHeader = useFootprintSettingsStore((s) => s.showOhlcHeader);
+  const priceDecimalsMode = useFootprintSettingsStore(
+    (s) => s.priceDecimalsMode,
+  );
+  const volumeFormat = useFootprintSettingsStore((s) => s.volumeFormat);
+  const magnetMode = useFootprintSettingsStore((s) => s.magnetMode);
+  const showStackedImbalances = useFootprintSettingsStore(
+    (s) => s.showStackedImbalances,
+  );
+  const showNakedPOCs = useFootprintSettingsStore((s) => s.showNakedPOCs);
+  const showUnfinishedAuctions = useFootprintSettingsStore(
+    (s) => s.showUnfinishedAuctions,
+  );
+  const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
+  const imbalanceMinConsecutive = useFootprintSettingsStore(
+    (s) => s.imbalanceMinConsecutive,
+  );
+
+  const rendererSettings: FootprintRendererSettings = useMemo(
+    () => ({
+      showGrid,
+      showPocSession,
+      showPocBar,
+      showVolumeTooltip,
+      showOhlcHeader,
+      priceDecimalsOverride:
+        priceDecimalsMode === "auto" ? null : parseInt(priceDecimalsMode, 10),
+      volumeFormat,
+      magnetMode,
+      showStackedImbalances,
+      showNakedPOCs,
+      showUnfinishedAuctions,
+    }),
+    [
+      showGrid,
+      showPocSession,
+      showPocBar,
+      showVolumeTooltip,
+      showOhlcHeader,
+      priceDecimalsMode,
+      volumeFormat,
+      magnetMode,
+      showStackedImbalances,
+      showNakedPOCs,
+      showUnfinishedAuctions,
+    ],
+  );
+
+  useEffect(() => {
+    canvasHandle.current?.applySettings(rendererSettings);
+  }, [rendererSettings]);
+
+  // Indicators runner — symmetric to CryptoFootprint. Same store
+  // settings drive both surfaces so user prefs follow them across
+  // tabs without sync work.
+  useEffect(() => {
+    const runner = new IndicatorsRunner();
+    runner.setListener((result) => {
+      canvasHandle.current?.applyIndicators(result);
+    });
+    runnerRef.current = runner;
+    return () => {
+      runner.destroy();
+      runnerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     invoke<RithmicStatus>("rithmic_status")
@@ -315,189 +434,151 @@ function FootprintLive({
     () => [...bars.values()].sort((a, b) => b.bucketTsNs - a.bucketTsNs),
     [bars],
   );
-  const totalTrades = useMemo(
-    () => sortedBars.reduce((s, b) => s + b.tradeCount, 0),
-    [sortedBars],
-  );
+
+  // Reschedule the indicator pipeline whenever bars or compute-
+  // affecting settings change. Visibility-only flags don't trigger
+  // recompute (renderer uses cached IndicatorsResult).
+  useEffect(() => {
+    const runner = runnerRef.current;
+    if (!runner) return;
+    const currentPrice = sortedBars[0]?.close ?? 0;
+    runner.schedule(
+      sortedBars,
+      {
+        imbalanceRatio,
+        minConsecutive: imbalanceMinConsecutive,
+        enableStackedImbalances: showStackedImbalances,
+        enableNakedPOCs: showNakedPOCs,
+        enableUnfinishedAuctions: showUnfinishedAuctions,
+      },
+      currentPrice,
+    );
+  }, [
+    sortedBars,
+    imbalanceRatio,
+    imbalanceMinConsecutive,
+    showStackedImbalances,
+    showNakedPOCs,
+    showUnfinishedAuctions,
+  ]);
+
+  // Picker selects a symbol; the catalog entry tells us which CME
+  // group venue to subscribe through (CME / NYMEX / COMEX / CBOT).
+  // If a user types a custom symbol that isn't in the catalog the
+  // exchange stays whatever it was — usually CME, which is fine for
+  // the index futures most operators trade.
+  const handleSymbolPicked = useCallback((nextSymbol: string) => {
+    setSymbol(nextSymbol);
+    const def = findSymbol("rithmic", nextSymbol);
+    if (def?.cmeExchange) setExchange(def.cmeExchange);
+    setBars(new Map());
+  }, []);
+
+  const handleTimeframeChange = useCallback((next: SupportedTimeframe) => {
+    setTimeframe(next);
+    setBars(new Map());
+  }, []);
+
+  const isSubscribed = status.subscriptions.includes(fullSymbol);
+  const connected = status.connected && status.loggedIn;
 
   return (
     <div className="rithmic-footprint">
-      <header className="rf-header">
-        <h1>OrderflowV2 — Rithmic Live</h1>
-        <div className="rf-status-info">
-          <span className="rf-status rf-status-connected">Connected</span>
-          <span className="rf-status-detail">
-            {creds.systemName} · {creds.username}
-          </span>
-          {status.fcm && (
-            <span className="rf-status-detail">
-              FCM {status.fcm} · {status.country} · heartbeat{" "}
-              {status.heartbeatSecs ?? "?"}s
-            </span>
-          )}
-          <button
-            type="button"
-            className="rf-link"
-            onClick={onOpenSettings}
-          >
-            Edit broker settings
-          </button>
-        </div>
-      </header>
+      <FootprintStatusBar
+        symbol={symbol}
+        exchange={`Rithmic ${exchange}`}
+        timeframe={timeframe}
+        bars={sortedBars}
+        connected={connected}
+        busy={busy}
+        priceDecimals={priceDecimals}
+      />
 
-      <section className="rf-controls">
-        <label>
-          <span>Symbol</span>
-          <input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            disabled={busy}
-          />
-        </label>
-        <label>
-          <span>Exchange</span>
-          <input
-            value={exchange}
-            onChange={(e) => setExchange(e.target.value.toUpperCase())}
-            disabled={busy}
-          />
-        </label>
-        <label>
-          <span>Timeframe</span>
-          <select
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value as Timeframe)}
-            disabled={busy}
-          >
-            {TIMEFRAMES.map((tf) => (
-              <option key={tf} value={tf}>
-                {tf}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" onClick={handleSubscribe} disabled={busy}>
+      <section className="cf-controls">
+        <button
+          type="button"
+          className="cf-symbol-btn"
+          onClick={() => setPickerOpen(true)}
+          disabled={busy}
+        >
+          {symbol} <span className="cf-symbol-caret">▾</span>
+        </button>
+        <TimeframePills
+          value={timeframe}
+          onChange={handleTimeframeChange}
+          disabled={busy}
+        />
+        <MagnetToggle />
+        <button
+          type="button"
+          className="cf-icon-btn"
+          onClick={() => setSettingsOpen(true)}
+          title="Footprint settings"
+          aria-label="Footprint settings"
+        >
+          ⚙
+        </button>
+        <span className="cf-controls-spacer" />
+        <button
+          type="button"
+          onClick={handleSubscribe}
+          disabled={busy || !connected}
+          className="cf-action-btn cf-action-primary"
+        >
           Subscribe
         </button>
-        {status.subscriptions.includes(fullSymbol) && (
+        {isSubscribed && (
           <button
             type="button"
             onClick={handleUnsubscribe}
             disabled={busy}
-            className="rf-secondary"
+            className="cf-action-btn cf-action-secondary"
           >
             Unsubscribe
           </button>
         )}
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="cf-action-btn"
+          title={`${creds.systemName} · ${creds.username}`}
+        >
+          Edit broker
+        </button>
       </section>
 
       {error && <div className="rf-error">{error}</div>}
 
       <section className="rf-footprint">
-        <h2>
-          {fullSymbol} · {timeframe} · {sortedBars.length} bar
-          {sortedBars.length === 1 ? "" : "s"} · {totalTrades} trade
-          {totalTrades === 1 ? "" : "s"}
-        </h2>
-        {sortedBars.length === 0 ? (
-          <div className="rf-empty">
-            {status.subscriptions.includes(fullSymbol)
-              ? "Waiting for ticks…"
-              : "Subscribe to start streaming."}
-          </div>
-        ) : (
-          <div className="rf-bars">
-            {sortedBars.map((bar) => (
-              <BarView key={bar.bucketTsNs} bar={bar} />
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function BarView({ bar }: { bar: FootprintBar }) {
-  const date = new Date(bar.bucketTsNs / 1_000_000);
-  const time = date.toLocaleTimeString("fr-FR", { hour12: false });
-
-  const maxLevelVolume = Math.max(
-    ...bar.levels.map((l) => l.buyVolume + l.sellVolume),
-    1,
-  );
-  const sortedLevels = [...bar.levels].sort((a, b) => b.price - a.price);
-
-  return (
-    <div
-      className={`rf-bar ${
-        bar.totalDelta >= 0 ? "rf-bar-bullish" : "rf-bar-bearish"
-      }`}
-    >
-      <div className="rf-bar-header">
-        <span className="rf-bar-time">{time}</span>
-        <span className="rf-bar-ohlc">
-          O {bar.open.toFixed(2)} · H {bar.high.toFixed(2)} · L{" "}
-          {bar.low.toFixed(2)} · C {bar.close.toFixed(2)}
-        </span>
-        <span
-          className={
-            bar.totalDelta >= 0 ? "rf-delta-pos" : "rf-delta-neg"
-          }
-        >
-          Δ {bar.totalDelta >= 0 ? "+" : ""}
-          {bar.totalDelta.toFixed(0)}
-        </span>
-        <span className="rf-bar-vol">
-          vol {bar.totalVolume.toFixed(0)} · {bar.tradeCount} trade
-          {bar.tradeCount === 1 ? "" : "s"}
-        </span>
-      </div>
-      <div className="rf-bar-levels">
-        {sortedLevels.map((level) => (
-          <LevelRow
-            key={level.price}
-            level={level}
-            maxVolume={maxLevelVolume}
+        <div className="cf-canvas-wrap">
+          <FootprintCanvas
+            ref={canvasHandle}
+            bars={sortedBars}
+            symbol={symbol}
+            timeframe={timeframe}
+            priceDecimals={priceDecimals}
+            bare
           />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LevelRow({
-  level,
-  maxVolume,
-}: {
-  level: PriceLevel;
-  maxVolume: number;
-}) {
-  const total = level.buyVolume + level.sellVolume;
-  const widthPct = (total / maxVolume) * 100;
-  const buyPct = total > 0 ? (level.buyVolume / total) * 100 : 0;
-  const delta = level.buyVolume - level.sellVolume;
-
-  return (
-    <div className="rf-level">
-      <span className="rf-level-price">{level.price.toFixed(2)}</span>
-      <span className="rf-level-volumes">
-        b {level.buyVolume.toFixed(0)} · s {level.sellVolume.toFixed(0)}
-      </span>
-      <div className="rf-level-bar-track">
-        <div className="rf-level-bar" style={{ width: `${widthPct}%` }}>
-          <div className="rf-level-buy" style={{ width: `${buyPct}%` }} />
-          <div
-            className="rf-level-sell"
-            style={{ width: `${100 - buyPct}%` }}
+          <ZoomControls
+            onZoomIn={() => canvasHandle.current?.zoomIn()}
+            onZoomOut={() => canvasHandle.current?.zoomOut()}
+            onReset={() => canvasHandle.current?.resetView()}
           />
         </div>
-      </div>
-      <span
-        className={delta >= 0 ? "rf-level-delta-pos" : "rf-level-delta-neg"}
-      >
-        {delta >= 0 ? "+" : ""}
-        {delta.toFixed(0)}
-      </span>
+      </section>
+
+      <SymbolPickerModal
+        open={pickerOpen}
+        exchange="rithmic"
+        currentSymbol={symbol}
+        onSelect={handleSymbolPicked}
+        onClose={() => setPickerOpen(false)}
+      />
+
+      <AdvancedSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   );
 }

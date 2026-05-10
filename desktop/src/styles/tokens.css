@@ -1,0 +1,26 @@
+/* Heatmap palette froid → chaud (cf. brief refonte §3, Bookmap-grade).
+   7 stops lus par desktop/src/render/gradient.ts pour construire la
+   texture 256×1 du LiquidityHeatmapLayer. */
+:root {
+  --heat-0: #0a0d12;
+  --heat-1: #102845;
+  --heat-2: #1f4e8c;
+  --heat-3: #2a8c9e;
+  --heat-4: #d9aa3f;
+  --heat-5: #e07a3a;
+  --heat-6: #e74c3c;
+
+  /* Trade bubbles (REFONTE-4a). Couleurs côté agresseur :
+     bid = vert (acheteur agresseur, prix monte)
+     ask = rouge (vendeur agresseur, prix descend) */
+  --bid: #26a69a;
+  --ask: #ef5350;
+
+  /* Key levels (REFONTE-4b). POC=jaune, VAH/VAL=violet, VWAP=cyan. */
+  --level-poc: #fde047;
+  --level-va: #c084fc;
+  --level-vwap: #60a5fa;
+
+  /* Bars hors value area sur VolumeProfileLayer (REFONTE-4c). Gris froid. */
+  --vp-neutral: #5d6b7e;
+}

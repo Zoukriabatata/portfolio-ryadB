@@ -1,0 +1,48 @@
+/* Phase B / M4.7a — floating zoom toolbar. */
+
+.zc-stack {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #334155;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.zc-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #cbd5e1;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zc-btn:hover {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+.zc-btn:active {
+  transform: translateY(1px);
+}
+
+.zc-reset {
+  font-size: 14px;
+}

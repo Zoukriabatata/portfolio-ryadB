@@ -1,0 +1,92 @@
+/* Phase B / M4.7a — compact live status bar above the canvas. */
+
+.fsb-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  color: #cbd5e1;
+  user-select: none;
+}
+
+.fsb-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.fsb-dot-on {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.55);
+}
+
+.fsb-dot-off {
+  background: #ef4444;
+}
+
+.fsb-dot-busy {
+  background: #f59e0b;
+  animation: fsb-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes fsb-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.fsb-symbol {
+  color: #f1f5f9;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.fsb-sep {
+  color: #475569;
+}
+
+.fsb-tf {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.fsb-exchange {
+  color: #94a3b8;
+}
+
+.fsb-spacer {
+  flex: 1;
+}
+
+.fsb-price {
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.fsb-delta {
+  font-weight: 600;
+}
+
+.fsb-pos {
+  color: #22c55e;
+}
+
+.fsb-neg {
+  color: #ef4444;
+}
+
+.fsb-vol,
+.fsb-trades {
+  color: #94a3b8;
+}
+
+.fsb-countdown {
+  color: #94a3b8;
+  padding-left: 6px;
+  border-left: 1px solid #1e293b;
+}

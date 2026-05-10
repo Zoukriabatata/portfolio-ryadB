@@ -14,6 +14,9 @@ pub enum ConnectorError {
     #[error("Protobuf encode error: {0}")]
     ProtoEncode(#[from] prost::EncodeError),
 
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+
     #[error("Authentication failed: {0}")]
     AuthFailed(String),
 

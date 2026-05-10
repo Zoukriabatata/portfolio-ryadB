@@ -1,0 +1,353 @@
+// Phase B / M4 + M4.5 + M4.7a — React wrapper around the
+// imperative FootprintCanvasRenderer.
+//
+// Owns the InteractionState ref (pan/zoom/hover) so the renderer
+// can pull the latest values inside its draw loop without React
+// rerenders. Mouse/wheel/keyboard handlers update the ref through
+// the pure helpers in `lib/footprint/interactions.ts` and then ask
+// the renderer for a paint via `tickRender()`.
+//
+// M4.7a — exposes an imperative `FootprintCanvasHandle`
+// (zoomIn/zoomOut/resetView) via forwardRef + useImperativeHandle
+// so the floating ZoomControls toolbar can drive the same internal
+// state that the wheel/drag listeners mutate.
+
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
+import type { FootprintBar } from "../FootprintBarView";
+import {
+  FootprintCanvasRenderer,
+  type FootprintRendererSettings,
+} from "../../lib/footprint/FootprintCanvasRenderer";
+import { tauriBarToRendererBar } from "../../lib/footprint/adapter";
+import type { IndicatorsResult } from "../../lib/footprint/indicators";
+import {
+  DEFAULT_INTERACTION,
+  applyWheelZoom,
+  applyWheelZoomY,
+  clampScrollX,
+  clampScrollY,
+  endDrag,
+  setHover,
+  startDrag,
+  updateDrag,
+  type InteractionState,
+} from "../../lib/footprint/interactions";
+import "./FootprintCanvas.css";
+
+export interface FootprintCanvasProps {
+  bars: FootprintBar[];
+  symbol: string;
+  timeframe: string;
+  priceDecimals?: number;
+  /** Header label shown above the canvas. Optional override. */
+  title?: string;
+  /** When true the component renders just the canvas + header
+   *  (no internal toolbars). Caller is responsible for any chrome
+   *  around it — used by CryptoFootprint M4.7a where the
+   *  ZoomControls floats over the canvas at the route level. */
+  bare?: boolean;
+}
+
+export type FootprintCanvasHandle = {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+  /** M4.7b — push the user-controlled settings (visibility flags,
+   *  numeric format, magnet mode) into the renderer and request a
+   *  paint. Caller passes the renderer's shape, not the Zustand
+   *  store directly, so the component stays decoupled from the
+   *  store's exact field names. */
+  applySettings: (settings: FootprintRendererSettings) => void;
+  /** M4.7c — feed pre-computed indicator overlays into the
+   *  renderer. The React layer's IndicatorsRunner produces these
+   *  off the main thread and pipes them through this method. */
+  applyIndicators: (result: IndicatorsResult) => void;
+};
+
+export const FootprintCanvas = forwardRef<
+  FootprintCanvasHandle,
+  FootprintCanvasProps
+>(function FootprintCanvas(
+  { bars, symbol, timeframe, priceDecimals = 2, title, bare = false },
+  ref,
+) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<FootprintCanvasRenderer | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const interactionRef = useRef<InteractionState>({ ...DEFAULT_INTERACTION });
+  const barsCountRef = useRef<number>(0);
+
+  // Mount renderer once. The interaction getter closes over
+  // `interactionRef.current` so the renderer always reads the
+  // latest state.
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    rendererRef.current = new FootprintCanvasRenderer(canvasRef.current, {
+      getInteractionState: () => interactionRef.current,
+    });
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      rendererRef.current = null;
+    };
+  }, []);
+
+  // ResizeObserver — keep DPR + canvas dimensions in sync with the
+  // container as the layout reflows.
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      rendererRef.current?.resize(width, height);
+      tickRender();
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rendererBars = useMemo(
+    () => bars.map(tauriBarToRendererBar),
+    [bars],
+  );
+
+  // Push bars + decimals into the renderer when they change, then
+  // request a paint.
+  //
+  // Symbol-switch reset: when the bar list collapses to empty (the
+  // user picked a different symbol/exchange), drop any user pan/zoom
+  // — keeping a stale scrollY against a brand-new price range would
+  // leave the new chart looking either empty or off-axis.
+  useEffect(() => {
+    if (rendererBars.length === 0 && barsCountRef.current > 0) {
+      interactionRef.current = { ...DEFAULT_INTERACTION };
+    }
+    barsCountRef.current = rendererBars.length;
+    const r = rendererRef.current;
+    if (!r) return;
+    r.setBars(rendererBars);
+    r.setPriceDecimals(priceDecimals);
+    tickRender();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rendererBars, priceDecimals]);
+
+  function tickRender() {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      rendererRef.current?.render();
+    });
+  }
+
+  // Re-clamp scroll after any change that shifts content (zoom,
+  // drag, new bars). Called from event handlers below. Both axes
+  // are clamped here so we don't have to remember which event
+  // touched which axis.
+  function clampAndRender() {
+    const r = rendererRef.current;
+    if (r) {
+      const cap = r.getVisibleBarsCapacity();
+      const { totalContentHeight, chartHeight } = r.getYExtent();
+      interactionRef.current = {
+        ...interactionRef.current,
+        scrollX: clampScrollX(
+          interactionRef.current.scrollX,
+          barsCountRef.current,
+          interactionRef.current.cellWidth,
+          cap,
+        ),
+        // Y clamp only matters when the user has overridden — the
+        // autofit path ignores scrollY entirely.
+        scrollY: interactionRef.current.userOverrodeY
+          ? clampScrollY(
+              interactionRef.current.scrollY,
+              totalContentHeight,
+              chartHeight,
+            )
+          : 0,
+      };
+    }
+    tickRender();
+  }
+
+  // Mouse / wheel handlers. Mousemove + mouseup live on `window` so
+  // a drag that escapes the canvas still updates correctly.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      // Ctrl/Cmd+wheel = Y zoom (modifies rowHeight). Plain wheel
+      // stays on the X axis (M4.5 behaviour). We test both keys so
+      // Mac trackpads report the same intent as Windows.
+      if (e.ctrlKey || e.metaKey) {
+        interactionRef.current = applyWheelZoomY(
+          interactionRef.current,
+          e.deltaY,
+        );
+      } else {
+        interactionRef.current = applyWheelZoom(
+          interactionRef.current,
+          e.deltaY,
+          e.clientX - rect.left,
+          rect.width,
+        );
+      }
+      clampAndRender();
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      // Shift+drag = Y pan, plain drag = X pan (M4.5 behaviour).
+      const mode = e.shiftKey ? "y" : "x";
+      interactionRef.current = startDrag(interactionRef.current, x, y, mode);
+      canvas.classList.add("fp-canvas-dragging");
+      if (mode === "y") canvas.classList.add("fp-canvas-y-drag");
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (interactionRef.current.isDragging) {
+        interactionRef.current = updateDrag(
+          interactionRef.current,
+          x,
+          y,
+        );
+        clampAndRender();
+      } else {
+        const inside =
+          x >= 0 && x <= rect.width && y >= 0 && y <= rect.height;
+        interactionRef.current = setHover(
+          interactionRef.current,
+          inside ? x : null,
+          inside ? y : null,
+        );
+        tickRender();
+      }
+    };
+
+    const onMouseUp = () => {
+      if (!interactionRef.current.isDragging) return;
+      interactionRef.current = endDrag(interactionRef.current);
+      canvas.classList.remove("fp-canvas-dragging");
+      canvas.classList.remove("fp-canvas-y-drag");
+    };
+
+    const onMouseLeave = () => {
+      interactionRef.current = setHover(interactionRef.current, null, null);
+      tickRender();
+    };
+
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("mouseleave", onMouseLeave);
+    return () => {
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("mouseleave", onMouseLeave);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function onResetView() {
+    interactionRef.current = { ...DEFAULT_INTERACTION };
+    tickRender();
+  }
+
+  // Imperative API for ZoomControls. Both zoom buttons synthesise a
+  // wheel event anchored at the centre of the canvas — same pure
+  // helper the wheel listener uses, so the buttons end up in the
+  // exact same state the user would reach by scrolling.
+  useImperativeHandle(
+    ref,
+    () => ({
+      zoomIn: () => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        interactionRef.current = applyWheelZoom(
+          interactionRef.current,
+          -100,
+          rect.width / 2,
+          rect.width,
+        );
+        tickRender();
+      },
+      zoomOut: () => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        interactionRef.current = applyWheelZoom(
+          interactionRef.current,
+          100,
+          rect.width / 2,
+          rect.width,
+        );
+        tickRender();
+      },
+      resetView: onResetView,
+      applySettings: (settings) => {
+        rendererRef.current?.setSettings(settings);
+        tickRender();
+      },
+      applyIndicators: (result) => {
+        rendererRef.current?.setIndicators(result);
+        tickRender();
+      },
+    }),
+    // The handlers read mutable refs only, so a stable identity is
+    // fine — useImperativeHandle deps stay empty.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  if (bare) {
+    return (
+      <div ref={containerRef} className="fp-canvas-container fp-canvas-container-bare">
+        <canvas ref={canvasRef} className="fp-canvas" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="fp-canvas-wrap">
+      <header className="fp-canvas-header">
+        <span className="fp-canvas-title">{title ?? `${symbol} · ${timeframe}`}</span>
+        <span className="fp-canvas-meta">
+          {bars.length} bar{bars.length === 1 ? "" : "s"}
+          <button
+            type="button"
+            className="fp-reset-view"
+            onClick={onResetView}
+            title="Reset pan + zoom to defaults"
+          >
+            Reset view
+          </button>
+        </span>
+      </header>
+      <div ref={containerRef} className="fp-canvas-container">
+        <canvas ref={canvasRef} className="fp-canvas" />
+      </div>
+    </div>
+  );
+});
