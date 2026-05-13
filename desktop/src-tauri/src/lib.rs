@@ -286,7 +286,7 @@ pub fn run() {
             // `pending` HashMap; the only shared state is the DB
             // connection (briefly held via blocking_lock during flush).
             let rithmic_writer_db = cache_db.clone();
-            tokio::spawn(async move {
+            tauri::async_runtime::spawn(async move {
                 let writer = cache::writer::CacheWriter::new(
                     rithmic_writer_db,
                     Duration::from_secs(2),
@@ -295,7 +295,7 @@ pub fn run() {
             });
 
             let crypto_writer_db = cache_db.clone();
-            tokio::spawn(async move {
+            tauri::async_runtime::spawn(async move {
                 let writer = cache::writer::CacheWriter::new(
                     crypto_writer_db,
                     Duration::from_secs(2),
