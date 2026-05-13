@@ -7,9 +7,11 @@
 
 mod auth;
 pub mod brokers;
+mod cache;
 mod commands;
 pub mod connectors;
 pub mod engine;
+pub mod journal;
 mod machine;
 mod prefs;
 mod state;
@@ -61,9 +63,9 @@ async fn cmd_login(
         .map_err(err_to_string)?;
 
     let session = Session {
-        token:      resp.token.clone(),
+        token: resp.token.clone(),
         expires_at: resp.expires_at.clone(),
-        license:    resp.license.clone(),
+        license: resp.license.clone(),
     };
     auth::save_session(&state.data_dir, &session)
         .await
@@ -75,14 +77,18 @@ async fn cmd_login(
 
 #[tauri::command]
 async fn cmd_logout(state: State<'_, Arc<AppState>>) -> Result<(), String> {
-    auth::clear_session(&state.data_dir).await.map_err(err_to_string)?;
+    auth::clear_session(&state.data_dir)
+        .await
+        .map_err(err_to_string)?;
     *state.session.lock().await = None;
     Ok(())
 }
 
 #[tauri::command]
 async fn cmd_get_first_launch_completed(state: State<'_, Arc<AppState>>) -> Result<bool, String> {
-    Ok(prefs::load_prefs(&state.data_dir).await.first_launch_completed)
+    Ok(prefs::load_prefs(&state.data_dir)
+        .await
+        .first_launch_completed)
 }
 
 #[tauri::command]
@@ -128,9 +134,9 @@ async fn cmd_get_bridge_url(
     // freshness guard sees the same value the rest of the shell uses
     // for subsequent IPC calls.
     let session = Session {
-        token:      resp.token.clone(),
+        token: resp.token.clone(),
         expires_at: resp.expires_at.clone(),
-        license:    resp.license.clone(),
+        license: resp.license.clone(),
     };
     auth::save_session(&state.data_dir, &session)
         .await
@@ -144,7 +150,11 @@ async fn cmd_get_bridge_url(
 async fn cmd_heartbeat(state: State<'_, Arc<AppState>>) -> Result<LoginResponse, String> {
     let token = {
         let guard = state.session.lock().await;
-        guard.as_ref().ok_or_else(|| "NO_SESSION".to_string())?.token.clone()
+        guard
+            .as_ref()
+            .ok_or_else(|| "NO_SESSION".to_string())?
+            .token
+            .clone()
     };
     let os = machine::get_os();
 
@@ -153,9 +163,9 @@ async fn cmd_heartbeat(state: State<'_, Arc<AppState>>) -> Result<LoginResponse,
         .map_err(err_to_string)?;
 
     let session = Session {
-        token:      resp.token.clone(),
+        token: resp.token.clone(),
         expires_at: resp.expires_at.clone(),
-        license:    resp.license.clone(),
+        license: resp.license.clone(),
     };
     auth::save_session(&state.data_dir, &session)
         .await
@@ -184,7 +194,9 @@ fn build_state(app: &AppHandle) -> Arc<AppState> {
     // first_launch as completed so we don't re-show the welcome screen.
     let prefs_path = data_dir.join("prefs.json");
     if initial.is_some() && !prefs_path.exists() {
-        let migrated = prefs::Prefs { first_launch_completed: true };
+        let migrated = prefs::Prefs {
+            first_launch_completed: true,
+        };
         if let Ok(json) = serde_json::to_vec_pretty(&migrated) {
             let _ = std::fs::create_dir_all(&data_dir);
             let _ = std::fs::write(&prefs_path, json);
@@ -199,6 +211,23 @@ fn build_state(app: &AppHandle) -> Arc<AppState> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize the tracing subscriber so all `tracing::info!` /
+    // `tracing::warn!` / `tracing::error!` calls across the Rust
+    // codebase actually print to the terminal that ran `tauri dev`.
+    // Without this, the entire Rust diagnostic stream is silently
+    // dropped — including subscribe failures, reconnect attempts,
+    // Rithmic ack rejections, etc. Default level = INFO; bump to
+    // DEBUG via env: `RUST_LOG=desktop=debug,tokio_tungstenite=info`.
+    let env_filter = std::env::var("RUST_LOG").unwrap_or_else(|_| {
+        "info,desktop=debug,tokio_tungstenite=info,hyper=info,h2=info".to_string()
+    });
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::new(env_filter))
+        .with_target(true)
+        .with_level(true)
+        .with_ansi(true)
+        .try_init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -223,6 +252,24 @@ pub fn run() {
             commands::crypto_events::spawn_emitter(app.handle().clone(), &crypto_state.engine);
             app.manage(crypto_state);
 
+            // Native Journal SQLite — opened once at startup, lives
+            // for the app's lifetime. Path = OS app-data dir +
+            // `journal.db` (created on first launch).
+            let journal_path = app
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| std::env::temp_dir())
+                .join("journal.db");
+            match journal::JournalDb::open(journal_path.clone()) {
+                Ok(db) => {
+                    tracing::info!("journal: opened DB at {:?}", journal_path);
+                    app.manage(journal::commands::JournalState(std::sync::Arc::new(db)));
+                }
+                Err(e) => {
+                    tracing::error!("journal: failed to open DB at {:?}: {}", journal_path, e);
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -239,6 +286,9 @@ pub fn run() {
             commands::rithmic::rithmic_subscribe,
             commands::rithmic::rithmic_unsubscribe,
             commands::rithmic::rithmic_get_bars,
+            commands::rithmic::rithmic_fetch_history,
+            commands::rithmic::rithmic_fetch_tick_history,
+            commands::rithmic::rithmic_probe_tick_replay,
             commands::rithmic::rithmic_disconnect,
             commands::rithmic::rithmic_status,
             commands::brokers::list_broker_presets,
@@ -253,6 +303,28 @@ pub fn run() {
             commands::crypto::crypto_status,
             commands::crypto::crypto_orderbook_subscribe,
             commands::crypto::crypto_orderbook_unsubscribe,
+            // Native Journal — Day 1: trades CRUD + listing + stats.
+            journal::commands::journal_list_trades,
+            journal::commands::journal_get_trade,
+            journal::commands::journal_create_trade,
+            journal::commands::journal_update_trade,
+            journal::commands::journal_delete_trade,
+            journal::commands::journal_bulk_delete,
+            // Day 2: calendar aggregate + per-day trades + daily notes.
+            journal::commands::journal_calendar_month,
+            journal::commands::journal_trades_on_day,
+            journal::commands::journal_save_daily_note,
+            journal::commands::journal_delete_daily_note,
+            journal::commands::journal_list_daily_notes_month,
+            // Rithmic broker sync — auto-import fills as round-trip trades.
+            journal::commands::journal_sync_rithmic,
+            journal::commands::journal_rithmic_sync_status,
+            // CSV batch import (Apex export, NinjaTrader, etc.).
+            journal::commands::journal_import_trades,
+            // Day 3 — Playbook setups (saved trade ideas + criteria).
+            journal::commands::journal_list_playbook_setups,
+            journal::commands::journal_save_playbook_setup,
+            journal::commands::journal_delete_playbook_setup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -70,6 +70,7 @@ uuid           = { version = "1", features = ["v4"] }
 [dev-dependencies]
 tokio              = { version = "1", features = ["sync", "rt", "macros", "time", "net"] }
 chrono             = { version = "0.4", default-features = false, features = ["clock"] }
+tempfile           = "3"
 
 [[example]]
 name = "rithmic_connect"
