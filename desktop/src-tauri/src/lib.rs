@@ -19,8 +19,10 @@ mod state;
 use auth::{LoginResponse, Session};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::Mutex;
+use tokio::sync::Mutex as TokioMutex;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -242,6 +244,10 @@ pub fn run() {
             // particular adapter.
             let rithmic_state = state::RithmicState::new();
             commands::rithmic_events::spawn_emitter(app.handle().clone(), &rithmic_state.engine);
+            // Subscribe to the Rithmic engine bar stream BEFORE moving
+            // `rithmic_state` into `app.manage`. The receiver lives
+            // independently of the state struct.
+            let rithmic_writer_rx = rithmic_state.engine.updates();
             app.manage(rithmic_state);
 
             // Phase B / M2 — public crypto adapters share their own
@@ -250,7 +256,55 @@ pub fn run() {
             // crypto vs Rithmic bar streams when they coexist.
             let crypto_state = state::CryptoState::new();
             commands::crypto_events::spawn_emitter(app.handle().clone(), &crypto_state.engine);
+            let crypto_writer_rx = crypto_state.engine.updates();
             app.manage(crypto_state);
+
+            // ── Local bars cache (SQLite) ──────────────────────────────────
+            // File path: {app_data_dir}/bars.db. Persists footprint bars so
+            // the chart shows a lookback at the next launch without depending
+            // on Rithmic HISTORY_PLANT (denied on the Apex account).
+            // Retention: 7 days, purged at boot. We subscribe writer tasks to
+            // both the Rithmic and the crypto FootprintEngines — the DB is
+            // keyed on `full_symbol` so the two streams coexist safely.
+            let app_data = app
+                .path()
+                .app_data_dir()
+                .expect("app_data_dir resolvable on a supported platform");
+            let db_path = app_data.join("bars.db");
+            let conn = cache::open_db(&db_path).expect("open bars.db");
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            match cache::purge_old_bars(&conn, now_ms) {
+                Ok(n) => tracing::info!("cache: purged {} expired bars at boot", n),
+                Err(e) => tracing::warn!("cache: purge failed at boot: {e}"),
+            }
+            let cache_db = Arc::new(TokioMutex::new(conn));
+
+            // Spawn one writer per engine. Each writer owns its own
+            // `pending` HashMap; the only shared state is the DB
+            // connection (briefly held via blocking_lock during flush).
+            let rithmic_writer_db = cache_db.clone();
+            tokio::spawn(async move {
+                let writer = cache::writer::CacheWriter::new(
+                    rithmic_writer_db,
+                    Duration::from_secs(2),
+                );
+                writer.run(rithmic_writer_rx).await;
+            });
+
+            let crypto_writer_db = cache_db.clone();
+            tokio::spawn(async move {
+                let writer = cache::writer::CacheWriter::new(
+                    crypto_writer_db,
+                    Duration::from_secs(2),
+                );
+                writer.run(crypto_writer_rx).await;
+            });
+
+            // Make the connection available to the `cache_query` command.
+            app.manage(commands::cache::CacheState::new(cache_db));
 
             // Native Journal SQLite — opened once at startup, lives
             // for the app's lifetime. Path = OS app-data dir +
@@ -303,6 +357,7 @@ pub fn run() {
             commands::crypto::crypto_status,
             commands::crypto::crypto_orderbook_subscribe,
             commands::crypto::crypto_orderbook_unsubscribe,
+            commands::cache::cache_query,
             // Native Journal — Day 1: trades CRUD + listing + stats.
             journal::commands::journal_list_trades,
             journal::commands::journal_get_trade,
