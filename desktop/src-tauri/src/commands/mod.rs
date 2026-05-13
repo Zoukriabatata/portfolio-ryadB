@@ -4,6 +4,7 @@
 //! (Binance, dxFeed, …) get their own siblings here.
 
 pub mod brokers;
+pub mod cache;
 pub mod crypto;
 pub mod crypto_events;
 pub mod crypto_tick_events;
