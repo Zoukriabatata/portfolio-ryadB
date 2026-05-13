@@ -1,0 +1,678 @@
+/* Drawing properties panel — horizontal floating toolbar pinned
+   near the selected drawing. Compact chrome so it stays out of
+   the way of the chart underneath; every field lives on the same
+   row instead of stacking. Brand chrome family stays unchanged. */
+
+.dpp {
+  position: fixed;
+  z-index: 1150;
+  display: inline-flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 4px;
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(126, 211, 33, 0.05),
+      transparent 70%
+    ),
+    #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: var(--font-sans, -apple-system, "Segoe UI", system-ui, sans-serif);
+  letter-spacing: -0.005em;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 12px 32px -10px rgba(0, 0, 0, 0.70);
+  animation: dppIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+@keyframes dppIn {
+  from { opacity: 0; transform: translateY(-2px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Left-edge "kind" pill — replaces the wide centered header. Reads
+   as a tag at the start of the toolbar so the user always sees
+   what they're editing without losing a full row to the title. */
+.dpp-handle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(126, 211, 33, 0.85);
+  background: rgba(126, 211, 33, 0.08);
+  border: 1px solid rgba(126, 211, 33, 0.22);
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.dpp-body {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+/* Each field is a tight inline cluster: tiny label + control. */
+.dpp-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 4px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.78);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.dpp-field:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: #ffffff;
+}
+
+.dpp-field-stretch {
+  flex: 1;
+  min-width: 140px;
+}
+
+.dpp-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Colour swatch — smaller now (24×18) since we're horizontal. */
+.dpp-color {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.dpp-color:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+.dpp-color:focus,
+.dpp-color:focus-visible {
+  outline: none;
+  border-color: #7ed321;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(126, 211, 33, 0.30);
+}
+
+.dpp-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.dpp-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.dpp-color::-moz-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+/* Segmented control — same overall look, just smaller vertical
+   footprint so it fits the toolbar row height. */
+.dpp-seg {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 1px;
+  gap: 1px;
+}
+
+.dpp-seg-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.dpp-seg-btn:hover,
+.dpp-seg-btn:focus,
+.dpp-seg-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  outline: none;
+}
+
+.dpp-seg-on,
+.dpp-seg-on:hover,
+.dpp-seg-on:focus,
+.dpp-seg-on:focus-visible {
+  background: rgba(126, 211, 33, 0.18);
+  color: #7ed321;
+  outline: none;
+}
+
+/* Numeric + text inputs — shrunk to match the toolbar height. */
+.dpp-num {
+  width: 78px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #ffffff;
+  padding: 3px 6px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-feature-settings: "tnum";
+  font-size: 11px;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.dpp-num:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.dpp-num:focus,
+.dpp-num:focus-visible {
+  border-color: #7ed321;
+  box-shadow: 0 0 0 2px rgba(126, 211, 33, 0.20);
+  outline: none;
+}
+
+.dpp-text-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #ffffff;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  border-radius: 4px;
+  outline: none;
+  width: 100%;
+  min-width: 140px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.dpp-text-input:focus,
+.dpp-text-input:focus-visible {
+  border-color: #7ed321;
+  box-shadow: 0 0 0 2px rgba(126, 211, 33, 0.20);
+  outline: none;
+}
+
+.dpp-readonly {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-feature-settings: "tnum";
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+/* Alert note — small inline badge on the right, no longer a
+   stacked paragraph. */
+.dpp-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(126, 211, 33, 0.85);
+  padding: 0 8px;
+  background: rgba(126, 211, 33, 0.06);
+  border: 1px solid rgba(126, 211, 33, 0.20);
+  border-radius: 5px;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+/* Opacity slider — inline range input + percentage badge. */
+.dpp-opacity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dpp-opacity-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 80px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.dpp-opacity-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+}
+
+.dpp-opacity-slider::-moz-range-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+}
+
+.dpp-opacity-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #7ed321;
+  border-radius: 50%;
+  margin-top: -4px;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(126, 211, 33, 0.20);
+  transition: transform 100ms ease, box-shadow 120ms ease;
+}
+
+.dpp-opacity-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #7ed321;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(126, 211, 33, 0.20);
+  transition: transform 100ms ease, box-shadow 120ms ease;
+}
+
+.dpp-opacity-slider:hover::-webkit-slider-thumb,
+.dpp-opacity-slider:focus::-webkit-slider-thumb,
+.dpp-opacity-slider:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(126, 211, 33, 0.30);
+}
+
+.dpp-opacity-slider:hover::-moz-range-thumb,
+.dpp-opacity-slider:focus::-moz-range-thumb,
+.dpp-opacity-slider:focus-visible::-moz-range-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(126, 211, 33, 0.30);
+}
+
+.dpp-opacity-val {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-feature-settings: "tnum";
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+  min-width: 34px;
+  text-align: right;
+}
+
+/* Opacity slider — inline range input + percentage badge. */
+.dpp-opacity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dpp-opacity-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 80px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.dpp-opacity-slider::-webkit-slider-runnable-track,
+.dpp-opacity-slider::-moz-range-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+}
+
+.dpp-opacity-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #7ed321;
+  border-radius: 50%;
+  margin-top: -4px;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(126, 211, 33, 0.20);
+  transition: transform 100ms ease, box-shadow 120ms ease;
+}
+
+.dpp-opacity-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #7ed321;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(126, 211, 33, 0.20);
+  transition: transform 100ms ease, box-shadow 120ms ease;
+}
+
+.dpp-opacity-slider:hover::-webkit-slider-thumb,
+.dpp-opacity-slider:focus::-webkit-slider-thumb,
+.dpp-opacity-slider:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(126, 211, 33, 0.30);
+}
+
+.dpp-opacity-slider:hover::-moz-range-thumb,
+.dpp-opacity-slider:focus::-moz-range-thumb,
+.dpp-opacity-slider:focus-visible::-moz-range-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(126, 211, 33, 0.30);
+}
+
+.dpp-opacity-val {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-feature-settings: "tnum";
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+  min-width: 34px;
+  text-align: right;
+}
+
+/* Bold / italic toggles — square pill buttons with the glyph
+   rendered in its own typographic style so the icon previews
+   the effect. */
+.dpp-toggle {
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.62);
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease,
+    border-color 120ms ease;
+}
+
+.dpp-toggle:hover,
+.dpp-toggle:focus,
+.dpp-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+  outline: none;
+}
+
+.dpp-toggle-bold {
+  font-weight: 700;
+}
+
+.dpp-toggle-italic {
+  font-style: italic;
+}
+
+.dpp-toggle-on,
+.dpp-toggle-on:hover,
+.dpp-toggle-on:focus,
+.dpp-toggle-on:focus-visible {
+  background: rgba(126, 211, 33, 0.18);
+  color: #7ed321;
+  border-color: rgba(126, 211, 33, 0.55);
+  outline: none;
+}
+
+/* Preset button + popover — saves / applies named style snapshots
+   for the current drawing kind. */
+.dpp-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.72);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease,
+    border-color 120ms ease;
+}
+
+.dpp-preset-btn:hover,
+.dpp-preset-btn:focus,
+.dpp-preset-btn:focus-visible,
+.dpp-preset-btn-open {
+  background: rgba(126, 211, 33, 0.10);
+  color: #7ed321;
+  border-color: rgba(126, 211, 33, 0.40);
+  outline: none;
+}
+
+.dpp-preset-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 7px;
+  background: #7ed321;
+  color: #0a0a0a;
+  letter-spacing: 0;
+}
+
+.dpp-preset-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(126, 211, 33, 0.05),
+      transparent 70%
+    ),
+    #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 12px 32px -10px rgba(0, 0, 0, 0.70);
+  z-index: 1200;
+  animation: dppIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dpp-preset-save-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.dpp-preset-name {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #ffffff;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  border-radius: 5px;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.dpp-preset-name::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.dpp-preset-name:focus,
+.dpp-preset-name:focus-visible {
+  border-color: #7ed321;
+  box-shadow: 0 0 0 2px rgba(126, 211, 33, 0.22);
+  outline: none;
+}
+
+.dpp-preset-save {
+  background: rgba(126, 211, 33, 0.14);
+  border: 1px solid rgba(126, 211, 33, 0.55);
+  color: #7ed321;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 140ms ease, color 140ms ease,
+    border-color 140ms ease;
+}
+
+.dpp-preset-save:hover:not(:disabled),
+.dpp-preset-save:focus:not(:disabled),
+.dpp-preset-save:focus-visible:not(:disabled) {
+  background: rgba(126, 211, 33, 0.22);
+  color: #ffffff;
+  border-color: #7ed321;
+  outline: none;
+}
+
+.dpp-preset-save:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dpp-preset-empty {
+  padding: 10px 12px;
+  text-align: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.40);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.dpp-preset-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.dpp-preset-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.dpp-preset-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dpp-preset-apply {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 5px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: -0.005em;
+  transition: color 120ms ease;
+}
+
+.dpp-preset-apply:hover,
+.dpp-preset-apply:focus,
+.dpp-preset-apply:focus-visible {
+  color: #7ed321;
+  outline: none;
+}
+
+.dpp-preset-del {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.40);
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 3px;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.dpp-preset-del:hover,
+.dpp-preset-del:focus,
+.dpp-preset-del:focus-visible {
+  background: rgba(248, 81, 73, 0.10);
+  color: #f87171;
+  outline: none;
+}
+
+/* Thin vertical separator between logical groups (e.g. between
+   the colour pickers and the style segmented control). */
+.dpp-sep {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 2px 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dpp,
+  .dpp-field,
+  .dpp-seg-btn,
+  .dpp-color {
+    animation: none !important;
+    transition: none !important;
+  }
+}
