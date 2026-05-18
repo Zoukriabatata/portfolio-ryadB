@@ -147,21 +147,30 @@ pub async fn crypto_subscribe(
             let adapter = guard
                 .as_mut()
                 .ok_or_else(|| "binance not connected".to_string())?;
-            adapter.subscribe(&args.symbol, "binance").await.map_err(err)?;
+            adapter
+                .subscribe(&args.symbol, "binance")
+                .await
+                .map_err(err)?;
         }
         "bybit" => {
             let mut guard = state.bybit.lock().await;
             let adapter = guard
                 .as_mut()
                 .ok_or_else(|| "bybit not connected".to_string())?;
-            adapter.subscribe(&args.symbol, "bybit").await.map_err(err)?;
+            adapter
+                .subscribe(&args.symbol, "bybit")
+                .await
+                .map_err(err)?;
         }
         "deribit" => {
             let mut guard = state.deribit.lock().await;
             let adapter = guard
                 .as_mut()
                 .ok_or_else(|| "deribit not connected".to_string())?;
-            adapter.subscribe(&args.symbol, "deribit").await.map_err(err)?;
+            adapter
+                .subscribe(&args.symbol, "deribit")
+                .await
+                .map_err(err)?;
         }
         other => return Err(format!("unknown exchange: {}", other)),
     }
@@ -270,11 +279,7 @@ pub async fn crypto_orderbook_subscribe(
         }
     }
     let handle = bybit_orderbook::spawn(symbol.clone(), app);
-    state
-        .bybit_orderbooks
-        .lock()
-        .await
-        .insert(symbol, handle);
+    state.bybit_orderbooks.lock().await.insert(symbol, handle);
     crypto_status(state).await
 }
 
@@ -296,10 +301,9 @@ pub async fn crypto_orderbook_unsubscribe(
         // just abort it. The WS goes away when the task drops.
         match tokio::time::timeout(std::time::Duration::from_secs(1), handle.join).await {
             Ok(Ok(())) => {}
-            Ok(Err(e)) => tracing::warn!(
-                "orderbook task for {} panicked on shutdown: {}",
-                symbol, e
-            ),
+            Ok(Err(e)) => {
+                tracing::warn!("orderbook task for {} panicked on shutdown: {}", symbol, e)
+            }
             Err(_) => tracing::warn!(
                 "orderbook task for {} did not exit in 1s — already torn down",
                 symbol

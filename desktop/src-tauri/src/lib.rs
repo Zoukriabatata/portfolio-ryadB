@@ -316,6 +316,11 @@ pub fn run() {
             // `account_start_live` is invoked from the frontend.
             app.manage(commands::account::AccountState::new());
 
+            // GEX module — Tradier sandbox snapshot cache (15 min TTL).
+            // Each (SPY/QQQ) snapshot lives in this cache; refresh
+            // beyond TTL re-fetches from Tradier.
+            app.manage(commands::gex::GexState::new());
+
             // Native Journal SQLite — opened once at startup, lives
             // for the app's lifetime. Path = OS app-data dir +
             // `journal.db` (created on first launch).
@@ -401,6 +406,11 @@ pub fn run() {
             commands::account::account_start_live,
             commands::account::account_stop_live,
             commands::account::account_fetch_today_trades,
+            // GEX module — Tradier snapshot + api key vault.
+            commands::gex::gex_fetch_snapshot,
+            commands::gex::gex_save_api_key,
+            commands::gex::gex_has_api_key,
+            commands::gex::gex_delete_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

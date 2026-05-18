@@ -8,6 +8,7 @@ use tauri::State;
 
 use crate::brokers::vault;
 use crate::connectors::adapter::{Credentials, MarketDataAdapter};
+use crate::connectors::rithmic::history::{self, BarSpec, HistoryBar};
 use crate::connectors::rithmic::RithmicAdapter;
 use crate::engine::{FootprintBar, Timeframe};
 use crate::state::RithmicState;
@@ -59,6 +60,45 @@ pub struct GetBarsArgs {
     pub n_bars: usize,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchHistoryArgs {
+    pub symbol: String,
+    pub exchange: String,
+    /// Number of past hours to backfill. 24 = one day; 4H needs ~336;
+    /// 1D needs ~4320 (6 months of futures contract life).
+    pub hours_back: i64,
+    /// Bar period in minutes. 1 = 1m bars. Used as a fallback when
+    /// `timeframe` is not provided.
+    pub bar_minutes: Option<i32>,
+    /// Optional timeframe string ("1m", "4h", "1d", …) — when present,
+    /// drives the bar_type dispatch (MinuteBar / DailyBar) and the
+    /// returned `timeframe` label. Takes precedence over `bar_minutes`.
+    pub timeframe: Option<String>,
+}
+
+/// History bar shape returned to JS. camelCase via serde rename so the
+/// React side can drop them straight into the FootprintBar map.
+/// `levels` is always [] for history bars — TimeBarReplay aggregates
+/// volume without per-price breakdown, so the renderer falls back to
+/// outline-only candles for these bars (live bars after subscribe time
+/// keep the full footprint cells).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryFootprintBar {
+    pub symbol: String,
+    pub timeframe: String,
+    pub bucket_ts_ns: u64,
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+    pub total_volume: f64,
+    pub total_delta: f64,
+    pub trade_count: u32,
+    pub levels: Vec<serde_json::Value>,
+}
+
 /// Connect to the Rithmic gateway and authenticate. On success,
 /// spawns the `FootprintEngine` task pumping ticks from the new
 /// adapter, replacing any previous session cleanly.
@@ -71,7 +111,9 @@ pub async fn rithmic_login(
         username: args.username,
         password: args.password,
         system_name: args.system_name,
-        gateway_url: args.gateway_url.unwrap_or_else(|| DEFAULT_GATEWAY_URL.into()),
+        gateway_url: args
+            .gateway_url
+            .unwrap_or_else(|| DEFAULT_GATEWAY_URL.into()),
         app_name: args.app_name.unwrap_or_else(|| DEFAULT_APP_NAME.into()),
         app_version: args.app_version.unwrap_or_else(|| APP_VERSION.into()),
     };
@@ -156,15 +198,93 @@ pub async fn rithmic_subscribe(
     state: State<'_, RithmicState>,
     args: SubscribeArgs,
 ) -> Result<RithmicStatus, String> {
-    let mut adapter_lock = state.adapter.lock().await;
-    let adapter = adapter_lock.as_mut().ok_or("not logged in")?;
+    // Attempt #1 — fast path. Most subscribes succeed here.
+    let first_err: String = {
+        let mut adapter_lock = state.adapter.lock().await;
+        match adapter_lock.as_mut() {
+            None => "not logged in".to_string(),
+            Some(adapter) => match adapter.subscribe(&args.symbol, &args.exchange).await {
+                Ok(()) => return Ok(build_status(adapter)),
+                Err(e) => format!("{e}"),
+            },
+        }
+    }; // lock released here
 
+    // Auto-reconnect ONLY triggers for transport-level errors that mean
+    // the WebSocket is genuinely dead (`Sending after closing`, idle
+    // timeout, server-side close). For any other error, returning early
+    // is much safer than re-logging-in: Apex/Rithmic rejects concurrent
+    // sessions on the same account ("permission denied" close frame),
+    // so a spurious reconnect would kill a session that was actually
+    // healthy.
+    let is_transport_dead = first_err.contains("Sending after closing")
+        || first_err.contains("Connection lost")
+        || first_err.contains("Not connected")
+        || first_err.contains("ConnectionClosed");
+    if !is_transport_dead {
+        return Err(format!("subscribe failed: {first_err}"));
+    }
+
+    tracing::warn!(
+        "rithmic_subscribe: transport dead ({}). Auto-reconnecting from vault.",
+        first_err
+    );
+
+    let stored = tokio::task::spawn_blocking(vault::load)
+        .await
+        .map_err(|e| format!("subscribe failed: {first_err}; vault task panicked: {e}"))?
+        .map_err(|e| format!("subscribe failed: {first_err}; vault load failed: {e}"))?
+        .ok_or_else(|| {
+            format!("subscribe failed: {first_err}; no broker credentials saved for auto-reconnect")
+        })?;
+
+    let creds = Credentials {
+        username: stored.username,
+        password: stored.password,
+        system_name: stored.system_name,
+        gateway_url: stored.gateway_url,
+        app_name: DEFAULT_APP_NAME.into(),
+        app_version: APP_VERSION.into(),
+    };
+
+    // Tear down the dead adapter + engine task.
+    let previous = {
+        let mut adapter_lock = state.adapter.lock().await;
+        adapter_lock.take()
+    };
+    if let Some(mut old) = previous {
+        if let Err(e) = old.disconnect().await {
+            tracing::warn!("auto-reconnect: previous disconnect failed: {e}");
+        }
+    }
+    if let Some(handle) = state.engine_handle.lock().await.take() {
+        handle.abort();
+    }
+
+    // Fresh socket + login.
+    let mut adapter = RithmicAdapter::new();
+    adapter
+        .open_socket_with(&creds.gateway_url)
+        .await
+        .map_err(|e| format!("auto-reconnect connect failed: {e}"))?;
+    adapter
+        .login(&creds)
+        .await
+        .map_err(|e| format!("auto-reconnect login failed: {e}"))?;
+
+    // Retry the subscribe on the fresh session.
     adapter
         .subscribe(&args.symbol, &args.exchange)
         .await
-        .map_err(|e| format!("subscribe failed: {e}"))?;
+        .map_err(|e| format!("subscribe retry failed after reconnect: {e}"))?;
 
-    Ok(build_status(adapter))
+    // Re-attach the engine to the new adapter's tick stream.
+    let engine_handle = state.engine.clone().spawn(adapter.ticks());
+    let status = build_status(&adapter);
+    *state.engine_handle.lock().await = Some(engine_handle);
+    *state.adapter.lock().await = Some(adapter);
+
+    Ok(status)
 }
 
 #[tauri::command]
@@ -195,6 +315,237 @@ pub async fn rithmic_get_bars(
     Ok(state.engine.get_bars(&args.symbol, tf, args.n_bars).await)
 }
 
+/// Fetch historical OHLC bars from the Rithmic HISTORY_PLANT. One-shot:
+/// opens its own WebSocket, logs in with HISTORY_PLANT infra_type,
+/// requests the bars, drains the replay, then logs out and closes —
+/// all within a single command. The live ticker session is untouched.
+///
+/// Returns oldest → newest. Empty `levels` (TimeBarReplay aggregates;
+/// see history.rs).
+/// Fetch full footprint history (per-price bid/ask split) for the
+/// requested window. Uses TickBarReplay under the hood and buckets
+/// individual trades into footprint bars at the requested grain.
+/// Unlike `rithmic_fetch_history` which returns OHLCV-only bars,
+/// this returns bars with non-empty `levels` so the renderer can
+/// draw real cells for historical bars.
+#[tauri::command]
+pub async fn rithmic_fetch_tick_history(
+    app: tauri::AppHandle,
+    args: FetchHistoryArgs,
+) -> Result<Vec<HistoryFootprintBar>, String> {
+    let stored = tokio::task::spawn_blocking(vault::load)
+        .await
+        .map_err(|e| format!("vault task panicked: {e}"))?
+        .map_err(|e| format!("vault load failed: {e}"))?
+        .ok_or_else(|| "no broker credentials saved".to_string())?;
+
+    let creds = Credentials {
+        username: stored.username,
+        password: stored.password,
+        system_name: stored.system_name,
+        gateway_url: stored.gateway_url.clone(),
+        app_name: DEFAULT_APP_NAME.into(),
+        app_version: APP_VERSION.into(),
+    };
+
+    // For tick history we still need a minute period for bucketing. We
+    // derive it from `timeframe` when present (so "1h" maps to 60m
+    // buckets) and fall back to `bar_minutes` for legacy callers. The
+    // returned label uses the original timeframe string so frontend
+    // filters (`bar.timeframe === currentTf`) match.
+    let (bar_minutes, timeframe_label) = match parse_timeframe_arg(
+        args.timeframe.as_deref(),
+        args.bar_minutes,
+    ) {
+        (BarSpec::Minute(n), label) => (n, label),
+        // DailyBar is non-sense for tick replay (would drain millions
+        // of ticks per bar). Reject it loudly instead of bucketing
+        // ticks into ~24h bins silently — the frontend should only
+        // route OHLC TFs to rithmic_fetch_history, never here.
+        (BarSpec::Daily, _) => {
+            return Err("rithmic_fetch_tick_history: timeframe '1d' is not supported via tick replay; use rithmic_fetch_history instead".to_string());
+        }
+    };
+    let symbol_full = format!("{}.{}", args.symbol, args.exchange);
+
+    let bars = crate::connectors::rithmic::history_ticks::fetch_tick_footprint_bars(
+        &stored.gateway_url,
+        &creds,
+        &args.symbol,
+        &args.exchange,
+        bar_minutes,
+        args.hours_back,
+        Some(app),
+    )
+    .await
+    .map_err(|e| format!("fetch_tick_footprint_bars failed: {e}"))?;
+
+    // Map → camelCase HistoryFootprintBar. Note that `levels` arrives
+    // as a Vec<TickHistoryLevel> already serialised in camelCase by
+    // serde, so we splat them in via serde_json::to_value to keep the
+    // outer struct's `levels: Vec<serde_json::Value>` shape stable.
+    let result: Vec<HistoryFootprintBar> = bars
+        .into_iter()
+        .map(|b| HistoryFootprintBar {
+            symbol: symbol_full.clone(),
+            timeframe: timeframe_label.clone(),
+            bucket_ts_ns: b.bucket_ts_ns,
+            open: b.open,
+            high: b.high,
+            low: b.low,
+            close: b.close,
+            total_volume: b.total_volume,
+            total_delta: b.total_delta,
+            trade_count: b.trade_count,
+            levels: b
+                .levels
+                .into_iter()
+                .map(|l| serde_json::to_value(l).unwrap_or(serde_json::Value::Null))
+                .collect(),
+        })
+        .collect();
+
+    tracing::info!(
+        "rithmic_fetch_tick_history: returned {} footprint bars for {} ({}h back, {}m grain)",
+        result.len(),
+        symbol_full,
+        args.hours_back,
+        bar_minutes,
+    );
+    Ok(result)
+}
+
+/// One-off diagnostic — fires a 5-minute `RequestTickBarReplay` on a
+/// fresh HISTORY_PLANT socket and logs the first 20 frames. Used to
+/// validate whether tick replay returns "1 frame = 1 trade" or
+/// "1 frame = 1 price movement (num_trades >= 1)" before we commit to
+/// a footprint history pipeline. The live + time-bar paths are not
+/// affected.
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProbeTickReplayArgs {
+    pub symbol: String,
+    pub exchange: String,
+}
+
+#[tauri::command]
+pub async fn rithmic_probe_tick_replay(
+    args: ProbeTickReplayArgs,
+) -> Result<crate::connectors::rithmic::history_probe::TickReplayProbeResult, String> {
+    let stored = tokio::task::spawn_blocking(vault::load)
+        .await
+        .map_err(|e| format!("vault task panicked: {e}"))?
+        .map_err(|e| format!("vault load failed: {e}"))?
+        .ok_or_else(|| "no broker credentials saved".to_string())?;
+
+    let creds = Credentials {
+        username: stored.username,
+        password: stored.password,
+        system_name: stored.system_name,
+        gateway_url: stored.gateway_url.clone(),
+        app_name: DEFAULT_APP_NAME.into(),
+        app_version: APP_VERSION.into(),
+    };
+
+    Ok(
+        crate::connectors::rithmic::history_probe::probe_tick_bar_replay(
+            &stored.gateway_url,
+            &creds,
+            &args.symbol,
+            &args.exchange,
+        )
+        .await,
+    )
+}
+
+#[tauri::command]
+pub async fn rithmic_fetch_history(
+    app: tauri::AppHandle,
+    args: FetchHistoryArgs,
+) -> Result<Vec<HistoryFootprintBar>, String> {
+    let stored = tokio::task::spawn_blocking(vault::load)
+        .await
+        .map_err(|e| format!("vault task panicked: {e}"))?
+        .map_err(|e| format!("vault load failed: {e}"))?
+        .ok_or_else(|| "no broker credentials saved".to_string())?;
+
+    let creds = Credentials {
+        username: stored.username,
+        password: stored.password,
+        system_name: stored.system_name,
+        gateway_url: stored.gateway_url.clone(),
+        app_name: DEFAULT_APP_NAME.into(),
+        app_version: APP_VERSION.into(),
+    };
+
+    // Dispatch: timeframe string (e.g. "4h", "1d") takes precedence
+    // over the legacy bar_minutes field. Falls back to MinuteBar with
+    // bar_minutes when only the old shape is sent.
+    let (spec, timeframe_label) = parse_timeframe_arg(args.timeframe.as_deref(), args.bar_minutes);
+
+    let bars: Vec<HistoryBar> = history::fetch_history_bars(
+        &stored.gateway_url,
+        &creds,
+        &args.symbol,
+        &args.exchange,
+        spec,
+        args.hours_back,
+        Some(app),
+    )
+    .await
+    .map_err(|e| format!("fetch_history_bars failed: {e}"))?;
+
+    let symbol_full = format!("{}.{}", args.symbol, args.exchange);
+    let result: Vec<HistoryFootprintBar> = bars
+        .into_iter()
+        .map(|b| HistoryFootprintBar {
+            symbol: symbol_full.clone(),
+            timeframe: timeframe_label.clone(),
+            bucket_ts_ns: (b.timestamp_sec.max(0) as u64) * 1_000_000_000,
+            open: b.open,
+            high: b.high,
+            low: b.low,
+            close: b.close,
+            total_volume: b.total_volume as f64,
+            total_delta: b.ask_volume as f64 - b.bid_volume as f64,
+            trade_count: b.num_trades as u32,
+            levels: vec![],
+        })
+        .collect();
+    tracing::info!(
+        "rithmic_fetch_history: returned {} bars for {} ({}h back, tf={})",
+        result.len(),
+        symbol_full,
+        args.hours_back,
+        timeframe_label,
+    );
+    Ok(result)
+}
+
+/// Map an incoming `(timeframe, bar_minutes)` pair from the frontend
+/// to the corresponding `BarSpec` plus the label we'll echo back on
+/// each bar. Recognized TF strings: "Nm", "Nh", "1d". Anything else
+/// falls back to MinuteBar(bar_minutes) with the legacy "{N}m" label.
+fn parse_timeframe_arg(timeframe: Option<&str>, bar_minutes: Option<i32>) -> (BarSpec, String) {
+    if let Some(tf) = timeframe {
+        if tf == "1d" {
+            return (BarSpec::Daily, "1d".to_string());
+        }
+        if let Some(rest) = tf.strip_suffix('h') {
+            if let Ok(n) = rest.parse::<i32>() {
+                return (BarSpec::Minute((n.max(1)) * 60), tf.to_string());
+            }
+        }
+        if let Some(rest) = tf.strip_suffix('m') {
+            if let Ok(n) = rest.parse::<i32>() {
+                return (BarSpec::Minute(n.max(1)), tf.to_string());
+            }
+        }
+    }
+    let n = bar_minutes.unwrap_or(1).max(1);
+    (BarSpec::Minute(n), format!("{}m", n))
+}
+
 #[tauri::command]
 pub async fn rithmic_disconnect(state: State<'_, RithmicState>) -> Result<(), String> {
     let previous = {
@@ -218,10 +569,7 @@ pub async fn rithmic_disconnect(state: State<'_, RithmicState>) -> Result<(), St
 #[tauri::command]
 pub async fn rithmic_status(state: State<'_, RithmicState>) -> Result<RithmicStatus, String> {
     let adapter_lock = state.adapter.lock().await;
-    Ok(adapter_lock
-        .as_ref()
-        .map(build_status)
-        .unwrap_or_default())
+    Ok(adapter_lock.as_ref().map(build_status).unwrap_or_default())
 }
 
 fn build_status(adapter: &RithmicAdapter) -> RithmicStatus {
