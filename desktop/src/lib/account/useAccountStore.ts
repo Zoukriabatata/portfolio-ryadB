@@ -38,6 +38,11 @@ type AccountStoreState = {
    *  closed trades. Replaces any in-memory history (called at mount,
    *  before live updates start tracking new closures). */
   seedDayStats: (pnls: number[]) => void;
+  /** Periodic sampler — push current balance as an equity point.
+   *  Called by the feed hook every 30s so the chart draws a flat
+   *  line even when Rithmic isn't pushing new PnL updates (no
+   *  positions open = no implicit ticks). */
+  pushEquityPoint: () => void;
 };
 
 const EMPTY_DAY: DayStats = { tradesCount: 0, winRate: 0, bestTrade: 0, worstTrade: 0 };
@@ -80,7 +85,10 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
     const now = Date.now();
     const lastTs = cur.length ? cur[cur.length - 1].ts : 0;
     let nextCurve = cur;
-    if (now - lastTs >= EQUITY_MIN_GAP_MS) {
+    // Always seed the first point immediately so the chart has
+    // something to anchor. After that, throttle to one sample per
+    // EQUITY_MIN_GAP_MS (currently 30s) to keep memory bounded.
+    if (cur.length === 0 || now - lastTs >= EQUITY_MIN_GAP_MS) {
       nextCurve = [...cur, { ts: now, balance: s.balance }];
       if (nextCurve.length > EQUITY_CAP) nextCurve = nextCurve.slice(-EQUITY_CAP);
     }
@@ -127,5 +135,15 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
     // closures from earlier in the session are now reflected.
     realizedHistory = pnls.slice(-REALIZED_HISTORY_CAP);
     set({ dayStats: recomputeDayStats() });
+  },
+
+  pushEquityPoint: () => {
+    const s = get().stats;
+    if (!s) return;
+    const cur = get().equityCurve;
+    const now = Date.now();
+    let next = [...cur, { ts: now, balance: s.balance }];
+    if (next.length > EQUITY_CAP) next = next.slice(-EQUITY_CAP);
+    set({ equityCurve: next });
   },
 }));

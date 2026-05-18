@@ -21,6 +21,7 @@ export function useAccountFeed() {
   const setError = useAccountStore((s) => s.setError);
   const resetFeedData = useAccountStore((s) => s.resetFeedData);
   const seedDayStats = useAccountStore((s) => s.seedDayStats);
+  const pushEquityPoint = useAccountStore((s) => s.pushEquityPoint);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,6 +29,7 @@ export function useAccountFeed() {
     let unlistenPos:   (() => void) | null = null;
     let unlistenOrders:(() => void) | null = null;
     let unlistenStatus:(() => void) | null = null;
+    let equityTimer: ReturnType<typeof setInterval> | null = null;
 
     const run = async () => {
       try {
@@ -61,18 +63,26 @@ export function useAccountFeed() {
           (e) => setFeedStatus(e.payload),
         );
 
-        await startLive({ accountId: first.id, fcm: first.fcm, ibId: first.ibId });
-
-        // Seed today's closed-trade stats from the backend (covers
-        // trades made BEFORE the user opened /account — the live
-        // listener only catches new closures from now on).
+        // 1. Seed today's closed-trade stats BEFORE startLive — Apex
+        //    only allows one concurrent OrderPlant session, so we pull
+        //    history first (transient socket) and only then open the
+        //    long-lived subscribe socket. Doing this after startLive
+        //    silently fails because Rithmic refuses the 2nd login.
         try {
           const today = await fetchTodayTrades();
           if (cancelled) return;
+          console.info(`account: fetched ${today.length} today trades`, today);
           seedDayStats(today.map((t) => t.pnl));
         } catch (e) {
           console.warn("account: fetchTodayTrades failed:", e);
         }
+
+        // 2. Now open the live feed (PnL + Order subscribe).
+        await startLive({ accountId: first.id, fcm: first.fcm, ibId: first.ibId });
+
+        // 3. Periodic equity sampler — drives the chart even when
+        //    Rithmic isn't pushing PnL updates (no positions open).
+        equityTimer = setInterval(() => pushEquityPoint(), 30_000);
       } catch (e) {
         setError(String(e));
         setFeedStatus("error");
@@ -86,10 +96,12 @@ export function useAccountFeed() {
       unlistenPos?.();
       unlistenOrders?.();
       unlistenStatus?.();
+      if (equityTimer) clearInterval(equityTimer);
       void stopLive().catch(() => {});
     };
   }, [
     setAccounts, setActiveAccountId, setStats, upsertPosition,
     setOrders, setFeedStatus, setError, resetFeedData, seedDayStats,
+    pushEquityPoint,
   ]);
 }
