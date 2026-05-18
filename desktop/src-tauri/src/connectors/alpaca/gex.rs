@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::connectors::tradier::options::OptionChain;
+use crate::connectors::alpaca::options::OptionChain;
 
 const MULTIPLIER: f64 = 100.0; // SPY / QQQ ETF options
 
@@ -129,12 +129,12 @@ pub fn compute_gex(
 
         // ─── IV smile (OTM-only) ───
         let mut points: Vec<IvPoint> = Vec::new();
-        let mut puts_by_k: BTreeMap<u64, &crate::connectors::tradier::options::OptionLeg> =
+        let mut puts_by_k: BTreeMap<u64, &crate::connectors::alpaca::options::OptionLeg> =
             BTreeMap::new();
         for p in &chain.puts {
             puts_by_k.insert(key(p.strike), p);
         }
-        let mut calls_by_k: BTreeMap<u64, &crate::connectors::tradier::options::OptionLeg> =
+        let mut calls_by_k: BTreeMap<u64, &crate::connectors::alpaca::options::OptionLeg> =
             BTreeMap::new();
         for c in &chain.calls {
             calls_by_k.insert(key(c.strike), c);
@@ -250,7 +250,7 @@ pub fn compute_gex(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::connectors::tradier::options::{OptionChain, OptionLeg};
+    use crate::connectors::alpaca::options::{OptionChain, OptionLeg};
 
     fn leg(strike: f64, oi: u64, gamma: Option<f64>, iv: Option<f64>) -> OptionLeg {
         OptionLeg {

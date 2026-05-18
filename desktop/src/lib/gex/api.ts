@@ -41,8 +41,8 @@ export async function fetchGexSnapshot(symbol: GexSymbol): Promise<GexSnapshot> 
   return invoke<GexSnapshot>("gex_fetch_snapshot", { args: { symbol } });
 }
 
-export async function saveApiKey(key: string): Promise<void> {
-  return invoke<void>("gex_save_api_key", { key });
+export async function saveApiKey(keyId: string, secretKey: string): Promise<void> {
+  return invoke<void>("gex_save_api_key", { args: { keyId, secretKey } });
 }
 
 export async function hasApiKey(): Promise<boolean> {

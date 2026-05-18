@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { hasApiKey, saveApiKey, deleteApiKey } from "../lib/news/api";
 import {
-  hasApiKey as hasTradierKey,
-  saveApiKey as saveTradierKey,
-  deleteApiKey as deleteTradierKey,
+  hasApiKey as hasAlpacaKey,
+  saveApiKey as saveAlpacaKey,
+  deleteApiKey as deleteAlpacaKey,
 } from "../lib/gex/api";
 import { BrokerPresetPicker } from "./BrokerPresetPicker";
 import "./BrokerSettings.css";
@@ -83,43 +83,46 @@ export function BrokerSettings({
     { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
   >({ kind: "idle" });
 
-  const [tradierKey, setTradierKey] = useState("");
-  const [tradierKeySet, setTradierKeySet] = useState<boolean | null>(null);
-  const [tradierStatus, setTradierStatus] = useState<
+  const [alpacaKeyId, setAlpacaKeyId] = useState("");
+  const [alpacaSecret, setAlpacaSecret] = useState("");
+  const [alpacaKeySet, setAlpacaKeySet] = useState<boolean | null>(null);
+  const [alpacaStatus, setAlpacaStatus] = useState<
     { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
   >({ kind: "idle" });
 
   useEffect(() => {
-    void hasTradierKey()
-      .then(setTradierKeySet)
-      .catch(() => setTradierKeySet(false));
+    void hasAlpacaKey()
+      .then(setAlpacaKeySet)
+      .catch(() => setAlpacaKeySet(false));
   }, []);
 
-  const handleSaveTradier = useCallback(async () => {
-    const trimmed = tradierKey.trim();
-    if (!trimmed) {
-      setTradierStatus({ kind: "error", msg: "Empty key." });
+  const handleSaveAlpaca = useCallback(async () => {
+    const id = alpacaKeyId.trim();
+    const secret = alpacaSecret.trim();
+    if (!id || !secret) {
+      setAlpacaStatus({ kind: "error", msg: "Both Key ID and Secret are required." });
       return;
     }
-    setTradierStatus({ kind: "busy" });
+    setAlpacaStatus({ kind: "busy" });
     try {
-      await saveTradierKey(trimmed);
-      setTradierStatus({ kind: "success", msg: "Saved." });
-      setTradierKeySet(true);
-      setTradierKey("");
+      await saveAlpacaKey(id, secret);
+      setAlpacaStatus({ kind: "success", msg: "Saved." });
+      setAlpacaKeySet(true);
+      setAlpacaKeyId("");
+      setAlpacaSecret("");
     } catch (e) {
-      setTradierStatus({ kind: "error", msg: String(e) });
+      setAlpacaStatus({ kind: "error", msg: String(e) });
     }
-  }, [tradierKey]);
+  }, [alpacaKeyId, alpacaSecret]);
 
-  const handleDeleteTradier = useCallback(async () => {
-    setTradierStatus({ kind: "busy" });
+  const handleDeleteAlpaca = useCallback(async () => {
+    setAlpacaStatus({ kind: "busy" });
     try {
-      await deleteTradierKey();
-      setTradierStatus({ kind: "success", msg: "Deleted." });
-      setTradierKeySet(false);
+      await deleteAlpacaKey();
+      setAlpacaStatus({ kind: "success", msg: "Deleted." });
+      setAlpacaKeySet(false);
     } catch (e) {
-      setTradierStatus({ kind: "error", msg: String(e) });
+      setAlpacaStatus({ kind: "error", msg: String(e) });
     }
   }, []);
 
@@ -465,43 +468,53 @@ export function BrokerSettings({
 
       <section className="bs-section" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #2a2f3a" }}>
         <h3 style={{ margin: "0 0 8px 0", fontSize: 14, color: "#c8ccd4" }}>
-          Tradier API key (GEX module)
+          Alpaca API keys (GEX module)
         </h3>
         <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#8a8f99" }}>
           Required for the GEX dashboard (SPY / QQQ gamma exposure + IV smile). Sign
-          up free at developer.tradier.com (sandbox tier, 60 req/min). Key is stored
-          in your OS keyring.
+          up free at <span style={{ color: "#22c55e" }}>alpaca.markets</span> (paper
+          trading account, free, 15-min delayed options data). Generate a Key ID +
+          Secret in the dashboard. Keys are stored in your OS keyring.
         </p>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input
+            type="text"
+            placeholder={alpacaKeySet ? "•••••• (configured)" : "Key ID (starts with PK… for paper)"}
+            value={alpacaKeyId}
+            onChange={(e) => setAlpacaKeyId(e.target.value)}
+            style={{ padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+          />
           <input
             type="password"
-            placeholder={tradierKeySet ? "•••••• (configured)" : "Paste your Tradier sandbox API key"}
-            value={tradierKey}
-            onChange={(e) => setTradierKey(e.target.value)}
-            style={{ flex: 1, padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+            placeholder={alpacaKeySet ? "•••••• (configured)" : "Secret Key"}
+            value={alpacaSecret}
+            onChange={(e) => setAlpacaSecret(e.target.value)}
+            style={{ padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
           />
-          <button
-            type="button"
-            onClick={() => void handleSaveTradier()}
-            disabled={tradierStatus.kind === "busy"}
-          >
-            Save key
-          </button>
-          {tradierKeySet && (
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
-              onClick={() => void handleDeleteTradier()}
-              disabled={tradierStatus.kind === "busy"}
+              onClick={() => void handleSaveAlpaca()}
+              disabled={alpacaStatus.kind === "busy"}
             >
-              Remove
+              Save keys
             </button>
-          )}
+            {alpacaKeySet && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteAlpaca()}
+                disabled={alpacaStatus.kind === "busy"}
+              >
+                Remove
+              </button>
+            )}
+          </div>
         </div>
-        {tradierStatus.kind === "error" && (
-          <div style={{ marginTop: 6, fontSize: 12, color: "#ff6b78" }}>{tradierStatus.msg}</div>
+        {alpacaStatus.kind === "error" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#ff6b78" }}>{alpacaStatus.msg}</div>
         )}
-        {tradierStatus.kind === "success" && (
-          <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>{tradierStatus.msg}</div>
+        {alpacaStatus.kind === "success" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>{alpacaStatus.msg}</div>
         )}
       </section>
     </div>

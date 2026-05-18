@@ -83,8 +83,27 @@ fn handle_frame(data: &[u8], tick_tx: &broadcast::Sender<Tick>) -> Result<()> {
     match probe.template_id {
         150 => {
             let trade = LastTrade::decode(data)?;
-            if let Some(tick) = last_trade_to_tick(&trade) {
-                let _ = tick_tx.send(tick);
+            match last_trade_to_tick(&trade) {
+                Some(tick) => {
+                    tracing::debug!(
+                        "LastTrade {} {:?} {}@{} (ts={})",
+                        tick.symbol,
+                        tick.side,
+                        tick.qty,
+                        tick.price,
+                        tick.timestamp_ns
+                    );
+                    let _ = tick_tx.send(tick);
+                }
+                None => {
+                    tracing::debug!(
+                        "LastTrade {} dropped (price={:?} size={:?} aggressor={:?})",
+                        trade.symbol.as_deref().unwrap_or("?"),
+                        trade.trade_price,
+                        trade.trade_size,
+                        trade.aggressor,
+                    );
+                }
             }
         }
         151 => {
@@ -139,16 +158,21 @@ fn last_trade_to_tick(t: &LastTrade) -> Option<Tick> {
 
     // Prefer source_* (exchange-side timestamp) over ssboe/usecs
     // (Rithmic-side receipt). Falls back when the gateway omits the
-    // exchange-precision triple.
+    // exchange-precision triple. Last resort = local clock — better
+    // than dropping the trade entirely. Apex confirmed (2026-05-10)
+    // to ship LastTrade frames with all four timestamp fields empty,
+    // which previously caused 100% of trades to be silently dropped
+    // → no bars ever built → permanent "Waiting for data" UI state.
     let timestamp_ns = match (t.source_ssboe, t.source_usecs) {
         (Some(s), Some(us)) => {
-            (s as u64) * 1_000_000_000
-                + (us as u64) * 1_000
-                + (t.source_nsecs.unwrap_or(0) as u64)
+            (s as u64) * 1_000_000_000 + (us as u64) * 1_000 + (t.source_nsecs.unwrap_or(0) as u64)
         }
         _ => match (t.ssboe, t.usecs) {
             (Some(s), Some(us)) => (s as u64) * 1_000_000_000 + (us as u64) * 1_000,
-            _ => return None,
+            _ => std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .unwrap_or(0),
         },
     };
 

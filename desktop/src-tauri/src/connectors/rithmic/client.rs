@@ -75,19 +75,30 @@ impl RithmicClient {
 
     /// Encode `msg` as a protobuf binary frame and send it. Works in
     /// both `Whole` and `Split` modes.
+    ///
+    /// On any transport error, the client marks itself as Disconnected
+    /// before propagating the error. Without this, the next call would
+    /// hit the same dead sink and the user would see the same
+    /// `Sending after closing is not allowed` protocol error twice.
+    /// Marking Disconnected up-front means the next send returns a
+    /// clean `NotConnected` and the caller knows to re-login.
     pub async fn send<M: ProstMessage>(&mut self, msg: &M) -> Result<()> {
         let mut buf = Vec::with_capacity(msg.encoded_len());
         msg.encode(&mut buf)?;
         tracing::trace!("send {} bytes", buf.len());
-        match &mut self.inner {
-            Inner::Whole(ws) => ws.send(Message::Binary(buf)).await?,
+        let send_result: Result<()> = match &mut self.inner {
+            Inner::Whole(ws) => ws.send(Message::Binary(buf)).await.map_err(Into::into),
             Inner::Split(sink) => {
                 let mut s = sink.lock().await;
-                s.send(Message::Binary(buf)).await?;
+                s.send(Message::Binary(buf)).await.map_err(Into::into)
             }
             Inner::Disconnected => return Err(ConnectorError::NotConnected),
+        };
+        if let Err(ref e) = send_result {
+            tracing::warn!("send failed, marking disconnected: {}", e);
+            self.inner = Inner::Disconnected;
         }
-        Ok(())
+        send_result
     }
 
     /// Block on the next binary frame, transparently answering pings
@@ -106,10 +117,7 @@ impl RithmicClient {
         };
 
         loop {
-            let frame = ws
-                .next()
-                .await
-                .ok_or(ConnectorError::ConnectionClosed)??;
+            let frame = ws.next().await.ok_or(ConnectorError::ConnectionClosed)??;
 
             match frame {
                 Message::Binary(data) => return Ok(data),
