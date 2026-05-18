@@ -400,6 +400,7 @@ pub fn run() {
             commands::account::account_list,
             commands::account::account_start_live,
             commands::account::account_stop_live,
+            commands::account::account_fetch_today_trades,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

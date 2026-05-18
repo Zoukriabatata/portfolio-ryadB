@@ -34,6 +34,10 @@ type AccountStoreState = {
   setFeedStatus: (s: FeedStatus) => void;
   setError: (e: string | null) => void;
   resetFeedData: () => void;
+  /** Seed the realized-PnL history from a backend pull of today's
+   *  closed trades. Replaces any in-memory history (called at mount,
+   *  before live updates start tracking new closures). */
+  seedDayStats: (pnls: number[]) => void;
 };
 
 const EMPTY_DAY: DayStats = { tradesCount: 0, winRate: 0, bestTrade: 0, worstTrade: 0 };
@@ -116,5 +120,12 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       dayStats: EMPTY_DAY,
       error: null,
     });
+  },
+
+  seedDayStats: (pnls) => {
+    // Replace the in-memory history with the backend pull — any
+    // closures from earlier in the session are now reflected.
+    realizedHistory = pnls.slice(-REALIZED_HISTORY_CAP);
+    set({ dayStats: recomputeDayStats() });
   },
 }));

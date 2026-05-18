@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
+  fetchTodayTrades,
   listAccounts, startLive, stopLive,
   type AccountStats, type FeedStatus, type Position, type WorkingOrder,
 } from "./api";
@@ -19,6 +20,7 @@ export function useAccountFeed() {
   const setFeedStatus = useAccountStore((s) => s.setFeedStatus);
   const setError = useAccountStore((s) => s.setError);
   const resetFeedData = useAccountStore((s) => s.resetFeedData);
+  const seedDayStats = useAccountStore((s) => s.seedDayStats);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +62,17 @@ export function useAccountFeed() {
         );
 
         await startLive({ accountId: first.id, fcm: first.fcm, ibId: first.ibId });
+
+        // Seed today's closed-trade stats from the backend (covers
+        // trades made BEFORE the user opened /account — the live
+        // listener only catches new closures from now on).
+        try {
+          const today = await fetchTodayTrades();
+          if (cancelled) return;
+          seedDayStats(today.map((t) => t.pnl));
+        } catch (e) {
+          console.warn("account: fetchTodayTrades failed:", e);
+        }
       } catch (e) {
         setError(String(e));
         setFeedStatus("error");
@@ -77,6 +90,6 @@ export function useAccountFeed() {
     };
   }, [
     setAccounts, setActiveAccountId, setStats, upsertPosition,
-    setOrders, setFeedStatus, setError, resetFeedData,
+    setOrders, setFeedStatus, setError, resetFeedData, seedDayStats,
   ]);
 }

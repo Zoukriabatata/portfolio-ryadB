@@ -67,3 +67,14 @@ export async function startLive(account: {
 export async function stopLive(): Promise<void> {
   return invoke<void>("account_stop_live");
 }
+
+export type TodayTrade = {
+  symbol: string;
+  side: string; // "LONG" | "SHORT"
+  pnl: number;
+  exitTime: string;
+};
+
+export async function fetchTodayTrades(): Promise<TodayTrade[]> {
+  return invoke<TodayTrade[]>("account_fetch_today_trades");
+}
