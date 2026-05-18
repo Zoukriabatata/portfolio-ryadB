@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { hasApiKey, saveApiKey, deleteApiKey } from "../lib/news/api";
+import { BrokerPresetPicker } from "./BrokerPresetPicker";
 import "./BrokerSettings.css";
 
 // Stable preset identifier — must match the BrokerPreset enum in
@@ -268,17 +269,12 @@ export function BrokerSettings({
 
       <label className="bs-field">
         <span>Preset</span>
-        <select
+        <BrokerPresetPicker
           value={form.preset}
-          onChange={(e) => onPresetChange(e.target.value as BrokerPreset)}
+          presets={presets}
+          onChange={onPresetChange}
           disabled={busy}
-        >
-          {presets.map((p) => (
-            <option key={p.preset} value={p.preset}>
-              {p.displayName}
-            </option>
-          ))}
-        </select>
+        />
         {presetInfo?.helpText && (
           <small className="bs-help">{presetInfo.helpText}</small>
         )}
