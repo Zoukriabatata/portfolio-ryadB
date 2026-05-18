@@ -16,6 +16,7 @@ pub mod history;
 pub mod history_probe;
 pub mod history_ticks;
 pub mod order_plant;
+pub mod pnl_plant;
 pub mod reader;
 
 // The proto module is fully generated from rithmic-sdk/proto/ at build
