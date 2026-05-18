@@ -17,11 +17,17 @@ use crate::connectors::alpaca::client::AlpacaClient;
 use crate::connectors::alpaca::error::{AlpacaError, Result};
 
 /// One option leg (call OR put) as exposed to the compute layer.
+/// Greeks are kept as Options because Alpaca occasionally returns null
+/// for deep OTM/ITM contracts.
 #[derive(Debug, Clone)]
 pub struct OptionLeg {
     pub strike: f64,
     pub open_interest: u64,
+    pub delta: Option<f64>,
     pub gamma: Option<f64>,
+    pub theta: Option<f64>,
+    pub vega: Option<f64>,
+    pub rho: Option<f64>,
     pub iv: Option<f64>,
 }
 
@@ -69,7 +75,15 @@ struct RawContract {
 #[derive(Debug, Deserialize)]
 struct RawGreeks {
     #[serde(default)]
+    delta: Option<f64>,
+    #[serde(default)]
     gamma: Option<f64>,
+    #[serde(default)]
+    theta: Option<f64>,
+    #[serde(default)]
+    vega: Option<f64>,
+    #[serde(default)]
+    rho: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -232,7 +246,11 @@ pub async fn fetch_chains(
         let leg = OptionLeg {
             strike,
             open_interest: oi_map.get(&occ).copied().unwrap_or(0),
+            delta: snap.greeks.as_ref().and_then(|g| g.delta),
             gamma: snap.greeks.as_ref().and_then(|g| g.gamma),
+            theta: snap.greeks.as_ref().and_then(|g| g.theta),
+            vega: snap.greeks.as_ref().and_then(|g| g.vega),
+            rho: snap.greeks.as_ref().and_then(|g| g.rho),
             iv: snap.implied_volatility,
         };
         let entry = by_expiry

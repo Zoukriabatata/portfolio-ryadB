@@ -329,3 +329,137 @@
   border-radius: 10px;
   font-size: 12px;
 }
+
+/* ─── Quick stats row ─────────────────────────────────────── */
+.qs-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  animation: gex-fade-in 0.35s ease-out 0.05s both;
+}
+@media (max-width: 1100px) { .qs-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px)  { .qs-row { grid-template-columns: repeat(2, 1fr); } }
+.qs-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.qs-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-green), transparent);
+  opacity: 0.35;
+}
+.qs-card:hover {
+  border-color: var(--brand-green-dim);
+  transform: translateY(-1px);
+}
+.qs-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.qs-value {
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.qs-sub {
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+.qs-pos { color: var(--brand-green); }
+.qs-neg { color: var(--accent-red); }
+
+/* ─── IV Term Structure ───────────────────────────────────── */
+.ts-wrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ts-title {
+  display: flex;
+  align-items: center;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.ts-title::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--brand-green);
+  border-radius: 50%;
+  margin-right: 10px;
+  vertical-align: middle;
+  box-shadow: 0 0 6px var(--brand-green);
+}
+.ts-canvas {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+.ts-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 40px 20px;
+  font-style: italic;
+}
+
+/* Bottom split: IV Smile + Term Structure side-by-side */
+.gex-iv-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 1100px) { .gex-iv-row { grid-template-columns: 1fr; } }
+
+/* ─── Animations ──────────────────────────────────────────── */
+@keyframes gex-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.gex-header,
+.gex-key-levels,
+.gex-chart-wrap,
+.gex-smile-wrap,
+.ts-wrap {
+  animation: gex-fade-in 0.4s ease-out both;
+}
+.gex-key-levels { animation-delay: 0.1s; }
+.gex-chart-wrap { animation-delay: 0.15s; }
+.gex-smile-wrap { animation-delay: 0.2s; }
+.ts-wrap        { animation-delay: 0.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gex-header, .gex-key-levels, .gex-chart-wrap,
+  .gex-smile-wrap, .ts-wrap, .qs-row, .qs-card {
+    animation: none !important;
+    transition: none !important;
+  }
+}

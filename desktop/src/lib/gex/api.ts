@@ -19,6 +19,15 @@ export type GexStrike = {
   callGex: number;
   putGex: number;
   netGex: number;
+  netDex: number;
+  callOi: number;
+  putOi: number;
+};
+
+export type TermStructurePoint = {
+  expiration: string;
+  daysToExpiry: number;
+  atmIv: number;
 };
 
 export type GexSnapshot = {
@@ -33,6 +42,15 @@ export type GexSnapshot = {
   totalGex: number;
   stale: boolean;
   ivSmiles: IvSmile[];
+  totalDex: number;
+  totalVex: number;
+  totalTex: number;
+  totalCallOi: number;
+  totalPutOi: number;
+  putCallRatio: number | null;
+  skew25Delta: number | null;
+  atmIvFront: number | null;
+  termStructure: TermStructurePoint[];
 };
 
 export type GexSymbol = "SPY" | "QQQ";

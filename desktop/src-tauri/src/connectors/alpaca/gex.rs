@@ -33,6 +33,30 @@ pub struct GexSnapshot {
     pub total_gex: f64,
     pub stale: bool,
     pub iv_smiles: Vec<IvSmile>,
+    // ── Aggregate metrics ─────────────────────────────────────────
+    /// Delta exposure : Σ OI × δ × multiplier (calls + puts).
+    /// In "shares" units. Positive = dealers net short shares,
+    /// negative = net long.
+    pub total_dex: f64,
+    /// Vega exposure : Σ OI × ν × multiplier (calls + puts).
+    /// Dollar gain/loss for a 1 vol-point move.
+    pub total_vex: f64,
+    /// Theta exposure : Σ OI × θ × multiplier (calls + puts).
+    /// Daily $ decay seen by the option book.
+    pub total_tex: f64,
+    /// Sum of all call open interest across the window.
+    pub total_call_oi: u64,
+    /// Sum of all put open interest across the window.
+    pub total_put_oi: u64,
+    /// put_oi / call_oi. None if call_oi == 0.
+    pub put_call_ratio: Option<f64>,
+    /// 25-delta skew : IV at 25-Δ put strike − IV at 25-Δ call strike
+    /// for the front-month expiration. Positive = put-skewed (typical).
+    pub skew_25_delta: Option<f64>,
+    /// IV at the ATM strike (front expiration).
+    pub atm_iv_front: Option<f64>,
+    /// Term structure : ATM IV per expiration. Sorted by DTE asc.
+    pub term_structure: Vec<TermStructurePoint>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +66,18 @@ pub struct GexStrike {
     pub call_gex: f64,
     pub put_gex: f64,
     pub net_gex: f64,
+    /// Net DEX at this strike (calls + puts), in shares.
+    pub net_dex: f64,
+    pub call_oi: u64,
+    pub put_oi: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TermStructurePoint {
+    pub expiration: String,
+    pub days_to_expiry: u32,
+    pub atm_iv: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -106,28 +142,78 @@ pub fn compute_gex(
     today_unix_secs: i64,
 ) -> GexSnapshot {
     let spot_sq = spot * spot;
-    let mut by_strike: BTreeMap<u64, (f64, f64)> = BTreeMap::new();
+    /// Per-strike accumulators: (call_gex, put_gex, net_dex, call_oi, put_oi).
+    type StrikeAcc = (f64, f64, f64, u64, u64);
+    let mut by_strike: BTreeMap<u64, StrikeAcc> = BTreeMap::new();
     let mut iv_smiles: Vec<IvSmile> = Vec::with_capacity(chains.len());
+    let mut term_structure: Vec<TermStructurePoint> = Vec::with_capacity(chains.len());
 
     let key = |s: f64| -> u64 { (s * 1000.0).round() as u64 };
 
+    // Aggregate metrics accumulators.
+    let mut total_dex_accum = 0.0_f64;
+    let mut total_vex_accum = 0.0_f64;
+    let mut total_tex_accum = 0.0_f64;
+    let mut total_call_oi: u64 = 0;
+    let mut total_put_oi: u64 = 0;
+
+    // For the 25-delta skew: track the front-month expiration's chain.
+    let mut front_chain: Option<&OptionChain> = None;
+    let mut front_dte: u32 = u32::MAX;
     for chain in chains {
-        // ─── GEX aggregation ───
+        let dte = days_to_expiry(today_unix_secs, &chain.expiration);
+        if dte < front_dte {
+            front_dte = dte;
+            front_chain = Some(chain);
+        }
+    }
+
+    for chain in chains {
+        // ─── GEX + DEX + greeks aggregation ───
         for c in &chain.calls {
+            total_call_oi = total_call_oi.saturating_add(c.open_interest);
+            let oi = c.open_interest as f64;
+            let acc = by_strike.entry(key(c.strike)).or_insert((0.0, 0.0, 0.0, 0, 0));
+            acc.3 = acc.3.saturating_add(c.open_interest);
             if let Some(g) = c.gamma {
-                let contribution = c.open_interest as f64 * g * MULTIPLIER * spot_sq * 0.01;
-                by_strike.entry(key(c.strike)).or_insert((0.0, 0.0)).0 += contribution;
+                acc.0 += oi * g * MULTIPLIER * spot_sq * 0.01;
+            }
+            if let Some(d) = c.delta {
+                let dex_contrib = oi * d * MULTIPLIER;
+                acc.2 += dex_contrib;
+                total_dex_accum += dex_contrib;
+            }
+            if let Some(v) = c.vega {
+                total_vex_accum += oi * v * MULTIPLIER;
+            }
+            if let Some(t) = c.theta {
+                total_tex_accum += oi * t * MULTIPLIER;
             }
         }
         for p in &chain.puts {
+            total_put_oi = total_put_oi.saturating_add(p.open_interest);
+            let oi = p.open_interest as f64;
+            let acc = by_strike.entry(key(p.strike)).or_insert((0.0, 0.0, 0.0, 0, 0));
+            acc.4 = acc.4.saturating_add(p.open_interest);
             if let Some(g) = p.gamma {
-                let contribution =
-                    -(p.open_interest as f64) * g * MULTIPLIER * spot_sq * 0.01;
-                by_strike.entry(key(p.strike)).or_insert((0.0, 0.0)).1 += contribution;
+                // Dealer convention: short puts → -OI × gamma
+                acc.1 -= oi * g * MULTIPLIER * spot_sq * 0.01;
+            }
+            if let Some(d) = p.delta {
+                // Put delta is negative; dealer is long puts → -OI × δ
+                let dex_contrib = -(oi * d * MULTIPLIER);
+                acc.2 += dex_contrib;
+                total_dex_accum += dex_contrib;
+            }
+            if let Some(v) = p.vega {
+                total_vex_accum += oi * v * MULTIPLIER;
+            }
+            if let Some(t) = p.theta {
+                total_tex_accum += oi * t * MULTIPLIER;
             }
         }
 
-        // ─── IV smile (OTM-only) ───
+        // ─── IV smile (OTM-only) + term structure ───
         let mut points: Vec<IvPoint> = Vec::new();
         let mut puts_by_k: BTreeMap<u64, &crate::connectors::alpaca::options::OptionLeg> =
             BTreeMap::new();
@@ -165,20 +251,46 @@ pub fn compute_gex(
                 }
             }
         }
+
+        // ATM IV for the term-structure point = closest-to-spot strike's IV.
+        let dte = days_to_expiry(today_unix_secs, &chain.expiration);
+        let atm_iv = chain
+            .calls
+            .iter()
+            .chain(chain.puts.iter())
+            .filter_map(|l| l.iv.map(|iv| (l.strike, iv)))
+            .min_by(|a, b| {
+                let da = (a.0 - spot).abs();
+                let db = (b.0 - spot).abs();
+                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(_, iv)| iv);
+        if let Some(iv) = atm_iv {
+            term_structure.push(TermStructurePoint {
+                expiration: chain.expiration.clone(),
+                days_to_expiry: dte,
+                atm_iv: iv,
+            });
+        }
+
         iv_smiles.push(IvSmile {
             expiration: chain.expiration.clone(),
-            days_to_expiry: days_to_expiry(today_unix_secs, &chain.expiration),
+            days_to_expiry: dte,
             points,
         });
     }
+    term_structure.sort_by_key(|t| t.days_to_expiry);
 
     let mut strikes: Vec<GexStrike> = by_strike
         .into_iter()
-        .map(|(k, (call_gex, put_gex))| GexStrike {
+        .map(|(k, (call_gex, put_gex, net_dex, call_oi, put_oi))| GexStrike {
             strike: k as f64 / 1000.0,
             call_gex,
             put_gex,
             net_gex: call_gex + put_gex,
+            net_dex,
+            call_oi,
+            put_oi,
         })
         .collect();
     strikes.sort_by(|a, b| {
@@ -240,6 +352,55 @@ pub fn compute_gex(
         })
         .map(|s| s.strike);
 
+    let put_call_ratio = if total_call_oi > 0 {
+        Some(total_put_oi as f64 / total_call_oi as f64)
+    } else {
+        None
+    };
+
+    // 25-delta skew: IV at the put with delta ≈ -0.25 minus IV at the
+    // call with delta ≈ 0.25, both on the front-month expiration. A
+    // positive value = put-skew (typical equity market).
+    let (skew_25_delta, atm_iv_front) = match front_chain {
+        Some(fc) => {
+            let pick_by_delta =
+                |legs: &[crate::connectors::alpaca::options::OptionLeg], target: f64| -> Option<f64> {
+                    legs.iter()
+                        .filter_map(|l| match (l.delta, l.iv) {
+                            (Some(d), Some(iv)) => Some((d, iv)),
+                            _ => None,
+                        })
+                        .min_by(|a, b| {
+                            (a.0 - target)
+                                .abs()
+                                .partial_cmp(&(b.0 - target).abs())
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        })
+                        .map(|(_, iv)| iv)
+                };
+            let put_iv = pick_by_delta(&fc.puts, -0.25);
+            let call_iv = pick_by_delta(&fc.calls, 0.25);
+            let skew = match (put_iv, call_iv) {
+                (Some(p), Some(c)) => Some(p - c),
+                _ => None,
+            };
+            let atm = fc
+                .calls
+                .iter()
+                .chain(fc.puts.iter())
+                .filter_map(|l| l.iv.map(|iv| (l.strike, iv)))
+                .min_by(|a, b| {
+                    (a.0 - spot)
+                        .abs()
+                        .partial_cmp(&(b.0 - spot).abs())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|(_, iv)| iv);
+            (skew, atm)
+        }
+        None => (None, None),
+    };
+
     GexSnapshot {
         symbol: symbol.to_string(),
         spot,
@@ -252,6 +413,15 @@ pub fn compute_gex(
         total_gex,
         stale: false,
         iv_smiles,
+        total_dex: total_dex_accum,
+        total_vex: total_vex_accum,
+        total_tex: total_tex_accum,
+        total_call_oi,
+        total_put_oi,
+        put_call_ratio,
+        skew_25_delta,
+        atm_iv_front,
+        term_structure,
     }
 }
 
@@ -264,7 +434,11 @@ mod tests {
         OptionLeg {
             strike,
             open_interest: oi,
+            delta: None,
             gamma,
+            theta: None,
+            vega: None,
+            rho: None,
             iv,
         }
     }

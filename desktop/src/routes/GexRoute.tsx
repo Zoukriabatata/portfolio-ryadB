@@ -4,8 +4,10 @@ import { useGexPolling } from "../lib/gex/useGexPolling";
 import { hasApiKey } from "../lib/gex/api";
 import { GexHeader } from "../components/gex/GexHeader";
 import { GexKeyLevels } from "../components/gex/GexKeyLevels";
+import { GexQuickStats } from "../components/gex/GexQuickStats";
 import { GexBarChart } from "../components/gex/GexBarChart";
 import { GexIvSmile } from "../components/gex/GexIvSmile";
+import { GexTermStructure } from "../components/gex/GexTermStructure";
 import "../components/gex/gex.css";
 
 export function GexRoute() {
@@ -55,8 +57,12 @@ function GexConfigured() {
       <GexHeader />
       {error && <div className="gex-error-banner">{error}</div>}
       <GexKeyLevels />
+      <GexQuickStats />
       <GexBarChart />
-      <GexIvSmile />
+      <div className="gex-iv-row">
+        <GexIvSmile />
+        <GexTermStructure />
+      </div>
     </div>
   );
 }
