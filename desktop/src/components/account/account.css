@@ -237,3 +237,31 @@
   font-size: 12px;
   padding: 24px;
 }
+
+.account-bottom {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 1000px) {
+  .account-bottom { grid-template-columns: 1fr; }
+}
+.account-error-banner {
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.account-empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.account-empty-state-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
