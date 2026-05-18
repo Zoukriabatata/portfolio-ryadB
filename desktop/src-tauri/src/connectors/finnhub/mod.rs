@@ -3,6 +3,7 @@
 //! les requêtes (calendar + news). Le cache TTL côté `cache.rs`
 //! protège ce quota en évitant les refetch trop fréquents.
 
+pub mod api_key;
 pub mod cache;
 pub mod calendar;
 pub mod client;
