@@ -223,3 +223,31 @@
   font-size: 12px;
 }
 .eco-cal-error { color: #ff6b78; }
+
+.news-route {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  height: 100%;
+  width: 100%;
+  background: #0a0c10;
+}
+@media (max-width: 1100px) {
+  .news-route {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .news-route > .eco-cal { border-left: none; border-bottom: 1px solid #232733; }
+}
+.news-api-key-banner {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1c2028;
+  border: 1px solid #ff6b78;
+  color: #ff6b78;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 50;
+}
