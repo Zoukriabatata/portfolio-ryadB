@@ -3,6 +3,7 @@
 //! Sandbox URL: https://sandbox.tradier.com/v1/
 //! Quota: 60 req/min, 15-min delayed quotes (acceptable for GEX).
 
+pub mod api_key;
 pub mod client;
 pub mod error;
 pub mod options;
