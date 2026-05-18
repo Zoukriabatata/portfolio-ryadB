@@ -311,6 +311,11 @@ pub fn run() {
             // free-tier rate limit.
             app.manage(commands::news::NewsState::new());
 
+            // Account module — owns the long-lived PnL + Order plant
+            // adapters when the user is on /account. Empty until
+            // `account_start_live` is invoked from the frontend.
+            app.manage(commands::account::AccountState::new());
+
             // Native Journal SQLite — opened once at startup, lives
             // for the app's lifetime. Path = OS app-data dir +
             // `journal.db` (created on first launch).
@@ -391,6 +396,10 @@ pub fn run() {
             commands::news::news_save_api_key,
             commands::news::news_has_api_key,
             commands::news::news_delete_api_key,
+            // Account module — discovery + live feed lifecycle.
+            commands::account::account_list,
+            commands::account::account_start_live,
+            commands::account::account_stop_live,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

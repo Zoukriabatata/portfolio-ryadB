@@ -3,6 +3,7 @@
 //! Phase 7.7.2 ships the Rithmic + footprint commands. Future modules
 //! (Binance, dxFeed, …) get their own siblings here.
 
+pub mod account;
 pub mod brokers;
 pub mod cache;
 pub mod crypto;
