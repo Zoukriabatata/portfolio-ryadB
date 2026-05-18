@@ -165,3 +165,67 @@
 }
 .gex-kpi-total-chip-positive { color: var(--brand-green); border-color: var(--brand-green-dim); }
 .gex-kpi-total-chip-negative { color: var(--accent-red); border-color: var(--accent-red-dim); }
+
+/* ─── Bar chart ───────────────────────────────────────────── */
+.gex-chart-wrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gex-chart-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.gex-chart-title::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--brand-green);
+  border-radius: 50%;
+  margin-right: 10px;
+  vertical-align: middle;
+  box-shadow: 0 0 6px var(--brand-green);
+}
+.gex-chart-zoom { display: inline-flex; gap: 4px; }
+.gex-chart-zoom-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  font-family: inherit;
+}
+.gex-chart-zoom-btn-active {
+  background: var(--brand-green);
+  color: var(--bg-primary);
+  border-color: var(--brand-green);
+}
+.gex-chart-canvas {
+  width: 100%;
+  height: 480px;
+  display: block;
+}
+.gex-chart-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 80px 20px;
+  font-style: italic;
+}
