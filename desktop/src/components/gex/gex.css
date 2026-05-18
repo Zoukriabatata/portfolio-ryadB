@@ -229,3 +229,71 @@
   padding: 80px 20px;
   font-style: italic;
 }
+
+/* ─── IV smile ────────────────────────────────────────────── */
+.gex-smile-wrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gex-smile-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.gex-smile-title::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--brand-green);
+  border-radius: 50%;
+  margin-right: 10px;
+  vertical-align: middle;
+  box-shadow: 0 0 6px var(--brand-green);
+}
+.gex-smile-picker {
+  background: var(--bg-axis);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.gex-smile-canvas {
+  width: 100%;
+  height: 280px;
+  display: block;
+}
+.gex-smile-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 60px 20px;
+  font-style: italic;
+}
+.gex-smile-atm {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.gex-smile-atm-value {
+  color: var(--brand-green);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-left: 6px;
+}
