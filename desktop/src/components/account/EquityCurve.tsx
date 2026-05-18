@@ -56,9 +56,11 @@ export function EquityCurve() {
 
   return (
     <div className="equity-wrap">
-      <div className="equity-title">Equity Curve (session)</div>
+      <div className="equity-title">Equity Curve · Session</div>
       {points.length < 2 ? (
-        <div className="equity-empty">Collecting data… need 2+ samples (~60s).</div>
+        <div className="equity-empty">
+          Live equity sampling starts after the first PnL tick. Hold tight…
+        </div>
       ) : (
         <canvas ref={canvasRef} className="equity-canvas" />
       )}

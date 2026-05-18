@@ -19,8 +19,11 @@ export function AccountRoute() {
     return (
       <div className="account-route">
         <div className="account-empty-state">
+          <span className="account-empty-state-icon">◌</span>
           <div className="account-empty-state-title">Connecting to Rithmic…</div>
-          <div>Fetching your accounts and starting live feed.</div>
+          <div className="account-empty-state-sub">
+            Fetching your accounts and starting the live feed.
+          </div>
         </div>
       </div>
     );
@@ -32,8 +35,9 @@ export function AccountRoute() {
     return (
       <div className="account-route">
         <div className="account-empty-state">
+          <span className="account-empty-state-icon">⚠</span>
           <div className="account-empty-state-title">No accounts available</div>
-          <div>{error}</div>
+          <div className="account-empty-state-sub">{error}</div>
         </div>
       </div>
     );

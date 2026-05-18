@@ -9,9 +9,11 @@ export function WorkingOrdersTable() {
 
   return (
     <div className="acct-table-wrap">
-      <div className="acct-table-title">Working Orders</div>
+      <div className="acct-table-title">
+        <span>Working Orders</span>
+      </div>
       {orders.length === 0 ? (
-        <div className="acct-table-empty">No working orders.</div>
+        <div className="acct-table-empty">No pending orders right now.</div>
       ) : (
         <table className="acct-table">
           <thead>

@@ -11,9 +11,11 @@ export function PositionsTable() {
 
   return (
     <div className="acct-table-wrap">
-      <div className="acct-table-title">Open Positions</div>
+      <div className="acct-table-title">
+        <span>Open Positions</span>
+      </div>
       {positions.length === 0 ? (
-        <div className="acct-table-empty">No open positions.</div>
+        <div className="acct-table-empty">Flat. No open positions.</div>
       ) : (
         <table className="acct-table">
           <thead>

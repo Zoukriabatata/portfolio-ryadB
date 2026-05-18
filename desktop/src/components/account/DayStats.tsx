@@ -8,24 +8,40 @@ function fmtMoney(n: number): string {
 export function DayStats() {
   const stats = useAccountStore((s) => s.dayStats);
   const wrPct = (stats.winRate * 100).toFixed(0);
+
   return (
-    <div className="day-stats">
-      <span className="day-stat-chip">
-        <span className="day-stat-chip-label">Trades</span>
-        {stats.tradesCount}
-      </span>
-      <span className="day-stat-chip">
-        <span className="day-stat-chip-label">WR</span>
-        {wrPct}%
-      </span>
-      <span className={`day-stat-chip ${stats.bestTrade >= 0 ? "day-stat-pos" : ""}`}>
-        <span className="day-stat-chip-label">Best</span>
-        {fmtMoney(stats.bestTrade)}
-      </span>
-      <span className={`day-stat-chip ${stats.worstTrade < 0 ? "day-stat-neg" : ""}`}>
-        <span className="day-stat-chip-label">Worst</span>
-        {fmtMoney(stats.worstTrade)}
-      </span>
+    <div className="day-stats-wrap">
+      <div className="day-stats-title">Day Stats</div>
+      <div className="day-stats">
+        <div className="day-stat-cell">
+          <span className="day-stat-cell-label">Trades</span>
+          <span className="day-stat-cell-value">{stats.tradesCount}</span>
+        </div>
+        <div className="day-stat-cell">
+          <span className="day-stat-cell-label">Win Rate</span>
+          <span className="day-stat-cell-value">{wrPct}%</span>
+        </div>
+        <div className="day-stat-cell">
+          <span className="day-stat-cell-label">Best Trade</span>
+          <span
+            className={`day-stat-cell-value ${
+              stats.bestTrade > 0 ? "day-stat-pos" : ""
+            }`}
+          >
+            {stats.tradesCount > 0 ? fmtMoney(stats.bestTrade) : "—"}
+          </span>
+        </div>
+        <div className="day-stat-cell">
+          <span className="day-stat-cell-label">Worst Trade</span>
+          <span
+            className={`day-stat-cell-value ${
+              stats.worstTrade < 0 ? "day-stat-neg" : ""
+            }`}
+          >
+            {stats.tradesCount > 0 ? fmtMoney(stats.worstTrade) : "—"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
