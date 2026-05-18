@@ -32,7 +32,8 @@ use crate::connectors::rithmic::client::{RithmicClient, TemplateProbe};
 use crate::connectors::rithmic::proto::{
     request_login::SysInfraType, request_pn_l_position_updates::Request as PnlRequest,
     AccountPnLPositionUpdate, InstrumentPnLPositionUpdate, RequestAccountList, RequestLogin,
-    RequestLogout, RequestPnLPositionUpdates, ResponseAccountList, ResponseLogin,
+    RequestLogout, RequestPnLPositionSnapshot, RequestPnLPositionUpdates, ResponseAccountList,
+    ResponseLogin,
 };
 
 const PROTOCOL_TEMPLATE_VERSION: &str = "3.9";
@@ -47,6 +48,7 @@ mod template {
     pub const REQUEST_ACCOUNT_LIST: i32 = 302;
     pub const RESPONSE_ACCOUNT_LIST: i32 = 303;
     pub const REQUEST_PNL_POSITION_UPDATES: i32 = 400;
+    pub const REQUEST_PNL_POSITION_SNAPSHOT: i32 = 402;
     pub const INSTRUMENT_PNL_POSITION_UPDATE: i32 = 450;
     pub const ACCOUNT_PNL_POSITION_UPDATE: i32 = 451;
 }
@@ -185,6 +187,8 @@ impl PnlPlantAdapter {
         fcm: &str,
         ib: &str,
     ) -> Result<()> {
+        // 1. Subscribe to live updates. Rithmic only pushes deltas on
+        //    state changes from this point onward — no initial snapshot.
         let req = RequestPnLPositionUpdates {
             template_id: template::REQUEST_PNL_POSITION_UPDATES,
             user_msg: vec!["pnl-plant".into()],
@@ -201,6 +205,21 @@ impl PnlPlantAdapter {
             fcm,
             ib
         );
+
+        // 2. Snapshot — pushes the current account-level + every
+        //    instrument-level state immediately as 451/450 frames the
+        //    reader already decodes. Without this the UI sits at zero
+        //    until the user opens a position (Rithmic's Subscribe is
+        //    delta-only, no implicit snapshot).
+        let snap = RequestPnLPositionSnapshot {
+            template_id: template::REQUEST_PNL_POSITION_SNAPSHOT,
+            user_msg: vec!["pnl-plant".into()],
+            fcm_id: Some(fcm.to_string()),
+            ib_id: Some(ib.to_string()),
+            account_id: Some(account_id.to_string()),
+        };
+        self.client.send(&snap).await?;
+        tracing::info!("pnl-plant: snapshot requested");
 
         let (stream, sink) = self.client.into_split()?;
         let stats_tx = self.stats_tx.clone();
