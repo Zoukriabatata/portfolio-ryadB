@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { hasApiKey, saveApiKey, deleteApiKey } from "../lib/news/api";
 import "./BrokerSettings.css";
 
 // Stable preset identifier — must match the BrokerPreset enum in
@@ -69,6 +70,12 @@ export function BrokerSettings({
   const [existing, setExisting] = useState<RedactedCreds | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  const [finnhubKey, setFinnhubKey] = useState("");
+  const [finnhubKeySet, setFinnhubKeySet] = useState<boolean | null>(null);
+  const [finnhubStatus, setFinnhubStatus] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
+  >({ kind: "idle" });
 
   const isCustom = form.preset === "Custom";
   const presetInfo = useMemo(
@@ -198,6 +205,40 @@ export function BrokerSettings({
       setStatus({ kind: "success", msg: "Credentials cleared." });
     } catch (e) {
       setStatus({ kind: "error", msg: String(e) });
+    }
+  }, []);
+
+  useEffect(() => {
+    void hasApiKey()
+      .then(setFinnhubKeySet)
+      .catch(() => setFinnhubKeySet(false));
+  }, []);
+
+  const handleSaveFinnhub = useCallback(async () => {
+    const trimmed = finnhubKey.trim();
+    if (!trimmed) {
+      setFinnhubStatus({ kind: "error", msg: "Empty key." });
+      return;
+    }
+    setFinnhubStatus({ kind: "busy" });
+    try {
+      await saveApiKey(trimmed);
+      setFinnhubStatus({ kind: "success", msg: "Saved." });
+      setFinnhubKeySet(true);
+      setFinnhubKey("");
+    } catch (e) {
+      setFinnhubStatus({ kind: "error", msg: String(e) });
+    }
+  }, [finnhubKey]);
+
+  const handleDeleteFinnhub = useCallback(async () => {
+    setFinnhubStatus({ kind: "busy" });
+    try {
+      await deleteApiKey();
+      setFinnhubStatus({ kind: "success", msg: "Deleted." });
+      setFinnhubKeySet(false);
+    } catch (e) {
+      setFinnhubStatus({ kind: "error", msg: String(e) });
     }
   }, []);
 
@@ -335,6 +376,51 @@ export function BrokerSettings({
           </button>
         )}
       </div>
+
+      <section className="bs-section" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #2a2f3a" }}>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 14, color: "#c8ccd4" }}>
+          Finnhub API key (News module)
+        </h3>
+        <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#8a8f99" }}>
+          Required for the News module (economic calendar + market news). Sign up free at
+          finnhub.io (60 req/min on the free tier). Key is stored in your OS keyring.
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="password"
+            placeholder={finnhubKeySet ? "•••••• (configured)" : "Paste your Finnhub API key"}
+            value={finnhubKey}
+            onChange={(e) => setFinnhubKey(e.target.value)}
+            style={{ flex: 1, padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+          />
+          <button
+            type="button"
+            onClick={() => void handleSaveFinnhub()}
+            disabled={finnhubStatus.kind === "busy"}
+          >
+            Save key
+          </button>
+          {finnhubKeySet && (
+            <button
+              type="button"
+              onClick={() => void handleDeleteFinnhub()}
+              disabled={finnhubStatus.kind === "busy"}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        {finnhubStatus.kind === "error" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#ff6b78" }}>
+            {finnhubStatus.msg}
+          </div>
+        )}
+        {finnhubStatus.kind === "success" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>
+            {finnhubStatus.msg}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
