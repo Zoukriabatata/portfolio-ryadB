@@ -134,7 +134,10 @@ impl PnlPlantAdapter {
             user_msg: vec!["pnl-plant".into()],
             fcm_id: None,
             ib_id: None,
-            user_type: None,
+            // Rithmic requires user_type = TRADER (3) — without it the
+            // response comes back empty (silent rejection). Same value
+            // order_plant.rs uses for the journal-sync account list.
+            user_type: Some(3),
         };
         self.client.send(&req).await?;
 
