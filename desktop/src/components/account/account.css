@@ -1,0 +1,103 @@
+/* Logo-derived green scoped to Account module — mirrors the
+   News module pattern (#22c55e dominant tone). */
+.account-route {
+  --brand-green: #22c55e;
+  --brand-green-dim: #166534;
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-primary);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.account-route::-webkit-scrollbar { width: 8px; }
+.account-route::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.account-header-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.account-header-title::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-green);
+  margin-right: 10px;
+  vertical-align: middle;
+  box-shadow: 0 0 8px var(--brand-green);
+}
+.account-header-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.account-header-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.account-header-status-connected .account-header-status-dot {
+  background: var(--brand-green);
+  box-shadow: 0 0 6px var(--brand-green);
+}
+.account-header-status-error .account-header-status-dot {
+  background: var(--accent-red);
+}
+
+.account-picker {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.day-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.day-stat-chip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.day-stat-chip-label {
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+.day-stat-pos { color: var(--brand-green); }
+.day-stat-neg { color: var(--accent-red); }
