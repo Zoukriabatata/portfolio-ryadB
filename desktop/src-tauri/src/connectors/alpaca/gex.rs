@@ -189,29 +189,37 @@ pub fn compute_gex(
 
     let total_gex: f64 = strikes.iter().map(|s| s.net_gex).sum();
 
-    // Zero Gamma — cumul from bottom, find sign-change.
-    let mut zero_gamma: Option<f64> = None;
-    let mut cumul = 0.0;
-    let mut prev: Option<(f64, f64)> = None;
-    for s in &strikes {
-        let next_cumul = cumul + s.net_gex;
-        if let Some((prev_strike, prev_cumul)) = prev {
-            if (prev_cumul <= 0.0 && next_cumul >= 0.0)
-                || (prev_cumul >= 0.0 && next_cumul <= 0.0)
-            {
-                let denom = next_cumul - prev_cumul;
-                let zg = if denom.abs() < 1e-9 {
-                    s.strike
-                } else {
-                    prev_strike + (s.strike - prev_strike) * (-prev_cumul) / denom
-                };
-                zero_gamma = Some(zg);
-                break;
+    // Zero Gamma — cumul from bottom, find sign-change. Only meaningful
+    // if there's actual gex movement; if all strikes have net_gex == 0
+    // (e.g. open interest missing), we skip rather than report a false
+    // positive at the first strike.
+    let zero_gamma: Option<f64> = if total_gex.abs() < 1e-9 && strikes.iter().all(|s| s.net_gex.abs() < 1e-9) {
+        None
+    } else {
+        let mut found: Option<f64> = None;
+        let mut cumul = 0.0;
+        let mut prev: Option<(f64, f64)> = None;
+        for s in &strikes {
+            let next_cumul = cumul + s.net_gex;
+            if let Some((prev_strike, prev_cumul)) = prev {
+                let crosses = (prev_cumul < 0.0 && next_cumul >= 0.0)
+                    || (prev_cumul > 0.0 && next_cumul <= 0.0);
+                if crosses {
+                    let denom = next_cumul - prev_cumul;
+                    let zg = if denom.abs() < 1e-9 {
+                        s.strike
+                    } else {
+                        prev_strike + (s.strike - prev_strike) * (-prev_cumul) / denom
+                    };
+                    found = Some(zg);
+                    break;
+                }
             }
+            prev = Some((s.strike, next_cumul));
+            cumul = next_cumul;
         }
-        prev = Some((s.strike, next_cumul));
-        cumul = next_cumul;
-    }
+        found
+    };
 
     let call_wall = strikes
         .iter()

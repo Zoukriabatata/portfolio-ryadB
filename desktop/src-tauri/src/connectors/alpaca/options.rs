@@ -49,8 +49,21 @@ struct RawSnapshot {
     greeks: Option<RawGreeks>,
     #[serde(default, rename = "impliedVolatility")]
     implied_volatility: Option<f64>,
-    #[serde(default, rename = "openInterest")]
-    open_interest: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContractsEnvelope {
+    #[serde(default)]
+    option_contracts: Vec<RawContract>,
+    #[serde(default)]
+    next_page_token: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawContract {
+    symbol: String,
+    #[serde(default)]
+    open_interest: Option<String>, // Alpaca returns as string in JSON
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,16 +154,72 @@ async fn fetch_all_snapshots(
     Ok(all)
 }
 
-/// Fetch + parse all chains for the underlying.
+/// Fetch open interest per contract from the Trading API endpoint.
+/// `/v2/options/contracts?underlying_symbols=SPY&status=active`.
+/// Returns Map<OCC symbol, OI>. The snapshots endpoint does NOT include
+/// OI, so we need this secondary fetch to compute GEX correctly.
+async fn fetch_all_open_interest(
+    client: &AlpacaClient,
+    underlying: &str,
+) -> Result<HashMap<String, u64>> {
+    let mut all: HashMap<String, u64> = HashMap::new();
+    let mut page_token: Option<String> = None;
+    loop {
+        let mut query: Vec<(&str, &str)> = vec![
+            ("underlying_symbols", underlying),
+            ("status", "active"),
+            ("limit", "10000"),
+        ];
+        if let Some(ref tok) = page_token {
+            query.push(("page_token", tok));
+        }
+        // NOTE: this endpoint lives on the Trading API host (api.alpaca.markets)
+        // not the data host. We use the absolute prefix in `get_json` by passing
+        // a path that includes the override marker.
+        let env: ContractsEnvelope = client
+            .get_json_trading("v2/options/contracts", &query)
+            .await?;
+        for c in env.option_contracts {
+            if let Some(oi_str) = c.open_interest {
+                if let Ok(oi) = oi_str.parse::<u64>() {
+                    all.insert(c.symbol, oi);
+                }
+            }
+        }
+        match env.next_page_token {
+            Some(t) if !t.is_empty() => page_token = Some(t),
+            _ => break,
+        }
+        if all.len() >= 20_000 {
+            tracing::warn!(
+                "alpaca contracts: hit 20k cap for {}, stopping pagination",
+                underlying
+            );
+            break;
+        }
+    }
+    Ok(all)
+}
+
+/// Fetch + parse all chains for the underlying. Combines TWO Alpaca
+/// endpoints because the snapshots endpoint (greeks + IV) lacks Open
+/// Interest, which lives only on the contracts endpoint.
 pub async fn fetch_chains(
     client: &AlpacaClient,
     underlying: &str,
 ) -> Result<Vec<OptionChain>> {
-    let snapshots = fetch_all_snapshots(client, underlying).await?;
+    // Run both fetches in parallel — independent HTTP calls.
+    let (snapshots_res, oi_res) = tokio::join!(
+        fetch_all_snapshots(client, underlying),
+        fetch_all_open_interest(client, underlying),
+    );
+    let snapshots = snapshots_res?;
+    let oi_map = oi_res?;
     tracing::info!(
-        "alpaca options: {} got {} contract snapshots",
+        "alpaca options: {} got {} snapshots, {} OI entries",
         underlying,
-        snapshots.len()
+        snapshots.len(),
+        oi_map.len()
     );
 
     let mut by_expiry: HashMap<String, OptionChain> = HashMap::new();
@@ -162,7 +231,7 @@ pub async fn fetch_chains(
         let (_underlying, expiration, opt_type, strike) = parsed;
         let leg = OptionLeg {
             strike,
-            open_interest: snap.open_interest.unwrap_or(0),
+            open_interest: oi_map.get(&occ).copied().unwrap_or(0),
             gamma: snap.greeks.as_ref().and_then(|g| g.gamma),
             iv: snap.implied_volatility,
         };
@@ -229,13 +298,11 @@ mod tests {
             "snapshots": {
                 "SPY261218C00500000": {
                     "greeks": {"gamma": 0.012},
-                    "impliedVolatility": 0.18,
-                    "openInterest": 1234
+                    "impliedVolatility": 0.18
                 },
                 "SPY261218P00495000": {
                     "greeks": {"gamma": 0.011},
-                    "impliedVolatility": 0.20,
-                    "openInterest": 2345
+                    "impliedVolatility": 0.20
                 }
             },
             "next_page_token": null
@@ -244,9 +311,25 @@ mod tests {
         assert_eq!(env.snapshots.len(), 2);
         assert!(env.next_page_token.is_none());
         let call = env.snapshots.get("SPY261218C00500000").unwrap();
-        assert_eq!(call.open_interest, Some(1234));
         assert_eq!(call.greeks.as_ref().unwrap().gamma, Some(0.012));
         assert_eq!(call.implied_volatility, Some(0.18));
+    }
+
+    #[test]
+    fn parses_contracts_envelope_with_oi() {
+        let json = r#"{
+            "option_contracts": [
+                {"symbol":"SPY261218C00500000","open_interest":"1234"},
+                {"symbol":"SPY261218P00495000","open_interest":"2345"}
+            ],
+            "next_page_token": null
+        }"#;
+        let env: ContractsEnvelope = serde_json::from_str(json).unwrap();
+        assert_eq!(env.option_contracts.len(), 2);
+        assert_eq!(
+            env.option_contracts[0].open_interest.as_deref(),
+            Some("1234")
+        );
     }
 
     #[test]

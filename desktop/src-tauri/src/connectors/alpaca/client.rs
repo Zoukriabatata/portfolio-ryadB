@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::connectors::alpaca::error::{AlpacaError, Result};
 
 const DATA_BASE_URL: &str = "https://data.alpaca.markets";
+const TRADING_BASE_URL: &str = "https://paper-api.alpaca.markets";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
 pub struct AlpacaClient {
@@ -27,12 +28,32 @@ impl AlpacaClient {
     }
 
     /// GET `DATA_BASE_URL/{path}?{query}` with Alpaca auth headers.
+    /// Use for market data endpoints (quotes, options snapshots).
     pub async fn get_json<T: DeserializeOwned>(
         &self,
         path: &str,
         query: &[(&str, &str)],
     ) -> Result<T> {
-        let url = format!("{}/{}", DATA_BASE_URL, path.trim_start_matches('/'));
+        self.get_json_at(DATA_BASE_URL, path, query).await
+    }
+
+    /// GET `TRADING_BASE_URL/{path}?{query}`. Use for the trading-side
+    /// endpoints (option contracts list, which holds open interest).
+    pub async fn get_json_trading<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, &str)],
+    ) -> Result<T> {
+        self.get_json_at(TRADING_BASE_URL, path, query).await
+    }
+
+    async fn get_json_at<T: DeserializeOwned>(
+        &self,
+        base: &str,
+        path: &str,
+        query: &[(&str, &str)],
+    ) -> Result<T> {
+        let url = format!("{}/{}", base, path.trim_start_matches('/'));
         let resp = self
             .http
             .get(&url)
