@@ -165,3 +165,61 @@
   border-radius: 6px;
   cursor: pointer;
 }
+.eco-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  height: 100%;
+  background: #0f1115;
+  border-left: 1px solid #232733;
+}
+.eco-cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #c8ccd4;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.eco-cal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.eco-cal-pill {
+  background: #1c2028;
+  border: 1px solid #2a2f3a;
+  color: #8a8f99;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+.eco-cal-pill-active {
+  background: #2d5fda;
+  border-color: #4477ff;
+  color: #fff;
+}
+.eco-cal-section-header {
+  color: #b6bcc8;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 8px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #232733;
+}
+.eco-cal-empty,
+.eco-cal-error {
+  padding: 18px;
+  text-align: center;
+  color: #8a8f99;
+  font-size: 12px;
+}
+.eco-cal-error { color: #ff6b78; }
