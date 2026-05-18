@@ -5,6 +5,8 @@
 
 pub mod client;
 pub mod error;
+pub mod options;
 
 pub use client::TradierClient;
 pub use error::{Result, TradierError};
+pub use options::{fetch_chain, fetch_expirations, fetch_quote, OptionChain, OptionLeg};
