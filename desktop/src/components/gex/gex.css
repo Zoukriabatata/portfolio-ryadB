@@ -1,0 +1,167 @@
+/* Logo-derived green scoped to GEX module — mirrors News/Account
+   pattern (#22c55e). Does NOT affect Heatmap/Footprint --brand-green. */
+.gex-route {
+  --brand-green: #22c55e;
+  --brand-green-dim: #166534;
+
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-primary);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.gex-route::-webkit-scrollbar { width: 8px; }
+.gex-route::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ─── Header ────────────────────────────────────────────────── */
+.gex-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.gex-header-symbol { display: flex; gap: 6px; }
+.gex-symbol-pill {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 6px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s ease;
+}
+.gex-symbol-pill:hover {
+  border-color: var(--brand-green-dim);
+  color: var(--text-primary);
+}
+.gex-symbol-pill-active {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+  color: var(--bg-primary);
+}
+.gex-header-spot {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.gex-header-spot-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-right: 8px;
+}
+.gex-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gex-header-refreshed {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.gex-refresh-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s ease;
+}
+.gex-refresh-btn:hover:not(:disabled) {
+  background: var(--brand-green);
+  color: var(--bg-primary);
+  border-color: var(--brand-green);
+}
+.gex-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.gex-auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  user-select: none;
+}
+.gex-auto-toggle input { accent-color: var(--brand-green); }
+
+/* ─── Key levels ──────────────────────────────────────────── */
+.gex-key-levels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.gex-kpi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+.gex-kpi-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--brand-green), transparent);
+  opacity: 0.45;
+  border-radius: 12px 12px 0 0;
+}
+.gex-kpi-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.gex-kpi-value {
+  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.gex-kpi-sub {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.gex-kpi-total-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gex-kpi-total-chip-positive { color: var(--brand-green); border-color: var(--brand-green-dim); }
+.gex-kpi-total-chip-negative { color: var(--accent-red); border-color: var(--accent-red-dim); }
