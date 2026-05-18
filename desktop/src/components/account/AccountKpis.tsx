@@ -1,9 +1,12 @@
 import { useAccountStore } from "../../lib/account/useAccountStore";
 
-function fmtMoney(n: number | null | undefined): string {
+function fmtMoney(n: number | null | undefined, withSign = true): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "—";
-  const sign = n >= 0 ? "+" : "-";
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
+  if (withSign) {
+    const sign = n >= 0 ? "+" : "-";
+    return `${sign}$${Math.abs(n).toFixed(2)}`;
+  }
+  return `$${n.toFixed(2)}`;
 }
 
 function progressColor(pct: number): string {
@@ -15,9 +18,8 @@ function progressColor(pct: number): string {
 export function AccountKpis() {
   const stats = useAccountStore((s) => s.stats);
 
-  // Daily PnL → progress toward the loss limit (limit is a negative
-  // number, e.g. -2500). When dailyPnl is also negative we show how
-  // much of that runway is consumed.
+  // Daily PnL : progress toward the loss limit. Loss limit is negative,
+  // dailyPnl is negative when in drawdown — % used = |dailyPnl| / |limit|.
   const dailyPnl = stats?.dailyPnl ?? 0;
   const dailyLimit = stats?.dailyLossLimit ?? null;
   const dailyPctOfLimit =
@@ -25,8 +27,8 @@ export function AccountKpis() {
       ? Math.min(100, (Math.abs(dailyPnl) / Math.abs(dailyLimit)) * 100)
       : 0;
 
-  // Trailing drawdown remaining = balance - trailingDrawdown (the
-  // floor balance Rithmic reports as `min_account_balance`).
+  // Trailing drawdown — Apex/Rithmic reports `min_account_balance` =
+  // the floor balance; remaining = current balance - floor.
   const balance = stats?.balance ?? 0;
   const trailing = stats?.trailingDrawdown ?? null;
   const trailingLimit = stats?.trailingDrawdownLimit ?? null;
@@ -36,18 +38,15 @@ export function AccountKpis() {
       ? Math.min(100, Math.max(0, (1 - trailingRemaining / trailingLimit) * 100))
       : 0;
 
+  const marginUsed = stats?.marginUsed ?? null;
+  // Margin used vs balance — gives a rough % of capital deployed.
+  const marginPct =
+    marginUsed !== null && balance > 0
+      ? Math.min(100, (marginUsed / balance) * 100)
+      : 0;
+
   return (
     <div className="kpi-grid">
-      <div className="kpi-card">
-        <div className="kpi-card-label">Account Balance</div>
-        <div className="kpi-card-value">
-          {stats ? `$${stats.balance.toFixed(2)}` : "—"}
-        </div>
-        <div className="kpi-card-sub">
-          Start of day: {stats ? `$${stats.startOfDayBalance.toFixed(2)}` : "—"}
-        </div>
-      </div>
-
       <div className="kpi-card">
         <div className="kpi-card-label">Daily PnL</div>
         <div
@@ -57,10 +56,10 @@ export function AccountKpis() {
         >
           {stats ? fmtMoney(stats.dailyPnl) : "—"}
         </div>
-        {dailyLimit !== null && (
+        {dailyLimit !== null ? (
           <>
             <div className="kpi-card-sub">
-              Daily limit {fmtMoney(dailyLimit)} · {dailyPctOfLimit.toFixed(0)}% used
+              Limit {fmtMoney(dailyLimit)} · {dailyPctOfLimit.toFixed(0)}% used
             </div>
             <div className="kpi-progress">
               <div
@@ -69,18 +68,20 @@ export function AccountKpis() {
               />
             </div>
           </>
+        ) : (
+          <div className="kpi-card-sub">No daily loss limit reported.</div>
         )}
       </div>
 
       <div className="kpi-card">
         <div className="kpi-card-label">Trailing DD Remaining</div>
         <div className="kpi-card-value">
-          {trailingRemaining !== null ? `$${trailingRemaining.toFixed(2)}` : "—"}
+          {trailingRemaining !== null ? fmtMoney(trailingRemaining, false) : "—"}
         </div>
-        {trailingLimit !== null && (
+        {trailingLimit !== null ? (
           <>
             <div className="kpi-card-sub">
-              Limit ${trailingLimit.toFixed(0)} · {trailingPctUsed.toFixed(0)}% used
+              Trail ${trailingLimit.toFixed(0)} · {trailingPctUsed.toFixed(0)}% used
             </div>
             <div className="kpi-progress">
               <div
@@ -89,6 +90,30 @@ export function AccountKpis() {
               />
             </div>
           </>
+        ) : (
+          <div className="kpi-card-sub">No trailing drawdown reported.</div>
+        )}
+      </div>
+
+      <div className="kpi-card">
+        <div className="kpi-card-label">Margin Used</div>
+        <div className="kpi-card-value">
+          {marginUsed !== null ? fmtMoney(marginUsed, false) : "—"}
+        </div>
+        {marginUsed !== null && balance > 0 ? (
+          <>
+            <div className="kpi-card-sub">
+              {marginPct.toFixed(1)}% of balance deployed
+            </div>
+            <div className="kpi-progress">
+              <div
+                className={`kpi-progress-bar ${progressColor(marginPct)}`}
+                style={{ width: `${marginPct}%` }}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="kpi-card-sub">Flat. No margin in use.</div>
         )}
       </div>
     </div>

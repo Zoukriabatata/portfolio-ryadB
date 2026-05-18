@@ -36,83 +36,157 @@
   background: var(--brand-green-dim);
 }
 
-/* ─── Header ──────────────────────────────────────────────── */
-.account-header {
-  display: flex;
-  justify-content: space-between;
+/* ─── Hero account banner ─────────────────────────────────── */
+.account-hero {
+  display: grid;
+  grid-template-columns: 1.5fr 2fr auto;
   align-items: center;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
+  gap: 24px;
+  background:
+    linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, transparent 70%),
+    var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 28px;
+  position: relative;
+  overflow: hidden;
   animation: acct-fade-in 0.35s ease-out;
 }
-.account-header-title {
-  color: var(--text-primary);
-  font-size: 17px;
+.account-hero::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--brand-green) 50%,
+    transparent 100%
+  );
+  opacity: 0.5;
+}
+.account-hero-left {
+  display: flex;
+  flex-direction: column;
+}
+.account-hero-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.account-hero-badge-label {
+  color: var(--text-muted);
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
-.account-header-title::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--brand-green);
-  margin-right: 12px;
-  vertical-align: middle;
-  box-shadow: 0 0 12px var(--brand-green);
-  animation: acct-pulse 2s ease-in-out infinite;
+.account-hero-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-@keyframes acct-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.55; transform: scale(0.85); }
+.account-hero-id-main {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
-.account-header-status {
+.account-hero-id-sub {
+  color: var(--brand-green);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.account-hero-picker {
+  background: var(--bg-axis);
+  border: 1px solid var(--brand-green-dim);
+  color: var(--brand-green);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.account-hero-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.account-hero-balance-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.account-hero-balance-value {
+  color: var(--text-primary);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.account-hero-balance-sub {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.account-hero-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
-  padding: 5px 12px;
+  padding: 6px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--bg-surface);
+  background: var(--bg-axis);
 }
-.account-header-status-dot {
+.account-hero-status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--text-muted);
 }
-.account-header-status-connected {
+.account-hero-status-connected {
   border-color: var(--brand-green-dim);
   color: var(--brand-green);
 }
-.account-header-status-connected .account-header-status-dot {
+.account-hero-status-connected .account-hero-status-dot {
   background: var(--brand-green);
-  box-shadow: 0 0 6px var(--brand-green);
+  box-shadow: 0 0 8px var(--brand-green);
+  animation: acct-pulse 2s ease-in-out infinite;
 }
-.account-header-status-error {
+.account-hero-status-error {
   border-color: var(--accent-red);
   color: var(--accent-red);
 }
-.account-header-status-error .account-header-status-dot {
+.account-hero-status-error .account-hero-status-dot {
   background: var(--accent-red);
 }
+@keyframes acct-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
 
-.account-picker {
-  background: var(--bg-surface);
-  border: 1px solid var(--brand-green-dim);
-  color: var(--brand-green);
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+@media (max-width: 1000px) {
+  .account-hero {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .account-hero-balance-value { font-size: 28px; }
 }
 
 /* ─── KPI cards ───────────────────────────────────────────── */
@@ -375,6 +449,7 @@
 .equity-title {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
@@ -383,7 +458,7 @@
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
-.equity-title::before {
+.equity-title > span:first-child::before {
   content: "";
   display: inline-block;
   width: 6px;
@@ -391,11 +466,36 @@
   background: var(--brand-green);
   border-radius: 50%;
   margin-right: 10px;
+  vertical-align: middle;
   box-shadow: 0 0 6px var(--brand-green);
+}
+.equity-range {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.equity-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+.equity-axis-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 .equity-canvas {
   width: 100%;
-  height: 180px;
+  height: 200px;
   display: block;
 }
 .equity-empty {
@@ -448,30 +548,50 @@
   margin-right: 10px;
   box-shadow: 0 0 6px var(--brand-green);
 }
-.day-stats {
+.day-stats-body {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.wr-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.wr-gauge-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.day-stats-cells {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  flex: 1;
 }
 .day-stat-cell {
   background: var(--bg-axis);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-radius: 8px;
+  padding: 10px 12px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  align-items: baseline;
 }
 .day-stat-cell-label {
   color: var(--text-muted);
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 .day-stat-cell-value {
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
