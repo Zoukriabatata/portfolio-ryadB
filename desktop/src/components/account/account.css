@@ -101,3 +101,52 @@
 }
 .day-stat-pos { color: var(--brand-green); }
 .day-stat-neg { color: var(--accent-red); }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.kpi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kpi-card-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.kpi-card-value {
+  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.kpi-card-value-pos { color: var(--brand-green); }
+.kpi-card-value-neg { color: var(--accent-red); }
+.kpi-card-sub {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-progress {
+  height: 6px;
+  background: var(--bg-axis);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.kpi-progress-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.kpi-progress-bar-safe   { background: var(--brand-green); }
+.kpi-progress-bar-warn   { background: #f5a623; }
+.kpi-progress-bar-danger { background: var(--accent-red); }
