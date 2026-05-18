@@ -6,8 +6,10 @@
 pub mod api_key;
 pub mod client;
 pub mod error;
+pub mod gex;
 pub mod options;
 
 pub use client::TradierClient;
 pub use error::{Result, TradierError};
+pub use gex::{compute_gex, GexSnapshot, GexStrike, IvPoint, IvSide, IvSmile};
 pub use options::{fetch_chain, fetch_expirations, fetch_quote, OptionChain, OptionLeg};
