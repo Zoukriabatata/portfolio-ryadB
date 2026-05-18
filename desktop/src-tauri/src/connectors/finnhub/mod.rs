@@ -7,8 +7,10 @@ pub mod cache;
 pub mod calendar;
 pub mod client;
 pub mod error;
+pub mod news;
 
 pub use cache::TtlCache;
 pub use calendar::{fetch_calendar, EconomicEvent, Impact};
 pub use client::FinnhubClient;
 pub use error::{FinnhubError, Result};
+pub use news::{fetch_news, NewsArticle};
