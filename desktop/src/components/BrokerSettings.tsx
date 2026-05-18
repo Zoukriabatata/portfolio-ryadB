@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { hasApiKey, saveApiKey, deleteApiKey } from "../lib/news/api";
+import {
+  hasApiKey as hasTradierKey,
+  saveApiKey as saveTradierKey,
+  deleteApiKey as deleteTradierKey,
+} from "../lib/gex/api";
 import { BrokerPresetPicker } from "./BrokerPresetPicker";
 import "./BrokerSettings.css";
 
@@ -77,6 +82,46 @@ export function BrokerSettings({
   const [finnhubStatus, setFinnhubStatus] = useState<
     { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
   >({ kind: "idle" });
+
+  const [tradierKey, setTradierKey] = useState("");
+  const [tradierKeySet, setTradierKeySet] = useState<boolean | null>(null);
+  const [tradierStatus, setTradierStatus] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
+  >({ kind: "idle" });
+
+  useEffect(() => {
+    void hasTradierKey()
+      .then(setTradierKeySet)
+      .catch(() => setTradierKeySet(false));
+  }, []);
+
+  const handleSaveTradier = useCallback(async () => {
+    const trimmed = tradierKey.trim();
+    if (!trimmed) {
+      setTradierStatus({ kind: "error", msg: "Empty key." });
+      return;
+    }
+    setTradierStatus({ kind: "busy" });
+    try {
+      await saveTradierKey(trimmed);
+      setTradierStatus({ kind: "success", msg: "Saved." });
+      setTradierKeySet(true);
+      setTradierKey("");
+    } catch (e) {
+      setTradierStatus({ kind: "error", msg: String(e) });
+    }
+  }, [tradierKey]);
+
+  const handleDeleteTradier = useCallback(async () => {
+    setTradierStatus({ kind: "busy" });
+    try {
+      await deleteTradierKey();
+      setTradierStatus({ kind: "success", msg: "Deleted." });
+      setTradierKeySet(false);
+    } catch (e) {
+      setTradierStatus({ kind: "error", msg: String(e) });
+    }
+  }, []);
 
   const isCustom = form.preset === "Custom";
   const presetInfo = useMemo(
@@ -415,6 +460,48 @@ export function BrokerSettings({
           <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>
             {finnhubStatus.msg}
           </div>
+        )}
+      </section>
+
+      <section className="bs-section" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #2a2f3a" }}>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 14, color: "#c8ccd4" }}>
+          Tradier API key (GEX module)
+        </h3>
+        <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#8a8f99" }}>
+          Required for the GEX dashboard (SPY / QQQ gamma exposure + IV smile). Sign
+          up free at developer.tradier.com (sandbox tier, 60 req/min). Key is stored
+          in your OS keyring.
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="password"
+            placeholder={tradierKeySet ? "•••••• (configured)" : "Paste your Tradier sandbox API key"}
+            value={tradierKey}
+            onChange={(e) => setTradierKey(e.target.value)}
+            style={{ flex: 1, padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+          />
+          <button
+            type="button"
+            onClick={() => void handleSaveTradier()}
+            disabled={tradierStatus.kind === "busy"}
+          >
+            Save key
+          </button>
+          {tradierKeySet && (
+            <button
+              type="button"
+              onClick={() => void handleDeleteTradier()}
+              disabled={tradierStatus.kind === "busy"}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        {tradierStatus.kind === "error" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#ff6b78" }}>{tradierStatus.msg}</div>
+        )}
+        {tradierStatus.kind === "success" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>{tradierStatus.msg}</div>
         )}
       </section>
     </div>

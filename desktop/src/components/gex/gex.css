@@ -297,3 +297,35 @@
   font-variant-numeric: tabular-nums;
   margin-left: 6px;
 }
+
+/* ─── Empty / error states ────────────────────────────────── */
+.gex-empty-state {
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.gex-empty-state-icon {
+  display: block;
+  font-size: 44px;
+  color: var(--brand-green-dim);
+  margin-bottom: 14px;
+}
+.gex-empty-state-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.gex-empty-state-sub {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.gex-error-banner {
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+}
