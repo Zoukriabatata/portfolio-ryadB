@@ -306,6 +306,11 @@ pub fn run() {
             // Make the connection available to the `cache_query` command.
             app.manage(commands::cache::CacheState::new(cache_db));
 
+            // News module — Finnhub-backed economic calendar + articles.
+            // Cached in-memory (5 min calendar / 60 s news) to spare the
+            // free-tier rate limit.
+            app.manage(commands::news::NewsState::new());
+
             // Native Journal SQLite — opened once at startup, lives
             // for the app's lifetime. Path = OS app-data dir +
             // `journal.db` (created on first launch).
@@ -380,6 +385,12 @@ pub fn run() {
             journal::commands::journal_list_playbook_setups,
             journal::commands::journal_save_playbook_setup,
             journal::commands::journal_delete_playbook_setup,
+            // News module — Finnhub calendar + articles + key vault.
+            commands::news::news_fetch_calendar,
+            commands::news::news_fetch_articles,
+            commands::news::news_save_api_key,
+            commands::news::news_has_api_key,
+            commands::news::news_delete_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

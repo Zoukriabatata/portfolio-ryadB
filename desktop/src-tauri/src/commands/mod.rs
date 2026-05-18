@@ -8,5 +8,6 @@ pub mod cache;
 pub mod crypto;
 pub mod crypto_events;
 pub mod crypto_tick_events;
+pub mod news;
 pub mod rithmic;
 pub mod rithmic_events;
