@@ -17,17 +17,21 @@ export function useFinnhubPolling() {
     let articlesTimer: ReturnType<typeof setInterval> | null = null;
     let eventsTimer: ReturnType<typeof setInterval> | null = null;
 
-    const start = () => {
-      void refreshArticles();
-      void refreshEvents();
-      articlesTimer = setInterval(() => void refreshArticles(), ARTICLES_INTERVAL_MS);
-      eventsTimer = setInterval(() => void refreshEvents(), EVENTS_INTERVAL_MS);
-    };
     const stop = () => {
       if (articlesTimer) clearInterval(articlesTimer);
       if (eventsTimer) clearInterval(eventsTimer);
       articlesTimer = null;
       eventsTimer = null;
+    };
+    const start = () => {
+      // Idempotent — clear any prior timers before scheduling fresh
+      // ones. Guards against spurious visibilitychange events that
+      // some browsers fire with hidden=false while timers are alive.
+      stop();
+      void refreshArticles();
+      void refreshEvents();
+      articlesTimer = setInterval(() => void refreshArticles(), ARTICLES_INTERVAL_MS);
+      eventsTimer = setInterval(() => void refreshEvents(), EVENTS_INTERVAL_MS);
     };
 
     const handleVisibility = () => {
