@@ -231,16 +231,18 @@ pub async fn account_fetch_today_trades() -> Result<Vec<TodayTrade>, String> {
 
     let trades = rithmic_sync::reconstruct_trades(&pull.accounts, &pull.fills);
 
-    // Cut-off = today's UTC midnight as ISO. Compares string-wise on
-    // ISO 8601 — safe since the format is fixed-width and lexicographic
-    // order matches chronological order.
+    // Cut-off = 24h ago (rolling window). Using UTC midnight strict
+    // cut some traders' previous-evening trades that landed before
+    // 00:00 UTC. 24h rolling is a friendlier "what did I do today"
+    // for a EU trader whose session straddles UTC midnight, and
+    // matches the CME Globex daily session length more closely.
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    let day_secs = now_secs - now_secs.rem_euclid(86_400);
-    let cutoff_iso = format_unix_to_iso8601(day_secs);
+    let cutoff_iso = format_unix_to_iso8601(now_secs - 86_400);
 
+    let total = trades.len();
     let today: Vec<TodayTrade> = trades
         .into_iter()
         .filter_map(|t| match (t.exit_time, t.pnl) {
@@ -257,8 +259,9 @@ pub async fn account_fetch_today_trades() -> Result<Vec<TodayTrade>, String> {
         .collect();
 
     tracing::info!(
-        "account_fetch_today_trades: kept {} closed trades since {}",
+        "account_fetch_today_trades: {} closed in last 24h (of {} total round-trips, cutoff {})",
         today.len(),
+        total,
         cutoff_iso,
     );
     Ok(today)
