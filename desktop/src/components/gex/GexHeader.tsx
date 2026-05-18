@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useGexStore } from "../../lib/gex/useGexStore";
 
 function timeAgo(ts: number | null): string {
@@ -18,6 +19,31 @@ export function GexHeader() {
   const toggleAutoRefresh = useGexStore((s) => s.toggleAutoRefresh);
   const fetchSnapshot = useGexStore((s) => s.fetchSnapshot);
 
+  // Spot flash : turns green/red briefly when the value changes.
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const prevSpotRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const cur = snapshot?.spot ?? null;
+    const prev = prevSpotRef.current;
+    if (cur !== null && prev !== null && cur !== prev) {
+      setFlash(cur > prev ? "up" : "down");
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = setTimeout(() => setFlash(null), 700);
+    }
+    prevSpotRef.current = cur;
+  }, [snapshot?.spot]);
+  useEffect(() => () => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+  }, []);
+
+  const spotClass =
+    flash === "up"
+      ? "gex-header-spot gex-header-spot-flash-up"
+      : flash === "down"
+      ? "gex-header-spot gex-header-spot-flash-down"
+      : "gex-header-spot";
+
   return (
     <div className="gex-header">
       <div className="gex-header-symbol">
@@ -36,9 +62,10 @@ export function GexHeader() {
 
       <div>
         <span className="gex-header-spot-label">Spot</span>
-        <span className="gex-header-spot">
+        <span className={spotClass}>
           {snapshot ? `$${snapshot.spot.toFixed(2)}` : "—"}
         </span>
+        {autoRefresh && <span className="gex-header-live">LIVE</span>}
       </div>
 
       <div className="gex-header-actions">
@@ -48,7 +75,7 @@ export function GexHeader() {
             checked={autoRefresh}
             onChange={toggleAutoRefresh}
           />
-          Auto 15min
+          Auto live (5s)
         </label>
         <span className="gex-header-refreshed">{timeAgo(lastFetchedAt)}</span>
         <button
@@ -57,7 +84,7 @@ export function GexHeader() {
           onClick={() => void fetchSnapshot()}
           disabled={loading}
         >
-          {loading ? "Loading…" : "Refresh"}
+          {loading ? "Loading…" : "Refresh chain"}
         </button>
       </div>
     </div>

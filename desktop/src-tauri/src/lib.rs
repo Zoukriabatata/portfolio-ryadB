@@ -406,8 +406,9 @@ pub fn run() {
             commands::account::account_start_live,
             commands::account::account_stop_live,
             commands::account::account_fetch_today_trades,
-            // GEX module — Tradier snapshot + api key vault.
+            // GEX module — Alpaca snapshot + live tick + api key vault.
             commands::gex::gex_fetch_snapshot,
+            commands::gex::gex_tick_spot,
             commands::gex::gex_save_api_key,
             commands::gex::gex_has_api_key,
             commands::gex::gex_delete_api_key,

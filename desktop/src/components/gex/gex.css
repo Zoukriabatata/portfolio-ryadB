@@ -56,6 +56,36 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  transition: color 0.4s ease;
+}
+.gex-header-spot-flash-up { color: var(--brand-green); }
+.gex-header-spot-flash-down { color: var(--accent-red); }
+
+.gex-header-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--brand-green-dim);
+  border-radius: 999px;
+  color: var(--brand-green);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-left: 12px;
+}
+.gex-header-live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-green);
+  box-shadow: 0 0 6px var(--brand-green);
+  animation: gex-live-pulse 1.4s ease-in-out infinite;
+}
+@keyframes gex-live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.85); }
 }
 .gex-header-spot-label {
   color: var(--text-muted);
@@ -143,6 +173,7 @@
   font-size: 28px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  transition: color 0.4s ease;
 }
 .gex-kpi-sub {
   color: var(--text-muted);

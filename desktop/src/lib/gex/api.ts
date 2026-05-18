@@ -59,6 +59,14 @@ export async function fetchGexSnapshot(symbol: GexSymbol): Promise<GexSnapshot> 
   return invoke<GexSnapshot>("gex_fetch_snapshot", { args: { symbol } });
 }
 
+/** Lightweight live tick — re-fetches just the spot and recomputes
+ *  the snapshot from cached chains server-side. ~100ms vs ~5s for the
+ *  full fetch. Backend falls back to a full fetch transparently if
+ *  the chains cache has expired. */
+export async function tickGexSpot(symbol: GexSymbol): Promise<GexSnapshot> {
+  return invoke<GexSnapshot>("gex_tick_spot", { args: { symbol } });
+}
+
 export async function saveApiKey(keyId: string, secretKey: string): Promise<void> {
   return invoke<void>("gex_save_api_key", { args: { keyId, secretKey } });
 }

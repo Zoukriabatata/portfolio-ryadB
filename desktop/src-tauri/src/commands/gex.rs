@@ -20,12 +20,17 @@ const EXPIRATION_WINDOW_DAYS: i64 = 30;
 
 pub struct GexState {
     pub cache: TtlCache<GexSnapshot>,
+    /// Separate cache of the filtered chains so the spot-only refresh
+    /// can recompute without re-fetching ~10 expirations from Alpaca
+    /// (heavy, ~5-10s). Same TTL.
+    pub chains_cache: TtlCache<Vec<OptionChain>>,
 }
 
 impl GexState {
     pub fn new() -> Self {
         Self {
             cache: TtlCache::new(SNAPSHOT_TTL),
+            chains_cache: TtlCache::new(SNAPSHOT_TTL),
         }
     }
 }
@@ -100,7 +105,48 @@ pub async fn gex_fetch_snapshot(
         snap.total_gex,
     );
 
-    state.cache.set(cache_key, snap.clone()).await;
+    state.cache.set(cache_key.clone(), snap.clone()).await;
+    state.chains_cache.set(format!("chains|{}", args.symbol), filtered).await;
+    Ok(snap)
+}
+
+/// Lightweight live-tick endpoint. Fetches just the spot quote and
+/// recomputes the snapshot from cached chains. ~100ms vs ~5s for a
+/// full fetch. Falls back to full fetch if chains cache is empty.
+#[tauri::command]
+pub async fn gex_tick_spot(
+    state: State<'_, GexState>,
+    args: FetchGexArgs,
+) -> Result<GexSnapshot, String> {
+    let chains_key = format!("chains|{}", args.symbol);
+    let chains = match state.chains_cache.get(&chains_key).await {
+        Some(c) => c,
+        None => {
+            tracing::info!("gex_tick_spot: chains miss for {}, falling back to full fetch", args.symbol);
+            return gex_fetch_snapshot(state, args).await;
+        }
+    };
+
+    let keys = tokio::task::spawn_blocking(api_key::load)
+        .await
+        .map_err(|e| format!("vault task panicked: {e}"))?
+        .map_err(|e| format!("alpaca vault: {e}"))?
+        .ok_or_else(|| "Alpaca API keys not configured — set them in Settings".to_string())?;
+    let client = AlpacaClient::new(keys.key_id, keys.secret_key).map_err(|e| e.to_string())?;
+
+    let spot = fetch_quote(&client, &args.symbol)
+        .await
+        .map_err(|e| format!("alpaca quote: {e}"))?;
+
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let computed_at = unix_to_iso8601(now_secs);
+    let snap = compute_gex(&args.symbol, spot, &chains, computed_at, now_secs);
+    // Refresh the snapshot cache too so consumers picking it up after
+    // a tick see the latest spot.
+    state.cache.set(format!("gex|{}", args.symbol), snap.clone()).await;
     Ok(snap)
 }
 
