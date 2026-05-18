@@ -17,6 +17,7 @@ pub mod error;
 pub mod finnhub;
 pub mod rithmic;
 pub mod tick;
+pub mod tradier;
 
 pub use adapter::{Credentials, MarketDataAdapter};
 pub use error::{ConnectorError, Result};
