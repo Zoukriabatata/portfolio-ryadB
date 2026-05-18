@@ -16,6 +16,7 @@ pub mod history;
 pub mod history_probe;
 pub mod history_ticks;
 pub mod order_plant;
+pub mod order_subscribe;
 pub mod pnl_plant;
 pub mod reader;
 
