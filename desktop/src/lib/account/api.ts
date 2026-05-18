@@ -75,6 +75,38 @@ export type TodayTrade = {
   exitTime: string;
 };
 
+/** Mirror of the Rust `Trade` shape exposed via `journal_trades_on_day`.
+ *  We only keep the fields the Account dashboard needs (full surface
+ *  area lives in `lib/journal/api.ts`). */
+type JournalTrade = {
+  id: string;
+  symbol: string;
+  side: string;
+  pnl: number | null;
+  entryTime: string;
+  exitTime: string | null;
+  externalSource?: string | null;
+};
+
+/** Pull today's CLOSED trades from the local journal SQLite. The
+ *  journal is populated by the user's manual / scheduled "Sync from
+ *  Rithmic" in the Journal module. If the user has never synced,
+ *  this returns []. */
 export async function fetchTodayTrades(): Promise<TodayTrade[]> {
-  return invoke<TodayTrade[]>("account_fetch_today_trades");
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const date = `${y}-${m}-${day}`;
+  const rows = await invoke<JournalTrade[]>("journal_trades_on_day", {
+    args: { date },
+  });
+  return rows
+    .filter((t) => t.exitTime !== null && t.pnl !== null && Number.isFinite(t.pnl))
+    .map((t) => ({
+      symbol: t.symbol,
+      side: t.side,
+      pnl: t.pnl as number,
+      exitTime: t.exitTime as string,
+    }));
 }
