@@ -27,10 +27,7 @@ pub fn spawn_emitter(app: AppHandle, engine: &FootprintEngine) {
             match update_rx.recv().await {
                 Ok(bar) => {
                     if let Err(e) = app.emit(FOOTPRINT_UPDATE_EVENT, &bar) {
-                        tracing::warn!(
-                            "Failed to emit {}: {e}",
-                            FOOTPRINT_UPDATE_EVENT
-                        );
+                        tracing::warn!("Failed to emit {}: {e}", FOOTPRINT_UPDATE_EVENT);
                     }
                 }
                 Err(RecvError::Lagged(n)) => {

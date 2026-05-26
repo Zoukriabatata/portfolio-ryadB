@@ -8,3 +8,4 @@ export {
 } from "./GridSystem";
 export { VolumeProfileBuilder } from "./VolumeProfileBuilder";
 export { VwapBuilder } from "./VwapBuilder";
+export { BBOHistoryBuffer } from "./BBOHistoryBuffer";

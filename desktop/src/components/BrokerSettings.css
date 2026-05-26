@@ -1,165 +1,460 @@
+/* Broker connection form — Senzoukria palette + chrome aligned
+   with the AdvancedSettingsModal / SymbolPickerModal. Pure black
+   surface, brand green accents, white text. Replaces the old
+   slate-blue (#161b22 / #1f6feb) GitHub-dark look. */
+
 .broker-settings {
   max-width: 560px;
   margin: 32px auto;
-  padding: 24px 28px;
-  background: #161b22;
-  border: 1px solid #21262d;
-  border-radius: 8px;
-  color: #c9d1d9;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    system-ui,
-    sans-serif;
+  padding: 28px 32px;
+  background:
+    radial-gradient(
+      circle at 50% -20%,
+      rgba(126, 211, 33, 0.06),
+      transparent 60%
+    ),
+    #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 16px;
+  color: #ffffff;
+  font-family: var(--font-sans, -apple-system, "Segoe UI", system-ui, sans-serif);
+  letter-spacing: -0.005em;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 24px 80px -16px rgba(0, 0, 0, 0.65);
+  animation: bsSlideIn 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes bsSlideIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .bs-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .bs-header h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #f0f6fc;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bs-header h2::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 12px;
+  border-radius: 50%;
+  background: #7ed321;
+  box-shadow: 0 0 10px rgba(126, 211, 33, 0.55);
 }
 
 .bs-intro {
   font-size: 13px;
-  color: #8b949e;
-  margin: 0 0 20px 0;
-  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 24px 0;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
 }
+
+/* Form fields ------------------------------------------------------ */
 
 .bs-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 14px;
+  gap: 6px;
+  margin-bottom: 16px;
   font-size: 11px;
-  color: #8b949e;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .bs-field span {
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .bs-field input,
 .bs-field select {
-  background: #0d1117;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding: 10px 12px;
   font-size: 13px;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  border-radius: 10px;
   outline: none;
+  letter-spacing: -0.005em;
+  transition: background 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.bs-field input::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+}
+
+.bs-field input:hover:not(:disabled),
+.bs-field select:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .bs-field input:focus,
 .bs-field select:focus {
-  border-color: #1f6feb;
-  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #7ed321;
+  box-shadow: 0 0 0 3px rgba(126, 211, 33, 0.18);
 }
 
 .bs-field input:disabled,
 .bs-field select:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Custom select chevron — native arrow doesn't theme, so replace it
+   with a CSS triangle that matches the rest of the chrome. */
+.bs-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'><path d='M1 1l4 4 4-4' stroke='%238c8c8c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
 }
 
 .bs-help {
   margin-top: 4px;
   font-size: 11px;
-  color: #6e7681;
-  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.38);
+  line-height: 1.5;
   text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: -0.005em;
+  font-weight: 400;
 }
 
+/* Status banners --------------------------------------------------- */
+
 .bs-error {
-  background: rgba(248, 81, 73, 0.1);
-  border: 1px solid rgba(248, 81, 73, 0.4);
-  color: #f85149;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin: 12px 0;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: rgba(248, 81, 73, 0.10);
+  border: 1px solid rgba(248, 81, 73, 0.40);
+  color: #f87171;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin: 14px 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
   white-space: pre-wrap;
+  letter-spacing: -0.005em;
+  animation: bsBannerIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bs-success {
-  background: rgba(46, 160, 67, 0.1);
-  border: 1px solid rgba(46, 160, 67, 0.4);
-  color: #3fb950;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin: 12px 0;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: rgba(126, 211, 33, 0.10);
+  border: 1px solid rgba(126, 211, 33, 0.40);
+  color: #7ed321;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin: 14px 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
+  letter-spacing: -0.005em;
+  animation: bsBannerIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+@keyframes bsBannerIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Action buttons --------------------------------------------------- */
 
 .bs-actions {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 24px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .bs-actions button {
   cursor: pointer;
-  background: #30363d;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 9px 16px;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 4px;
-  transition: background 0.1s;
+  border-radius: 10px;
+  font-family: inherit;
+  letter-spacing: -0.005em;
+  transition: background 160ms ease, border-color 160ms ease,
+    color 160ms ease, transform 100ms ease, box-shadow 160ms ease;
 }
 
 .bs-actions button:hover:not(:disabled) {
-  background: #484f58;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.bs-actions button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 .bs-actions button.bs-primary {
-  background: #2ea043;
-  border-color: #2ea043;
-  color: #fff;
+  background: rgba(126, 211, 33, 0.12);
+  border-color: rgba(126, 211, 33, 0.55);
+  color: #7ed321;
 }
+
 .bs-actions button.bs-primary:hover:not(:disabled) {
-  background: #3fb950;
+  background: rgba(126, 211, 33, 0.18);
+  border-color: #7ed321;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(126, 211, 33, 0.15);
 }
 
 .bs-actions button.bs-danger {
   background: transparent;
-  border-color: #da3633;
-  color: #f85149;
+  border-color: rgba(248, 81, 73, 0.40);
+  color: #f87171;
   margin-left: auto;
 }
+
 .bs-actions button.bs-danger:hover:not(:disabled) {
-  background: rgba(218, 54, 51, 0.15);
+  background: rgba(248, 81, 73, 0.10);
+  border-color: rgba(248, 81, 73, 0.65);
+  color: #ffffff;
 }
 
 .bs-actions button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
+/* Close button (top-right) ---------------------------------------- */
+
 button.bs-secondary {
   background: transparent;
-  border: 1px solid #30363d;
-  color: #8b949e;
-  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.55);
+  padding: 6px 12px;
   font-size: 12px;
-  border-radius: 4px;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: -0.005em;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background 160ms ease, color 160ms ease,
+    border-color 160ms ease;
 }
+
 button.bs-secondary:hover:not(:disabled) {
-  background: #21262d;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+button.bs-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Broker preset picker (custom dropdown) ──────────────────── */
+
+.bs-picker {
+  position: relative;
+}
+.bs-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: #141414;
+  border: 1px solid #22c55e44;
+  color: #22c55e;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s ease;
+}
+.bs-picker-trigger:hover:not(:disabled) {
+  border-color: #22c55e;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+}
+.bs-picker-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bs-picker-trigger-open {
+  background: #22c55e;
+  color: #0a0a0a;
+  border-color: #22c55e;
+}
+.bs-picker-trigger-chevron {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+.bs-picker-trigger-open .bs-picker-trigger-chevron {
+  transform: rotate(180deg);
+}
+
+.bs-picker-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+  background: #141414;
+  border: 1px solid #22c55e55;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: bsPickerIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes bsPickerIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bs-picker-search-wrap {
+  padding: 12px;
+  border-bottom: 1px solid #1f1f1f;
+}
+.bs-picker-search {
+  width: 100%;
+  background: #0a0a0a;
+  border: 1px solid #1f1f1f;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.16s ease;
+  box-sizing: border-box;
+}
+.bs-picker-search:focus { border-color: #22c55e; }
+.bs-picker-search::placeholder {
+  color: #9ca3af;
+  opacity: 0.6;
+}
+
+.bs-picker-list {
+  overflow-y: auto;
+  padding: 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #1f1f1f transparent;
+}
+.bs-picker-list::-webkit-scrollbar { width: 8px; }
+.bs-picker-list::-webkit-scrollbar-thumb {
+  background: #1f1f1f;
+  border-radius: 4px;
+}
+
+.bs-picker-empty {
+  padding: 24px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.bs-picker-group {
+  margin-bottom: 4px;
+}
+.bs-picker-group-header {
+  padding: 8px 14px 4px;
+  color: #22c55e;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.bs-picker-group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.bs-picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  color: #ffffff;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.16s ease;
+}
+.bs-picker-item:hover {
+  background: #0a0a0a;
+  border-left-color: #22c55e;
+}
+.bs-picker-item-active {
+  background: rgba(34, 197, 94, 0.08);
+  border-left-color: #22c55e;
+}
+.bs-picker-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bs-picker-item-label {
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.bs-picker-item-system {
+  color: #9ca3af;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.bs-picker-item-desc {
+  color: #ffffff;
+  font-size: 11px;
+  opacity: 0.78;
+  line-height: 1.4;
+}
+
+/* Reduce-motion ---------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .broker-settings,
+  .bs-error,
+  .bs-success,
+  .bs-actions button,
+  button.bs-secondary,
+  .bs-picker-panel,
+  .bs-picker-trigger,
+  .bs-picker-trigger-chevron,
+  .bs-picker-item {
+    animation: none !important;
+    transition: none !important;
+  }
 }

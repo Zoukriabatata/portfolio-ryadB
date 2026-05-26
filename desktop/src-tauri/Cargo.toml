@@ -50,14 +50,27 @@ futures-util   = { version = "0.3", default-features = false, features = ["sink"
 url            = "2.5"
 async-trait    = "0.1"
 tracing        = "0.1"
+# Tracing subscriber MUST be a runtime dep (not dev-only) — without it
+# being in [dependencies], `tracing_subscriber::fmt::init()` from the
+# main binary fails to link and all `tracing::` calls site-wide become
+# silent no-ops. This was a real bug pre-2026-05-10 that hid every
+# Rust-side error from the Tauri terminal.
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter"] }
 # M3.5 — orderbook BTreeMap keyed by price (f64 isn't Ord; OrderedFloat
 # wraps it with a NaN-rejecting Ord impl so the map keys work directly).
 ordered-float  = "4"
 
+# Journal native SQLite (FEAT-3 day 1). `bundled` ships SQLite source
+# inside the binary so no external SQLite install is needed on user
+# machines. Trade entries, daily notes, playbook setups all live in a
+# single `journal.db` file under the OS app-data dir.
+rusqlite       = { version = "0.31", features = ["bundled"] }
+uuid           = { version = "1", features = ["v4"] }
+
 [dev-dependencies]
-tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi"] }
 tokio              = { version = "1", features = ["sync", "rt", "macros", "time", "net"] }
 chrono             = { version = "0.4", default-features = false, features = ["clock"] }
+tempfile           = "3"
 
 [[example]]
 name = "rithmic_connect"
@@ -94,3 +107,10 @@ path = "examples/deribit_subscribe.rs"
 [[example]]
 name = "bybit_orderbook_subscribe"
 path = "examples/bybit_orderbook_subscribe.rs"
+
+# Databento cost probe — checks the exact USD price of fetching 24h MNQ
+# trades from GLBX.MDP3 before committing to an integration. Standalone,
+# uses `metadata.get_cost` which is itself free (no credit consumption).
+[[example]]
+name = "databento_cost_probe"
+path = "examples/databento_cost_probe.rs"

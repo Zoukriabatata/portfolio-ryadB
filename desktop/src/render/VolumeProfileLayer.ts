@@ -21,9 +21,10 @@ export interface VolumeProfileData {
   vahIdx: number;
 }
 
-const DEFAULT_POC_COLOR = "#fde047";
-const DEFAULT_VA_COLOR = "#c084fc";
-const DEFAULT_NEUTRAL_COLOR = "#5d6b7e";
+// REFONTE-7/P1 : alignement palette Senzoukria avec KeyLevelsLayer.
+const DEFAULT_POC_COLOR = "#00e676";
+const DEFAULT_VA_COLOR = "#1f4d2e";
+const DEFAULT_NEUTRAL_COLOR = "#2a2a2a";
 
 const PADDING_LEFT = 2;
 const PADDING_RIGHT = 4;

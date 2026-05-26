@@ -7,10 +7,17 @@
 //! The compiled protobuf types (from `rithmic-sdk/proto/`) are
 //! generated into `proto/mod.rs` by `build.rs` and re-exported here.
 
+pub mod account_types;
 pub mod adapter;
 pub mod auth;
 pub mod client;
 pub mod heartbeat;
+pub mod history;
+pub mod history_probe;
+pub mod history_ticks;
+pub mod order_plant;
+pub mod order_subscribe;
+pub mod pnl_plant;
 pub mod reader;
 
 // The proto module is fully generated from rithmic-sdk/proto/ at build

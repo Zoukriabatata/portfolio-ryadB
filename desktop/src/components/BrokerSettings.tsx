@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { hasApiKey, saveApiKey, deleteApiKey } from "../lib/news/api";
+import {
+  hasApiKey as hasAlpacaKey,
+  saveApiKey as saveAlpacaKey,
+  deleteApiKey as deleteAlpacaKey,
+} from "../lib/gex/api";
+import { BrokerPresetPicker } from "./BrokerPresetPicker";
 import "./BrokerSettings.css";
 
 // Stable preset identifier — must match the BrokerPreset enum in
@@ -69,6 +76,55 @@ export function BrokerSettings({
   const [existing, setExisting] = useState<RedactedCreds | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  const [finnhubKey, setFinnhubKey] = useState("");
+  const [finnhubKeySet, setFinnhubKeySet] = useState<boolean | null>(null);
+  const [finnhubStatus, setFinnhubStatus] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
+  >({ kind: "idle" });
+
+  const [alpacaKeyId, setAlpacaKeyId] = useState("");
+  const [alpacaSecret, setAlpacaSecret] = useState("");
+  const [alpacaKeySet, setAlpacaKeySet] = useState<boolean | null>(null);
+  const [alpacaStatus, setAlpacaStatus] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
+  >({ kind: "idle" });
+
+  useEffect(() => {
+    void hasAlpacaKey()
+      .then(setAlpacaKeySet)
+      .catch(() => setAlpacaKeySet(false));
+  }, []);
+
+  const handleSaveAlpaca = useCallback(async () => {
+    const id = alpacaKeyId.trim();
+    const secret = alpacaSecret.trim();
+    if (!id || !secret) {
+      setAlpacaStatus({ kind: "error", msg: "Both Key ID and Secret are required." });
+      return;
+    }
+    setAlpacaStatus({ kind: "busy" });
+    try {
+      await saveAlpacaKey(id, secret);
+      setAlpacaStatus({ kind: "success", msg: "Saved." });
+      setAlpacaKeySet(true);
+      setAlpacaKeyId("");
+      setAlpacaSecret("");
+    } catch (e) {
+      setAlpacaStatus({ kind: "error", msg: String(e) });
+    }
+  }, [alpacaKeyId, alpacaSecret]);
+
+  const handleDeleteAlpaca = useCallback(async () => {
+    setAlpacaStatus({ kind: "busy" });
+    try {
+      await deleteAlpacaKey();
+      setAlpacaStatus({ kind: "success", msg: "Deleted." });
+      setAlpacaKeySet(false);
+    } catch (e) {
+      setAlpacaStatus({ kind: "error", msg: String(e) });
+    }
+  }, []);
 
   const isCustom = form.preset === "Custom";
   const presetInfo = useMemo(
@@ -201,6 +257,40 @@ export function BrokerSettings({
     }
   }, []);
 
+  useEffect(() => {
+    void hasApiKey()
+      .then(setFinnhubKeySet)
+      .catch(() => setFinnhubKeySet(false));
+  }, []);
+
+  const handleSaveFinnhub = useCallback(async () => {
+    const trimmed = finnhubKey.trim();
+    if (!trimmed) {
+      setFinnhubStatus({ kind: "error", msg: "Empty key." });
+      return;
+    }
+    setFinnhubStatus({ kind: "busy" });
+    try {
+      await saveApiKey(trimmed);
+      setFinnhubStatus({ kind: "success", msg: "Saved." });
+      setFinnhubKeySet(true);
+      setFinnhubKey("");
+    } catch (e) {
+      setFinnhubStatus({ kind: "error", msg: String(e) });
+    }
+  }, [finnhubKey]);
+
+  const handleDeleteFinnhub = useCallback(async () => {
+    setFinnhubStatus({ kind: "busy" });
+    try {
+      await deleteApiKey();
+      setFinnhubStatus({ kind: "success", msg: "Deleted." });
+      setFinnhubKeySet(false);
+    } catch (e) {
+      setFinnhubStatus({ kind: "error", msg: String(e) });
+    }
+  }, []);
+
   const busy = status.kind === "busy";
 
   return (
@@ -227,17 +317,12 @@ export function BrokerSettings({
 
       <label className="bs-field">
         <span>Preset</span>
-        <select
+        <BrokerPresetPicker
           value={form.preset}
-          onChange={(e) => onPresetChange(e.target.value as BrokerPreset)}
+          presets={presets}
+          onChange={onPresetChange}
           disabled={busy}
-        >
-          {presets.map((p) => (
-            <option key={p.preset} value={p.preset}>
-              {p.displayName}
-            </option>
-          ))}
-        </select>
+        />
         {presetInfo?.helpText && (
           <small className="bs-help">{presetInfo.helpText}</small>
         )}
@@ -335,6 +420,103 @@ export function BrokerSettings({
           </button>
         )}
       </div>
+
+      <section className="bs-section" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #2a2f3a" }}>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 14, color: "#c8ccd4" }}>
+          Finnhub API key (News module)
+        </h3>
+        <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#8a8f99" }}>
+          Required for the News module (economic calendar + market news). Sign up free at
+          finnhub.io (60 req/min on the free tier). Key is stored in your OS keyring.
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="password"
+            placeholder={finnhubKeySet ? "•••••• (configured)" : "Paste your Finnhub API key"}
+            value={finnhubKey}
+            onChange={(e) => setFinnhubKey(e.target.value)}
+            style={{ flex: 1, padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+          />
+          <button
+            type="button"
+            onClick={() => void handleSaveFinnhub()}
+            disabled={finnhubStatus.kind === "busy"}
+          >
+            Save key
+          </button>
+          {finnhubKeySet && (
+            <button
+              type="button"
+              onClick={() => void handleDeleteFinnhub()}
+              disabled={finnhubStatus.kind === "busy"}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        {finnhubStatus.kind === "error" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#ff6b78" }}>
+            {finnhubStatus.msg}
+          </div>
+        )}
+        {finnhubStatus.kind === "success" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>
+            {finnhubStatus.msg}
+          </div>
+        )}
+      </section>
+
+      <section className="bs-section" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #2a2f3a" }}>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 14, color: "#c8ccd4" }}>
+          Alpaca API keys (GEX module)
+        </h3>
+        <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#8a8f99" }}>
+          Required for the GEX dashboard (SPY / QQQ gamma exposure + IV smile). Sign
+          up free at <span style={{ color: "#22c55e" }}>alpaca.markets</span> (paper
+          trading account, free, 15-min delayed options data). Generate a Key ID +
+          Secret in the dashboard. Keys are stored in your OS keyring.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input
+            type="text"
+            placeholder={alpacaKeySet ? "•••••• (configured)" : "Key ID (starts with PK… for paper)"}
+            value={alpacaKeyId}
+            onChange={(e) => setAlpacaKeyId(e.target.value)}
+            style={{ padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+          />
+          <input
+            type="password"
+            placeholder={alpacaKeySet ? "•••••• (configured)" : "Secret Key"}
+            value={alpacaSecret}
+            onChange={(e) => setAlpacaSecret(e.target.value)}
+            style={{ padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => void handleSaveAlpaca()}
+              disabled={alpacaStatus.kind === "busy"}
+            >
+              Save keys
+            </button>
+            {alpacaKeySet && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteAlpaca()}
+                disabled={alpacaStatus.kind === "busy"}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+        {alpacaStatus.kind === "error" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#ff6b78" }}>{alpacaStatus.msg}</div>
+        )}
+        {alpacaStatus.kind === "success" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>{alpacaStatus.msg}</div>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,0 +1,49 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
+import type { NewsArticle } from "../../lib/news/api";
+
+function timeAgo(iso: string): string {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "—";
+  const diffSec = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (diffSec < 60) return `${diffSec}s`;
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`;
+  return `${Math.floor(diffSec / 86400)}d`;
+}
+
+export function NewsArticleCard({ article }: { article: NewsArticle }) {
+  return (
+    <div
+      className="news-card"
+      role="link"
+      tabIndex={0}
+      onClick={() => void openUrl(article.url)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") void openUrl(article.url);
+      }}
+    >
+      {article.imageUrl ? (
+        <img
+          className="news-card-thumb"
+          src={article.imageUrl}
+          alt=""
+          loading="lazy"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.visibility = "hidden";
+          }}
+        />
+      ) : (
+        <div className="news-card-thumb" />
+      )}
+      <div className="news-card-body">
+        <div className="news-card-headline">{article.headline}</div>
+        <div className="news-card-meta">
+          <span className="news-card-source">{article.source || "—"}</span>
+          <span>·</span>
+          <span>{timeAgo(article.publishedAt)} ago</span>
+        </div>
+      </div>
+    </div>
+  );
+}

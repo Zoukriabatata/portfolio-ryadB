@@ -6,6 +6,8 @@ import { TradeBubblesLayer } from "../render/TradeBubblesLayer";
 import { KeyLevelsLayer } from "../render/KeyLevelsLayer";
 import { VolumeProfileLayer } from "../render/VolumeProfileLayer";
 import { CrosshairLayer } from "../render/CrosshairLayer";
+import { BestBidAskLayer } from "../render/BestBidAskLayer";
+import { AxesLayer } from "../render/AxesLayer";
 import { DomPanel } from "./DomPanel";
 import type { HeatmapEngine as HeatmapEngineType } from "../render/HeatmapEngine";
 import { OrderbookAdapter } from "../adapters/OrderbookAdapter";
@@ -70,7 +72,9 @@ export function HeatmapLive() {
     const bubblesLayer = new TradeBubblesLayer();
     const keyLevelsLayer = new KeyLevelsLayer();
     const volumeProfileLayer = new VolumeProfileLayer();
+    const bestBidAskLayer = new BestBidAskLayer();
     const crosshairLayer = new CrosshairLayer();
+    const axesLayer = new AxesLayer();
     bubblesLayer.setCanvasSize(canvas.width, canvas.height);
 
     // ResizeObserver : suit le wrapper parent pour redimensionner les 2
@@ -90,12 +94,17 @@ export function HeatmapLive() {
     engine.addLayer(liquidityLayer, 1, () => engine.getLiquidityFrame());
     engine.addLayer(bubblesLayer, 5, () => engine.getTradesBuffer());
     engine.addLayer(keyLevelsLayer, 10, () => engine.getKeyLevelsSnapshot());
+    // REFONTE-7/P3.5 Fix 3 : staircase BBO depuis l'historique des snaps.
+    engine.addLayer(bestBidAskLayer, 12, () => engine.getBBOHistory());
     engine.addLayer(crosshairLayer, 15, () => engine.getCrosshairData());
     engine.addLayer(
       volumeProfileLayer,
       20,
       () => engine.getVolumeProfileSnapshot(),
     );
+    // REFONTE-7/P3 — AxesLayer z=25, masque le VolumeProfile dans le bandeau
+    // Y droite (acceptable, P5 ajoutera toggle settings).
+    engine.addLayer(axesLayer, 25, () => undefined);
 
     // REFONTE-5 — listeners crosshair sur le canvas regl. mousemove
     // capture seulement (pas de compute lookup), engine.setCrosshair
@@ -111,7 +120,11 @@ export function HeatmapLive() {
     canvas.addEventListener("mousemove", onMouseMove);
     canvas.addEventListener("mouseleave", onMouseLeave);
 
-    if (import.meta.env.DEV) {
+    // REFONTE-7/P1 : sanity red-quad supprimé du flow par défaut.
+    // C'était un artefact de debug visible en haut-gauche (cf. spec
+    // §3.6 carré rouge parasite). Reste activable via VITE_DEV_SANITY=true
+    // pour les régressions futures du pipeline GL (cf. leçon §5.A).
+    if (import.meta.env.VITE_DEV_SANITY === "true") {
       engine.enableDevSanity();
     }
 
@@ -125,9 +138,10 @@ export function HeatmapLive() {
       initialPriceMin,
       initialPriceMax,
       tickSize: TICK_SIZE,
-      onViewportChange: (priceMin, priceMax) => {
-        engine.setViewport({ priceMin, priceMax });
-      },
+      // REFONTE-7/P3 : engine direct (au lieu de onViewportChange callback)
+      // pour que ViewportController puisse aussi piloter setPan / resetPan
+      // pendant le drag (matrice non-destructive).
+      engine,
       getCurrentPrice: () => {
         try {
           return engine.getTradesBuffer().currentPrice();
@@ -282,19 +296,19 @@ export function HeatmapLive() {
           top: 8,
           right: 8,
           padding: "8px 12px",
-          background: "rgba(0,0,0,0.7)",
-          color: "#e6e6e6",
+          background: "rgba(20, 20, 20, 0.92)",
+          color: "#ffffff",
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
           fontSize: 12,
           lineHeight: 1.6,
           borderRadius: 4,
-          border: "1px solid rgba(255,255,255,0.1)",
+          border: "1px solid #1f1f1f",
           fontVariantNumeric: "tabular-nums",
           pointerEvents: "auto",
           zIndex: 3,
         }}
       >
-        REFONTE-4b live (Bybit BTCUSDT)
+        Senzoukria · Bybit BTCUSDT
         <br />
         Status: <span ref={statusRef}>idle</span>
         <br />
@@ -313,16 +327,16 @@ export function HeatmapLive() {
           style={{
             marginTop: 4,
             padding: "2px 8px",
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.2)",
-            color: "#e6e6e6",
+            background: "#0a0a0a",
+            border: "1px solid #1f1f1f",
+            color: "#ffffff",
             fontFamily: "inherit",
             fontSize: 11,
             cursor: "pointer",
             borderRadius: 3,
           }}
         >
-          🔓 follow ON
+          follow ON
         </button>
       </div>
       {error && (
@@ -332,11 +346,12 @@ export function HeatmapLive() {
             bottom: 8,
             left: 8,
             padding: "8px 12px",
-            background: "rgba(150,30,30,0.85)",
-            color: "#fff",
+            background: "rgba(255, 61, 113, 0.18)",
+            color: "#ff3d71",
             fontFamily: "ui-monospace, monospace",
             fontSize: 12,
             borderRadius: 4,
+            border: "1px solid #ff3d71",
             maxWidth: "60%",
             zIndex: 3,
           }}

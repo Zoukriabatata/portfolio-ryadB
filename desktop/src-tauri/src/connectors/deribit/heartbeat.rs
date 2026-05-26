@@ -23,11 +23,7 @@ pub struct HeartbeatHandle {
     pub shutdown: oneshot::Sender<()>,
 }
 
-pub fn spawn(
-    sink: SharedSink,
-    interval: Duration,
-    next_id: Arc<AtomicU64>,
-) -> HeartbeatHandle {
+pub fn spawn(sink: SharedSink, interval: Duration, next_id: Arc<AtomicU64>) -> HeartbeatHandle {
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let handle = tokio::spawn(heartbeat_task(sink, interval, shutdown_rx, next_id));
     HeartbeatHandle {

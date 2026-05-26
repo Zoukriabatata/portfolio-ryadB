@@ -81,7 +81,8 @@ mod tests {
 
     #[test]
     fn rejects_non_aggtrade_events() {
-        let json = r#"{"e":"trade","E":1,"s":"X","a":1,"p":"1","q":"1","f":1,"l":1,"T":1,"m":false}"#;
+        let json =
+            r#"{"e":"trade","E":1,"s":"X","a":1,"p":"1","q":"1","f":1,"l":1,"T":1,"m":false}"#;
         let msg: BinanceAggTrade = serde_json::from_str(json).unwrap();
         assert!(agg_trade_to_tick(&msg).is_none());
     }

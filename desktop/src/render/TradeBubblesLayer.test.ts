@@ -5,8 +5,9 @@ beforeAll(() => {
   vi.stubGlobal("document", { documentElement: {} });
   vi.stubGlobal("getComputedStyle", () => ({
     getPropertyValue: (name: string) => {
-      if (name === "--bid") return "#26a69a";
-      if (name === "--ask") return "#ef5350";
+      // REFONTE-7/P1 : mock aligné palette Senzoukria.
+      if (name === "--bid") return "#00e676";
+      if (name === "--ask") return "#ff3d71";
       return "";
     },
   }));

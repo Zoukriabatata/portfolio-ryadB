@@ -1,10 +1,12 @@
 import createREGL from "regl";
 import type Regl from "regl";
 import {
+  BBOHistoryBuffer,
   ClockSource,
   createGridSystem,
   DEFAULT_VALUE_AREA_WIDTH,
   VolumeProfileBuilder,
+  VOLUME_PROFILE_WIDTH_PX,
   VwapBuilder,
   type BucketDurationMs,
   type GridSystem,
@@ -16,9 +18,87 @@ import { OrderbookHistory } from "./OrderbookHistory";
 import { TradesBuffer } from "./TradesBuffer";
 import type { LiquidityFrame } from "./LiquidityFrame";
 import type { Layer } from "./Layer";
+import type { RenderTransform } from "./RenderTransform";
+
+// REFONTE-7/P3 — Layers WebGL qui acceptent un panning visuel via setPan().
+// Permet l'identification structurelle sans imposer setPan() sur Layer<T>
+// (les overlay canvas2d n'en ont pas besoin — elles utilisent transform).
+export interface PannableLayer {
+  setPan(panX: number, panY: number): void;
+}
+function isPannable(layer: object): layer is PannableLayer {
+  return typeof (layer as PannableLayer).setPan === "function";
+}
 
 const KEY_LEVELS_SCRATCH_TRADES = 50_000;
 const KEY_LEVELS_SCRATCH_FLOATS_PER_TRADE = 4;
+
+// REFONTE-7/P3.5 Fix 2 — marge de binning : dataViewport = displayViewport
+// élargi 30% chaque côté = ratio total 1.6×. Pendant pan/zoom léger, le
+// display reste dans les bornes data → pas de re-bin → pas de smear visible.
+// Re-bin déclenché seulement quand display sort de la marge.
+export const DATA_MARGIN_FACTOR = 1.6;
+const MARGIN_HALF = (DATA_MARGIN_FACTOR - 1) / 2; // 0.3 — 30% chaque côté
+
+// Hysteresis : on re-centre dataViewport seulement si display sort de 90%
+// de la marge (= 27% du range data côté extrême). Évite le ping-pong au bord
+// si l'utilisateur oscille au seuil.
+const REBIN_HYSTERESIS = 0.9;
+
+// Pure helper exporté pour test : élargit displayViewport par DATA_MARGIN_FACTOR
+// centré. Si timeMin/Max non fournis, retourne undefined (engine retombe sur
+// [now - historyDurationMs, now]).
+export function expandViewportForData(display: Viewport): Viewport {
+  const pRange = display.priceMax - display.priceMin;
+  const pMargin = pRange * MARGIN_HALF;
+  const result: Viewport = {
+    priceMin: display.priceMin - pMargin,
+    priceMax: display.priceMax + pMargin,
+  };
+  if (display.timeMin != null && display.timeMax != null) {
+    const tRange = display.timeMax - display.timeMin;
+    const tMargin = tRange * MARGIN_HALF;
+    result.timeMin = display.timeMin - tMargin;
+    result.timeMax = display.timeMax + tMargin;
+  }
+  return result;
+}
+
+// Pure helper : check si displayViewport sort de la marge data au-delà de
+// hysteresis × MARGIN_HALF. True = re-bin nécessaire.
+export function shouldRebinForDisplay(
+  display: Viewport,
+  data: Viewport,
+  hysteresis: number = REBIN_HYSTERESIS,
+): boolean {
+  const dataPriceRange = data.priceMax - data.priceMin;
+  const innerHalf = MARGIN_HALF * hysteresis * dataPriceRange;
+  const dataMidPrice = (data.priceMin + data.priceMax) / 2;
+  if (
+    display.priceMin < data.priceMin + (MARGIN_HALF - MARGIN_HALF * hysteresis) * dataPriceRange ||
+    display.priceMax > data.priceMax - (MARGIN_HALF - MARGIN_HALF * hysteresis) * dataPriceRange
+  ) {
+    return true;
+  }
+  // Time check uniquement si fourni des deux côtés.
+  if (
+    display.timeMin != null &&
+    display.timeMax != null &&
+    data.timeMin != null &&
+    data.timeMax != null
+  ) {
+    const dataTimeRange = data.timeMax - data.timeMin;
+    if (
+      display.timeMin < data.timeMin + (MARGIN_HALF - MARGIN_HALF * hysteresis) * dataTimeRange ||
+      display.timeMax > data.timeMax - (MARGIN_HALF - MARGIN_HALF * hysteresis) * dataTimeRange
+    ) {
+      return true;
+    }
+  }
+  void innerHalf;
+  void dataMidPrice;
+  return false;
+}
 
 export interface HeatmapEngineSpec {
   canvas: HTMLCanvasElement;
@@ -31,6 +111,12 @@ export interface HeatmapEngineSpec {
   tickSize?: number;
   // Largeur Value Area (default DEFAULT_VALUE_AREA_WIDTH = 0.70).
   valueAreaWidth?: number;
+  // REFONTE-7/P3 — réservation de bandes pour AxesLayer.
+  // Width du bandeau Y droite (default 80 px = align sur VOLUME_PROFILE_WIDTH_PX).
+  // Height du bandeau X bas (default 32 px). Les overlay layers consomment
+  // ces valeurs pour ne pas dessiner sous les axes opaques.
+  axisYWidthPx?: number;
+  axisXHeightPx?: number;
 }
 
 export interface KeyLevelsSnapshot {
@@ -133,7 +219,7 @@ const SANITY_QUAD = new Float32Array([
    -0.88, 1.0,
 ]);
 
-export class HeatmapEngine {
+export class HeatmapEngine implements RenderTransform {
   private readonly canvas: HTMLCanvasElement;
   private readonly regl: Regl.Regl;
   private readonly clock = new ClockSource();
@@ -149,6 +235,8 @@ export class HeatmapEngine {
   private tradesBuffer: TradesBuffer | null = null;
   private volumeProfileBuilder: VolumeProfileBuilder | null = null;
   private vwapBuilder: VwapBuilder | null = null;
+  // REFONTE-7/P3.5 Fix 3 : historique BBO pour BestBidAskLayer staircase.
+  private bboHistory: BBOHistoryBuffer | null = null;
   private keyLevelsScratch: Float32Array | null = null;
   private liquidityFrameMutable: { grid: GridSystem; cells: Float32Array };
   private currentGrid: GridSystem;
@@ -169,17 +257,50 @@ export class HeatmapEngine {
   // REFONTE-5 — crosshair state. -1 = inactif (pas d'allocation per mousemove).
   private crosshairX = -1;
   private crosshairY = -1;
+  // REFONTE-7/P3 — matrice display (pan only en Option C, scale via setViewport).
+  // Drawing buffer pixels. Modifiée par ViewportController (pan libre X+Y).
+  // Push aux PannableLayer (Liquidity, Bubbles) à chaque tick avant draw.
+  private _panX = 0;
+  private _panY = 0;
+  private readonly _axisYWidthPx: number;
+  private readonly _axisXHeightPx: number;
+  // REFONTE-7/P3.5 Fix 2 — séparation displayViewport (= ce qui est visible)
+  // vs viewport (= dataViewport, ce qui est binné). dataViewport = display
+  // élargi × DATA_MARGIN_FACTOR. Re-bin déclenché seulement quand le display
+  // sort des bornes data (sortie de marge → recentre + re-bin synchrone).
+  // Sans cette séparation, chaque zoom/pan léger reset le binning → smear
+  // visible (bug runtime P3).
+  private _displayPriceMin: number;
+  private _displayPriceMax: number;
+  private _displayTimeMin: number | null = null;
+  private _displayTimeMax: number | null = null;
 
   constructor(spec: HeatmapEngineSpec) {
-    this.viewport = spec.viewport;
+    this.viewport = spec.viewport; // overridé plus bas par expandViewportForData
     this.bucketDurationMs = spec.bucketDurationMs ?? 100;
     this.historyDurationMs = spec.historyDurationMs ?? 5 * 60_000;
     this.tickSize = spec.tickSize ?? 0.1;
     this.valueAreaWidth = spec.valueAreaWidth ?? DEFAULT_VALUE_AREA_WIDTH;
     this.overlayCtx = spec.overlayCanvas?.getContext("2d") ?? null;
+    // REFONTE-7/P3 : default 80 px (= VOLUME_PROFILE_WIDTH_PX) pour cohérence
+    // visuelle avec l'existant. AxesLayer dessine par-dessus le VolumeProfile
+    // dans la même bande, masquant l'histogramme (acceptable, P5 toggle).
+    this._axisYWidthPx = spec.axisYWidthPx ?? VOLUME_PROFILE_WIDTH_PX;
+    this._axisXHeightPx = spec.axisXHeightPx ?? 32;
     this.historyLength = Math.floor(
       this.historyDurationMs / this.bucketDurationMs,
     );
+
+    // REFONTE-7/P3.5 Fix 2 : init displayViewport = spec.viewport (ce que
+    // l'utilisateur veut afficher). dataViewport = display × DATA_MARGIN_FACTOR
+    // (élargi 30% chaque côté). Le viewport interne (= dataViewport) est
+    // calculé dans expandViewportForData ci-dessous.
+    this._displayPriceMin = spec.viewport.priceMin;
+    this._displayPriceMax = spec.viewport.priceMax;
+    this._displayTimeMin = spec.viewport.timeMin ?? null;
+    this._displayTimeMax = spec.viewport.timeMax ?? null;
+    const expanded = expandViewportForData(spec.viewport);
+    this.viewport = expanded;
     this.priceLevels = Math.floor(
       (this.viewport.priceMax - this.viewport.priceMin) / this.tickSize,
     );
@@ -216,7 +337,12 @@ export class HeatmapEngine {
     });
     this.layers.sort((a, b) => a.zIndex - b.zIndex);
     if (this.started) {
-      layer.init(this.regl, this.currentGrid, this.overlayCtx ?? undefined);
+      layer.init(
+        this.regl,
+        this.currentGrid,
+        this.overlayCtx ?? undefined,
+        this,
+      );
     }
   }
 
@@ -225,10 +351,27 @@ export class HeatmapEngine {
     // REFONTE-5 — ref directe pour DOM panel (read-only contract).
     this.lastOrderbookSnap = snap;
     this.clock.tick(snap.exchangeMs);
+    // REFONTE-7/P3.5 Fix 3 : ingest BBO history (best bid + best ask).
+    if (
+      this.bboHistory &&
+      snap.bids.length > 0 &&
+      snap.asks.length > 0
+    ) {
+      this.bboHistory.ingest(
+        snap.exchangeMs,
+        snap.bids[0].price,
+        snap.asks[0].price,
+      );
+    }
     if (!this.orderbookHistory) return; // pas encore start()
     this.currentGrid = this.makeGrid();
     this.orderbookHistory.ingest(snap, this.currentGrid);
     this.pendingOrderbookUpdate = true;
+  }
+
+  // REFONTE-7/P3.5 Fix 3 — exposé pour BestBidAskLayer staircase. Ref zero-copy.
+  getBBOHistory(): BBOHistoryBuffer | null {
+    return this.bboHistory;
   }
 
   // REFONTE-5 — exposé pour DomPanel. Retourne la ref directe du dernier
@@ -273,12 +416,17 @@ export class HeatmapEngine {
   lookupCell(x: number, y: number): CrosshairLookup | null {
     const w = this.canvas.width;
     const h = this.canvas.height;
-    const px = pixelsToGrid(x, y, w, h, this.currentGrid);
-    if (!px) return null;
+    if (w <= 0 || h <= 0) return null;
+    if (x < 0 || x >= w || y < 0 || y >= h) return null;
+    // REFONTE-7/P3 : utilise les helpers transform (qui appliquent le pan
+    // courant). Le tooltip refléte donc le prix/time RÉELLEMENT sous le
+    // curseur après pan, pas la position data brute.
+    const price = this.yToPrice(y);
+    const timestampMs = this.xToTime(x);
 
     let liquidityIntensity = 0;
-    const tIdx = this.currentGrid.bucketIndex(px.timestampMs);
-    const pIdx = this.currentGrid.priceIndex(px.price);
+    const tIdx = this.currentGrid.bucketIndex(timestampMs);
+    const pIdx = this.currentGrid.priceIndex(price);
     if (tIdx >= 0 && pIdx >= 0) {
       const cells = this.liquidityFrameMutable.cells;
       const offset = tIdx * this.currentGrid.priceLevels + pIdx;
@@ -294,8 +442,8 @@ export class HeatmapEngine {
     }
 
     return {
-      price: px.price,
-      timestampMs: px.timestampMs,
+      price,
+      timestampMs,
       liquidityIntensity,
       volume,
     };
@@ -418,15 +566,148 @@ export class HeatmapEngine {
     this.tradesBuffer = new TradesBuffer(50_000);
     this.volumeProfileBuilder = new VolumeProfileBuilder(this.priceLevels);
     this.vwapBuilder = new VwapBuilder();
+    this.bboHistory = new BBOHistoryBuffer(50_000);
     this.keyLevelsScratch = new Float32Array(
       KEY_LEVELS_SCRATCH_TRADES * KEY_LEVELS_SCRATCH_FLOATS_PER_TRADE,
     );
     for (const reg of this.layers) {
-      reg.layer.init(this.regl, this.currentGrid, this.overlayCtx ?? undefined);
+      reg.layer.init(
+        this.regl,
+        this.currentGrid,
+        this.overlayCtx ?? undefined,
+        this,
+      );
     }
     this.fpsLast = 0;
     this.rafId = requestAnimationFrame(this.tick);
   }
+
+  // ============================================================
+  // REFONTE-7/P3 — RenderTransform implementation + matrix API
+  // ============================================================
+
+  get canvasWidth(): number {
+    return this.canvas.width;
+  }
+  get canvasHeight(): number {
+    return this.canvas.height;
+  }
+  get axisYWidthPx(): number {
+    return this._axisYWidthPx;
+  }
+  get axisXHeightPx(): number {
+    return this._axisXHeightPx;
+  }
+  get panX(): number {
+    return this._panX;
+  }
+  get panY(): number {
+    return this._panY;
+  }
+
+  // REFONTE-7/P3.5 Fix 2 : helpers utilisent displayViewport (= ce qui est
+  // visible), pas dataViewport. Garantit que pendant pan/zoom léger, les
+  // overlays restent alignés visuellement avec ce que le shader sample.
+
+  // Bornes effectives temporelles du DISPLAY (ce qui est visible).
+  // Si displayTime non set, dérivées du grid courant ([now-5min, now]).
+  private getDisplayTimeMinEff(): number {
+    return this._displayTimeMin ?? this.currentGrid.oldestExchangeMs;
+  }
+  private getDisplayTimeMaxEff(): number {
+    return this._displayTimeMax ?? this.currentGrid.nowExchangeMs;
+  }
+
+  // Bornes data (binning). Lues par les uniforms shader pour calculer
+  // displayMin/MaxUV.
+  getDataPriceMin(): number {
+    return this.viewport.priceMin;
+  }
+  getDataPriceMax(): number {
+    return this.viewport.priceMax;
+  }
+  getDataTimeMin(): number {
+    return this.viewport.timeMin ?? this.currentGrid.oldestExchangeMs;
+  }
+  getDataTimeMax(): number {
+    return this.viewport.timeMax ?? this.currentGrid.nowExchangeMs;
+  }
+  // Bornes display (visible). Pour ViewportController, getDisplayViewport, etc.
+  getDisplayPriceMin(): number {
+    return this._displayPriceMin;
+  }
+  getDisplayPriceMax(): number {
+    return this._displayPriceMax;
+  }
+  getDisplayTimeMin(): number {
+    return this.getDisplayTimeMinEff();
+  }
+  getDisplayTimeMax(): number {
+    return this.getDisplayTimeMaxEff();
+  }
+
+  priceToY(price: number): number {
+    const range = this._displayPriceMax - this._displayPriceMin;
+    if (range <= 0 || this.canvas.height <= 0) return 0;
+    const yBase =
+      ((this._displayPriceMax - price) / range) * this.canvas.height;
+    return yBase + this._panY;
+  }
+  yToPrice(y: number): number {
+    const range = this._displayPriceMax - this._displayPriceMin;
+    if (this.canvas.height <= 0) return this._displayPriceMax;
+    return (
+      this._displayPriceMax -
+      ((y - this._panY) / this.canvas.height) * range
+    );
+  }
+  timeToX(time: number): number {
+    const tMin = this.getDisplayTimeMinEff();
+    const tMax = this.getDisplayTimeMaxEff();
+    const range = tMax - tMin;
+    if (range <= 0 || this.canvas.width <= 0) return 0;
+    const xBase = ((time - tMin) / range) * this.canvas.width;
+    return xBase + this._panX;
+  }
+  xToTime(x: number): number {
+    const tMin = this.getDisplayTimeMinEff();
+    const tMax = this.getDisplayTimeMaxEff();
+    const range = tMax - tMin;
+    if (this.canvas.width <= 0) return tMin;
+    return tMin + ((x - this._panX) / this.canvas.width) * range;
+  }
+
+  setPan(panX: number, panY: number): void {
+    if (this.destroyed) return;
+    this._panX = panX;
+    this._panY = panY;
+  }
+
+  resetPan(): void {
+    this._panX = 0;
+    this._panY = 0;
+  }
+
+  // REFONTE-7/P3.5 Fix 2 — set displayViewport (ce qui est visible).
+  // Si le nouveau display sort de la marge data, déclenche un re-bin
+  // automatique (recalcule dataViewport = display × 1.6 + setViewport).
+  // Sinon, juste met à jour les bornes display (les helpers et shader
+  // sample partial s'ajustent, pas de re-bin = pas de smear).
+  setDisplayViewport(display: Viewport): void {
+    if (this.destroyed) return;
+    this._displayPriceMin = display.priceMin;
+    this._displayPriceMax = display.priceMax;
+    this._displayTimeMin = display.timeMin ?? null;
+    this._displayTimeMax = display.timeMax ?? null;
+    if (shouldRebinForDisplay(display, this.viewport)) {
+      const newData = expandViewportForData(display);
+      this.setViewport(newData);
+    }
+  }
+
+  // ============================================================
+  // Fin RenderTransform / matrix API
+  // ============================================================
 
   private tick = (): void => {
     if (this.destroyed) return;
@@ -510,6 +791,16 @@ export class HeatmapEngine {
     if (this.overlayCtx) {
       const oc = this.overlayCtx.canvas;
       this.overlayCtx.clearRect(0, 0, oc.width, oc.height);
+    }
+
+    // REFONTE-7/P3 : push pan aux PannableLayer (Liquidity, Bubbles) avant
+    // draw. Les overlay canvas2d lisent transform.priceToY/timeToX qui
+    // appliquent déjà le pan en interne — pas besoin de push pour eux.
+    for (const reg of this.layers) {
+      const l = reg.layer as object;
+      if (isPannable(l)) {
+        l.setPan(this._panX, this._panY);
+      }
     }
 
     for (const reg of this.layers) {

@@ -1,0 +1,245 @@
+.devices-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 28px 80px;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: #e5e7eb;
+}
+
+.devices-header {
+  margin-bottom: 28px;
+}
+.devices-back {
+  display: inline-block;
+  font-size: 12px;
+  color: #9ca3af;
+  text-decoration: none;
+  margin-bottom: 12px;
+  letter-spacing: 0.04em;
+}
+.devices-back:hover {
+  color: #34ec78;
+}
+.devices-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #f9fafb;
+  margin: 0 0 6px;
+}
+.devices-header p {
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.55;
+  max-width: 620px;
+  margin: 0;
+}
+
+/* Summary card */
+.devices-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+  padding: 18px 22px;
+  background:
+    linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, #0e1116 60%);
+  border: 1px solid rgba(34, 197, 94, 0.20);
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+.devices-summary-stat { display: flex; flex-direction: column; gap: 4px; }
+.devices-summary-k {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.devices-summary-v {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f9fafb;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.devices-summary-v span { color: #6b7280; font-weight: 500; font-size: 13px; }
+.devices-summary-v code {
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 13px;
+  color: #d1d5db;
+  font-weight: 600;
+}
+
+/* Status badges */
+.devices-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  border-radius: 4px;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+.devices-badge-active { color: #34ec78; border-color: rgba(52, 236, 120, 0.55); background: rgba(34, 197, 94, 0.10); }
+.devices-badge-suspended { color: #fbbf24; border-color: rgba(251, 191, 36, 0.55); background: rgba(251, 191, 36, 0.10); }
+.devices-badge-revoked { color: #fca5a5; border-color: rgba(239, 68, 68, 0.55); background: rgba(239, 68, 68, 0.10); }
+
+/* Empty state */
+.devices-empty {
+  padding: 50px 28px;
+  background: #0e1116;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  text-align: center;
+}
+.devices-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f9fafb;
+  margin-bottom: 6px;
+}
+.devices-empty-sub {
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.55;
+  max-width: 380px;
+  margin: 0 auto 16px;
+}
+.devices-cta {
+  display: inline-block;
+  padding: 9px 18px;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  color: #0b1015;
+  text-decoration: none;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Device list */
+.devices-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.devices-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto auto;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px;
+  background: #0e1116;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
+.devices-row-icon {
+  font-size: 22px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+}
+.devices-row-main { min-width: 0; }
+.devices-row-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f9fafb;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.devices-row-version {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 500;
+  font-family: "Consolas", "Monaco", monospace;
+}
+.devices-row-meta {
+  font-size: 11px;
+  color: #6b7280;
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+}
+.devices-row-meta code {
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 11px;
+  color: #9ca3af;
+}
+.devices-row-time { text-align: right; }
+.devices-row-time-label {
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  font-weight: 600;
+}
+.devices-row-time-value {
+  font-size: 12px;
+  color: #d1d5db;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Revoke buttons */
+.devices-revoke-btn {
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.40);
+  border-radius: 6px;
+  color: #fca5a5;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.15s ease;
+}
+.devices-revoke-btn:hover {
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.75);
+  color: #fecaca;
+}
+.devices-revoke-btn-danger {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.80);
+  color: #fff;
+}
+.devices-revoke-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.30);
+}
+.devices-revoke-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #9ca3af;
+}
+.devices-revoke-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+}
+.devices-revoke-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+.devices-revoke-err {
+  font-size: 10px;
+  color: #fca5a5;
+  margin-top: 2px;
+}
+
+.devices-hint {
+  margin-top: 18px;
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.55;
+  font-style: italic;
+}

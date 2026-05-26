@@ -52,11 +52,7 @@ pub fn spawn(symbol: String, app: AppHandle) -> OrderbookSubscriberHandle {
     }
 }
 
-async fn run_subscriber(
-    symbol: String,
-    app: AppHandle,
-    mut shutdown_rx: oneshot::Receiver<()>,
-) {
+async fn run_subscriber(symbol: String, app: AppHandle, mut shutdown_rx: oneshot::Receiver<()>) {
     let mut engine = OrderbookEngine::new(symbol.clone(), DEPTH);
     let topic = format!("orderbook.{}.{}", DEPTH, symbol);
     let sub_msg = json!({ "op": "subscribe", "args": [topic] }).to_string();
@@ -163,8 +159,7 @@ async fn run_subscriber(
 /// `Ok(false)` for ack/pong/unrelated payloads, and `Err(...)` when
 /// the engine state is now inconsistent and needs a reset.
 fn handle_frame(text: &str, engine: &mut OrderbookEngine) -> Result<bool, String> {
-    let v: serde_json::Value =
-        serde_json::from_str(text).map_err(|e| e.to_string())?;
+    let v: serde_json::Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
     let topic = v.get("topic").and_then(|t| t.as_str()).unwrap_or("");
     if !topic.starts_with("orderbook.") {
         // Subscription confirmation, pong reply, etc.

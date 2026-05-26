@@ -106,10 +106,10 @@ impl MarketDataAdapter for DeribitAdapter {
             return Err(ConnectorError::NotConnected);
         }
         // `.raw` requires auth (Deribit error 13778); `.100ms` is the
-// equivalent public channel and ships every trade aggregated into
-// 100ms windows — fine for footprint candles since our smallest
-// timeframe (Sec5) is 50× coarser anyway.
-let channel = format!("trades.{}.100ms", symbol);
+        // equivalent public channel and ships every trade aggregated into
+        // 100ms windows — fine for footprint candles since our smallest
+        // timeframe (Sec5) is 50× coarser anyway.
+        let channel = format!("trades.{}.100ms", symbol);
         let req = json!({
             "jsonrpc": "2.0",
             "id": self.next_id(),
@@ -127,10 +127,10 @@ let channel = format!("trades.{}.100ms", symbol);
             return Err(ConnectorError::NotConnected);
         }
         // `.raw` requires auth (Deribit error 13778); `.100ms` is the
-// equivalent public channel and ships every trade aggregated into
-// 100ms windows — fine for footprint candles since our smallest
-// timeframe (Sec5) is 50× coarser anyway.
-let channel = format!("trades.{}.100ms", symbol);
+        // equivalent public channel and ships every trade aggregated into
+        // 100ms windows — fine for footprint candles since our smallest
+        // timeframe (Sec5) is 50× coarser anyway.
+        let channel = format!("trades.{}.100ms", symbol);
         let req = json!({
             "jsonrpc": "2.0",
             "id": self.next_id(),

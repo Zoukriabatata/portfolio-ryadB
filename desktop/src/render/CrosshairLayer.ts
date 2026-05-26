@@ -19,8 +19,14 @@ const LINE_H = 18;
 const LINES = 4;
 const TOOLTIP_H = LINE_H * LINES + 12;
 
+// REFONTE-7/P1 : palette Senzoukria. Tooltip aligné sur --bg-surface
+// (#141414) avec bordure --border (#1f1f1f) et texte --text-primary
+// (#ffffff). Lignes croix restent blanc semi-transparent (lecture seule
+// du curseur, pas une couleur d'accent).
 const DEFAULT_LINE_COLOR = "rgba(255, 255, 255, 0.3)";
-const DEFAULT_TEXT_COLOR = "#e8eaf6";
+const DEFAULT_TEXT_COLOR = "#ffffff";
+const TOOLTIP_BG = "rgba(20, 20, 20, 0.92)";
+const TOOLTIP_BORDER = "#1f1f1f";
 
 function readCssColor(name: string, fallback: string): string {
   if (typeof document === "undefined") return fallback;
@@ -40,7 +46,17 @@ function formatTime(ms: number): string {
 }
 
 export class CrosshairLayer implements Layer<CrosshairData> {
-  public dirty = false;
+  // REFONTE-7/P3.5 Fix 1 — always-dirty pour que update() soit appelé chaque
+  // frame (60 Hz). Sans ça, le tick engine flag dirty seulement quand un
+  // bucket avance (~10 Hz) → la position du crosshair stockée dans
+  // currentData reste stale 5-6 frames → effet visuel ~10 FPS.
+  // Setter no-op (l'engine reset à false après update, on l'ignore).
+  get dirty(): boolean {
+    return true;
+  }
+  set dirty(_v: boolean) {
+    void _v;
+  }
   private ctx: CanvasRenderingContext2D | null = null;
   private currentData: CrosshairData | null = null;
   private colorLine = DEFAULT_LINE_COLOR;
@@ -97,9 +113,9 @@ export class CrosshairLayer implements Layer<CrosshairData> {
     if (tx < 0) tx = 0;
     if (ty + TOOLTIP_H > canvas.height) ty = canvas.height - TOOLTIP_H;
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.fillStyle = TOOLTIP_BG;
     ctx.fillRect(tx, ty, TOOLTIP_W, TOOLTIP_H);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.strokeStyle = TOOLTIP_BORDER;
     ctx.strokeRect(tx + 0.5, ty + 0.5, TOOLTIP_W - 1, TOOLTIP_H - 1);
 
     ctx.font =

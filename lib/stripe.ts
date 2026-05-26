@@ -220,15 +220,50 @@ export async function reactivateSubscription(subscriptionId: string): Promise<St
 
 // ============ CUSTOMER PORTAL ============
 
+/**
+ * Stripe Customer Portal "deep link" presets. Each one drops the user
+ * directly into the targeted flow when the portal opens, instead of
+ * the generic dashboard. `null` keeps the default landing page.
+ *
+ * Stripe's `flow_data` is whitelisted in their docs; we expose only
+ * the subset the desktop links to. The portal config in the Stripe
+ * dashboard must enable each flow (Settings → Billing → Customer
+ * Portal) for the corresponding deep-link to work.
+ */
+export type PortalFlow =
+  | "default"
+  | "payment_method_update"
+  | "subscription_cancel"
+  | "invoice_history";
+
 export async function createPortalSession(
   customerId: string,
-  returnUrl: string
+  returnUrl: string,
+  flow: PortalFlow = "default",
+  subscriptionId?: string | null,
 ): Promise<string> {
-  const session = await stripe.billingPortal.sessions.create({
+  const params: Stripe.BillingPortal.SessionCreateParams = {
     customer: customerId,
     return_url: returnUrl,
-  });
+  };
 
+  // Build flow_data for the requested deep link. Cancel + payment-method
+  // are the only flows Stripe exposes via `flow_data`; invoice history
+  // is reached by the user clicking "Invoice history" inside the portal.
+  if (flow === "payment_method_update") {
+    params.flow_data = { type: "payment_method_update" };
+  } else if (flow === "subscription_cancel" && subscriptionId) {
+    params.flow_data = {
+      type: "subscription_cancel",
+      subscription_cancel: { subscription: subscriptionId },
+    };
+  }
+  // "invoice_history" and "default" both use the portal's default
+  // landing — Stripe doesn't accept an invoice-history flow_data
+  // value yet (Nov 2026 API). The user lands on the dashboard and
+  // sees the "Billing history" link prominently.
+
+  const session = await stripe.billingPortal.sessions.create(params);
   return session.url;
 }
 

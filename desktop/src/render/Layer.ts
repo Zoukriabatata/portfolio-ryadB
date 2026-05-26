@@ -1,5 +1,6 @@
 import type Regl from "regl";
 import type { GridSystem } from "../core";
+import type { RenderTransform } from "./RenderTransform";
 
 // Contrat unifié : chaque couche du moteur respecte ce cycle de vie.
 // Générique sur TData : chaque couche a son type de payload.
@@ -12,10 +13,14 @@ export interface Layer<TData = unknown> {
   // overlayCtx : optionnel, fourni par l'engine si un canvas 2D overlay est
   // passé via spec.overlayCanvas. Couches regl pures (Liquidity, TradeBubbles)
   // l'ignorent. Couches canvas2d (KeyLevels) le requièrent (throw si undefined).
+  // transform : REFONTE-7/P3, projection partagée price/time → pixel.
+  // Optionnelle pour rétrocompat layers existantes ; les nouvelles layers
+  // overlay (BestBidAsk, AxesLayer, OutOfBuffer) la requièrent.
   init(
     regl: Regl.Regl,
     grid: GridSystem,
     overlayCtx?: CanvasRenderingContext2D,
+    transform?: RenderTransform,
   ): void;
   update(grid: GridSystem, data: TData): void;
   // draw() : appelée à chaque frame (60 fps). Pour les couches qui écrivent

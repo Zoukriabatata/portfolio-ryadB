@@ -9,13 +9,13 @@ use crate::connectors::adapter::{Credentials, MarketDataAdapter};
 use crate::connectors::error::{ConnectorError, Result};
 use crate::connectors::rithmic::auth::RithmicSession;
 use crate::connectors::rithmic::client::RithmicClient;
+use crate::connectors::rithmic::heartbeat::{self, HeartbeatHandle};
 use crate::connectors::rithmic::proto::{
     request_login::SysInfraType,
     request_market_data_update::{Request as MarketDataRequest, UpdateBits},
-    RequestLogin, RequestLogout, RequestMarketDataUpdate, RequestRithmicSystemInfo,
-    ResponseLogin, ResponseRithmicSystemInfo,
+    RequestLogin, RequestLogout, RequestMarketDataUpdate, RequestRithmicSystemInfo, ResponseLogin,
+    ResponseRithmicSystemInfo,
 };
-use crate::connectors::rithmic::heartbeat::{self, HeartbeatHandle};
 use crate::connectors::rithmic::reader;
 use crate::connectors::tick::Tick;
 
@@ -291,8 +291,18 @@ impl MarketDataAdapter for RithmicAdapter {
     /// the pair locally so we know what to unsubscribe at teardown.
     async fn subscribe(&mut self, symbol: &str, exchange: &str) -> Result<()> {
         if self.session.is_none() {
+            return Err(ConnectorError::Other("must login before subscribe".into()));
+        }
+        // Pre-flight: if the underlying transport has been torn down
+        // (idle timeout, server kick, network drop), the client is now
+        // marked Disconnected. Bail with a clear "reconnect" message
+        // before trying to send and getting the cryptic
+        // `Sending after closing is not allowed` tungstenite error.
+        if !self.client.is_connected() {
+            self.session = None;
+            self.subscriptions.clear();
             return Err(ConnectorError::Other(
-                "must login before subscribe".into(),
+                "Connection lost — please reconnect (Edit broker settings)".into(),
             ));
         }
         let req = RequestMarketDataUpdate {
@@ -303,15 +313,24 @@ impl MarketDataAdapter for RithmicAdapter {
             request: Some(MarketDataRequest::Subscribe as i32),
             update_bits: Some((UpdateBits::LastTrade as u32) | (UpdateBits::Bbo as u32)),
         };
-        tracing::info!(
-            "Subscribing to {}.{} (LAST_TRADE | BBO)",
-            symbol,
-            exchange
-        );
-        self.client.send(&req).await?;
-        self.subscriptions
-            .insert((symbol.to_string(), exchange.to_string()));
-        Ok(())
+        tracing::info!("Subscribing to {}.{} (LAST_TRADE | BBO)", symbol, exchange);
+        match self.client.send(&req).await {
+            Ok(()) => {
+                self.subscriptions
+                    .insert((symbol.to_string(), exchange.to_string()));
+                Ok(())
+            }
+            Err(e) => {
+                // Send failed → the client has already marked itself
+                // Disconnected. Drop session + subscriptions so the
+                // next subscribe attempt won't pretend we're still
+                // logged in.
+                tracing::warn!("subscribe send failed, clearing session: {}", e);
+                self.session = None;
+                self.subscriptions.clear();
+                Err(e)
+            }
+        }
     }
 
     async fn unsubscribe(&mut self, symbol: &str, exchange: &str) -> Result<()> {

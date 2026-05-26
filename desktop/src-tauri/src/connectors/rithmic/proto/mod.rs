@@ -7937,8 +7937,21 @@ pub struct RequestTimeBarReplay {
     pub exchange: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(enumeration = "request_time_bar_replay::BarType", optional, tag = "119200")]
     pub bar_type: ::core::option::Option<i32>,
+    /// Apex/Rithmic gateway returns rp_code=1009 when bar_sub_type is
+    /// absent (server applies TickBarReplay validator on template 206).
+    /// Tag 119208 matches the bar_sub_type in request_tick_bar_replay.
+    #[prost(
+        enumeration = "request_time_bar_replay::BarSubType",
+        optional,
+        tag = "119208"
+    )]
+    pub bar_sub_type: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "119112")]
     pub bar_type_period: ::core::option::Option<i32>,
+    /// Apex requires this even on TimeBarReplay — rp_code=1015 when
+    /// missing. Tag 148162 mirrors TickBarReplay's specifier.
+    #[prost(string, optional, tag = "148162")]
+    pub bar_type_specifier: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(int32, optional, tag = "153002")]
     pub start_index: ::core::option::Option<i32>,
     #[prost(int32, optional, tag = "153003")]
@@ -8000,6 +8013,45 @@ pub mod request_time_bar_replay {
                 "MINUTE_BAR" => Some(Self::MinuteBar),
                 "DAILY_BAR" => Some(Self::DailyBar),
                 "WEEKLY_BAR" => Some(Self::WeeklyBar),
+                _ => None,
+            }
+        }
+    }
+    /// Mirror of TickBarReplay's BarSubType — Apex/Rithmic gateway
+    /// applies the TickBarReplay validator to TimeBarReplay requests
+    /// and rejects with rp_code=1009 when this enum is absent.
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum BarSubType {
+        Regular = 1,
+        Custom = 2,
+    }
+    impl BarSubType {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                BarSubType::Regular => "REGULAR",
+                BarSubType::Custom => "CUSTOM",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "REGULAR" => Some(Self::Regular),
+                "CUSTOM" => Some(Self::Custom),
                 _ => None,
             }
         }

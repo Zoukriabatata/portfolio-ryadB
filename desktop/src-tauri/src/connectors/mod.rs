@@ -14,6 +14,8 @@ pub mod binance;
 pub mod bybit;
 pub mod deribit;
 pub mod error;
+pub mod finnhub;
+pub mod alpaca;
 pub mod rithmic;
 pub mod tick;
 
