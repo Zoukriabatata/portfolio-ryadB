@@ -1,6 +1,11 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
+// Was 'force-dynamic' — but the page is a client component (`useSession`,
+// `inPreview` state), so the server pass renders an identical shell for
+// every visitor. Letting Next.js statically prerender that shell + cache
+// it on the CDN drops TTFB from ~200ms to ~20ms (better Core Web Vitals
+// → better Google ranking). The session + preview-window check both
+// hydrate client-side anyway.
 
 import { useState, useEffect, Suspense } from 'react';
 import { toast } from 'sonner';

@@ -1,6 +1,39 @@
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { getLatestRelease, type ReleaseInfo } from '@/lib/github/releases';
+
+export const metadata: Metadata = {
+  title: 'Download OrderflowV2 — Free preview until June 17',
+  description:
+    'Download OrderflowV2 desktop : footprint charts, liquidity heatmap, GEX dashboard, multi-broker (Rithmic, NinjaTrader Bridge). Windows. Free preview access until 17 June 2026.',
+  keywords: [
+    'orderflow software download',
+    'footprint chart download',
+    'GEX dashboard',
+    'Rithmic footprint',
+    'NinjaTrader bridge',
+    'orderflow desktop app',
+    'free trading software',
+    'ATAS alternative',
+    'Bookmap alternative',
+    'Sierra Chart alternative',
+  ],
+  alternates: { canonical: '/download' },
+  openGraph: {
+    title: 'Download OrderflowV2 — Free preview until June 17',
+    description:
+      'Footprint charts, liquidity heatmap, GEX dashboard for futures traders. Free preview until 17/06/2026.',
+    url: '/download',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Download OrderflowV2 — Free preview',
+    description:
+      'Footprint, heatmap, GEX. Free until 17/06/2026.',
+  },
+};
 
 type OSKind = 'windows' | 'mac' | 'linux';
 
