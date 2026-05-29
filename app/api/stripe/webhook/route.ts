@@ -19,7 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
+import { generateLicenseKey } from '@/lib/auth/license';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent, stripe } from '@/lib/stripe';
@@ -63,11 +63,6 @@ function isPrismaUniqueViolation(err: unknown, target: string): boolean {
     Array.isArray(err.meta?.target) &&
     (err.meta!.target as string[]).includes(target)
   );
-}
-
-/** "OFV2-<uuid v4>" — visible license ID format the user sees on /account. */
-function generateLicenseKey(): string {
-  return `OFV2-${randomUUID()}`;
 }
 
 /**
@@ -153,6 +148,31 @@ export async function POST(req: NextRequest) {
         }
         case 'invoice.payment_failed': {
           await handlePaymentFailed(event.data.object as Stripe.Invoice, tx);
+          break;
+        }
+        // 2026-05-26 — close the refund/dispute gap. Without these the
+        // subscription remained PRO after a refund or chargeback,
+        // which turns into free access forever.
+        case 'charge.refunded': {
+          await handleChargeRefunded(event.data.object as Stripe.Charge, tx);
+          break;
+        }
+        case 'charge.dispute.created': {
+          await handleDisputeCreated(event.data.object as Stripe.Dispute, tx);
+          break;
+        }
+        case 'charge.dispute.closed': {
+          await handleDisputeClosed(event.data.object as Stripe.Dispute, tx);
+          break;
+        }
+        case 'customer.subscription.trial_will_end': {
+          // Stripe fires this 3 days before the trial expires. We log
+          // it so an ops job / email worker can pick it up; sending
+          // the actual "trial ending" mail lives in the side-effect
+          // bag (TODO: wire to `post.trialEndEmail`).
+          console.log(
+            `[stripe webhook] trial_will_end event=${event.id} sub=${(event.data.object as Stripe.Subscription).id}`,
+          );
           break;
         }
         default:
@@ -467,4 +487,143 @@ async function handlePaymentFailed(
   });
 
   console.warn(`[stripe webhook] payment FAILED userId=${user.id} invoice=${invoice.id}`);
+}
+
+/**
+ * Refund issued from Stripe Dashboard (or via the Customer Portal's
+ * cancel-with-refund flow). Without this handler the user retained
+ * `subscriptionTier='PRO'` even after we returned their money —
+ * effectively free access forever, plus an open abuse vector
+ * ("refund → keep using"). We:
+ *   1. Locate the user via the refunded charge's customer.
+ *   2. Mark the matching Payment row as REFUNDED for accounting.
+ *   3. Demote the User to FREE if the refund is full
+ *      (partial refunds stay on PRO — the user paid for some service).
+ *   4. Clear the Stripe subscriptionId so the next portal session
+ *      doesn't show a stale subscription.
+ *
+ * Heartbeat (every 5 min, 15 min JWT TTL) picks up the tier change
+ * within 30 min max, kicking the desktop session.
+ */
+async function handleChargeRefunded(
+  charge: Stripe.Charge,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const customerId = charge.customer as string | null;
+  if (!customerId) {
+    console.warn(`[stripe webhook] charge.refunded with no customer charge=${charge.id}`);
+    return;
+  }
+
+  const user = await tx.user.findFirst({
+    where:  { customerId },
+    select: { id: true, email: true, subscriptionTier: true, subscriptionId: true },
+  });
+  if (!user) {
+    console.warn(`[stripe webhook] charge.refunded user not found customer=${customerId} charge=${charge.id}`);
+    return;
+  }
+
+  const paymentIntentId = typeof charge.payment_intent === 'string'
+    ? charge.payment_intent
+    : charge.payment_intent?.id;
+
+  // Mark the matching Payment row REFUNDED for accounting traceability.
+  if (paymentIntentId) {
+    await tx.payment.updateMany({
+      where: { userId: user.id, stripePaymentId: paymentIntentId },
+      data:  { status: 'REFUNDED' },
+    });
+  }
+
+  // Full refund vs partial: only full refunds demote the tier.
+  const isFullRefund = charge.amount_refunded >= charge.amount;
+  if (!isFullRefund) {
+    console.log(
+      `[stripe webhook] partial refund userId=${user.id} ` +
+      `refunded=${charge.amount_refunded}/${charge.amount} — keeping tier`,
+    );
+    return;
+  }
+
+  await tx.user.update({
+    where: { id: user.id },
+    data: {
+      subscriptionTier: 'FREE',
+      subscriptionId: null,
+      subscriptionEnd: null,
+      maxDevices: 1,
+    },
+  });
+
+  console.warn(
+    `[stripe webhook] FULL refund — userId=${user.id} demoted to FREE charge=${charge.id}`,
+  );
+}
+
+/**
+ * Chargeback (dispute) opened by the cardholder's bank. The funds are
+ * frozen by Stripe; we lose them unless we contest and win. To prevent
+ * the user from continuing to use the service while the dispute is
+ * open, we immediately demote them to FREE (same as a refund). If we
+ * later WIN the dispute we can manually restore them via admin tools.
+ */
+async function handleDisputeCreated(
+  dispute: Stripe.Dispute,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge.id;
+
+  // Look up the charge to find the customer — Stripe doesn't put the
+  // customer on the dispute object directly.
+  const customerId = await (async () => {
+    try {
+      const ch = await stripe.charges.retrieve(chargeId);
+      return ch.customer as string | null;
+    } catch (e) {
+      console.error(`[stripe webhook] dispute.created retrieve charge failed`, e);
+      return null;
+    }
+  })();
+
+  if (!customerId) return;
+
+  const user = await tx.user.findFirst({
+    where:  { customerId },
+    select: { id: true, email: true },
+  });
+  if (!user) return;
+
+  await tx.user.update({
+    where: { id: user.id },
+    data: {
+      subscriptionTier: 'FREE',
+      subscriptionId: null,
+      subscriptionEnd: null,
+      maxDevices: 1,
+    },
+  });
+
+  // ADMIN ALERT — escalate so we know we're being charged back. In a
+  // mature setup this would page someone via PagerDuty / Slack webhook.
+  console.error(
+    `[stripe webhook] 🚨 CHARGEBACK opened userId=${user.id} email=${user.email} ` +
+    `charge=${chargeId} amount=${dispute.amount} reason=${dispute.reason}`,
+  );
+}
+
+/**
+ * Dispute closed by Stripe — we either won, lost, or it was withdrawn.
+ * We log the outcome; restoration to PRO if we won is a manual admin
+ * action (a wrongly-demoted user pings support).
+ */
+async function handleDisputeClosed(
+  dispute: Stripe.Dispute,
+  _tx: Prisma.TransactionClient,
+): Promise<void> {
+  const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge.id;
+  console.warn(
+    `[stripe webhook] dispute.closed status=${dispute.status} ` +
+    `charge=${chargeId} amount=${dispute.amount}`,
+  );
 }

@@ -10,6 +10,36 @@ import {
   updateFingerprintTimestamp,
 } from '@/lib/auth/fingerprint-client';
 
+// Hardcoded copy of PREVIEW_END from lib/auth/license.ts — the server
+// is the source of truth (it gates the auto-grant), this is purely a
+// UX hint so users see the offer instead of guessing why the account
+// gives PRO access for free.
+const PREVIEW_END_MS = new Date('2026-06-17T23:59:59.000Z').getTime();
+
+function PreviewBanner() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    setShow(Date.now() < PREVIEW_END_MS);
+  }, []);
+  if (!show) return null;
+  return (
+    <div
+      className="mb-5 px-3 py-2 rounded-lg text-xs flex items-start gap-2"
+      style={{
+        background: 'rgba(74, 222, 128, 0.08)',
+        border: '1px solid rgba(74, 222, 128, 0.3)',
+        color: 'var(--primary-light)',
+      }}
+    >
+      <span>🎁</span>
+      <span>
+        <strong>Public preview</strong> — full PRO access free until <strong>17 June 2026</strong>.
+        No payment required, no card asked.
+      </span>
+    </div>
+  );
+}
+
 function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
@@ -45,6 +75,12 @@ export default function RegisterPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [fingerprint, setFingerprint] = useState('');
+  // GDPR-compliant consent — explicit affirmative action via checkboxes
+  // (a passive "by continuing you agree" link is not a valid consent
+  // under EU law since 2018). Without ticking these, the submit button
+  // stays disabled, and the user can't proceed.
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
   const router = useRouter();
 
@@ -135,7 +171,14 @@ export default function RegisterPage() {
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
 
           <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Get started</h2>
-          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Free account · No credit card required</p>
+          <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Free account · No credit card required</p>
+          {/* Public preview banner — visible only during the launch
+              window. Renders client-side so the JIT date check below
+              stays SSR-stable (no hydration mismatch from time-sensitive
+              copy on the server). Hardcoded cutoff matches PREVIEW_END
+              in lib/auth/license.ts. */}
+          <PreviewBanner />
+
 
           {/* ── PRIMARY: Google ── */}
           <button
@@ -243,10 +286,58 @@ export default function RegisterPage() {
                     style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                 </div>
+                {/* GDPR consent checkboxes — required affirmative action. */}
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <input
+                      type="checkbox"
+                      checked={acceptTerms}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      required
+                      className="mt-0.5 h-4 w-4 rounded cursor-pointer"
+                      style={{ accentColor: 'var(--primary)' }}
+                    />
+                    <span>
+                      I have read and accept the{' '}
+                      <Link
+                        href="/legal/terms"
+                        target="_blank"
+                        className="underline"
+                        style={{ color: 'var(--primary-light)' }}
+                      >
+                        Terms of Service
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <input
+                      type="checkbox"
+                      checked={acceptPrivacy}
+                      onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                      required
+                      className="mt-0.5 h-4 w-4 rounded cursor-pointer"
+                      style={{ accentColor: 'var(--primary)' }}
+                    />
+                    <span>
+                      I have read and accept the{' '}
+                      <Link
+                        href="/legal/privacy"
+                        target="_blank"
+                        className="underline"
+                        style={{ color: 'var(--primary-light)' }}
+                      >
+                        Privacy Policy
+                      </Link>{' '}
+                      and consent to the processing of my personal data as described.
+                    </span>
+                  </label>
+                </div>
+
                 <button
                   type="submit"
-                  disabled={isLoading || success}
-                  className="w-full py-3 font-semibold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+                  disabled={isLoading || success || !acceptTerms || !acceptPrivacy}
+                  className="w-full py-3 font-semibold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: 'linear-gradient(to right, var(--primary), var(--primary-dark))', color: '#fff' }}
                 >
                   {isLoading ? (
@@ -270,11 +361,17 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Terms */}
+        {/* Footnote — links to legal pages for users who want to review
+            them before signing up. The actual GDPR consent is captured
+            via the two checkboxes inside the email-signup form. */}
         <div className="mt-5 text-center">
           <p className="text-xs" style={{ color: 'var(--text-dimmed)' }}>
-            By continuing, you agree to our{' '}
-            <Link href="/legal/terms" className="underline" style={{ color: 'var(--text-muted)' }}>terms of service</Link>.
+            See our{' '}
+            <Link href="/legal/terms" className="underline" style={{ color: 'var(--text-muted)' }}>Terms of Service</Link>
+            ,{' '}
+            <Link href="/legal/privacy" className="underline" style={{ color: 'var(--text-muted)' }}>Privacy Policy</Link>
+            {' '}and{' '}
+            <Link href="/legal/mentions-legales" className="underline" style={{ color: 'var(--text-muted)' }}>Mentions légales</Link>.
           </p>
         </div>
       </div>
