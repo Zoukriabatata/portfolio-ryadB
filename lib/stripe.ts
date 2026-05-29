@@ -11,21 +11,19 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 /**
- * STRIPE_PRO_MONTHLY_PRICE_ID — required for the new single-plan ($29/mo)
- * checkout flow. Throws at module load when running in production to fail
- * fast on a misconfigured deploy; just warns in dev so localhost can boot
- * without it (e.g. before the Stripe product has been created).
+ * STRIPE_PRO_MONTHLY_PRICE_ID — required for the single-plan ($29/mo) checkout.
+ * We only warn at module load: throwing here breaks `next build` on any deploy
+ * that hasn't created the Stripe product yet (including the public preview
+ * window, where no checkout is wired). The runtime guard in
+ * `createCheckoutSession` (price ID must start with `price_`) still rejects
+ * any actual checkout attempt with a clear error.
  */
 if (!process.env.STRIPE_PRO_MONTHLY_PRICE_ID) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      '[stripe] STRIPE_PRO_MONTHLY_PRICE_ID is required in production. ' +
-      'Create the "OrderflowV2 Pro" product in Stripe Dashboard ($29/mo recurring) ' +
-      'and set STRIPE_PRO_MONTHLY_PRICE_ID in Vercel env vars.',
-    );
-  } else {
-    console.warn('[stripe] STRIPE_PRO_MONTHLY_PRICE_ID is not set — PRO checkout will fail. OK in dev until the Stripe product is created.');
-  }
+  console.warn(
+    '[stripe] STRIPE_PRO_MONTHLY_PRICE_ID is not set — PRO checkout will fail at runtime. ' +
+    'Create the "OrderflowV2 Pro" product in Stripe Dashboard ($29/mo recurring) ' +
+    'and set STRIPE_PRO_MONTHLY_PRICE_ID before exiting the preview window.',
+  );
 }
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
@@ -148,6 +146,16 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
       ...(effectiveTrialDays && { trial_period_days: effectiveTrialDays }),
     },
     allow_promotion_codes: true,
+    // Required for EU sales (VAT) and US sales (state sales tax).
+    // Stripe Tax computes the correct rate from the customer's billing
+    // address. Must also be enabled in Stripe Dashboard → Settings → Tax
+    // (one-time setup) with the seller's tax registration filled in.
+    automatic_tax: { enabled: true },
+    // Required when automatic_tax is on: Stripe needs the address to
+    // determine the tax rate. 'auto' lets Stripe ask for it on the
+    // checkout page if not already on file.
+    customer_update: { address: 'auto', name: 'auto' },
+    tax_id_collection: { enabled: true },
   });
 
   return session.url!;
