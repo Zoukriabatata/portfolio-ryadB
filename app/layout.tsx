@@ -46,6 +46,9 @@ export const metadata: Metadata = {
   creator: SITE_NAME,
   verification: {
     google: 'MGGYgE7tU9jpIL3O_QQ2lxyFV580zSQtlhf2vd9Sprg',
+    other: {
+      'msvalidate.01': 'E7E843F922F30763066D84D0EDD9DF12',
+    },
   },
   alternates: {
     canonical: SITE_URL,
