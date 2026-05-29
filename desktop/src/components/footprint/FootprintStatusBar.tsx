@@ -24,6 +24,15 @@ type Props = {
   connected: boolean;
   busy: boolean;
   priceDecimals?: number;
+  /**
+   * Exchange-pushed cumulative session volume (NT Market Analyzer's
+   * "Daily volume" column source). Only the bridge connector knows
+   * this number — Rithmic-native and crypto stay null. When
+   * available, the bar shows it alongside the bar-summed counter so
+   * the user can see both the authoritative session total and what
+   * we actually ingested.
+   */
+  brokerDailyVolume?: number | null;
 };
 
 const TF_TO_MS: Record<string, number> = {
@@ -44,6 +53,7 @@ export function FootprintStatusBar({
   connected,
   busy,
   priceDecimals = 2,
+  brokerDailyVolume = null,
 }: Props) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -54,9 +64,18 @@ export function FootprintStatusBar({
 
   const last = bars[0]; // newest, since CryptoFootprint sorts desc
   const lastPrice = last?.close ?? null;
-  const sessionDelta = bars.reduce((s, b) => s + b.totalDelta, 0);
-  const sessionVol = bars.reduce((s, b) => s + b.totalVolume, 0);
-  const sessionTrades = bars.reduce((s, b) => s + b.tradeCount, 0);
+
+  // Daily session boundary = local midnight today. The bridge replays
+  // the full NT chart history (which can span several days) and the
+  // Rust engine keeps every bar, so summing the whole cache mixes
+  // previous sessions into the "session" counters — a multi-day cache
+  // produced ~1.3M vol on MNQ where NT showed ~341k. Filtering at
+  // local midnight scopes the counters to today only.
+  const sessionStartNs = new Date().setHours(0, 0, 0, 0) * 1_000_000;
+  const dailyBars = bars.filter((b) => b.bucketTsNs >= sessionStartNs);
+  const sessionDelta = dailyBars.reduce((s, b) => s + b.totalDelta, 0);
+  const sessionVol = dailyBars.reduce((s, b) => s + b.totalVolume, 0);
+  const sessionTrades = dailyBars.reduce((s, b) => s + b.tradeCount, 0);
 
   const tfMs = TF_TO_MS[timeframe] ?? 0;
   // bucketTsNs is the bar START. The bar closes at start + tfMs.
@@ -96,15 +115,33 @@ export function FootprintStatusBar({
       )}
       <span
         className={`fsb-delta ${sessionDelta >= 0 ? "fsb-pos" : "fsb-neg"}`}
-        title="Session cumulative delta"
+        title="Today's cumulative delta (since 00:00 local)"
       >
         Δ {sessionDelta >= 0 ? "+" : ""}
         {sessionDelta.toFixed(0)}
       </span>
-      <span className="fsb-vol" title="Session cumulative volume">
-        vol {sessionVol.toFixed(0)}
-      </span>
-      <span className="fsb-trades" title="Session trade count">
+      {brokerDailyVolume !== null ? (
+        <span
+          className="fsb-vol"
+          title={`Exchange session volume (authoritative, from broker feed) — ${sessionVol.toFixed(0)} captured locally since 00:00 local`}
+        >
+          vol {brokerDailyVolume.toLocaleString("fr-FR")}
+          <span style={{ opacity: 0.55, marginLeft: 4 }}>
+            ({sessionVol.toFixed(0)} capt)
+          </span>
+        </span>
+      ) : (
+        <span
+          className="fsb-vol"
+          title="Today's cumulative volume (since 00:00 local)"
+        >
+          vol {sessionVol.toFixed(0)}
+        </span>
+      )}
+      <span
+        className="fsb-trades"
+        title="Today's trade count (since 00:00 local)"
+      >
         {sessionTrades} trades
       </span>
       {showCountdown && (
