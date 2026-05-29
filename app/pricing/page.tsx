@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
@@ -15,6 +15,12 @@ import Link from 'next/link';
 
 const PRICE_USD = 29;
 const TRIAL_DAYS = 14;
+
+// Hardcoded copy of PREVIEW_END from lib/auth/license.ts. Until this
+// instant, the register endpoint auto-grants PRO with no Stripe step,
+// so the pricing page must NOT push users into a checkout that gives
+// them less than what they'd get from /auth/register.
+const PREVIEW_END_MS = new Date('2026-06-17T23:59:59.000Z').getTime();
 
 const PRO_FEATURES = [
   'Live footprint charts (delta, volume, imbalance)',
@@ -34,12 +40,30 @@ function PricingContent() {
   const params = useSearchParams();
 
   const [loading, setLoading] = useState(false);
+  // Client-side check on mount so SSR HTML doesn't depend on Date.now()
+  // (would cause hydration mismatch + would crash a static export).
+  const [inPreview, setInPreview] = useState(false);
+  useEffect(() => {
+    setInPreview(Date.now() < PREVIEW_END_MS);
+  }, []);
 
   const isAuthenticated = !!session?.user;
   const isPro = session?.user?.tier === 'PRO';
   const cancelled = params?.get('cancelled') === 'true';
 
   const handleSubscribe = async () => {
+    // Public preview window: registration auto-grants PRO. Push every
+    // guest to /auth/register and bypass Stripe entirely. Existing PROs
+    // (preview-granted included) go to /account.
+    if (inPreview) {
+      if (isPro) {
+        window.location.href = '/account';
+        return;
+      }
+      window.location.href = '/auth/register';
+      return;
+    }
+
     if (!isAuthenticated) {
       // Send guest to register, with a return-to-pricing redirect after sign up
       window.location.href = '/auth/register?callbackUrl=/pricing';
@@ -134,7 +158,7 @@ function PricingContent() {
             className="px-3 py-1 rounded-full text-[11px] font-bold tracking-wide"
             style={{ background: 'rgba(74,222,128,0.15)', color: 'var(--primary)', border: '1px solid rgba(74,222,128,0.35)' }}
           >
-            {TRIAL_DAYS}-DAY FREE TRIAL
+            {inPreview ? 'FREE UNTIL 17/06' : `${TRIAL_DAYS}-DAY FREE TRIAL`}
           </span>
         </div>
 
@@ -147,8 +171,9 @@ function PricingContent() {
         </div>
 
         <p className="text-[13px] mb-6" style={{ color: 'var(--text-muted)' }}>
-          No card charged for {TRIAL_DAYS} days. After the trial, you&apos;ll be billed ${PRICE_USD} every month.
-          Cancel anytime from your account.
+          {inPreview
+            ? `Full PRO access — no card required, no payment. Free until 17 June 2026. After that, ${PRICE_USD}$/month if you want to keep it.`
+            : `No card charged for ${TRIAL_DAYS} days. After the trial, you'll be billed $${PRICE_USD} every month. Cancel anytime from your account.`}
         </p>
 
         {/* CTA */}
@@ -167,6 +192,8 @@ function PricingContent() {
               <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white/50" />
               Redirecting to Stripe…
             </span>
+          ) : inPreview ? (
+            isPro ? 'Manage account →' : 'Get free preview access'
           ) : !isAuthenticated ? (
             'Create account to start trial'
           ) : isPro ? (

@@ -178,6 +178,57 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Anti-fraud: free-trial eligibility check ──────────────
+    // The default PRO subscription comes with PRO_TRIAL_DAYS=14
+    // unless we explicitly pass `trialDays: 0`. We deny the trial
+    // for any of the following abuse patterns:
+    //
+    //   1. The user already has a Stripe customerId → repeat
+    //      customer (they pay or come back to pay, no second trial).
+    //   2. The user has a subscriptionStart recorded → they've
+    //      previously been on a paid plan or earlier trial that
+    //      we're not granting twice.
+    //   3. Another user with the same lastLoginIp signed up for
+    //      a trial in the last 30 days → likely the same person
+    //      cycling emails (loose heuristic; might false-positive
+    //      on shared NATs, accepted trade-off for V1).
+    //   4. A promo code with explicit trialDays takes precedence
+    //      over both default and abuse logic — promo terms win.
+    let trialDaysParam: number | undefined =
+      promoCodeRecord?.trialDays ?? undefined;
+    let trialDecision: 'promo' | 'granted' | 'denied' = 'granted';
+
+    if (trialDaysParam !== undefined) {
+      trialDecision = 'promo';
+    } else {
+      const repeatCustomer =
+        Boolean(user.customerId) || Boolean(user.subscriptionStart);
+
+      let ipAbuse = false;
+      if (!repeatCustomer && ip && ip !== '127.0.0.1') {
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        const cutoff = new Date(Date.now() - THIRTY_DAYS_MS);
+        const recent = await prisma.user.findFirst({
+          where: {
+            lastLoginIp: ip,
+            subscriptionStart: { gte: cutoff },
+            id: { not: user.id },
+          },
+          select: { id: true },
+        });
+        ipAbuse = Boolean(recent);
+      }
+
+      if (repeatCustomer || ipAbuse) {
+        trialDaysParam = 0; // explicit 0 disables the default trial
+        trialDecision = 'denied';
+        console.info(
+          `[checkout] trial denied for user=${user.id} ` +
+            `repeatCustomer=${repeatCustomer} ipAbuse=${ipAbuse}`,
+        );
+      }
+    }
+
     // Create checkout session
     const baseUrl = getAppUrl();
     const checkoutUrl = await createCheckoutSession({
@@ -185,17 +236,17 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       tier,
       billingPeriod,
-      successUrl: `${baseUrl}/account?success=true`,
+      successUrl: `${baseUrl}/account?success=true&trial=${trialDecision}`,
       cancelUrl: `${baseUrl}/pricing?cancelled=true`,
       couponId,
       promoCodeUsageId,
-      trialDays: promoCodeRecord?.trialDays || undefined, // Add trial period if promo code has one
+      trialDays: trialDaysParam,
     });
 
     return NextResponse.json({ url: checkoutUrl });
   } catch (error) {
-    console.error('Checkout error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[stripe/checkout] error:', message);
 
     if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
       return NextResponse.json(

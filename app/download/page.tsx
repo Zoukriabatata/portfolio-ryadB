@@ -58,26 +58,59 @@ export default async function DownloadPage() {
       </div>
 
       {release && (
-        <section
-          className="w-full max-w-2xl rounded-2xl p-6 relative z-10 mb-8"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-        >
-          <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-            How to install on Windows
-          </h2>
-          <ol className="list-decimal pl-5 space-y-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-            <li>Download the <code>.msi</code> file above.</li>
-            <li>Double-click the file to launch the installer.</li>
-            <li>
-              <strong style={{ color: 'var(--text-primary)' }}>Important</strong>: Windows might
-              show a &quot;Windows protected your PC&quot; warning. Click <em>More info</em>, then
-              <em> Run anyway</em>. (Code signing is on the roadmap — the installer is currently
-              unsigned, which triggers SmartScreen.)
-            </li>
-            <li>Sign in with your OrderflowV2 account.</li>
-            <li>You&apos;re in. Live charts, footprints, GEX — all native.</li>
-          </ol>
-        </section>
+        <>
+          {/* SmartScreen heads-up — first thing the user sees AFTER the
+              download cards. We surface it as a callout (not buried in
+              the install list) because the unsigned installer fires a
+              big red Windows warning that scares ~30-50% of non-tech
+              users into closing the window. Telling them it's expected
+              + showing the two-click workaround flips that into a
+              non-event. Visible until we ship a code-signed build. */}
+          <section
+            className="w-full max-w-2xl rounded-2xl p-5 relative z-10 mb-6"
+            style={{
+              background: 'rgba(251, 191, 36, 0.06)',
+              border:     '1px solid rgba(251, 191, 36, 0.35)',
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <span style={{ fontSize: 22 }} aria-hidden>⚠️</span>
+              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <strong style={{ color: '#fbbf24' }}>
+                  Heads-up : Windows va afficher un écran de protection.
+                </strong>{' '}
+                C&apos;est normal — OrderflowV2 est édité par un studio indépendant et le
+                certificat de signature Windows (≈300€/an) sera ajouté dans la prochaine release.
+                <br /><br />
+                <strong style={{ color: 'var(--text-primary)' }}>Pour installer :</strong>
+                {' '}clique sur <em style={{ color: 'var(--primary-light)' }}>Informations
+                complémentaires</em> dans l&apos;écran bleu, puis sur{' '}
+                <em style={{ color: 'var(--primary-light)' }}>Exécuter quand même</em>.
+                C&apos;est tout — l&apos;installation est sûre.
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="w-full max-w-2xl rounded-2xl p-6 relative z-10 mb-8"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+              How to install on Windows
+            </h2>
+            <ol className="list-decimal pl-5 space-y-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+              <li>Télécharge le fichier <code>.msi</code> ci-dessus.</li>
+              <li>Double-clique pour lancer l&apos;installeur.</li>
+              <li>
+                Si l&apos;écran &quot;Windows protected your PC&quot; apparaît :
+                {' '}<strong style={{ color: 'var(--text-primary)' }}>Informations complémentaires</strong>
+                {' '}→ <strong style={{ color: 'var(--text-primary)' }}>Exécuter quand même</strong>.
+              </li>
+              <li>Sign in avec ton compte OrderflowV2.</li>
+              <li>C&apos;est bon. Charts live, footprints, GEX — tout natif.</li>
+            </ol>
+          </section>
+        </>
       )}
 
       <div className="flex flex-wrap items-center justify-center gap-3 text-sm relative z-10" style={{ color: 'var(--text-muted)' }}>

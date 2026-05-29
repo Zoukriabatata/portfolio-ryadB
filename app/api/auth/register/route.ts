@@ -9,6 +9,7 @@ import { prisma } from '@/lib/db';
 import { hashPassword, generateSecureToken } from '@/lib/auth/security';
 import { registerRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 import { sendVerificationEmail } from '@/lib/auth/email-verification';
+import { generateLicenseKey, isPreviewWindow, PREVIEW_END } from '@/lib/auth/license';
 
 export async function POST(req: NextRequest) {
   // Rate limit: 3 registrations per hour per IP
@@ -59,30 +60,54 @@ export async function POST(req: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user
+    // Public preview window: every fresh registration is auto-promoted to
+    // PRO with subscriptionEnd pinned to PREVIEW_END (no Stripe interaction).
+    // After the window closes, the heartbeat naturally rejects these
+    // accounts (subscriptionEnd < now) and the standard Stripe checkout
+    // takes over. We still create the License row so the desktop app's
+    // license/login + heartbeat flow works identically for preview and
+    // paid users — single code path on the client.
+    const inPreview = isPreviewWindow();
+    const now = new Date();
+
     const user = await prisma.user.create({
       data: {
         email: email.toLowerCase().trim(),
         password: hashedPassword,
         name: name?.trim() || null,
-        subscriptionTier: 'FREE',
+        subscriptionTier: inPreview ? 'PRO' : 'FREE',
+        subscriptionStart: inPreview ? now : null,
+        subscriptionEnd: inPreview ? PREVIEW_END : null,
         verificationToken: generateSecureToken(),
+        ...(inPreview && {
+          license: {
+            create: {
+              licenseKey: generateLicenseKey(),
+              status: 'ACTIVE',
+              maxMachines: 2,
+            },
+          },
+        }),
       },
     });
 
     // Send verification email (non-blocking — don't fail registration if email fails)
     const baseUrl = req.nextUrl.origin;
     sendVerificationEmail(user.email, user.verificationToken!, baseUrl).catch((err) => {
-      console.error('Failed to send verification email:', err);
+      console.error('[register] verification email failed:', err instanceof Error ? err.message : 'unknown');
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Compte créé avec succès. Vérifiez votre email pour activer votre compte.',
+      message: inPreview
+        ? 'Compte créé. Accès preview gratuit jusqu\'au 17/06. Vérifiez votre email pour activer votre compte.'
+        : 'Compte créé avec succès. Vérifiez votre email pour activer votre compte.',
       userId: user.id,
+      preview: inPreview,
+      previewEndsAt: inPreview ? PREVIEW_END.toISOString() : null,
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('[register] error:', error instanceof Error ? error.message : 'unknown');
     return NextResponse.json(
       { error: 'Erreur lors de la création du compte' },
       { status: 500 }

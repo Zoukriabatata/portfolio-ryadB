@@ -28,7 +28,11 @@ import { apiRateLimit, tooManyRequests, rateLimitHeaders } from '@/lib/auth/rate
 
 export const dynamic = 'force-dynamic';
 
-const JWT_TTL_SECONDS    = 24 * 60 * 60;
+// Must match the value used in /api/license/login. 15 min = forces
+// clients to heartbeat every ~5-10 min, keeping the server in the
+// loop on subscription changes (cancel, refund, ban) within a
+// quarter-hour rather than up to 24h with the old long TTL.
+const JWT_TTL_SECONDS    = 15 * 60;
 const HEARTBEAT_FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 
 const bodySchema = z.object({
@@ -172,7 +176,7 @@ export async function POST(req: NextRequest) {
       { headers: rlHeaders },
     );
   } catch (err) {
-    console.error('[license/heartbeat] error:', err);
+    console.error('[license/heartbeat] error:', err instanceof Error ? err.message : 'unknown');
     return NextResponse.json(
       { ok: false, error: 'INTERNAL' },
       { status: 500, headers: rlHeaders },
