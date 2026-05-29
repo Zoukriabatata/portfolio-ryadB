@@ -10,7 +10,11 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
 import { JsonLd } from '@/components/seo/JsonLd';
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://senzoukria.com';
+// Same resolution as app/sitemap.ts — see there for the rationale.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXTAUTH_URL ||
+  'https://orderflow-v2.vercel.app';
 const SITE_NAME = 'Senzoukria';
 const DEFAULT_DESCRIPTION =
   'Institutional-grade orderflow analytics platform. Real-time heatmaps, footprint charts, delta profiles and gamma exposure. Connect Rithmic, Interactive Brokers, CQG or AMP.';

@@ -1,6 +1,10 @@
 import type { MetadataRoute } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://senzoukria.com';
+// Same resolution as app/sitemap.ts — see there for the rationale.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXTAUTH_URL ||
+  'https://orderflow-v2.vercel.app';
 
 export default function robots(): MetadataRoute.Robots {
   return {
