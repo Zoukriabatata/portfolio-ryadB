@@ -19,6 +19,7 @@ import {
   TIER_CONFIG,
   type SubscriptionTier,
 } from './security';
+import { generateLicenseKey, isPreviewWindow, PREVIEW_END } from './license';
 
 // Dev mode user when DB is not available
 const DEV_USER = {
@@ -229,15 +230,36 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!dbUser) {
-            // Create new user (FREE tier, no password)
+            // Public preview window mirror of /api/auth/register's
+            // auto-grant: a Google signup during the window gets PRO
+            // tier + subscriptionEnd pinned to PREVIEW_END + an ACTIVE
+            // License row, all in one transaction. Without this branch
+            // OAuth users land at subscriptionTier='FREE' and the
+            // desktop /api/license/login rejects them with 402
+            // NOT_SUBSCRIBED — exactly the bug observed Friday night
+            // before the Monday launch. See lib/auth/license.ts for
+            // PREVIEW_END's source of truth.
+            const inPreview = isPreviewWindow();
+            const now = new Date();
             dbUser = await prisma.user.create({
               data: {
                 email,
                 name: profile.name || null,
                 avatar: (profile as { picture?: string }).picture || null,
                 emailVerified: new Date(),
-                subscriptionTier: 'FREE',
-                maxDevices: 1,
+                subscriptionTier: inPreview ? 'PRO' : 'FREE',
+                subscriptionStart: inPreview ? now : null,
+                subscriptionEnd: inPreview ? PREVIEW_END : null,
+                maxDevices: inPreview ? 2 : 1,
+                ...(inPreview && {
+                  license: {
+                    create: {
+                      licenseKey: generateLicenseKey(),
+                      status: 'ACTIVE',
+                      maxMachines: 2,
+                    },
+                  },
+                }),
               },
               include: { accounts: true, devices: { where: { isActive: true } } },
             });
@@ -257,6 +279,33 @@ export const authOptions: NextAuthOptions = {
                   emailVerified: dbUser.emailVerified || new Date(),
                 },
               });
+            }
+
+            // Heal Google OAuth users who signed up before the
+            // preview-grant fix landed: if we're inside the window
+            // and the user is still FREE, promote them to PRO with
+            // the same end date as a fresh signup. The desktop
+            // /api/license/login already heals a missing License row
+            // on first call (see the "PRO but no License" branch
+            // there), so we don't need to create it here.
+            if (
+              isPreviewWindow() &&
+              dbUser.subscriptionTier === 'FREE'
+            ) {
+              const healNow = new Date();
+              await prisma.user.update({
+                where: { id: dbUser.id },
+                data: {
+                  subscriptionTier: 'PRO',
+                  subscriptionStart: healNow,
+                  subscriptionEnd: PREVIEW_END,
+                  maxDevices: 2,
+                },
+              });
+              dbUser.subscriptionTier = 'PRO';
+              dbUser.subscriptionStart = healNow;
+              dbUser.subscriptionEnd = PREVIEW_END;
+              dbUser.maxDevices = 2;
             }
           }
 
