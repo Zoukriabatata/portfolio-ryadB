@@ -28,12 +28,18 @@ import { prisma, isPrismaAvailable } from '@/lib/db';
 import { verifyPassword } from '@/lib/auth/security';
 import { loginRateLimit, tooManyRequests, rateLimitHeaders } from '@/lib/auth/rate-limiter';
 import { signLicenseJwt } from '@/lib/license/jwt';
+import { isPreviewWindow, PREVIEW_END } from '@/lib/auth/license';
 import { randomUUID } from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
 
 const HEARTBEAT_FRESH_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const JWT_TTL_SECONDS    = 24 * 60 * 60;             // 24h
+// Short TTL (15 min) — forces the desktop client to heartbeat
+// every ~5-10 min, so any server-side subscription/license change
+// (cancel, refund, ban) takes effect within a quarter-hour instead
+// of waiting up to 24h for the old token to expire. Heartbeat-down
+// for >2 TTLs (= 30 min) triggers a forced logout client-side.
+const JWT_TTL_SECONDS    = 15 * 60;
 
 const bodySchema = z.object({
   email:      z.string().email().max(254),
@@ -110,6 +116,33 @@ export async function POST(req: NextRequest) {
         { ok: false, error: 'INVALID_CREDENTIALS' },
         { status: 401, headers: rlHeaders },
       );
+    }
+
+    // Heal users created before the preview-grant logic was deployed:
+    // if we're inside the public preview window (2026-05-30 → 2026-06-17)
+    // and the user is still FREE — i.e. they signed up months ago via
+    // email/password, or via Google before lib/auth/auth-options.ts
+    // started applying the grant — promote them silently to PRO with
+    // the same shape as a fresh preview signup. The missing-License
+    // healer below this block creates the License row on the same
+    // call. Net effect: every existing user who actually tries to
+    // use the desktop app during the preview gets in, without a
+    // batch SQL migration touching the 200+ dormant accounts.
+    if (isPreviewWindow() && user.subscriptionTier === 'FREE') {
+      const healNow = new Date();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          subscriptionTier: 'PRO',
+          subscriptionStart: healNow,
+          subscriptionEnd: PREVIEW_END,
+          maxDevices: 2,
+        },
+      });
+      user.subscriptionTier = 'PRO';
+      user.subscriptionStart = healNow;
+      user.subscriptionEnd = PREVIEW_END;
+      user.maxDevices = 2;
     }
 
     if (user.subscriptionTier !== 'PRO') {
