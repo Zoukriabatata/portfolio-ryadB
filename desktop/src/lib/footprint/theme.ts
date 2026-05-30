@@ -7,7 +7,7 @@
 // path branch-free.
 //
 // Reference colors come from the M1 design tokens (lime green
-// `#4ade80` primary, navy `#07080f` background).
+// `#7ed321` primary, navy `#07080f` background).
 
 export interface FootprintTheme {
   background: string;
@@ -47,36 +47,44 @@ export interface FootprintTheme {
 }
 
 export const SENZOUKRIA_DARK: FootprintTheme = {
-  background: "#07080f",
-  surface: "#0d0f1b",
-  border: "#1f2333",
-  textPrimary: "#f0f6fc",
-  textSecondary: "#a3a7b3",
-  textMuted: "#5f6473",
+  // Senzoukria palette: NOIR / BLANC / VERT only.
+  background: "#0a0a0a",
+  surface: "#0a0a0a",
+  border: "rgba(255, 255, 255, 0.10)",
+  textPrimary: "#ffffff",
+  textSecondary: "rgba(255, 255, 255, 0.70)",
+  textMuted: "rgba(255, 255, 255, 0.40)",
 
-  buy: "#4ade80",
-  buyDim: "rgba(74, 222, 128, 0.18)",
-  sell: "#ef4444",
-  sellDim: "rgba(239, 68, 68, 0.18)",
+  // Chart green = #7ed321 — the active "SENZOUKRIA" theme primary
+  // ("Senku green - kingdom of science") from the website's
+  // useUIThemeStore. Bullish / ask / buy = green. Bearish / bid /
+  // sell = white.
+  buy: "#7ed321",
+  buyDim: "rgba(126, 211, 33, 0.18)",
+  sell: "#ffffff",
+  sellDim: "rgba(255, 255, 255, 0.18)",
 
-  // Heat ramps go from dim (low volume) to bright (high volume).
+  // Heat ramps: dim → bright.
   buyHeat: [
-    "rgba(74, 222, 128, 0.10)",
-    "rgba(74, 222, 128, 0.45)",
-    "rgba(74, 222, 128, 0.90)",
+    "rgba(126, 211, 33, 0.10)",
+    "rgba(126, 211, 33, 0.45)",
+    "rgba(126, 211, 33, 0.90)",
   ],
   sellHeat: [
-    "rgba(239, 68, 68, 0.10)",
-    "rgba(239, 68, 68, 0.45)",
-    "rgba(239, 68, 68, 0.90)",
+    "rgba(255, 255, 255, 0.10)",
+    "rgba(255, 255, 255, 0.45)",
+    "rgba(255, 255, 255, 0.90)",
   ],
 
-  profileBuy: "rgba(74, 222, 128, 0.55)",
-  profileSell: "rgba(239, 68, 68, 0.55)",
-  profileDelta: "#fbbf24",
-  poc: "#fbbf24",
-  vah: "rgba(251, 191, 36, 0.45)",
-  val: "rgba(251, 191, 36, 0.45)",
+  profileBuy: "rgba(126, 211, 33, 0.55)",
+  profileSell: "rgba(255, 255, 255, 0.55)",
+  // POC marker is violet per user spec (volume profile section); the
+  // theme exposes a single `poc` field used by both the heatmap and
+  // footprint surfaces, so we set it consistently to violet here.
+  profileDelta: "#7ed321",
+  poc: "#a855f7",
+  vah: "rgba(255, 255, 255, 0.55)",
+  val: "rgba(126, 211, 33, 0.55)",
 
   grid: "rgba(255, 255, 255, 0.04)",
   axis: "rgba(255, 255, 255, 0.10)",

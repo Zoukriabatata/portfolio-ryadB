@@ -1,62 +1,97 @@
-// Phase B / M3 — top-level footprint shell with a source selector.
+// Phase B / M3 → Senzoukria simplification.
 //
-// Switches between three live data backends without unmounting any
-// of them: the operator can keep Rithmic logged in (broker session
-// is expensive to recreate) while idly looking at Bybit/Binance, and
-// flip back at any time. Each branch gets its own component
-// instance; CryptoFootprint handles its own crypto_connect lifecycle
-// per exchange.
+// Rithmic-only mode: the source switcher (Bybit / Binance / Rithmic)
+// has been removed. We now route everything through Rithmic — CME
+// futures for indices/energy/metals AND CME crypto futures
+// (BTC, MBT, ETH, MET) for Bitcoin / Ether exposure.
+//
+// 2026-05-26 — Bridge NinjaTrader source added as a SECOND code path.
+// Picks between Rithmic native (existing 2000-line component) and
+// Bridge (focused new component) via a localStorage pref. The
+// switcher lives at the top of this wrapper so neither child
+// component owns the cross-source UX.
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { RithmicFootprint } from "./RithmicFootprint";
-import { CryptoFootprint } from "./CryptoFootprint";
+import { BridgeFootprint } from "./BridgeFootprint";
 import "./RithmicFootprint.css";
 import "./MultiSourceFootprint.css";
 
-type Source = "rithmic" | "bybit" | "binance";
+type DataSource = "rithmic" | "bridge";
 
-const SOURCES: { value: Source; label: string }[] = [
-  { value: "rithmic", label: "Rithmic (CME futures)" },
-  { value: "bybit", label: "Bybit (linear perps)" },
-  { value: "binance", label: "Binance (spot)" },
-];
+const PREF_KEY = "orderflow.dataSource";
 
-const DEFAULT_SYMBOLS: Record<Source, string> = {
-  rithmic: "MNQM6",
-  bybit: "BTCUSDT",
-  binance: "BTCUSDT",
-};
+function readDataSourcePref(): DataSource {
+  try {
+    const v = localStorage.getItem(PREF_KEY);
+    return v === "bridge" ? "bridge" : "rithmic";
+  } catch {
+    return "rithmic";
+  }
+}
+
+function writeDataSourcePref(v: DataSource) {
+  try {
+    localStorage.setItem(PREF_KEY, v);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function MultiSourceFootprint() {
-  const [source, setSource] = useState<Source>("rithmic");
+  const [source, setSource] = useState<DataSource>(() => readDataSourcePref());
+
+  useEffect(() => {
+    writeDataSourcePref(source);
+  }, [source]);
+
+  const switchToBridge = useCallback(() => setSource("bridge"), []);
+  const switchToRithmic = useCallback(() => setSource("rithmic"), []);
 
   return (
     <div className="multi-source-footprint">
-      <nav className="msf-source-bar" aria-label="Data source">
-        {SOURCES.map((s) => (
-          <button
-            key={s.value}
-            type="button"
-            className={`msf-source-btn ${
-              source === s.value ? "msf-source-btn-active" : ""
-            }`}
-            onClick={() => setSource(s.value)}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
-
       {source === "rithmic" ? (
-        <RithmicFootprint />
+        <RithmicWithBridgeOption onSwitchToBridge={switchToBridge} />
       ) : (
-        <div className="rithmic-footprint">
-          <CryptoFootprint
-            exchange={source}
-            defaultSymbol={DEFAULT_SYMBOLS[source]}
-          />
-        </div>
+        <BridgeFootprint onSwitchToRithmic={switchToRithmic} />
       )}
+    </div>
+  );
+}
+
+// Wraps the existing Rithmic footprint with a small "Try NT Bridge"
+// affordance. We intentionally do NOT touch RithmicFootprint.tsx —
+// the switcher button is overlaid in a corner so the existing flow
+// remains untouched. Cosmetic; the real switching logic is owned
+// by the parent <MultiSourceFootprint>.
+function RithmicWithBridgeOption({
+  onSwitchToBridge,
+}: {
+  onSwitchToBridge: () => void;
+}) {
+  return (
+    <div style={{ position: "relative", display: "flex", flex: 1, minHeight: 0 }}>
+      <button
+        type="button"
+        onClick={onSwitchToBridge}
+        title="Use NinjaTrader Bridge — requires NinjaTrader running with the OrderflowBridge indicator on a Tick chart"
+        style={{
+          position: "absolute",
+          top: 12,
+          right: 12,
+          zIndex: 50,
+          background: "#1f2937",
+          color: "#e5e7eb",
+          border: "1px solid #374151",
+          borderRadius: 6,
+          padding: "6px 10px",
+          fontSize: 12,
+          cursor: "pointer",
+        }}
+      >
+        🔌 NT Bridge
+      </button>
+      <RithmicFootprint />
     </div>
   );
 }

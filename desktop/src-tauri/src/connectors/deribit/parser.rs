@@ -46,6 +46,7 @@ pub fn trade_to_tick(t: &DeribitTrade) -> Option<Tick> {
         side,
         symbol: format!("{}.DERIBIT", t.instrument_name),
         source: SOURCE_NAME.to_string(),
+        seq: 0,
     })
 }
 

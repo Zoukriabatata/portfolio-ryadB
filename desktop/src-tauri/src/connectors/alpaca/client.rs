@@ -64,15 +64,34 @@ impl AlpacaClient {
             .send()
             .await?;
 
-        match resp.status().as_u16() {
+        let status = resp.status().as_u16();
+        match status {
             200 => {
                 let text = resp.text().await?;
                 serde_json::from_str(&text)
                     .map_err(|e| AlpacaError::Decode(e.to_string()))
             }
-            401 | 403 => Err(AlpacaError::Unauthorized),
+            401 | 403 => {
+                let body = resp.text().await.unwrap_or_default();
+                tracing::error!(
+                    "alpaca {}: HTTP {} body={}",
+                    path,
+                    status,
+                    body.chars().take(400).collect::<String>(),
+                );
+                Err(AlpacaError::Unauthorized)
+            }
             429 => Err(AlpacaError::RateLimited),
-            code => Err(AlpacaError::Upstream(code)),
+            code => {
+                let body = resp.text().await.unwrap_or_default();
+                tracing::error!(
+                    "alpaca {}: HTTP {} body={}",
+                    path,
+                    code,
+                    body.chars().take(400).collect::<String>(),
+                );
+                Err(AlpacaError::Upstream(code))
+            }
         }
     }
 }

@@ -26,8 +26,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_target(false)
         .init();
 
-    let username = std::env::var("RITHMIC_TEST_USER")
-        .map_err(|_| "RITHMIC_TEST_USER env var not set")?;
+    let username =
+        std::env::var("RITHMIC_TEST_USER").map_err(|_| "RITHMIC_TEST_USER env var not set")?;
     let password = std::env::var("RITHMIC_TEST_PASSWORD")
         .map_err(|_| "RITHMIC_TEST_PASSWORD env var not set")?;
 
@@ -54,7 +54,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         RUN_DURATION.as_secs(),
         interval,
     );
-    println!("Without heartbeat the gateway would drop us within ~{}s.\n", (interval * 2.0) as u64);
+    println!(
+        "Without heartbeat the gateway would drop us within ~{}s.\n",
+        (interval * 2.0) as u64
+    );
 
     let start = Instant::now();
     let mut next_print = start + TICK_PRINT_EVERY;

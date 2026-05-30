@@ -24,7 +24,7 @@ export function PlaceholderRoute({
       {icon && (
         <div
           aria-hidden
-          className="text-5xl opacity-30 [filter:drop-shadow(0_0_12px_rgba(74,222,128,0.4))]"
+          className="text-5xl opacity-30 [filter:drop-shadow(0_0_12px_rgba(126,211,33,0.4))]"
         >
           {icon}
         </div>

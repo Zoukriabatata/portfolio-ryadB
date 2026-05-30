@@ -8,8 +8,10 @@ pub mod client;
 pub mod error;
 pub mod gex;
 pub mod options;
+pub mod trades;
 
 pub use client::AlpacaClient;
 pub use error::{AlpacaError, Result};
 pub use gex::{compute_gex, GexSnapshot, GexStrike, IvPoint, IvSide, IvSmile};
 pub use options::{fetch_chains, fetch_quote, OptionChain, OptionLeg};
+pub use trades::{fetch_recent_trades, ContractType, OptionTrade, TradeSide};

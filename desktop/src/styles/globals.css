@@ -279,3 +279,194 @@ body,
   color: #9ca3af;
   text-align: right;
 }
+
+/* ============================================================
+   PAUSE-ON-BLUR — when the OrderflowV2 window loses focus or is
+   hidden, every CSS animation site-wide freezes. The
+   `data-app-inactive` attribute on <html> is toggled by
+   `lib/usePauseOnBlur.ts` on focus/blur/visibilitychange.
+   Canvas-based RAF loops (BlackHole, footprint) self-pause via
+   `isAppActive()` from the same module. Net effect: heavy
+   animations stop dead when the user alt-tabs to Valorant or
+   any other foreground app, freeing CPU/GPU instantly.
+   ============================================================ */
+html[data-app-inactive] *,
+html[data-app-inactive] *::before,
+html[data-app-inactive] *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
+/* ============================================================
+   JOURNAL — kill default <button> background everywhere in the
+   journal route. Windows WebView2 paints buttons with the OS
+   accent color (blue) by default, which leaks through every cell
+   and pill that doesn't explicitly set its own background.
+   ============================================================ */
+/* Hard kill of WebView2's native button rendering for every journal
+   button. Without this, mouse-down/hover/focus can briefly paint the
+   OS accent color (blue) through. */
+.journal-route button,
+.journal-route [role="button"],
+[data-journal-cell] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+/* For "anonymous" journal buttons (no .j-btn-* class), strip native
+   bg/border so they don't show the OS chrome. The styled variants
+   (.j-btn-primary/.j-btn-ghost/.j-cal-cell/.j-month-arrow/.journal-tab)
+   carry their own backgrounds in journal.css. */
+.journal-route button:not(.j-btn-primary):not(.j-btn-ghost):not(.j-cal-cell):not(.j-month-arrow):not(.journal-tab),
+[data-journal-cell] {
+  background: transparent;
+  background-color: transparent;
+  border-color: rgba(160, 160, 160, 0.18);
+}
+.journal-route button:focus,
+.journal-route button:active,
+.journal-route button:focus-visible,
+[data-journal-cell]:focus,
+[data-journal-cell]:active,
+[data-journal-cell]:focus-visible {
+  outline: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Force every border inside the journal route to a neutral warm
+   grey so no element ever reads as blue, regardless of what
+   `border-white/X` or UA defaults render as on this dark bg.
+   The green selection ring (`ring-2 ring-[#7ed321]`) uses
+   box-shadow under the hood and is unaffected. */
+.journal-route,
+.journal-route * {
+  border-color: rgba(160, 160, 160, 0.18);
+}
+/* Re-allow explicit dashed/dotted variants and the green ring
+   borders to override (Tailwind `border-[#7ed321]`, etc.). */
+.journal-route [class*="border-["][class*="#7ed321"] {
+  border-color: #7ed321;
+}
+
+/* ============================================================
+   GLOBAL — hard kill of WebView2's native button rendering
+   across the WHOLE app. Without `appearance: none`, Windows
+   WebView2 will briefly paint the OS accent color (blue) on
+   :hover / :active / :focus for any <button> element that
+   inherits the system look-and-feel. This rule guarantees no
+   button anywhere can flash blue under the mouse — components
+   provide their own bg/color via class styles.
+   ============================================================ */
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================================
+   GLOBAL — kill the WebView2 blue outline everywhere. Replaced
+   with a Senzoukria green outline on :focus-visible only (keyboard
+   navigation), so mouse clicks don't leave a blue ring on every
+   button across the app. NEVER blue.
+   ============================================================ */
+*:focus,
+*:active {
+  outline: none !important;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 1px solid rgba(126, 211, 33, 0.55) !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Block WebView2 from painting a system-accent (blue) background on
+   any button at the moment of click. Custom :active rules above will
+   set their own backgrounds; this guarantees no leak elsewhere. */
+button:active,
+[role="button"]:active {
+  -webkit-tap-highlight-color: transparent;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 1px solid rgba(126, 211, 33, 0.45) !important;
+  outline-offset: 0;
+}
+
+/* ============================================================
+   GLOBAL — strip every Windows/WebView2 system blue accent. Covers
+   checkboxes, radio buttons, range sliders, date pickers, text
+   selection, caret, and focus shadow. NEVER blue, anywhere.
+   ============================================================ */
+:root {
+  accent-color: #7ed321;
+  caret-color: #7ed321;
+  color-scheme: dark;
+}
+
+input,
+select,
+textarea,
+button,
+[type="checkbox"],
+[type="radio"],
+[type="range"],
+[type="date"],
+[type="datetime-local"],
+[type="time"],
+[type="search"] {
+  accent-color: #7ed321 !important;
+  caret-color: #7ed321 !important;
+}
+
+::selection {
+  background: rgba(126, 211, 33, 0.30);
+  color: #ffffff;
+}
+
+/* WebView2 / Chromium-derived focus ring (the dotted blue rectangle
+   that appears around active links and labels). */
+:focus {
+  outline-color: rgba(126, 211, 33, 0.55) !important;
+}
+
+/* Calendar / date picker indicator (the small icon Windows draws
+   on the right edge — defaults to a slate blue). Forced to white
+   so it reads as monochrome on the dark background. */
+::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(0.85);
+  opacity: 0.6;
+  cursor: pointer;
+}
+::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Select dropdown arrow (Windows draws this in accent blue too). */
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  filter: invert(1);
+  opacity: 0.5;
+}
+
+/* Range slider thumb on Chromium / WebView2. */
+input[type="range"]::-webkit-slider-thumb {
+  background: #7ed321 !important;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.15) !important;
+}

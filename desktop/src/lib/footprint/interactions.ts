@@ -16,7 +16,7 @@
 //   • Modifier keys (M4.6): plain wheel/drag = X axis (existing
 //     M4.5 behaviour), Ctrl/Cmd+wheel = Y zoom, Shift+drag = Y pan.
 
-export type DragMode = "x" | "y" | null;
+export type DragMode = "x" | "y" | "free" | "axisY" | "axisX" | null;
 
 export type InteractionState = {
   /** Horizontal scroll offset in CSS px. >0 reveals older bars. */
@@ -51,6 +51,12 @@ export type InteractionState = {
    *  doesn't currently consume it but the field stays available
    *  if a future symbol switch / replay needs the same semantic. */
   userOverrodeX: boolean;
+  /** Snapshot of cellWidth/rowHeight at drag start. Used by axis-drag
+   *  zoom modes (axisX / axisY) so each frame derives the new zoom
+   *  multiplicatively from the *start* value, not from the previous
+   *  frame's value (which would compound). */
+  dragStartCellWidth: number;
+  dragStartRowHeight: number;
 };
 
 export const DEFAULT_INTERACTION: InteractionState = {
@@ -68,13 +74,21 @@ export const DEFAULT_INTERACTION: InteractionState = {
   hoverY: null,
   userOverrodeY: false,
   userOverrodeX: false,
+  dragStartCellWidth: 110,
+  dragStartRowHeight: 16,
 };
 
-export const MIN_CELL_WIDTH = 40;
-export const MAX_CELL_WIDTH = 220;
-export const MIN_ROW_HEIGHT = 8;
-export const MAX_ROW_HEIGHT = 40;
-const ZOOM_STEP = 1.15;
+// Wider zoom envelope — user wants to zoom in much further (per-cell detail
+// at high prices like BTC) and dezoom much further (overview of dozens of bars).
+export const MIN_CELL_WIDTH = 12;
+export const MAX_CELL_WIDTH = 600;
+export const MIN_ROW_HEIGHT = 3;
+export const MAX_ROW_HEIGHT = 120;
+// Per-notch baseline zoom step. The actual factor scales continuously
+// with `deltaY` magnitude so trackpads + smooth-scroll mice glide.
+// Tightened from 1.15 → 1.08 so each notch is ~7 % rather than ~13 %
+// — the previous step was perceptibly chunky on mechanical wheels.
+const ZOOM_STEP = 1.08;
 const Y_MIN_VISIBLE_PX = 80; // ≈ 5 rows at default rowHeight
 /** Minimum mouse travel before a drag flips userOverrodeX/Y on.
  *  Below this we treat the gesture as a click + small jitter and
@@ -82,23 +96,53 @@ const Y_MIN_VISIBLE_PX = 80; // ≈ 5 rows at default rowHeight
  *  a click anywhere on the heatmap canvas locked the viewport. */
 const DRAG_THRESHOLD_PX = 3;
 
-/** Multiplicative X zoom anchored under the cursor. */
+/** Continuous zoom factor from a wheel `deltaY`. Matches the legacy
+ *  fixed-step behaviour at |deltaY|=100 (one classic mouse notch)
+ *  and scales smoothly down for trackpad / smooth-scroll deltas. */
+function wheelZoomFactor(deltaY: number): number {
+  // pow(1.15, -1) ≈ 0.870 at deltaY=100 (dezoom by ~13%)
+  // pow(1.15, +1) ≈ 1.150 at deltaY=-100 (zoom by ~15%)
+  // pow(1.15, -0.1) ≈ 0.986 at deltaY=10 (trackpad nudge)
+  return Math.pow(ZOOM_STEP, -deltaY / 100);
+}
+
+/** Width of the right-side price axis in CSS px. Used to convert
+ *  the wheel-handler's `canvasWidth` into the actual chart right
+ *  edge for cursor-anchored zoom. Mirrors the value baked into
+ *  `FootprintCanvas.onMouseDown` (PRICE_AXIS_W = 80). */
+const PRICE_AXIS_W = 80;
+
+/** Multiplicative X zoom anchored under the cursor. The chart is
+ *  right-aligned (newest candle pinned to the right edge), so the
+ *  cursor's "bar index from the right" is the invariant we preserve
+ *  through the zoom. Derivation:
+ *
+ *   dataIdxUnderCursor = totalCandles
+ *                      + (cursorX - chartRight - scrollX) / cellWidth
+ *
+ *  Holding `dataIdxUnderCursor` constant across w_old → w_new gives:
+ *
+ *   scrollX_new = (cursorX - chartRight) * (1 - factor)
+ *               + scrollX_old * factor
+ *
+ *  where `factor = cellWidth_new / cellWidth_old`. */
 export function applyWheelZoom(
   state: InteractionState,
   deltaY: number,
   cursorX: number,
-  _canvasWidth: number,
+  canvasWidth: number,
 ): InteractionState {
-  const factor = deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+  const factor = wheelZoomFactor(deltaY);
   const newCellWidth = clamp(
     state.cellWidth * factor,
     MIN_CELL_WIDTH,
     MAX_CELL_WIDTH,
   );
   if (newCellWidth === state.cellWidth) return state;
-  const barIdxUnderCursor =
-    (cursorX - state.scrollX) / state.cellWidth;
-  const newScrollX = cursorX - barIdxUnderCursor * newCellWidth;
+  const actualFactor = newCellWidth / state.cellWidth;
+  const chartRight = Math.max(1, canvasWidth - PRICE_AXIS_W);
+  const newScrollX =
+    (cursorX - chartRight) * (1 - actualFactor) + state.scrollX * actualFactor;
   return {
     ...state,
     cellWidth: newCellWidth,
@@ -107,24 +151,55 @@ export function applyWheelZoom(
   };
 }
 
-/** Multiplicative Y zoom — modifies rowHeight and flips
- *  `userOverrodeY` so the renderer's autofit stops fighting the
- *  user. M4.6 zooms around the chart-area centre (not the cursor)
- *  to keep the math simple; cursor-anchored Y zoom is M4.7. */
+/** Uniform XY zoom — applies X and Y anchored at the cursor.
+ *  Used by the plain mouse-wheel binding when neither Shift nor Ctrl
+ *  is held. Both axes anchor to the cursor so the price + candle
+ *  under the pointer stay visually pinned through the zoom. */
+export function applyWheelZoomXY(
+  state: InteractionState,
+  deltaY: number,
+  cursorX: number,
+  cursorY: number,
+  canvasWidth: number,
+): InteractionState {
+  const afterX = applyWheelZoom(state, deltaY, cursorX, canvasWidth);
+  return applyWheelZoomY(afterX, deltaY, cursorY);
+}
+
+/** Multiplicative Y zoom — modifies rowHeight and compensates scrollY
+ *  so the price under the cursor stays pinned. When `cursorY` is
+ *  undefined we fall back to no anchoring (chart-area shift). */
 export function applyWheelZoomY(
   state: InteractionState,
   deltaY: number,
+  cursorY?: number,
 ): InteractionState {
-  const factor = deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+  const factor = wheelZoomFactor(deltaY);
   const newRowHeight = clamp(
     state.rowHeight * factor,
     MIN_ROW_HEIGHT,
     MAX_ROW_HEIGHT,
   );
   if (newRowHeight === state.rowHeight && state.userOverrodeY) return state;
+  // Anchor: pre-zoom, the pixel offset from chartTop to the cursor is
+  // `cursorY ≈ relativeY` (approximated as the cursor's canvas-relative
+  // Y; treats the chart as starting at y=0 — close enough since the
+  // chart fills the canvas minus a few pixels of padding). Adjust
+  // scrollY so the same price stays at the same pixel after the
+  // rowHeight change:
+  //   newScrollY = oldScrollY + (oldScrollY + relativeY) * (f - 1)
+  // where f = newRowHeight / oldRowHeight. Derivation in
+  // interactions.test.ts (Y-anchor section).
+  let newScrollY = state.scrollY;
+  if (cursorY !== undefined && state.rowHeight > 0) {
+    const actualFactor = newRowHeight / state.rowHeight;
+    newScrollY =
+      state.scrollY + (state.scrollY + cursorY) * (actualFactor - 1);
+  }
   return {
     ...state,
     rowHeight: newRowHeight,
+    scrollY: newScrollY,
     userOverrodeY: true,
   };
 }
@@ -143,6 +218,8 @@ export function startDrag(
     dragStartY: canvasY,
     dragStartScrollX: state.scrollX,
     dragStartScrollY: state.scrollY,
+    dragStartCellWidth: state.cellWidth,
+    dragStartRowHeight: state.rowHeight,
     hoverX: null,
     hoverY: null,
   };
@@ -152,6 +229,8 @@ export function updateDrag(
   state: InteractionState,
   canvasX: number,
   canvasY: number,
+  canvasWidth = 0,
+  canvasHeight = 0,
 ): InteractionState {
   if (!state.isDragging) return state;
   const dx = canvasX - state.dragStartX;
@@ -168,6 +247,71 @@ export function updateDrag(
       ...state,
       scrollY: state.dragStartScrollY + dy,
       userOverrodeY: true,
+    };
+  }
+
+  if (state.dragMode === "free") {
+    if (Math.abs(dx) < DRAG_THRESHOLD_PX && Math.abs(dy) < DRAG_THRESHOLD_PX
+        && !state.userOverrodeX && !state.userOverrodeY) {
+      return state;
+    }
+    return {
+      ...state,
+      scrollX: state.dragStartScrollX + dx,
+      scrollY: state.dragStartScrollY + dy,
+      userOverrodeX: true,
+      userOverrodeY: true,
+    };
+  }
+
+  if (state.dragMode === "axisY") {
+    // Drag on the price axis → multiplicative Y zoom, anchored at the
+    // cursor's start position. Up = zoom in (rows taller), down =
+    // zoom out. We pivot on `dragStartY` instead of the chart centre
+    // so the price the user grabbed stays glued under their pointer
+    // for the duration of the drag.
+    const factor = Math.exp(-dy / 120);
+    const newRowHeight = clamp(
+      state.dragStartRowHeight * factor,
+      MIN_ROW_HEIGHT,
+      MAX_ROW_HEIGHT,
+    );
+    const actualFactor = newRowHeight / Math.max(1, state.dragStartRowHeight);
+    // Chart vertical centre — see priceToY in FootprintLayoutEngine,
+    // which scales the price range around (areaY + areaHeight/2).
+    const chartCenterY = canvasHeight / 2;
+    const newScrollY =
+      (state.dragStartY - chartCenterY) * (1 - actualFactor) +
+      state.dragStartScrollY * actualFactor;
+    return {
+      ...state,
+      rowHeight: newRowHeight,
+      scrollY: newScrollY,
+      userOverrodeY: true,
+    };
+  }
+
+  if (state.dragMode === "axisX") {
+    // Drag on the time axis → multiplicative X zoom, anchored at the
+    // cursor's start position. Right = zoom in. Same derivation as
+    // applyWheelZoom but the pivot is the dragStartX instead of the
+    // live cursor X (so the gesture origin stays fixed).
+    const factor = Math.exp(dx / 120);
+    const newCellWidth = clamp(
+      state.dragStartCellWidth * factor,
+      MIN_CELL_WIDTH,
+      MAX_CELL_WIDTH,
+    );
+    const actualFactor = newCellWidth / Math.max(1, state.dragStartCellWidth);
+    const chartRight = Math.max(1, canvasWidth - PRICE_AXIS_W);
+    const newScrollX =
+      (state.dragStartX - chartRight) * (1 - actualFactor) +
+      state.dragStartScrollX * actualFactor;
+    return {
+      ...state,
+      cellWidth: newCellWidth,
+      scrollX: newScrollX,
+      userOverrodeX: true,
     };
   }
 
@@ -195,15 +339,31 @@ export function setHover(
   return { ...state, hoverX: canvasX, hoverY: canvasY };
 }
 
+/** Maximum negative scrollX as a fraction of the viewport width.
+ *  0.7 means the newest bar can slide up to ~30% from the left edge
+ *  (70% of the viewport free as empty future). Caps how far the user
+ *  can drag past the latest candle: with the previous 0.95 cap the
+ *  last bar could slip off-screen entirely, which read as a "missing
+ *  data" glitch when the user dragged back to find it. */
+const MAX_RIGHT_MARGIN_FRAC = 0.7;
+
 export function clampScrollX(
   scrollX: number,
   barCount: number,
   cellWidth: number,
   visibleBarsCapacity: number,
 ): number {
-  if (barCount <= visibleBarsCapacity) return 0;
+  // Allow scrolling *past* the most recent bar so the user can pull
+  // the chart left and look at the latest candle from the middle of
+  // the viewport. The renderer treats negative scrollX as a right
+  // margin (shifts every bar left, doesn't change which slice of the
+  // data is drawn).
+  const lo = -(visibleBarsCapacity * cellWidth * MAX_RIGHT_MARGIN_FRAC);
+  if (barCount <= visibleBarsCapacity) {
+    return clamp(scrollX, lo, 0);
+  }
   const maxScroll = (barCount - visibleBarsCapacity) * cellWidth;
-  return clamp(scrollX, 0, maxScroll);
+  return clamp(scrollX, lo, maxScroll);
 }
 
 /** Constrain scrollY so the chart always shows at least

@@ -1,12 +1,12 @@
-/* Phase B / M4.7b — magnet toggle button. */
+/* Senzoukria palette — magnet toggle (the OHLC pill in the screenshots). */
 
 .mag-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   background: transparent;
-  border: 1px solid #334155;
-  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.55);
   padding: 5px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -15,20 +15,28 @@
   min-height: 28px;
 }
 
-.mag-btn:hover {
-  background: #1e293b;
-  color: #e2e8f0;
+.mag-btn:hover,
+.mag-btn:focus,
+.mag-btn:focus-visible,
+.mag-btn:active {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  outline: none;
 }
 
 .mag-btn-active {
-  background: rgba(251, 191, 36, 0.15);
-  border-color: #fbbf24;
-  color: #fbbf24;
+  background: rgba(126, 211, 33, 0.15);
+  border-color: #7ed321;
+  color: #7ed321;
 }
 
-.mag-btn-active:hover {
-  background: rgba(251, 191, 36, 0.22);
-  color: #fde68a;
+.mag-btn-active:hover,
+.mag-btn-active:focus,
+.mag-btn-active:focus-visible,
+.mag-btn-active:active {
+  background: rgba(126, 211, 33, 0.22);
+  color: #7ed321;
+  outline: none;
 }
 
 .mag-icon {

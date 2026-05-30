@@ -40,6 +40,7 @@ const CATEGORY_LABEL: Record<SymbolCategory, string> = {
   energy: "Energy",
   metals: "Metals",
   currencies: "Currencies",
+  crypto: "Crypto Futures (CME)",
 };
 
 const SEARCH_PLACEHOLDER: Record<Exchange, string> = {

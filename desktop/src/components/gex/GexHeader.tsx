@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useGexStore } from "../../lib/gex/useGexStore";
+import { GexSymbolPanel } from "./GexSymbolPanel";
 
 function timeAgo(ts: number | null): string {
   if (!ts) return "—";
@@ -10,8 +11,6 @@ function timeAgo(ts: number | null): string {
 }
 
 export function GexHeader() {
-  const symbol = useGexStore((s) => s.symbol);
-  const setSymbol = useGexStore((s) => s.setSymbol);
   const snapshot = useGexStore((s) => s.snapshot);
   const loading = useGexStore((s) => s.loading);
   const lastFetchedAt = useGexStore((s) => s.lastFetchedAt);
@@ -46,19 +45,7 @@ export function GexHeader() {
 
   return (
     <div className="gex-header">
-      <div className="gex-header-symbol">
-        {(["SPY", "QQQ"] as const).map((sym) => (
-          <button
-            key={sym}
-            type="button"
-            className={`gex-symbol-pill ${symbol === sym ? "gex-symbol-pill-active" : ""}`}
-            onClick={() => void setSymbol(sym)}
-            disabled={loading}
-          >
-            {sym}
-          </button>
-        ))}
-      </div>
+      <GexSymbolPanel />
 
       <div>
         <span className="gex-header-spot-label">Spot</span>

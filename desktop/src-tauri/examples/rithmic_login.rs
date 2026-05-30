@@ -22,8 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_target(false)
         .init();
 
-    let username = std::env::var("RITHMIC_TEST_USER")
-        .map_err(|_| "RITHMIC_TEST_USER env var not set")?;
+    let username =
+        std::env::var("RITHMIC_TEST_USER").map_err(|_| "RITHMIC_TEST_USER env var not set")?;
     let password = std::env::var("RITHMIC_TEST_PASSWORD")
         .map_err(|_| "RITHMIC_TEST_PASSWORD env var not set")?;
 
@@ -65,10 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
         );
         println!("Unique user id:     {}", session.unique_user_id);
-        println!(
-            "Heartbeat interval: {}s",
-            session.heartbeat_interval_secs
-        );
+        println!("Heartbeat interval: {}s", session.heartbeat_interval_secs);
     }
 
     // Hold the session briefly so the gateway has time to register us

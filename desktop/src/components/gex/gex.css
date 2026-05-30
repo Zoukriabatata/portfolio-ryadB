@@ -2,21 +2,52 @@
    pattern (#22c55e). Does NOT affect Heatmap/Footprint --brand-green. */
 .gex-route {
   --brand-green: #22c55e;
+  --brand-green-bright: #34ec78;
   --brand-green-dim: #166534;
+  --brand-green-deep: #0f3a20;
+  --brand-green-glow: rgba(34, 197, 94, 0.22);
+  --brand-green-soft: rgba(34, 197, 94, 0.06);
+  --accent-red-warm: #ff3d71;
+  --accent-amber: #f5a623;
+  --card-surface: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.018) 0%,
+    rgba(255, 255, 255, 0.005) 100%
+  );
+
+  /* Confine all internal z-indexes — header popover, etc. — so they
+     never escape the route and never compete with app chrome (hamburger
+     drawer, modals). */
+  isolation: isolate;
 
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 20px 24px;
+  gap: 20px;
+  padding: 22px 26px;
   height: 100%;
   width: 100%;
-  background: var(--bg-primary);
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 20% 0%,
+      var(--brand-green-soft) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 90% 100%,
+      rgba(34, 197, 94, 0.035) 0%,
+      transparent 60%
+    ),
+    var(--bg-primary);
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--brand-green-deep) transparent;
 }
 .gex-route::-webkit-scrollbar { width: 8px; }
-.gex-route::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.gex-route::-webkit-scrollbar-thumb {
+  background: var(--brand-green-deep);
+  border-radius: 4px;
+}
+.gex-route::-webkit-scrollbar-thumb:hover { background: var(--brand-green-dim); }
 
 /* ─── Header ────────────────────────────────────────────────── */
 .gex-header {
@@ -24,31 +55,207 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--brand-green-deep);
+  position: relative;
+  z-index: 500;
 }
-.gex-header-symbol { display: flex; gap: 6px; }
-.gex-symbol-pill {
-  background: transparent;
+.gex-header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--brand-green-glow) 50%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* ─── Symbol picker (panel) ──────────────────────────────── */
+.gex-symbol-panel {
+  position: relative;
+  z-index: 200;
+}
+.gex-symbol-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.08) 0%,
+    rgba(34, 197, 94, 0.02) 100%
+  );
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 10px;
+  padding: 8px 16px 8px 18px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  min-width: 160px;
+}
+.gex-symbol-trigger:hover:not(:disabled) {
+  border-color: var(--brand-green-dim);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.14) 0%,
+    rgba(34, 197, 94, 0.04) 100%
+  );
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.06);
+}
+.gex-symbol-trigger-open {
+  border-color: var(--brand-green) !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+.gex-symbol-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
+.gex-symbol-trigger-ticker {
+  color: var(--brand-green-bright);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
+}
+.gex-symbol-trigger-name {
   color: var(--text-muted);
-  border: 1px solid var(--border);
-  padding: 6px 18px;
-  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+.gex-symbol-trigger-caret {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-left: auto;
+  transition: transform 0.18s ease;
+}
+.gex-symbol-trigger-open .gex-symbol-trigger-caret { transform: rotate(180deg); }
+
+.gex-symbol-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  max-height: 460px;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 26, 22, 0.98) 0%,
+    rgba(12, 16, 14, 0.98) 100%
+  );
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 12px;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(34, 197, 94, 0.08),
+    0 0 30px rgba(34, 197, 94, 0.08);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: gex-popover-in 0.16s ease-out;
+}
+@keyframes gex-popover-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.gex-symbol-search {
+  background: rgba(34, 197, 94, 0.04);
+  border: none;
+  border-bottom: 1px solid var(--brand-green-deep);
+  color: var(--text-primary);
+  padding: 12px 16px;
   font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.gex-symbol-search::placeholder { color: var(--text-muted); }
+.gex-symbol-search:focus { background: rgba(34, 197, 94, 0.08); }
+
+.gex-symbol-list {
+  overflow-y: auto;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-green-deep) transparent;
+}
+.gex-symbol-list::-webkit-scrollbar { width: 6px; }
+.gex-symbol-list::-webkit-scrollbar-thumb {
+  background: var(--brand-green-deep);
+  border-radius: 3px;
+}
+
+.gex-symbol-group { padding: 4px 0; }
+.gex-symbol-group + .gex-symbol-group { margin-top: 4px; }
+.gex-symbol-group-label {
+  color: var(--brand-green);
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 8px 12px 6px;
+  opacity: 0.85;
+}
+.gex-symbol-group-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.gex-symbol-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 10px;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.18s ease;
-}
-.gex-symbol-pill:hover {
-  border-color: var(--brand-green-dim);
+  text-align: left;
+  transition: all 0.12s ease;
   color: var(--text-primary);
 }
-.gex-symbol-pill-active {
-  background: var(--brand-green);
-  border-color: var(--brand-green);
-  color: var(--bg-primary);
+.gex-symbol-row:hover {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: var(--brand-green-deep);
+}
+.gex-symbol-row-active {
+  background: linear-gradient(
+    90deg,
+    rgba(34, 197, 94, 0.18) 0%,
+    rgba(34, 197, 94, 0.06) 100%
+  );
+  border-color: var(--brand-green-dim);
+}
+.gex-symbol-row-active .gex-symbol-row-ticker { color: var(--brand-green-bright); }
+.gex-symbol-row-ticker {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  min-width: 48px;
+}
+.gex-symbol-row-name {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gex-symbol-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 20px 14px;
+  text-align: center;
+  line-height: 1.6;
+}
+.gex-symbol-empty-ticker {
+  color: var(--brand-green-bright);
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 .gex-header-spot {
   color: var(--text-primary);
@@ -106,14 +313,15 @@
   font-variant-numeric: tabular-nums;
 }
 .gex-refresh-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 6px 14px;
+  background: rgba(34, 197, 94, 0.04);
+  border: 1px solid var(--brand-green-deep);
+  color: var(--brand-green);
+  padding: 7px 16px;
   border-radius: 8px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.18s ease;
@@ -122,6 +330,7 @@
   background: var(--brand-green);
   color: var(--bg-primary);
   border-color: var(--brand-green);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
 }
 .gex-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .gex-auto-toggle {
@@ -143,7 +352,9 @@
   gap: 14px;
 }
 .gex-kpi-card {
-  background: var(--bg-surface);
+  background:
+    var(--card-surface),
+    var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px 22px;
@@ -151,16 +362,80 @@
   flex-direction: column;
   gap: 6px;
   position: relative;
+  overflow: hidden;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+.gex-kpi-card:hover {
+  border-color: var(--brand-green-deep);
+  transform: translateY(-1px);
 }
 .gex-kpi-card::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--brand-green), transparent);
-  opacity: 0.45;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--brand-green-bright),
+    transparent
+  );
+  opacity: 0.55;
   border-radius: 12px 12px 0 0;
 }
+.gex-kpi-card::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(
+    circle,
+    var(--brand-green-soft) 0%,
+    transparent 65%
+  );
+  pointer-events: none;
+  opacity: 0.7;
+}
+/* Variants : accent per role (zero-gamma=amber, call-wall=green, put-wall=red) */
+.gex-kpi-card-amber::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent-amber),
+    transparent
+  );
+}
+.gex-kpi-card-amber::after {
+  background: radial-gradient(
+    circle,
+    rgba(245, 166, 35, 0.08) 0%,
+    transparent 65%
+  );
+}
+.gex-kpi-card-amber:hover { border-color: rgba(245, 166, 35, 0.35); }
+.gex-kpi-card-amber .gex-kpi-value { color: var(--accent-amber); }
+
+.gex-kpi-card-red::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent-red-warm),
+    transparent
+  );
+}
+.gex-kpi-card-red::after {
+  background: radial-gradient(
+    circle,
+    rgba(255, 61, 113, 0.08) 0%,
+    transparent 65%
+  );
+}
+.gex-kpi-card-red:hover { border-color: rgba(255, 61, 113, 0.35); }
+.gex-kpi-card-red .gex-kpi-value { color: var(--accent-red-warm); }
+
+.gex-kpi-card-green .gex-kpi-value { color: var(--brand-green-bright); }
 .gex-kpi-label {
   color: var(--text-muted);
   font-size: 10px;
@@ -184,28 +459,54 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 9px;
-  background: var(--bg-surface);
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
 }
-.gex-kpi-total-chip-positive { color: var(--brand-green); border-color: var(--brand-green-dim); }
-.gex-kpi-total-chip-negative { color: var(--accent-red); border-color: var(--accent-red-dim); }
+.gex-kpi-total-chip-positive {
+  color: var(--brand-green-bright);
+  border-color: var(--brand-green-dim);
+  background: rgba(34, 197, 94, 0.06);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.08);
+}
+.gex-kpi-total-chip-negative {
+  color: var(--accent-red-warm);
+  border-color: var(--accent-red-dim);
+  background: rgba(255, 61, 113, 0.06);
+  box-shadow: 0 0 12px rgba(255, 61, 113, 0.08);
+}
 
 /* ─── Bar chart ───────────────────────────────────────────── */
 .gex-chart-wrap {
-  background: var(--bg-surface);
+  background:
+    var(--card-surface),
+    var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  position: relative;
+}
+.gex-chart-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(34, 197, 94, 0.02) 0%,
+    transparent 12%
+  );
+  pointer-events: none;
 }
 .gex-chart-title {
   display: flex;
@@ -216,8 +517,10 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--brand-green-deep);
+  position: relative;
+  z-index: 1;
 }
 .gex-chart-title::before {
   content: "";
@@ -228,7 +531,7 @@
   border-radius: 50%;
   margin-right: 10px;
   vertical-align: middle;
-  box-shadow: 0 0 6px var(--brand-green);
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
 }
 .gex-chart-zoom { display: inline-flex; gap: 4px; }
 .gex-chart-zoom-btn {
@@ -260,6 +563,7 @@
   padding: 80px 20px;
   font-style: italic;
 }
+
 
 /* ─── IV smile ────────────────────────────────────────────── */
 .gex-smile-wrap {
@@ -371,14 +675,16 @@
 @media (max-width: 1100px) { .qs-row { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 700px)  { .qs-row { grid-template-columns: repeat(2, 1fr); } }
 .qs-card {
-  background: var(--bg-surface);
+  background:
+    var(--card-surface),
+    var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
   overflow: hidden;
 }
@@ -387,12 +693,29 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--brand-green), transparent);
-  opacity: 0.35;
+  background: linear-gradient(90deg, transparent, var(--brand-green-bright), transparent);
+  opacity: 0.45;
+}
+.qs-card::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 110px;
+  height: 110px;
+  background: radial-gradient(
+    circle,
+    var(--brand-green-soft) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
 }
 .qs-card:hover {
-  border-color: var(--brand-green-dim);
-  transform: translateY(-1px);
+  border-color: var(--brand-green-deep);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(34, 197, 94, 0.08);
 }
 .qs-label {
   color: var(--text-muted);
@@ -414,8 +737,14 @@
   letter-spacing: 0.04em;
   text-transform: lowercase;
 }
-.qs-pos { color: var(--brand-green); }
-.qs-neg { color: var(--accent-red); }
+.qs-pos {
+  color: var(--brand-green-bright);
+  text-shadow: 0 0 6px rgba(34, 197, 94, 0.25);
+}
+.qs-neg {
+  color: var(--accent-red-warm);
+  text-shadow: 0 0 6px rgba(255, 61, 113, 0.25);
+}
 
 /* ─── IV Term Structure ───────────────────────────────────── */
 .ts-wrap {

@@ -53,6 +53,7 @@ pub fn agg_trade_to_tick(msg: &BinanceAggTrade) -> Option<Tick> {
         // when both adapters share the engine.
         symbol: format!("{}.BINANCE", msg.symbol),
         source: SOURCE_NAME.to_string(),
+        seq: 0,
     })
 }
 

@@ -301,36 +301,46 @@ pub fn compute_gex(
 
     let total_gex: f64 = strikes.iter().map(|s| s.net_gex).sum();
 
-    // Zero Gamma — cumul from bottom, find sign-change. Only meaningful
-    // if there's actual gex movement; if all strikes have net_gex == 0
-    // (e.g. open interest missing), we skip rather than report a false
-    // positive at the first strike.
-    let zero_gamma: Option<f64> = if total_gex.abs() < 1e-9 && strikes.iter().all(|s| s.net_gex.abs() < 1e-9) {
+    // Zero Gamma — cumul from bottom. Primary path: find the strike where
+    // cumulative net-GEX crosses zero (true sign change). Fallback path: if
+    // no crossing is found (typical for very broad chains like SPY/QQQ
+    // where deep-ITM calls dominate the low end), return the strike where
+    // |cumul| is minimum — the inflection point of dealer hedging
+    // pressure. Only return None when there's truly no signal.
+    let zero_gamma: Option<f64> = if total_gex.abs() < 1e-9
+        && strikes.iter().all(|s| s.net_gex.abs() < 1e-9)
+    {
         None
     } else {
-        let mut found: Option<f64> = None;
+        let mut crossing: Option<f64> = None;
+        let mut min_abs_cumul = f64::INFINITY;
+        let mut closest_strike: Option<f64> = None;
         let mut cumul = 0.0;
         let mut prev: Option<(f64, f64)> = None;
         for s in &strikes {
             let next_cumul = cumul + s.net_gex;
+            // Track the strike whose post-add cumul is closest to zero.
+            if next_cumul.abs() < min_abs_cumul {
+                min_abs_cumul = next_cumul.abs();
+                closest_strike = Some(s.strike);
+            }
             if let Some((prev_strike, prev_cumul)) = prev {
                 let crosses = (prev_cumul < 0.0 && next_cumul >= 0.0)
                     || (prev_cumul > 0.0 && next_cumul <= 0.0);
-                if crosses {
+                if crosses && crossing.is_none() {
                     let denom = next_cumul - prev_cumul;
                     let zg = if denom.abs() < 1e-9 {
                         s.strike
                     } else {
                         prev_strike + (s.strike - prev_strike) * (-prev_cumul) / denom
                     };
-                    found = Some(zg);
-                    break;
+                    crossing = Some(zg);
                 }
             }
             prev = Some((s.strike, next_cumul));
             cumul = next_cumul;
         }
-        found
+        crossing.or(closest_strike)
     };
 
     let call_wall = strikes

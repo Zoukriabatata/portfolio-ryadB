@@ -1,0 +1,438 @@
+/* AccountRoute — Mon compte OrderflowV2 (full UI/UX rebuild) */
+
+.acct-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 32px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: var(--text-primary, #e5e7eb);
+}
+
+/* ─────────────────────────────────────────────────────────
+ * HERO
+ * ───────────────────────────────────────────────────────── */
+
+.acct-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(34, 197, 94, 0.10) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, #0e1116 60%);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.acct-hero::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #34ec78, transparent);
+  opacity: 0.65;
+}
+
+.acct-hero-avatar {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e 0%, #166534 100%);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 4px 18px rgba(34, 197, 94, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+
+.acct-hero-info { flex: 1; min-width: 0; }
+.acct-hero-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #34ec78;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.acct-hero-email {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f9fafb;
+  word-break: break-all;
+  line-height: 1.2;
+}
+.acct-hero-sub {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.acct-hero-dot { color: #4b5563; }
+
+.acct-hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────
+ * BUTTONS
+ * ───────────────────────────────────────────────────────── */
+
+.acct-btn {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.05s;
+  min-width: 130px;
+  white-space: nowrap;
+}
+.acct-btn:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.10);
+  border-color: rgba(52, 236, 120, 0.55);
+  color: #34ec78;
+}
+.acct-btn:active:not(:disabled) { transform: translateY(1px); }
+.acct-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.acct-btn-primary {
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  border-color: #15803d;
+  color: #0b1015;
+  font-weight: 800;
+  box-shadow:
+    0 2px 10px rgba(34, 197, 94, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+.acct-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #34ec78 0%, #22c55e 100%);
+  color: #0b1015;
+  border-color: #22c55e;
+}
+
+.acct-btn-danger {
+  border-color: rgba(239, 68, 68, 0.50);
+  color: #fca5a5;
+}
+.acct-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+
+.acct-btn-danger-soft {
+  border-color: rgba(239, 68, 68, 0.30);
+  color: #fca5a5;
+  background: transparent;
+}
+.acct-btn-danger-soft:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #fecaca;
+}
+
+.acct-btn-link {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: #9ca3af;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.acct-btn-link:hover:not(:disabled) {
+  background: transparent;
+  border-color: rgba(52, 236, 120, 0.45);
+  color: #34ec78;
+}
+
+/* ─────────────────────────────────────────────────────────
+ * FEEDBACK TOAST
+ * ───────────────────────────────────────────────────────── */
+
+.acct-feedback {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  animation: acct-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes acct-toast-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.acct-feedback-ok {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #34ec78;
+}
+.acct-feedback-err {
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.40);
+  color: #fca5a5;
+}
+
+/* ─────────────────────────────────────────────────────────
+ * BADGES
+ * ───────────────────────────────────────────────────────── */
+
+.acct-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  border-radius: 4px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.acct-badge-ok    { color: #34ec78; border-color: rgba(52, 236, 120, 0.55); background: rgba(34, 197, 94, 0.10); }
+.acct-badge-warn  { color: #fbbf24; border-color: rgba(251, 191, 36, 0.55); background: rgba(251, 191, 36, 0.10); }
+.acct-badge-bad   { color: #fca5a5; border-color: rgba(239, 68, 68, 0.55); background: rgba(239, 68, 68, 0.10); }
+.acct-badge-neutral { color: #9ca3af; border-color: rgba(156, 163, 175, 0.40); background: rgba(156, 163, 175, 0.08); }
+
+/* ─────────────────────────────────────────────────────────
+ * CARDS
+ * ───────────────────────────────────────────────────────── */
+
+.acct-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 14px;
+}
+
+.acct-card {
+  padding: 16px 18px 18px;
+  background: #0e1116;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.acct-card-wide { grid-column: 1 / -1; }
+
+.acct-card-h {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #9ca3af;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.acct-card-h-danger {
+  color: #fca5a5;
+  border-bottom-color: rgba(239, 68, 68, 0.15);
+}
+
+.acct-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+.acct-row-k {
+  color: #9ca3af;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.acct-row-v {
+  color: #f3f4f6;
+  font-weight: 600;
+  text-align: right;
+  max-width: 65%;
+}
+.acct-row-muted { color: #6b7280; font-weight: 400; }
+.acct-row-link {
+  background: transparent;
+  border: none;
+  color: #34ec78;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+.acct-row-link:hover { text-decoration: underline; }
+
+.acct-mono { font-family: "Consolas", "Monaco", monospace; }
+.acct-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+  display: inline-block;
+}
+
+/* ─────────────────────────────────────────────────────────
+ * SUBSCRIPTION SECTION
+ * ───────────────────────────────────────────────────────── */
+
+.acct-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+  padding: 4px 0 10px;
+}
+.acct-sub-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.acct-sub-stat-k {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+.acct-sub-stat-v {
+  font-size: 17px;
+  font-weight: 700;
+  color: #f9fafb;
+  font-variant-numeric: tabular-nums;
+}
+
+.acct-sub-progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 4px 0 14px;
+}
+.acct-sub-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #34ec78 100%);
+  transition: width 0.4s ease;
+  box-shadow: 0 0 12px rgba(52, 236, 120, 0.35);
+}
+.acct-sub-progress-fill-bad {
+  background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.40);
+}
+
+.acct-sub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.acct-sub-actions-spacer { flex: 1; }
+
+/* ─────────────────────────────────────────────────────────
+ * MACHINE PROGRESS BAR
+ * ───────────────────────────────────────────────────────── */
+
+.acct-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.acct-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #34ec78 100%);
+  transition: width 0.3s ease;
+}
+.acct-bar-fill-full {
+  background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+}
+
+/* ─────────────────────────────────────────────────────────
+ * DANGER ZONE
+ * ───────────────────────────────────────────────────────── */
+
+.acct-danger {
+  border-color: rgba(239, 68, 68, 0.25);
+  background:
+    linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, #0e1116 50%);
+}
+.acct-danger-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 6px;
+}
+.acct-danger-text { flex: 1; }
+.acct-danger-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f9fafb;
+  margin-bottom: 4px;
+}
+.acct-danger-sub {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+/* ─────────────────────────────────────────────────────────
+ * LOGGED-OUT STATE — inline sign-in
+ * ───────────────────────────────────────────────────────── */
+
+.acct-login-wrap {
+  max-width: 460px;
+  margin: 60px auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: var(--text-primary, #e5e7eb);
+}
+.acct-login-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #34ec78;
+  text-transform: uppercase;
+  text-align: center;
+}
+.acct-login-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #f9fafb;
+  text-align: center;
+  margin-top: 4px;
+}
+.acct-login-sub {
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.55;
+  text-align: center;
+  max-width: 380px;
+  margin: 0 auto 18px;
+}
+.acct-login-card {
+  display: flex;
+  justify-content: center;
+}
+.acct-login-card .card { width: 100%; max-width: 420px; }

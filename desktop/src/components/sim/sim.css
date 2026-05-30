@@ -1,0 +1,1220 @@
+/* Sim Trade Panel — brand-green scoped, isolated stacking context. */
+.sim-panel {
+  --brand-green: #22c55e;
+  --brand-green-bright: #34ec78;
+  --brand-green-dim: #166534;
+  --brand-green-deep: #0f3a20;
+  --brand-green-soft: rgba(34, 197, 94, 0.06);
+  --accent-red-warm: #ff3d71;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  width: 100%;
+  padding: 14px 14px 12px;
+  background:
+    linear-gradient(180deg, var(--brand-green-soft) 0%, transparent 35%),
+    var(--bg-surface);
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 10px;
+  font-family: inherit;
+  isolation: isolate;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-green-deep) transparent;
+}
+.sim-panel * { min-width: 0; }
+
+/* ── Fill flash ─────────────────────────────────── */
+.sim-panel-flash {
+  animation: sim-fill-flash 0.85s ease-out;
+}
+@keyframes sim-fill-flash {
+  0%   { box-shadow: inset 0 0 0 1px var(--brand-green-bright), 0 0 22px rgba(34, 197, 94, 0.45); }
+  100% { box-shadow: inset 0 0 0 1px transparent, 0 0 0 transparent; }
+}
+
+/* ── Toasts ─────────────────────────────────────── */
+.sim-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  animation: sim-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes sim-toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sim-toast-error {
+  background: linear-gradient(90deg, rgba(255, 61, 113, 0.18) 0%, rgba(255, 61, 113, 0.06) 100%);
+  border: 1px solid rgba(255, 61, 113, 0.4);
+  color: #ffadc1;
+}
+.sim-toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-red-warm);
+  color: var(--bg-primary);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.sim-toast-msg { flex: 1; }
+
+/* ── Section label ─────────────────────────────── */
+.sim-section-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-top: 4px;
+  margin-bottom: -2px;
+}
+.sim-section-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sim-section-label-row .sim-history-count {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 999px;
+  padding: 1px 8px;
+  color: var(--brand-green);
+  opacity: 1;
+}
+
+/* ── Header (Balance / Equity row) ─────────────── */
+.sim-header-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sim-header-block-right { text-align: right; }
+
+/* ── Instrument card ──────────────────────────── */
+.sim-card {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, transparent 50%);
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.sim-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-green), transparent);
+  opacity: 0.5;
+}
+.sim-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.sim-card-meta {
+  display: flex;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Price block (live last) ──────────────────── */
+.sim-price-block {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 7px;
+  border: 1px solid rgba(34, 197, 94, 0.12);
+}
+.sim-price-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+.sim-price-value {
+  color: var(--brand-green-bright);
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+}
+.sim-price-pending {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-shadow: none;
+  font-style: italic;
+}
+
+/* ── Risk/Reward preview ──────────────────────── */
+.sim-risk-preview {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  border: 1px dashed var(--brand-green-deep);
+}
+.sim-risk-preview > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.sim-risk-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.sim-neutral { color: var(--text-primary); font-weight: 700; }
+
+/* ── Order type strip (Market / Limit / Stop) ─── */
+.sim-type-strip {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 1px;
+  width: fit-content;
+}
+.sim-type-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px 12px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.14s ease;
+}
+.sim-type-pill:hover { color: var(--text-primary); }
+.sim-type-pill-active {
+  background: var(--brand-green);
+  color: var(--bg-primary);
+}
+
+.sim-field-full { grid-column: 1 / -1; }
+
+/* ── Working orders list ───────────────────────── */
+.sim-working-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sim-working-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid transparent;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.sim-working-row.sim-side-long {
+  border-left-color: var(--brand-green-bright);
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.05) 0%, transparent 50%);
+}
+.sim-working-row.sim-side-short {
+  border-left-color: rgba(255, 255, 255, 0.75);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+}
+.sim-working-type {
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex: 1;
+  min-width: 0;
+}
+.sim-working-row.sim-side-long .sim-working-type { color: var(--brand-green-bright); }
+.sim-working-row.sim-side-short .sim-working-type { color: #f3f4f6; }
+.sim-working-qty {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.sim-working-trigger {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sim-working-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.14s ease;
+}
+.sim-working-cancel:hover {
+  background: rgba(255, 61, 113, 0.2);
+  border-color: var(--accent-red-warm);
+  color: var(--accent-red-warm);
+}
+
+/* ── Order buttons ────────────────────────────── */
+.sim-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.sim-btn-icon {
+  display: inline-flex;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* ── Position card refresh ────────────────────── */
+.sim-position-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sim-position-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-family: inherit;
+}
+.sim-position-side-arrow {
+  font-size: 9px;
+  line-height: 1;
+}
+.sim-side-long {
+  background: rgba(34, 197, 94, 0.18);
+  color: var(--brand-green-bright);
+  border: 1px solid var(--brand-green-dim);
+}
+.sim-side-short {
+  background: rgba(255, 255, 255, 0.10);
+  color: #f3f4f6;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+}
+.sim-position-unreal {
+  margin-left: auto;
+  font-weight: 800;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.sim-position-value-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sim-bracket-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sim-bracket-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.sim-bracket-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 16px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.sim-bracket-tag-sl {
+  background: rgba(255, 61, 113, 0.18);
+  color: var(--accent-red-warm);
+}
+.sim-bracket-tag-tp {
+  background: rgba(34, 197, 94, 0.18);
+  color: var(--brand-green-bright);
+}
+
+/* ── No position empty state ──────────────────── */
+.sim-no-position {
+  padding: 18px 10px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px dashed var(--brand-green-deep);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.sim-no-position-icon {
+  font-size: 22px;
+  color: var(--brand-green-dim);
+  line-height: 1;
+}
+
+/* ── History — reason pills color by outcome ──── */
+.sim-history-reason-target {
+  color: var(--brand-green);
+  background: rgba(34, 197, 94, 0.1);
+}
+.sim-history-reason-stop {
+  color: var(--accent-red-warm);
+  background: rgba(255, 61, 113, 0.1);
+}
+.sim-history-reason-flatten {
+  color: var(--text-muted);
+}
+.sim-history-reason-reverse {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.1);
+}
+
+/* ── Footer ─────────────────────────────────── */
+.sim-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 6px;
+  border-top: 1px solid var(--brand-green-deep);
+}
+.sim-footer-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.sim-footer-dot { opacity: 0.5; }
+.sim-panel::-webkit-scrollbar { width: 6px; }
+.sim-panel::-webkit-scrollbar-thumb {
+  background: var(--brand-green-deep);
+  border-radius: 3px;
+}
+
+.sim-pos { color: var(--brand-green-bright); }
+.sim-neg { color: var(--accent-red-warm); }
+
+/* ── Header ────────────────────────────────────── */
+.sim-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--brand-green-deep);
+}
+.sim-header > * { min-width: 0; }
+.sim-header-balance,
+.sim-header-equity,
+.sim-header-pct {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sim-header-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.sim-header-balance {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.sim-header-right { text-align: right; }
+.sim-header-equity {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.sim-header-pct {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Symbol row ───────────────────────────────── */
+.sim-symbol-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.sim-symbol-tag {
+  display: inline-block;
+  padding: 3px 9px;
+  background: linear-gradient(135deg, var(--brand-green-dim) 0%, rgba(34, 197, 94, 0.1) 100%);
+  border: 1px solid var(--brand-green-dim);
+  border-radius: 6px;
+  color: var(--brand-green-bright);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.sim-symbol-name {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sim-symbol-meta {
+  display: flex;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.sim-meta-label {
+  color: var(--text-muted);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 9px;
+  margin-right: 3px;
+}
+
+/* ── Last price ───────────────────────────────── */
+.sim-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 8px;
+}
+.sim-price-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.sim-price-value {
+  color: var(--brand-green-bright);
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sim-price-pending {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Order form ───────────────────────────────── */
+.sim-form { display: flex; flex-direction: column; gap: 10px; }
+.sim-form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.sim-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sim-field > span {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sim-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.14s ease;
+}
+.sim-input:focus { border-color: var(--brand-green-dim); }
+
+.sim-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sim-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 13px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+.sim-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.sim-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
+  pointer-events: none;
+  opacity: 0.7;
+}
+.sim-btn-buy {
+  background: linear-gradient(180deg, var(--brand-green-bright) 0%, var(--brand-green) 100%);
+  color: var(--bg-primary);
+  border-color: var(--brand-green-bright);
+  box-shadow: 0 2px 12px rgba(34, 197, 94, 0.22);
+}
+.sim-btn-buy:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.35), 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+.sim-btn-buy:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(34, 197, 94, 0.25);
+}
+/* SELL — white / neutral to mirror the QuickTradePanel widget. The
+   green-on-brand theme reserves color emphasis for BUY; SELL leans
+   on contrast (white-on-dark) to stay readable without polluting
+   the palette with off-brand red. */
+.sim-btn-sell {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(229, 231, 235, 0.92) 100%);
+  color: var(--bg-primary);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 12px rgba(255, 255, 255, 0.10);
+}
+.sim-btn-sell:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 255, 255, 0.18), 0 0 0 3px rgba(255, 255, 255, 0.10);
+}
+.sim-btn-sell:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(255, 255, 255, 0.14);
+}
+.sim-btn-flatten {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border);
+  color: var(--text-primary);
+  width: 100%;
+  margin-top: 8px;
+}
+.sim-btn-flatten:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--bg-primary);
+  border-color: rgba(255, 255, 255, 0.92);
+}
+
+/* ── Position card ────────────────────────────── */
+.sim-no-position {
+  padding: 14px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px dashed var(--brand-green-deep);
+  border-radius: 8px;
+}
+.sim-position {
+  padding: 12px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--brand-green-deep);
+}
+.sim-position-long {
+  border-left: 3px solid var(--brand-green-bright);
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.05) 0%, transparent 35%), var(--bg-primary);
+}
+.sim-position-short {
+  border-left: 3px solid rgba(255, 255, 255, 0.75);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, transparent 35%), var(--bg-primary);
+}
+.sim-position-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.sim-position-side {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.sim-position-long .sim-position-side {
+  background: rgba(34, 197, 94, 0.18);
+  color: var(--brand-green-bright);
+  border: 1px solid var(--brand-green-dim);
+}
+.sim-position-short .sim-position-side {
+  background: rgba(255, 255, 255, 0.10);
+  color: #f3f4f6;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+}
+.sim-position-qty {
+  color: var(--text-primary);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sim-position-symbol {
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.sim-position-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.sim-position-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sim-position-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.sim-bracket-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  gap: 6px 10px;
+}
+.sim-bracket-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  padding: 3px 9px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sim-bracket-btn:hover:not(:disabled) { color: var(--text-primary); border-color: var(--text-muted); }
+.sim-bracket-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── History ──────────────────────────────────── */
+.sim-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sim-history-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--brand-green-deep);
+}
+.sim-history-count {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 999px;
+  padding: 1px 7px;
+  color: var(--brand-green);
+}
+.sim-history-empty {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  padding: 10px 0;
+  font-style: italic;
+}
+.sim-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.sim-history-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid transparent;
+}
+.sim-history-row:hover { background: rgba(34, 197, 94, 0.05); }
+.sim-history-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.sim-history-bot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.sim-history-side {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.sim-side-long { background: rgba(34, 197, 94, 0.18); color: var(--brand-green-bright); }
+.sim-side-short { background: rgba(255, 255, 255, 0.10); color: #f3f4f6; }
+.sim-history-sym {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sim-history-qty {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.sim-history-prices {
+  color: var(--text-muted);
+}
+.sim-history-pnl {
+  font-weight: 800;
+  margin-left: auto;
+}
+.sim-history-reason {
+  color: var(--text-muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+}
+
+/* ── Settings / footer ───────────────────────── */
+.sim-footer {
+  padding-top: 4px;
+  border-top: 1px solid var(--brand-green-deep);
+  text-align: center;
+}
+.sim-link {
+  background: none;
+  border: none;
+  color: var(--brand-green);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 4px 8px;
+}
+.sim-link:hover { color: var(--brand-green-bright); }
+
+.sim-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 8px;
+}
+.sim-settings-label {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.sim-voice-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 8px;
+  background: rgba(34, 197, 94, 0.04);
+  border: 1px solid var(--brand-green-deep);
+  border-radius: 6px;
+}
+.sim-voice-toggle input { accent-color: var(--brand-green); margin: 0; }
+.sim-voice-icon { font-size: 14px; line-height: 1; }
+.sim-voice-toggle:hover { background: rgba(34, 197, 94, 0.07); }
+.sim-settings-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 4px;
+}
+.sim-preset {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.14s ease;
+}
+.sim-preset:hover { color: var(--text-primary); border-color: var(--brand-green-deep); }
+.sim-preset-active {
+  background: var(--brand-green);
+  color: var(--bg-primary);
+  border-color: var(--brand-green);
+}
+.sim-reset {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent-red-warm);
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.14s ease;
+}
+.sim-reset:hover {
+  background: rgba(255, 61, 113, 0.1);
+  border-color: var(--accent-red-warm);
+}
+
+/* ── Dock embedded in the Footprint workspace ─────────── */
+.rf-sim-dock {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 32px;
+  padding: 0;
+  box-sizing: border-box;
+  border-left: 1px solid var(--brand-green-deep, #0f3a20);
+  background: var(--bg-primary);
+  transition:
+    width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    padding 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* overflow: visible so the toggle button (positioned at left:-14px
+     when open) isn't clipped. The inner SimTradePanel handles its own
+     overflow scrolling. */
+  overflow: visible;
+}
+.rf-sim-dock-open {
+  width: 340px;
+  padding: 10px 10px 10px 14px;
+}
+.rf-sim-dock-closed {
+  cursor: pointer;
+}
+.rf-sim-dock-closed:hover {
+  background: var(--brand-green-deep, #0f3a20);
+}
+.rf-sim-dock-toggle {
+  position: absolute;
+  top: 12px;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-surface);
+  border: 1px solid var(--brand-green-deep, #0f3a20);
+  border-radius: 50%;
+  color: var(--brand-green-bright, #34ec78);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Stay clickable above any flex sibling (canvas-wrap to the left). */
+  z-index: 50;
+  transition: left 220ms cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.16s ease,
+              transform 0.16s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+/* When open, the toggle hangs OUT of the left edge by 14px ("tab" look). */
+.rf-sim-dock-open .rf-sim-dock-toggle { left: -14px; }
+/* When closed, place the toggle ENTIRELY inside the 32px column so the
+   canvas sibling never overlaps the click target. */
+.rf-sim-dock-closed .rf-sim-dock-toggle { left: 2px; }
+.rf-sim-dock-toggle:hover {
+  background: var(--brand-green-deep, #0f3a20);
+  color: var(--brand-green-bright, #34ec78);
+  transform: scale(1.05);
+}
+
+
+/* ─── Floating Quick-Trade Widget (on-chart overlay) ─────────────
+   Sits absolutely positioned over the chart canvas (top-right by
+   default — close to the price axis where the user already looks
+   when reading the live price). Quantower-style: [SELL] [qty±] [BUY]
+   with a row appearing below it when a position is open. */
+.fqt-widget {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(13, 15, 18, 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 4px;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: #e5e7eb;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  user-select: none;
+  pointer-events: auto;
+}
+
+.fqt-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.fqt-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 86px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 0.1s, transform 0.05s;
+  background: transparent;
+}
+.fqt-side:active { transform: translateY(1px); }
+.fqt-side:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* SELL = white / neutral (theme contrast). BUY = brand green.
+   Keeps the widget on-brand while still readable at a glance —
+   green-only would lose the side distinction. */
+.fqt-side-sell {
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #f3f4f6;
+  background: rgba(255, 255, 255, 0.05);
+}
+.fqt-side-sell:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.85);
+}
+.fqt-side-buy {
+  border-color: rgba(52, 236, 120, 0.7);
+  color: #34ec78;
+  background: rgba(34, 197, 94, 0.10);
+}
+.fqt-side-buy:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.22);
+  color: #6dffa3;
+  border-color: rgba(52, 236, 120, 0.95);
+}
+
+.fqt-price {
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.fqt-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  margin-top: 1px;
+  opacity: 0.85;
+}
+
+.fqt-qty {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px;
+}
+.fqt-qty-btn {
+  width: 18px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 3px;
+  color: #d1d5db;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1;
+}
+.fqt-qty-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+}
+.fqt-qty-input {
+  width: 34px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  color: #f3f4f6;
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  padding: 0;
+  -moz-appearance: textfield;
+}
+.fqt-qty-input::-webkit-outer-spin-button,
+.fqt-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.fqt-qty-input:focus {
+  outline: none;
+  border-color: rgba(126, 211, 33, 0.55);
+}
+
+/* Position row — slim, two-tone */
+.fqt-position-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 5px;
+  font-size: 10px;
+  font-family: "Consolas", "Monaco", monospace;
+}
+.fqt-pos-long { color: #22c55e; font-weight: 700; }
+.fqt-pos-short { color: #f3f4f6; font-weight: 700; }
+.fqt-pos-pnl {
+  margin-left: auto;
+  font-weight: 700;
+}
+.fqt-flatten {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.7);
+  color: #fca5a5;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fqt-flatten:hover {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+  border-color: rgba(239, 68, 68, 0.85);
+}
+
+.fqt-error {
+  padding: 4px 6px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.30);
+  border-radius: 4px;
+  color: #fca5a5;
+  font-size: 10px;
+  text-align: center;
+}

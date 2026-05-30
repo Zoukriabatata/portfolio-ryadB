@@ -11,11 +11,13 @@
 
 pub mod adapter;
 pub mod binance;
+pub mod bridge;
 pub mod bybit;
 pub mod deribit;
 pub mod error;
 pub mod finnhub;
 pub mod alpaca;
+pub mod anthropic;
 pub mod rithmic;
 pub mod tick;
 

@@ -21,6 +21,7 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 use crate::connectors::binance::BinanceAdapter;
+use crate::connectors::bridge::BridgeAdapter;
 use crate::connectors::bybit::orderbook::OrderbookSubscriberHandle;
 use crate::connectors::bybit::BybitAdapter;
 use crate::connectors::deribit::DeribitAdapter;
@@ -50,8 +51,20 @@ impl RithmicState {
             vec![
                 Timeframe::Sec5,
                 Timeframe::Sec15,
+                Timeframe::Sec30,
                 Timeframe::Min1,
+                Timeframe::Min3,
                 Timeframe::Min5,
+                Timeframe::Min15,
+                Timeframe::Hour1,
+                // Tick-based — only relevant for the bridge connector
+                // which populates `Tick.seq`. Rithmic ticks come in
+                // with seq=0 so every Rithmic tick would land in the
+                // SAME 100T bucket forever — UI must filter this TF
+                // out for the Rithmic session. Cheap to keep here so
+                // the bridge session (which shares this engine) can
+                // aggregate 100T bars without a second engine.
+                Timeframe::Ticks100,
             ],
             DEFAULT_TICK_SIZE,
         ));
@@ -101,8 +114,12 @@ impl CryptoState {
             vec![
                 Timeframe::Sec5,
                 Timeframe::Sec15,
+                Timeframe::Sec30,
                 Timeframe::Min1,
+                Timeframe::Min3,
                 Timeframe::Min5,
+                Timeframe::Min15,
+                Timeframe::Hour1,
             ],
             DEFAULT_CRYPTO_TICK_SIZE,
         ));
@@ -123,5 +140,34 @@ impl CryptoState {
 impl Default for CryptoState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// NinjaTrader bridge state.
+///
+/// Reuses the Rithmic-side `FootprintEngine` because the bridge streams
+/// CME futures with the same tick size (0.25 on MNQ) and the same set
+/// of timeframes. The frontend already listens to `footprint-update`
+/// from this engine, so swapping sources is transparent.
+///
+/// At any given time, the user runs EITHER the native Rithmic adapter
+/// OR the bridge — `bridge_connect` does not refuse if Rithmic is
+/// connected (and vice versa), but the UI surface only exposes one at
+/// a time via the source switcher.
+pub struct BridgeState {
+    pub adapter: Mutex<Option<BridgeAdapter>>,
+    pub engine: Arc<FootprintEngine>,
+    pub engine_pump: Mutex<Option<JoinHandle<()>>>,
+    pub state_emit: Mutex<Option<JoinHandle<()>>>,
+}
+
+impl BridgeState {
+    pub fn new(engine: Arc<FootprintEngine>) -> Self {
+        Self {
+            adapter: Mutex::new(None),
+            engine,
+            engine_pump: Mutex::new(None),
+            state_emit: Mutex::new(None),
+        }
     }
 }

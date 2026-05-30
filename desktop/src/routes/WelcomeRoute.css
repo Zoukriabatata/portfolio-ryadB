@@ -1,78 +1,224 @@
-/* Phase B / M1 — re-themed with Senzoukria tokens.
- * Pre-M1 the colors were hardcoded GitHub-ish (#1f6feb blue, etc.);
- * now everything routes through CSS variables in globals.css so the
- * shell visually matches what the rest of M3+ ports from web. */
+/* Senzoukria Welcome — modernized layout (UI-7).
+ *   - Hero with full SenzoukriaLogo + gradient wordmark
+ *   - Ambient gradient blobs behind for depth (no extra DOM elsewhere)
+ *   - Cards with glass-ish backgrounds, custom SVG icons, lift+glow
+ *   - Stagger fade-in animation on mount
+ *   - Geist via --font-sans (set globally in fonts.ts)
+ */
 
 .welcome-route {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 48px 32px;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    system-ui,
-    sans-serif;
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 64px 32px 48px;
   color: var(--text-primary);
+  font-family: var(--font-sans);
+  z-index: 1;
 }
 
+.welcome-route > .welcome-hero,
+.welcome-route > .welcome-grid,
+.welcome-route > .welcome-footer {
+  max-width: 1080px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Black hole canvas background ───────────────────────────────────────── */
+.senz-blackhole-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
 .welcome-hero {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 56px;
+  animation: welcomeHeroIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.welcome-hero h1 {
-  margin: 0 0 12px 0;
-  font-size: 38px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  /* Subtle lime glow on the brand name */
-  text-shadow: 0 0 24px var(--primary-glow);
+@keyframes welcomeHeroIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.welcome-logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 24px rgba(126, 211, 33, 0.35));
+}
+
+/* Hero title — exact recipe from the website's HeroSection.tsx
+ *   • 4-stop gradient: light → primary → dark → light (loops smoothly)
+ *   • backgroundSize 200% + animated shift = shimmer effect
+ *   • drop-shadow glow at primary-rgb 0.25 alpha → makes the text feel
+ *     "luminous" instead of just "coloured" */
+.welcome-title {
+  margin: 0 0 4px 0;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  background: linear-gradient(135deg, #a3e635, #7ed321, #5fa31a, #a3e635);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 30px rgba(126, 211, 33, 0.30));
+  animation: senzGradientShift 4s ease infinite;
+}
+.welcome-title-tail {
+  -webkit-text-fill-color: var(--text-primary);
+}
+
+@keyframes senzGradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.welcome-eyebrow {
+  margin: 0 0 16px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  color: rgba(126, 211, 33, 0.75);
+  text-transform: uppercase;
 }
 
 .welcome-tagline {
   margin: 0 auto;
-  max-width: 580px;
+  max-width: 540px;
   font-size: 15px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 400;
+  letter-spacing: -0.005em;
 }
 
+/* ── Cards grid ────────────────────────────────────────────────────────── */
 .welcome-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
-  margin-bottom: 40px;
+  margin-bottom: 56px;
 }
 
 .welcome-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.025),
+    rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
   text-decoration: none;
   color: inherit;
+  overflow: hidden;
   transition:
-    transform var(--transition-fast),
-    border-color var(--transition-fast),
-    background var(--transition-fast);
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 280ms ease,
+    background 280ms ease,
+    box-shadow 320ms ease;
+  opacity: 0;
+  animation: welcomeCardIn 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes welcomeCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Soon-flagged cards : muted look + corner badge. Still clickable —
+   takes the user to a Coming Soon page. */
+.welcome-card-soon {
+  opacity: 0.78;
+}
+.welcome-card-soon:hover {
+  opacity: 1;
+}
+.welcome-card-soon-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 3px 9px;
+  background: rgba(126, 211, 33, 0.14);
+  border: 1px solid rgba(126, 211, 33, 0.4);
+  border-radius: 999px;
+  color: #a3e635;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  z-index: 1;
+}
+
+/* Subtle glow ring that lights up on hover. */
+.welcome-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(126, 211, 33, 0.18),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 320ms ease;
 }
 
 .welcome-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--primary);
-  background: var(--surface-elevated);
-  box-shadow: 0 0 0 1px var(--primary-glow), var(--shadow-lg);
+  transform: translateY(-3px);
+  border-color: rgba(126, 211, 33, 0.35);
+  background: linear-gradient(135deg,
+    rgba(126, 211, 33, 0.06),
+    rgba(255, 255, 255, 0.02));
+  box-shadow:
+    0 0 0 1px rgba(126, 211, 33, 0.18),
+    0 12px 32px -12px rgba(126, 211, 33, 0.30),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.welcome-card:hover::before {
+  opacity: 1;
 }
 
 .welcome-card-icon {
-  font-size: 28px;
-  line-height: 1;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(126, 211, 33, 0.08);
+  color: rgba(255, 255, 255, 0.85);
   margin-bottom: 4px;
+  transition: background 280ms ease, color 280ms ease, transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.welcome-card-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.welcome-card:hover .welcome-card-icon {
+  background: rgba(126, 211, 33, 0.16);
+  color: #ffffff;
+  transform: scale(1.06);
 }
 
 .welcome-card h2 {
@@ -80,42 +226,70 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .welcome-card p {
   margin: 0;
   font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.55;
   flex-grow: 1;
 }
 
 .welcome-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--primary);
-  letter-spacing: 0.02em;
+  color: #7ed321;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 12px rgba(126, 211, 33, 0.45);
+  transition: gap 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              text-shadow 240ms ease;
+}
+.welcome-card-cta svg {
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.welcome-card:hover .welcome-card-cta {
+  gap: 10px;
+}
+.welcome-card:hover .welcome-card-cta svg {
+  transform: translateX(2px);
 }
 
+/* ── Footer ────────────────────────────────────────────────────────────── */
 .welcome-footer {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 16px;
   font-size: 12px;
-  color: var(--text-muted);
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
+  color: rgba(255, 255, 255, 0.40);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 20px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.welcome-version {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .welcome-footer a {
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.55);
   text-decoration: none;
-  transition: color var(--transition-fast);
+  transition: color 220ms ease;
 }
 
 .welcome-footer a:hover {
-  color: var(--primary);
-  text-decoration: underline;
+  color: #7ed321;
 }

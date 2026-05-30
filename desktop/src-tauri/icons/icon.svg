@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="1024" height="1024">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="50%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <linearGradient id="logoGradientS" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#86efac"/>
+      <stop offset="50%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0f1419"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+  </defs>
+  <rect width="48" height="48" rx="9" fill="url(#bgGradient)"/>
+  <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" fill="url(#logoGradient)" fill-opacity="0.18" stroke="url(#logoGradient)" stroke-width="1.5" stroke-linejoin="round"/>
+  <circle cx="24" cy="24" r="12" fill="none" stroke="url(#logoGradient)" stroke-width="1.4" stroke-dasharray="2.5 3" opacity="0.65"/>
+  <path d="M 30 13 C 30 13, 18 12, 15 16 C 13 19, 14 22, 24 24 C 34 26, 35 29, 33 32 C 30 36, 18 35, 18 35" fill="none" stroke="url(#logoGradientS)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="8" cy="24" r="1.6" fill="#4ade80"/>
+  <circle cx="40" cy="24" r="1.6" fill="#4ade80"/>
+  <circle cx="24" cy="8" r="1.6" fill="#4ade80"/>
+  <circle cx="24" cy="40" r="1.2" fill="#22c55e" opacity="0.55"/>
+</svg>

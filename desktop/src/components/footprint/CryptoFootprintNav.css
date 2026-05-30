@@ -1,23 +1,24 @@
-/* Phase B / M4.7a — chrome around the crypto footprint canvas:
- * symbol button + timeframe pills + subscribe / unsubscribe row,
- * plus the canvas wrapper with the floating zoom toolbar. */
+/* Senzoukria palette: NOIR / BLANC / VERT only.
+ * Chrome around the crypto footprint canvas: symbol button + timeframe
+ * pills + subscribe / unsubscribe row. */
 
 .cf-controls {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 14px;
-  background: var(--surface, #0d0f1b);
-  border-bottom: 1px solid var(--border, #1f2333);
+  background: #0a0a0a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .cf-symbol-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #1e293b;
-  border: 1px solid #334155;
-  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
   padding: 6px 14px;
   border-radius: 4px;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
@@ -27,9 +28,13 @@
   transition: background 100ms, border-color 100ms;
 }
 
-.cf-symbol-btn:hover:not(:disabled) {
-  background: #334155;
-  border-color: #475569;
+.cf-symbol-btn:hover:not(:disabled),
+.cf-symbol-btn:focus:not(:disabled),
+.cf-symbol-btn:focus-visible:not(:disabled),
+.cf-symbol-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.30);
+  outline: none;
 }
 
 .cf-symbol-btn:disabled {
@@ -38,7 +43,7 @@
 }
 
 .cf-symbol-caret {
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.55);
   font-size: 10px;
   margin-left: 2px;
 }
@@ -52,8 +57,8 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid #334155;
-  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.55);
   width: 28px;
   height: 28px;
   border-radius: 4px;
@@ -63,16 +68,35 @@
   transition: background 100ms, color 100ms, border-color 100ms;
 }
 
-.cf-icon-btn:hover {
-  background: #1e293b;
-  color: #e2e8f0;
-  border-color: #475569;
+.cf-icon-btn:hover,
+.cf-icon-btn:focus,
+.cf-icon-btn:focus-visible,
+.cf-icon-btn:active {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.30);
+  outline: none;
+  /* Belt-and-braces: some WebView2 builds paint a solid blue fill
+     on focused buttons regardless of the rest of the styling, so
+     spelling out every interactive state keeps the chrome neutral
+     across :hover / :focus / :focus-visible / :active. */
+}
+
+/* Stronger override for the timezone (PAR / NY / TYO …) button —
+   it stays focused after each click (button receives focus on
+   pointer-down), and that focus state was getting painted in the
+   UA's accent colour. Same white-glass affordance as :hover. */
+.cf-icon-btn:focus:not(:focus-visible) {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.30);
+  outline: none;
 }
 
 .cf-action-btn {
   background: transparent;
-  border: 1px solid #334155;
-  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
   padding: 5px 14px;
   border-radius: 4px;
   font-family: inherit;
@@ -83,9 +107,13 @@
   transition: background 100ms, border-color 100ms, color 100ms;
 }
 
-.cf-action-btn:hover:not(:disabled) {
-  background: #1e293b;
-  color: #f1f5f9;
+.cf-action-btn:hover:not(:disabled),
+.cf-action-btn:focus:not(:disabled),
+.cf-action-btn:focus-visible:not(:disabled),
+.cf-action-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  outline: none;
 }
 
 .cf-action-btn:disabled {
@@ -94,31 +122,31 @@
 }
 
 .cf-action-primary {
-  background: var(--primary, #4ade80);
-  color: #0f172a;
-  border-color: var(--primary, #4ade80);
+  background: #7ed321;
+  color: #0a0a0a;
+  border-color: #7ed321;
 }
 
 .cf-action-primary:hover:not(:disabled) {
-  background: #22c55e;
-  border-color: #22c55e;
-  color: #0f172a;
+  background: #5fa31a;
+  border-color: #5fa31a;
+  color: #0a0a0a;
 }
 
 .cf-action-secondary {
-  border-color: #ef4444;
-  color: #ef4444;
+  border-color: rgba(255, 255, 255, 0.30);
+  color: #ffffff;
 }
 
 .cf-action-secondary:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
 }
 
 .cf-canvas-wrap {
   position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  height: 100%;
   display: flex;
 }

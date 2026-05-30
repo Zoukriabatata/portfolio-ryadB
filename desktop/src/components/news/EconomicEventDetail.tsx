@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import type { EconomicEvent } from "../../lib/news/api";
+import { describeEvent } from "../../lib/news/eventImpact";
 
 function formatNum(n: number | null, unit: string): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "—";
@@ -27,6 +29,16 @@ export function EconomicEventDetail({
     Number.isFinite(event.forecast);
   const surprise = hasSurprise ? (event.actual! - event.forecast!) : null;
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const summary = describeEvent(event.event);
+
   return (
     <div className="eco-modal-backdrop" onClick={onClose}>
       <div className="eco-modal" onClick={(e) => e.stopPropagation()}>
@@ -34,20 +46,21 @@ export function EconomicEventDetail({
         <div className="eco-modal-sub">
           {event.country} · {formatDateTime(event.timeUtc)} · impact: {event.impact}
         </div>
+        {summary && <div className="eco-modal-summary">{summary}</div>}
         <div className="eco-modal-grid">
-          <div>
+          <div className="eco-modal-cell">
             <div className="eco-modal-cell-label">Actual</div>
             <div className="eco-modal-cell-value">
               {formatNum(event.actual, event.unit)}
             </div>
           </div>
-          <div>
+          <div className="eco-modal-cell">
             <div className="eco-modal-cell-label">Forecast</div>
             <div className="eco-modal-cell-value">
               {formatNum(event.forecast, event.unit)}
             </div>
           </div>
-          <div>
+          <div className="eco-modal-cell">
             <div className="eco-modal-cell-label">Previous</div>
             <div className="eco-modal-cell-value">
               {formatNum(event.previous, event.unit)}
@@ -56,12 +69,11 @@ export function EconomicEventDetail({
         </div>
         {surprise !== null && (
           <div
-            className={
+            className={`eco-modal-surprise ${
               surprise >= 0
                 ? "eco-modal-surprise-positive"
                 : "eco-modal-surprise-negative"
-            }
-            style={{ marginBottom: 12, fontSize: 13 }}
+            }`}
           >
             Surprise : {surprise >= 0 ? "+" : ""}{surprise.toFixed(2)}{event.unit}
           </div>

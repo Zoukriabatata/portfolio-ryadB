@@ -1,0 +1,185 @@
+/* Indicators dropdown — same visual language as MagnetToggle so it
+   sits cleanly next to the POC / PAR / settings cluster. */
+
+.ind-btn-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.ind-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.55);
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  min-height: 28px;
+}
+
+.ind-btn:hover,
+.ind-btn:focus,
+.ind-btn:focus-visible,
+.ind-btn:active,
+.ind-btn-open {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.32);
+  outline: none;
+}
+
+.ind-btn-has-active {
+  background: rgba(126, 211, 33, 0.10);
+  border-color: rgba(126, 211, 33, 0.55);
+  color: #7ed321;
+}
+
+.ind-btn-has-active:hover,
+.ind-btn-has-active:focus,
+.ind-btn-has-active:focus-visible,
+.ind-btn-has-active:active,
+.ind-btn-has-active.ind-btn-open {
+  background: rgba(126, 211, 33, 0.18);
+  color: #7ed321;
+  border-color: #7ed321;
+  outline: none;
+}
+
+.ind-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 7px;
+  background: #7ed321;
+  color: #0f1218;
+  letter-spacing: 0;
+}
+
+.ind-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.ind-label {
+  letter-spacing: 0.04em;
+}
+
+.ind-caret {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.ind-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  background: rgba(15, 18, 24, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 6px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ind-empty {
+  padding: 10px 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  text-align: center;
+  letter-spacing: 0.04em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+}
+
+.ind-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 80ms;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.ind-row:hover,
+.ind-row:focus,
+.ind-row:focus-visible,
+.ind-row:active {
+  background: rgba(255, 255, 255, 0.05);
+  outline: none;
+}
+
+.ind-row-active {
+  background: rgba(126, 211, 33, 0.08);
+}
+
+.ind-row-active:hover,
+.ind-row-active:focus,
+.ind-row-active:focus-visible,
+.ind-row-active:active {
+  background: rgba(126, 211, 33, 0.14);
+  outline: none;
+}
+
+.ind-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 10px;
+  font-weight: 700;
+  color: transparent;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ind-check-on {
+  background: #7ed321;
+  border-color: #7ed321;
+  color: #0f1218;
+}
+
+.ind-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ind-row-label {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ind-row-desc {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 10px;
+  margin-top: 2px;
+}

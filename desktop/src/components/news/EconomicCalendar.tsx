@@ -43,10 +43,8 @@ export function EconomicCalendar() {
     return events.filter((e) => {
       if (!filters.impact[e.impact]) return false;
       const c = e.country as (typeof COUNTRIES)[number];
-      if (COUNTRIES.includes(c) && !filters.countries[c]) return false;
-      // Events with country outside the toggle set: hide unless any
-      // is enabled (default behaviour : we show only toggled-on countries).
       if (!COUNTRIES.includes(c)) return false;
+      if (!filters.countries[c]) return false;
       return true;
     });
   }, [events, filters]);
@@ -59,66 +57,91 @@ export function EconomicCalendar() {
       if (arr) arr.push(e);
       else map.set(k, [e]);
     }
-    return Array.from(map.entries()); // already chronological from server sort
+    return Array.from(map.entries());
   }, [visible]);
 
   return (
     <div className="eco-cal">
       <div className="eco-cal-header">
         <span>Economic Calendar</span>
+        <span className="eco-cal-count">
+          {visible.length} {visible.length === 1 ? "event" : "events"}
+        </span>
       </div>
-      <div className="eco-cal-filters">
-        <button
-          type="button"
-          className={`eco-cal-pill ${filters.range === "today" ? "eco-cal-pill-active" : ""}`}
-          onClick={() => setRange("today")}
-        >
-          Today
-        </button>
-        <button
-          type="button"
-          className={`eco-cal-pill ${filters.range === "7d" ? "eco-cal-pill-active" : ""}`}
-          onClick={() => setRange("7d")}
-        >
-          7d
-        </button>
-      </div>
-      <div className="eco-cal-filters">
-        {IMPACTS.map((i) => (
+
+      <div className="eco-cal-filter-group">
+        <div className="eco-cal-filter-label">Range</div>
+        <div className="eco-cal-filters">
           <button
-            key={i}
             type="button"
-            className={`eco-cal-pill ${filters.impact[i] ? "eco-cal-pill-active" : ""}`}
-            onClick={() => toggleImpact(i)}
+            className={`eco-cal-pill ${filters.range === "today" ? "eco-cal-pill-active" : ""}`}
+            onClick={() => setRange("today")}
           >
-            {i.toUpperCase()}
+            Today
           </button>
-        ))}
-      </div>
-      <div className="eco-cal-filters">
-        {COUNTRIES.map((c) => (
           <button
-            key={c}
             type="button"
-            className={`eco-cal-pill ${filters.countries[c] ? "eco-cal-pill-active" : ""}`}
-            onClick={() => toggleCountry(c)}
+            className={`eco-cal-pill ${filters.range === "7d" ? "eco-cal-pill-active" : ""}`}
+            onClick={() => setRange("7d")}
           >
-            {c}
+            7 days
           </button>
-        ))}
+        </div>
       </div>
+
+      <div className="eco-cal-filter-group">
+        <div className="eco-cal-filter-label">Impact</div>
+        <div className="eco-cal-filters">
+          {IMPACTS.map((i) => (
+            <button
+              key={i}
+              type="button"
+              className={`eco-cal-pill eco-cal-pill-${i} ${filters.impact[i] ? "eco-cal-pill-active" : ""}`}
+              onClick={() => toggleImpact(i)}
+            >
+              {i.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="eco-cal-filter-group">
+        <div className="eco-cal-filter-label">Countries</div>
+        <div className="eco-cal-filters">
+          {COUNTRIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`eco-cal-pill ${filters.countries[c] ? "eco-cal-pill-active" : ""}`}
+              onClick={() => toggleCountry(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {error && <div className="eco-cal-error">{error}</div>}
       {!error && grouped.length === 0 && !loading && (
         <div className="eco-cal-empty">No events match the current filters.</div>
       )}
-      {grouped.map(([dayK, list]) => (
-        <div key={dayK}>
-          <div className="eco-cal-section-header">{dayLabel(list[0].timeUtc)}</div>
-          {list.map((ev) => (
-            <EconomicEventRow key={ev.id} event={ev} onClick={setSelected} />
-          ))}
-        </div>
-      ))}
+
+      <div className="eco-cal-list">
+        {grouped.map(([dayK, list]) => (
+          <div key={dayK} className="eco-cal-section">
+            <div className="eco-cal-section-header">
+              <span>{dayLabel(list[0].timeUtc)}</span>
+              <span className="eco-cal-section-count">{list.length}</span>
+            </div>
+            <div className="eco-cal-section-rows">
+              {list.map((ev) => (
+                <EconomicEventRow key={ev.id} event={ev} onClick={setSelected} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {selected && (
         <EconomicEventDetail event={selected} onClose={() => setSelected(null)} />
       )}

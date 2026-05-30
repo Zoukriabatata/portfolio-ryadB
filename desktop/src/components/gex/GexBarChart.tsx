@@ -74,25 +74,35 @@ export function GexBarChart() {
     ctx.lineTo(padL + w, yZero);
     ctx.stroke();
 
-    // Bars.
+    // Bars — subtle vertical gradient, no glow.
+    const greenGrad = ctx.createLinearGradient(0, padT, 0, yZero);
+    greenGrad.addColorStop(0, "#22c55e");
+    greenGrad.addColorStop(1, "#166534");
+
+    const redGrad = ctx.createLinearGradient(0, yZero, 0, padT + h);
+    redGrad.addColorStop(0, "#b13059");
+    redGrad.addColorStop(1, "#ff3d71");
+
     for (const s of visible) {
       const xCenter = xOf(s.strike);
       if (s.callGex > 0) {
-        ctx.fillStyle = "#22c55e";
+        const barH = s.callGex * yScale;
+        ctx.fillStyle = greenGrad;
         ctx.fillRect(
           xCenter - barWidth / 2,
-          yZero - s.callGex * yScale,
+          yZero - barH,
           barWidth,
-          s.callGex * yScale,
+          barH,
         );
       }
       if (s.putGex < 0) {
-        ctx.fillStyle = "#ff3d71";
+        const barH = -s.putGex * yScale;
+        ctx.fillStyle = redGrad;
         ctx.fillRect(
           xCenter - barWidth / 2,
           yZero,
           barWidth,
-          -s.putGex * yScale,
+          barH,
         );
       }
     }
