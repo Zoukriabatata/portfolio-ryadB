@@ -212,7 +212,7 @@ export default function HeroSection() {
               {/* Heatmap mockup */}
               <div className="flex-1 rounded-lg border border-white/[0.05] p-3 relative overflow-hidden" style={{ background: 'linear-gradient(to bottom, rgb(var(--primary-rgb) / 0.05), transparent)' }}>
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[9px] uppercase tracking-wider" style={{ color: 'rgb(var(--primary-rgb) / 0.5)' }}>Liquidity Heatmap</div>
+                  <div className="text-[9px] uppercase tracking-wider" style={{ color: 'rgb(var(--primary-rgb) / 0.5)' }}>Footprint Chart</div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-mono text-emerald-400/60">67,284.50</span>
                     <span className="text-[8px] text-emerald-400/40">+1.2%</span>

@@ -8,11 +8,9 @@ const FOOTER_COLUMNS = [
   {
     title: 'Product',
     links: [
-      { label: 'Live Trading', href: '/live' },
       { label: 'Footprint Charts', href: '/footprint' },
-      { label: 'GEX Dashboard', href: '/gex' },
-      { label: 'IV Surface', href: '/volatility' },
-      { label: 'Session Replay', href: '/replay' },
+      { label: 'Live Trading', href: '/live' },
+      { label: 'Download', href: '/download' },
       { label: 'Pricing', href: '/pricing' },
     ],
   },
