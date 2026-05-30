@@ -23,9 +23,9 @@ const CAPABILITIES = [
         <path d="M6 11h12" />
       </svg>
     ),
-    title: 'WebGL Rendering',
-    desc: 'GPU-accelerated heatmaps and charts powered by WebGL. Handle millions of data points without frame drops.',
-    features: ['GPU Accelerated', '60fps Rendering', 'Large Datasets'],
+    title: 'Native rendering',
+    desc: 'Footprint cells and tick streams drawn in a native Canvas / WebGL pipeline. Handles millions of ticks per session without dropping a frame.',
+    features: ['GPU Accelerated', '60fps Rendering', 'Hot-path optimized'],
   },
   {
     icon: (
@@ -47,9 +47,9 @@ const CAPABILITIES = [
         <path d="M2 12l10 5 10-5" />
       </svg>
     ),
-    title: 'Multi-Broker Support',
-    desc: 'Connect Rithmic, Interactive Brokers, CQG or AMP in one click. Unified interface across all your accounts.',
-    features: ['Rithmic', 'Interactive Brokers', 'CQG & AMP'],
+    title: 'Multi-source data',
+    desc: 'NinjaTrader Bridge for Apex / Rithmic users, Rithmic direct if you have your own creds, or crypto with no broker at all. Switch sources from the app.',
+    features: ['NinjaTrader Bridge', 'Rithmic direct', 'Crypto'],
   },
 ];
 

@@ -28,16 +28,15 @@ const TRIAL_DAYS = 14;
 const PREVIEW_END_MS = new Date('2026-06-17T23:59:59.000Z').getTime();
 
 const PRO_FEATURES = [
-  'Live footprint charts (delta, volume, imbalance)',
-  'Liquidity heatmap (WebGL, real-time)',
-  'GEX dashboard & gamma exposure',
-  'Volatility surface & IV skew analysis',
-  'Multi-broker connectors (Rithmic · dxFeed · Binance)',
-  'Trading journal & session replay',
-  'Backtesting engine',
+  'Footprint charts (delta, volume, imbalance, absorption)',
+  'Broker-side daily volume matched to NinjaTrader',
+  'NinjaTrader Bridge for Apex / Rithmic accounts',
+  'Rithmic direct (R | Protocol) — no NT required',
+  'Crypto live feeds (Binance · Bybit · Deribit)',
+  'Trading journal with session screenshots',
   'News & economic calendar',
-  'Up to 2 machines (PC + laptop)',
-  'Priority support',
+  '2 machines (PC + laptop)',
+  'Priority support on Discord',
 ];
 
 function PricingContent() {

@@ -30,19 +30,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/academy', priority: 0.8, changeFrequency: 'monthly' as const },
   ];
 
-  // App pages (lower priority, still indexable for SEO value)
+  // App pages (lower priority, still indexable for SEO value).
+  // GEX / Bias / Volatility / Replay / Heatmap remain in the desktop
+  // app but are intentionally NOT marketed on the site for this launch
+  // — see components/landing/FeaturesSection.tsx for the public surface.
+  // Add /download to the marketing list because that's where users land
+  // from TikTok / Discord and where the NinjaScript bridge is fetched.
   const appPages = [
+    { path: '/download', priority: 0.95, changeFrequency: 'weekly' as const },
     { path: '/dashboard', priority: 0.7, changeFrequency: 'weekly' as const },
     { path: '/live', priority: 0.7, changeFrequency: 'daily' as const },
     { path: '/footprint', priority: 0.7, changeFrequency: 'daily' as const },
-    { path: '/gex', priority: 0.6, changeFrequency: 'daily' as const },
-    { path: '/volatility', priority: 0.6, changeFrequency: 'daily' as const },
-    { path: '/bias', priority: 0.5, changeFrequency: 'daily' as const },
     { path: '/news', priority: 0.5, changeFrequency: 'daily' as const },
     { path: '/journal', priority: 0.4, changeFrequency: 'weekly' as const },
-    { path: '/replay', priority: 0.4, changeFrequency: 'weekly' as const },
     { path: '/backtest', priority: 0.4, changeFrequency: 'weekly' as const },
-    { path: '/heatmap', priority: 0.6, changeFrequency: 'daily' as const },
   ];
 
   return [...publicPages, ...appPages].map(({ path, priority, changeFrequency }) => ({

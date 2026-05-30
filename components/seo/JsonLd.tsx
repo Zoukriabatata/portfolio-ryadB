@@ -10,18 +10,18 @@ const organizationSchema = {
   name: 'Senzoukria',
   url: SITE_URL,
   description:
-    'Institutional-grade orderflow analytics platform for futures and crypto traders',
+    'Professional orderflow desktop platform for futures and crypto traders',
   sameAs: [],
 };
 
 const softwareApplicationSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'Senzoukria',
+  name: 'OrderflowV2',
   applicationCategory: 'FinanceApplication',
-  operatingSystem: 'Web',
+  operatingSystem: 'Windows',
   description:
-    'Professional orderflow analytics platform featuring real-time liquidity heatmaps, footprint charts, delta profiles, gamma exposure (GEX) dashboards, and volatility surface analysis for futures and crypto traders.',
+    'Professional orderflow desktop platform — footprint charts, delta, imbalance and absorption detection with broker-side session volume. Connects via NinjaTrader Bridge, Rithmic direct, or crypto (Binance / Bybit / Deribit).',
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -35,18 +35,18 @@ const faqPageSchema = {
   mainEntity: [
     {
       '@type': 'Question',
-      name: 'What is Senzoukria?',
+      name: 'What is OrderflowV2?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Senzoukria is an institutional-grade orderflow analytics platform with real-time heatmaps, footprint charts, delta profiles, and gamma exposure analysis.',
+        text: 'OrderflowV2 (by Senzoukria) is a professional desktop platform for orderflow analysis — footprint charts with broker-side session volume, delta, imbalance and absorption detection for futures and crypto traders.',
       },
     },
     {
       '@type': 'Question',
-      name: 'Which brokers are supported?',
+      name: 'How do I connect my data feed?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Senzoukria supports Rithmic, Interactive Brokers, CQG, and AMP Futures.',
+        text: 'Three ways. NinjaTrader Bridge: install our NinjaScript indicator if you already trade through NinjaTrader (Apex / Rithmic). Rithmic direct: sign in with your R | Protocol credentials. Crypto: live trades and orderbook from Binance, Bybit and Deribit work without any broker account.',
       },
     },
     {
@@ -54,7 +54,7 @@ const faqPageSchema = {
       name: 'Do I need coding knowledge?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'No, Senzoukria provides a visual point-and-click interface that requires no coding knowledge.',
+        text: 'No. Point-and-click interface throughout. The only setup step is copying one NinjaScript file if you go via the NinjaTrader Bridge — a guided walkthrough lives at /download.',
       },
     },
     {
@@ -62,7 +62,7 @@ const faqPageSchema = {
       name: 'Is there a free trial?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes, Senzoukria offers a free trial with no credit card required.',
+        text: 'Yes. A public preview runs until 17 June 2026 — full PRO access, no credit card required. After that, $29/month if you want to keep it.',
       },
     },
     {
@@ -70,7 +70,7 @@ const faqPageSchema = {
       name: 'What markets are covered?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Senzoukria covers futures markets (ES, NQ, CL, GC) and crypto markets (BTC, ETH via Binance, Bybit, and Deribit).',
+        text: 'Futures: ES, NQ, MNQ, MES, MGC, GC and other CME / CBOT / NYMEX / COMEX symbols via NinjaTrader Bridge or Rithmic direct. Crypto: BTC, ETH and other major pairs via Binance, Bybit and Deribit (options included).',
       },
     },
   ],
