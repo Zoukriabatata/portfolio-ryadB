@@ -2,52 +2,28 @@
 
 const BROKERS = [
   {
-    name: 'Rithmic',
-    initial: 'R',
-    color: '#00c853',
-    features: ['Low Latency', 'API', 'Futures'],
-    desc: 'Industry-leading high-performance trading infrastructure with ultra-low latency execution.',
-    highlighted: true,
-  },
-  {
-    name: 'Interactive Brokers',
-    initial: 'IB',
-    color: '#e31937',
-    features: ['Futures', 'Options', 'Stocks'],
-    desc: 'Professional-grade broker with direct market access, low commissions and global coverage.',
-    highlighted: true,
-  },
-  {
-    name: 'CQG',
-    initial: 'CQ',
-    color: '#1976d2',
-    features: ['Data Feed', 'Futures', 'Professional'],
-    desc: 'Premium market data and order routing platform trusted by professional traders worldwide.',
-    highlighted: true,
-  },
-  {
-    name: 'AMP Futures',
-    initial: 'AMP',
-    color: '#7c3aed',
-    features: ['Futures', 'Low Cost', 'Multi-Platform'],
-    desc: 'Ultra-low commission futures broker with access to 30+ trading platforms.',
-    highlighted: false,
-  },
-  {
-    name: 'NinjaTrader',
+    name: 'NinjaTrader Bridge',
     initial: 'NT',
     color: '#ff6d00',
-    features: ['Platform', 'Futures', 'Orderflow'],
-    desc: 'Advanced trading platform with built-in market analysis and low-cost futures trading.',
-    highlighted: false,
+    features: ['Futures', 'Apex / Rithmic', 'Recommended'],
+    desc: 'Already trade with NinjaTrader? Install our NinjaScript indicator (one F5) and OrderflowV2 reads your existing data feed locally — no extra broker credentials needed.',
+    highlighted: true,
   },
   {
-    name: 'Tradovate',
-    initial: 'TV',
-    color: '#06b6d4',
-    features: ['Cloud', 'Futures', 'Mobile'],
-    desc: 'Modern cloud-based futures platform with competitive pricing and mobile-first design.',
-    highlighted: false,
+    name: 'Rithmic direct',
+    initial: 'R',
+    color: '#00c853',
+    features: ['Futures', 'Low Latency', 'Apex'],
+    desc: 'Sign in with your Rithmic / Apex credentials directly inside the app. No NinjaTrader required — the desktop talks to the R | Protocol gateway natively.',
+    highlighted: true,
+  },
+  {
+    name: 'Crypto',
+    initial: '₿',
+    color: '#7c3aed',
+    features: ['Binance', 'Bybit', 'Deribit'],
+    desc: 'Public market data on Binance, Bybit and Deribit — no account, no API key required. Live trades, orderbook depth and options data flow in seconds after launch.',
+    highlighted: true,
   },
 ];
 
@@ -75,14 +51,16 @@ export default function BrokersSection() {
             data-animate="up"
             className="text-3xl md:text-4xl font-bold text-white tracking-tight"
           >
-            Compatible with Top Brokers
+            Three ways to plug in
           </h2>
           <p
             data-animate="up"
             data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
+            className="mt-4 text-sm md:text-base text-white/50 max-w-xl mx-auto"
           >
-            Connect your broker and trade with institutional-grade orderflow tools
+            Pick the path that matches how you already trade. NinjaTrader users keep their setup,
+            Apex / Rithmic traders connect direct, and crypto works out of the box without
+            any broker.
           </p>
         </div>
 
@@ -171,13 +149,13 @@ export default function BrokersSection() {
           className="mt-12 text-center"
         >
           <p className="text-[13px] text-white/35 mb-4">
-            Connect in one click — no API key configuration needed
+            Mix and match — switch between sources inside the app at any time
           </p>
           <a
             href="/auth/register"
             className="landing-btn-primary"
           >
-            Connect Your Broker
+            Get started — free preview until 17 June
           </a>
         </div>
       </div>

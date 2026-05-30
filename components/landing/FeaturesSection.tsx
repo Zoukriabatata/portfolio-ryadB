@@ -4,10 +4,7 @@ import { memo, useRef } from 'react';
 import {
   LiveIcon,
   FootprintIcon,
-  HeatmapIcon,
-  GexIcon,
-  VolatilityIcon,
-  ReplayIcon,
+  DataFeedIcon,
 } from '@/components/ui/Icons';
 
 type FeatureStatus = 'live' | 'beta' | 'soon';
@@ -20,40 +17,22 @@ const STATUS_STYLES: Record<FeatureStatus, { label: string; color: string; bg: s
 
 const FEATURES = [
   {
-    Icon: LiveIcon,
-    title: 'Live Trading Dashboard',
-    desc: 'See every trade and orderbook update the moment it happens. Real-time feeds from Binance, Bybit & Deribit.',
-    status: 'live' as FeatureStatus,
-  },
-  {
     Icon: FootprintIcon,
     title: 'Footprint Charts',
-    desc: 'Spot aggressive buyers and sellers at every price level. Delta, cumulative delta, and imbalance detection.',
-    status: 'beta' as FeatureStatus,
-  },
-  {
-    Icon: HeatmapIcon,
-    title: 'Liquidity Heatmap',
-    desc: 'Visualize where the big orders sit. WebGL-rendered orderbook depth with passive order and spoof detection.',
+    desc: 'See every aggressive buyer and seller at every price level. Delta, cumulative delta, imbalance detection — broker session volume side-by-side with your own.',
     status: 'live' as FeatureStatus,
   },
   {
-    Icon: GexIcon,
-    title: 'GEX Dashboard',
-    desc: 'Know where dealers are hedging. Track gamma exposure across strikes to anticipate key support and resistance.',
-    status: 'beta' as FeatureStatus,
+    Icon: DataFeedIcon,
+    title: 'Multi-broker data',
+    desc: 'NinjaTrader Bridge for Apex & Rithmic accounts. Rithmic direct if you have credentials. Crypto via Binance, Bybit, Deribit — no broker needed.',
+    status: 'live' as FeatureStatus,
   },
   {
-    Icon: VolatilityIcon,
-    title: 'IV Surface',
-    desc: 'Read the options market like a quant. Volatility smile, term structure & real-time Greeks from Deribit.',
-    status: 'beta' as FeatureStatus,
-  },
-  {
-    Icon: ReplayIcon,
-    title: 'Session Replay',
-    desc: 'Review any session frame-by-frame. Study past setups and sharpen your edge with full order flow playback.',
-    status: 'soon' as FeatureStatus,
+    Icon: LiveIcon,
+    title: 'Live trading dashboard',
+    desc: 'Every trade and orderbook update the moment it happens. Sub-second latency on the bridge, real-time WebSocket feeds on crypto.',
+    status: 'live' as FeatureStatus,
   },
 ];
 

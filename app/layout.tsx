@@ -17,7 +17,7 @@ const SITE_URL =
   'https://orderflow-v2.vercel.app';
 const SITE_NAME = 'Senzoukria';
 const DEFAULT_DESCRIPTION =
-  'Institutional-grade orderflow analytics platform. Real-time heatmaps, footprint charts, delta profiles and gamma exposure. Connect Rithmic, Interactive Brokers, CQG or AMP.';
+  'Professional orderflow desktop platform — footprint charts with broker-side daily volume, delta, imbalance and absorption detection. Connect via NinjaTrader Bridge (Apex / Rithmic), Rithmic direct, or crypto (Binance / Bybit / Deribit).';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -29,18 +29,17 @@ export const metadata: Metadata = {
   keywords: [
     'order flow', 'order flow trading', 'order flow software', 'order flow platform',
     'footprint chart', 'footprint chart software', 'volume footprint',
-    'liquidity heatmap', 'orderbook heatmap', 'bookmap alternative',
-    'gamma exposure', 'GEX', 'GEX dashboard', 'options gamma exposure',
-    'volatility surface', 'implied volatility', 'IV skew',
     'volume profile', 'market profile', 'TPO chart',
     'cumulative volume delta', 'CVD indicator', 'delta profile',
     'DOM trading', 'depth of market', 'level 2 data',
     'trading platform', 'futures trading platform', 'crypto trading tools',
-    'Rithmic', 'Interactive Brokers', 'CQG', 'AMP Futures',
+    'NinjaTrader bridge', 'NinjaTrader orderflow', 'NinjaScript indicator',
+    'Apex Trader Funding orderflow', 'Apex footprint chart',
+    'Rithmic', 'Rithmic R Protocol', 'Rithmic API orderflow',
     'Binance futures', 'Bybit', 'Deribit', 'crypto derivatives',
-    'ATAS alternative', 'Sierra Chart alternative', 'Jigsaw alternative',
+    'ATAS alternative', 'Sierra Chart alternative', 'Bookmap alternative', 'Jigsaw alternative',
     'market microstructure', 'tape reading', 'order book analysis',
-    'NQ futures', 'ES futures', 'MNQ', 'MES',
+    'NQ futures', 'ES futures', 'MNQ', 'MES', 'MGC', 'GC',
   ],
   authors: [{ name: SITE_NAME }],
   creator: SITE_NAME,
