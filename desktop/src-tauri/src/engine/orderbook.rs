@@ -63,12 +63,7 @@ impl OrderbookEngine {
         self.last_sequence
     }
 
-    pub fn apply_snapshot(
-        &mut self,
-        bids: Vec<(f64, f64)>,
-        asks: Vec<(f64, f64)>,
-        sequence: u64,
-    ) {
+    pub fn apply_snapshot(&mut self, bids: Vec<(f64, f64)>, asks: Vec<(f64, f64)>, sequence: u64) {
         self.bids.clear();
         self.asks.clear();
         for (p, q) in bids {
@@ -96,10 +91,7 @@ impl OrderbookEngine {
         }
         if let Some(last) = self.last_sequence {
             if sequence < last {
-                return Err(format!(
-                    "sequence rewind: last={} got={}",
-                    last, sequence
-                ));
+                return Err(format!("sequence rewind: last={} got={}", last, sequence));
             }
         }
         for (p, q) in bids {

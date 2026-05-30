@@ -52,6 +52,7 @@ pub fn trade_to_tick(d: &BybitTradeData) -> Option<Tick> {
         // merge BTCUSDT bars across exchanges.
         symbol: format!("{}.BYBIT", d.symbol),
         source: SOURCE_NAME.to_string(),
+        seq: 0,
     })
 }
 

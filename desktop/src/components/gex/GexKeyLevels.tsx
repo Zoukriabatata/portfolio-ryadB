@@ -51,7 +51,7 @@ export function GexKeyLevels() {
         </span>
       </div>
       <div className="gex-key-levels">
-        <div className="gex-kpi-card">
+        <div className="gex-kpi-card gex-kpi-card-amber">
           <div className="gex-kpi-label">Zero Gamma</div>
           <div className="gex-kpi-value">
             {snapshot.zeroGamma !== null
@@ -62,7 +62,7 @@ export function GexKeyLevels() {
             {fmtDistance(snapshot.zeroGamma, snapshot.spot)}
           </div>
         </div>
-        <div className="gex-kpi-card">
+        <div className="gex-kpi-card gex-kpi-card-green">
           <div className="gex-kpi-label">Call Wall</div>
           <div className="gex-kpi-value">
             {snapshot.callWall !== null
@@ -73,7 +73,7 @@ export function GexKeyLevels() {
             {fmtDistance(snapshot.callWall, snapshot.spot)}
           </div>
         </div>
-        <div className="gex-kpi-card">
+        <div className="gex-kpi-card gex-kpi-card-red">
           <div className="gex-kpi-label">Put Wall</div>
           <div className="gex-kpi-value">
             {snapshot.putWall !== null

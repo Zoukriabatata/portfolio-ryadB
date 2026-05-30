@@ -1,0 +1,570 @@
+/* ============================================================
+   JOURNAL — Senzoukria modern UI polish.
+   Owns: tab bar with sliding indicator, stat cards, calendar
+   cell animations, list/card stagger reveals, modal/drawer
+   eased transitions. All color tokens are tied to the Senzoukria
+   palette (#7ed321 primary, white/grey neutrals — never blue).
+   ============================================================ */
+
+/* --- Shared easing + timing tokens ------------------------- */
+.journal-route {
+  --ease-out-quart: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo:  cubic-bezier(0.19, 1, 0.22, 1);
+  --t-fast:   140ms;
+  --t-base:   240ms;
+  --t-slow:   420ms;
+  --senz:        #7ed321;
+  --senz-soft:   rgba(126, 211, 33, 0.10);
+  --senz-mid:    rgba(126, 211, 33, 0.22);
+  --senz-strong: rgba(126, 211, 33, 0.45);
+}
+
+/* ============================================================
+   TAB BAR — sliding indicator + spring-in
+   ============================================================ */
+.journal-tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 24px;
+  border-bottom: 1px solid rgba(160, 160, 160, 0.12);
+  flex-shrink: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.012),
+    transparent 80%
+  );
+}
+
+.journal-tab {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  position: relative;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: rgba(255, 255, 255, 0.62) !important;
+  background: transparent !important;
+  border: 0 !important;
+  cursor: pointer;
+  transition:
+    color var(--t-base) var(--ease-out-quart),
+    background-color var(--t-base) var(--ease-out-quart),
+    transform var(--t-fast) var(--ease-out-quart);
+}
+
+.journal-tab:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.journal-tab[aria-disabled="true"] {
+  color: rgba(255, 255, 255, 0.22) !important;
+  cursor: not-allowed;
+}
+.journal-tab[aria-disabled="true"]:hover {
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.journal-tab.is-active {
+  /* Texte blanc + fond gris translucide. Le seul indicateur vert
+     est l'underline ::after — plus aucune teinte au texte qui
+     pourrait paraître bleue/cyan sous compression écran. */
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+.journal-tab.is-active:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: #ffffff !important;
+}
+.journal-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -9px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--senz);
+  box-shadow: 0 0 12px rgba(126, 211, 33, 0.55);
+  animation: jTabUnderlineIn 360ms var(--ease-out-quart);
+}
+
+/* Block any system blue accent paint on click/active for tabs. */
+.journal-tab:active,
+.journal-tab:focus,
+.journal-tab:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+.journal-tab.is-active:active,
+.journal-tab.is-active:focus,
+.journal-tab.is-active:focus-visible {
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #ffffff !important;
+}
+
+@keyframes jTabUnderlineIn {
+  from { transform: scaleX(0.2); opacity: 0; }
+  to   { transform: scaleX(1);   opacity: 1; }
+}
+
+.journal-tab .soon-pill {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================================
+   STAT CARDS — used in TradesTab + CalendarNav
+   ============================================================ */
+.j-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  animation: jFadeUp 420ms var(--ease-out-quart) both;
+}
+
+.j-stat {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.030),
+    rgba(255, 255, 255, 0.012)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  transition:
+    border-color var(--t-base) var(--ease-out-quart),
+    transform var(--t-base) var(--ease-out-quart),
+    box-shadow var(--t-base) var(--ease-out-quart);
+}
+.j-stat::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 0% 0%,
+    rgba(126, 211, 33, 0.08),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity var(--t-base) ease;
+  pointer-events: none;
+}
+.j-stat:hover {
+  border-color: var(--senz-mid);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(126, 211, 33, 0.10),
+    0 8px 24px -16px rgba(126, 211, 33, 0.40);
+}
+.j-stat:hover::before { opacity: 1; }
+
+.j-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+.j-stat-value {
+  margin-top: 6px;
+  font-family: var(--font-mono, ui-monospace);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+.j-stat-value.is-pos { color: var(--senz); }
+.j-stat-value.is-neg { color: #ffffff; }
+.j-stat-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.40);
+}
+
+/* ============================================================
+   PRIMARY GREEN BUTTON — used for "+ New Trade", "+ New Note"
+   ============================================================ */
+.j-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  background: var(--senz);
+  color: #0a0a0a;
+  border: none;
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--ease-out-quart),
+    box-shadow var(--t-base) var(--ease-out-quart),
+    background var(--t-base) ease;
+  box-shadow:
+    0 0 0 1px rgba(126, 211, 33, 0.65),
+    0 4px 14px -4px rgba(126, 211, 33, 0.55);
+}
+.j-btn-primary:hover {
+  transform: translateY(-1px);
+  background: #91e034;
+  box-shadow:
+    0 0 0 1px rgba(126, 211, 33, 0.85),
+    0 8px 22px -6px rgba(126, 211, 33, 0.65);
+}
+.j-btn-primary:active {
+  transform: translateY(0) scale(0.98);
+  background: #7ed321;
+}
+.j-btn-primary:focus,
+.j-btn-primary:focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 0 0 1px rgba(126, 211, 33, 0.85),
+    0 4px 14px -4px rgba(126, 211, 33, 0.55) !important;
+}
+
+.j-btn-ghost {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78) !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  cursor: pointer;
+  transition:
+    color var(--t-base) ease,
+    border-color var(--t-base) ease,
+    background var(--t-base) ease,
+    transform var(--t-fast) ease;
+}
+.j-btn-ghost:hover {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+.j-btn-ghost:active {
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.10) !important;
+  border-color: rgba(255, 255, 255, 0.32) !important;
+}
+.j-btn-ghost:focus,
+.j-btn-ghost:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+/* ============================================================
+   CALENDAR GRID — animated cells, gradient hover, smooth select
+   ============================================================ */
+.j-cal-wrapper {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid rgba(160, 160, 160, 0.12);
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(126, 211, 33, 0.04),
+      transparent 50%
+    ),
+    #0a0a0a;
+  overflow: hidden;
+  animation: jFadeUp 360ms var(--ease-out-quart) both;
+}
+
+.j-cal-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: rgba(255, 255, 255, 0.022);
+  border-bottom: 1px solid rgba(160, 160, 160, 0.10);
+}
+.j-cal-headers > div {
+  padding: 10px 0;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.j-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.j-cal-cell {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  position: relative;
+  height: 96px;
+  padding: 8px 10px;
+  text-align: left;
+  background: transparent !important;
+  border: 0;
+  border-top: 1px solid rgba(160, 160, 160, 0.08);
+  border-right: 1px solid rgba(160, 160, 160, 0.08);
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--t-base) var(--ease-out-quart),
+    transform var(--t-fast) var(--ease-out-quart);
+  overflow: hidden;
+}
+.j-cal-cell:nth-child(7n) { border-right: 0; }
+
+.j-cal-cell.is-empty {
+  cursor: default;
+  background: rgba(255, 255, 255, 0.012) !important;
+}
+
+.j-cal-cell.has-trades:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  transform: translateY(-1px);
+}
+.j-cal-cell.has-trades:hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.j-cal-cell:focus,
+.j-cal-cell:focus-visible,
+.j-cal-cell:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.j-cal-cell.is-selected {
+  outline: 2px solid var(--senz);
+  outline-offset: -2px;
+  z-index: 1;
+  animation: jCellPulse 600ms var(--ease-out-quart);
+}
+
+@keyframes jCellPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(126, 211, 33, 0.55); }
+  100% { box-shadow: 0 0 0 12px rgba(126, 211, 33, 0); }
+}
+
+.j-cal-day {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: -0.01em;
+}
+.j-cal-day.is-today {
+  color: var(--senz);
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(126, 211, 33, 0.35);
+}
+
+.j-cal-pnl {
+  margin-top: 6px;
+  font-family: var(--font-mono, ui-monospace);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.j-cal-pnl.is-pos { color: var(--senz); }
+.j-cal-pnl.is-neg { color: #ffffff; }
+.j-cal-count {
+  margin-top: 1px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.40);
+}
+
+/* ============================================================
+   ROUTE-LEVEL ANIMATIONS — fade + lift on tab switch
+   ============================================================ */
+.j-route-pane {
+  animation: jPaneIn 320ms var(--ease-out-quart) both;
+}
+@keyframes jPaneIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes jFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes jFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* List stagger — used for daily-note cards + day-summary trades */
+.j-stagger > * { opacity: 0; animation: jFadeUp 380ms var(--ease-out-quart) forwards; }
+.j-stagger > *:nth-child(1)  { animation-delay:  20ms; }
+.j-stagger > *:nth-child(2)  { animation-delay:  60ms; }
+.j-stagger > *:nth-child(3)  { animation-delay: 100ms; }
+.j-stagger > *:nth-child(4)  { animation-delay: 140ms; }
+.j-stagger > *:nth-child(5)  { animation-delay: 180ms; }
+.j-stagger > *:nth-child(6)  { animation-delay: 220ms; }
+.j-stagger > *:nth-child(7)  { animation-delay: 260ms; }
+.j-stagger > *:nth-child(8)  { animation-delay: 300ms; }
+.j-stagger > *:nth-child(n+9){ animation-delay: 340ms; }
+
+/* ============================================================
+   EMPTY STATES
+   ============================================================ */
+.j-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 56px 24px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.012);
+  text-align: center;
+}
+.j-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(126, 211, 33, 0.08);
+  color: var(--senz);
+  margin-bottom: 8px;
+}
+.j-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: -0.005em;
+}
+.j-empty-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ============================================================
+   MONTH NAV PILL — used in CalendarNav + DailyNotesCalendarNav
+   ============================================================ */
+.j-month-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.j-month-arrow {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: transparent !important;
+  border: 0 !important;
+  /* Bright enough to be clearly visible at rest on the dark pill bg. */
+  color: rgba(255, 255, 255, 0.85) !important;
+  cursor: pointer;
+  transition: color var(--t-base) ease, background var(--t-base) ease, transform var(--t-fast) ease;
+}
+/* Inner SVG inherits color but force stroke explicitly so any cascade
+   override (Tailwind preflight, WebView2, etc.) cannot blank it out. */
+.j-month-arrow svg {
+  color: inherit;
+  stroke: currentColor;
+  display: block;
+  pointer-events: none;
+}
+.j-month-arrow:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.j-month-arrow:active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  transform: scale(0.94);
+}
+.j-month-arrow:focus,
+.j-month-arrow:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.j-month-label {
+  min-width: 160px;
+  text-align: center;
+  padding: 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+/* ============================================================
+   SKELETON shimmer
+   ============================================================ */
+.j-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.j-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  animation: jShimmer 1.6s infinite;
+  transform: translateX(-100%);
+}
+@keyframes jShimmer {
+  to { transform: translateX(100%); }
+}
+
+/* Reduce-motion users get instant transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .journal-route * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

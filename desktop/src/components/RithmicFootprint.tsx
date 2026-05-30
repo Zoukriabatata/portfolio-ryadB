@@ -42,18 +42,11 @@ import { useAlertWatcher } from "../hooks/useAlertWatcher";
 import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvasRenderer";
 import { IndicatorsRunner } from "../lib/footprint/indicatorsAsync";
 import { findSymbol } from "../lib/footprint/symbols";
+import { SimTradePanel } from "./sim/SimTradePanel";
+import { useSimTicker } from "../lib/sim/useSimTicker";
+import { useSimPositionOverlay } from "../lib/sim/useSimPositionOverlay";
 import "./RithmicFootprint.css";
 import "./footprint/CryptoFootprintNav.css";
-
-// Mirror of TickReplayProbeResult on the Rust side (history_probe.rs).
-// Surface enough for the UI badge — frames seen, Apex rp_codes, latency.
-type TickProbeResult = {
-  framesSeen: number;
-  barsWithData: number;
-  rpCodes: string[];
-  elapsedMs: number;
-  error: string | null;
-};
 
 // Mirror of RithmicStatus on the Rust side (camelCase via serde rename).
 type RithmicStatus = {
@@ -112,15 +105,17 @@ type Phase =
 // history when new bars arrive. Sub-minute TFs are live-only on the
 // backend (no TickBarReplay below 1m) so they keep a modest cap.
 const MAX_BARS_BY_TF: Record<SupportedTimeframe, number> = {
-  "15s": 200,
-  "30s": 200,
-  "1m":  1500,
-  "3m":  500,
-  "5m":  300,
-  "15m": 120,
-  "1h":  48,
-  "4h":  100,  // ~14 days × 6 bars/day + buffer
-  "1d":  200,  // ~180 days + buffer (futures contract life)
+  "15s":  200,
+  "30s":  200,
+  "1m":   1500,
+  "3m":   500,
+  "5m":   300,
+  "15m":  120,
+  "1h":   48,
+  // 100T is bridge-only; on the Rithmic view it's never selectable
+  // (every Rithmic tick has seq=0 so they would all collapse into a
+  // single bar). Cap matches the densest time TF.
+  "100t": 1500,
 };
 // Bars requested from the live engine on subscribe. When HISTORY_PLANT
 // is permissioned we'd keep this small (50) because the replay backfills
@@ -135,7 +130,7 @@ const SEED_BARS = 2000;
 // HISTORY_PLANT round-trip. Order = most-used first; Apex enforces a
 // single concurrent HISTORY_PLANT session per user so they run
 // serially through `pendingHistoryRef`.
-const PRELOAD_TFS: SupportedTimeframe[] = ["1m", "3m", "5m", "15m", "1h", "4h", "1d"];
+const PRELOAD_TFS: SupportedTimeframe[] = ["1m", "3m", "5m", "15m", "1h"];
 
 /** Timezone cycle order for the TZ toggle button. Local first
  *  (matches the user's natural intuition), UTC second for those
@@ -236,8 +231,6 @@ const TF_TO_SECONDS: Record<string, number> = {
   "5m": 300,
   "15m": 900,
   "1h": 3600,
-  "4h": 14400,
-  "1d": 86400,
 };
 
 /** Fill any gap in `tfMap` between local midnight and the first
@@ -269,70 +262,75 @@ function ensureMidnightContinuity(
   // into memory.
   const maxFillSec = 24 * 60 * 60;
 
-  // Walk the existing bars once to find:
-  //   a) the first bar with bucketTsNs >= localMidnightSec
-  //   b) the last bar with bucketTsNs < localMidnightSec (anchor)
-  let firstAtOrAfterMidnight: FootprintBar | null = null;
-  let lastBeforeMidnight: FootprintBar | null = null;
+  // Walk the existing bars once to collect:
+  //   • all post-midnight bars (sorted later), used to anchor synth
+  //     gap-fills to the LAST KNOWN price before each missing slot
+  //   • the most-recent pre-midnight bar (anchor for the leading gap
+  //     when no post-midnight bar exists yet)
   const midnightNs = localMidnightSec * 1_000_000_000;
+  let lastBeforeMidnight: FootprintBar | null = null;
+  const postMidnight: FootprintBar[] = [];
   for (const bar of tfMap.values()) {
     if (bar.bucketTsNs >= midnightNs) {
-      if (
-        !firstAtOrAfterMidnight ||
-        bar.bucketTsNs < firstAtOrAfterMidnight.bucketTsNs
-      ) {
-        firstAtOrAfterMidnight = bar;
-      }
-    } else {
-      if (
-        !lastBeforeMidnight ||
-        bar.bucketTsNs > lastBeforeMidnight.bucketTsNs
-      ) {
-        lastBeforeMidnight = bar;
-      }
+      postMidnight.push(bar);
+    } else if (
+      !lastBeforeMidnight ||
+      bar.bucketTsNs > lastBeforeMidnight.bucketTsNs
+    ) {
+      lastBeforeMidnight = bar;
     }
   }
+  postMidnight.sort((a, b) => a.bucketTsNs - b.bucketTsNs);
 
   // No reference at all — caller hasn't loaded anything yet.
-  if (!firstAtOrAfterMidnight && !lastBeforeMidnight) return 0;
+  if (postMidnight.length === 0 && !lastBeforeMidnight) return 0;
 
-  // Anchor price: prefer the pre-midnight close (smoother
-  // visual transition from yesterday's session), else the first
-  // post-midnight bar's open.
-  const anchorPrice = lastBeforeMidnight
-    ? lastBeforeMidnight.close
-    : firstAtOrAfterMidnight!.open;
+  // End of fill = the latest known bar OR wall-clock now, whichever
+  // is greater. Capped at midnight + 24h so a misconfigured anchor
+  // can't fabricate days of synth bars.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const lastBarSec =
+    postMidnight.length > 0
+      ? Math.floor(
+          postMidnight[postMidnight.length - 1].bucketTsNs / 1_000_000_000,
+        )
+      : localMidnightSec;
+  let endSec = Math.max(lastBarSec, nowSec);
+  if (endSec - localMidnightSec > maxFillSec) {
+    endSec = localMidnightSec + maxFillSec;
+  }
+  if (endSec <= localMidnightSec) return 0;
 
-  // Determine the END of the synth range:
-  //   • If a bar exists at/after midnight → fill UP TO that bar (it
-  //     keeps its real data).
-  //   • Else → fill up to "now" using the wall clock (caller passes
-  //     localMidnightSec computed from `new Date()`, so we can't
-  //     access it here — instead, just synth one bar at midnight
-  //     and let the live listener grow it).
-  const endSec = firstAtOrAfterMidnight
-    ? Math.floor(firstAtOrAfterMidnight.bucketTsNs / 1_000_000_000)
-    : localMidnightSec + barPeriodSec; // single placeholder bar
-
-  // Cap the fill window so a misconfigured midnight (e.g. several
-  // days in the past from a clock skew) can't trigger an
-  // unbounded loop.
-  const fillSpan = endSec - localMidnightSec;
-  if (fillSpan <= 0) return 0;
-  if (fillSpan > maxFillSec) return 0;
-
+  // Walk every TF slot from midnight to `endSec`. For each missing
+  // slot, synthesize an empty bar anchored at the most recent close
+  // we know about (pre-midnight close → first post-midnight open →
+  // running close as we walk). This keeps the time axis continuous
+  // when Apex denies HISTORY_PLANT and only the live-streamed
+  // afternoon bars made it into the cache (e.g. user opened the app
+  // at 06:35, missing 00:00→06:35).
+  let runningAnchor: number =
+    lastBeforeMidnight?.close ?? postMidnight[0]?.open ?? 0;
+  if (runningAnchor === 0 && postMidnight.length > 0) {
+    runningAnchor = postMidnight[0].open;
+  }
   let count = 0;
   for (let t = localMidnightSec; t < endSec; t += barPeriodSec) {
     const ns = t * 1_000_000_000;
-    if (tfMap.has(ns)) continue;
+    const existing = tfMap.get(ns);
+    if (existing) {
+      // Real bar lives here — advance the anchor to its close so the
+      // next synth gap picks up from the right price.
+      runningAnchor = existing.close;
+      continue;
+    }
     tfMap.set(ns, {
       symbol,
       timeframe: tf,
       bucketTsNs: ns,
-      open: anchorPrice,
-      high: anchorPrice,
-      low: anchorPrice,
-      close: anchorPrice,
+      open: runningAnchor,
+      high: runningAnchor,
+      low: runningAnchor,
+      close: runningAnchor,
       totalVolume: 0,
       totalDelta: 0,
       tradeCount: 0,
@@ -554,6 +552,10 @@ function FootprintLive({
   const [symbol, setSymbol] = useState("MNQM6");
   const [exchange, setExchange] = useState("CME");
   const [timeframe, setTimeframe] = useState<SupportedTimeframe>("1m");
+  const [simPanelOpen, setSimPanelOpen] = useState(true);
+
+  // Feed the sim trading store with live closes from footprint-update.
+  useSimTicker();
   const [bars, setBars] = useState<Map<number, FootprintBar>>(new Map());
   // Per-TF bar cache. Lets us preload every TF in the background once
   // on subscribe and serve TF switches from memory (no extra
@@ -609,6 +611,12 @@ function FootprintLive({
   const desiredTfRef = useRef<SupportedTimeframe>("1m");
 
   const fullSymbol = useMemo(() => `${symbol}.${exchange}`, [symbol, exchange]);
+
+  // Mirror the sim trading position into the chart's TradeDrawing
+  // layer so the entry/SL/TP show up as draggable lines like a manual
+  // LONG/SHORT setup. Mounted at the route level — works regardless
+  // of whether the sim panel is collapsed.
+  useSimPositionOverlay(fullSymbol);
 
   // Derive the price decimals from the catalog tick hint. Auto mode
   // in the renderer falls back to this prop; numeric override in
@@ -689,6 +697,10 @@ function FootprintLive({
       showOhlcHeader,
       priceDecimalsOverride:
         priceDecimalsMode === "auto" ? null : parseInt(priceDecimalsMode, 10),
+      // Authoritative tick grid for crosshair snap + row layout.
+      // Comes from the symbol catalog (MNQ=0.25, etc.); falls back
+      // to the inferred value when the symbol isn't found.
+      tickSizeOverride: findSymbol("rithmic", symbol)?.tickSizeHint ?? null,
       volumeFormat,
       magnetMode,
       timezone,
@@ -714,6 +726,7 @@ function FootprintLive({
       crosshairWidth,
     }),
     [
+      symbol,
       showGrid,
       showCrosshair,
       showPocSession,
@@ -782,6 +795,21 @@ function FootprintLive({
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     let cancelled = false;
+    // rAF-coalesced flush of the active TF's bar map. A fast-ticking
+    // symbol (MNQ on a busy print) emits 10-30 footprint-update events
+    // per second; without coalescing each one forced `setBars(new Map)`
+    // → React re-render → renderer re-paint, which collapsed the FPS
+    // from 60 to ~30. We instead schedule a single setBars per frame
+    // and let multiple ticks within the same rAF window share it.
+    let rafScheduled = false;
+    const flushBars = () => {
+      rafScheduled = false;
+      const tf = currentTfRef.current;
+      const tfMap = barsCacheRef.current.get(tf);
+      if (tfMap) {
+        setBars(new Map(tfMap));
+      }
+    };
     // Live bars accumulate in `barsCacheRef.current` (RAM only) for the
     // current session. The persisted localStorage cache is reserved for
     // RESULTS OF REAL APEX HISTORY_PLANT FETCHES, written from
@@ -809,10 +837,13 @@ function FootprintLive({
           tfMap.delete(k);
         }
       }
-      // Mirror to render state only when the bar belongs to the
-      // currently displayed TF — other TFs stay warm in the cache.
-      if (tf === currentTfRef.current) {
-        setBars(new Map(tfMap));
+      // Schedule a rAF-bounded flush instead of firing setBars per
+      // tick. Multiple ticks landing inside the same frame collapse
+      // into one render — caps update rate at the display refresh
+      // (60-144 Hz) regardless of incoming tick rate.
+      if (tf === currentTfRef.current && !rafScheduled) {
+        rafScheduled = true;
+        requestAnimationFrame(flushBars);
       }
     }).then((fn) => {
       if (cancelled) {
@@ -1172,8 +1203,6 @@ function FootprintLive({
         "5m":  5,
         "15m": 15,
         "1h":  60,
-        "4h":  240,
-        "1d":  1440,
       };
       const TF_USES_TICK_REPLAY: Record<string, boolean> = {
         "1m":  true,
@@ -1181,12 +1210,6 @@ function FootprintLive({
         "5m":  true,
         "15m": true,
         "1h":  true,
-        // 4H / 1D — OHLCV only via TimeBarReplay (TickBarReplay would
-        // need to drain hundreds of thousands of ticks per bar; way
-        // beyond Apex's per-replay cap). The renderer falls back to
-        // outline candles for these (empty levels).
-        "4h":  false,
-        "1d":  false,
       };
       const barMinutes = TF_TO_MIN[tf];
       const useTickReplay = TF_USES_TICK_REPLAY[tf] ?? false;
@@ -1280,8 +1303,6 @@ function FootprintLive({
         "5m":  24,
         "15m": 24,
         "1h":  24,
-        "4h":  14 * 24,
-        "1d":  180 * 24,
       };
       const hoursBack = HOURS_BACK_BY_TF[tf] ?? 24;
       console.info(
@@ -1354,12 +1375,20 @@ function FootprintLive({
         tradeCount: number;
         levelsJson: string;
       };
+      // Hoisted fallback for the Apex-empty branch. When the SQLite
+      // probe finds partial today bars (< 80% coverage so we don't
+      // serve them as primary) AND Apex later returns 0 frames
+      // (rp_code=13 / permissions denied / outage), we'd rather paint
+      // a gappy chart than a blank one. The fall-through path below
+      // populates this with the today slice of the SQLite probe
+      // before deferring to Apex.
+      let sqlitePartialTodayFallback: FootprintBar[] = [];
       try {
         const sqliteRows = await invoke<CachedBar[]>("cache_query", {
           args: { fullSymbol, timeframe: tf, hoursBack },
         });
-        if (sqliteRows.length > 0) {
-          const fromCache: FootprintBar[] = sqliteRows.map((row) => ({
+        const sortedCache: FootprintBar[] = sqliteRows
+          .map((row) => ({
             symbol: row.symbol,
             timeframe: row.timeframe,
             bucketTsNs: row.bucketTsNs,
@@ -1371,16 +1400,66 @@ function FootprintLive({
             totalDelta: row.totalDelta,
             tradeCount: row.tradeCount,
             levels: JSON.parse(row.levelsJson) as PriceLevel[],
-          }));
-          // Sort oldest → newest (same as the HISTORY_PLANT path) so
-          // tail slicing means newest bars and the renderer's bucket
-          // ordering invariant holds.
-          const sortedCache = [...fromCache].sort(
-            (a, b) => Number(BigInt(a.bucketTsNs) - BigInt(b.bucketTsNs)),
+          }))
+          .sort((a, b) => Number(BigInt(a.bucketTsNs) - BigInt(b.bucketTsNs)));
+        // Coverage gate — only short-circuit Apex if the cache actually
+        // spans back to (or before) local midnight. The CacheWriter
+        // only persists bars from the moment the app started, so a
+        // freshly-launched session has 1-3 SQLite rows (the live bars
+        // captured since boot). Treating that as a cache hit would
+        // skip Apex and trigger `ensureMidnightContinuity` to fabricate
+        // hundreds of 0-tick bars from midnight → user sees an empty
+        // chart with synthetic candles. Require the oldest cached bar
+        // to land at or before local midnight before serving from
+        // cache; otherwise fall through to HISTORY_PLANT.
+        const oldestCacheNs = sortedCache[0]?.bucketTsNs;
+        const coversMidnight =
+          oldestCacheNs !== undefined &&
+          BigInt(oldestCacheNs) <= localMidnightNs;
+        // Coverage ratio gate — even when the cache spans back past
+        // midnight, the today-window may be gappy (app was closed
+        // between midnight and now, so the CacheWriter only wrote
+        // bars for the minutes the app was actually running). Without
+        // this check, a session with bars at 00:00-00:12 + 06:35-now
+        // would short-circuit Apex and leave a permanent gap on the
+        // chart. Require ≥ 80% of the expected today bars before
+        // trusting SQLite; otherwise fall through to HISTORY_PLANT
+        // which has the contiguous tick-replay data.
+        const nowSec = Math.floor(Date.now() / 1000);
+        const minutesSinceMidnight = Math.max(0, (nowSec - localMidnightSec) / 60);
+        const expectedTodayBars = Math.max(1, Math.floor(minutesSinceMidnight / barMinutes));
+        const todayCount = sortedCache.filter(
+          (b) => BigInt(b.bucketTsNs) >= localMidnightNs,
+        ).length;
+        // Three cases when coversMidnight is true:
+        //   (a) todayCount === 0  → market closed / outside RTH. Serve
+        //       the cache as the last known session (sqlite-recent).
+        //   (b) todayCount partial → app was closed during part of
+        //       today's session; the cache has internal gaps. Fall
+        //       through to Apex which has contiguous tick-replay data.
+        //   (c) todayCount ≥ 80% of expected → fully usable. Serve.
+        const todayCoverageOk =
+          todayCount === 0 || todayCount >= Math.floor(expectedTodayBars * 0.8);
+        if (sqliteRows.length > 0 && !coversMidnight) {
+          console.info(
+            `rithmic history: SQLite cache has ${sqliteRows.length} rows for ${historyKey} ` +
+            `but oldest bar @${new Date(Number(BigInt(oldestCacheNs!) / 1_000_000n)).toISOString()} ` +
+            `> midnight @${new Date(localMidnight).toISOString()} — falling through to Apex`,
           );
-          // Prefer "today only" when we have bars from today; else
-          // serve the full slice the cache returned so an out-of-RTH
-          // load still shows the most-recent session.
+        }
+        if (sqliteRows.length > 0 && coversMidnight && !todayCoverageOk) {
+          console.info(
+            `rithmic history: SQLite cache covers midnight for ${historyKey} but only has ` +
+            `${todayCount}/${expectedTodayBars} today bars (${Math.floor((todayCount / expectedTodayBars) * 100)}%) — ` +
+            `falling through to Apex for contiguous data`,
+          );
+          // Stash the partial today slice so the Apex-empty branch
+          // can fall back to it instead of leaving the chart blank.
+          sqlitePartialTodayFallback = sortedCache.filter(
+            (b) => BigInt(b.bucketTsNs) >= localMidnightNs,
+          );
+        }
+        if (sqliteRows.length > 0 && coversMidnight && todayCoverageOk) {
           const todayFromCache = sortedCache.filter(
             (b) => BigInt(b.bucketTsNs) >= localMidnightNs,
           );
@@ -1402,7 +1481,15 @@ function FootprintLive({
             cache.set(tf, tfMap);
           }
           for (const bar of toServe) {
-            if (!tfMap.has(bar.bucketTsNs)) tfMap.set(bar.bucketTsNs, bar);
+            // History data is authoritative against synthetic placeholders
+            // (`tradeCount===0 && levels.length===0`) but must not stomp
+            // on live bars that have already received ticks via the
+            // `footprint-update` listener. "Live wins, synthetic loses."
+            const existing = tfMap.get(bar.bucketTsNs);
+            const existingIsSynthetic =
+              !existing ||
+              (existing.tradeCount === 0 && existing.levels.length === 0);
+            if (existingIsSynthetic) tfMap.set(bar.bucketTsNs, bar);
           }
           const histSynthCount = ensureMidnightContinuity(
             tfMap,
@@ -1443,9 +1530,16 @@ function FootprintLive({
         // fall through to HISTORY_PLANT
       }
 
+      // Authoritative tick size from the symbol catalog (MNQ/ES/NQ
+       // = 0.25, CL = 0.01, etc.). Plumbed into both tick-replay and
+       // time-replay so the Rust reconstruction snaps every trade
+       // price to the instrument grid before bucketing — kills
+       // sub-tick noise that would otherwise cause the renderer to
+       // detect a too-small tick from level gaps.
+      const tickSizeHint = findSymbol("rithmic", symbol)?.tickSizeHint;
       try {
         const history = await invoke<FootprintBar[]>(command, {
-          args: { symbol, exchange, hoursBack, barMinutes, timeframe: tf },
+          args: { symbol, exchange, hoursBack, barMinutes, timeframe: tf, tickSize: tickSizeHint },
         });
         const ms = (performance.now() - t0).toFixed(0);
 
@@ -1466,23 +1560,36 @@ function FootprintLive({
           toMerge = todayBars;
           mode = "today";
         } else {
-          // Apex returned nothing for today's window. Consult the
-          // persisted cache as a fallback so an outage / 0-bar
-          // response doesn't blank the chart.
-          const cachedKey = cacheKeyFor(symbol, exchange, tf);
-          const cached = cacheGetFresh(cachedKey);
-          const cachedTodayBars = cached?.bars.filter(
-            (b) => BigInt(b.bucketTsNs) >= localMidnightNs,
-          ) ?? [];
-          if (cachedTodayBars.length > 0) {
-            toMerge = cachedTodayBars;
-            mode = "cache-today";
+          // Apex returned nothing for today's window. Consult both
+          // fallbacks before blanking the chart:
+          //   1. SQLite partial today (from the probe above) — most
+          //      up-to-date, includes live bars the CacheWriter has
+          //      streamed during this session.
+          //   2. Persisted localStorage cache — older snapshot but
+          //      survives across app restarts when SQLite was wiped.
+          // First non-empty wins.
+          if (sqlitePartialTodayFallback.length > 0) {
+            toMerge = sqlitePartialTodayFallback;
+            mode = "sqlite-partial";
             console.info(
-              `rithmic history: Apex returned 0 bars, serving ${cachedTodayBars.length} bars from cache for ${cachedKey}`,
+              `rithmic history: Apex returned 0 bars, serving ${sqlitePartialTodayFallback.length} partial today bars from SQLite for ${historyKey}`,
             );
           } else {
-            toMerge = [];
-            mode = "empty";
+            const cachedKey = cacheKeyFor(symbol, exchange, tf);
+            const cached = cacheGetFresh(cachedKey);
+            const cachedTodayBars = cached?.bars.filter(
+              (b) => BigInt(b.bucketTsNs) >= localMidnightNs,
+            ) ?? [];
+            if (cachedTodayBars.length > 0) {
+              toMerge = cachedTodayBars;
+              mode = "cache-today";
+              console.info(
+                `rithmic history: Apex returned 0 bars, serving ${cachedTodayBars.length} bars from cache for ${cachedKey}`,
+              );
+            } else {
+              toMerge = [];
+              mode = "empty";
+            }
           }
         }
 
@@ -1500,7 +1607,12 @@ function FootprintLive({
         // higher TFs (4h, 1d) already use TimeBarReplay directly.
         // Apex enforces single concurrent HISTORY_PLANT, so this
         // adds one extra serialized round-trip per TF.
-        if (useTickReplay && (mode === "today" || mode === "cache-today")) {
+        // Always try the TimeBar dual-fetch on tick-replay TFs. Even
+        // when TickBar returns 0 (Apex flakiness / transient deny),
+        // TimeBarReplay sometimes still serves — it's a different
+        // plant pathway on the Apex side. OHLC-only bars are better
+        // than blank, and they merge into any partial cache slice.
+        if (useTickReplay) {
           try {
             const tT0 = performance.now();
             const timeBars = await invoke<FootprintBar[]>(
@@ -1559,7 +1671,15 @@ function FootprintLive({
             cache.set(tf, tfMap);
           }
           for (const bar of toMerge) {
-            if (!tfMap.has(bar.bucketTsNs)) tfMap.set(bar.bucketTsNs, bar);
+            // History data is authoritative against synthetic placeholders
+            // (`tradeCount===0 && levels.length===0`) but must not stomp
+            // on live bars that have already received ticks via the
+            // `footprint-update` listener. "Live wins, synthetic loses."
+            const existing = tfMap.get(bar.bucketTsNs);
+            const existingIsSynthetic =
+              !existing ||
+              (existing.tradeCount === 0 && existing.levels.length === 0);
+            if (existingIsSynthetic) tfMap.set(bar.bucketTsNs, bar);
           }
           // Fill any remaining gap between local midnight and the
           // earliest history bar with synthetic empties — Apex's
@@ -1648,13 +1768,12 @@ function FootprintLive({
     [fullSymbol, symbol, exchange, cacheSetEntry, cacheKeyFor],
   );
 
-  // Background preload of every tick-replayable TF (1m, 3m, 5m, 15m,
-  // 1h). Fires once per (symbol, subscribe-cycle). Apex enforces a
-  // single concurrent HISTORY_PLANT session per user, so the fetches
-  // serialize naturally through `pendingHistoryRef`. Each completed
-  // fetch warms `barsCacheRef`; if the user is sitting on the
-  // freshly-loaded TF, `runHistoryFetch` mirrors cache→bars to
-  // refresh the chart without a manual reload.
+  // Auto force-reload history on every subscribe. Wipes the
+  // localStorage cache + in-memory TF cache, then re-fetches the full
+  // window for every preload TF. Equivalent to clicking "Reload
+  // history" — exposed for parity with the manual button. Apex
+  // enforces a single concurrent HISTORY_PLANT session per user, so
+  // the fetches serialize naturally through `pendingHistoryRef`.
   const subscribedKey = status.subscriptions.includes(fullSymbol)
     ? fullSymbol
     : null;
@@ -1662,52 +1781,28 @@ function FootprintLive({
     if (!subscribedKey) return;
     let cancelled = false;
     void (async () => {
+      cacheClearSymbol(symbol);
+      historyFetchedRef.current.clear();
+      barsCacheRef.current.clear();
+      setBars(new Map());
       for (const tf of PRELOAD_TFS) {
         if (cancelled) return;
         try {
           await fetchHistoryForTimeframe(tf);
         } catch (e) {
-          console.warn(`rithmic preload ${tf} failed:`, e);
+          console.warn(`rithmic auto-reload ${tf} failed:`, e);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [subscribedKey, fetchHistoryForTimeframe]);
+  }, [subscribedKey, symbol, cacheClearSymbol, fetchHistoryForTimeframe]);
 
-  // Diagnostic — fires `rithmic_probe_tick_replay` (5 min lookback, 30 s
-  // hard timeout) to confirm that the Apex account is permissioned for
-  // HISTORY_PLANT. rp_code "0" or any non-zero frames coming back = OK;
-  // rp_code "13" = "permission denied", the add-on is still off.
-  const [probeResult, setProbeResult] = useState<TickProbeResult | null>(null);
-  const [probing, setProbing] = useState(false);
-  const handleProbe = useCallback(async () => {
-    setProbing(true);
-    setProbeResult(null);
-    try {
-      const r = await invoke<TickProbeResult>("rithmic_probe_tick_replay", {
-        args: { symbol, exchange },
-      });
-      setProbeResult(r);
-    } catch (e) {
-      setProbeResult({
-        framesSeen: 0,
-        barsWithData: 0,
-        rpCodes: [],
-        elapsedMs: 0,
-        error: String(e),
-      });
-    } finally {
-      setProbing(false);
-    }
-  }, [symbol, exchange]);
-
-  // Test button — wipes the localStorage cache + in-memory TF cache for
-  // the current symbol, then re-fires history fetches for every preload
-  // TF so we can read each Apex response's rpCodes in DevTools. Useful
-  // to confirm whether "permission denied" hits every TF or only a
-  // subset (4h/1d).
+  // Manual reload button. Same behaviour as the auto-reload on
+  // subscribe (above) — wipes localStorage + in-memory caches then
+  // re-fetches every preload TF. Useful when the user wants a fresh
+  // pull without disconnecting/reconnecting.
   const handleForceReloadHistory = useCallback(async () => {
     cacheClearSymbol(symbol);
     historyFetchedRef.current.clear();
@@ -1772,6 +1867,7 @@ function FootprintLive({
           value={timeframe}
           onChange={handleTimeframeChange}
           disabled={busy}
+          hideTickBased
         />
         <IndicatorsButton />
         <MagnetToggle />
@@ -1876,47 +1972,6 @@ function FootprintLive({
         )}
         <button
           type="button"
-          onClick={() => void handleProbe()}
-          disabled={busy || probing || !connected}
-          className="cf-action-btn"
-          title="Probe HISTORY_PLANT permission (5 min lookback, 30 s timeout). Green = perm OK, red = rp_code=13."
-        >
-          {probing ? "Probing…" : "Probe perm"}
-        </button>
-        {probeResult && (() => {
-          const ok =
-            probeResult.error === null &&
-            (probeResult.framesSeen > 0 || probeResult.rpCodes.includes("0"));
-          const color = ok ? "#7ed321" : "#ff4757";
-          const bg = ok ? "rgba(126, 211, 33, 0.08)" : "rgba(255, 71, 87, 0.08)";
-          const border = ok
-            ? "1px solid rgba(126, 211, 33, 0.30)"
-            : "1px solid rgba(255, 71, 87, 0.30)";
-          const label = probeResult.error
-            ? `err: ${probeResult.error.slice(0, 40)}`
-            : `${probeResult.framesSeen} frames · ${probeResult.elapsedMs}ms · rp=${probeResult.rpCodes.join(",") || "—"}`;
-          return (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "4px 10px",
-                borderRadius: 999,
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-                color,
-                background: bg,
-                border,
-              }}
-              title={`Probe result for ${symbol}.${exchange} — rpCodes=${JSON.stringify(probeResult.rpCodes)}`}
-            >
-              {label}
-            </span>
-          );
-        })()}
-        <button
-          type="button"
           onClick={onOpenSettings}
           className="cf-action-btn"
           title={`${creds.systemName} · ${creds.username}`}
@@ -1940,6 +1995,30 @@ function FootprintLive({
               onOpenSettings={() => setSettingsOpen(true)}
               bare
             />
+          </div>
+          <div
+            className={`rf-sim-dock ${simPanelOpen ? "rf-sim-dock-open" : "rf-sim-dock-closed"}`}
+            onClick={
+              !simPanelOpen
+                ? () => setSimPanelOpen(true)
+                : undefined
+            }
+            role={!simPanelOpen ? "button" : undefined}
+            title={!simPanelOpen ? "Show sim panel" : undefined}
+          >
+            <button
+              type="button"
+              className="rf-sim-dock-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSimPanelOpen((v) => !v);
+              }}
+              aria-label={simPanelOpen ? "Hide sim panel" : "Show sim panel"}
+              title={simPanelOpen ? "Hide sim panel" : "Show sim panel"}
+            >
+              {simPanelOpen ? "›" : "‹"}
+            </button>
+            {simPanelOpen && <SimTradePanel symbol={symbol} />}
           </div>
         </div>
       </section>

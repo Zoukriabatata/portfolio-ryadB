@@ -3,7 +3,38 @@
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background: #0b0b14;
   color: #e2e8f0;
+  /* Senzoukria-wide accent — replaces the native blue used for
+     form-control highlights (checkbox tick, range thumb, text
+     selection inside inputs, native focus rings on uncustomised
+     elements). Set once at the root so we never have to patch
+     it per-component. */
+  accent-color: #7ed321;
 }
+
+/* Brand-coherent fallback focus ring for any clickable that doesn't
+   define its own :focus-visible style. Subtle white outline instead
+   of the WebView2 / Chromium default blue glow — keyboard
+   accessibility stays, but the visual matches the rest of the UI. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.30);
+  outline-offset: 1px;
+}
+
+/* Mouse-click focus on buttons — Chromium/WebView2 leaves a saturated
+   blue (system accent) fill on :focus after a pointer click on
+   plain <button>s. Strip it globally; per-component CSS still
+   defines the real hover/focus look. Excludes :focus-visible so
+   keyboard users keep their indicator (the rule above). */
+button:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* The components that own a custom hover affordance explicitly
+   set `outline: none` on `:focus / :focus-visible / :active`, so
+   this default only kicks in for un-styled clickables. */
 
 body, html, #root {
   margin: 0;
@@ -77,11 +108,11 @@ body, html, #root {
 }
 
 .card input:focus {
-  border-color: #4ade80;
+  border-color: #7ed321;
 }
 
 .card button {
-  background: linear-gradient(135deg, #4ade80, #22c55e);
+  background: linear-gradient(135deg, #7ed321, #5fa31a);
   color: #0b0b14;
   border: none;
   border-radius: 8px;
@@ -155,14 +186,14 @@ body, html, #root {
 }
 
 .card button.secondary:hover {
-  border-color: #4ade80;
-  color: #4ade80;
+  border-color: #7ed321;
+  color: #7ed321;
 }
 
 .card button.link {
   background: transparent;
   border: none;
-  color: #4ade80;
+  color: #7ed321;
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
@@ -170,7 +201,7 @@ body, html, #root {
 }
 
 .card button.link:hover {
-  color: #22c55e;
+  color: #5fa31a;
 }
 
 .updater-overlay {
@@ -211,6 +242,6 @@ body, html, #root {
 
 .updater-progress > div {
   height: 100%;
-  background: linear-gradient(135deg, #4ade80, #22c55e);
+  background: linear-gradient(135deg, #7ed321, #5fa31a);
   transition: width 0.15s ease-out;
 }

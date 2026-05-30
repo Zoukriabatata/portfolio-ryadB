@@ -1,0 +1,298 @@
+/* Hamburger menu — trigger + drawer + backdrop.
+ * Senzoukria palette (noir/blanc/vert) + Geist via --font-sans.
+ * Cubic-bezier transitions for smooth slide/fade.
+ */
+
+/* ── Trigger button (3 bars that morph into an X when open) ─────────────── */
+.hbm-trigger {
+  position: relative;
+  /* z-index above the drawer (200) so the button stays clickable while
+     the drawer is open — otherwise the X can't be reached and the user
+     must Esc / click backdrop. */
+  z-index: 210;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  /* Fully strip native <button> styling — WebView2 on Windows applies a
+     default OS-themed hover/active fill (blue/teal accent) that bleeds
+     through `background: transparent`. `appearance: none` and the
+     `!important` background pin it down for hover/focus/active. */
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: none;
+  padding: 0;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* No filled hover/focus background — instead the bars themselves glow
+   neon green (Senzoukria primary) when the trigger is hovered. The
+   default UA focus ring (blue rounded rect on Windows WebView2) is
+   suppressed here; keyboard-focus visibility is handled by the
+   :focus-visible rule below with a subtle green outline. */
+.hbm-trigger:hover,
+.hbm-trigger:focus,
+.hbm-trigger:focus-visible,
+.hbm-trigger:active,
+.hbm-trigger:visited {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Restore an accessible focus indicator for keyboard users — green
+   ring instead of the UA blue. Mouse clicks won't trigger this thanks
+   to :focus-visible. */
+.hbm-trigger:focus-visible {
+  outline: 1px solid rgba(126, 211, 33, 0.55);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.hbm-bar {
+  display: block;
+  width: 18px;
+  height: 1.5px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 1px;
+  transition:
+    transform 320ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 220ms ease,
+    background 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.hbm-trigger:hover .hbm-bar {
+  background: #7ed321;
+  box-shadow:
+    0 0 4px #7ed321,
+    0 0 10px rgba(126, 211, 33, 0.85),
+    0 0 18px rgba(126, 211, 33, 0.55);
+}
+
+/* Morph into X when open */
+.hbm-trigger-open .hbm-bar:nth-child(1) {
+  transform: translateY(6.5px) rotate(45deg);
+}
+.hbm-trigger-open .hbm-bar:nth-child(2) {
+  opacity: 0;
+}
+.hbm-trigger-open .hbm-bar:nth-child(3) {
+  transform: translateY(-6.5px) rotate(-45deg);
+}
+
+/* ── Overlay (backdrop + drawer container) ──────────────────────────────── */
+.hbm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  visibility: hidden;
+}
+.hbm-overlay-open {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.hbm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.hbm-overlay-open .hbm-backdrop {
+  opacity: 1;
+}
+
+/* ── Drawer ─────────────────────────────────────────────────────────────── */
+.hbm-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 86vw;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 24px 0 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  transform: translateX(-100%);
+  transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hbm-overlay-open .hbm-drawer {
+  transform: translateX(0);
+}
+
+/* ── Drawer header (logo + brand) ───────────────────────────────────────── */
+.hbm-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.hbm-header-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.hbm-header-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: linear-gradient(135deg, #a3e635, #7ed321, #5fa31a, #a3e635);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 8px rgba(126, 211, 33, 0.35));
+  animation: senzGradientShift 4s ease infinite;
+}
+.hbm-header-tail {
+  -webkit-text-fill-color: #ffffff;
+}
+
+@keyframes senzGradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.hbm-header-sub {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.40);
+  margin-top: 2px;
+}
+
+/* ── Nav links ──────────────────────────────────────────────────────────── */
+.hbm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.hbm-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  transition:
+    background 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: translateX(-12px);
+  animation: hbmLinkIn 380ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes hbmLinkIn {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.hbm-link-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 200ms ease;
+  flex-shrink: 0;
+}
+.hbm-link-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hbm-link-label {
+  flex: 1;
+}
+
+.hbm-link-soon {
+  padding: 2px 7px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 999px;
+  color: #34ec78;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-right: 4px;
+  line-height: 1.4;
+}
+
+.hbm-link-arrow {
+  color: rgba(255, 255, 255, 0.20);
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1), color 200ms ease;
+}
+
+.hbm-link:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+.hbm-link:hover .hbm-link-icon {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.hbm-link:hover .hbm-link-arrow {
+  color: rgba(255, 255, 255, 0.55) !important;
+  transform: translateX(2px);
+}
+.hbm-link:active {
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #ffffff !important;
+}
+.hbm-link:focus,
+.hbm-link:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.hbm-link-active {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+  border-left: 2px solid #7ed321;
+  padding-left: 12px;
+}
+.hbm-link-active .hbm-link-icon {
+  color: #7ed321;
+}
+.hbm-link-active .hbm-link-arrow {
+  color: #7ed321;
+}

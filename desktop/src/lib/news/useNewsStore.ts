@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { EconomicEvent, Impact, NewsArticle } from "./api";
 import { fetchArticles, fetchCalendar } from "./api";
+import { ALL_TAGS, PRESETS_BY_KEY, type Tag } from "./articleTags";
 
 type CountryCode = "US" | "EU" | "GB" | "JP" | "CN";
 
@@ -9,12 +10,19 @@ export type Filters = {
   range: "today" | "7d";
   impact: Record<Impact, boolean>;
   countries: Record<CountryCode, boolean>;
+  /** Active tags for the article feed. Empty = show all (no filter). */
+  articleTags: Record<Tag, boolean>;
 };
+
+function emptyTagMap(): Record<Tag, boolean> {
+  return Object.fromEntries(ALL_TAGS.map((t) => [t, false])) as Record<Tag, boolean>;
+}
 
 const DEFAULT_FILTERS: Filters = {
   range: "7d",
   impact: { high: true, medium: false, low: false },
   countries: { US: true, EU: true, GB: false, JP: false, CN: false },
+  articleTags: emptyTagMap(),
 };
 
 type NewsState = {
@@ -32,6 +40,9 @@ type NewsState = {
   setRange: (range: Filters["range"]) => void;
   toggleImpact: (i: Impact) => void;
   toggleCountry: (c: CountryCode) => void;
+  toggleArticleTag: (t: Tag) => void;
+  applyTagPreset: (presetKey: string) => void;
+  clearTagFilters: () => void;
 
   refreshArticles: () => Promise<void>;
   refreshEvents: () => Promise<void>;
@@ -84,6 +95,22 @@ export const useNewsStore = create<NewsState>()(
             countries: { ...s.filters.countries, [c]: !s.filters.countries[c] },
           },
         })),
+      toggleArticleTag: (t) =>
+        set((s) => ({
+          filters: {
+            ...s.filters,
+            articleTags: { ...s.filters.articleTags, [t]: !s.filters.articleTags[t] },
+          },
+        })),
+      applyTagPreset: (presetKey) => {
+        const def = PRESETS_BY_KEY[presetKey];
+        const tags = def?.tags ?? [];
+        const map = emptyTagMap();
+        for (const t of tags) map[t] = true;
+        set((s) => ({ filters: { ...s.filters, articleTags: map } }));
+      },
+      clearTagFilters: () =>
+        set((s) => ({ filters: { ...s.filters, articleTags: emptyTagMap() } })),
 
       refreshArticles: async () => {
         set({ articlesLoading: true, articlesError: null });
@@ -123,6 +150,24 @@ export const useNewsStore = create<NewsState>()(
     {
       name: "orderflow:news:filters",
       partialize: (s) => ({ filters: s.filters }),
+      // Old localStorage entries (pre-tags) only contain a subset of
+      // `filters`. Deep-merge into the current defaults so missing
+      // fields like `articleTags` get filled in without a forced wipe.
+      merge: (persisted, current) => {
+        const p = (persisted as Partial<NewsState>) ?? {};
+        return {
+          ...current,
+          ...p,
+          filters: {
+            ...current.filters,
+            ...(p.filters ?? {}),
+            articleTags: {
+              ...current.filters.articleTags,
+              ...(p.filters?.articleTags ?? {}),
+            },
+          },
+        };
+      },
     },
   ),
 );

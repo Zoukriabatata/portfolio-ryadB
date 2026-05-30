@@ -1,16 +1,26 @@
-/* Phase B / M4 — wrapper styling for the canvas component. The
- * actual chart pixels are painted by FootprintCanvasRenderer; this
- * file just owns the bezel/header. */
+/* Senzoukria palette — wrapper styling for the canvas component.
+ * The actual chart pixels are painted by FootprintCanvasRenderer; this
+ * file just owns the bezel/header. Uses flex to fill the parent's
+ * remaining space (no fixed `calc(100vh - X)` so we don't lose the
+ * time axis at the bottom). */
 
 .fp-canvas-wrap {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 220px);
-  min-height: 360px;
-  border: 1px solid var(--border, #1f2333);
-  border-radius: 8px;
-  background: var(--surface, #0d0f1b);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: #0a0a0a;
   overflow: hidden;
+}
+
+/* Bare mode: drop chrome, the route owns the floating UI on top of canvas. */
+.fp-canvas-container-bare {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .fp-canvas-header {
@@ -20,9 +30,9 @@
   padding: 8px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-primary, #f0f6fc);
-  border-bottom: 1px solid var(--border, #1f2333);
-  background: var(--surface-elevated, #161a26);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0a0a0a;
 }
 
 .fp-canvas-title {
@@ -30,15 +40,20 @@
 }
 
 .fp-canvas-meta {
-  color: var(--text-secondary, #a3a7b3);
+  color: rgba(255, 255, 255, 0.55);
   font-weight: 500;
   font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .fp-canvas-container {
   flex: 1;
   position: relative;
-  background: #07080f;
+  background: #0a0a0a;
+  min-width: 0;
+  min-height: 0;
 }
 
 .fp-canvas {
@@ -53,23 +68,36 @@
   cursor: grabbing;
 }
 
-/* M4.6 — Shift+drag pans the Y axis. ns-resize signals "vertical"
- * intent more clearly than grabbing in that mode. The class is set
- * alongside fp-canvas-dragging and overrides via specificity. */
 .fp-canvas.fp-canvas-dragging.fp-canvas-y-drag {
   cursor: ns-resize;
 }
 
-.fp-canvas-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
+/* LONG/SHORT tool armed — next click places a drawing. */
+.fp-canvas.fp-canvas-placing-tool {
+  cursor: crosshair;
+}
+
+/* Crosshair display is on — hide the OS cursor so the on-canvas
+   crosshair lines are the only pointer affordance. */
+.fp-canvas.fp-canvas-cursor-hidden:not(.fp-canvas-placing-tool):not(.fp-canvas-handle-hover):not(.fp-canvas-handle-drag):not(.fp-canvas-dragging) {
+  cursor: none;
+}
+
+
+/* Hovering over an entry/stop/target handle line — affords drag. */
+.fp-canvas.fp-canvas-handle-hover {
+  cursor: ns-resize;
+}
+
+/* Active drag of a drawing handle. */
+.fp-canvas.fp-canvas-handle-drag {
+  cursor: ns-resize;
 }
 
 .fp-reset-view {
   background: transparent;
-  border: 1px solid var(--border, #334155);
-  color: var(--text-secondary, #94a3b8);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.70);
   padding: 3px 10px;
   border-radius: 4px;
   font-size: 11px;
@@ -78,6 +106,6 @@
   transition: color 120ms, border-color 120ms;
 }
 .fp-reset-view:hover {
-  color: var(--text-primary, #e2e8f0);
-  border-color: var(--text-secondary, #475569);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.45);
 }

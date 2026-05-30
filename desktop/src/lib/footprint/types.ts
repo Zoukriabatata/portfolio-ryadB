@@ -56,9 +56,13 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
   askWidth: 56,
   profileWidth: 36,
   rowHeight: 13,
-  barGap: 4,
+  // Tightened from 4 → 1 px. The previous gap left a chunky black
+  // stripe between every footprint column, which read as "the chart
+  // is dezoomed" even at high zoom levels. 1 px keeps cells visually
+  // distinct without bleeding empty space across the viewport.
+  barGap: 1,
   timeAxisHeight: 22,
-  priceAxisWidth: 64,
+  priceAxisWidth: 80,
   paddingTop: 8,
   paddingLeft: 8,
 };

@@ -92,6 +92,7 @@ pub async fn fetch_tick_footprint_bars(
     exchange: &str,
     bar_minutes: i32,
     hours_back: i64,
+    tick_size: Option<f64>,
     app: Option<AppHandle>,
 ) -> Result<Vec<TickHistoryBar>> {
     timeout(
@@ -103,6 +104,7 @@ pub async fn fetch_tick_footprint_bars(
             exchange,
             bar_minutes,
             hours_back,
+            tick_size,
             app,
         ),
     )
@@ -153,6 +155,7 @@ async fn fetch_inner(
     exchange: &str,
     bar_minutes: i32,
     hours_back: i64,
+    tick_size: Option<f64>,
     app: Option<AppHandle>,
 ) -> Result<Vec<TickHistoryBar>> {
     let mut client = RithmicClient::new();
@@ -332,7 +335,7 @@ async fn fetch_inner(
         );
         client.send(&replay_req).await?;
 
-        let chunk = drain_chunk(&mut client, &mut bars, bucket_size_sec).await?;
+        let chunk = drain_chunk(&mut client, &mut bars, bucket_size_sec, tick_size).await?;
         total_frames += chunk.frames_seen;
         total_ticks_kept += chunk.ticks_kept;
         // Dedup-insert status strings from this chunk's terminator so
@@ -563,6 +566,7 @@ async fn drain_chunk(
     client: &mut RithmicClient,
     bars: &mut BTreeMap<u64, BarAcc>,
     bucket_size_sec: u64,
+    tick_size: Option<f64>,
 ) -> Result<ChunkStats> {
     let mut frames_seen: u32 = 0;
     let mut ticks_kept: u32 = 0;
@@ -681,12 +685,23 @@ async fn drain_chunk(
         };
         let sell_trades = trade_count.saturating_sub(buy_trades);
 
+        // Snap to the instrument tick grid (MNQ=0.25, CL=0.01, etc.)
+        // before bucketing. Apex tick replay returns f64 prices that
+        // *should* be on-grid but can carry float-round-trip noise
+        // (21345.249999 vs 21345.250001); without snapping, the
+        // BarAcc.levels BTreeMap would create two distinct keys for
+        // the same logical price → renderer sees sub-tick gaps and
+        // shrinks the row height accordingly.
+        let snapped = match tick_size {
+            Some(ts) if ts > 0.0 => (price / ts).round() * ts,
+            _ => price,
+        };
         let bucket_ts_sec = (ssboe as u64 / bucket_size_sec) * bucket_size_sec;
         let acc = bars
             .entry(bucket_ts_sec)
-            .or_insert_with(|| BarAcc::new(price));
+            .or_insert_with(|| BarAcc::new(snapped));
         acc.ingest(
-            price,
+            snapped,
             volume,
             buy_volume,
             sell_volume,

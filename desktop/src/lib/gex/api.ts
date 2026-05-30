@@ -30,6 +30,7 @@ export type TermStructurePoint = {
   atmIv: number;
 };
 
+
 export type GexSnapshot = {
   symbol: string;
   spot: number;
@@ -53,7 +54,9 @@ export type GexSnapshot = {
   termStructure: TermStructurePoint[];
 };
 
-export type GexSymbol = "SPY" | "QQQ";
+/** Open-ended : Alpaca accepts any US equity/ETF symbol with options.
+ *  The full curated picker list lives in `src/lib/gex/symbols.ts`. */
+export type GexSymbol = string;
 
 export async function fetchGexSnapshot(symbol: GexSymbol): Promise<GexSnapshot> {
   return invoke<GexSnapshot>("gex_fetch_snapshot", { args: { symbol } });

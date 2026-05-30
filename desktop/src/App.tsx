@@ -7,12 +7,18 @@ import { useUpdateCheck, UpdateModal } from "./UpdateChecker";
 import { Layout } from "./routes/Layout";
 import { WelcomeRoute } from "./routes/WelcomeRoute";
 import { FootprintRoute } from "./routes/FootprintRoute";
-import { LiveRoute } from "./routes/LiveRoute";
 import { AccountRoute } from "./routes/AccountRoute";
-import { HeatmapRoute } from "./routes/HeatmapRoute";
 import { GexRoute } from "./routes/GexRoute";
-import { VolatilityRoute } from "./routes/VolatilityRoute";
-import { ReplayRoute } from "./routes/ReplayRoute";
+import { NewsRoute } from "./routes/NewsRoute";
+import { OptionFlowRoute } from "./routes/OptionFlowRoute";
+import { ComingSoonRoute } from "./routes/ComingSoonRoute";
+import { AIRoute } from "./routes/AIRoute";
+import { JournalRoute } from "./routes/JournalRoute";
+import {
+  useFootprintBarsCacheStore,
+  CACHE_HARD_EXPIRY_MS,
+} from "./stores/useFootprintBarsCacheStore";
+import { SessionProvider, RequireSession } from "./lib/auth/SessionContext";
 import "./App.css";
 
 // Phase 7.7.3 dev flag — when false, the desktop app stays inside the
@@ -34,12 +40,22 @@ interface Session {
   token:      string;
   expires_at: string;
   license:    LicenseSnapshot;
+  email:      string | null;
 }
 
 type HandoffState = { phase: 'loading' | 'failed'; token: string };
 
 const API_BASE     = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:3000';
-const HEARTBEAT_MS = 4 * 60 * 60 * 1000; // 4h
+// Heartbeat every 5 min — keeps the JWT (15 min server TTL) fresh
+// with a 3x safety margin, and surfaces server-side subscription
+// changes (cancel, refund, ban) within minutes instead of hours.
+const HEARTBEAT_MS = 5 * 60 * 1000;
+// Forced-logout threshold: if no successful heartbeat for this long
+// (network blocked, offline, server unreachable, …), the client
+// kicks the user out. Set to 2x the server JWT TTL so transient
+// network blips don't punish honest users, but a sustained
+// firewall block can't keep an expired session alive forever.
+const HEARTBEAT_HARD_FAIL_MS = 30 * 60 * 1000;
 
 function App() {
   const [session, setSession]     = useState<Session | null>(null);
@@ -48,10 +64,21 @@ function App() {
   const [firstLaunchCompleted, setFirstLaunchCompleted] = useState(false);
   const [updateDismissed, setUpdateDismissed] = useState(false);
 
+
   // Updater check fires once bootstrap is done. Auto-handoff (below) is
   // gated on `updateChecked && (no update || dismissed)` so the modal
   // takes precedence over the bridge to the web dashboard.
   const { update, checked: updateChecked } = useUpdateCheck(true);
+
+  // Purge bars-cache entries older than the hard expiry on boot. The
+  // persist middleware also drops them during its merge pass, but we
+  // run an explicit sweep here so the dropped entries actually get
+  // removed from localStorage instead of just being filtered on read.
+  useEffect(() => {
+    useFootprintBarsCacheStore
+      .getState()
+      .clearStaleEntries(CACHE_HARD_EXPIRY_MS);
+  }, []);
 
   // Load any persisted session + machineId on mount.
   useEffect(() => {
@@ -95,23 +122,60 @@ function App() {
     return navigateBridge(handoff.token, setHandoff);
   }, [handoff]);
 
-  // Periodic heartbeat — refreshes the JWT every 4h while the app is open.
+  // Periodic heartbeat — refreshes the JWT every 5 min while the
+  // app is open. Two failure modes are handled:
+  //
+  //   1. Explicit auth errors (NOT_SUBSCRIBED, LICENSE_INACTIVE, …)
+  //      from the server → forced logout immediately.
+  //   2. Sustained network failure beyond HEARTBEAT_HARD_FAIL_MS
+  //      (firewall block, offline, server down, …) → forced logout.
+  //      Stops the "block heartbeats with hosts file to keep
+  //      using the app forever" bypass.
   useEffect(() => {
     if (!session) return;
+    // Reset the "last successful" clock to NOW when this session
+    // starts — login is itself a successful auth touch.
+    let lastSuccessfulHeartbeat = Date.now();
+
     const tick = async () => {
       try {
         const refreshed = await invoke<{ token: string; expiresAt: string; license: LicenseSnapshot }>("cmd_heartbeat");
-        setSession({ token: refreshed.token, expires_at: refreshed.expiresAt, license: refreshed.license });
+        lastSuccessfulHeartbeat = Date.now();
+        setSession((prev) => ({
+          token: refreshed.token,
+          expires_at: refreshed.expiresAt,
+          license: refreshed.license,
+          email: prev?.email ?? null,
+        }));
       } catch (e) {
         console.warn("heartbeat failed", e);
         const msg = String(e);
-        if (msg.includes("NOT_SUBSCRIBED") ||
-            msg.includes("LICENSE_INACTIVE") ||
-            msg.includes("LICENSE_NOT_FOUND") ||
-            msg.includes("MACHINE_NOT_FOUND") ||
-            msg.includes("EXPIRED") ||
-            msg.includes("INVALID_SIGNATURE") ||
-            msg.includes("LICENSE_MISMATCH")) {
+        const authError =
+          msg.includes("NOT_SUBSCRIBED") ||
+          msg.includes("LICENSE_INACTIVE") ||
+          msg.includes("LICENSE_NOT_FOUND") ||
+          msg.includes("MACHINE_NOT_FOUND") ||
+          msg.includes("EXPIRED") ||
+          msg.includes("INVALID_SIGNATURE") ||
+          msg.includes("LICENSE_MISMATCH") ||
+          msg.includes("SUBSCRIPTION_EXPIRED");
+
+        if (authError) {
+          // Server said "no" — logout immediately.
+          await invoke("cmd_logout").catch(() => {});
+          setSession(null);
+          return;
+        }
+
+        // Network / server-down failure. Logout only if we've been
+        // unable to reach the server for too long — gives transient
+        // hiccups a chance to recover but blocks the "kill the
+        // network forever" bypass.
+        const blockedFor = Date.now() - lastSuccessfulHeartbeat;
+        if (blockedFor >= HEARTBEAT_HARD_FAIL_MS) {
+          console.warn(
+            `heartbeat unreachable for ${Math.round(blockedFor / 60000)} min — forcing logout`,
+          );
           await invoke("cmd_logout").catch(() => {});
           setSession(null);
         }
@@ -152,50 +216,119 @@ function App() {
     );
   }
 
-  // Phase 7.7.5 — post-login on monte un router en mémoire.
-  // MemoryRouter plutôt que BrowserRouter parce que Tauri sert l'app
-  // depuis un schéma `tauri://` / `https://tauri.localhost` qui n'a pas
-  // de serveur HTTP derrière pour résoudre des paths arbitraires : si
-  // l'utilisateur recharge la webview alors qu'il est sur `/footprint`,
-  // BrowserRouter taperait sur l'URL physique et planterait. Memory
-  // garde l'historique en JS, l'URL reste à la racine.
-  if (session) {
-    // initialEntries=["/"] : à chaque nouveau login (et donc à chaque
-    // remount du router), on entre par la Welcome route. On ne saute
-    // plus directement sur /footprint comme en Phase 7.7.3 — la
-    // navigation est explicite via les CTAs Welcome ou la navbar.
-    //
-    // path="*" -> Navigate to "/" : sécurise les paths inconnus
-    // (en pratique impossible avec MemoryRouter mais ça coûte rien
-    // et fait office de safety net si un Link rate sa cible).
-    return (
-      <MemoryRouter initialEntries={["/"]}>
+  // 2026-05-26 — the router is ALWAYS mounted now, regardless of auth.
+  // Logged-out users land on `/account` (the only route that renders
+  // a sign-in form when there's no session), every other route is
+  // wrapped in <RequireSession> and redirects there too. This keeps
+  // the app shell (navbar, layout) stable across login/logout cycles
+  // and lets the user re-authenticate without a window reload.
+  //
+  // MemoryRouter (not BrowserRouter) because Tauri serves the app
+  // from a `tauri://` / `https://tauri.localhost` scheme without a
+  // backing HTTP server — reloading on a path like `/footprint`
+  // would otherwise 404. Memory keeps history in JS, URL stays at /.
+  const initialEntry = session ? "/" : "/account";
+
+  return (
+    <SessionProvider value={{ session, setSession }}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route element={<Layout />}>
-            <Route path="/" element={<WelcomeRoute />} />
-            <Route path="/live" element={<LiveRoute />} />
-            <Route path="/footprint" element={<FootprintRoute />} />
-            <Route path="/heatmap" element={<HeatmapRoute />} />
-            <Route path="/gex" element={<GexRoute />} />
-            <Route path="/volatility" element={<VolatilityRoute />} />
-            <Route path="/replay" element={<ReplayRoute />} />
+            {/* Account is the ONLY always-accessible route. When
+                logged out it shows a sign-in form; when logged in,
+                the user's profile / license / machine binding. */}
             <Route path="/account" element={<AccountRoute />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+
+            {/* Every other route requires a session. Visitors without
+                one get bounced to /account via <RequireSession>. */}
+            <Route
+              path="/"
+              element={
+                <RequireSession>
+                  <WelcomeRoute />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/footprint"
+              element={
+                <RequireSession>
+                  <FootprintRoute />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/heatmap"
+              element={
+                <RequireSession>
+                  <ComingSoonRoute
+                    title="Heatmap"
+                    availableOn="17/09/2026"
+                    description="Liquidity heatmap of the DOM over time — order book pressure visualization."
+                  />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/gex"
+              element={
+                <RequireSession>
+                  <GexRoute />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/news"
+              element={
+                <RequireSession>
+                  <NewsRoute />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/flow"
+              element={
+                <RequireSession>
+                  <OptionFlowRoute />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/replay"
+              element={
+                <RequireSession>
+                  <ComingSoonRoute
+                    title="Replay"
+                    availableOn="17/09/2026"
+                    description="Bar-by-bar replay of past sessions with footprint, flow and DOM playback."
+                  />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/ai"
+              element={
+                <RequireSession>
+                  <AIRoute />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="/journal"
+              element={
+                <RequireSession>
+                  <JournalRoute />
+                </RequireSession>
+              }
+            />
+            <Route
+              path="*"
+              element={<Navigate to={session ? "/" : "/account"} replace />}
+            />
           </Route>
         </Routes>
       </MemoryRouter>
-    );
-  }
-
-  return (
-    <main className="container">
-      <Login onLogin={(s) => {
-        setSession(s);
-        if (BRIDGE_TO_WEB) {
-          setHandoff({ phase: 'loading', token: s.token });
-        }
-      }} />
-    </main>
+    </SessionProvider>
   );
 }
 
@@ -251,7 +384,7 @@ function HandoffSplash({
   );
 }
 
-function Login({ onLogin }: { onLogin: (s: Session) => void }) {
+export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
@@ -262,11 +395,17 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     setBusy(true);
     setError(null);
     try {
+      const cleanEmail = email.trim();
       const resp = await invoke<{ token: string; expiresAt: string; license: LicenseSnapshot }>(
         "cmd_login",
-        { email: email.trim(), password },
+        { email: cleanEmail, password },
       );
-      onLogin({ token: resp.token, expires_at: resp.expiresAt, license: resp.license });
+      onLogin({
+        token: resp.token,
+        expires_at: resp.expiresAt,
+        license: resp.license,
+        email: cleanEmail,
+      });
     } catch (raw) {
       const msg = String(raw);
       setError(prettifyError(msg));

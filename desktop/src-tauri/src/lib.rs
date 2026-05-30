@@ -68,6 +68,7 @@ async fn cmd_login(
         token: resp.token.clone(),
         expires_at: resp.expires_at.clone(),
         license: resp.license.clone(),
+        email: Some(email.clone()),
     };
     auth::save_session(&state.data_dir, &session)
         .await
@@ -118,13 +119,12 @@ async fn cmd_get_bridge_url(
     next_path: String,
     state: State<'_, Arc<AppState>>,
 ) -> Result<String, String> {
-    let current_token = {
+    let (current_token, current_email) = {
         let guard = state.session.lock().await;
-        guard
+        let g = guard
             .as_ref()
-            .ok_or_else(|| "NO_SESSION".to_string())?
-            .token
-            .clone()
+            .ok_or_else(|| "NO_SESSION".to_string())?;
+        (g.token.clone(), g.email.clone())
     };
     let os = machine::get_os();
 
@@ -134,11 +134,13 @@ async fn cmd_get_bridge_url(
 
     // Persist the rotated token before handing it out, so the
     // freshness guard sees the same value the rest of the shell uses
-    // for subsequent IPC calls.
+    // for subsequent IPC calls. Carry the captured email forward —
+    // the heartbeat endpoint doesn't return it.
     let session = Session {
         token: resp.token.clone(),
         expires_at: resp.expires_at.clone(),
         license: resp.license.clone(),
+        email: current_email,
     };
     auth::save_session(&state.data_dir, &session)
         .await
@@ -150,13 +152,12 @@ async fn cmd_get_bridge_url(
 
 #[tauri::command]
 async fn cmd_heartbeat(state: State<'_, Arc<AppState>>) -> Result<LoginResponse, String> {
-    let token = {
+    let (token, current_email) = {
         let guard = state.session.lock().await;
-        guard
+        let g = guard
             .as_ref()
-            .ok_or_else(|| "NO_SESSION".to_string())?
-            .token
-            .clone()
+            .ok_or_else(|| "NO_SESSION".to_string())?;
+        (g.token.clone(), g.email.clone())
     };
     let os = machine::get_os();
 
@@ -168,6 +169,7 @@ async fn cmd_heartbeat(state: State<'_, Arc<AppState>>) -> Result<LoginResponse,
         token: resp.token.clone(),
         expires_at: resp.expires_at.clone(),
         license: resp.license.clone(),
+        email: current_email,
     };
     auth::save_session(&state.data_dir, &session)
         .await
@@ -248,7 +250,13 @@ pub fn run() {
             // `rithmic_state` into `app.manage`. The receiver lives
             // independently of the state struct.
             let rithmic_writer_rx = rithmic_state.engine.updates();
+            // The NinjaTrader bridge shares this engine — same tick size
+            // (0.25 on MNQ), same timeframes, same `footprint-update`
+            // event. The user picks one source at a time via the UI
+            // switcher; the engine doesn't care which is feeding it.
+            let bridge_engine = rithmic_state.engine.clone();
             app.manage(rithmic_state);
+            app.manage(state::BridgeState::new(bridge_engine));
 
             // Phase B / M2 — public crypto adapters share their own
             // FootprintEngine. M3 wires a dedicated event emitter
@@ -321,6 +329,10 @@ pub fn run() {
             // beyond TTL re-fetches from Tradier.
             app.manage(commands::gex::GexState::new());
 
+            // Option Flow module — own fallback chains cache; reads
+            // GexState's chains_cache first to avoid a redundant fetch.
+            app.manage(commands::option_flow::OptionFlowState::new());
+
             // Native Journal SQLite — opened once at startup, lives
             // for the app's lifetime. Path = OS app-data dir +
             // `journal.db` (created on first launch).
@@ -372,6 +384,11 @@ pub fn run() {
             commands::crypto::crypto_status,
             commands::crypto::crypto_orderbook_subscribe,
             commands::crypto::crypto_orderbook_unsubscribe,
+            // NinjaTrader bridge — feeds the Rithmic-side engine via a
+            // TCP stream from the OrderflowBridge NinjaScript indicator.
+            commands::bridge::bridge_connect,
+            commands::bridge::bridge_disconnect,
+            commands::bridge::bridge_status,
             commands::cache::cache_query,
             // Native Journal — Day 1: trades CRUD + listing + stats.
             journal::commands::journal_list_trades,
@@ -412,6 +429,13 @@ pub fn run() {
             commands::gex::gex_save_api_key,
             commands::gex::gex_has_api_key,
             commands::gex::gex_delete_api_key,
+            // Option Flow module — single polling endpoint.
+            commands::option_flow::option_flow_poll,
+            // AI Agent — Anthropic streaming chat + key vault.
+            commands::ai_agent::ai_agent_send,
+            commands::ai_agent::ai_agent_save_api_key,
+            commands::ai_agent::ai_agent_has_api_key,
+            commands::ai_agent::ai_agent_delete_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

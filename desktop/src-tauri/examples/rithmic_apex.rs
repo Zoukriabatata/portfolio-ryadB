@@ -51,16 +51,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_target(false)
         .init();
 
-    let username =
-        std::env::var("RITHMIC_USER").map_err(|_| "RITHMIC_USER env var not set")?;
-    let password = std::env::var("RITHMIC_PASSWORD")
-        .map_err(|_| "RITHMIC_PASSWORD env var not set")?;
-    let gateway =
-        std::env::var("RITHMIC_GATEWAY").unwrap_or_else(|_| DEFAULT_GATEWAY.to_string());
-    let system =
-        std::env::var("RITHMIC_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM.to_string());
-    let symbol =
-        std::env::var("RITHMIC_SYMBOL").unwrap_or_else(|_| DEFAULT_SYMBOL.to_string());
+    let username = std::env::var("RITHMIC_USER").map_err(|_| "RITHMIC_USER env var not set")?;
+    let password =
+        std::env::var("RITHMIC_PASSWORD").map_err(|_| "RITHMIC_PASSWORD env var not set")?;
+    let gateway = std::env::var("RITHMIC_GATEWAY").unwrap_or_else(|_| DEFAULT_GATEWAY.to_string());
+    let system = std::env::var("RITHMIC_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM.to_string());
+    let symbol = std::env::var("RITHMIC_SYMBOL").unwrap_or_else(|_| DEFAULT_SYMBOL.to_string());
     let exchange =
         std::env::var("RITHMIC_EXCHANGE").unwrap_or_else(|_| DEFAULT_EXCHANGE.to_string());
 
@@ -146,9 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while started.elapsed() < STREAM_DURATION {
         let remaining = STREAM_DURATION.saturating_sub(started.elapsed());
-        match tokio::time::timeout(remaining.min(Duration::from_secs(5)), tick_rx.recv())
-            .await
-        {
+        match tokio::time::timeout(remaining.min(Duration::from_secs(5)), tick_rx.recv()).await {
             Ok(Ok(t)) => {
                 count += 1;
                 total_qty += t.qty;
@@ -183,10 +177,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\n=== Stream summary ===");
-    println!(
-        "  duration:        {:.1}s",
-        started.elapsed().as_secs_f64()
-    );
+    println!("  duration:        {:.1}s", started.elapsed().as_secs_f64());
     println!("  total trades:    {count}");
     println!(
         "  rate:            {:.2} trades/sec",
@@ -223,9 +214,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Open a fresh WebSocket connection and run a SystemInfo handshake.
 /// Returns the list of system names the gateway exposes for the IP /
 /// account that connected.
-async fn probe_system_info(
-    gateway: &str,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+async fn probe_system_info(gateway: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut client = RithmicClient::new();
     client.connect(gateway).await?;
     let req = RequestRithmicSystemInfo {

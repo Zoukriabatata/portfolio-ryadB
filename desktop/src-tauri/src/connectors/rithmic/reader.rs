@@ -186,5 +186,6 @@ fn last_trade_to_tick(t: &LastTrade) -> Option<Tick> {
         side,
         symbol: format!("{}.{}", symbol, exchange),
         source: SOURCE_NAME.to_string(),
+        seq: 0,
     })
 }

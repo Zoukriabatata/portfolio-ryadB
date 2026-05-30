@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { NewsArticle } from "../../lib/news/api";
 
@@ -13,6 +14,9 @@ function timeAgo(iso: string): string {
 }
 
 export function NewsArticleCard({ article }: { article: NewsArticle }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const hasImage = !!article.imageUrl && !imgFailed;
+
   return (
     <div
       className="news-card"
@@ -20,28 +24,30 @@ export function NewsArticleCard({ article }: { article: NewsArticle }) {
       tabIndex={0}
       onClick={() => void openUrl(article.url)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") void openUrl(article.url);
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          void openUrl(article.url);
+        }
       }}
     >
-      {article.imageUrl ? (
-        <img
-          className="news-card-thumb"
-          src={article.imageUrl}
-          alt=""
-          loading="lazy"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.visibility = "hidden";
-          }}
-        />
-      ) : (
-        <div className="news-card-thumb" />
-      )}
+      <div className="news-card-thumb-wrap">
+        {hasImage ? (
+          <img
+            className="news-card-thumb"
+            src={article.imageUrl}
+            alt=""
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <div className="news-card-thumb-placeholder">News</div>
+        )}
+      </div>
       <div className="news-card-body">
         <div className="news-card-headline">{article.headline}</div>
         <div className="news-card-meta">
           <span className="news-card-source">{article.source || "—"}</span>
-          <span>·</span>
-          <span>{timeAgo(article.publishedAt)} ago</span>
+          <span className="news-card-sep" aria-hidden />
+          <span className="news-card-time">{timeAgo(article.publishedAt)} ago</span>
         </div>
       </div>
     </div>

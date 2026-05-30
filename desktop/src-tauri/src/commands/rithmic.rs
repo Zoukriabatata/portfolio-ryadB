@@ -75,6 +75,12 @@ pub struct FetchHistoryArgs {
     /// drives the bar_type dispatch (MinuteBar / DailyBar) and the
     /// returned `timeframe` label. Takes precedence over `bar_minutes`.
     pub timeframe: Option<String>,
+    /// Instrument tick size (e.g. MNQ = 0.25, ES = 0.25, CL = 0.01).
+    /// When present, the tick-history reconstruction snaps every trade
+    /// price to this grid before bucketing into footprint levels,
+    /// preventing sub-tick noise from Apex (or f64 round-trip) creating
+    /// phantom levels. None falls back to the legacy 1e-6 bucket.
+    pub tick_size: Option<f64>,
 }
 
 /// History bar shape returned to JS. camelCase via serde rename so the
@@ -375,6 +381,7 @@ pub async fn rithmic_fetch_tick_history(
         &args.exchange,
         bar_minutes,
         args.hours_back,
+        args.tick_size,
         Some(app),
     )
     .await
@@ -605,6 +612,7 @@ fn parse_timeframe(s: &str) -> Result<Timeframe, String> {
         "15m" => Ok(Timeframe::Min15),
         "30m" => Ok(Timeframe::Min30),
         "1h" => Ok(Timeframe::Hour1),
+        "100t" => Ok(Timeframe::Ticks100),
         other => Err(format!("unknown timeframe: {other}")),
     }
 }

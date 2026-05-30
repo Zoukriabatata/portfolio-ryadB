@@ -29,14 +29,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_target(false)
         .init();
 
-    let username = std::env::var("RITHMIC_TEST_USER")
-        .map_err(|_| "RITHMIC_TEST_USER env var not set")?;
+    let username =
+        std::env::var("RITHMIC_TEST_USER").map_err(|_| "RITHMIC_TEST_USER env var not set")?;
     let password = std::env::var("RITHMIC_TEST_PASSWORD")
         .map_err(|_| "RITHMIC_TEST_PASSWORD env var not set")?;
-    let symbol =
-        std::env::var("RITHMIC_SYMBOL").unwrap_or_else(|_| "MNQM6".to_string());
-    let exchange =
-        std::env::var("RITHMIC_EXCHANGE").unwrap_or_else(|_| "CME".to_string());
+    let symbol = std::env::var("RITHMIC_SYMBOL").unwrap_or_else(|_| "MNQM6".to_string());
+    let exchange = std::env::var("RITHMIC_EXCHANGE").unwrap_or_else(|_| "CME".to_string());
 
     let creds = Credentials {
         username,

@@ -21,7 +21,8 @@ export type Exchange = "bybit" | "binance" | "rithmic";
 export type CryptoExchange = "bybit" | "binance";
 
 export type SymbolCategory =
-  // Crypto
+  // Crypto (legacy Bybit/Binance categories — kept for backward compat
+  // even though the live UI now exposes Rithmic only).
   | "majors"
   | "alts"
   | "memes"
@@ -29,7 +30,8 @@ export type SymbolCategory =
   | "indices"
   | "energy"
   | "metals"
-  | "currencies";
+  | "currencies"
+  | "crypto"; // CME Bitcoin / Ether futures (BTC, MBT, ETH, MET)
 
 export type CMEExchangeCode = "CME" | "NYMEX" | "COMEX" | "CBOT";
 
@@ -87,13 +89,26 @@ export const SYMBOL_CATALOG: SymbolDef[] = [
   { symbol: "NGM6",  label: "Natural Gas",         exchange: "rithmic", category: "energy",  tickSizeHint: 0.001, cmeExchange: "NYMEX", contractMonth: "Jun 2026" },
   { symbol: "GCM6",  label: "Gold",                exchange: "rithmic", category: "metals",  tickSizeHint: 0.1,   cmeExchange: "COMEX", contractMonth: "Jun 2026" },
   { symbol: "SIN6",  label: "Silver",              exchange: "rithmic", category: "metals",  tickSizeHint: 0.005, cmeExchange: "COMEX", contractMonth: "Jul 2026" },
+
+  // --- CME Crypto futures (regulated US Bitcoin / Ether contracts) ---
+  // BTC = 5 BTC/contract, MBT = 0.1 BTC/contract, both quote in USD with $5 ticks.
+  // ETH = 50 ETH/contract, MET = 0.1 ETH/contract, both with $0.50 ticks.
+  //
+  // CRITICAL: CME crypto futures are MONTHLY contracts (not quarterly like
+  // indices). Roll the K6 → M6 → N6 codes monthly, ~5 days before expiry.
+  // CME month letters: F=Jan G=Feb H=Mar J=Apr K=May M=Jun N=Jul Q=Aug
+  //                    U=Sep V=Oct X=Nov Z=Dec  (suffix digit = year).
+  { symbol: "BTCK6", label: "Bitcoin (CME)",       exchange: "rithmic", category: "crypto",  tickSizeHint: 5,    cmeExchange: "CME", contractMonth: "May 2026" },
+  { symbol: "MBTK6", label: "Micro Bitcoin (CME)", exchange: "rithmic", category: "crypto",  tickSizeHint: 5,    cmeExchange: "CME", contractMonth: "May 2026" },
+  { symbol: "ETHK6", label: "Ether (CME)",         exchange: "rithmic", category: "crypto",  tickSizeHint: 0.5,  cmeExchange: "CME", contractMonth: "May 2026" },
+  { symbol: "METK6", label: "Micro Ether (CME)",   exchange: "rithmic", category: "crypto",  tickSizeHint: 0.5,  cmeExchange: "CME", contractMonth: "May 2026" },
 ];
 
 /** Which categories the picker should iterate, per exchange. */
 export const CATEGORIES_BY_EXCHANGE: Record<Exchange, SymbolCategory[]> = {
   bybit: ["majors", "alts", "memes"],
   binance: ["majors", "alts", "memes"],
-  rithmic: ["indices", "energy", "metals", "currencies"],
+  rithmic: ["indices", "crypto", "energy", "metals", "currencies"],
 };
 
 export function filterSymbols(

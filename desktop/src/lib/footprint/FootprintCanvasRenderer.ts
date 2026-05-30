@@ -42,9 +42,18 @@ import {
  *  shape — keeps the renderer decoupled from Zustand. */
 export type RendererMagnetMode = "none" | "ohlc" | "poc";
 export type RendererVolumeFormat = "raw" | "K" | "M";
+export type RendererTimezone =
+  | "LCL"
+  | "UTC"
+  | "NY"
+  | "CHI"
+  | "LON"
+  | "PAR"
+  | "TYO";
 
 export interface FootprintRendererSettings {
   showGrid: boolean;
+  showCrosshair: boolean;
   showPocSession: boolean;
   showPocBar: boolean;
   showVolumeTooltip: boolean;
@@ -52,28 +61,80 @@ export interface FootprintRendererSettings {
   /** When null the renderer uses the inferred / fallback decimals
    *  passed via `setPriceDecimals`. When numeric it overrides. */
   priceDecimalsOverride: number | null;
+  /** Authoritative instrument tick size (MNQ=0.25, CL=0.01, …). When
+   *  set, drives the row grid AND the crosshair snap regardless of
+   *  what `inferTickSize` extracts from the bars. Falls back to the
+   *  inferred value when null. Lets the price tag / crosshair stay
+   *  on-grid even on sparse bars where the gap heuristic would lie. */
+  tickSizeOverride: number | null;
   volumeFormat: RendererVolumeFormat;
   magnetMode: RendererMagnetMode;
+  /** Time-axis display timezone. "LCL" = browser local. */
+  timezone: RendererTimezone;
   // M4.7c — indicator overlay visibility flags. The actual data is
   // pushed in via `setIndicators(result)` from the React layer's
   // async runner; the renderer doesn't compute, only draws.
   showStackedImbalances: boolean;
   showNakedPOCs: boolean;
   showUnfinishedAuctions: boolean;
+  // Indicator overlays driven by the IndicatorsButton dropdown.
+  showVwapIndicator: boolean;
+  showClusterStat: boolean;
+  showBarDelta: boolean;
+  // Chart colour palette — every primitive the user can repaint
+  // from the settings modal. Hex strings, no alpha (alpha applied
+  // by the renderer where appropriate).
+  chartBgColor: string;
+  chartGridColor: string;
+  candleBodyUp: string;
+  candleBodyDown: string;
+  candleBorderUp: string;
+  candleBorderDown: string;
+  candleWickUp: string;
+  candleWickDown: string;
+  bidColor: string;
+  askColor: string;
+  crosshairColor: string;
+  crosshairOpacity: number;
+  crosshairStyle: "solid" | "dashed" | "dotted";
+  crosshairWidth: number;
 }
 
 export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
   showGrid: true,
+  showCrosshair: true,
+  timezone: "LCL",
   showPocSession: true,
   showPocBar: true,
   showVolumeTooltip: true,
   showOhlcHeader: true,
   priceDecimalsOverride: null,
+  tickSizeOverride: null,
   volumeFormat: "raw",
   magnetMode: "none",
-  showStackedImbalances: true,
-  showNakedPOCs: true,
-  showUnfinishedAuctions: true,
+  // Indicator overlays — OFF by default, opt-in via the settings panel.
+  // Stacked imbalances were too noisy on quiet 5s feeds (the green SI 3
+  // rectangles cluttered the chart), so we ship them disabled.
+  showStackedImbalances: false,
+  showNakedPOCs: false,
+  showUnfinishedAuctions: false,
+  showVwapIndicator: false,
+  showClusterStat: false,
+  showBarDelta: false,
+  chartBgColor: "#0a0a0a",
+  chartGridColor: "#1c1c1c",
+  candleBodyUp: "#7ed321",
+  candleBodyDown: "#ffffff",
+  candleBorderUp: "#7ed321",
+  candleBorderDown: "#ffffff",
+  candleWickUp: "#7ed321",
+  candleWickDown: "#ffffff",
+  bidColor: "#ffffff",
+  askColor: "#7ed321",
+  crosshairColor: "#ffffff",
+  crosshairOpacity: 0.45,
+  crosshairStyle: "dashed",
+  crosshairWidth: 1,
 };
 
 export interface RendererOptions {
@@ -353,8 +414,26 @@ export class FootprintCanvasRenderer {
     }
     if (!isFinite(minPrice) || !isFinite(maxPrice)) return null;
 
-    const tickSize = inferTickSize(bars);
+    // Authoritative override (symbol catalog) wins over the gap
+    // heuristic. inferTickSize is fragile on bars with a single
+    // level (returns the 0.1 fallback) or with sparse non-adjacent
+    // levels (returns a multiple of the real tick); the override
+    // locks the grid to the broker's tick.
+    const tickSize =
+      this.settings.tickSizeOverride !== null &&
+      this.settings.tickSizeOverride > 0
+        ? this.settings.tickSizeOverride
+        : inferTickSize(bars);
     if (tickSize <= 0) return null;
+    // Snap min/maxPrice to the tick grid. The crosshair price tag is
+    // computed as `maxPrice - rowIdx * tickSize`; if maxPrice itself
+    // sits at 21346.01 (off-grid because of any stale-cache bar
+    // whose OHLC wasn't snapped), every label inherits the same
+    // 0.01 offset and you get readouts like 21345.76 / 21345.94
+    // instead of 21345.75 / 21346.00. Snap the bracket here so the
+    // grid stays canonical regardless of upstream data hygiene.
+    maxPrice = Math.round(maxPrice / tickSize) * tickSize;
+    minPrice = Math.round(minPrice / tickSize) * tickSize;
 
     const totalRows = Math.max(
       1,
@@ -679,7 +758,22 @@ export class FootprintCanvasRenderer {
 
     // Price tag on the right axis (only when its row is on screen).
     if (horizontalVisible) {
-      const priceText = snappedPrice.toFixed(this.effectivePriceDecimals());
+      // Defensive final snap to the authoritative tick grid. The row
+      // computation above is `maxPrice - rowIdx * tickSize`; if any
+      // bar drifted maxPrice off-grid (cache from before the tick-size
+      // backend fix, magnet snap returning a raw level price, etc.)
+      // the label inherits that offset. Forcing one more round here
+      // makes the displayed price match the broker tick regardless.
+      const gridForLabel =
+        this.settings.tickSizeOverride !== null &&
+        this.settings.tickSizeOverride > 0
+          ? this.settings.tickSizeOverride
+          : f.tickSize;
+      const displayedPrice =
+        gridForLabel > 0
+          ? Math.round(snappedPrice / gridForLabel) * gridForLabel
+          : snappedPrice;
+      const priceText = displayedPrice.toFixed(this.effectivePriceDecimals());
       const priceLabel = snapPrefix
         ? `${snapPrefix} ${priceText}`
         : priceText;
@@ -846,7 +940,7 @@ export class FootprintCanvasRenderer {
     const w = isBull ? f.askW : f.bidW;
 
     ctx.save();
-    ctx.strokeStyle = isBull ? "#22c55e" : "#ef4444";
+    ctx.strokeStyle = isBull ? "#5fa31a" : "#ef4444";
     ctx.lineWidth = 2;
     ctx.strokeRect(
       Math.round(x) + 0.5,

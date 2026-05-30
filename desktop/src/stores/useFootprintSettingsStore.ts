@@ -18,10 +18,17 @@ import { persist } from "zustand/middleware";
 export type MagnetMode = "none" | "ohlc" | "poc";
 export type PriceDecimalsMode = "auto" | "2" | "4" | "8";
 export type VolumeFormat = "raw" | "K" | "M";
+/** Time-axis display timezone. "LCL" = browser default (the user's
+ *  computer), "UTC" = Zulu, the rest are IANA-backed trading hubs.
+ *  Stored as an opaque key; the IANA mapping lives next to the
+ *  renderer's formatter. */
+export type TimezoneKey = "LCL" | "UTC" | "NY" | "CHI" | "LON" | "PAR" | "TYO";
 
 export type FootprintSettings = {
   // Visibility flags consumed by the renderer.
   showGrid: boolean;
+  /** Crosshair on hover — toggled from the left toolbar. */
+  showCrosshair: boolean;
   showPocSession: boolean;
   showPocBar: boolean;
   showVolumeTooltip: boolean;
@@ -33,6 +40,10 @@ export type FootprintSettings = {
 
   // Crosshair Y snap target.
   magnetMode: MagnetMode;
+
+  // Time-axis display timezone. Toggled via the TZ button in the
+  // chart controls bar.
+  timezone: TimezoneKey;
 
   // M4.7c — order-flow indicators (computed async, drawn as overlays).
   showStackedImbalances: boolean;
@@ -50,10 +61,49 @@ export type FootprintSettings = {
   showVAH: boolean;
   showVAL: boolean;
   showVWAP: boolean;
+
+  // Footprint chart indicators — toggled from the IndicatorsButton
+  // dropdown next to the timeframe pills. Each flag controls one
+  // overlay on the footprint surface.
+  showVwapIndicator: boolean;
+  showClusterStat: boolean;
+  /** Bar-delta label drawn above each candle's high price. Works
+   *  independently of the cluster stat panel — user can enable
+   *  either, both, or neither. Same totalDelta value either way;
+   *  the inline label just makes "bullish vs bearish flow per bar"
+   *  visible without scanning the panel rows. */
+  showBarDelta: boolean;
+
+  // Chart colours — every visible primitive (background, grid,
+  // candle parts, bid/ask) is user-pickable via the settings modal.
+  // Hex strings (#rrggbb) so the <input type="color"> native picker
+  // round-trips cleanly. The footprint state bar (vertical strip
+  // marking bullish/bearish per cell) derives from candleBodyUp /
+  // candleBodyDown so that the cell colour never conflicts with
+  // the candle's own colour in candle-mode — single source of truth.
+  chartBgColor: string;
+  chartGridColor: string;
+  candleBodyUp: string;
+  candleBodyDown: string;
+  candleBorderUp: string;
+  candleBorderDown: string;
+  candleWickUp: string;
+  candleWickDown: string;
+  bidColor: string;
+  askColor: string;
+
+  // Crosshair styling — exposed in the AdvancedSettingsModal.
+  crosshairColor: string;
+  crosshairOpacity: number;
+  crosshairStyle: "solid" | "dashed" | "dotted";
+  crosshairWidth: number;
 };
+
+export type CrosshairLineStyle = "solid" | "dashed" | "dotted";
 
 const DEFAULTS: FootprintSettings = {
   showGrid: true,
+  showCrosshair: true,
   showPocSession: true,
   showPocBar: true,
   showVolumeTooltip: true,
@@ -61,15 +111,39 @@ const DEFAULTS: FootprintSettings = {
   priceDecimalsMode: "auto",
   volumeFormat: "raw",
   magnetMode: "none",
-  showStackedImbalances: true,
-  showNakedPOCs: true,
-  showUnfinishedAuctions: true,
+  timezone: "LCL",
+  // Indicator overlays — OFF by default (opt-in via the AdvancedSettingsModal).
+  // Were too noisy on quiet 5s feeds (green SI rectangles cluttered the chart).
+  showStackedImbalances: false,
+  showNakedPOCs: false,
+  showUnfinishedAuctions: false,
   imbalanceRatio: 3.0,
   imbalanceMinConsecutive: 3,
   showTradeBubbles: true,
   showVAH: true,
   showVAL: true,
   showVWAP: true,
+  // Footprint indicator overlays — OFF by default. User opt-in via
+  // the IndicatorsButton dropdown.
+  showVwapIndicator: false,
+  showClusterStat: false,
+  showBarDelta: false,
+  // Default palette (Senzoukria green + white on black). The user
+  // can override every entry from the AdvancedSettingsModal.
+  chartBgColor: "#0a0a0a",
+  chartGridColor: "#1c1c1c",
+  candleBodyUp: "#7ed321",
+  candleBodyDown: "#ffffff",
+  candleBorderUp: "#7ed321",
+  candleBorderDown: "#ffffff",
+  candleWickUp: "#7ed321",
+  candleWickDown: "#ffffff",
+  bidColor: "#ffffff",
+  askColor: "#7ed321",
+  crosshairColor: "#ffffff",
+  crosshairOpacity: 0.45,
+  crosshairStyle: "dashed",
+  crosshairWidth: 1,
 };
 
 type Actions = {
@@ -117,14 +191,35 @@ export const useFootprintSettingsStore = create<
       },
     }),
     {
-      name: "senzoukria.footprint.settings.v1",
+      // Bumped v1 → v2 so existing users get the new defaults (indicators
+       // OFF). Old v1 key remains in localStorage harmlessly.
+      name: "senzoukria.footprint.settings.v2",
       // Forward-compatible merge: persisted state wins for known
       // keys but new fields fall back to current (i.e. the new
       // defaults), so adding a field in V2 doesn't wipe V1 prefs.
-      merge: (persisted, current) => ({
-        ...current,
-        ...((persisted as Partial<FootprintSettings>) ?? {}),
-      }),
+      // Timezone is sanitized — an unknown / stale string would
+      // otherwise leak into the renderer's `Intl.DateTimeFormat`
+      // call and silently fall back to UTC on some WebView builds.
+      merge: (persisted, current) => {
+        const p = (persisted as Partial<FootprintSettings>) ?? {};
+        const validTz: TimezoneKey[] = [
+          "LCL",
+          "UTC",
+          "NY",
+          "CHI",
+          "LON",
+          "PAR",
+          "TYO",
+        ];
+        const tz = validTz.includes(p.timezone as TimezoneKey)
+          ? (p.timezone as TimezoneKey)
+          : "LCL";
+        return {
+          ...current,
+          ...p,
+          timezone: tz,
+        };
+      },
     },
   ),
 );

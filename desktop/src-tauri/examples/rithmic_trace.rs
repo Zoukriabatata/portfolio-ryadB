@@ -50,14 +50,12 @@ fn now_ns() -> u128 {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let username = std::env::var("RITHMIC_TEST_USER")
-        .map_err(|_| "RITHMIC_TEST_USER env var not set")?;
+    let username =
+        std::env::var("RITHMIC_TEST_USER").map_err(|_| "RITHMIC_TEST_USER env var not set")?;
     let password = std::env::var("RITHMIC_TEST_PASSWORD")
         .map_err(|_| "RITHMIC_TEST_PASSWORD env var not set")?;
-    let symbol =
-        std::env::var("RITHMIC_SYMBOL").unwrap_or_else(|_| "MNQM6".to_string());
-    let exchange =
-        std::env::var("RITHMIC_EXCHANGE").unwrap_or_else(|_| "CME".to_string());
+    let symbol = std::env::var("RITHMIC_SYMBOL").unwrap_or_else(|_| "MNQM6".to_string());
+    let exchange = std::env::var("RITHMIC_EXCHANGE").unwrap_or_else(|_| "CME".to_string());
 
     let mut log = OpenOptions::new()
         .create(true)
@@ -249,9 +247,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let median_ms = sorted[sorted.len() / 2] / 1_000_000;
         let max_ms = *sorted.last().unwrap() / 1_000_000;
         let min_ms = sorted[0] / 1_000_000;
-        eprintln!(
-            "Inter-tick gap (ms): min={min_ms} median={median_ms} max={max_ms}"
-        );
+        eprintln!("Inter-tick gap (ms): min={min_ms} median={median_ms} max={max_ms}");
     }
 
     writeln!(log, "# capture_ended_local_ns={}", now_ns())?;

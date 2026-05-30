@@ -1,0 +1,48 @@
+/* Floating inline editor for the text annotation tool — chrome
+   matches the chart context menu so all canvas overlays feel like
+   the same product. */
+
+.td-editor-wrap {
+  position: fixed;
+  z-index: 1200;
+  animation: tdEditorIn 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tdEditorIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.td-editor-input {
+  min-width: 180px;
+  padding: 8px 12px;
+  background: rgba(18, 18, 22, 0.95);
+  border: 1px solid rgba(126, 211, 33, 0.55);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: var(--font-sans, -apple-system, "Segoe UI", system-ui, sans-serif);
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(126, 211, 33, 0.16),
+    0 8px 24px rgba(0, 0, 0, 0.45);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.td-editor-input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.td-editor-input:focus {
+  border-color: #7ed321;
+  box-shadow:
+    0 0 0 3px rgba(126, 211, 33, 0.28),
+    0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .td-editor-wrap {
+    animation: none !important;
+  }
+}

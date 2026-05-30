@@ -29,6 +29,7 @@ import { FootprintStatusBar } from "./footprint/FootprintStatusBar";
 import { MagnetToggle } from "./footprint/MagnetToggle";
 import { AdvancedSettingsModal } from "./footprint/AdvancedSettingsModal";
 import { useFootprintSettingsStore } from "../stores/useFootprintSettingsStore";
+import { useAlertWatcher } from "../hooks/useAlertWatcher";
 import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvasRenderer";
 import { IndicatorsRunner } from "../lib/footprint/indicatorsAsync";
 import "./footprint/CryptoFootprintNav.css";
@@ -60,7 +61,7 @@ export function CryptoFootprint({
   defaultSymbol: string;
 }) {
   const [symbol, setSymbol] = useState(defaultSymbol);
-  const [timeframe, setTimeframe] = useState<SupportedTimeframe>("5s");
+  const [timeframe, setTimeframe] = useState<SupportedTimeframe>("1m");
   const [bars, setBars] = useState<Map<number, FootprintBar>>(new Map());
   const [status, setStatus] = useState<CryptoStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +70,16 @@ export function CryptoFootprint({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const canvasHandle = useRef<FootprintCanvasHandle>(null);
+  // Auto-subscribe: tracks the (exchange, symbol) pair currently
+  // streaming so we can swap on user change without manual clicks.
+  // Set to "__paused__" if the user manually clicks Pause.
+  const autoSubscribedRef = useRef<string | null>(null);
 
   // Subscribe field-by-field so the effect below only fires on the
   // bits the renderer actually consumes — avoids a re-render storm
   // when an unrelated store field is added later.
   const showGrid = useFootprintSettingsStore((s) => s.showGrid);
+  const showCrosshair = useFootprintSettingsStore((s) => s.showCrosshair);
   const showPocSession = useFootprintSettingsStore((s) => s.showPocSession);
   const showPocBar = useFootprintSettingsStore((s) => s.showPocBar);
   const showVolumeTooltip = useFootprintSettingsStore(
@@ -85,6 +91,7 @@ export function CryptoFootprint({
   );
   const volumeFormat = useFootprintSettingsStore((s) => s.volumeFormat);
   const magnetMode = useFootprintSettingsStore((s) => s.magnetMode);
+  const timezone = useFootprintSettingsStore((s) => s.timezone);
   const showStackedImbalances = useFootprintSettingsStore(
     (s) => s.showStackedImbalances,
   );
@@ -96,6 +103,27 @@ export function CryptoFootprint({
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
   );
+  const showVwapIndicator = useFootprintSettingsStore(
+    (s) => s.showVwapIndicator,
+  );
+  const showClusterStat = useFootprintSettingsStore((s) => s.showClusterStat);
+  const showBarDelta = useFootprintSettingsStore((s) => s.showBarDelta);
+  const chartBgColor = useFootprintSettingsStore((s) => s.chartBgColor);
+  const chartGridColor = useFootprintSettingsStore((s) => s.chartGridColor);
+  const candleBodyUp = useFootprintSettingsStore((s) => s.candleBodyUp);
+  const candleBodyDown = useFootprintSettingsStore((s) => s.candleBodyDown);
+  const candleBorderUp = useFootprintSettingsStore((s) => s.candleBorderUp);
+  const candleBorderDown = useFootprintSettingsStore((s) => s.candleBorderDown);
+  const candleWickUp = useFootprintSettingsStore((s) => s.candleWickUp);
+  const candleWickDown = useFootprintSettingsStore((s) => s.candleWickDown);
+  const bidColor = useFootprintSettingsStore((s) => s.bidColor);
+  const askColor = useFootprintSettingsStore((s) => s.askColor);
+  const crosshairColor = useFootprintSettingsStore((s) => s.crosshairColor);
+  const crosshairOpacity = useFootprintSettingsStore(
+    (s) => s.crosshairOpacity,
+  );
+  const crosshairStyle = useFootprintSettingsStore((s) => s.crosshairStyle);
+  const crosshairWidth = useFootprintSettingsStore((s) => s.crosshairWidth);
 
   // Map the store shape to the renderer's settings shape. Resolves
   // priceDecimalsMode "auto" → null (renderer falls back to the
@@ -103,30 +131,71 @@ export function CryptoFootprint({
   const rendererSettings: FootprintRendererSettings = useMemo(
     () => ({
       showGrid,
+      showCrosshair,
       showPocSession,
       showPocBar,
       showVolumeTooltip,
       showOhlcHeader,
       priceDecimalsOverride:
         priceDecimalsMode === "auto" ? null : parseInt(priceDecimalsMode, 10),
+      // Crypto-side: no per-symbol catalog yet, let the renderer
+      // infer from level gaps. Plumbed for interface parity.
+      tickSizeOverride: null,
       volumeFormat,
       magnetMode,
+      timezone,
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showVwapIndicator,
+      showClusterStat,
+      showBarDelta,
+      chartBgColor,
+      chartGridColor,
+      candleBodyUp,
+      candleBodyDown,
+      candleBorderUp,
+      candleBorderDown,
+      candleWickUp,
+      candleWickDown,
+      bidColor,
+      askColor,
+      crosshairColor,
+      crosshairOpacity,
+      crosshairStyle,
+      crosshairWidth,
     }),
     [
       showGrid,
+      showCrosshair,
       showPocSession,
       showPocBar,
       showVolumeTooltip,
       showOhlcHeader,
       priceDecimalsMode,
       volumeFormat,
+      timezone,
       magnetMode,
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showVwapIndicator,
+      showClusterStat,
+      showBarDelta,
+      chartBgColor,
+      chartGridColor,
+      candleBodyUp,
+      candleBodyDown,
+      candleBorderUp,
+      candleBorderDown,
+      candleWickUp,
+      candleWickDown,
+      bidColor,
+      askColor,
+      crosshairColor,
+      crosshairOpacity,
+      crosshairStyle,
+      crosshairWidth,
     ],
   );
 
@@ -266,6 +335,44 @@ export function CryptoFootprint({
     }
   }, [exchange, symbol]);
 
+  // Auto-subscribe to whatever (exchange, symbol) pair is currently
+  // selected, as soon as the crypto WebSocket connects. When the user
+  // picks a different symbol we unsubscribe the previous one first.
+  const fullKey = `${exchange}:${symbol.toUpperCase()}`;
+  useEffect(() => {
+    if (!connected) {
+      autoSubscribedRef.current = null;
+      return;
+    }
+    if (autoSubscribedRef.current === fullKey) return;
+    if (autoSubscribedRef.current === "__paused__") return;
+    let cancelled = false;
+    const run = async () => {
+      const prev = autoSubscribedRef.current;
+      if (prev && prev !== fullKey && prev !== "__paused__") {
+        const [prevEx, prevSym] = prev.split(":");
+        try {
+          await invoke("crypto_unsubscribe", {
+            args: { exchange: prevEx, symbol: prevSym },
+          });
+        } catch (e) {
+          console.warn("auto-unsub previous symbol failed:", e);
+        }
+      }
+      if (cancelled) return;
+      autoSubscribedRef.current = fullKey;
+      try {
+        await handleSubscribe();
+      } catch {
+        if (!cancelled) autoSubscribedRef.current = null;
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, fullKey, handleSubscribe]);
+
   // Symbol switch from the picker. Clear the bar cache so the new
   // ticker doesn't render mixed with stale bars from the previous
   // symbol while the first new bar forms.
@@ -295,6 +402,11 @@ export function CryptoFootprint({
     () => [...bars.values()].sort((a, b) => b.bucketTsNs - a.bucketTsNs),
     [bars],
   );
+
+  // Price alerts — beep when an armed h-line is crossed by the
+  // live close. Symbol is the bare prop value (e.g. "BTCUSDT") so
+  // it matches what the store persists.
+  useAlertWatcher(sortedBars[0]?.close, symbol);
 
   // Reschedule the indicator pipeline whenever the bar set changes
   // OR a parameter that affects the compute changes. Visibility-only
@@ -349,6 +461,7 @@ export function CryptoFootprint({
           value={timeframe}
           onChange={handleTimeframeChange}
           disabled={busy}
+          hideTickBased
         />
         <MagnetToggle />
         <button
@@ -361,22 +474,36 @@ export function CryptoFootprint({
           ⚙
         </button>
         <span className="cf-controls-spacer" />
-        <button
-          type="button"
-          onClick={handleSubscribe}
-          disabled={busy || !connected}
-          className="cf-action-btn cf-action-primary"
-        >
-          Subscribe
-        </button>
+        {/* Auto-subscribe is always on: the stream starts as soon as
+            the crypto WebSocket connects. Pause = manual escape hatch
+            that stays paused until the user picks a different symbol
+            or hits Resume. */}
         {isSubscribed && (
           <button
             type="button"
-            onClick={handleUnsubscribe}
+            onClick={() => {
+              autoSubscribedRef.current = "__paused__";
+              void handleUnsubscribe();
+            }}
             disabled={busy}
             className="cf-action-btn cf-action-secondary"
+            title="Pause live data for the current symbol"
           >
-            Unsubscribe
+            Pause
+          </button>
+        )}
+        {!isSubscribed && connected && (
+          <button
+            type="button"
+            onClick={() => {
+              autoSubscribedRef.current = null;
+              void handleSubscribe();
+            }}
+            disabled={busy}
+            className="cf-action-btn cf-action-primary"
+            title="Resume live data"
+          >
+            Resume
           </button>
         )}
       </section>
@@ -391,6 +518,7 @@ export function CryptoFootprint({
             symbol={symbol}
             timeframe={timeframe}
             priceDecimals={PRICE_DECIMALS}
+            onOpenSettings={() => setSettingsOpen(true)}
             bare
           />
           <ZoomControls
