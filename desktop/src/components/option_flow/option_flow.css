@@ -68,19 +68,43 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
+  background: rgba(34, 197, 94, 0.04);
+  position: relative;
 }
 .of-header-live::before {
+  /* Inner dot — base pulse. */
   content: "";
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--brand-green-bright);
-  box-shadow: 0 0 6px var(--brand-green);
-  animation: of-live-pulse 1.4s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--brand-green);
+  animation: of-live-pulse 1.6s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+.of-header-live::after {
+  /* Outer ring — expanding ripple. Same period as the dot but offset
+     so the eye reads it as a heartbeat. */
+  content: "";
+  position: absolute;
+  left: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-green-bright);
+  opacity: 0.45;
+  animation: of-live-ripple 1.6s ease-out infinite;
+  pointer-events: none;
 }
 @keyframes of-live-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.45; transform: scale(0.85); }
+}
+@keyframes of-live-ripple {
+  0%   { transform: scale(1);   opacity: 0.45; }
+  80%  { transform: scale(2.6); opacity: 0;    }
+  100% { transform: scale(2.6); opacity: 0;    }
 }
 .of-header-actions { display: flex; align-items: center; gap: 10px; }
 .of-header-refreshed {
@@ -306,7 +330,7 @@
 .of-stat-card {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.018) 0%,
+    rgba(255, 255, 255, 0.022) 0%,
     rgba(255, 255, 255, 0.004) 100%
   ),
   var(--bg-surface);
@@ -318,7 +342,7 @@
   gap: 6px;
   position: relative;
   overflow: hidden;
-  transition: border-color 0.18s ease, transform 0.18s ease;
+  transition: border-color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
 }
 .of-stat-card::before {
   content: "";
@@ -327,20 +351,42 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--brand-green-bright), transparent);
   opacity: 0.5;
+  transition: opacity 0.22s ease;
 }
 .of-stat-card::after {
+  /* Ambient green glow in the top-right corner — softly tracks hover
+     so the card feels like it lights up rather than just changing
+     border color. */
   content: "";
   position: absolute;
   top: -40%;
   right: -25%;
-  width: 130px;
-  height: 130px;
-  background: radial-gradient(circle, var(--brand-green-soft) 0%, transparent 65%);
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.08) 0%, transparent 65%);
   pointer-events: none;
+  transition: background 0.32s ease, top 0.32s ease, right 0.32s ease;
 }
 .of-stat-card:hover {
-  border-color: var(--brand-green-deep);
-  transform: translateY(-1px);
+  border-color: rgba(34, 197, 94, 0.45);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.32),
+    0 0 24px rgba(34, 197, 94, 0.10);
+  background: linear-gradient(
+    180deg,
+    rgba(34, 197, 94, 0.04) 0%,
+    rgba(255, 255, 255, 0.004) 100%
+  ),
+  var(--bg-surface);
+}
+.of-stat-card:hover::before {
+  opacity: 0.95;
+}
+.of-stat-card:hover::after {
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.18) 0%, transparent 60%);
+  top: -30%;
+  right: -20%;
 }
 
 .of-stat-label {
@@ -446,28 +492,35 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.14s ease;
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.22s ease;
 }
 .of-filter-pill:hover { color: var(--text-primary); }
+/* Active pill — base lime. Each variant overrides the color so the
+   call / put / buy / sell pills stay semantic when selected. */
 .of-filter-pill-active {
   background: var(--brand-green);
   color: var(--bg-primary);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
 }
 .of-filter-pill-call.of-filter-pill-active {
   background: var(--brand-green);
   color: var(--bg-primary);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
 }
 .of-filter-pill-put.of-filter-pill-active {
   background: var(--accent-red-warm);
   color: var(--bg-primary);
+  box-shadow: 0 0 12px rgba(255, 61, 113, 0.35);
 }
 .of-filter-pill-buy.of-filter-pill-active {
   background: var(--brand-green-bright);
   color: var(--bg-primary);
+  box-shadow: 0 0 12px rgba(52, 236, 120, 0.40);
 }
 .of-filter-pill-sell.of-filter-pill-active {
   background: var(--accent-red-warm);
   color: var(--bg-primary);
+  box-shadow: 0 0 12px rgba(255, 61, 113, 0.35);
 }
 
 /* ─── Table ──────────────────────────────────────────────── */
@@ -547,8 +600,12 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   position: relative;
-  transition: background 0.12s ease;
-  animation: of-row-in 0.32s ease-out;
+  transition: background 0.18s ease, transform 0.18s ease;
+  /* Two-phase entrance: position slide + brief green wash so the
+     user feels each new trade arrive at the top of the feed without
+     it being noisy. The wash is on a separate ::after layer so the
+     hover transition on .of-row stays snappy. */
+  animation: of-row-in 0.42s cubic-bezier(0.22, 1, 0.36, 1);
   align-items: center;
 }
 .of-row::before {
@@ -559,25 +616,65 @@
   bottom: 0;
   width: 3px;
   background: transparent;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.of-row::after {
+  /* Fresh-trade flash — fires on row mount, then fades. Reuses the
+     same brand-green wash regardless of side/tier so the user always
+     reads it as "this just arrived". */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.14) 0%, transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  animation: of-row-flash 1.2s ease-out;
 }
 .of-row:hover {
   background: rgba(34, 197, 94, 0.045);
+  transform: translateX(2px);
 }
 .of-row:hover::before {
   background: var(--brand-green);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.45);
 }
 @keyframes of-row-in {
-  from { opacity: 0; transform: translateX(-6px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes of-row-flash {
+  0%   { opacity: 1; }
+  60%  { opacity: 0.4; }
+  100% { opacity: 0; }
 }
 
-/* Premium tier — left accent bar */
-.of-row.of-tier-mega::before    { background: var(--brand-green-bright); box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
-.of-row.of-tier-mega            { background: linear-gradient(90deg, rgba(34, 197, 94, 0.07) 0%, transparent 40%); }
-.of-row.of-tier-large::before   { background: var(--brand-green); }
-.of-row.of-tier-mid::before     { background: var(--brand-green-dim); }
-.of-row.of-tier-small::before   { background: transparent; }
+/* Premium tier — left accent bar + tier-specific background depth.
+   Progression : small (no accent) → mid (dim bar) → large (bright bar)
+   → mega (bright bar + wider bg gradient + glow). The mega row should
+   feel like a "stop and look" moment in the feed. */
+.of-row.of-tier-small::before {
+  background: transparent;
+}
+.of-row.of-tier-mid::before {
+  background: var(--brand-green-dim);
+}
+.of-row.of-tier-large::before {
+  background: var(--brand-green);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.25);
+}
+.of-row.of-tier-mega::before {
+  background: var(--brand-green-bright);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.55);
+}
+.of-row.of-tier-mega {
+  background:
+    linear-gradient(90deg, rgba(34, 197, 94, 0.10) 0%, rgba(34, 197, 94, 0.03) 35%, transparent 60%);
+  border-bottom-color: rgba(34, 197, 94, 0.18);
+}
+.of-row.of-tier-mega:hover {
+  background:
+    linear-gradient(90deg, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0.05) 35%, rgba(34, 197, 94, 0.02) 60%);
+}
 
 .of-cell-time {
   color: var(--text-muted);
