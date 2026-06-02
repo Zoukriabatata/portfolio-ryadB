@@ -4,8 +4,12 @@
 // Journal route consuming filters.
 
 import type { TradeFilter } from "../../types/journal";
+import { SPECS as FUTURES_SPECS } from "../../lib/sim/contractSpecs";
 
-const SYMBOLS = ["MNQ", "NQ", "MES", "ES", "RTY", "YM", "CL", "NG", "GC", "SI", "BTC", "MBT", "ETH", "MET"];
+// Derived from the single source of truth in lib/sim/contractSpecs.ts —
+// adding a contract there extends the journal filter automatically,
+// no separate list to keep in sync.
+const SYMBOLS = FUTURES_SPECS.map((s) => s.root);
 const SETUPS = ["breakout", "pullback", "reversal", "fade", "trend", "range", "news", "open"];
 const EMOTIONS = ["calm", "confident", "fomo", "revenge", "fearful", "tilted", "patient"];
 
