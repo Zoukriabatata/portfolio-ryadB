@@ -9,9 +9,12 @@
 //! no-op; the caller can re-issue it without forcing a reconnect.
 //! Force-reconnect goes through `bridge_disconnect` first.
 
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
+use crate::commands::bridge_depth::{self, BridgeDepthState};
 use crate::commands::bridge_events;
 use crate::connectors::adapter::MarketDataAdapter;
 use crate::connectors::bridge::{BridgeAdapter, BridgeConfig};
@@ -43,6 +46,7 @@ pub struct BridgeStatus {
 #[tauri::command]
 pub async fn bridge_connect(
     state: State<'_, BridgeState>,
+    depth_state: State<'_, Arc<BridgeDepthState>>,
     app: AppHandle,
     args: BridgeConnectArgs,
 ) -> Result<BridgeStatus, String> {
@@ -63,6 +67,10 @@ pub async fn bridge_connect(
     // Subscribe to state updates BEFORE connect — the first
     // BridgeConnState::Connecting is sent immediately by the reader.
     let state_rx = adapter.states();
+    // Same for depth: subscribe BEFORE connect so the first D events
+    // (could arrive in the same tcp packet as the M header) aren't
+    // dropped by a late subscriber.
+    let depth_rx = adapter.depths();
 
     adapter.connect().await.map_err(err)?;
 
@@ -72,9 +80,14 @@ pub async fn bridge_connect(
     // anyone listening to the existing event.
     let pump = state.engine.clone().spawn(adapter.ticks());
     let state_emit = bridge_events::spawn_state_emitter(app, state_rx);
+    // L2 depth pump — applies updates to the per-symbol orderbook
+    // held in BridgeDepthState. The long-lived IPC emitter (spawned
+    // at app setup) reads the book periodically and emits to the UI.
+    let depth_pump = bridge_depth::spawn_pump(depth_rx, depth_state.inner().clone());
 
     *state.engine_pump.lock().await = Some(pump);
     *state.state_emit.lock().await = Some(state_emit);
+    *state.depth_pump.lock().await = Some(depth_pump);
     *state.adapter.lock().await = Some(adapter);
 
     tracing::info!(host = %host, port, "Bridge: connected");
@@ -97,6 +110,9 @@ pub async fn bridge_disconnect(state: State<'_, BridgeState>) -> Result<BridgeSt
         handle.abort();
     }
     if let Some(handle) = state.state_emit.lock().await.take() {
+        handle.abort();
+    }
+    if let Some(handle) = state.depth_pump.lock().await.take() {
         handle.abort();
     }
 

@@ -17,6 +17,7 @@ use tokio::task::JoinHandle;
 
 use crate::connectors::adapter::MarketDataAdapter;
 use crate::connectors::bridge::client::BridgeConfig;
+use crate::connectors::bridge::parser::DepthUpdate;
 use crate::connectors::bridge::reader::{self, BridgeConnState};
 use crate::connectors::error::{ConnectorError, Result};
 use crate::connectors::tick::Tick;
@@ -33,12 +34,17 @@ use crate::engine::FootprintEngine;
 /// once the engine catches up.
 const TICK_CHANNEL_CAPACITY: usize = 1_000_000;
 const STATE_CHANNEL_CAPACITY: usize = 64;
+/// L2 depth bursts can hit thousands of events per second on illiquid
+/// open / close moments. Sized like ticks (vs state) to absorb a fast
+/// market-on-open burst without forcing the IPC emitter to lag.
+const DEPTH_CHANNEL_CAPACITY: usize = 16_384;
 const READER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub struct BridgeAdapter {
     config: BridgeConfig,
     tick_tx: broadcast::Sender<Tick>,
     state_tx: broadcast::Sender<BridgeConnState>,
+    depth_tx: broadcast::Sender<(String, DepthUpdate)>,
     reader_handle: Option<JoinHandle<()>>,
     shutdown_tx: Option<oneshot::Sender<()>>,
     /// Shared footprint engine — handed to the reader task so it can
@@ -51,10 +57,12 @@ impl BridgeAdapter {
     pub fn with_config(config: BridgeConfig, engine: Arc<FootprintEngine>) -> Self {
         let (tick_tx, _) = broadcast::channel(TICK_CHANNEL_CAPACITY);
         let (state_tx, _) = broadcast::channel(STATE_CHANNEL_CAPACITY);
+        let (depth_tx, _) = broadcast::channel(DEPTH_CHANNEL_CAPACITY);
         Self {
             config,
             tick_tx,
             state_tx,
+            depth_tx,
             reader_handle: None,
             shutdown_tx: None,
             engine,
@@ -68,6 +76,20 @@ impl BridgeAdapter {
     /// Subscribe to state updates (Connecting / ReceivingHistory / Live / Reconnecting).
     pub fn states(&self) -> broadcast::Receiver<BridgeConnState> {
         self.state_tx.subscribe()
+    }
+
+    /// Subscribe to raw L2 depth updates straight from the bridge.
+    /// Consumers should coalesce on a per-frame window before emitting
+    /// to the UI — a fast market can produce > 1000 events/sec.
+    pub fn depths(&self) -> broadcast::Receiver<(String, DepthUpdate)> {
+        self.depth_tx.subscribe()
+    }
+
+    /// Long-lived clone of the depth sender — handed to the spawn
+    /// flow so the IPC emitter can resubscribe after an adapter
+    /// restart without losing its event channel.
+    pub fn depth_sender(&self) -> broadcast::Sender<(String, DepthUpdate)> {
+        self.depth_tx.clone()
     }
 
     pub fn is_connected(&self) -> bool {
@@ -87,6 +109,7 @@ impl MarketDataAdapter for BridgeAdapter {
             self.config.clone(),
             self.tick_tx.clone(),
             self.state_tx.clone(),
+            self.depth_tx.clone(),
             shutdown_rx,
             self.engine.clone(),
         );
