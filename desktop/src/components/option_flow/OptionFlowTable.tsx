@@ -28,6 +28,39 @@ function premiumTier(n: number): string {
   return "of-tier-small";
 }
 
+function fmtDelta(d: number | null | undefined): string {
+  if (d == null || !Number.isFinite(d)) return "—";
+  // Sign forced — calls are +0..+1, puts are -1..0. The sign carries
+  // the directional intuition (long calls = long stock-equivalent).
+  const sign = d >= 0 ? "+" : "";
+  return `${sign}${d.toFixed(2)}`;
+}
+
+/** Bucket for cell colour. Negative = put-side bias (red),
+ *  positive ITM ≥ 0.5 = high conviction directional (bright green). */
+function deltaTier(d: number | null | undefined): string {
+  if (d == null || !Number.isFinite(d)) return "of-delta-null";
+  const abs = Math.abs(d);
+  if (abs >= 0.6) return d >= 0 ? "of-delta-deep-call" : "of-delta-deep-put";
+  if (abs >= 0.3) return d >= 0 ? "of-delta-mid-call" : "of-delta-mid-put";
+  return "of-delta-otm";
+}
+
+function fmtIv(iv: number | null | undefined): string {
+  if (iv == null || !Number.isFinite(iv)) return "—";
+  return `${(iv * 100).toFixed(1)}%`;
+}
+
+/** Bucket for IV cell colour: ≥80% = hot (red glow), 40-80% = elevated,
+ *  ≤20% = cheap (cool). Helps eyeballing "expensive vs cheap" at glance. */
+function ivTier(iv: number | null | undefined): string {
+  if (iv == null || !Number.isFinite(iv)) return "of-iv-null";
+  if (iv >= 0.8) return "of-iv-hot";
+  if (iv >= 0.4) return "of-iv-elevated";
+  if (iv >= 0.2) return "of-iv-normal";
+  return "of-iv-cool";
+}
+
 export function OptionFlowTable() {
   const trades = useOptionFlowStore((s) => s.trades);
   const minPremium = useOptionFlowStore((s) => s.minPremium);
@@ -60,6 +93,8 @@ export function OptionFlowTable() {
         <span className="of-th-right">Size</span>
         <span className="of-th-right">Price</span>
         <span className="of-th-right">Premium</span>
+        <span className="of-th-right" title="Delta — directional exposure per contract (calls 0…+1, puts -1…0)">Δ</span>
+        <span className="of-th-right" title="Implied volatility — option's market-implied expectation of underlying movement">IV</span>
         <span>Side</span>
         <span>Exch</span>
       </div>
@@ -103,6 +138,19 @@ export function OptionFlowTable() {
               <span className="of-cell-right">${t.price.toFixed(2)}</span>
               <span className={`of-cell-right of-cell-premium`}>
                 {fmtPremium(t.premium)}
+              </span>
+              <span
+                className={`of-cell-right of-cell-delta ${deltaTier(t.delta)}`}
+                title={
+                  t.gamma != null || t.theta != null
+                    ? `γ ${t.gamma?.toFixed(3) ?? "—"} · θ ${t.theta?.toFixed(2) ?? "—"}`
+                    : undefined
+                }
+              >
+                {fmtDelta(t.delta)}
+              </span>
+              <span className={`of-cell-right of-cell-iv ${ivTier(t.iv)}`}>
+                {fmtIv(t.iv)}
               </span>
               <span className={`of-cell-side of-side-${t.side}`}>
                 {t.side === "buy"

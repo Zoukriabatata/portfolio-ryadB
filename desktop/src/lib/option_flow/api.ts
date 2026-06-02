@@ -16,6 +16,13 @@ export type OptionTrade = {
   premium: number; // price × size × 100
   exchange: string;
   side: TradeSide;
+  // Greeks snapshot from the active chain, null for deep OTM/ITM legs
+  // where Alpaca omits them or for trades on a contract outside the
+  // backend's strike window.
+  delta?: number | null;
+  gamma?: number | null;
+  theta?: number | null;
+  iv?: number | null; // 0..1, e.g. 0.284 = 28.4%
 };
 
 export async function pollOptionFlow(
