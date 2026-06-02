@@ -3,15 +3,17 @@ import { useOptionFlowStore } from "./useOptionFlowStore";
 
 const POLL_INTERVAL_MS = 4_000;
 
-/** Polls the backend every 4s while the document is visible. Pauses
- *  when the tab loses focus to avoid wasted Alpaca calls. */
+/** Polls the backend every 4s while auto-refresh is enabled. Runs
+ *  unconditionally — including when the app window is hidden — so
+ *  the feed stays current while the user is alt-tabbed away.
+ *  The Alpaca free tier is generous enough on rate limits for this
+ *  ~15 RPM steady cadence to be safe. */
 export function useOptionFlowPolling() {
   const autoRefresh = useOptionFlowStore((s) => s.autoRefresh);
   const symbol = useOptionFlowStore((s) => s.symbol);
   const poll = useOptionFlowStore((s) => s.poll);
 
   useEffect(() => {
-    // Fire one immediately when symbol/auto changes.
     void poll();
     if (!autoRefresh) return;
 
@@ -20,9 +22,7 @@ export function useOptionFlowPolling() {
 
     const tick = async () => {
       if (cancelled) return;
-      if (document.visibilityState === "visible") {
-        await poll();
-      }
+      await poll();
       if (cancelled) return;
       timer = setTimeout(tick, POLL_INTERVAL_MS);
     };

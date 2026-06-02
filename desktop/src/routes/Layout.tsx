@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { AppNavbar } from "../components/AppNavbar";
 import { BrokerSettings } from "../components/BrokerSettings";
+import { MultiSourceFootprint } from "../components/MultiSourceFootprint";
+import { useSession } from "../lib/auth/SessionContext";
 
 // Projection redacted (sans password) renvoyée par load_broker_credentials.
 // Le shape est dupliqué ici plutôt qu'importé pour éviter une dépendance
@@ -30,6 +32,18 @@ export function Layout() {
   const [status, setStatus] = useState<BrokerStatus>("checking");
   const [label, setLabel] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const location = useLocation();
+  const session = useSession();
+  // Footprint is the heaviest route to (re-)bootstrap — bridge TCP
+  // socket / Rithmic subscription + history snapshot fetch + canvas
+  // setup. Mounting it persistently at the Layout level lets the user
+  // navigate away (Option Flow, GEX, News…) and come back without
+  // re-paying any of that cost. The pane is hidden via display:none
+  // when off-route; the IPC listener stays subscribed and bars keep
+  // accumulating in the cache so coming back is instant.
+  // Gated on `session` so the bridge/Rithmic connection only fires
+  // post-login.
+  const onFootprint = location.pathname.startsWith("/footprint");
 
   const refresh = useCallback(async () => {
     try {
@@ -72,7 +86,35 @@ export function Layout() {
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <main className="app-main">
-        <Outlet />
+        {/* Persistent footprint pane — mounted once per session, kept
+            alive across route changes. Hidden via display:none when
+            the user isn't on /footprint so the listener and bars
+            cache survive. */}
+        {session && (
+          <div
+            style={{
+              display: onFootprint ? "flex" : "none",
+              flex: 1,
+              minHeight: 0,
+              flexDirection: "column",
+            }}
+          >
+            <MultiSourceFootprint />
+          </div>
+        )}
+        {/* Other routes via Outlet. Hidden when the user is on
+            /footprint so the persistent pane above takes the full
+            viewport. */}
+        <div
+          style={{
+            display: onFootprint ? "none" : "flex",
+            flex: 1,
+            minHeight: 0,
+            flexDirection: "column",
+          }}
+        >
+          <Outlet />
+        </div>
       </main>
       {settingsOpen && (
         <div

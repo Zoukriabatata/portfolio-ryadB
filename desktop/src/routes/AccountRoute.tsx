@@ -152,6 +152,12 @@ export function AccountRoute() {
     setBusy("logout");
     try {
       await invoke("cmd_logout");
+      // Saved credentials in the OS keychain are INTENTIONALLY kept —
+      // the "Sauvegarder mes identifiants" checkbox means "remember me
+      // until I explicitly uncheck it on the next login". Signing out
+      // is session-level, not intent-to-forget. The Login component's
+      // auto-login guard (module-level autoLoginConsumed flag) prevents
+      // an immediate re-login loop after this sign-out.
       setSession(null);
       setFeedback({
         kind: "ok",

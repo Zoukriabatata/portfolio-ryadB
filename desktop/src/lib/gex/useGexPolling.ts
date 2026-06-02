@@ -19,34 +19,23 @@ export function useGexPolling() {
   const tickSpot = useGexStore((s) => s.tickSpot);
   const autoRefresh = useGexStore((s) => s.autoRefresh);
 
+  // Both timers run unconditionally — including when the app is
+  // hidden or alt-tabbed away. Cost is bounded (1 chain fetch / 15 min
+  // + 1 tick recompute / 5s) and the user explicitly asked for
+  // continuous background refresh so the chart is up-to-date when
+  // they come back.
   useEffect(() => {
     let fullTimer: ReturnType<typeof setInterval> | null = null;
     let tickTimer: ReturnType<typeof setInterval> | null = null;
 
-    const stop = () => {
+    void fetchSnapshot();
+    if (autoRefresh) {
+      fullTimer = setInterval(() => void fetchSnapshot(), FULL_REFRESH_MS);
+      tickTimer = setInterval(() => void tickSpot(), TICK_INTERVAL_MS);
+    }
+    return () => {
       if (fullTimer) clearInterval(fullTimer);
       if (tickTimer) clearInterval(tickTimer);
-      fullTimer = null;
-      tickTimer = null;
-    };
-    const start = () => {
-      stop();
-      void fetchSnapshot();
-      if (autoRefresh) {
-        fullTimer = setInterval(() => void fetchSnapshot(), FULL_REFRESH_MS);
-        tickTimer = setInterval(() => void tickSpot(), TICK_INTERVAL_MS);
-      }
-    };
-    const onVisibility = () => {
-      if (document.hidden) stop();
-      else start();
-    };
-
-    start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      stop();
     };
   }, [fetchSnapshot, tickSpot, autoRefresh]);
 }

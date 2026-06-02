@@ -96,6 +96,30 @@ body, html, #root {
   color: #94a3b8;
 }
 
+/* "Remember me" row — flips the default column layout to horizontal
+   so the checkbox sits inline with its label, with a small breathing
+   gap above so it doesn't collide with the password field. */
+.card label.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  margin-top: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.card label.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #7ed321;
+  cursor: pointer;
+  padding: 0;
+}
+.card label.checkbox-row span {
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
 .card input {
   background: #0b0b14;
   border: 1px solid #1e1e2e;

@@ -411,3 +411,83 @@ pub async fn clear_session(data_dir: &PathBuf) -> Result<(), AuthError> {
     }
     Ok(())
 }
+
+/* ─── Saved credentials (opt-in "remember me") ───────────────────────
+ *
+ * Separate from the session token: the session token is what the
+ * server gave us, lives ~N days, and dies on heartbeat-revocation.
+ * Saved credentials are the email + password the user explicitly
+ * asked us to remember so a fresh login (after token expiry, manual
+ * logout, etc.) doesn't require retyping them.
+ *
+ * Storage:
+ *   - Single OS-keyring entry under (KEYRING_SERVICE, CREDENTIALS_USER).
+ *   - Value = JSON-encoded {email, password}. We keep them together so
+ *     a partial delete (email kept, password lost) is impossible.
+ *   - On hosts where the keyring is unavailable, we REFUSE to save.
+ *     Plaintext-on-disk for a user-typed password is not acceptable —
+ *     the session token in degraded mode is one thing (token = short-
+ *     lived, server-rotatable), but a password is the master secret.
+ *
+ * Trade-offs:
+ *   - We assume one credentials slot per host. Multi-user hosts will
+ *     overwrite each other. This matches the existing session model
+ *     (one logged-in user at a time) and Apex's per-machine licensing.
+ */
+
+const KEYRING_CREDENTIALS_USER: &str = "saved-credentials";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavedCredentials {
+    pub email: String,
+    pub password: String,
+}
+
+pub async fn save_credentials(email: String, password: String) -> Result<(), AuthError> {
+    let creds = SavedCredentials { email, password };
+    let json = serde_json::to_string(&creds).map_err(|e| AuthError::Storage(e.to_string()))?;
+    tokio::task::spawn_blocking(move || {
+        keyring::Entry::new(KEYRING_SERVICE, KEYRING_CREDENTIALS_USER)
+            .and_then(|e| e.set_password(&json))
+    })
+    .await
+    .map_err(|e| AuthError::Storage(format!("keyring task join: {}", e)))?
+    .map_err(|e| AuthError::Storage(format!("OS keyring unavailable: {}", e)))?;
+    Ok(())
+}
+
+pub async fn load_credentials() -> Result<Option<SavedCredentials>, AuthError> {
+    let result: Result<String, keyring::Error> = tokio::task::spawn_blocking(|| {
+        keyring::Entry::new(KEYRING_SERVICE, KEYRING_CREDENTIALS_USER)
+            .and_then(|e| e.get_password())
+    })
+    .await
+    .map_err(|e| AuthError::Storage(format!("keyring task join: {}", e)))?;
+    match result {
+        Ok(json) => {
+            let creds: SavedCredentials = serde_json::from_str(&json)
+                .map_err(|e| AuthError::Storage(format!("credentials parse: {}", e)))?;
+            Ok(Some(creds))
+        }
+        // NoEntry is the normal "nothing saved yet" path — not an error.
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => {
+            tracing::warn!("OS keyring read failed for saved credentials: {}", e);
+            Ok(None)
+        }
+    }
+}
+
+pub async fn clear_credentials() -> Result<(), AuthError> {
+    tokio::task::spawn_blocking(|| {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_CREDENTIALS_USER)?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e),
+        }
+    })
+    .await
+    .map_err(|e| AuthError::Storage(format!("keyring task join: {}", e)))?
+    .map_err(|e| AuthError::Storage(format!("keyring delete: {}", e)))?;
+    Ok(())
+}

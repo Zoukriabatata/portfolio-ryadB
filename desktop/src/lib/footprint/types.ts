@@ -55,7 +55,12 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
   ohlcWidth: 8,
   askWidth: 56,
   profileWidth: 36,
-  rowHeight: 13,
+  // Per-price-level row height cap for the Y-axis auto-fit. Bumped
+  // from 13 → 17 so each level's "vol_bid x vol_ask" reads with 6 px
+  // of vertical breathing room instead of 3, matching the 11 px
+  // cellFontSize. The auto-fit still shrinks below this cap when
+  // the bar's price range is wide.
+  rowHeight: 17,
   // Tightened from 4 → 1 px. The previous gap left a chunky black
   // stripe between every footprint column, which read as "the chart
   // is dezoomed" even at high zoom levels. 1 px keeps cells visually

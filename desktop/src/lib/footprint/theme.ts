@@ -92,6 +92,11 @@ export const SENZOUKRIA_DARK: FootprintTheme = {
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   priceFontSize: 10,
-  cellFontSize: 10,
+  // Per-level volume number font. Bumped from 10 → 11 so the
+  // "138 x 115" numbers stay legible in the default row height
+  // without forcing the user to wheel-zoom in. The renderer caps
+  // visible text at rowH >= 9 anyway, so 11px stays inside the
+  // safe envelope.
+  cellFontSize: 11,
   headerFontSize: 11,
 };
