@@ -71,7 +71,11 @@ export const DEFAULT_INTERACTION: InteractionState = {
   // Bumped to 140 so values like "138 x 115" breathe by default
   // and the auto-fit ceiling is more generous on wide displays.
   cellWidth: 140,
-  rowHeight: 16,
+  // Per-level row height when the user has Y-zoomed. Bumped 16 → 20
+  // so a manual Y-zoom doesn't squeeze text back against the 9 px
+  // visibility threshold. Matches the layout cap (17) + 3 px of
+  // user-zoom headroom.
+  rowHeight: 20,
   isDragging: false,
   dragMode: null,
   dragStartX: 0,
@@ -83,7 +87,7 @@ export const DEFAULT_INTERACTION: InteractionState = {
   userOverrodeY: false,
   userOverrodeX: false,
   dragStartCellWidth: 140,
-  dragStartRowHeight: 16,
+  dragStartRowHeight: 20,
 };
 
 // Wider zoom envelope — user wants to zoom in much further (per-cell detail
