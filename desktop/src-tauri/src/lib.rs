@@ -241,6 +241,36 @@ fn build_state(app: &AppHandle) -> Arc<AppState> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Disable background throttling on the WebView2 webview (Windows)
+    // so the footprint canvas keeps painting when the user alt-tabs to
+    // another app (YouTube, NinjaTrader, …). Without these flags
+    // Chromium throttles requestAnimationFrame to ~1 Hz when the window
+    // loses focus or becomes occluded — meaning the price ticker, the
+    // OHLC header, and the canvas redraw freeze until the user comes
+    // back. With them, the chart stays live in background.
+    //
+    // Set via env var (NOT tauri.conf.json) because the field name and
+    // typing varies across Tauri 2.x patch releases; the env var path
+    // is stable since WebView2 1.0.
+    //
+    // Must be set BEFORE the Tauri webview spawns — hence at the top
+    // of run().
+    #[cfg(target_os = "windows")]
+    {
+        const BROWSER_ARGS: &str = "--disable-background-timer-throttling \
+                                    --disable-renderer-backgrounding \
+                                    --disable-backgrounding-occluded-windows";
+        // SAFETY: single-threaded boot. No reader can race the writer
+        // at this point in the lifecycle — Tauri hasn't initialized
+        // anything yet.
+        unsafe {
+            std::env::set_var(
+                "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+                BROWSER_ARGS,
+            );
+        }
+    }
+
     // Initialize the tracing subscriber so all `tracing::info!` /
     // `tracing::warn!` / `tracing::error!` calls across the Rust
     // codebase actually print to the terminal that ran `tauri dev`.

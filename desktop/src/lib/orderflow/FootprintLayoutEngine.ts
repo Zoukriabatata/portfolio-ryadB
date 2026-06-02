@@ -92,7 +92,13 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
   footprintWidth: 70,      // Réduit pour afficher plus de bougies
   ohlcWidth: 10,           // Réduit proportionnellement
   deltaProfileWidth: 35,
-  volumeProfileWidth: 30,  // Session volume profile width (compact, ATAS-style)
+  // Session volume profile width (left sidebar). Bumped from 30 → 50
+  // so the per-price-level volume bars have room to breathe and the
+  // user can read the relative weight of POC / VAH / VAL without
+  // squinting. ATAS-compact was tighter than necessary on wide
+  // monitors — the +20 px is taken from the chart area, which is
+  // already the most visually dense region.
+  volumeProfileWidth: 50,
   rowHeight: 13,           // Compact like ATAS — denser rows
   candleGap: 3,            // Gap between candles for readability
 

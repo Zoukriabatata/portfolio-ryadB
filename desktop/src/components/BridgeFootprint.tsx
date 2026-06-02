@@ -436,7 +436,7 @@ export function BridgeFootprint({
     if (!symbol) return;
 
     let cancelled = false;
-    const fetchSnapshot = async () => {
+    const fetchSnapshot = async (reason: string) => {
       try {
         const snap = await invoke<FootprintBar[]>("rithmic_get_bars", {
           args: { symbol, timeframe, nBars: SEED_BARS },
@@ -459,24 +459,34 @@ export function BridgeFootprint({
         }
         setBars(new Map(tfMap));
         console.info(
-          `Bridge: snapshot ${snap.length} bars for ${symbol} ${timeframe}`,
+          `Bridge: snapshot ${snap.length} bars for ${symbol} ${timeframe} (${reason})`,
         );
       } catch (e) {
         console.error("rithmic_get_bars failed:", e);
       }
     };
 
-    void fetchSnapshot();
+    void fetchSnapshot("initial");
     // Catch-up snapshot — at +3s the engine has typically drained
     // the backfill queue, so this picks up everything the first
     // call missed.
     const retryId = window.setTimeout(() => {
-      if (!cancelled) void fetchSnapshot();
+      if (!cancelled) void fetchSnapshot("catch-up");
     }, 3000);
+    // Periodic reconcile — heals gaps caused by broadcast-channel
+    // drops during heavy bursts (tokio broadcast capacity is 1024).
+    // Without this, a single Lagged event leaves a hole in the cache
+    // that lasts until the user manually switches symbol/TF. The
+    // "take larger" merge above means redundant fetches are cheap
+    // — they never shrink the cached state.
+    const reconcileId = window.setInterval(() => {
+      if (!cancelled) void fetchSnapshot("reconcile");
+    }, 60_000);
 
     return () => {
       cancelled = true;
       window.clearTimeout(retryId);
+      window.clearInterval(reconcileId);
     };
   }, [connState.kind, symbol, timeframe]);
 

@@ -1798,6 +1798,50 @@ function FootprintLive({
     };
   }, [subscribedKey, symbol, cacheClearSymbol, fetchHistoryForTimeframe]);
 
+  // Periodic reconcile against the live Rithmic engine state. Heals
+  // gaps caused by broadcast-channel drops during high-volume bursts
+  // (the consumer is the IPC emitter; if a single 16 ms flush window
+  // races, the broadcast can lag and drop bars before we read them).
+  // Engine-direct fetch (no Apex round-trip) so the cost is bounded —
+  // ~50 ms per call. The merge below only grows the cache (existing
+  // bars are kept if they have ≥ totalVolume / tradeCount), so a
+  // redundant reconcile is idempotent.
+  useEffect(() => {
+    if (!subscribedKey) return;
+    const tick = async () => {
+      try {
+        const snap = await invoke<FootprintBar[]>("rithmic_get_bars", {
+          args: { symbol: fullSymbol, timeframe, nBars: SEED_BARS },
+        });
+        const tfMap = barsCacheRef.current.get(timeframe)
+          ?? new Map<number, FootprintBar>();
+        let grew = 0;
+        for (const bar of snap) {
+          const existing = tfMap.get(bar.bucketTsNs);
+          if (
+            !existing ||
+            existing.totalVolume < bar.totalVolume ||
+            existing.tradeCount < bar.tradeCount
+          ) {
+            tfMap.set(bar.bucketTsNs, bar);
+            grew++;
+          }
+        }
+        if (grew > 0) {
+          barsCacheRef.current.set(timeframe, tfMap);
+          if (timeframe === currentTfRef.current) setBars(new Map(tfMap));
+          console.info(
+            `rithmic reconcile: +${grew} bars for ${fullSymbol} ${timeframe}`,
+          );
+        }
+      } catch (e) {
+        console.warn("rithmic reconcile failed:", e);
+      }
+    };
+    const id = window.setInterval(() => void tick(), 60_000);
+    return () => window.clearInterval(id);
+  }, [subscribedKey, fullSymbol, timeframe]);
+
   // Manual reload button. Same behaviour as the auto-reload on
   // subscribe (above) — wipes localStorage + in-memory caches then
   // re-fetches every preload TF. Useful when the user wants a fresh
