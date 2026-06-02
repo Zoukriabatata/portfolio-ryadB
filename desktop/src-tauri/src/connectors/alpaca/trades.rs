@@ -63,6 +63,19 @@ pub struct OptionTrade {
     pub exchange: String,
     /// Buy / sell / mid / unknown — heuristic from latest NBBO.
     pub side: TradeSide,
+    /// Greeks from the latest chain snapshot. `None` for deep OTM/ITM
+    /// legs where Alpaca omits them, or when the trade's contract isn't
+    /// in the active chain window. Filled in `option_flow_poll`, not
+    /// here — the trades fetcher doesn't know which chain a leg lives in.
+    #[serde(default)]
+    pub delta: Option<f64>,
+    #[serde(default)]
+    pub gamma: Option<f64>,
+    #[serde(default)]
+    pub theta: Option<f64>,
+    /// Implied vol as a decimal (0.28 = 28%).
+    #[serde(default)]
+    pub iv: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -230,6 +243,10 @@ pub async fn fetch_recent_trades(
                     premium,
                     exchange: t.x.unwrap_or_default(),
                     side: infer_side(t.p, quote),
+                    delta: None,
+                    gamma: None,
+                    theta: None,
+                    iv: None,
                 });
             }
         }

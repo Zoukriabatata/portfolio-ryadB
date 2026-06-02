@@ -12,6 +12,7 @@
 //! The frontend passes `since_ms` to avoid receiving duplicate trades. We
 //! subtract a 30s overlap to absorb clock skew between client and Alpaca.
 
+use std::collections::HashMap;
 use std::time::Duration;
 
 use tauri::State;
@@ -61,6 +62,17 @@ impl Default for OptionFlowState {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Local snapshot of a leg's Greeks, copied off `OptionLeg` so we can
+/// look them up by OCC symbol without holding a borrow on the chain
+/// vector across the trades await point.
+#[derive(Debug, Clone, Copy)]
+struct GreeksSnap {
+    delta: Option<f64>,
+    gamma: Option<f64>,
+    theta: Option<f64>,
+    iv: Option<f64>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -128,6 +140,11 @@ pub async fn option_flow_poll(
     let upper = spot * (1.0 + STRIKE_WINDOW_PCT);
 
     let mut occ_symbols: Vec<String> = Vec::with_capacity(256);
+    //    Side-effect: while we're already walking the legs, capture each
+    //    contract's Greeks snapshot so the table can show delta / IV /
+    //    gamma / theta per trade. Greeks are Option<f64> at the source
+    //    (Alpaca omits them for deep OTM/ITM) — we forward as-is.
+    let mut greeks_by_occ: HashMap<String, GreeksSnap> = HashMap::with_capacity(256);
     for chain in &sorted_chains {
         let yymmdd = compress_expiration(&chain.expiration);
         if yymmdd.is_empty() {
@@ -137,13 +154,23 @@ pub async fn option_flow_poll(
             if c.strike < lower || c.strike > upper {
                 continue;
             }
-            occ_symbols.push(build_occ(&symbol, &yymmdd, 'C', c.strike));
+            let occ = build_occ(&symbol, &yymmdd, 'C', c.strike);
+            greeks_by_occ.insert(
+                occ.clone(),
+                GreeksSnap { delta: c.delta, gamma: c.gamma, theta: c.theta, iv: c.iv },
+            );
+            occ_symbols.push(occ);
         }
         for p in &chain.puts {
             if p.strike < lower || p.strike > upper {
                 continue;
             }
-            occ_symbols.push(build_occ(&symbol, &yymmdd, 'P', p.strike));
+            let occ = build_occ(&symbol, &yymmdd, 'P', p.strike);
+            greeks_by_occ.insert(
+                occ.clone(),
+                GreeksSnap { delta: p.delta, gamma: p.gamma, theta: p.theta, iv: p.iv },
+            );
+            occ_symbols.push(occ);
         }
     }
     if occ_symbols.is_empty() {
@@ -181,11 +208,21 @@ pub async fn option_flow_poll(
         .await
         .map_err(|e| format!("alpaca trades: {e}"))?;
 
-    // 6) Server-side dedup against the original since_ms threshold.
+    // 6) Server-side dedup against the original since_ms threshold,
+    //    and graft the Greeks snapshot onto each surviving trade.
     let cutoff = args.since_ms.unwrap_or(0);
     let filtered: Vec<OptionTrade> = trades
         .into_iter()
         .filter(|t| t.timestamp_ms > cutoff)
+        .map(|mut t| {
+            if let Some(g) = greeks_by_occ.get(&t.symbol) {
+                t.delta = g.delta;
+                t.gamma = g.gamma;
+                t.theta = g.theta;
+                t.iv = g.iv;
+            }
+            t
+        })
         .collect();
     tracing::info!(
         "option_flow_poll: {} returned {} trades",

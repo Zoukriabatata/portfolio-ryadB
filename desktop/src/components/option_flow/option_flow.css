@@ -586,8 +586,9 @@
 }
 .of-table-header-row {
   display: grid;
-  grid-template-columns: 75px 1.6fr 80px 70px 70px 100px 64px 50px;
-  gap: 12px;
+  /* 10 cols: Time / Symbol / Strike / Size / Price / Premium / Δ / IV / Side / Exch */
+  grid-template-columns: 70px 1.3fr 70px 56px 62px 88px 56px 62px 60px 46px;
+  gap: 10px;
   padding: 11px 16px;
   background: linear-gradient(180deg, rgba(34, 197, 94, 0.06) 0%, rgba(34, 197, 94, 0.02) 100%);
   border-bottom: 1px solid var(--brand-green-deep);
@@ -660,8 +661,8 @@
 
 .of-row {
   display: grid;
-  grid-template-columns: 75px 1.6fr 80px 70px 70px 100px 64px 50px;
-  gap: 12px;
+  grid-template-columns: 70px 1.3fr 70px 56px 62px 88px 56px 62px 60px 46px;
+  gap: 10px;
   padding: 11px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.025);
   font-size: 12px;
@@ -848,6 +849,42 @@
   font-weight: 600;
   letter-spacing: 0.04em;
 }
+
+/* ─── Greeks cells (Δ / IV) ──────────────────────────────────
+   Both cells use tabular-nums (inherited from .of-row) so sign +
+   decimals align across rows. Colour is meaning-driven:
+     Δ — deep call (≥0.6) bright green, deep put (≤-0.6) red, OTM grey
+     IV — hot (≥80%) red, elevated 40-80% amber, normal 20-40% white,
+          cheap (≤20%) cool green.
+   Null state ("—") is rendered in muted text so empty rows don't
+   shout. Tooltip on Δ exposes γ + θ for advanced users — no extra
+   columns needed. */
+.of-cell-delta {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: help;
+}
+.of-delta-deep-call { color: var(--brand-green-bright); }
+.of-delta-mid-call  { color: var(--brand-green); }
+.of-delta-deep-put  { color: #f87171; }
+.of-delta-mid-put   { color: #fca5a5; }
+.of-delta-otm       { color: var(--text-muted); }
+.of-delta-null      { color: rgba(255, 255, 255, 0.18); font-weight: 600; }
+
+.of-cell-iv {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.of-iv-hot {
+  color: #f87171;
+  text-shadow: 0 0 6px rgba(248, 113, 113, 0.45);
+}
+.of-iv-elevated { color: #fbbf24; }
+.of-iv-normal   { color: var(--text-primary); }
+.of-iv-cool     { color: var(--brand-green-dim); }
+.of-iv-null     { color: rgba(255, 255, 255, 0.18); font-weight: 600; }
 
 /* ─── Error banner ───────────────────────────────────────── */
 .of-error-banner {
