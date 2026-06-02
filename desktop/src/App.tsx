@@ -384,6 +384,19 @@ function HandoffSplash({
   );
 }
 
+/** Module-level guard for the auto-submit branch of the Login flow.
+ *  Set to true after the FIRST auto-login attempt of the app process
+ *  (success or fail). Stays true for subsequent re-mounts of <Login>
+ *  inside the same process — which is what happens after a Sign out:
+ *  we still want to pre-fill the form from the keyring, but NOT
+ *  auto-submit again (otherwise Sign out becomes a no-op as the user
+ *  would be re-logged in instantly).
+ *
+ *  Not a useRef because the Login component unmounts on successful
+ *  login, so the ref would die with it. A module-level variable
+ *  persists across mounts within the same JS context. */
+let autoLoginConsumed = false;
+
 export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -394,9 +407,8 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   // the moment the resulting auto-login attempt finishes. Used to
   // disable the form so the user doesn't double-submit.
   const [autoLogin, setAutoLogin] = useState(false);
-  // Guards the auto-login attempt — fires at most once per mount so
-  // a failed attempt (wrong password, server unreachable) doesn't
-  // loop. The form stays pre-filled and the user can fix + retry.
+  // Guards the auto-login attempt within this mount — paired with the
+  // module-level autoLoginConsumed flag for cross-mount safety.
   const autoAttemptedRef = useRef(false);
 
   /** Centralised login path: used by both the manual submit and the
@@ -454,9 +466,10 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     }
   };
 
-  // On mount: pre-fill from the OS keyring + attempt auto-login.
-  // We intentionally run this only once (autoAttemptedRef) so a
-  // failed auto-attempt doesn't retry forever.
+  // On mount: pre-fill from the OS keyring. Auto-submit only if this
+  // is the first Login mount of the app process — subsequent mounts
+  // (after Sign out) pre-fill the form but require a manual click,
+  // so Sign out isn't immediately undone by the auto-login.
   useEffect(() => {
     if (autoAttemptedRef.current) return;
     autoAttemptedRef.current = true;
@@ -467,12 +480,17 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
           "cmd_load_credentials",
         );
         if (cancelled || !saved) return;
+        // Always pre-fill the form so the user sees their saved
+        // values and the checkbox state matches reality.
         setEmail(saved.email);
         setPassword(saved.password);
         setRemember(true);
+        // Auto-submit only on the very first Login mount of the
+        // process. After a Sign out, autoLoginConsumed is already
+        // true → we pre-fill and stop, leaving the user one click.
+        if (autoLoginConsumed) return;
+        autoLoginConsumed = true;
         setAutoLogin(true);
-        // Brief delay so the user sees the auto-fill happening before
-        // we fire the request — keeps the UX legible.
         await new Promise((r) => setTimeout(r, 120));
         if (cancelled) return;
         await doLogin(saved.email, saved.password, true, true);
