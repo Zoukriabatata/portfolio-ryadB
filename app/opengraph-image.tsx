@@ -32,7 +32,7 @@ export default function OGImage() {
             display: 'flex',
             opacity: 0.08,
             backgroundImage:
-              'linear-gradient(rgba(99,102,241,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.5) 1px, transparent 1px)',
+              'linear-gradient(rgba(74,222,128,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(74,222,128,0.4) 1px, transparent 1px)',
             backgroundSize: '40px 40px',
           }}
         />
@@ -46,7 +46,7 @@ export default function OGImage() {
             width: '800px',
             height: '400px',
             borderRadius: '50%',
-            background: 'radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%)',
+            background: 'radial-gradient(ellipse, rgba(74,222,128,0.18) 0%, transparent 70%)',
             display: 'flex',
           }}
         />
@@ -60,7 +60,7 @@ export default function OGImage() {
             width: '500px',
             height: '300px',
             borderRadius: '50%',
-            background: 'radial-gradient(ellipse, rgba(139,92,246,0.1) 0%, transparent 70%)',
+            background: 'radial-gradient(ellipse, rgba(45,212,191,0.12) 0%, transparent 70%)',
             display: 'flex',
           }}
         />
@@ -85,9 +85,9 @@ export default function OGImage() {
               width: '80px',
               height: '80px',
               borderRadius: '20px',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: 'linear-gradient(135deg, #4ade80, #2dd4bf)',
               marginBottom: '8px',
-              boxShadow: '0 0 60px rgba(99,102,241,0.3)',
+              boxShadow: '0 0 60px rgba(74,222,128,0.35)',
             }}
           >
             <svg
@@ -124,7 +124,7 @@ export default function OGImage() {
             style={{
               width: '120px',
               height: '3px',
-              background: 'linear-gradient(90deg, transparent, #6366f1, #8b5cf6, transparent)',
+              background: 'linear-gradient(90deg, transparent, #4ade80, #2dd4bf, transparent)',
               borderRadius: '2px',
               display: 'flex',
               margin: '4px 0',
@@ -153,7 +153,7 @@ export default function OGImage() {
               marginTop: '28px',
             }}
           >
-            {['Heatmaps', 'Footprint', 'Delta Profile', 'GEX'].map(
+            {['Footprint', 'NT Bridge', 'Rithmic', 'CME Futures'].map(
               (feature) => (
                 <div
                   key={feature}
@@ -161,8 +161,8 @@ export default function OGImage() {
                     display: 'flex',
                     padding: '8px 20px',
                     borderRadius: '100px',
-                    border: '1px solid rgba(99,102,241,0.3)',
-                    background: 'rgba(99,102,241,0.08)',
+                    border: '1px solid rgba(74,222,128,0.35)',
+                    background: 'rgba(74,222,128,0.10)',
                     color: 'rgba(255,255,255,0.6)',
                     fontSize: '14px',
                     fontWeight: 500,
@@ -184,7 +184,7 @@ export default function OGImage() {
             left: '0',
             right: '0',
             height: '4px',
-            background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1)',
+            background: 'linear-gradient(90deg, #4ade80, #2dd4bf, #4ade80)',
             display: 'flex',
           }}
         />

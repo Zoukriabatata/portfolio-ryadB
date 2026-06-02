@@ -129,7 +129,11 @@ export default function HeroSection() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 animation: 'gradientShift 4s ease infinite',
-                filter: 'drop-shadow(0 0 30px rgb(var(--primary-rgb) / 0.25))',
+                /* Softened from 0.25 → 0.15: at 30px blur the glow was
+                   borderline neon and clashed with the rest of the
+                   primary palette which sits at ~0.15 across the page
+                   (button shadows, card borders, etc.). */
+                filter: 'drop-shadow(0 0 30px rgb(var(--primary-rgb) / 0.15))',
               }}
             >
               Order Flow
