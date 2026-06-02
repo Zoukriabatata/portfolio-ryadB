@@ -36,7 +36,11 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #000;
-  background: linear-gradient(135deg, var(--primary-light, #fbbf24), var(--primary, #f59e0b));
+  /* Lime green primary gradient. The fallback hex values must match
+     the actual brand palette in app/globals.css — historical amber
+     fallbacks (#fbbf24 / #f59e0b) leaked through whenever the CSS
+     var was missing and flashed an orange button at first paint. */
+  background: linear-gradient(135deg, var(--primary-light, #86efac), var(--primary, #4ade80));
   border-radius: 8px;
   text-decoration: none;
   transition: all 0.25s ease;
@@ -44,7 +48,7 @@
 }
 
 .landing-btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-light, #fcd34d), var(--primary-light, #fbbf24));
+  background: linear-gradient(135deg, var(--primary-light, #86efac), var(--primary-light, #86efac));
   box-shadow: 0 0 30px rgb(var(--primary-rgb) / 0.3);
   transform: translateY(-1px);
 }
