@@ -29,7 +29,7 @@ const BROKERS = [
 
 export default function BrokersSection() {
   return (
-    <section id="brokers" className="relative px-6 py-28" style={{ zIndex: 2 }}>
+    <section id="brokers" className="relative px-6 py-20 md:py-28" style={{ zIndex: 2 }}>
       {/* Semi-transparent backdrop */}
       <div className="absolute inset-0" style={{
         background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.5) 100%)',
