@@ -162,7 +162,13 @@ export interface HLineDrawing extends LineStyleProps {
 
 /** Horizontal ray starting at a specific time, extending to the
  *  RIGHT of the chart forever. Useful to mark a level that became
- *  relevant only after a specific moment (e.g. swing high). */
+ *  relevant only after a specific moment (e.g. swing high).
+ *
+ *  `extendLeft`: when true, the ray ALSO extends to the left of its
+ *  origin point — effectively turning the ray into a full
+ *  horizontal line anchored on the (start, price) handle. Toggled
+ *  via the properties panel. Right extension is implicit (it's a
+ *  ray) but `extendRight: false` shortens it to just a marker dot. */
 export interface HRayDrawing extends LineStyleProps {
   kind: "h-ray";
   id: string;
@@ -170,10 +176,17 @@ export interface HRayDrawing extends LineStyleProps {
   startTimeSec: number;
   price: number;
   createdAt: number;
+  extendLeft?: boolean;
+  extendRight?: boolean;
 }
 
 /** Diagonal segment between two arbitrary (time, price) points.
- *  Used for trend channels, fan lines, ABCD legs, etc. */
+ *  Used for trend channels, fan lines, ABCD legs, etc.
+ *
+ *  `extendLeft` / `extendRight`: when true, the line is projected
+ *  beyond the matching endpoint to the chart edge using the same
+ *  slope. Both can be true (= infinite line both ways). Toggled via
+ *  the properties panel. */
 export interface TrendDrawing extends LineStyleProps {
   kind: "trend";
   id: string;
@@ -183,6 +196,8 @@ export interface TrendDrawing extends LineStyleProps {
   endTimeSec: number;
   endPrice: number;
   createdAt: number;
+  extendLeft?: boolean;
+  extendRight?: boolean;
 }
 
 /** Axis-aligned rectangle bounded by a time interval and a price
@@ -211,6 +226,13 @@ export interface RectangleDrawing {
   /** Fill alpha override (0..1). When set, the renderer composes
    *  the rgba from `fillColor`'s hue + this opacity. */
   fillOpacity?: number;
+  /** Extend the rectangle's price band beyond the time bounds.
+   *  `extendLeft` projects the band leftwards to x=0; `extendRight`
+   *  projects it rightwards to the chart's right edge. Useful for
+   *  supply/demand zones that stay relevant once the price returns
+   *  to the zone in the future. */
+  extendLeft?: boolean;
+  extendRight?: boolean;
 }
 
 /** Free-floating text annotation anchored at a single (time, price)

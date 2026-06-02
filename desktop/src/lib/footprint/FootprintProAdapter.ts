@@ -2121,18 +2121,34 @@ export class FootprintCanvasRenderer {
           continue;
         }
         const ySnap = Math.round(y) + 0.5;
-        const xLeft = Math.max(0, xStart);
-        ctx.beginPath();
-        ctx.moveTo(xLeft, ySnap);
-        ctx.lineTo(chartRight, ySnap);
-        ctx.stroke();
+        // h-ray default is "extend right only". The properties panel
+        // can flip either flag — `extendLeft: true` mirrors the ray
+        // leftwards (= full h-line); `extendRight: false` turns the
+        // shape into a marker dot at the origin.
+        const extendRight = d.extendRight !== false;
+        const extendLeft = d.extendLeft === true;
+        const xFrom = extendLeft ? 0 : Math.max(0, xStart);
+        const xTo = extendRight ? chartRight : xStart;
+        if (xTo > xFrom) {
+          ctx.beginPath();
+          ctx.moveTo(xFrom, ySnap);
+          ctx.lineTo(xTo, ySnap);
+          ctx.stroke();
+        }
         if (isSelected) {
           drawCircleHandle(ctx, xStart, y, radius, HANDLE_FILL, HANDLE_STROKE);
         }
         drawPriceLabel(ctx, chartRight, y, d.price, styleColor);
       } else if (d.kind === "rect") {
-        const xL = layout.timeToX(d.startTimeSec, metrics);
-        const xR = layout.timeToX(d.endTimeSec, metrics);
+        // Anchored corners come from the user's drag. Extension flags
+        // project the band leftwards (to x=0) and/or rightwards (to
+        // chartRight) — turning a bounded rectangle into a
+        // supply/demand zone that keeps marking the price band
+        // forever.
+        const xLAnchor = layout.timeToX(d.startTimeSec, metrics);
+        const xRAnchor = layout.timeToX(d.endTimeSec, metrics);
+        const xL = d.extendLeft ? 0 : xLAnchor;
+        const xR = d.extendRight ? chartRight : xRAnchor;
         const yT = layout.priceToY(d.topPrice, metrics);
         const yB = layout.priceToY(d.bottomPrice, metrics);
         const w = xR - xL;
@@ -2159,17 +2175,22 @@ export class FootprintCanvasRenderer {
           Math.round(h),
         );
         if (isSelected) {
-          const xMid = (xL + xR) / 2;
+          // Selection handles stay on the ANCHORED corners (not the
+          // extended edges) so the user can still drag the rect to
+          // resize even when extension is on. Dragging the right
+          // handle of an extend-right rect modifies endTimeSec; the
+          // visible right edge keeps going to chartRight either way.
+          const xMid = (xLAnchor + xRAnchor) / 2;
           const yMid = (yT + yB) / 2;
           for (const [hx, hy] of [
-            [xL, yT],
-            [xR, yT],
-            [xL, yB],
-            [xR, yB],
+            [xLAnchor, yT],
+            [xRAnchor, yT],
+            [xLAnchor, yB],
+            [xRAnchor, yB],
             [xMid, yT],
             [xMid, yB],
-            [xL, yMid],
-            [xR, yMid],
+            [xLAnchor, yMid],
+            [xRAnchor, yMid],
           ] as const) {
             drawCircleHandle(ctx, hx, hy, radius, HANDLE_FILL, HANDLE_STROKE);
           }
@@ -2179,9 +2200,26 @@ export class FootprintCanvasRenderer {
         const y1 = layout.priceToY(d.startPrice, metrics);
         const x2 = layout.timeToX(d.endTimeSec, metrics);
         const y2 = layout.priceToY(d.endPrice, metrics);
+        // Extension flags project the line beyond its anchored
+        // endpoints to the chart edges using the same slope. Handles
+        // stay on the anchored (x1,y1) / (x2,y2) so the user can
+        // still grab + drag them when extension is on.
+        let xA = x1, yA = y1, xB = x2, yB = y2;
+        if (d.extendLeft || d.extendRight) {
+          const dx = x2 - x1;
+          const slope = dx !== 0 ? (y2 - y1) / dx : 0;
+          if (d.extendLeft) {
+            xA = 0;
+            yA = dx !== 0 ? y1 + slope * (xA - x1) : y1;
+          }
+          if (d.extendRight) {
+            xB = chartRight;
+            yB = dx !== 0 ? y1 + slope * (xB - x1) : y2;
+          }
+        }
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        ctx.moveTo(xA, yA);
+        ctx.lineTo(xB, yB);
         ctx.stroke();
         if (isSelected) {
           drawCircleHandle(ctx, x1, y1, radius, HANDLE_FILL, HANDLE_STROKE);

@@ -224,6 +224,12 @@ function renderFields(
           value={d.lineWidth ?? 1.5}
           onChange={(v) => onUpdateLine(d.id, { lineWidth: v })}
         />
+        <Sep />
+        <ExtendField
+          extendLeft={d.extendLeft === true}
+          extendRight={d.extendRight !== false}
+          onChange={(patch) => onUpdateLine(d.id, patch)}
+        />
       </>
     );
   }
@@ -243,6 +249,12 @@ function renderFields(
         <WidthField
           value={d.lineWidth ?? 1.5}
           onChange={(v) => onUpdateLine(d.id, { lineWidth: v })}
+        />
+        <Sep />
+        <ExtendField
+          extendLeft={d.extendLeft === true}
+          extendRight={d.extendRight === true}
+          onChange={(patch) => onUpdateLine(d.id, patch)}
         />
       </>
     );
@@ -296,6 +308,12 @@ function renderFields(
         <WidthField
           value={d.borderWidth ?? 1.5}
           onChange={(v) => onUpdateLine(d.id, { borderWidth: v })}
+        />
+        <Sep />
+        <ExtendField
+          extendLeft={d.extendLeft === true}
+          extendRight={d.extendRight === true}
+          onChange={(patch) => onUpdateLine(d.id, patch)}
         />
       </>
     );
@@ -431,6 +449,45 @@ function WidthField({
             {w}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** Two-button toggle for "extend left" / "extend right" — used by
+ *  h-ray, trend, and rect drawings to project the shape beyond its
+ *  anchored endpoints to the chart edges. Each side is independent. */
+function ExtendField({
+  extendLeft,
+  extendRight,
+  onChange,
+}: {
+  extendLeft: boolean;
+  extendRight: boolean;
+  onChange: (patch: { extendLeft?: boolean; extendRight?: boolean }) => void;
+}) {
+  return (
+    <div className="dpp-field">
+      <span className="dpp-label">Extend</span>
+      <div className="dpp-seg" role="group" aria-label="Extend drawing">
+        <button
+          type="button"
+          aria-pressed={extendLeft}
+          title="Extend to the left"
+          className={`dpp-seg-btn ${extendLeft ? "dpp-seg-on" : ""}`}
+          onClick={() => onChange({ extendLeft: !extendLeft })}
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          aria-pressed={extendRight}
+          title="Extend to the right"
+          className={`dpp-seg-btn ${extendRight ? "dpp-seg-on" : ""}`}
+          onClick={() => onChange({ extendRight: !extendRight })}
+        >
+          →
+        </button>
       </div>
     </div>
   );
