@@ -225,6 +225,13 @@ body,
   flex: 1 1 0;
   min-height: 0;
   position: relative;
+  /* Persistent Footprint pane + Outlet pane sit side-by-side as
+     direct children. Without display:flex here, their `flex: 1`
+     would have no parent to grow into and the chart canvas would
+     collapse to its content-height — leaving an empty strip at the
+     bottom of the window. */
+  display: flex;
+  flex-direction: column;
 }
 
 /* ============================================================
