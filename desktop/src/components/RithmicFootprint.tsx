@@ -795,12 +795,10 @@ function FootprintLive({
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     let cancelled = false;
-    // rAF-coalesced flush of the active TF's bar map. A fast-ticking
-    // symbol (MNQ on a busy print) emits 10-30 footprint-update events
-    // per second; without coalescing each one forced `setBars(new Map)`
-    // → React re-render → renderer re-paint, which collapsed the FPS
-    // from 60 to ~30. We instead schedule a single setBars per frame
-    // and let multiple ticks within the same rAF window share it.
+    // Backend pre-coalesces bar updates on a 16ms window and ships them
+    // as `Vec<FootprintBar>` in a single Tauri event. We still rAF-coalesce
+    // on top so a batch landing mid-frame doesn't force two setBars in a
+    // row when ticks arrive across the frame boundary.
     let rafScheduled = false;
     const flushBars = () => {
       rafScheduled = false;
@@ -810,19 +808,9 @@ function FootprintLive({
         setBars(new Map(tfMap));
       }
     };
-    // Live bars accumulate in `barsCacheRef.current` (RAM only) for the
-    // current session. The persisted localStorage cache is reserved for
-    // RESULTS OF REAL APEX HISTORY_PLANT FETCHES, written from
-    // `runHistoryFetch` after a successful replay. Mixing the two
-    // sources — as a previous version did via a 30s persistInterval —
-    // poisoned `fetchedAt`: short live-bar batches looked "fresh" and
-    // tricked the skip-refetch guard, leaving the chart with 3 bars
-    // instead of the 1440 bars the 24h Apex fetch produces.
-    void listen<FootprintBar>("footprint-update", (event) => {
-      const bar = event.payload;
-      if (bar.symbol !== fullSymbol) return;
+    const applyBar = (bar: FootprintBar): boolean => {
+      if (bar.symbol !== fullSymbol) return false;
       const tf = bar.timeframe as SupportedTimeframe;
-      // Update the per-TF cache (every supported TF flows through here).
       const cache = barsCacheRef.current;
       let tfMap = cache.get(tf);
       if (!tfMap) {
@@ -837,11 +825,22 @@ function FootprintLive({
           tfMap.delete(k);
         }
       }
-      // Schedule a rAF-bounded flush instead of firing setBars per
-      // tick. Multiple ticks landing inside the same frame collapse
-      // into one render — caps update rate at the display refresh
-      // (60-144 Hz) regardless of incoming tick rate.
-      if (tf === currentTfRef.current && !rafScheduled) {
+      return tf === currentTfRef.current;
+    };
+    // Live bars accumulate in `barsCacheRef.current` (RAM only) for the
+    // current session. The persisted localStorage cache is reserved for
+    // RESULTS OF REAL APEX HISTORY_PLANT FETCHES, written from
+    // `runHistoryFetch` after a successful replay. Mixing the two
+    // sources — as a previous version did via a 30s persistInterval —
+    // poisoned `fetchedAt`: short live-bar batches looked "fresh" and
+    // tricked the skip-refetch guard, leaving the chart with 3 bars
+    // instead of the 1440 bars the 24h Apex fetch produces.
+    void listen<FootprintBar[]>("footprint-update-batch", (event) => {
+      let touchedCurrentTf = false;
+      for (const bar of event.payload) {
+        if (applyBar(bar)) touchedCurrentTf = true;
+      }
+      if (touchedCurrentTf && !rafScheduled) {
         rafScheduled = true;
         requestAnimationFrame(flushBars);
       }

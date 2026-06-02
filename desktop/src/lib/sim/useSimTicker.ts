@@ -10,9 +10,13 @@ type FootprintBarLike = {
   bucketTsNs: number;
 };
 
-/** Hook : subscribes to the live `footprint-update` Tauri event and
- *  feeds the current close price into the sim account store. Triggers
- *  SL/TP fills via the store's tickPrice action.
+/** Hook : subscribes to the live `footprint-update-batch` Tauri event
+ *  and feeds the current close price into the sim account store.
+ *  Triggers SL/TP fills via the store's tickPrice action.
+ *
+ *  The backend coalesces bar updates on a 16ms window and ships them
+ *  as `Vec<FootprintBar>` in a single event — we iterate and apply each
+ *  bar's close to the sim store individually.
  *
  *  Per-symbol latest-bucket gate (added 2026-05-26): an event whose
  *  bucketTsNs is older than the latest one we've already seen for
@@ -30,29 +34,33 @@ export function useSimTicker() {
   useEffect(() => {
     let cancelled = false;
     let unlisten: UnlistenFn | null = null;
-    // Per-symbol latest bucketTsNs observed. We only push events
-    // that move time forward — older buckets are stale and must
-    // not overwrite the live price.
     const latestBucket: Record<string, number> = {};
 
+    const applyBar = (bar: FootprintBarLike) => {
+      const { symbol, close, bucketTsNs } = bar;
+      if (!symbol || !Number.isFinite(close)) return;
+      if (!Number.isFinite(bucketTsNs)) return;
+      // Strip exchange suffix so the sim store keys by trading symbol
+      // (e.g. "MNQM6") not the routing key ("MNQM6.CME"). The bridge
+      // uses "MNQ 06-26" which has no dot — split() leaves it alone.
+      const tradingSymbol = symbol.split(".")[0] || symbol;
+
+      const seen = latestBucket[tradingSymbol] ?? 0;
+      // `>=` (not `>`) so the live bar's own intra-bucket updates
+      // — same bucketTsNs, fresh close — still propagate.
+      if (bucketTsNs < seen) return;
+      latestBucket[tradingSymbol] = bucketTsNs;
+
+      tickPrice(tradingSymbol, close);
+    };
+
     void (async () => {
-      const fn = await listen<FootprintBarLike>("footprint-update", (e) => {
-        const { symbol, close, bucketTsNs } = e.payload;
-        if (!symbol || !Number.isFinite(close)) return;
-        if (!Number.isFinite(bucketTsNs)) return;
-        // Strip exchange suffix so the sim store keys by trading symbol
-        // (e.g. "MNQM6") not the routing key ("MNQM6.CME"). The bridge
-        // uses "MNQ 06-26" which has no dot — split() leaves it alone.
-        const tradingSymbol = symbol.split(".")[0] || symbol;
-
-        const seen = latestBucket[tradingSymbol] ?? 0;
-        // `>=` (not `>`) so the live bar's own intra-bucket updates
-        // — same bucketTsNs, fresh close — still propagate.
-        if (bucketTsNs < seen) return;
-        latestBucket[tradingSymbol] = bucketTsNs;
-
-        tickPrice(tradingSymbol, close);
-      });
+      const fn = await listen<FootprintBarLike[]>(
+        "footprint-update-batch",
+        (e) => {
+          for (const bar of e.payload) applyBar(bar);
+        },
+      );
       if (cancelled) {
         fn();
       } else {
