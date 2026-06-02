@@ -210,7 +210,7 @@ export default function HeroSection() {
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/30" />
                 <div className="w-2.5 h-2.5 rounded-full bg-green-500/30" />
               </div>
-              <div className="flex-1 text-center text-[10px] text-white/20 tracking-wide">SENZOUKRIA — BTC/USDT</div>
+              <div className="flex-1 text-center text-[10px] text-white/20 tracking-wide">ORDERFLOWV2 — MNQ M6 · 1m</div>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 animate-pulse" />
                 <span className="text-[9px] text-emerald-500/50">LIVE</span>
@@ -223,30 +223,50 @@ export default function HeroSection() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[9px] uppercase tracking-wider" style={{ color: 'rgb(var(--primary-rgb) / 0.5)' }}>Footprint Chart</div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono text-emerald-400/60">67,284.50</span>
-                    <span className="text-[8px] text-emerald-400/40">+1.2%</span>
+                    <span className="text-[10px] font-mono text-emerald-400/60">20,374.25</span>
+                    <span className="text-[8px] text-emerald-400/40">+0.42%</span>
                   </div>
                 </div>
-                {/* Fake heatmap rows — animated cells */}
+                {/* Fake footprint rows — each cell is a bid/ask split
+                    so the mockup actually reads as orderflow (red/sell
+                    on the left, green/buy on the right) instead of a
+                    generic heatmap. The buy share is deterministic per
+                    cell so SSR and client render the same widths. */}
                 {HEATMAP_DATA.map((row, i) => (
                   <div key={i} className="flex gap-0.5 mb-0.5">
                     {row.map((intensity, j) => {
-                      // Deterministic animation delay based on position
                       const delay = ((i * 12 + j) * 0.37 % 3).toFixed(2);
                       const duration = (2 + (intensity * 2)).toFixed(1);
+                      // Pseudo-random aggressor split — value in 0.25..0.75,
+                      // deterministic by (i,j) so the visual stays stable.
+                      const buyShare = 0.25 + (((i * 5 + j * 3) % 11) / 22);
+                      const sellShare = 1 - buyShare;
+                      const alpha = intensity * 0.45;
                       return (
                         <div
                           key={j}
-                          className="flex-1 h-2.5 rounded-[2px]"
+                          className="flex-1 flex gap-px h-2.5"
                           style={{
-                            background: intensity > 0.7
-                              ? `rgb(var(--primary-rgb) / ${intensity * 0.4})`
-                              : intensity > 0.4
-                              ? `rgb(var(--accent-rgb) / ${intensity * 0.3})`
-                              : `rgba(255,255,255,${intensity * 0.05})`,
                             animation: `heatmapPulse ${duration}s ease-in-out ${delay}s infinite`,
                           }}
-                        />
+                        >
+                          {/* Sell volume — left, red */}
+                          <div
+                            className="rounded-l-[2px]"
+                            style={{
+                              width: `${sellShare * 100}%`,
+                              background: `rgba(239,68,68,${alpha})`,
+                            }}
+                          />
+                          {/* Buy volume — right, primary green */}
+                          <div
+                            className="rounded-r-[2px]"
+                            style={{
+                              width: `${buyShare * 100}%`,
+                              background: `rgb(var(--primary-rgb) / ${alpha})`,
+                            }}
+                          />
+                        </div>
                       );
                     })}
                   </div>
@@ -255,11 +275,11 @@ export default function HeroSection() {
               {/* Orderbook mockup */}
               <div className="w-24 flex-shrink-0 rounded-lg border border-white/[0.05] p-2.5 hidden sm:flex flex-col overflow-hidden">
                 <div className="text-[9px] text-white/30 uppercase tracking-wider mb-2">Orderbook</div>
-                {/* Asks */}
+                {/* Asks (MNQ tick = 0.25) */}
                 {[0.5, 0.8, 0.4].map((w, i) => (
                   <div key={`a${i}`} className="flex items-center gap-1 mb-0.5">
                     <div className="h-1.5 rounded-full bg-red-500/30" style={{ width: `${w * 100}%` }} />
-                    <span className="text-[7px] text-red-400/40">{(67250 + i * 50).toLocaleString()}</span>
+                    <span className="text-[7px] text-red-400/40">{(20374.25 + i * 0.25).toFixed(2)}</span>
                   </div>
                 ))}
                 <div className="h-px bg-white/[0.08] my-1" />
@@ -267,7 +287,7 @@ export default function HeroSection() {
                 {[0.6, 0.9, 0.4].map((w, i) => (
                   <div key={`b${i}`} className="flex items-center gap-1 mb-0.5">
                     <div className="h-1.5 rounded-full bg-emerald-500/30" style={{ width: `${w * 100}%` }} />
-                    <span className="text-[7px] text-emerald-400/40">{(67150 - i * 50).toLocaleString()}</span>
+                    <span className="text-[7px] text-emerald-400/40">{(20374.00 - i * 0.25).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
