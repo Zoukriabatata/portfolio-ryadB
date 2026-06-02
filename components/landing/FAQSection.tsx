@@ -4,59 +4,54 @@ import { useState } from 'react';
 
 const FAQS = [
   {
-    question: 'What is Senzoukria?',
+    question: 'What is OrderflowV2?',
     answer:
-      'Senzoukria is an institutional-grade orderflow analytics platform. We provide real-time heatmaps, footprint charts, delta profiles, and gamma exposure analysis to help traders see the market microstructure.',
+      'OrderflowV2 (by Senzoukria) is a Windows desktop platform for native footprint charts — delta, imbalance, absorption detection — with the same daily volume NinjaTrader shows you on its Market Analyzer. Built for futures traders on Apex / Rithmic, with a crypto fallback for users without a broker.',
   },
   {
-    question: 'How does Senzoukria compare to ATAS or Sierra Chart?',
+    question: 'How is the public preview different from the paid plan?',
     answer:
-      'Senzoukria runs entirely in the browser — no installation, no license dongles, no Windows-only limitation. The core tools (heatmap, footprint, delta profiles, GEX) are comparable in quality, while the price starts at $29/mo vs $150–$300/mo for desktop platforms. We focus on a cleaner, faster UI and real-time crypto + futures in one place.',
+      'Between 30 May and 17 June 2026, every account gets full PRO access for free — no credit card, no commitment. After 17 June, the standard plan becomes $29/month. You\'re not locked in: if you don\'t want to pay you just don\'t subscribe and your account drops to a read-only state.',
   },
   {
-    question: 'What is the data latency?',
+    question: 'How does it compare to ATAS, Bookmap or Sierra Chart?',
     answer:
-      'Websocket feeds from Binance, Bybit, and Deribit are sub-5ms from exchange to your browser. Tick data is processed and rendered in real time with no perceptible lag at normal market speeds. During high-volatility spikes, we throttle rendering to 60fps to keep the interface responsive.',
+      'ATAS, Bookmap and Sierra Chart cost $50–$150/month and are powerful but heavy. OrderflowV2 ships the orderflow features 95% of retail traders actually use (footprint + delta + imbalance + heatmap), with the bridge to NinjaTrader so you keep your existing Apex / Rithmic data feed. At $29/month it sits cleanly under the alternatives.',
   },
   {
-    question: 'Which brokers are supported?',
+    question: 'How do I connect my data feed?',
     answer:
-      'We currently support Rithmic, Interactive Brokers, CQG, and AMP Futures for live order routing. For market data (charts, heatmap, footprint) no broker connection is needed — Binance, Bybit, and Deribit feeds are built-in and always-on.',
+      'Three options. (1) NinjaTrader Bridge: install our NinjaScript file in NT, OrderflowV2 reads your live feed locally — no extra credentials, perfect for Apex accounts. (2) Rithmic direct: sign in with your R | Protocol login inside the app, no NT needed. (3) Crypto: Binance, Bybit and Deribit work out of the box, no account required for market data.',
   },
   {
-    question: 'Can I use it on multiple devices?',
+    question: 'Do I need NinjaTrader installed?',
     answer:
-      'Yes. Your account works on any browser on any device. Settings, layouts, and watchlists sync automatically via your account. There is no device limit.',
+      'Only if you want to use the NinjaTrader Bridge. The bridge is the easiest path for Apex Trader Funding users (you already have NT). If you don\'t use NT, plug in Rithmic credentials directly or stay on crypto — both work without NinjaTrader.',
   },
   {
-    question: 'Do I need coding knowledge?',
+    question: 'Which markets and symbols are supported?',
     answer:
-      'No. Senzoukria is a visual platform with a point-and-click interface. No coding or API setup required.',
+      'All major CME / CBOT / NYMEX / COMEX futures: ES, MES, NQ, MNQ, RTY, YM, GC, MGC, SI, CL, MCL, NG, ZB, ZN, ZC, ZS, 6E, 6B, BTC, ETH and ~30 more. Plus crypto pairs on Binance, Bybit and Deribit (spot + perp + options). The full list of contract specs lives in the app — adding a contract is a one-line change for us.',
   },
   {
-    question: 'Is there a free trial?',
+    question: 'What are the system requirements?',
     answer:
-      'Yes, you can start with a free plan. No credit card required to explore the platform. The free plan includes the live candlestick chart, basic order flow data, and the trading journal. PRO tools (footprint, heatmap, GEX, volatility surface) are available with the paid plan.',
-  },
-  {
-    question: 'What markets are covered?',
-    answer:
-      'We cover futures (ES, NQ, CL, GC, etc.), crypto spot and derivatives (BTC, ETH, SOL via Binance Futures, Bybit, and Deribit), and options Greeks via Deribit. Forex and equities are on the roadmap.',
+      'Windows 10 or 11, 64-bit. The .msi installer is ~8 MB and takes 30 seconds to install. macOS and Linux builds are not yet shipped — they\'re on the roadmap after the public launch settles.',
   },
   {
     question: 'How does the footprint chart work?',
     answer:
-      'Each candle is split into a grid of price × time cells. Each cell shows the buy volume (aggressive buys at ask) vs sell volume (aggressive sells at bid), with delta (buy − sell) highlighted. Imbalances (cells where one side dominates by 3:1 or more) are flagged visually. You can configure the cell size, color scheme, and delta threshold in the settings panel.',
+      'Each candle is split into price-level cells. Each cell shows aggressive buy volume vs aggressive sell volume, with delta (buy − sell) highlighted. Imbalances (one side dominating 3:1 or more) are flagged visually. Cell size, color scheme and delta threshold are configurable. The bridge sends NinjaTrader\'s exact daily volume counter so the numbers match NT bar-for-bar.',
   },
   {
-    question: 'What is the $29/mo launch offer?',
+    question: 'Can I use it on multiple devices?',
     answer:
-      'We launched with a founding-member rate of $29/mo (or $290/yr), which is guaranteed for life as long as your subscription stays active. This price will increase as we add features. Locking in now means you pay the lowest rate forever.',
+      'Yes, up to 2 machines (PC + laptop, same account). The license tracks active machines via hardware fingerprint and a 7-day heartbeat. Switching devices is automatic — no re-activation step.',
   },
   {
-    question: 'How do I cancel?',
+    question: 'Do I need coding knowledge?',
     answer:
-      'You can cancel anytime from your Account page — no email required, no waiting period. Your access continues until the end of the current billing period. There are no cancellation fees.',
+      'No. Point-and-click throughout. The only "setup" step is copying one NinjaScript file if you use the NinjaTrader Bridge — a 5-step walkthrough lives at /download.',
   },
 ];
 
@@ -95,7 +90,7 @@ export default function FAQSection() {
             data-animate-delay="1"
             className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
           >
-            Everything you need to know about Senzoukria
+            Everything you need to know before downloading OrderflowV2
           </p>
         </div>
 
@@ -178,7 +173,7 @@ export default function FAQSection() {
           <p className="text-[13px] text-white/40">
             Still have questions?{' '}
             <a
-              href="mailto:ryad.bouderga78@gmail.com"
+              href="/contact"
               className="hover:text-[var(--primary-light)] transition-colors underline underline-offset-2"
               style={{ color: 'rgb(var(--primary-light-rgb) / 0.7)' }}
             >

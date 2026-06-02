@@ -32,13 +32,32 @@ const softwareApplicationSchema = {
 const faqPageSchema = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
+  // The 6 highest-traffic questions from FAQSection.tsx — kept in
+  // sync with the HTML rendering so Google's rich-result preview
+  // matches what users actually see on the page.
   mainEntity: [
     {
       '@type': 'Question',
       name: 'What is OrderflowV2?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'OrderflowV2 (by Senzoukria) is a professional desktop platform for orderflow analysis — footprint charts with broker-side session volume, delta, imbalance and absorption detection for futures and crypto traders.',
+        text: 'OrderflowV2 (by Senzoukria) is a Windows desktop platform for native footprint charts — delta, imbalance, absorption detection — with the same daily volume NinjaTrader shows you on its Market Analyzer. Built for futures traders on Apex / Rithmic, with a crypto fallback for users without a broker.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'How is the public preview different from the paid plan?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Between 30 May and 17 June 2026, every account gets full PRO access for free — no credit card, no commitment. After 17 June, the standard plan becomes $29/month.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'How does it compare to ATAS, Bookmap or Sierra Chart?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'ATAS, Bookmap and Sierra Chart cost $50-$150/month. OrderflowV2 ships the orderflow features 95% of retail traders actually use (footprint, delta, imbalance) with a NinjaTrader bridge so you keep your existing Apex / Rithmic feed. $29/month after the preview.',
       },
     },
     {
@@ -46,7 +65,15 @@ const faqPageSchema = {
       name: 'How do I connect my data feed?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Three ways. NinjaTrader Bridge: install our NinjaScript indicator if you already trade through NinjaTrader (Apex / Rithmic). Rithmic direct: sign in with your R | Protocol credentials. Crypto: live trades and orderbook from Binance, Bybit and Deribit work without any broker account.',
+        text: 'Three options. NinjaTrader Bridge: install our NinjaScript file in NT, OrderflowV2 reads your live feed locally — perfect for Apex accounts. Rithmic direct: sign in with R | Protocol credentials inside the app. Crypto: Binance, Bybit and Deribit work out of the box, no account required.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Which markets and symbols are supported?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'All major CME / CBOT / NYMEX / COMEX futures: ES, MES, NQ, MNQ, RTY, YM, GC, MGC, SI, CL, MCL, NG, ZB, ZN, ZC, ZS, 6E, 6B, BTC, ETH and ~30 more. Plus crypto pairs on Binance, Bybit and Deribit (spot, perp, options).',
       },
     },
     {
@@ -54,23 +81,7 @@ const faqPageSchema = {
       name: 'Do I need coding knowledge?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'No. Point-and-click interface throughout. The only setup step is copying one NinjaScript file if you go via the NinjaTrader Bridge — a guided walkthrough lives at /download.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is there a free trial?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes. A public preview runs until 17 June 2026 — full PRO access, no credit card required. After that, $29/month if you want to keep it.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'What markets are covered?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Futures: ES, NQ, MNQ, MES, MGC, GC and other CME / CBOT / NYMEX / COMEX symbols via NinjaTrader Bridge or Rithmic direct. Crypto: BTC, ETH and other major pairs via Binance, Bybit and Deribit (options included).',
+        text: 'No. Point-and-click throughout. The only setup step is copying one NinjaScript file if you use the NinjaTrader Bridge — a 5-step walkthrough lives at /download.',
       },
     },
   ],
