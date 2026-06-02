@@ -163,6 +163,36 @@ export function BridgeFootprint({
   // No persistence yet (would live in useFootprintSettingsStore in a
   // follow-up if the user wants).
   const [domPanelOpen, setDomPanelOpen] = useState(true);
+  // Live price-axis map polled from the canvas so the DOM ladder can
+  // align its rows with the chart's price grid. Updated on RAF.
+  const [priceMap, setPriceMap] = useState<{
+    minPrice: number;
+    maxPrice: number;
+    areaTopPx: number;
+    areaHeightPx: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!domPanelOpen) return;
+    let raf = 0;
+    let prev = "";
+    const tick = () => {
+      const next = canvasHandle.current?.getPriceMap() ?? null;
+      // Stringify-compare to avoid setState churn when the map is
+      // unchanged frame-over-frame (no pan / zoom). Cheap — only
+      // four numbers.
+      const key = next
+        ? `${next.minPrice}|${next.maxPrice}|${next.areaTopPx}|${next.areaHeightPx}`
+        : "";
+      if (key !== prev) {
+        prev = key;
+        setPriceMap(next);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [domPanelOpen]);
 
   // Sim ticker — feeds the sim trading store with live closes.
   useSimTicker();
@@ -1008,7 +1038,9 @@ export function BridgeFootprint({
             >
               {domPanelOpen ? "▶ DOM" : "◀ DOM"}
             </button>
-            {domPanelOpen && <BridgeDomPanel symbol={symbol} />}
+            {domPanelOpen && (
+              <BridgeDomPanel symbol={symbol} priceMap={priceMap} />
+            )}
           </div>
           <div
             className={`rf-sim-dock ${simPanelOpen ? "rf-sim-dock-open" : "rf-sim-dock-closed"}`}

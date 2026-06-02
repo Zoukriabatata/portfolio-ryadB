@@ -75,7 +75,7 @@ import { hydrateStores } from '@/lib/hydrate-stores';
 // Only `display` toggles — no unmount/remount, no data loss.
 // ============================================================
 
-const CHART_ROUTES = ['/live', '/footprint', '/heatmap', '/gex', '/volatility', '/bias', '/flow'] as const;
+const CHART_ROUTES = ['/live', '/footprint', '/gex', '/volatility', '/flow'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
 
 function ChartLoadingFallback({ label }: { label: string }) {
@@ -134,14 +134,8 @@ const VolatilityPageContent = dynamic(() => import('@/components/pages/Volatilit
   ssr: false,
   loading: () => <ChartLoadingFallback label="Volatility" />,
 });
-const BiasPageContent = dynamic(() => import('@/components/pages/BiasPageContent'), {
-  ssr: false,
-  loading: () => <ChartLoadingFallback label="Bias" />,
-});
-const HeatmapPageContent = dynamic(() => import('@/components/pages/WebGLHeatmapContent'), {
-  ssr: false,
-  loading: () => <ChartLoadingFallback label="Heatmap" />,
-});
+// /bias + /heatmap pages were retired — the dynamic imports are
+// removed alongside their nav entries above.
 const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent'), {
   ssr: false,
   loading: () => <ChartLoadingFallback label="Options Flow" />,
@@ -150,10 +144,8 @@ const FlowPageContent = dynamic(() => import('@/components/pages/FlowPageContent
 const CHART_COMPONENTS: Record<ChartRoute, React.ComponentType> = {
   '/live': LivePageContent,
   '/footprint': FootprintPageContent,
-  '/heatmap': HeatmapPageContent,
   '/gex': GEXPageContent,
   '/volatility': VolatilityPageContent,
-  '/bias': BiasPageContent,
   '/flow': FlowPageContent,
 };
 
@@ -180,7 +172,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/live', labelKey: 'nav.live', Icon: CandlestickIcon, shortcut: '1' },
       { href: '/footprint', labelKey: 'nav.footprint', Icon: Grid3x3, shortcut: '2', requiresUltra: true },
-      { href: '/heatmap', labelKey: 'nav.heatmap' as TranslationKey, Icon: Layers, shortcut: 'Alt+4', requiresUltra: true },
+      // /heatmap retired: the page is futures-DOM material we deliver
+      // via the desktop app; keeping a web stub was confusing users.
     ],
   },
   {
@@ -188,7 +181,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/gex',        labelKey: 'nav.gex',        Icon: Zap,         shortcut: '4', requiresUltra: true },
       { href: '/volatility', labelKey: 'nav.volatility', Icon: Activity,    shortcut: '5', requiresUltra: true },
-      { href: '/bias',       labelKey: 'nav.bias',       Icon: Compass,     shortcut: '6', requiresUltra: true },
+      // /bias (GVS Bias) retired alongside /replay — the underlying
+      // futures-flavoured page wasn't earning its keep in the nav.
       { href: '/flow',       labelKey: 'nav.flow',       Icon: TrendingUp,  shortcut: '' },
     ],
   },
@@ -196,7 +190,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Tools',
     items: [
       { href: '/trading', labelKey: 'nav.trading', Icon: Wallet,         shortcut: '' },
-      { href: '/replay',  labelKey: 'nav.replay',  Icon: History,        shortcut: '9', requiresUltra: true },
+      // /replay retired (see above).
       { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8', requiresUltra: true },
       { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7', requiresUltra: true },
       { href: '/ai',      labelKey: 'nav.ai',      Icon: BrainCircuit,   shortcut: '' },

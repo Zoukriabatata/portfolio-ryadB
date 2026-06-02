@@ -28,9 +28,9 @@ import { generateSessionId } from '@/lib/auth/security';
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_NEXT_PATHS = [
-  '/', '/live', '/dashboard', '/footprint', '/orderflow', '/heatmap',
-  '/gex', '/volatility', '/flow', '/trading', '/journal', '/replay',
-  '/backtest', '/bias', '/news', '/academy', '/account', '/boutique',
+  '/', '/live', '/dashboard', '/footprint', '/orderflow',
+  '/gex', '/volatility', '/flow', '/trading', '/journal',
+  '/backtest', '/news', '/academy', '/account', '/boutique',
   '/ai',
 ] as const;
 

@@ -13,8 +13,6 @@ const ROUTE_LABELS: Record<string, { name: string; icon: string }> = {
   '/volatility': { name: 'Volatility Surface', icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
   '/journal':    { name: 'Trading Journal', icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14v14H6.5' },
   '/backtest':   { name: 'Backtesting Engine', icon: 'M12 22V12m0-10v4m-8 4H2m20 0h-2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M17.66 17.66l1.41 1.41M4.93 4.93l1.41 1.41' },
-  '/replay':     { name: 'Session Replay', icon: 'M5 3l14 9-14 9V3z' },
-  '/bias':       { name: 'GVS Bias Engine', icon: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
   '/academy':    { name: 'Research Academy', icon: 'M12 14l9-5-9-5-9 5 9 5zm0 7l-9-5 9-5 9 5-9 5z' },
   '/news':       { name: 'News & Events Calendar', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2z' },
   '/ai':         { name: 'AI Trading Assistant', icon: 'M12 2a2 2 0 012 2v2a2 2 0 01-2 2 2 2 0 01-2-2V4a2 2 0 012-2zM4 6a2 2 0 012-2h.01M18 6a2 2 0 012 2v.01M20 18a2 2 0 01-2 2h-.01M4 18a2 2 0 01-2-2v-.01M3 12H1m22 0h-2m-9 9v2M12 1v2' },

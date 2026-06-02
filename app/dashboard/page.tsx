@@ -74,28 +74,7 @@ function IconVolatility({ size = 16 }: { size?: number }) {
   );
 }
 
-function IconBias({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
-      <circle cx="12" cy="12" r="9" />
-      <polygon points="12,4 13.5,11 12,13 10.5,11" fill="currentColor" fillOpacity={0.9} stroke="none" />
-      <polygon points="12,13 13.5,13 12,20 10.5,13" fill="currentColor" fillOpacity={0.18} stroke="none" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function IconReplay({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 12 A8 8 0 1 0 7.5 5.5" />
-      <polyline points="3,7 4,12 9,11" />
-      <polyline points="12,7 12,12 15.5,14" />
-    </svg>
-  );
-}
+// IconBias + IconReplay removed alongside their nav entries.
 
 function IconNews({ size = 16 }: { size?: number }) {
   return (
@@ -244,8 +223,7 @@ const QUICK_LAUNCH = [
   { href: '/footprint',  label: 'Footprint',  desc: 'Order flow',   shortcut: '2', Icon: IconFootprint  },
   { href: '/gex',        label: 'GEX',        desc: 'Gamma expo.',  shortcut: '4', Icon: IconGEX        },
   { href: '/volatility', label: 'Volatility', desc: 'IV skew',      shortcut: '5', Icon: IconVolatility },
-  { href: '/bias',       label: 'Bias',       desc: 'Direction',    shortcut: '6', Icon: IconBias       },
-  { href: '/replay',     label: 'Replay',     desc: 'Backtest',     shortcut: '9', Icon: IconReplay     },
+  // /bias + /replay retired from the web app.
   { href: '/news',       label: 'News',       desc: 'Market intel', shortcut: '7', Icon: IconNews       },
   { href: '/ai',         label: 'AI',         desc: 'Assistant',    shortcut: '',  Icon: IconAI         },
 ];
@@ -911,8 +889,6 @@ const LAUNCH_COLORS: Record<string, string> = {
   '/footprint':  '#2dd4bf',
   '/gex':        '#fb923c',
   '/volatility': '#f472b6',
-  '/bias':       '#facc15',
-  '/replay':     '#60a5fa',
   '/news':       '#94a3b8',
   '/ai':         '#a78bfa',
 };
