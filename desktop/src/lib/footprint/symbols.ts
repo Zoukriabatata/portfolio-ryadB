@@ -1,20 +1,21 @@
 // Phase B / M4.7a + M5 — symbol catalog for the picker.
 //
-// Static hand-curated list of the most-traded markets per exchange.
-// Crypto: spot/perp pairs the M4.7a picker exposes. Futures: the
-// CME Group / NYMEX / COMEX contracts the M5 Rithmic port wires.
+// Two sources combined:
+//   * Crypto (Bybit / Binance) — static hand-curated list, since these
+//     markets don't have contract specs and the pair set is small
+//     enough to enumerate.
+//   * Rithmic futures — DERIVED from lib/sim/contractSpecs.ts at module
+//     load time. Adding a contract to that file makes it show up here
+//     automatically with the right front-month code (no more drift
+//     between specs, picker, and journal filter).
 //
-// `tickSizeHint` is informational only — the renderer infers tick
-// size from incoming trades. The picker shows the hint so the
-// operator knows what they're stepping into.
-//
-// FIXME (futures): contract codes are quarterly. Roll the index
-// futures (Mar/Jun/Sep/Dec) and monthly futures (CL/NG every month,
-// SI every 2 months) ~5 days before each expiry. Reminder to bump
-// these symbol codes. The CME convention used here:
-//   F=Jan G=Feb H=Mar J=Apr K=May M=Jun
-//   N=Jul Q=Aug U=Sep V=Oct X=Nov Z=Dec
-// Suffix digit = single-digit year (6 = 2026).
+// `tickSizeHint` is informational only — the renderer infers the real
+// tick size from incoming trades (or, for the bridge, from the M header
+// NinjaTrader sends). The picker shows the hint so the operator knows
+// what they're stepping into.
+
+import { SPECS as FUTURES_SPECS } from "../sim/contractSpecs";
+import { frontMonthLabel, getCurrentContract } from "../sim/frontMonth";
 
 export type Exchange = "bybit" | "binance" | "rithmic";
 
@@ -26,11 +27,16 @@ export type SymbolCategory =
   | "majors"
   | "alts"
   | "memes"
-  // Futures
+  // Futures — must stay aligned with lib/sim/contractSpecs.ts
+  // ContractCategory, since the Rithmic part of the catalog is derived
+  // from SPECS.
   | "indices"
-  | "energy"
-  | "metals"
+  | "treasuries"
   | "currencies"
+  | "metals"
+  | "energy"
+  | "grains"
+  | "livestock"
   | "crypto"; // CME Bitcoin / Ether futures (BTC, MBT, ETH, MET)
 
 export type CMEExchangeCode = "CME" | "NYMEX" | "COMEX" | "CBOT";
@@ -51,7 +57,8 @@ export type SymbolDef = {
   contractMonth?: string;
 };
 
-export const SYMBOL_CATALOG: SymbolDef[] = [
+// --- Crypto exchanges (hardcoded, not in contractSpecs.ts) ---
+const CRYPTO_SYMBOLS: SymbolDef[] = [
   // --- Bybit Linear (USDT perps) ---
   { symbol: "BTCUSDT", label: "BTC / USDT", exchange: "bybit", category: "majors", tickSizeHint: 0.1 },
   { symbol: "ETHUSDT", label: "ETH / USDT", exchange: "bybit", category: "majors", tickSizeHint: 0.05 },
@@ -75,40 +82,42 @@ export const SYMBOL_CATALOG: SymbolDef[] = [
   { symbol: "ADAUSDT", label: "ADA / USDT", exchange: "binance", category: "alts", tickSizeHint: 0.0001 },
   { symbol: "AVAXUSDT", label: "AVAX / USDT", exchange: "binance", category: "alts", tickSizeHint: 0.001 },
   { symbol: "DOGEUSDT", label: "DOGE / USDT", exchange: "binance", category: "memes", tickSizeHint: 0.00001 },
+];
 
-  // --- Rithmic CME Group — Index futures (M6 = June 2026) ---
-  { symbol: "MNQM6", label: "Micro E-mini Nasdaq", exchange: "rithmic", category: "indices", tickSizeHint: 0.25, cmeExchange: "CME", contractMonth: "Jun 2026" },
-  { symbol: "NQM6",  label: "E-mini Nasdaq",       exchange: "rithmic", category: "indices", tickSizeHint: 0.25, cmeExchange: "CME", contractMonth: "Jun 2026" },
-  { symbol: "MESM6", label: "Micro E-mini S&P",    exchange: "rithmic", category: "indices", tickSizeHint: 0.25, cmeExchange: "CME", contractMonth: "Jun 2026" },
-  { symbol: "ESM6",  label: "E-mini S&P",          exchange: "rithmic", category: "indices", tickSizeHint: 0.25, cmeExchange: "CME", contractMonth: "Jun 2026" },
-  { symbol: "RTYM6", label: "E-mini Russell 2000", exchange: "rithmic", category: "indices", tickSizeHint: 0.1,  cmeExchange: "CME", contractMonth: "Jun 2026" },
-  { symbol: "YMM6",  label: "E-mini Dow",          exchange: "rithmic", category: "indices", tickSizeHint: 1,    cmeExchange: "CBOT", contractMonth: "Jun 2026" },
+// --- Rithmic CME / CBOT / NYMEX / COMEX — DERIVED from FUTURES_SPECS ---
+// Each spec produces one picker entry with its current front-month
+// contract code. The category is shared between contractSpecs.ts and
+// the picker — same type union, kept manually in sync.
+const NOW = new Date();
+const RITHMIC_SYMBOLS: SymbolDef[] = FUTURES_SPECS.map((spec) => ({
+  symbol: getCurrentContract(spec.root, spec.validMonths, NOW),
+  label: spec.name,
+  exchange: "rithmic" as const,
+  category: spec.category as SymbolCategory,
+  tickSizeHint: spec.tickSize,
+  cmeExchange: spec.exchange as CMEExchangeCode,
+  contractMonth: frontMonthLabel(spec.validMonths, NOW),
+}));
 
-  // --- NYMEX / COMEX — Energy + Metals ---
-  { symbol: "CLM6",  label: "Crude Oil (WTI)",     exchange: "rithmic", category: "energy",  tickSizeHint: 0.01,  cmeExchange: "NYMEX", contractMonth: "Jun 2026" },
-  { symbol: "NGM6",  label: "Natural Gas",         exchange: "rithmic", category: "energy",  tickSizeHint: 0.001, cmeExchange: "NYMEX", contractMonth: "Jun 2026" },
-  { symbol: "GCM6",  label: "Gold",                exchange: "rithmic", category: "metals",  tickSizeHint: 0.1,   cmeExchange: "COMEX", contractMonth: "Jun 2026" },
-  { symbol: "SIN6",  label: "Silver",              exchange: "rithmic", category: "metals",  tickSizeHint: 0.005, cmeExchange: "COMEX", contractMonth: "Jul 2026" },
-
-  // --- CME Crypto futures (regulated US Bitcoin / Ether contracts) ---
-  // BTC = 5 BTC/contract, MBT = 0.1 BTC/contract, both quote in USD with $5 ticks.
-  // ETH = 50 ETH/contract, MET = 0.1 ETH/contract, both with $0.50 ticks.
-  //
-  // CRITICAL: CME crypto futures are MONTHLY contracts (not quarterly like
-  // indices). Roll the K6 → M6 → N6 codes monthly, ~5 days before expiry.
-  // CME month letters: F=Jan G=Feb H=Mar J=Apr K=May M=Jun N=Jul Q=Aug
-  //                    U=Sep V=Oct X=Nov Z=Dec  (suffix digit = year).
-  { symbol: "BTCK6", label: "Bitcoin (CME)",       exchange: "rithmic", category: "crypto",  tickSizeHint: 5,    cmeExchange: "CME", contractMonth: "May 2026" },
-  { symbol: "MBTK6", label: "Micro Bitcoin (CME)", exchange: "rithmic", category: "crypto",  tickSizeHint: 5,    cmeExchange: "CME", contractMonth: "May 2026" },
-  { symbol: "ETHK6", label: "Ether (CME)",         exchange: "rithmic", category: "crypto",  tickSizeHint: 0.5,  cmeExchange: "CME", contractMonth: "May 2026" },
-  { symbol: "METK6", label: "Micro Ether (CME)",   exchange: "rithmic", category: "crypto",  tickSizeHint: 0.5,  cmeExchange: "CME", contractMonth: "May 2026" },
+export const SYMBOL_CATALOG: SymbolDef[] = [
+  ...CRYPTO_SYMBOLS,
+  ...RITHMIC_SYMBOLS,
 ];
 
 /** Which categories the picker should iterate, per exchange. */
 export const CATEGORIES_BY_EXCHANGE: Record<Exchange, SymbolCategory[]> = {
   bybit: ["majors", "alts", "memes"],
   binance: ["majors", "alts", "memes"],
-  rithmic: ["indices", "crypto", "energy", "metals", "currencies"],
+  rithmic: [
+    "indices",
+    "treasuries",
+    "currencies",
+    "metals",
+    "energy",
+    "grains",
+    "livestock",
+    "crypto",
+  ],
 };
 
 export function filterSymbols(

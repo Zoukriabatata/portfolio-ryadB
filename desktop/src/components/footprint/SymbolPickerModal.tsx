@@ -37,9 +37,12 @@ const CATEGORY_LABEL: Record<SymbolCategory, string> = {
   alts: "Alts",
   memes: "Memes",
   indices: "Index Futures",
-  energy: "Energy",
-  metals: "Metals",
+  treasuries: "Treasuries",
   currencies: "Currencies",
+  metals: "Metals",
+  energy: "Energy",
+  grains: "Grains",
+  livestock: "Livestock",
   crypto: "Crypto Futures (CME)",
 };
 
