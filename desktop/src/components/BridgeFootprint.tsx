@@ -49,6 +49,7 @@ import { MagnetToggle } from "./footprint/MagnetToggle";
 import { IndicatorsButton } from "./footprint/IndicatorsButton";
 import { AdvancedSettingsModal } from "./footprint/AdvancedSettingsModal";
 import { SimTradePanel } from "./sim/SimTradePanel";
+import { BridgeDomPanel } from "./BridgeDomPanel";
 import { QuickTradePanel } from "./sim/QuickTradePanel";
 import { useSimTicker } from "../lib/sim/useSimTicker";
 import { useSimPositionOverlay } from "../lib/sim/useSimPositionOverlay";
@@ -158,6 +159,10 @@ export function BridgeFootprint({
   // ── UI state ──────────────────────────────────────────────
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [simPanelOpen, setSimPanelOpen] = useState(true);
+  // L2 DOM panel toggle — defaults on so users discover the feature.
+  // No persistence yet (would live in useFootprintSettingsStore in a
+  // follow-up if the user wants).
+  const [domPanelOpen, setDomPanelOpen] = useState(true);
 
   // Sim ticker — feeds the sim trading store with live closes.
   useSimTicker();
@@ -969,6 +974,41 @@ export function BridgeFootprint({
               bare
             />
             <QuickTradePanel symbol={symbol} />
+          </div>
+          {/* Live L2 DOM ladder. Lives between the canvas and the sim
+              panel so the user gets order-book context next to the
+              footprint without sacrificing chart real estate. The
+              [▤] button toggles it; closed state collapses to a
+              ~14px reveal strip with a single-button toggle. */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexShrink: 0,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setDomPanelOpen((v) => !v)}
+              title={domPanelOpen ? "Hide DOM panel" : "Show DOM panel"}
+              aria-label={domPanelOpen ? "Hide DOM panel" : "Show DOM panel"}
+              style={{
+                width: 14,
+                background: "#0a0a0a",
+                border: "none",
+                borderLeft: "1px solid rgba(255, 255, 255, 0.06)",
+                color: "#787B86",
+                cursor: "pointer",
+                fontSize: 10,
+                padding: 0,
+                writingMode: "vertical-rl",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              {domPanelOpen ? "▶ DOM" : "◀ DOM"}
+            </button>
+            {domPanelOpen && <BridgeDomPanel symbol={symbol} />}
           </div>
           <div
             className={`rf-sim-dock ${simPanelOpen ? "rf-sim-dock-open" : "rf-sim-dock-closed"}`}
