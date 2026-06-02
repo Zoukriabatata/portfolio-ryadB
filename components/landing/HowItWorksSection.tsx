@@ -5,8 +5,8 @@ import { useState, useEffect, useRef } from 'react';
 const STEPS = [
   {
     step: '01',
-    title: 'Create Your Account',
-    desc: 'Sign up in seconds. No credit card required to start exploring the platform.',
+    title: 'Create your account',
+    desc: 'Email or Google sign-in — no credit card, no setup fee. Auto-PRO during the preview window.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
@@ -16,22 +16,24 @@ const STEPS = [
   },
   {
     step: '02',
-    title: 'Connect Your Broker',
-    desc: 'Link your Rithmic, Interactive Brokers, CQG or AMP account with one click.',
+    title: 'Download for Windows',
+    desc: 'Get the 8 MB .msi installer. Two clicks to install — guided SmartScreen workaround on /download.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
       </svg>
     ),
   },
   {
     step: '03',
-    title: 'Start Trading',
-    desc: 'Access heatmaps, footprint charts, and real-time orderflow data instantly.',
+    title: 'Connect NinjaTrader bridge',
+    desc: 'Copy our NinjaScript file to NT, F5-compile, drop the indicator on your chart — live data starts in seconds.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
       </svg>
     ),
   },
@@ -74,14 +76,14 @@ export default function HowItWorksSection() {
             data-animate="up"
             className="text-3xl md:text-4xl font-bold text-white tracking-tight"
           >
-            Get Started in Minutes
+            Live in under 5 minutes
           </h2>
           <p
             data-animate="up"
             data-animate-delay="1"
             className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
           >
-            Three simple steps to institutional-grade orderflow
+            Register, install, plug your NinjaTrader feed — and the footprint goes live.
           </p>
         </div>
 
