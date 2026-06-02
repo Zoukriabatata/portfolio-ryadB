@@ -56,8 +56,8 @@ export default function LandingFooter() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <Logo size="sm" showText={true} />
-            <p className="mt-3 text-[12px] text-white/35 leading-relaxed max-w-[200px]">
-              Institutional-grade trading analytics for serious market participants.
+            <p className="mt-3 text-[12px] text-white/40 leading-relaxed max-w-[210px]">
+              OrderflowV2 by Senzoukria — native footprint platform for futures &amp; crypto traders.
             </p>
 
             {/* Social icons */}
@@ -123,10 +123,10 @@ export default function LandingFooter() {
         {/* Bottom bar */}
         <div className="pt-4 border-t border-white/[0.06] flex flex-col md:flex-row items-center justify-between gap-3">
           <span className="text-[11px] text-white/25">
-            &copy; 2026 SENZOUKRIA. All rights reserved.
+            &copy; 2026 Senzoukria &middot; OrderflowV2. All rights reserved.
           </span>
           <span className="text-[10px] text-white/15 tracking-wide">
-            Trading Intelligence Redefined
+            Built for traders who watch the tape
           </span>
         </div>
       </div>

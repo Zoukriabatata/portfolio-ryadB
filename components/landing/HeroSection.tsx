@@ -112,7 +112,7 @@ export default function HeroSection() {
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary-light)' }} />
-          Launch Offer — $29/mo locked for life
+          Public preview — Free PRO access until 17 June 2026
         </div>
 
         {/* Title — slideInUp has no opacity transition, h1 is immediately visible for LCP */}
@@ -141,13 +141,18 @@ export default function HeroSection() {
           </h1>
         </div>
 
-        {/* Subtitle */}
+        {/* Subtitle — kept tight: one promise (footprint), one
+            differentiator (NT bridge + broker-side volume), one
+            audience signal (Apex / Rithmic). Avoids the dead-feature
+            mentions (heatmap, GEX) the FeaturesSection cleanup
+            already removed. */}
         <p
-          className="mt-6 text-sm md:text-base text-white/40 max-w-md mx-auto leading-relaxed"
+          className="mt-6 text-sm md:text-base text-white/45 max-w-lg mx-auto leading-relaxed"
           style={{ animation: 'fadeInUp 0.7s ease-out 0.3s forwards', opacity: 0 }}
         >
-          See what market makers see. Real-time heatmaps, footprint charts,
-          delta profiles &amp; gamma exposure — built for traders who want the full picture.
+          Native footprint charts with the same daily volume NinjaTrader shows you.
+          NT Bridge for Apex &amp; Rithmic accounts — install one NinjaScript file,
+          done.
         </p>
 
         {/* CTA Buttons */}
@@ -162,10 +167,10 @@ export default function HeroSection() {
           ) : (
             <>
               <Link href="/auth/register" className="landing-btn-primary">
-                Start Free Trial
+                Get free preview
               </Link>
-              <Link href="/auth/login" className="landing-btn-ghost">
-                Sign In
+              <Link href="/download" className="landing-btn-ghost">
+                Download for Windows
               </Link>
             </>
           )}

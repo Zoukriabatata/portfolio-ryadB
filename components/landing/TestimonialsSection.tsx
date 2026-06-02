@@ -71,7 +71,7 @@ function StarRating() {
 
 export default function TestimonialsSection() {
   return (
-    <section id="testimonials" className="relative px-6 py-28" style={{ zIndex: 2 }}>
+    <section id="testimonials" className="relative px-6 py-20 md:py-28" style={{ zIndex: 2 }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0"

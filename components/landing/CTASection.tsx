@@ -15,7 +15,7 @@ export default function CTASection() {
   const { data: session } = useSession();
 
   return (
-    <section id="cta" className="relative px-6 py-32 overflow-hidden" style={{ zIndex: 2 }}>
+    <section id="cta" className="relative px-6 py-24 md:py-32 overflow-hidden" style={{ zIndex: 2 }}>
       {/* Semi-transparent backdrop */}
       <div className="absolute inset-0" style={{
         background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.5) 100%)',
@@ -43,7 +43,7 @@ export default function CTASection() {
           data-animate="scale"
           className="text-3xl md:text-5xl font-bold tracking-tight leading-tight"
         >
-          <span className="text-white">Ready to See</span>
+          <span className="text-white">Read the tape</span>
           <br />
           <span
             className="bg-clip-text text-transparent"
@@ -52,16 +52,17 @@ export default function CTASection() {
               WebkitBackgroundClip: 'text',
             }}
           >
-            What Others Can&apos;t?
+            like a market maker.
           </span>
         </h2>
 
         <p
           data-animate="up"
           data-animate-delay="1"
-          className="mt-6 text-base text-white/50 leading-relaxed"
+          className="mt-6 text-base text-white/55 leading-relaxed"
         >
-          Join traders worldwide using institutional-grade analytics to make smarter decisions every day.
+          Free PRO access until 17 June 2026. No credit card, no commitment —
+          download, login, plug in your NinjaTrader and you&apos;re live.
         </p>
 
         {/* Trust badges */}
@@ -161,7 +162,7 @@ export default function CTASection() {
                   onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 50px rgb(var(--primary-rgb) / 0.5)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgb(var(--primary-rgb) / 0.3)'; }}
                 >
-                  Start Free Trial
+                  Get free preview
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
@@ -169,10 +170,10 @@ export default function CTASection() {
               </div>
               </MagneticButton>
               <Link
-                href="/pricing"
+                href="/download"
                 className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold text-white/70 border border-white/[0.15] rounded-xl hover:border-white/[0.25] hover:text-white hover:bg-white/[0.04] hover:-translate-y-0.5 transition-all duration-300"
               >
-                View Pricing
+                Download for Windows
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
@@ -187,7 +188,7 @@ export default function CTASection() {
           data-animate-delay="4"
           className="mt-6 text-[11px] text-white/25"
         >
-          No credit card required &bull; Free trial &bull; Cancel anytime
+          No credit card &bull; Free until 17 June 2026 &bull; Windows install in 2 minutes
         </p>
       </div>
     </section>
