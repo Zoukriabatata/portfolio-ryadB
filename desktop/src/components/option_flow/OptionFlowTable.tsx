@@ -1,6 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOptionFlowStore } from "../../lib/option_flow/useOptionFlowStore";
 import type { OptionTrade } from "../../lib/option_flow/api";
+import {
+  formatMarketStatus,
+  getMarketStatus,
+  type MarketStatus,
+} from "../../lib/option_flow/marketHours";
 
 function fmtPremium(n: number): string {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
@@ -43,15 +48,7 @@ export function OptionFlowTable() {
   }, [trades, minPremium, minSize, contractFilter, sideFilter]);
 
   if (trades.length === 0) {
-    return (
-      <div className="of-table-wrap">
-        <div className="of-table-empty">
-          Waiting for the first poll… Make sure your Alpaca keys are
-          configured (Settings) and the market is open for the chosen
-          underlying.
-        </div>
-      </div>
-    );
+    return <EmptyTradesState />;
   }
 
   return (
@@ -120,6 +117,55 @@ export function OptionFlowTable() {
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Empty-state view shown before the first non-empty poll. Branches
+ *  on US options market status so a closed market doesn't look like
+ *  a broken feed. Refreshes the status every 30s for live countdowns. */
+function EmptyTradesState() {
+  const [status, setStatus] = useState<MarketStatus>(() => getMarketStatus());
+  useEffect(() => {
+    const id = setInterval(() => setStatus(getMarketStatus()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (status.state === "open") {
+    return (
+      <div className="of-table-wrap">
+        <div className="of-table-empty">
+          <div className="of-empty-title">Waiting for the first poll…</div>
+          <div className="of-empty-sub">
+            US options market is <strong>OPEN</strong>. Trades arrive on a
+            15-minute delay (Alpaca free tier). If nothing shows up within a
+            minute or two, double-check your Alpaca API keys in Settings.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Closed / pre-market / weekend — explain why and when it'll come back.
+  const headline =
+    status.state === "pre-market"
+      ? "Market is in pre-market"
+      : status.state === "weekend"
+      ? "Market is closed for the weekend"
+      : "Market is closed";
+
+  return (
+    <div className="of-table-wrap">
+      <div className="of-table-empty">
+        <div className="of-empty-title">{headline}</div>
+        <div className="of-empty-sub">
+          {formatMarketStatus(status)}.
+          <br />
+          The option flow feed is live <strong>Mon–Fri 09:30 → 16:00 New York</strong>.
+          Outside that window we don&apos;t receive any new trades —
+          the empty feed isn&apos;t a connection issue.
+        </div>
       </div>
     </div>
   );

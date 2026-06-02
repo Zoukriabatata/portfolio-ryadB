@@ -106,6 +106,53 @@
   80%  { transform: scale(2.6); opacity: 0;    }
   100% { transform: scale(2.6); opacity: 0;    }
 }
+/* Market status chip — replaces the static "LIVE" badge with a
+   contextual open / pre-market / closed / weekend state so users
+   stop reading an empty feed as a broken feed. Colours echo the
+   semantic palette already used for tiers: green for open, amber
+   for pre-market, white-on-dim for closed / weekend. */
+.of-header-market {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  cursor: help;
+  font-variant-numeric: tabular-nums;
+}
+.of-header-market-open {
+  color: var(--brand-green-bright);
+  background: rgba(34, 197, 94, 0.07);
+  border-color: var(--brand-green-dim);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.18);
+}
+.of-header-market-open::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-green-bright);
+  box-shadow: 0 0 6px var(--brand-green);
+  animation: of-live-pulse 1.6s ease-in-out infinite;
+}
+.of-header-market-pre-market {
+  color: var(--accent-amber);
+  background: rgba(245, 166, 35, 0.07);
+  border-color: rgba(245, 166, 35, 0.35);
+}
+.of-header-market-post-market,
+.of-header-market-weekend {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border);
+}
+
 .of-header-actions { display: flex; align-items: center; gap: 10px; }
 .of-header-refreshed {
   color: var(--text-muted);
@@ -564,11 +611,32 @@
   border-radius: 4px;
 }
 .of-table-empty {
-  padding: 40px 24px;
+  padding: 60px 28px;
   text-align: center;
   color: var(--text-muted);
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.of-empty-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-bottom: 2px;
+}
+.of-empty-sub {
+  max-width: 460px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.of-empty-sub strong {
+  color: var(--brand-green-bright);
+  font-weight: 700;
 }
 .of-empty-filters {
   display: inline-flex;
