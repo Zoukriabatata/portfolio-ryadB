@@ -135,14 +135,15 @@ export default function CapabilitiesSection() {
             data-animate="up"
             className="text-3xl md:text-4xl font-bold text-white tracking-tight"
           >
-            Why Senzoukria
+            Why OrderflowV2
           </h2>
           <p
             data-animate="up"
             data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
+            className="mt-4 text-sm md:text-base text-white/50 max-w-xl mx-auto"
           >
-            Built different — the technology behind your edge
+            Native Windows app. Rust engine on the hot path. No browser, no Electron bloat —
+            the same stack the desks at the prop firms run.
           </p>
         </div>
 
@@ -152,7 +153,7 @@ export default function CapabilitiesSection() {
           data-animate-delay="2"
           className="flex flex-wrap items-center justify-center gap-2.5 mb-14"
         >
-          {['WebGL 2.0', 'WebSocket', 'React 19', 'Next.js', 'TypeScript', 'GPU Compute'].map((tech) => (
+          {['Rust', 'Tauri 2', 'Tokio async', 'Canvas + WebGL', 'TCP loopback', 'Native .msi'].map((tech) => (
             <span
               key={tech}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium text-white/40 border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm hover:border-[rgb(var(--primary-rgb)_/_0.2)] hover:text-[rgb(var(--primary-light-rgb)_/_0.6)] transition-all duration-300"
