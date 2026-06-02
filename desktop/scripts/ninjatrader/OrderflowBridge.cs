@@ -114,6 +114,17 @@ namespace NinjaTrader.NinjaScript.Indicators
         // Initial value 0 = "not seen yet".
         private long _lastDailyVolumeSent;
 
+        // ── Mid-stream instrument switch tracking ──────────────────────────
+        // When the user changes the chart's instrument while the indicator
+        // is still running (e.g. MNQ → CL), NT keeps calling our handlers
+        // but with the new Instrument. We must detect that and re-emit
+        // a fresh M header so the desktop engine adopts the new tick_size
+        // (CL = 0.01 vs MNQ = 0.25) — otherwise CL prices get rounded onto
+        // the stale MNQ grid and the footprint cells are visibly off.
+        // Set in State.Realtime to the initial instrument so the first
+        // OnMarketData / OnBarUpdate doesn't double-emit.
+        private string _currentInstrumentName = string.Empty;
+
         // ── Heartbeat ──────────────────────────────────────────────────────
         private DateTime _lastPing = DateTime.MinValue;
 
@@ -237,16 +248,49 @@ namespace NinjaTrader.NinjaScript.Indicators
                 // TickSizeProp is only a defensive fallback if the platform
                 // can't supply the master tick (should never happen on a
                 // live chart).
+                string newInstrumentName = Instrument.FullName;
+
+                // When the user switches the chart's Data Series mid-
+                // session, NT re-runs DataLoaded → Historical → Realtime
+                // for the new instrument. The sender thread is already
+                // past the initial M+history+E phase, so a fresh
+                // _metaLine alone wouldn't reach the connected client.
+                // We detect the re-entry by the fact that
+                // _currentInstrumentName already holds the previous
+                // instrument's full name, and push a fresh M+E pair
+                // through _liveOutbox so the desktop adopts the new
+                // tick_size before the next L tick arrives.
+                bool isReEntry = !string.IsNullOrEmpty(_currentInstrumentName);
+
                 double effectiveTick = Instrument.MasterInstrument.TickSize;
                 if (effectiveTick <= 0) effectiveTick = TickSizeProp;
 
                 _metaLine = string.Format(IC,
                     "M,{0},{1},{2}",
-                    EscapeSymbol(Instrument.FullName),
+                    EscapeSymbol(newInstrumentName),
                     effectiveTick.ToString("F8", IC),
                     _historicalBatch.Count);
 
-                Print($"OrderflowBridge: instrument tick size = {effectiveTick.ToString(IC)} ({Instrument.FullName})");
+                _currentInstrumentName = newInstrumentName;
+                _lastDailyVolumeSent = 0;
+
+                Print($"OrderflowBridge: instrument tick size = {effectiveTick.ToString(IC)} ({newInstrumentName})");
+
+                if (isReEntry)
+                {
+                    // n_historical = 0 because we don't re-stream the
+                    // new instrument's history mid-session. The desktop
+                    // BridgeFootprint cache is reset by the desktop
+                    // engine on M, so the new instrument starts with a
+                    // clean slate of live ticks.
+                    string switchMeta = string.Format(IC,
+                        "M,{0},{1},0",
+                        EscapeSymbol(newInstrumentName),
+                        effectiveTick.ToString("F8", IC));
+                    _liveOutbox.Enqueue(switchMeta);
+                    _liveOutbox.Enqueue("E");
+                    Print($"OrderflowBridge: mid-stream instrument switch → emitted new M+E for {newInstrumentName}");
+                }
 
                 _backfillComplete = true;
                 Print($"OrderflowBridge: backfill complete — {_historicalBatch.Count} historical ticks ready");
@@ -268,6 +312,12 @@ namespace NinjaTrader.NinjaScript.Indicators
             // chart — see Configure for the user-facing reason.
             if (_invalidChart) return;
 
+            // Mirror the instrument-switch detection in OnMarketData for
+            // the Tick Replay OFF fallback path. Without this, switching
+            // from MNQ to CL on a non-Tick-Replay chart would only refresh
+            // the desktop tick_size at the next reconnect.
+            EnsureInstrumentMetaCurrent();
+
             // Need at least one CLOSED bar (index 1). With OnBarClose,
             // when OnBarUpdate first fires for CurrentBar==1, index 0
             // is the freshly-opened new bar and index 1 is the just-
@@ -285,6 +335,57 @@ namespace NinjaTrader.NinjaScript.Indicators
             // (~85% aggressor accuracy on liquid futures).
             if (State == State.Historical)
                 AppendHistoricalTick();
+        }
+
+        /// <summary>
+        /// Detects when the NT chart has been switched to a different
+        /// instrument while the indicator was already in State.Realtime
+        /// (e.g. user changes Data Series from MNQ to CL on the same
+        /// chart). In that case NT keeps firing OnMarketData / OnBarUpdate
+        /// with the new Instrument but our handshake — which announced
+        /// MNQ's 0.25 tick to the desktop — is stale. CL prices then
+        /// get rounded onto the MNQ grid and the footprint cells are
+        /// visibly off by ~24 ticks per cell.
+        ///
+        /// Fix: emit a fresh `M` + immediate `E` pair to the live outbox
+        /// the moment we see a new Instrument.FullName. The Rust reader
+        /// already resets `got_end_of_history` and calls
+        /// `engine.clear_symbol` + `set_symbol_tick_size` on every M,
+        /// so the desktop side picks up the new grid before the next
+        /// L tick arrives. n_historical = 0 because we don't replay
+        /// the new instrument's history mid-stream — the desktop's
+        /// BridgeFootprint cache reset on symbol change is what shows
+        /// fresh bars.
+        ///
+        /// Also updates `_metaLine` so any reconnect after the switch
+        /// announces the right instrument to the new TCP client.
+        /// Resets `_lastDailyVolumeSent` so the broker daily volume
+        /// (V wire line) re-fires for the new contract on its first
+        /// MarketDataType.DailyVolume event.
+        /// </summary>
+        private void EnsureInstrumentMetaCurrent()
+        {
+            if (State != State.Realtime) return;
+            if (Instrument == null) return;
+            string currentName = Instrument.FullName;
+            if (string.IsNullOrEmpty(currentName)) return;
+            if (currentName == _currentInstrumentName) return;
+
+            _currentInstrumentName = currentName;
+            _lastDailyVolumeSent = 0;
+
+            double effectiveTick = Instrument.MasterInstrument.TickSize;
+            if (effectiveTick <= 0) effectiveTick = TickSizeProp;
+
+            string newMetaLine = string.Format(IC,
+                "M,{0},{1},0",
+                EscapeSymbol(currentName),
+                effectiveTick.ToString("F8", IC));
+            _metaLine = newMetaLine;
+            _liveOutbox.Enqueue(newMetaLine);
+            _liveOutbox.Enqueue("E");
+
+            Print($"OrderflowBridge: instrument switched to {currentName} (tick={effectiveTick.ToString(IC)}); emitted new M+E");
         }
 
         /// <summary>
@@ -316,6 +417,13 @@ namespace NinjaTrader.NinjaScript.Indicators
             // Refuse to capture anything when the chart isn't a Tick
             // chart — see Configure for the user-facing reason.
             if (_invalidChart) return;
+
+            // Detect mid-stream instrument switches (e.g. user changes
+            // the chart's Data Series from MNQ to CL) and re-emit
+            // M+E so the desktop adopts the new tick_size before the
+            // next L tick is enqueued. No-op when the instrument is
+            // unchanged or when we're still in State.Historical.
+            EnsureInstrumentMetaCurrent();
 
             // ── Top-of-book trackers ─────────────────────────────────
             // Updated on every Bid / Ask event so ClassifySide can hit
