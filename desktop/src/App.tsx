@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { MemoryRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -387,19 +387,48 @@ function HandoffSplash({
 export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  // True between the moment we read saved creds from the keyring and
+  // the moment the resulting auto-login attempt finishes. Used to
+  // disable the form so the user doesn't double-submit.
+  const [autoLogin, setAutoLogin] = useState(false);
+  // Guards the auto-login attempt — fires at most once per mount so
+  // a failed attempt (wrong password, server unreachable) doesn't
+  // loop. The form stays pre-filled and the user can fix + retry.
+  const autoAttemptedRef = useRef(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** Centralised login path: used by both the manual submit and the
+   *  auto-login on mount. `shouldRemember` overrides the checkbox
+   *  state — needed because React batches setRemember(true) before
+   *  the auto-call runs, and reading the closure here would race. */
+  const doLogin = async (
+    emailIn: string,
+    passwordIn: string,
+    shouldRemember: boolean,
+    fromAuto = false,
+  ) => {
     setBusy(true);
     setError(null);
     try {
-      const cleanEmail = email.trim();
+      const cleanEmail = emailIn.trim();
       const resp = await invoke<{ token: string; expiresAt: string; license: LicenseSnapshot }>(
         "cmd_login",
-        { email: cleanEmail, password },
+        { email: cleanEmail, password: passwordIn },
       );
+      // Save or wipe the credentials based on the user's choice. Both
+      // calls are best-effort: a keyring failure here doesn't block
+      // the user from getting in — the login itself succeeded.
+      try {
+        if (shouldRemember) {
+          await invoke("cmd_save_credentials", { email: cleanEmail, password: passwordIn });
+        } else {
+          await invoke("cmd_clear_credentials");
+        }
+      } catch (kerr) {
+        console.warn("credentials keyring write failed:", kerr);
+      }
       onLogin({
         token: resp.token,
         expires_at: resp.expiresAt,
@@ -409,10 +438,60 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     } catch (raw) {
       const msg = String(raw);
       setError(prettifyError(msg));
+      // If an AUTO-login failed (stale or revoked password), wipe the
+      // saved entry so we don't loop next launch. Manual failures
+      // leave the entry alone — the user might be mistyping.
+      if (fromAuto) {
+        try {
+          await invoke("cmd_clear_credentials");
+        } catch (e) {
+          console.warn("clear stale credentials failed:", e);
+        }
+      }
     } finally {
       setBusy(false);
+      setAutoLogin(false);
     }
   };
+
+  // On mount: pre-fill from the OS keyring + attempt auto-login.
+  // We intentionally run this only once (autoAttemptedRef) so a
+  // failed auto-attempt doesn't retry forever.
+  useEffect(() => {
+    if (autoAttemptedRef.current) return;
+    autoAttemptedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await invoke<{ email: string; password: string } | null>(
+          "cmd_load_credentials",
+        );
+        if (cancelled || !saved) return;
+        setEmail(saved.email);
+        setPassword(saved.password);
+        setRemember(true);
+        setAutoLogin(true);
+        // Brief delay so the user sees the auto-fill happening before
+        // we fire the request — keeps the UX legible.
+        await new Promise((r) => setTimeout(r, 120));
+        if (cancelled) return;
+        await doLogin(saved.email, saved.password, true, true);
+      } catch (e) {
+        console.warn("load credentials failed:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doLogin(email, password, remember);
+  };
+
+  const disabled = busy || autoLogin || !email || !password;
 
   return (
     <form className="card" onSubmit={submit}>
@@ -427,7 +506,7 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
           value={email}
           onChange={e => setEmail(e.target.value)}
           required
-          disabled={busy}
+          disabled={busy || autoLogin}
         />
       </label>
 
@@ -439,14 +518,24 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
           value={password}
           onChange={e => setPassword(e.target.value)}
           required
-          disabled={busy}
+          disabled={busy || autoLogin}
         />
+      </label>
+
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={e => setRemember(e.target.checked)}
+          disabled={busy || autoLogin}
+        />
+        <span>Sauvegarder mes identifiants (keychain OS)</span>
       </label>
 
       {error && <div className="error">{error}</div>}
 
-      <button type="submit" disabled={busy || !email || !password}>
-        {busy ? "Signing in…" : "Sign in"}
+      <button type="submit" disabled={disabled}>
+        {autoLogin ? "Connexion auto…" : busy ? "Signing in…" : "Sign in"}
       </button>
 
       <p className="muted small">

@@ -87,6 +87,32 @@ async fn cmd_logout(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     Ok(())
 }
 
+/// Save the user's email + password to the OS keyring so the login
+/// form can pre-fill them and (optionally) auto-submit on next launch.
+/// Called from the Login form when the "Remember me" checkbox is
+/// checked. Fails loudly when the OS keyring is unavailable — we
+/// refuse to write a plaintext password to disk.
+#[tauri::command]
+async fn cmd_save_credentials(email: String, password: String) -> Result<(), String> {
+    auth::save_credentials(email, password)
+        .await
+        .map_err(err_to_string)
+}
+
+/// Read previously saved credentials from the OS keyring. Returns
+/// `None` (not an error) when nothing is saved.
+#[tauri::command]
+async fn cmd_load_credentials() -> Result<Option<auth::SavedCredentials>, String> {
+    auth::load_credentials().await.map_err(err_to_string)
+}
+
+/// Wipe the saved credentials entry from the OS keyring. Idempotent —
+/// missing entry is treated as success.
+#[tauri::command]
+async fn cmd_clear_credentials() -> Result<(), String> {
+    auth::clear_credentials().await.map_err(err_to_string)
+}
+
 #[tauri::command]
 async fn cmd_get_first_launch_completed(state: State<'_, Arc<AppState>>) -> Result<bool, String> {
     Ok(prefs::load_prefs(&state.data_dir)
@@ -358,6 +384,9 @@ pub fn run() {
             cmd_get_machine_id,
             cmd_login,
             cmd_logout,
+            cmd_save_credentials,
+            cmd_load_credentials,
+            cmd_clear_credentials,
             cmd_heartbeat,
             cmd_get_bridge_url,
             cmd_get_first_launch_completed,

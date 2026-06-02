@@ -152,6 +152,16 @@ export function AccountRoute() {
     setBusy("logout");
     try {
       await invoke("cmd_logout");
+      // Also drop the "remember me" entry — an explicit Sign out is
+      // intent to forget the user. Without this the Login form would
+      // immediately auto-login again on its next mount and the user's
+      // Sign out would look like a no-op. Best-effort: keyring failures
+      // here don't block the logout itself.
+      try {
+        await invoke("cmd_clear_credentials");
+      } catch (e) {
+        console.warn("clear saved credentials on logout failed:", e);
+      }
       setSession(null);
       setFeedback({
         kind: "ok",
