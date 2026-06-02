@@ -62,7 +62,15 @@ export type InteractionState = {
 export const DEFAULT_INTERACTION: InteractionState = {
   scrollX: 0,
   scrollY: 0,
-  cellWidth: 110,
+  // cellWidth = horizontal width of a full footprint column (bid +
+  // ohlc + ask + profile). The renderer hides the per-level numbers
+  // when cellWidth < 90 (color-only fallback). The previous default
+  // of 110 left only a 20 px margin before text disappeared, and
+  // the auto-fit was capped at this value too — busy sessions
+  // landed close to that margin and the numbers read as cramped.
+  // Bumped to 140 so values like "138 x 115" breathe by default
+  // and the auto-fit ceiling is more generous on wide displays.
+  cellWidth: 140,
   rowHeight: 16,
   isDragging: false,
   dragMode: null,
@@ -74,7 +82,7 @@ export const DEFAULT_INTERACTION: InteractionState = {
   hoverY: null,
   userOverrodeY: false,
   userOverrodeX: false,
-  dragStartCellWidth: 110,
+  dragStartCellWidth: 140,
   dragStartRowHeight: 16,
 };
 

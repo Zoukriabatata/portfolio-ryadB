@@ -342,7 +342,11 @@ export function BridgeFootprint({
     };
   }, []);
 
-  // ── footprint-update listener (rAF-coalesced) ─────────────
+  // ── footprint-update-batch listener (rAF-coalesced) ───────
+  // Backend coalesces bars on a 16ms window and ships them as
+  // `Vec<FootprintBar>` in a single Tauri event. We apply each bar
+  // to the per-tf cache then schedule a single RAF flush per batch,
+  // so a batch of 50 bars triggers exactly one React state update.
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     let cancelled = false;
@@ -355,26 +359,30 @@ export function BridgeFootprint({
       setBars(tfMap ? new Map(tfMap) : new Map());
     };
 
-    void listen<FootprintBar>("footprint-update", (event) => {
-      const bar = event.payload;
+    const applyBar = (bar: FootprintBar): boolean => {
       // STRICT symbol filter — only accept bars for the symbol the
       // bridge has announced. Without this, a stale Rithmic-native
       // adapter or a previous bridge session whose ticks are still
-      // draining through the shared FootprintEngine can pollute
-      // our cache (visible as bars at wildly wrong price levels
-      // and a livePrice that doesn't match the visible candles).
-      // While the bridge session hasn't yet reported a symbol (the
-      // M header hasn't arrived), we drop EVERYTHING — accepting
-      // bars at this stage would lock in the wrong reference.
-      if (!symbolRef.current) return;
-      if (bar.symbol !== symbolRef.current) return;
+      // draining through the shared FootprintEngine can pollute our
+      // cache. While the bridge session hasn't yet reported a symbol
+      // (M header not arrived), drop EVERYTHING.
+      if (!symbolRef.current) return false;
+      if (bar.symbol !== symbolRef.current) return false;
       let tfMap = barsCacheRef.current.get(bar.timeframe);
       if (!tfMap) {
         tfMap = new Map();
         barsCacheRef.current.set(bar.timeframe, tfMap);
       }
       tfMap.set(bar.bucketTsNs, bar);
-      if (bar.timeframe === currentTfRef.current && !rafScheduled) {
+      return bar.timeframe === currentTfRef.current;
+    };
+
+    void listen<FootprintBar[]>("footprint-update-batch", (event) => {
+      let touchedCurrentTf = false;
+      for (const bar of event.payload) {
+        if (applyBar(bar)) touchedCurrentTf = true;
+      }
+      if (touchedCurrentTf && !rafScheduled) {
         rafScheduled = true;
         requestAnimationFrame(flush);
       }
