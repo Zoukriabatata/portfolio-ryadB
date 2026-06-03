@@ -112,13 +112,14 @@ export function WatchlistFeatured({
             )}
             <span
               className={cn(
-                "font-[var(--font-instrument-serif)]",
-                "leading-[0.95] tracking-tight",
+                "font-[var(--font-jetbrains-mono)]",
+                "leading-[0.95] tracking-tight font-medium",
                 "text-[40px] sm:text-[48px]",
               )}
               style={{
                 color: "var(--text-primary)",
                 fontVariantNumeric: "tabular-nums",
+                letterSpacing: "-0.03em",
               }}
             >
               {formatPrice(tick?.price)}

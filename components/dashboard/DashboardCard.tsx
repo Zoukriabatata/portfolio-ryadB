@@ -82,9 +82,11 @@ const VARIANT_CLASS: Record<DashboardCardVariant, string> = {
 };
 
 // Editorial Terminal typography :
-//   • hero     → Instrument Serif (editorial gravitas on the
-//                featured card). Regular weight; the italic shift
-//                is reserved for the hover micro-interaction.
+//   • hero     → JetBrains Mono uppercase, tracking tight. Same DNA
+//                as the landing / login / download headlines so the
+//                dashboard reads as part of the same product surface
+//                (was Instrument Serif italic — editorial-magazine
+//                voice that clashed with the trader-terminal brand).
 //   • standard → Geist Sans medium, tracking-tight. Reads as
 //                "section heading" without competing with the hero.
 //   • compact  → Geist Sans medium uppercase widely tracked. Reads
@@ -92,7 +94,7 @@ const VARIANT_CLASS: Record<DashboardCardVariant, string> = {
 //                strips, not features.
 const TITLE_CLASS: Record<DashboardCardVariant, string> = {
   hero:
-    "font-[var(--font-instrument-serif)] dash-text-xl tracking-tight",
+    "font-[var(--font-jetbrains-mono)] dash-text-lg uppercase tracking-tight",
   standard: "dash-text-base font-semibold tracking-tight",
   compact: "dash-text-sm font-medium uppercase tracking-wider",
 };

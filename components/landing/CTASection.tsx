@@ -41,32 +41,34 @@ export default function CTASection() {
         {/* Heading */}
         <div
           data-animate="up"
-          className="italic mb-3"
+          className="mb-4"
           style={{
-            fontFamily: 'var(--font-instrument-serif)',
-            color: 'var(--text-secondary)',
-            fontSize: 'var(--text-lg)',
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: 11,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
           }}
         >
-          Your NinjaTrader chart, with delta
+          · Your NinjaTrader chart, with delta
         </div>
         <h2
           data-animate="scale"
-          className="dash-text-3xl md:text-5xl tracking-tight leading-[1.05]"
-          style={{ fontWeight: 700 }}
+          className="leading-none"
+          style={{
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontWeight: 500,
+            fontSize: 'clamp(36px, 4.8vw, 64px)',
+            letterSpacing: '-0.04em',
+            textTransform: 'uppercase',
+            WebkitFontSmoothing: 'subpixel-antialiased',
+          }}
         >
-          <span style={{ color: 'var(--text-primary)' }}>Stop watching delayed cells.</span>
+          <span style={{ color: 'var(--text-primary)' }}>Stop watching</span>
           <br />
-          <span
-            className="italic"
-            style={{
-              fontFamily: 'var(--font-instrument-serif)',
-              color: 'var(--primary-light)',
-              fontWeight: 400,
-            }}
-          >
-            Open the bridge.
-          </span>
+          <span style={{ color: 'var(--text-primary)' }}>delayed cells.</span>
+          <br />
+          <span style={{ color: 'var(--primary)' }}>Open the bridge.</span>
         </h2>
 
         <p

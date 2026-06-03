@@ -113,8 +113,8 @@ export function TodaysSignals() {
         <div className="flex flex-col -mt-0.5">
           <span
             className={cn(
-              "font-[var(--font-instrument-serif)] italic",
-              "dash-text-base",
+              "font-[var(--font-jetbrains-mono)] uppercase",
+              "dash-text-sm font-medium tracking-[0.16em] tabular-nums",
             )}
             style={{ color: "var(--text-primary)" }}
           >
@@ -131,7 +131,7 @@ export function TodaysSignals() {
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 py-6 gap-1 text-center">
             <span
-              className="font-[var(--font-instrument-serif)] italic dash-text-base"
+              className="font-[var(--font-jetbrains-mono)] uppercase dash-text-sm font-medium tracking-[0.18em]"
               style={{ color: "var(--text-secondary)" }}
             >
               Quiet day

@@ -155,14 +155,15 @@ export default function LandingFooter() {
             &copy; 2026 Senzoukria &middot; OrderflowV2
           </span>
           <span
-            className="italic"
             style={{
-              fontFamily: 'var(--font-instrument-serif)',
-              fontSize: '12px',
-              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 10,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'var(--text-dimmed)',
             }}
           >
-            Built for traders who watch the tape.
+            Built for traders who watch the tape
           </span>
         </div>
       </div>

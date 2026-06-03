@@ -174,7 +174,7 @@ export function FloatingAIChat() {
                   <Sparkles size={14} style={{ color: "var(--primary)" }} />
                 </span>
                 <span
-                  className="font-[var(--font-instrument-serif)] dash-text-base"
+                  className="font-[var(--font-jetbrains-mono)] dash-text-sm font-medium uppercase tracking-[0.18em]"
                   style={{ color: "var(--text-primary)" }}
                 >
                   OrderFlow AI

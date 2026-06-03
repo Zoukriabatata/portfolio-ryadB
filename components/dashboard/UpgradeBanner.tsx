@@ -44,7 +44,7 @@ export function UpgradeBanner() {
       <div className="flex flex-col min-w-0 flex-1 leading-tight">
         <span
           className={cn(
-            "font-[var(--font-instrument-serif)] italic dash-text-lg",
+            "font-[var(--font-jetbrains-mono)] uppercase dash-text-base font-medium tracking-[0.16em]",
           )}
           style={{ color: "var(--text-primary)" }}
         >

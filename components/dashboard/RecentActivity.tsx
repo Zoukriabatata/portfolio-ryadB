@@ -71,7 +71,7 @@ export function RecentActivity() {
       {top.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full py-6 gap-1 text-center">
           <span
-            className="font-[var(--font-instrument-serif)] italic dash-text-base"
+            className="font-[var(--font-jetbrains-mono)] uppercase dash-text-sm font-medium tracking-[0.18em]"
             style={{ color: "var(--text-secondary)" }}
           >
             No sessions yet

@@ -54,8 +54,8 @@ export function AccountSummary({
           <div className="flex flex-col gap-1 min-w-0">
             <span
               className={cn(
-                "font-[var(--font-instrument-serif)] italic",
-                "dash-text-base",
+                "font-[var(--font-jetbrains-mono)] uppercase",
+                "dash-text-sm font-medium tracking-[0.14em]",
               )}
               style={{ color: "var(--text-primary)" }}
             >

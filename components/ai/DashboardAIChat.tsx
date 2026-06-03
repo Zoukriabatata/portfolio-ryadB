@@ -211,14 +211,14 @@ export default function DashboardAIChat() {
           const isFirst = i === 0;
 
           if (isFirst && !isUser) {
-            // Editorial welcome — italic Instrument Serif kicker on
-            // first paint. Replaces the legacy "🚀" rocket emoji.
+            // Mono terminal kicker on first paint — matches the rest
+            // of the surface (landing, login, dashboard cards).
             return (
               <div key={i} className="flex flex-col gap-2 pt-1">
                 <span
                   className={cn(
-                    'font-[var(--font-instrument-serif)] italic',
-                    'dash-text-lg',
+                    'font-[var(--font-jetbrains-mono)] uppercase',
+                    'dash-text-base font-medium tracking-[0.14em]',
                   )}
                   style={{ color: 'var(--text-primary)' }}
                 >
