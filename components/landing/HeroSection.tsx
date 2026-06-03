@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
+import { AnimatedChars } from '@/components/ui/AnimatedChars';
+
 const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value: string; label: string; delay: number }) {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -158,7 +160,7 @@ export default function HeroSection() {
                 letterSpacing: '-0.04em',
               }}
             >
-              Order
+              <AnimatedChars text="Order" baseDelay={120} charDelay={45} duration={700} />
             </span>
             <span
               className="block text-5xl md:text-7xl lg:text-[112px] uppercase mt-1"
@@ -166,7 +168,7 @@ export default function HeroSection() {
                 letterSpacing: '-0.04em',
               }}
             >
-              Flow
+              <AnimatedChars text="Flow" baseDelay={440} charDelay={45} duration={700} />
             </span>
           </h1>
         </div>

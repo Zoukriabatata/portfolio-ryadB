@@ -26,6 +26,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 import { DashboardAtmosphere } from '@/components/dashboard/DashboardAtmosphere';
+import { AnimatedChars } from '@/components/ui/AnimatedChars';
 import { cn } from '@/lib/utils';
 import {
   generateAdvancedFingerprint,
@@ -145,7 +146,6 @@ function BrandPanel() {
         <h1
           className="mt-5 leading-none"
           style={{
-            ...enter(220),
             fontFamily: 'var(--font-jetbrains-mono)',
             fontWeight: 500,
             fontSize: 'clamp(44px, 5.8vw, 80px)',
@@ -155,9 +155,9 @@ function BrandPanel() {
             textShadow: '0 2px 24px rgba(0,0,0,0.6)',
           }}
         >
-          Welcome
+          <AnimatedChars text="Welcome" baseDelay={220} charDelay={36} />
           <br />
-          back
+          <AnimatedChars text="back" baseDelay={520} charDelay={36} />
         </h1>
         <p
           className="mt-6 max-w-md"
@@ -381,9 +381,9 @@ function LoginForm() {
                   letterSpacing: '-0.04em',
                 }}
               >
-                Welcome
+                <AnimatedChars text="Welcome" baseDelay={220} charDelay={32} />
                 <br />
-                back
+                <AnimatedChars text="back" baseDelay={500} charDelay={32} />
               </h1>
               <p
                 className="mt-3"
@@ -415,7 +415,7 @@ function LoginForm() {
                   letterSpacing: '-0.02em',
                 }}
               >
-                Sign in
+                <AnimatedChars text="Sign in" baseDelay={400} charDelay={42} />
               </h2>
             </div>
 

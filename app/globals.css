@@ -231,6 +231,24 @@
   100% { transform: translateX(100%); }
 }
 
+/* === CHAR-IN — per-character entrance ===
+   Each glyph fades in, lifts from translateY(14px), and sharpens
+   from blur(4px) to blur(0). Used on hero / login big headlines via
+   the <AnimatedChars> helper which wraps each character in an
+   inline-block span and applies a staggered animation-delay. */
+@keyframes charIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 .watchlist-flash-up {
   animation: watchlist-flash-up 480ms ease-out;
 }
