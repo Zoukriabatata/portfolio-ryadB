@@ -1,25 +1,23 @@
 'use client';
 
 /**
- * /auth/login — Editorial Terminal redesign.
+ * /auth/login — Editorial Terminal v2.
  *
- * The legacy login wore a "SaaS sign-in card" :
- *   • Two big ambient lime halos painting the background.
- *   • A "SENZOUKRIA" wordmark in a left-right lime gradient.
- *   • An "S" logo tile filled with a gradient + 0 0 40 px glow.
- *   • "Professional Order Flow Analytics" subtitle.
+ * Pushback on v1 : a single 480-px card centred in a 1920-wide black
+ * void read as empty / underdesigned. The wordmark + form stacked
+ * vertically lost both the brand panel and the form to the dead
+ * space around them.
  *
- * That voice clashed with the editorial dashboard the user lands on
- * right after. This redesign keeps every form interaction and every
- * NextAuth flow intact and only changes :
- *   • Background → shared DashboardAtmosphere (Mono Editorial Depth).
- *   • Wordmark → clean Instrument Serif kicker, no gradient.
- *   • Form labels in JetBrains Mono uppercase tracked.
- *   • Inputs / buttons aligned with the dashboard's `--border-glow`,
- *     `--surface-elevated`, focus-ring lime.
- *   • Trust signals pinned bottom in mono uppercase.
- *   • "Professional" retired from the copy — replaced with a
- *     trader-coded subtitle.
+ * v2 commits to a magazine split :
+ *   • LEFT  → brand panel. Big Instrument Serif italic title, status
+ *             line, system stats. Lives at 50 % on desktop, collapses
+ *             above the form on tablet, hidden on mobile (the form
+ *             becomes the only thing on screen).
+ *   • RIGHT → form column, compact. JetBrains Mono labels + buttons,
+ *             Geist body. No "S logo + SENZOUKRIA + NATIVE ORDER FLOW"
+ *             stack — that triple-stamp read as desperate.
+ *
+ * NextAuth flow, error mapping, fingerprint logic — unchanged.
  */
 
 import { Suspense, useEffect, useState } from 'react';
@@ -37,7 +35,7 @@ import {
   updateFingerprintTimestamp,
 } from '@/lib/auth/fingerprint-client';
 
-// ── Shared Google icon ─────────────────────────────────────────────────────
+// ── Google icon ────────────────────────────────────────────────────────────
 function GoogleIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
@@ -49,7 +47,35 @@ function GoogleIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-// ── Editorial Divider ──────────────────────────────────────────────────────
+// ── Mono kicker (small uppercase tracked label) ────────────────────────────
+function MonoKicker({ children, dim = false, className = '' }: { children: React.ReactNode; dim?: boolean; className?: string }) {
+  return (
+    <span
+      className={className}
+      style={{
+        fontFamily: 'var(--font-jetbrains-mono)',
+        fontSize: 11,
+        letterSpacing: '0.22em',
+        textTransform: 'uppercase',
+        color: dim ? 'var(--text-dimmed)' : 'var(--text-muted)',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ── Field label ────────────────────────────────────────────────────────────
+function FieldLabel({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <MonoKicker>{children}</MonoKicker>
+      {action}
+    </div>
+  );
+}
+
+// ── Inline divider OR ──────────────────────────────────────────────────────
 function Divider({ label = 'OR' }: { label?: string }) {
   return (
     <div className="relative my-5">
@@ -60,11 +86,11 @@ function Divider({ label = 'OR' }: { label?: string }) {
         <span
           className="px-3"
           style={{
-            background: 'var(--surface)',
+            background: 'var(--background)',
             color: 'var(--text-dimmed)',
             fontFamily: 'var(--font-jetbrains-mono)',
-            fontSize: 'var(--text-xs)',
-            letterSpacing: '0.24em',
+            fontSize: 10,
+            letterSpacing: '0.28em',
             textTransform: 'uppercase',
           }}
         >
@@ -75,22 +101,84 @@ function Divider({ label = 'OR' }: { label?: string }) {
   );
 }
 
-// ── Field label — mono kicker ──────────────────────────────────────────────
-function FieldLabel({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+// ── Brand panel (left column on desktop) ───────────────────────────────────
+function BrandPanel() {
   return (
-    <div className="flex items-center justify-between mb-1.5">
-      <span
-        style={{
-          fontFamily: 'var(--font-jetbrains-mono)',
-          fontSize: 'var(--text-xs)',
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-        }}
+    <div className="relative flex flex-col justify-between h-full p-10 lg:p-14">
+      {/* Top — wordmark */}
+      <div className="flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-md grid place-items-center"
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--border-glow)',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-instrument-serif)',
+              fontStyle: 'italic',
+              fontSize: 18,
+              color: 'var(--primary)',
+              lineHeight: 1,
+            }}
+          >
+            S
+          </span>
+        </div>
+        <MonoKicker>Senzoukria</MonoKicker>
+      </div>
+
+      {/* Middle — editorial headline */}
+      <div className="my-12 lg:my-0">
+        <MonoKicker dim>· Sign in</MonoKicker>
+        <h1
+          className="mt-5 italic"
+          style={{
+            fontFamily: 'var(--font-instrument-serif)',
+            fontWeight: 400,
+            fontSize: 'clamp(48px, 6vw, 84px)',
+            lineHeight: 0.96,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          Welcome
+          <br />
+          back.
+        </h1>
+        <p
+          className="mt-6 max-w-md"
+          style={{
+            color: 'var(--text-secondary)',
+            fontSize: 14,
+            lineHeight: 1.6,
+          }}
+        >
+          Open the bridge. Footprint, depth, replay — one session, every
+          chart you left running.
+        </p>
+      </div>
+
+      {/* Bottom — system row */}
+      <div
+        className="flex items-center gap-5"
+        aria-hidden="true"
       >
-        {children}
-      </span>
-      {action}
+        <span className="flex items-center gap-2">
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{
+              backgroundColor: 'var(--primary)',
+              boxShadow: '0 0 8px rgba(74, 222, 128, 0.55)',
+              animation: 'pulse 1.6s ease-in-out infinite',
+            }}
+          />
+          <MonoKicker>System · Online</MonoKicker>
+        </span>
+        <span style={{ color: 'var(--border)' }}>·</span>
+        <MonoKicker dim>v2.4</MonoKicker>
+      </div>
     </div>
   );
 }
@@ -196,329 +284,338 @@ function LoginForm() {
 
   const oauthError = errorParam ? (ERROR_LABELS[errorParam] || 'Authentication error. Please try again.') : '';
 
+  // Input shared style — JetBrains Mono so typed credentials read as code.
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface-elevated)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-jetbrains-mono)',
+    fontSize: 13,
+  };
+
+  // Button mono uppercase shared style.
+  const monoBtnStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-jetbrains-mono)',
+    fontSize: 11,
+    letterSpacing: '0.22em',
+    textTransform: 'uppercase',
+    fontWeight: 600,
+  };
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      className="min-h-screen relative overflow-hidden"
       style={{ background: 'var(--background)' }}
     >
       <DashboardAtmosphere />
 
-      <div className="w-full max-w-md animate-fadeIn relative z-10">
-
-        {/* Wordmark — minimal kicker. The S mark loses its gradient
-            fill + neon glow for a clean lime-bordered square; the
-            "SENZOUKRIA" rainbow wordmark is replaced by an
-            Instrument Serif italic line. */}
-        <div className="text-center mb-8">
-          <div
-            className="w-12 h-12 mx-auto mb-4 rounded-xl grid place-items-center"
-            style={{
-              background: 'var(--surface-elevated)',
-              border: '1px solid var(--border-glow)',
-              boxShadow: '0 0 24px rgba(74, 222, 128, 0.18)',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--font-instrument-serif)',
-                fontStyle: 'italic',
-                fontSize: 22,
-                color: 'var(--primary)',
-                lineHeight: 1,
-              }}
-            >
-              S
-            </span>
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontSize: 'var(--text-xs)',
-              letterSpacing: '0.32em',
-              textTransform: 'uppercase',
-              color: 'var(--text-muted)',
-            }}
-          >
-            Senzoukria
-          </div>
-          <div
-            className="mt-1"
-            style={{
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontSize: 'var(--text-xs)',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              color: 'var(--text-dimmed)',
-            }}
-          >
-            Native order flow
-          </div>
-        </div>
-
+      <div className="relative z-10 min-h-screen grid grid-cols-1 lg:grid-cols-2">
+        {/* LEFT — brand panel (hidden on mobile, full panel on desktop) */}
         <div
-          className="rounded-2xl p-7 animate-slideUp"
+          className="hidden lg:flex relative"
           style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 32px rgba(74, 222, 128, 0.04)',
+            borderRight: '1px solid var(--border)',
           }}
         >
-
-          <div className="mb-6">
-            <h1
-              style={{
-                fontFamily: 'var(--font-instrument-serif)',
-                fontStyle: 'italic',
-                fontSize: 28,
-                lineHeight: 1.05,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              Welcome back
-            </h1>
-            <p
-              className="mt-2 dash-text-sm"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Sign in to open the bridge.
-            </p>
-          </div>
-
-          {/* OAuth error from URL param */}
-          {oauthError && (
-            <div
-              className="mb-4 p-3 rounded-lg dash-text-sm animate-error-shake"
-              role="alert"
-              style={{
-                background: 'color-mix(in oklab, var(--bear) 10%, transparent)',
-                border: '1px solid color-mix(in oklab, var(--bear) 40%, transparent)',
-                color: 'var(--bear)',
-              }}
-            >
-              {oauthError}
-            </div>
-          )}
-
-          {/* PRIMARY — Google sign-in */}
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading}
-            className={cn(
-              'w-full py-3 flex items-center justify-center gap-3',
-              'rounded-xl transition-all duration-200',
-              'active:scale-[0.98] disabled:opacity-60',
-              'hover:border-[var(--border-glow)]',
-            )}
-            style={{
-              background: 'var(--surface-elevated)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontSize: 'var(--text-xs)',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              fontWeight: 600,
-            }}
-          >
-            {isGoogleLoading ? (
-              <span
-                className="animate-spin rounded-full h-4 w-4 border-t-2"
-                style={{ borderColor: 'var(--text-muted)' }}
-              />
-            ) : (
-              <GoogleIcon size={16} />
-            )}
-            {isGoogleLoading ? 'Redirecting…' : 'Continue with Google'}
-          </button>
-
-          <p
-            className="text-center mt-2 mb-1"
-            style={{
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontSize: 'var(--text-xs)',
-              letterSpacing: '0.12em',
-              color: 'var(--text-dimmed)',
-            }}
-          >
-            Fastest · no password needed
-          </p>
-
-          <Divider label="OR USE EMAIL" />
-
-          {/* SECONDARY — Email/password, collapsed by default */}
-          {!showEmailForm ? (
-            <button
-              type="button"
-              onClick={() => setShowEmailForm(true)}
-              className={cn(
-                'w-full py-2.5 rounded-xl transition-colors duration-200',
-                'hover:border-[var(--border-glow)] hover:text-[var(--primary)]',
-              )}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
-                fontFamily: 'var(--font-jetbrains-mono)',
-                fontSize: 'var(--text-xs)',
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                fontWeight: 600,
-              }}
-            >
-              Email &amp; password
-            </button>
-          ) : (
-            <>
-              {error && (
-                <div
-                  className="mb-4 p-3 rounded-lg dash-text-sm animate-error-shake"
-                  role="alert"
-                  style={{
-                    background: 'color-mix(in oklab, var(--bear) 10%, transparent)',
-                    border: '1px solid color-mix(in oklab, var(--bear) 40%, transparent)',
-                    color: 'var(--bear)',
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleEmailSubmit} className="space-y-4">
-                <div>
-                  <FieldLabel>Email</FieldLabel>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoFocus
-                    autoComplete="email"
-                    required
-                    placeholder="you@example.com"
-                    className={cn(
-                      'w-full px-4 py-3 rounded-lg dash-text-sm',
-                      'focus:outline-none transition-colors',
-                      'focus:border-[var(--border-glow)]',
-                    )}
-                    style={{
-                      background: 'var(--surface-elevated)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-jetbrains-mono)',
-                    }}
-                  />
-                </div>
-                <div>
-                  <FieldLabel
-                    action={
-                      <Link
-                        href="/auth/forgot-password"
-                        className="hover:underline"
-                        style={{
-                          fontFamily: 'var(--font-jetbrains-mono)',
-                          fontSize: 'var(--text-xs)',
-                          letterSpacing: '0.18em',
-                          textTransform: 'uppercase',
-                          color: 'var(--primary)',
-                        }}
-                      >
-                        Forgot?
-                      </Link>
-                    }
-                  >
-                    Password
-                  </FieldLabel>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    required
-                    placeholder="••••••••"
-                    className={cn(
-                      'w-full px-4 py-3 rounded-lg dash-text-sm',
-                      'focus:outline-none transition-colors',
-                      'focus:border-[var(--border-glow)]',
-                    )}
-                    style={{
-                      background: 'var(--surface-elevated)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-jetbrains-mono)',
-                    }}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={cn(
-                    'w-full py-3 rounded-lg transition-all duration-200',
-                    'hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50',
-                  )}
-                  style={{
-                    background: 'var(--primary)',
-                    color: '#0a0a0a',
-                    fontFamily: 'var(--font-jetbrains-mono)',
-                    fontSize: 'var(--text-xs)',
-                    letterSpacing: '0.18em',
-                    textTransform: 'uppercase',
-                    fontWeight: 700,
-                  }}
-                >
-                  {isLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span
-                        className="animate-spin rounded-full h-3.5 w-3.5 border-t-2"
-                        style={{ borderColor: 'rgba(0,0,0,0.55)' }}
-                      />
-                      Signing in…
-                    </span>
-                  ) : (
-                    'Sign in'
-                  )}
-                </button>
-              </form>
-            </>
-          )}
-
-          <div className="mt-6 text-center">
-            <p className="dash-text-sm" style={{ color: 'var(--text-muted)' }}>
-              No account?{' '}
-              <Link
-                href="/auth/register"
-                className="font-medium hover:underline"
-                style={{ color: 'var(--primary)' }}
-              >
-                Create one free
-              </Link>
-            </p>
-          </div>
+          <BrandPanel />
         </div>
 
-        {/* Trust signals — mono uppercase, sober */}
-        <div className="mt-5 flex items-center justify-center gap-5">
-          {[
-            { path: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', label: 'TLS encrypted' },
-            { path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', label: 'No data sold' },
-          ].map((item) => (
-            <span
-              key={item.label}
-              className="flex items-center gap-1.5"
+        {/* RIGHT — form column */}
+        <div className="flex items-center justify-center px-6 py-12 lg:p-14">
+          <div className="w-full max-w-sm animate-fadeIn">
+
+            {/* Mobile brand strip — only shown when left panel is hidden */}
+            <div className="lg:hidden mb-10 flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-md grid place-items-center"
+                style={{ border: '1px solid var(--border-glow)' }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-instrument-serif)',
+                    fontStyle: 'italic',
+                    fontSize: 18,
+                    color: 'var(--primary)',
+                    lineHeight: 1,
+                  }}
+                >
+                  S
+                </span>
+              </div>
+              <MonoKicker>Senzoukria</MonoKicker>
+            </div>
+
+            {/* Form headline (mobile only — desktop has it on the left) */}
+            <div className="lg:hidden mb-8">
+              <h1
+                className="italic"
+                style={{
+                  fontFamily: 'var(--font-instrument-serif)',
+                  fontWeight: 400,
+                  fontSize: 44,
+                  lineHeight: 1,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Welcome back.
+              </h1>
+              <p
+                className="mt-3"
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                }}
+              >
+                Open the bridge.
+              </p>
+            </div>
+
+            {/* Desktop : a small kicker above the form so the column
+                doesn't start cold — orientation for the user. */}
+            <div className="hidden lg:block mb-8">
+              <MonoKicker dim>· Authentication</MonoKicker>
+              <h2
+                className="mt-3"
+                style={{
+                  fontFamily: 'var(--font-instrument-serif)',
+                  fontSize: 22,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Sign in to your workspace.
+              </h2>
+            </div>
+
+            {/* OAuth error from URL param */}
+            {oauthError && (
+              <div
+                className="mb-5 px-3 py-2.5 rounded-md text-[13px] animate-error-shake"
+                role="alert"
+                style={{
+                  background: 'color-mix(in oklab, var(--bear) 10%, transparent)',
+                  border: '1px solid color-mix(in oklab, var(--bear) 40%, transparent)',
+                  color: 'var(--bear)',
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                }}
+              >
+                {oauthError}
+              </div>
+            )}
+
+            {/* PRIMARY — Google */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+              className={cn(
+                'w-full py-3 flex items-center justify-center gap-3 rounded-md',
+                'transition-colors duration-200 active:scale-[0.99] disabled:opacity-60',
+                'hover:border-[var(--border-glow)]',
+              )}
+              style={{
+                ...monoBtnStyle,
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              {isGoogleLoading ? (
+                <span
+                  className="animate-spin rounded-full h-4 w-4 border-t-2"
+                  style={{ borderColor: 'var(--text-muted)' }}
+                />
+              ) : (
+                <GoogleIcon size={15} />
+              )}
+              {isGoogleLoading ? 'Redirecting' : 'Continue with Google'}
+            </button>
+
+            <p
+              className="text-center mt-3"
               style={{
                 fontFamily: 'var(--font-jetbrains-mono)',
-                fontSize: 'var(--text-xs)',
+                fontSize: 10,
                 letterSpacing: '0.18em',
                 textTransform: 'uppercase',
                 color: 'var(--text-dimmed)',
               }}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d={item.path} />
-              </svg>
-              {item.label}
-            </span>
-          ))}
+              Fastest · no password needed
+            </p>
+
+            <Divider label="OR USE EMAIL" />
+
+            {/* SECONDARY — Email/password, collapsed by default */}
+            {!showEmailForm ? (
+              <button
+                type="button"
+                onClick={() => setShowEmailForm(true)}
+                className={cn(
+                  'w-full py-2.5 rounded-md transition-colors duration-200',
+                  'hover:border-[var(--border-glow)] hover:text-[var(--primary)]',
+                )}
+                style={{
+                  ...monoBtnStyle,
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                Email &amp; password
+              </button>
+            ) : (
+              <>
+                {error && (
+                  <div
+                    className="mb-4 px-3 py-2.5 rounded-md text-[13px] animate-error-shake"
+                    role="alert"
+                    style={{
+                      background: 'color-mix(in oklab, var(--bear) 10%, transparent)',
+                      border: '1px solid color-mix(in oklab, var(--bear) 40%, transparent)',
+                      color: 'var(--bear)',
+                      fontFamily: 'var(--font-jetbrains-mono)',
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <div>
+                    <FieldLabel>Email</FieldLabel>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoFocus
+                      autoComplete="email"
+                      required
+                      placeholder="you@example.com"
+                      className={cn(
+                        'w-full px-3.5 py-2.5 rounded-md',
+                        'focus:outline-none transition-colors',
+                        'focus:border-[var(--border-glow)]',
+                      )}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel
+                      action={
+                        <Link
+                          href="/auth/forgot-password"
+                          className="hover:underline"
+                          style={{
+                            fontFamily: 'var(--font-jetbrains-mono)',
+                            fontSize: 10,
+                            letterSpacing: '0.18em',
+                            textTransform: 'uppercase',
+                            color: 'var(--primary)',
+                          }}
+                        >
+                          Forgot
+                        </Link>
+                      }
+                    >
+                      Password
+                    </FieldLabel>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                      placeholder="••••••••"
+                      className={cn(
+                        'w-full px-3.5 py-2.5 rounded-md',
+                        'focus:outline-none transition-colors',
+                        'focus:border-[var(--border-glow)]',
+                      )}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className={cn(
+                      'w-full py-3 rounded-md transition-all duration-200',
+                      'active:scale-[0.99] disabled:opacity-50',
+                    )}
+                    style={{
+                      ...monoBtnStyle,
+                      background: 'var(--primary)',
+                      color: '#0a0a0a',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span
+                          className="animate-spin rounded-full h-3.5 w-3.5 border-t-2"
+                          style={{ borderColor: 'rgba(0,0,0,0.55)' }}
+                        />
+                        Signing in
+                      </span>
+                    ) : (
+                      'Sign in'
+                    )}
+                  </button>
+                </form>
+              </>
+            )}
+
+            <div className="mt-7">
+              <p
+                style={{
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: 11,
+                  letterSpacing: '0.12em',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                No account?{' '}
+                <Link
+                  href="/auth/register"
+                  className="hover:underline"
+                  style={{ color: 'var(--primary)', fontWeight: 600 }}
+                >
+                  Create one — free
+                </Link>
+              </p>
+            </div>
+
+            {/* Trust signals — small mono baseline */}
+            <div
+              className="mt-10 pt-6 flex items-center gap-5"
+              style={{ borderTop: '1px solid var(--border)' }}
+            >
+              {[
+                { path: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', label: 'TLS' },
+                { path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', label: 'No data sold' },
+                { path: 'M3 12h18M3 6h18M3 18h18', label: 'SOC2 ready' },
+              ].map((item) => (
+                <span
+                  key={item.label}
+                  className="flex items-center gap-1.5"
+                  style={{
+                    fontFamily: 'var(--font-jetbrains-mono)',
+                    fontSize: 10,
+                    letterSpacing: '0.2em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-dimmed)',
+                  }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d={item.path} />
+                  </svg>
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
