@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 
-import { DashboardAtmosphere } from '@/components/dashboard/DashboardAtmosphere';
 import { useScrollAnimations } from '@/hooks/useScrollAnimations';
 
 // Browser-only — decorative/interactive, no impact on LCP
+const BlackHole = dynamic(() => import('@/components/canvas/BlackHole'), { ssr: false });
 const ScrollProgress = dynamic(() => import('@/components/landing/ScrollProgress'), { ssr: false });
 const ScrollSpy = dynamic(() => import('@/components/landing/ScrollSpy'), { ssr: false });
 const BackToTop = dynamic(() => import('@/components/landing/BackToTop'), { ssr: false });
@@ -15,17 +15,18 @@ const FloatingChat = dynamic(() => import('@/components/ai/FloatingChat'), { ssr
 /**
  * Landing shell — Editorial Terminal pass.
  *
- * The previous shell stacked four decorative layers (BlackHole
- * canvas with orbital rings + particles, CursorGlow follower, an
- * SVG noise overlay, and the page itself). The composite read as
- * cosmic / cyberpunk-AI : busy, generic, distracting from the
- * editorial message.
+ * Composition :
+ *   • BlackHole canvas behind the hero — the brand's signature
+ *     visual. Kept on the landing because the homepage carries
+ *     the marketing job; restored after the user reverted the
+ *     "drop all decorative layers" iteration.
+ *   • Drop CursorGlow + the SVG noise overlay — both competed with
+ *     editorial typography without earning their place; the
+ *     BlackHole alone carries enough atmosphere.
  *
- * Replaced by the same `DashboardAtmosphere` used inside the app —
- * neutral greyscale depth, white blueprint grid, white overhead
- * halo, single lime traversing ribbon. The brand identity becomes
- * coherent across landing → product instead of "cyberpunk landing
- * then editorial dashboard."
+ * Inside the app (dashboard, account, routes) the `DashboardAtmosphere`
+ * runs instead — keeps the editorial typography readable. Two
+ * surfaces, two atmospheres, one brand voice.
  */
 export default function LandingClientShell({ children }: { children: React.ReactNode }) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -41,7 +42,7 @@ export default function LandingClientShell({ children }: { children: React.React
       className="h-full w-full overflow-auto bg-black relative"
       style={{ scrollBehavior: 'smooth' }}
     >
-      <DashboardAtmosphere />
+      <BlackHole scrollContainerRef={scrollContainerRef} />
       <ScrollProgress />
       <ScrollSpy />
 
