@@ -140,20 +140,30 @@ export default function FeaturesSection() {
         <div className="text-center mb-16">
           <div
             data-animate="up"
-            className="italic mb-3"
+            className="mb-4"
             style={{
-              fontFamily: 'var(--font-instrument-serif)',
-              color: 'var(--text-secondary)',
-              fontSize: 'var(--text-lg)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 11,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
             }}
           >
-            What the bridge unlocks
+            · What the bridge unlocks
           </div>
           <h2
             data-animate="up"
             data-animate-delay="1"
-            className="dash-text-2xl md:dash-text-3xl tracking-tight"
-            style={{ color: 'var(--text-primary)', fontWeight: 700 }}
+            className="leading-none"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 500,
+              fontSize: 'clamp(36px, 4.5vw, 60px)',
+              letterSpacing: '-0.04em',
+              textTransform: 'uppercase',
+              WebkitFontSmoothing: 'subpixel-antialiased',
+            }}
           >
             Three primitives. Zero wrappers.
           </h2>
