@@ -180,6 +180,39 @@
   z-index: 1;
 }
 
+/* === DASHBOARD STAGGERED MOUNT ===
+   One orchestrated reveal at page load instead of a confetti of
+   micro-interactions everywhere. Each bento slot opts in via
+   `data-stagger-slot="N"` and inherits its animation-delay from
+   the matching ring. */
+@keyframes dashboard-slot-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+[data-stagger-slot] {
+  animation: dashboard-slot-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+[data-stagger-slot="0"] { animation-delay: 0ms; }
+[data-stagger-slot="1"] { animation-delay: 60ms; }
+[data-stagger-slot="2"] { animation-delay: 120ms; }
+[data-stagger-slot="3"] { animation-delay: 180ms; }
+[data-stagger-slot="4"] { animation-delay: 240ms; }
+[data-stagger-slot="5"] { animation-delay: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-stagger-slot],
+  [data-grain="on"]::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* === DASHBOARD UTILITY CLASSES ===
    Drop-in replacements for `text-[8px]`-style arbitrary sizes. Keep
    the class names purposefully verbose so the search-and-replace

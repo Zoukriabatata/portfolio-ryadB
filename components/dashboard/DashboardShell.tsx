@@ -4,52 +4,37 @@
  * Phase 4 of the dashboard redesign: the bento grid that replaces
  * the legacy 1/3-col stack.
  *
- *   • 12-col CSS grid with auto-rows minmax(140px, auto).
- *   • Hero card (Watchlist) sits at col-span-6 / row-span-2 so it
- *     reads as the primary surface at a glance.
- *   • Two flanking row-span-2 cards (MarketPulse + TodaysSignals)
- *     fill the visual hierarchy across the top half.
- *   • Three compact cards (Funding / OI / Liquidations) form the
- *     middle band — homogeneous size signals "monitoring strip".
- *   • Bottom band : RecentActivity (col-5) + QuickLaunch (col-7) so
- *     navigation is the last thing the eye lands on (Fitt's law).
- *   • AccountSummary spans the full row at the very bottom — it's
- *     contextual, not primary, until a broker is wired.
- *
- * Responsive breakpoints :
- *   • <640px  → everything stacks to col-span-1 in source order.
- *   • 640-1024px → 6-col grid; hero spans 6, secondaries 3, mid-band
- *     stays 2 each.
- *   • ≥1024px → full 12-col bento as documented above.
+ * Phase 6 polish layered on top:
+ *   • `data-stagger-slot` on each slot drives a single orchestrated
+ *     fade-in / translate sequence at mount (CSS keyframes only,
+ *     no Framer runtime). Honours prefers-reduced-motion via the
+ *     globals.css media query.
+ *   • Keyboard shortcuts 1 / 2 / 4 / 5 / 7 navigate to the
+ *     corresponding chart routes (mirrors the QuickLaunchGrid
+ *     legend). Disabled while focus sits in an input / textarea so
+ *     typing a "2" into a search box never throws the user to /footprint.
  */
 
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 
 import { cn } from "@/lib/utils";
 
 export interface DashboardShellProps {
-  /** Slim greeting + clock + market-status bar. Owns its own height. */
   topBar: ReactNode;
-  /** Conditional upgrade nudge (FREE plan only). Render `null` to skip. */
   upgradeBanner?: ReactNode;
-  /** Hero card — currently a placeholder, becomes Watchlist in phase 5. */
   watchlistSlot: ReactNode;
   marketPulseSlot: ReactNode;
-  /** Phase-5 placeholder until TodaysSignals lands. */
   todaysSignalsSlot: ReactNode;
   fundingSlot: ReactNode;
   openInterestSlot: ReactNode;
   liquidationsSlot: ReactNode;
-  /** Phase-5 placeholder until RecentActivity lands. */
   recentActivitySlot: ReactNode;
   quickLaunchSlot: ReactNode;
-  /** Phase-5 placeholder until AccountSummary lands. */
   accountSummarySlot: ReactNode;
 }
 
-/** Shared grid-item placement classes. Kept here (not inside each
- *  widget) so the bento layout is debuggable from a single file —
- *  changing the layout means editing this map, not 10 components. */
 const SLOTS = {
   watchlist: cn(
     "col-span-1",
@@ -74,6 +59,18 @@ const SLOTS = {
   accountSummary: cn("col-span-1", "sm:col-span-6", "lg:col-span-12"),
 } as const;
 
+/** Map of digit keys → routes. Matches the legend rendered inside
+ *  QuickLaunchGrid so the user sees which shortcut goes where. The
+ *  Account route ('account') intentionally has no shortcut — it's
+ *  not a chart and lives in its own settings flow. */
+const SHORTCUT_ROUTES: Record<string, string> = {
+  "1": "/live",
+  "2": "/footprint",
+  "4": "/gex",
+  "5": "/volatility",
+  "7": "/news",
+};
+
 export function DashboardShell({
   topBar,
   upgradeBanner,
@@ -87,6 +84,32 @@ export function DashboardShell({
   quickLaunchSlot,
   accountSummarySlot,
 }: DashboardShellProps) {
+  const router = useRouter();
+
+  // Global digit-key navigation. Bail when typing in a form control
+  // or when a modifier is held (Cmd-1 means "switch tab" in the
+  // browser, hijacking it would be hostile).
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const route = SHORTCUT_ROUTES[event.key];
+      if (!route) return;
+      event.preventDefault();
+      router.push(route);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [router]);
+
   return (
     <div
       className="h-full overflow-auto custom-scrollbar"
@@ -97,32 +120,49 @@ export function DashboardShell({
           "max-w-[1400px] mx-auto",
           "px-3 sm:px-4 lg:px-5 py-3 sm:py-4",
           "flex flex-col gap-3 sm:gap-4",
-          "animate-fadeIn",
         )}
       >
-        {topBar}
-        {upgradeBanner}
+        <div data-stagger-slot="0">{topBar}</div>
+        {upgradeBanner && <div data-stagger-slot="1">{upgradeBanner}</div>}
 
         <main
           aria-label="Dashboard widgets"
           className={cn(
             "grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12",
             "gap-3 sm:gap-4",
-            // grid-auto-rows lets row-span-2 actually double the
-            // vertical footprint of hero / pulse / signals while the
-            // other cards stay snug.
             "[grid-auto-rows:minmax(140px,auto)]",
           )}
         >
-          <div className={SLOTS.watchlist}>{watchlistSlot}</div>
-          <div className={SLOTS.marketPulse}>{marketPulseSlot}</div>
-          <div className={SLOTS.todaysSignals}>{todaysSignalsSlot}</div>
-          <div className={SLOTS.funding}>{fundingSlot}</div>
-          <div className={SLOTS.openInterest}>{openInterestSlot}</div>
-          <div className={SLOTS.liquidations}>{liquidationsSlot}</div>
-          <div className={SLOTS.recentActivity}>{recentActivitySlot}</div>
-          <div className={SLOTS.quickLaunch}>{quickLaunchSlot}</div>
-          <div className={SLOTS.accountSummary}>{accountSummarySlot}</div>
+          <div data-stagger-slot="2" className={SLOTS.watchlist}>
+            {watchlistSlot}
+          </div>
+          <div data-stagger-slot="2" className={SLOTS.marketPulse}>
+            {marketPulseSlot}
+          </div>
+          <div data-stagger-slot="2" className={SLOTS.todaysSignals}>
+            {todaysSignalsSlot}
+          </div>
+
+          <div data-stagger-slot="3" className={SLOTS.funding}>
+            {fundingSlot}
+          </div>
+          <div data-stagger-slot="3" className={SLOTS.openInterest}>
+            {openInterestSlot}
+          </div>
+          <div data-stagger-slot="3" className={SLOTS.liquidations}>
+            {liquidationsSlot}
+          </div>
+
+          <div data-stagger-slot="4" className={SLOTS.recentActivity}>
+            {recentActivitySlot}
+          </div>
+          <div data-stagger-slot="4" className={SLOTS.quickLaunch}>
+            {quickLaunchSlot}
+          </div>
+
+          <div data-stagger-slot="5" className={SLOTS.accountSummary}>
+            {accountSummarySlot}
+          </div>
         </main>
       </div>
     </div>
