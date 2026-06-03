@@ -58,20 +58,28 @@ const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value
   return (
     <div ref={ref} className="text-center">
       <div
-        className="text-lg md:text-xl font-bold transition-all duration-500"
+        className="dash-text-xl md:dash-text-2xl transition-all duration-500 tabular-nums"
         style={{
           color: 'var(--primary-light)',
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateY(0)' : 'translateY(8px)',
+          fontFamily: 'var(--font-instrument-serif)',
+          fontWeight: 400,
+          letterSpacing: '-0.01em',
         }}
       >
         {target ? `${prefix}${count}${suffix}` : value}
       </div>
       <div
-        className="text-[10px] text-white/25 mt-0.5 transition-all duration-500"
+        className="mt-1 transition-all duration-500"
         style={{
           opacity: visible ? 1 : 0,
           transitionDelay: '100ms',
+          fontFamily: 'var(--font-jetbrains-mono)',
+          fontSize: '9px',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
         }}
       >
         {label}
@@ -160,12 +168,16 @@ export default function HeroSection() {
             mentions (heatmap, GEX) the FeaturesSection cleanup
             already removed. */}
         <p
-          className="mt-6 text-sm md:text-base text-white/45 max-w-lg mx-auto leading-relaxed"
-          style={{ animation: 'fadeInUp 0.7s ease-out 0.3s forwards', opacity: 0 }}
+          className="mt-6 dash-text-base md:dash-text-lg max-w-lg mx-auto leading-relaxed"
+          style={{
+            animation: 'fadeInUp 0.7s ease-out 0.3s forwards',
+            opacity: 0,
+            color: 'var(--text-secondary)',
+          }}
         >
-          Native footprint charts with the same daily volume NinjaTrader shows you.
-          NT Bridge for Apex &amp; Rithmic accounts — install one NinjaScript file,
-          done.
+          Footprint charts rendered tick-by-tick from your NinjaTrader feed.
+          One NinjaScript file installs the bridge — Apex and Rithmic
+          accounts, no proxy lag.
         </p>
 
         {/* CTA Buttons */}
@@ -182,8 +194,12 @@ export default function HeroSection() {
               <Link href="/auth/register" className="landing-btn-primary">
                 Get free preview
               </Link>
-              <Link href="/download" className="landing-btn-ghost">
-                Download for Windows
+              <Link
+                href="/download"
+                className="landing-btn-ghost"
+                style={{ fontFamily: 'var(--font-jetbrains-mono)', letterSpacing: '0.04em' }}
+              >
+                Download · Windows
               </Link>
             </>
           )}
@@ -195,10 +211,10 @@ export default function HeroSection() {
           style={{ animation: 'fadeInUp 0.7s ease-out 0.6s forwards', opacity: 0 }}
         >
           {[
-            { v: '<5ms', l: 'Latency' },
-            { v: '8', l: 'Data Feeds' },
-            { v: '6', l: 'Pro Tools' },
-            { v: '12+', l: 'Markets' },
+            { v: '<5ms', l: 'TICK LATENCY' },
+            { v: '8', l: 'BROKER FEEDS' },
+            { v: '6', l: 'TOOLS' },
+            { v: '12+', l: 'MARKETS COVERED' },
           ].map((s, i) => (
             <AnimatedStat key={i} value={s.v} label={s.l} delay={800 + i * 200} />
           ))}
@@ -315,7 +331,15 @@ export default function HeroSection() {
           className="mt-8 flex flex-col items-center gap-2"
           style={{ animation: 'fadeIn 1s ease-out 1.2s forwards', opacity: 0 }}
         >
-          <span className="text-[10px] uppercase tracking-[0.2em] text-white/20">Scroll to explore</span>
+          <span
+            className="text-[10px] uppercase tracking-[0.22em]"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            Scroll
+          </span>
           <svg
             width="20" height="20" viewBox="0 0 24 24" fill="none"
             className="text-white/20"

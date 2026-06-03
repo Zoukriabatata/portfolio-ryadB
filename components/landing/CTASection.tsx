@@ -39,30 +39,44 @@ export default function CTASection() {
 
       <div className="max-w-2xl mx-auto text-center relative" style={{ zIndex: 10 }}>
         {/* Heading */}
+        <div
+          data-animate="up"
+          className="italic mb-3"
+          style={{
+            fontFamily: 'var(--font-instrument-serif)',
+            color: 'var(--text-secondary)',
+            fontSize: 'var(--text-lg)',
+          }}
+        >
+          Your NinjaTrader chart, with delta
+        </div>
         <h2
           data-animate="scale"
-          className="text-3xl md:text-5xl font-bold tracking-tight leading-tight"
+          className="dash-text-3xl md:text-5xl tracking-tight leading-[1.05]"
+          style={{ fontWeight: 700 }}
         >
-          <span className="text-white">Read the tape</span>
+          <span style={{ color: 'var(--text-primary)' }}>Stop watching delayed cells.</span>
           <br />
           <span
-            className="bg-clip-text text-transparent"
+            className="italic"
             style={{
-              backgroundImage: 'linear-gradient(135deg, var(--primary-light), var(--primary), var(--accent))',
-              WebkitBackgroundClip: 'text',
+              fontFamily: 'var(--font-instrument-serif)',
+              color: 'var(--primary-light)',
+              fontWeight: 400,
             }}
           >
-            like a market maker.
+            Open the bridge.
           </span>
         </h2>
 
         <p
           data-animate="up"
           data-animate-delay="1"
-          className="mt-6 text-base text-white/55 leading-relaxed"
+          className="mt-6 dash-text-base leading-relaxed"
+          style={{ color: 'var(--text-secondary)' }}
         >
-          Free PRO access until 17 June 2026. No credit card, no commitment —
-          download, login, plug in your NinjaTrader and you&apos;re live.
+          Free PRO until 17 June 2026. No card, no commitment. Download,
+          login, attach the NinjaScript — the tape goes live.
         </p>
 
         {/* Trust badges */}
@@ -72,13 +86,19 @@ export default function CTASection() {
           className="mt-8 flex items-center justify-center gap-4 flex-wrap"
         >
           {[
-            { label: '<5ms Latency', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg> },
-            { label: 'TLS Encrypted', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg> },
-            { label: '8 Data Feeds', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg> },
+            { label: '<5ms LATENCY', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg> },
+            { label: 'TLS ENCRYPTED', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg> },
+            { label: '8 BROKER FEEDS', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg> },
           ].map((badge) => (
             <span
               key={badge.label}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[11px] font-medium text-white/55 border border-white/[0.1] bg-white/[0.04]"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/[0.1] bg-white/[0.04]"
+              style={{
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: '10px',
+                letterSpacing: '0.14em',
+                color: 'var(--text-secondary)',
+              }}
             >
               <span style={{ color: 'rgb(var(--primary-rgb) / 0.7)' }}>{badge.icon}</span>
               {badge.label}
@@ -172,8 +192,9 @@ export default function CTASection() {
               <Link
                 href="/download"
                 className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold text-white/70 border border-white/[0.15] rounded-xl hover:border-white/[0.25] hover:text-white hover:bg-white/[0.04] hover:-translate-y-0.5 transition-all duration-300"
+                style={{ fontFamily: 'var(--font-jetbrains-mono)', letterSpacing: '0.04em' }}
               >
-                Download for Windows
+                Download · Windows
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
@@ -186,9 +207,16 @@ export default function CTASection() {
         <p
           data-animate="up"
           data-animate-delay="4"
-          className="mt-6 text-[11px] text-white/25"
+          className="mt-6"
+          style={{
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: '10px',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
         >
-          No credit card &bull; Free until 17 June 2026 &bull; Windows install in 2 minutes
+          No card · Free until 17 June 2026 · Windows install in 2 minutes
         </p>
       </div>
     </section>

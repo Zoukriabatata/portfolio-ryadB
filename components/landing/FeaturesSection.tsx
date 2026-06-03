@@ -10,28 +10,28 @@ import {
 type FeatureStatus = 'live' | 'beta' | 'soon';
 
 const STATUS_STYLES: Record<FeatureStatus, { label: string; color: string; bg: string; border: string }> = {
-  live: { label: 'Live', color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)' },
-  beta: { label: 'Beta', color: 'var(--primary-light)', bg: 'rgb(var(--primary-light-rgb) / 0.08)', border: 'rgb(var(--primary-light-rgb) / 0.2)' },
-  soon: { label: 'Soon', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)' },
+  live: { label: 'LIVE', color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)' },
+  beta: { label: 'BETA', color: 'var(--primary-light)', bg: 'rgb(var(--primary-light-rgb) / 0.08)', border: 'rgb(var(--primary-light-rgb) / 0.2)' },
+  soon: { label: 'SOON', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.1)' },
 };
 
 const FEATURES = [
   {
     Icon: FootprintIcon,
-    title: 'Footprint Charts',
-    desc: 'See every aggressive buyer and seller at every price level. Delta, cumulative delta, imbalance detection — broker session volume side-by-side with your own.',
+    title: 'Native footprint',
+    desc: 'Bid and ask volume drawn at every price level. Delta, cumulative delta, imbalances flagged tick-by-tick — the broker session volume sits next to your own count.',
     status: 'live' as FeatureStatus,
   },
   {
     Icon: DataFeedIcon,
-    title: 'Multi-broker data',
-    desc: 'NinjaTrader Bridge for Apex & Rithmic accounts. Rithmic direct if you have credentials. Crypto via Binance, Bybit, Deribit — no broker needed.',
+    title: 'Broker-side feeds',
+    desc: 'NinjaTrader bridge for Apex and Rithmic. Rithmic R | API direct when you bring your own creds. Binance, Bybit and Deribit on tap — no broker required.',
     status: 'live' as FeatureStatus,
   },
   {
     Icon: LiveIcon,
-    title: 'Live trading dashboard',
-    desc: 'Every trade and orderbook update the moment it happens. Sub-second latency on the bridge, real-time WebSocket feeds on crypto.',
+    title: 'Live tape',
+    desc: 'Every print, every book update, the moment it lands. Sub-5ms on the bridge, raw WebSocket on crypto. No web polling, no proxy hop.',
     status: 'live' as FeatureStatus,
   },
 ];
@@ -81,22 +81,35 @@ const FeatureCard = memo(function FeatureCard({ f, i }: { f: typeof FEATURES[num
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-[14px] font-semibold text-white group-hover:text-[var(--primary-light)] transition-colors duration-300">
+            <h3
+              className="dash-text-base font-semibold group-hover:text-[var(--primary-light)] transition-colors duration-300"
+              style={{ color: 'var(--text-primary)' }}
+            >
               {f.title}
             </h3>
             {(() => {
               const s = STATUS_STYLES[f.status];
               return (
                 <span
-                  className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full leading-none"
-                  style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}` }}
+                  className="px-1.5 py-0.5 rounded-full leading-none"
+                  style={{
+                    color: s.color,
+                    background: s.bg,
+                    border: `1px solid ${s.border}`,
+                    fontFamily: 'var(--font-jetbrains-mono)',
+                    fontSize: '9px',
+                    letterSpacing: '0.18em',
+                  }}
                 >
                   {s.label}
                 </span>
               );
             })()}
           </div>
-          <p className="mt-1.5 text-[12px] text-white/45 leading-relaxed group-hover:text-white/60 transition-colors duration-300">
+          <p
+            className="mt-1.5 dash-text-sm leading-relaxed group-hover:text-white/65 transition-colors duration-300"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             {f.desc}
           </p>
         </div>
@@ -125,18 +138,33 @@ export default function FeaturesSection() {
 
       <div className="max-w-5xl mx-auto relative" style={{ zIndex: 10 }}>
         <div className="text-center mb-16">
+          <div
+            data-animate="up"
+            className="italic mb-3"
+            style={{
+              fontFamily: 'var(--font-instrument-serif)',
+              color: 'var(--text-secondary)',
+              fontSize: 'var(--text-lg)',
+            }}
+          >
+            What the bridge unlocks
+          </div>
           <h2
             data-animate="up"
-            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+            data-animate-delay="1"
+            className="dash-text-2xl md:dash-text-3xl tracking-tight"
+            style={{ color: 'var(--text-primary)', fontWeight: 700 }}
           >
-            Everything you need
+            Three primitives. Zero wrappers.
           </h2>
           <p
             data-animate="up"
-            data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
+            data-animate-delay="2"
+            className="mt-4 dash-text-sm md:dash-text-base max-w-lg mx-auto"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Professional trading tools built for serious market participants
+            Footprint, broker feed, live tape — rendered native. Nothing
+            sits between your chart and the exchange tick.
           </p>
         </div>
 

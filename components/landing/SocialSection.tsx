@@ -7,7 +7,7 @@ const SOCIALS = [
     platform: 'TikTok',
     handle: '@zkb.trade',
     Icon: TikTokIcon,
-    description: 'Daily trading insights, orderflow breakdowns, and live market analysis. Short-form content that makes complex concepts simple.',
+    description: 'Tape reads, orderflow breakdowns, session recaps. Short-form, no fluff.',
     cta: 'Follow on TikTok',
     href: 'https://tiktok.com/@zkb.trade',
     color: '#FF0050',
@@ -17,7 +17,7 @@ const SOCIALS = [
     platform: 'YouTube',
     handle: '@Zoukriabatata',
     Icon: YouTubeIcon,
-    description: 'In-depth tutorials, strategy guides, and platform walkthroughs. Learn to master orderflow analysis step by step.',
+    description: 'Long-form: setup walkthroughs, footprint deep dives, bridge install guides.',
     cta: 'Subscribe on YouTube',
     href: 'https://youtube.com/@Zoukriabatata',
     color: '#FF0000',
@@ -39,18 +39,32 @@ export default function SocialSection() {
 
       <div className="max-w-4xl mx-auto relative" style={{ zIndex: 10 }}>
         <div className="text-center mb-16">
+          <div
+            data-animate="up"
+            className="italic mb-3"
+            style={{
+              fontFamily: 'var(--font-instrument-serif)',
+              color: 'var(--text-secondary)',
+              fontSize: 'var(--text-lg)',
+            }}
+          >
+            Off the bridge
+          </div>
           <h2
             data-animate="up"
-            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+            data-animate-delay="1"
+            className="dash-text-2xl md:dash-text-3xl tracking-tight"
+            style={{ color: 'var(--text-primary)', fontWeight: 700 }}
           >
-            Join the Community
+            Tape reads, on schedule.
           </h2>
           <p
             data-animate="up"
-            data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
+            data-animate-delay="2"
+            className="mt-4 dash-text-sm md:dash-text-base max-w-lg mx-auto"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Follow us for daily trading insights and platform tutorials
+            Daily session recaps and footprint breakdowns. Pick the format.
           </p>
         </div>
 
@@ -86,14 +100,34 @@ export default function SocialSection() {
                 {/* Text content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[15px] font-semibold text-white group-hover:text-white transition-colors">
+                    <h3
+                      className="dash-text-base font-semibold transition-colors"
+                      style={{
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-jetbrains-mono)',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
                       {social.handle}
                     </h3>
-                    <span className="text-[10px] uppercase tracking-[0.1em] font-medium px-2 py-0.5 rounded-full" style={{ color: social.color, background: `${social.color}15` }}>
+                    <span
+                      className="px-2 py-0.5 rounded-full"
+                      style={{
+                        color: social.color,
+                        background: `${social.color}15`,
+                        fontFamily: 'var(--font-jetbrains-mono)',
+                        fontSize: '10px',
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
                       {social.platform}
                     </span>
                   </div>
-                  <p className="mt-1 text-[12px] text-white/40 leading-relaxed group-hover:text-white/55 transition-colors line-clamp-1">
+                  <p
+                    className="mt-1 dash-text-sm leading-relaxed group-hover:text-white/60 transition-colors line-clamp-1"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
                     {social.description}
                   </p>
                 </div>

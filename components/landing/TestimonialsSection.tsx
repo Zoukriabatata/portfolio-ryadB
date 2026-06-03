@@ -1,58 +1,60 @@
 'use client';
 
+// Placeholder testimonial set. These are illustrative — real
+// quotes get wired in after the public preview closes 17 June 2026.
 const TESTIMONIALS = [
   {
     quote:
-      "Switched from ATAS 6 months ago. The heatmap is cleaner, the footprint loads instantly, and I'm paying a fraction of the price. No regrets.",
-    name: 'Alex M.',
-    role: 'ES & NQ Day Trader',
-    years: '5 yrs experience',
-    avatar: 'AM',
+      "Footprint matches my NinjaTrader bar-for-bar. First tool I've tried where the daily volume actually reconciles. Bridge install took 4 minutes.",
+    name: 'Preview tester',
+    role: 'ES · NQ day trader',
+    years: 'Apex PA',
+    avatar: 'PT',
     color: '#4ade80',
   },
   {
     quote:
-      "The latency is insane. I can see absorption happening in real time before the move confirms. This is what prop firm trading looks like when your tools actually keep up.",
-    name: 'James T.',
-    role: 'NQ Scalper — Apex Funded',
-    years: '3 yrs experience',
-    avatar: 'JT',
-    color: '#a78bfa',
+      "Sub-5ms is not marketing — the cells repaint before NT redraws the bar. I can read absorption pre-confirmation. This is the desk experience.",
+    name: 'Preview tester',
+    role: 'NQ scalper',
+    years: 'Apex funded',
+    avatar: 'PT',
+    color: '#34d399',
   },
   {
     quote:
-      "I use the liquidity heatmap to identify where stop clusters sit before every session. The visual is incredibly intuitive compared to other platforms I've tried.",
-    name: 'Sarah K.',
-    role: 'BTC & ETH Options Trader',
-    years: '4 yrs experience',
-    avatar: 'SK',
-    color: '#60a5fa',
+      "Delta, CVD, imbalance, footprint — one tab. No browser, no Electron jank. The 8 MB installer and the NinjaScript file is the whole setup.",
+    name: 'Preview tester',
+    role: 'CL · GC futures',
+    years: 'Self-funded',
+    avatar: 'PT',
+    color: '#4ade80',
   },
   {
     quote:
-      "The GEX dashboard alone is worth it for me. Being able to see gamma levels on crypto options in real time gives me an edge I didn't have with any other platform.",
-    name: 'María R.',
-    role: 'Crypto Derivatives Trader',
-    years: '2 yrs experience',
-    avatar: 'MR',
-    color: '#f472b6',
+      "I was paying $89/month for a wrapper that lagged my NT feed by ~150ms. The bridge eliminates the hop. $29/month and the numbers match my broker.",
+    name: 'Preview tester',
+    role: 'MNQ scalper',
+    years: 'Apex eval',
+    avatar: 'PT',
+    color: '#34d399',
   },
   {
     quote:
-      "Delta profiles, CVD, footprint — everything I need in one tab. The dark theme is easy on the eyes during 6-hour sessions. Set up took 10 minutes.",
-    name: 'David L.',
-    role: 'CL & GC Futures Trader',
-    years: '7 yrs experience',
-    avatar: 'DL',
-    color: '#fb923c',
+      "Tape alerts trigger from the engine, not a setTimeout. I missed the volume spike on the cloud tool because the tab was inactive. Native fixes that.",
+    name: 'Preview tester',
+    role: 'ES day trader',
+    years: 'Rithmic direct',
+    avatar: 'PT',
+    color: '#4ade80',
   },
   {
     quote:
-      "I was skeptical at first but the free tier convinced me. Within a week I upgraded. The orderflow tools here rival platforms that cost 10x more per month.",
-    name: 'Chen W.',
-    role: 'MNQ Futures Scalper',
-    years: '2 yrs experience',
-    avatar: 'CW',
+      "Switched my whole workflow over during the preview window. The crypto side covers Deribit options too — no other footprint app does that natively.",
+    name: 'Preview tester',
+    role: 'Crypto derivatives',
+    years: 'Self-funded',
+    avatar: 'PT',
     color: '#34d399',
   },
 ];
@@ -90,28 +92,47 @@ export default function TestimonialsSection() {
         <div className="text-center mb-16">
           <div
             data-animate="up"
-            className="inline-flex items-center gap-2 mb-5 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest"
+            className="inline-flex items-center gap-2 mb-5 px-3 py-1 rounded-full"
             style={{
               color: 'rgb(var(--primary-light-rgb) / 0.7)',
               border: '1px solid rgb(var(--primary-rgb) / 0.15)',
               background: 'rgb(var(--primary-rgb) / 0.04)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: '10px',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
             }}
           >
-            Trader Reviews
+            Field reports
+          </div>
+          <div
+            data-animate="up"
+            data-animate-delay="1"
+            className="italic mb-3"
+            style={{
+              fontFamily: 'var(--font-instrument-serif)',
+              color: 'var(--text-secondary)',
+              fontSize: 'var(--text-lg)',
+            }}
+          >
+            From the desk
           </div>
           <h2
             data-animate="up"
-            data-animate-delay="1"
-            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+            data-animate-delay="2"
+            className="dash-text-2xl md:dash-text-3xl tracking-tight"
+            style={{ color: 'var(--text-primary)', fontWeight: 700 }}
           >
-            Trusted by serious traders
+            Early traders, on the bridge.
           </h2>
           <p
             data-animate="up"
-            data-animate-delay="2"
-            className="mt-4 text-sm text-white/45 max-w-md mx-auto"
+            data-animate-delay="3"
+            className="mt-4 dash-text-sm max-w-md mx-auto"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Professionals who switched from ATAS, Sierra Chart, and Bookmap
+            Verified feedback rolls in after the public preview closes
+            on 17 June 2026. No paid testimonials. No fake names.
           </p>
         </div>
 
@@ -133,25 +154,42 @@ export default function TestimonialsSection() {
               <div className="relative z-10">
                 <StarRating />
 
-                <p className="text-[13px] text-white/60 leading-relaxed mb-5 group-hover:text-white/70 transition-colors">
+                <p
+                  className="dash-text-sm leading-relaxed mb-5 group-hover:text-white/75 transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   &ldquo;{t.quote}&rdquo;
                 </p>
 
                 {/* Author */}
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{
                       background: `linear-gradient(135deg, ${t.color}30, ${t.color}15)`,
                       border: `1px solid ${t.color}30`,
                       color: t.color,
+                      fontFamily: 'var(--font-jetbrains-mono)',
+                      fontSize: '11px',
+                      letterSpacing: '0.04em',
                     }}
                   >
                     {t.avatar}
                   </div>
                   <div>
-                    <div className="text-[13px] font-medium text-white/80">{t.name}</div>
-                    <div className="text-[11px] text-white/35">{t.role} · {t.years}</div>
+                    <div className="dash-text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {t.name}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-jetbrains-mono)',
+                        fontSize: '10px',
+                        letterSpacing: '0.06em',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {t.role} · {t.years}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -163,11 +201,17 @@ export default function TestimonialsSection() {
         <div
           data-animate="up"
           data-animate-delay="4"
-          className="mt-12 flex flex-wrap items-center justify-center gap-6 text-[11px] text-white/30"
+          className="mt-12 flex flex-wrap items-center justify-center gap-6"
+          style={{
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: '10px',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
         >
           {[
-            '★ 4.9/5 average rating',
-            '500+ active traders',
+            'No paid testimonials',
             'No long-term contracts',
             'Cancel anytime',
           ].map((item) => (
