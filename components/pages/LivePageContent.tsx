@@ -15,6 +15,7 @@ import { useTradovatePanel } from '@/hooks/useTradovatePanel';
 import { CME_SYMBOLS } from '@/lib/websocket/TradovateWS';
 import { isCMESymbol } from '@/lib/utils/symbolUtils';
 import Link from 'next/link';
+import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
 const LiveChartPro = dynamic(
   () => import('@/components/charts/LiveChartPro'),
@@ -249,6 +250,10 @@ export default function LivePageContent() {
   const { tradingSymbol, setTradingSymbol } = useTradingStore(
     useShallow(s => ({ tradingSymbol: s.tradingSymbol, setTradingSymbol: s.setTradingSymbol }))
   );
+  // Feed the dashboard's Recent Activity widget. Hook dedups on
+  // (route, symbol) so re-renders / symbol switches just refresh
+  // the timestamp instead of pushing duplicate entries.
+  useTrackChartVisit(tradingSymbol, '/live');
   const [layout, setLayout] = useState<LayoutMode>('1x1');
   const [layoutKey, setLayoutKey] = useState(0);
   const [showPanel, setShowPanel] = useState(false);

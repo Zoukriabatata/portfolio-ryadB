@@ -6,6 +6,7 @@ import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import QuickTradeBar from '@/components/trading/QuickTradeBar';
 import { ChartSkeleton } from '@/components/ui/Skeleton';
 import ChartPageShell from '@/components/layouts/ChartPageShell';
+import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
 const FootprintChartPro = dynamic(
   () => import('@/components/charts/FootprintChartPro'),
@@ -45,6 +46,7 @@ function TradeToggle({ active, onToggle }: { active: boolean; onToggle: () => vo
 
 export default function FootprintPageContent() {
   const { showTradeBar, setShowTradeBar, tradingSymbol, setTradingSymbol } = useTradingStore();
+  useTrackChartVisit(tradingSymbol, '/footprint');
 
   return (
     <ChartPageShell

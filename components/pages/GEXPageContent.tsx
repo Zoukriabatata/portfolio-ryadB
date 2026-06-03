@@ -9,6 +9,7 @@ import type { MultiGreekData, MultiGreekSummary, GreekType } from '@/types/optio
 import { GREEK_META } from '@/types/options';
 import { RefreshIcon } from '@/components/ui/Icons';
 import { useLiveSpot } from '@/lib/useLiveSpot';
+import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
 const GEXDashboard = dynamic(() => import('@/components/charts/GEXDashboard'), { ssr: false });
 const GEXHeatmap = dynamic(() => import('@/components/charts/GEXHeatmap'), { ssr: false });
@@ -77,6 +78,7 @@ function SectionLabel({ children }: { children: string }) {
 
 export default function GEXPageContent() {
   const [symbol, setSymbol] = useState('QQQ');
+  useTrackChartVisit(symbol, '/gex');
   const [expiration, setExpiration] = useState<number | null>(null);
   const [expirations, setExpirations] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
