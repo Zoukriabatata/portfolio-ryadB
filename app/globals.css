@@ -222,6 +222,15 @@
   0%   { background-color: rgba(240, 79, 79, 0.18); }
   100% { background-color: rgba(240, 79, 79, 0); }
 }
+/* === LOGIN GOOGLE CTA — lime sweep on hover ===
+   A horizontal lime gradient that travels across the button while
+   the cursor is over it. Pure CSS, GPU compositor (transform only),
+   so it adds zero work to the page when not hovered. */
+@keyframes loginSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 .watchlist-flash-up {
   animation: watchlist-flash-up 480ms ease-out;
 }

@@ -102,11 +102,19 @@ function Divider({ label = 'OR' }: { label?: string }) {
 }
 
 // ── Brand panel (left column on desktop) ───────────────────────────────────
+// Animations : each block enters via fadeInUp with a staggered delay,
+// so the left column reads like a sentence being typed out instead of
+// landing as a flat slab.
 function BrandPanel() {
+  const enter = (delay: number): React.CSSProperties => ({
+    animation: `fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) ${delay}ms forwards`,
+    opacity: 0,
+  });
+
   return (
     <div className="relative flex flex-col justify-between h-full p-10 lg:p-14">
       {/* Top — wordmark */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" style={enter(60)}>
         <div
           className="w-9 h-9 rounded-md grid place-items-center"
           style={{
@@ -116,9 +124,9 @@ function BrandPanel() {
         >
           <span
             style={{
-              fontFamily: 'var(--font-instrument-serif)',
-              fontStyle: 'italic',
-              fontSize: 18,
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 600,
+              fontSize: 15,
               color: 'var(--primary)',
               lineHeight: 1,
             }}
@@ -129,27 +137,32 @@ function BrandPanel() {
         <MonoKicker>Senzoukria</MonoKicker>
       </div>
 
-      {/* Middle — editorial headline */}
+      {/* Middle — mono terminal headline (matches hero) */}
       <div className="my-12 lg:my-0">
-        <MonoKicker dim>· Sign in</MonoKicker>
+        <div style={enter(140)}>
+          <MonoKicker dim>· Sign in</MonoKicker>
+        </div>
         <h1
-          className="mt-5 italic"
+          className="mt-5 leading-none"
           style={{
-            fontFamily: 'var(--font-instrument-serif)',
-            fontWeight: 400,
-            fontSize: 'clamp(48px, 6vw, 84px)',
-            lineHeight: 0.96,
+            ...enter(220),
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontWeight: 500,
+            fontSize: 'clamp(44px, 5.8vw, 80px)',
             color: 'var(--text-primary)',
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.04em',
+            textTransform: 'uppercase',
+            textShadow: '0 2px 24px rgba(0,0,0,0.6)',
           }}
         >
           Welcome
           <br />
-          back.
+          back
         </h1>
         <p
           className="mt-6 max-w-md"
           style={{
+            ...enter(320),
             color: 'var(--text-secondary)',
             fontSize: 14,
             lineHeight: 1.6,
@@ -164,6 +177,7 @@ function BrandPanel() {
       <div
         className="flex items-center gap-5"
         aria-hidden="true"
+        style={enter(560)}
       >
         <span className="flex items-center gap-2">
           <span
@@ -320,21 +334,27 @@ function LoginForm() {
           <BrandPanel />
         </div>
 
-        {/* RIGHT — form column */}
+        {/* RIGHT — form column. Staggered fade-in on every block via
+            inline animation-delay. Form interactions stay snappy
+            (200 ms hover, scale 0.99 on press) so the page never feels
+            slow despite the entrance choreography. */}
         <div className="flex items-center justify-center px-6 py-12 lg:p-14">
-          <div className="w-full max-w-sm animate-fadeIn">
+          <div className="w-full max-w-sm">
 
             {/* Mobile brand strip — only shown when left panel is hidden */}
-            <div className="lg:hidden mb-10 flex items-center gap-3">
+            <div
+              className="lg:hidden mb-10 flex items-center gap-3"
+              style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 60ms forwards', opacity: 0 }}
+            >
               <div
                 className="w-9 h-9 rounded-md grid place-items-center"
                 style={{ border: '1px solid var(--border-glow)' }}
               >
                 <span
                   style={{
-                    fontFamily: 'var(--font-instrument-serif)',
-                    fontStyle: 'italic',
-                    fontSize: 18,
+                    fontFamily: 'var(--font-jetbrains-mono)',
+                    fontWeight: 600,
+                    fontSize: 15,
                     color: 'var(--primary)',
                     lineHeight: 1,
                   }}
@@ -345,20 +365,25 @@ function LoginForm() {
               <MonoKicker>Senzoukria</MonoKicker>
             </div>
 
-            {/* Form headline (mobile only — desktop has it on the left) */}
-            <div className="lg:hidden mb-8">
+            {/* Form headline (mobile only — desktop has it on the left).
+                Mono uppercase matches the hero / brand panel. */}
+            <div
+              className="lg:hidden mb-8"
+              style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 180ms forwards', opacity: 0 }}
+            >
               <h1
-                className="italic"
+                className="leading-none uppercase"
                 style={{
-                  fontFamily: 'var(--font-instrument-serif)',
-                  fontWeight: 400,
-                  fontSize: 44,
-                  lineHeight: 1,
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontWeight: 500,
+                  fontSize: 40,
                   color: 'var(--text-primary)',
-                  letterSpacing: '-0.02em',
+                  letterSpacing: '-0.04em',
                 }}
               >
-                Welcome back.
+                Welcome
+                <br />
+                back
               </h1>
               <p
                 className="mt-3"
@@ -372,20 +397,25 @@ function LoginForm() {
               </p>
             </div>
 
-            {/* Desktop : a small kicker above the form so the column
-                doesn't start cold — orientation for the user. */}
-            <div className="hidden lg:block mb-8">
+            {/* Desktop : a small kicker so the form column doesn't
+                start cold. Replaces the prior italic-serif headline
+                (which doubled the left panel's headline visually). */}
+            <div
+              className="hidden lg:block mb-10"
+              style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 320ms forwards', opacity: 0 }}
+            >
               <MonoKicker dim>· Authentication</MonoKicker>
               <h2
-                className="mt-3"
+                className="mt-3 uppercase"
                 style={{
-                  fontFamily: 'var(--font-instrument-serif)',
-                  fontSize: 22,
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontWeight: 500,
+                  fontSize: 18,
                   color: 'var(--text-primary)',
-                  letterSpacing: '-0.01em',
+                  letterSpacing: '-0.02em',
                 }}
               >
-                Sign in to your workspace.
+                Sign in
               </h2>
             </div>
 
@@ -406,47 +436,64 @@ function LoginForm() {
             )}
 
             {/* PRIMARY — Google */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading}
-              className={cn(
-                'w-full py-3 flex items-center justify-center gap-3 rounded-md',
-                'transition-colors duration-200 active:scale-[0.99] disabled:opacity-60',
-                'hover:border-[var(--border-glow)]',
-              )}
-              style={{
-                ...monoBtnStyle,
-                background: 'var(--surface-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {isGoogleLoading ? (
+            <div style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 420ms forwards', opacity: 0 }}>
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isGoogleLoading}
+                className={cn(
+                  'w-full py-3 flex items-center justify-center gap-3 rounded-md group relative overflow-hidden',
+                  'transition-all duration-200 active:scale-[0.99] disabled:opacity-60',
+                  'hover:border-[var(--border-glow)] hover:bg-[var(--surface-elevated-hover,var(--surface-elevated))]',
+                )}
+                style={{
+                  ...monoBtnStyle,
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {/* Lime sweep on hover — pure CSS */}
                 <span
-                  className="animate-spin rounded-full h-4 w-4 border-t-2"
-                  style={{ borderColor: 'var(--text-muted)' }}
+                  aria-hidden="true"
+                  className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent, rgba(74,222,128,0.08), transparent)',
+                    transform: 'translateX(-100%)',
+                    animation: 'loginSweep 1.6s ease-in-out infinite',
+                  }}
                 />
-              ) : (
-                <GoogleIcon size={15} />
-              )}
-              {isGoogleLoading ? 'Redirecting' : 'Continue with Google'}
-            </button>
+                {isGoogleLoading ? (
+                  <span
+                    className="animate-spin rounded-full h-4 w-4 border-t-2 relative z-10"
+                    style={{ borderColor: 'var(--text-muted)' }}
+                  />
+                ) : (
+                  <GoogleIcon size={15} />
+                )}
+                <span className="relative z-10">
+                  {isGoogleLoading ? 'Redirecting' : 'Continue with Google'}
+                </span>
+              </button>
 
-            <p
-              className="text-center mt-3"
-              style={{
-                fontFamily: 'var(--font-jetbrains-mono)',
-                fontSize: 10,
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                color: 'var(--text-dimmed)',
-              }}
-            >
-              Fastest · no password needed
-            </p>
+              <p
+                className="text-center mt-3"
+                style={{
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: 10,
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-dimmed)',
+                }}
+              >
+                Fastest · no password needed
+              </p>
+            </div>
 
-            <Divider label="OR USE EMAIL" />
+            <div style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 520ms forwards', opacity: 0 }}>
+              <Divider label="OR USE EMAIL" />
+            </div>
 
             {/* SECONDARY — Email/password, collapsed by default */}
             {!showEmailForm ? (
@@ -454,7 +501,7 @@ function LoginForm() {
                 type="button"
                 onClick={() => setShowEmailForm(true)}
                 className={cn(
-                  'w-full py-2.5 rounded-md transition-colors duration-200',
+                  'w-full py-2.5 rounded-md transition-all duration-200',
                   'hover:border-[var(--border-glow)] hover:text-[var(--primary)]',
                 )}
                 style={{
@@ -462,6 +509,8 @@ function LoginForm() {
                   background: 'transparent',
                   border: '1px solid var(--border)',
                   color: 'var(--text-secondary)',
+                  animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 600ms forwards',
+                  opacity: 0,
                 }}
               >
                 Email &amp; password
@@ -567,7 +616,10 @@ function LoginForm() {
               </>
             )}
 
-            <div className="mt-7">
+            <div
+              className="mt-7"
+              style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 700ms forwards', opacity: 0 }}
+            >
               <p
                 style={{
                   fontFamily: 'var(--font-jetbrains-mono)',
@@ -579,7 +631,7 @@ function LoginForm() {
                 No account?{' '}
                 <Link
                   href="/auth/register"
-                  className="hover:underline"
+                  className="hover:underline transition-colors"
                   style={{ color: 'var(--primary)', fontWeight: 600 }}
                 >
                   Create one — free
@@ -590,7 +642,11 @@ function LoginForm() {
             {/* Trust signals — small mono baseline */}
             <div
               className="mt-10 pt-6 flex items-center gap-5"
-              style={{ borderTop: '1px solid var(--border)' }}
+              style={{
+                borderTop: '1px solid var(--border)',
+                animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 800ms forwards',
+                opacity: 0,
+              }}
             >
               {[
                 { path: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', label: 'TLS' },
