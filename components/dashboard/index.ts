@@ -35,3 +35,8 @@ export { AccountSummary } from "./AccountSummary";
 
 // Phase 6 polish — animated atmosphere.
 export { DashboardAtmosphere } from "./DashboardAtmosphere";
+
+// Floating AI chat — wraps the legacy DashboardAIChat in a FAB +
+// slide-over panel so it doesn't eat the dashboard's vertical real
+// estate.
+export { FloatingAIChat } from "./FloatingAIChat";

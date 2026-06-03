@@ -31,12 +31,9 @@ import {
   TodaysSignals,
   RecentActivity,
   AccountSummary,
+  FloatingAIChat,
 } from '@/components/dashboard';
 
-const DashboardAIChat = dynamic(
-  () => import('@/components/ai/DashboardAIChat'),
-  { ssr: false },
-);
 const WelcomeModal = dynamic(
   () => import('@/components/ui/WelcomeModal'),
   { ssr: false },
@@ -67,9 +64,11 @@ export default function DashboardPage() {
         quickLaunchSlot={<QuickLaunchGrid />}
         accountSummarySlot={<AccountSummary />}
       />
-      {/* AI chat FAB lives outside the grid so it stays anchored
-          bottom-right across all routes. */}
-      <DashboardAIChat />
+      {/* AI assistant — collapsed FAB pill at bottom-right, expands
+          into a 420 px slide-over panel on click. The bento can
+          finally use the bottom rows without competing with the
+          chat for vertical space. */}
+      <FloatingAIChat />
     </>
   );
 }
