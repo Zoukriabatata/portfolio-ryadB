@@ -129,6 +129,55 @@
   --text-xl: 20px;
   --text-2xl: 28px;
   --text-3xl: 36px;
+  --text-display: 48px;
+
+  /* === DASHBOARD EDITORIAL TERMINAL TOKENS ===
+     The dashboard redesign commits to a distinct aesthetic — these
+     tokens are scoped here so we can backport them across phases
+     without touching widget by widget. */
+
+  /* Lime brand at 12% opacity for the "live data" card border —
+     subtle electric signature, not a full primary border. */
+  --border-glow: rgba(74, 222, 128, 0.12);
+
+  /* Phosphor green glow — used SPARINGLY on the last sparkline
+     point, live dot, and on hover-states of live rows. Never as a
+     full-card glow (would look like a notification). */
+  --glow-phosphor: 0 0 12px rgba(74, 222, 128, 0.35);
+
+  /* Halo under the hero card — barely-there elliptical accent so the
+     featured ticker has a soft spotlight. */
+  --halo-hero:
+    radial-gradient(
+      ellipse 60% 50% at 20% 30%,
+      rgba(74, 222, 128, 0.05),
+      transparent 70%
+    );
+}
+
+/* === DASHBOARD GRAIN OVERLAY ===
+   A single SVG noise filter painted via a pseudo-element. Subliminal
+   texture (~6% alpha through overlay blend) without competing with
+   content. The data-grain attribute lets us opt in per-route — the
+   dashboard turns it on; chart-heavy pages keep it off so it doesn't
+   compete with the canvas grain we already render. */
+[data-grain="on"] {
+  position: relative;
+  isolation: isolate;
+}
+[data-grain="on"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.55;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+[data-grain="on"] > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* === DASHBOARD UTILITY CLASSES ===

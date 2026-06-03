@@ -1,7 +1,37 @@
 import type { Metadata, Viewport } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
+import { Instrument_Serif, JetBrains_Mono } from 'next/font/google';
 import '@/app/globals.css';
+
+/**
+ * Editorial Terminal typography stack for the dashboard redesign.
+ *
+ *   • Instrument Serif → hero numbers + section titles (editorial gravitas).
+ *     Italic variant pre-loaded for the micro-hover effect on hero titles.
+ *   • JetBrains Mono   → dashboard price + volume cells. Kept separate
+ *     from the existing Geist Mono so the rest of the site (account,
+ *     academy, etc.) doesn't shift.
+ *   • Geist Sans       → body / labels (already loaded above).
+ *
+ * Variables wired so widgets opt-in via `font-[var(--font-instrument-serif)]`
+ * and `font-[var(--font-jetbrains-mono)]` without forcing a swap on
+ * the broader site.
+ */
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: '400',
+  style: ['normal', 'italic'],
+  variable: '--font-instrument-serif',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
 import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 import SessionProviderWrapper from '@/components/layouts/SessionProviderWrapper';
@@ -126,7 +156,10 @@ if(typeof Node!=='undefined'){
         />
         <JsonLd />
       </head>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans`} suppressHydrationWarning>
+      <body
+        className={`${GeistSans.variable} ${GeistMono.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans`}
+        suppressHydrationWarning
+      >
         <SessionProviderWrapper>
           <DashboardClientLayout>{children}</DashboardClientLayout>
         </SessionProviderWrapper>

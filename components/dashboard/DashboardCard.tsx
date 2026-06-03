@@ -44,13 +44,22 @@ export interface DashboardCardProps {
   className?: string;
 }
 
+// Editorial Terminal surface treatment :
+//   • hero     → elevated, hairline lime "live" border + halo behind.
+//                The halo is rendered inline via a CSS variable so
+//                browsers without `radial-gradient` in box-shadow
+//                degrade gracefully.
+//   • standard → flat surface, neutral border. The default "card".
+//   • compact  → semi-transparent surface so a row of these reads as
+//                a strip, not three distinct features.
 const VARIANT_CLASS: Record<DashboardCardVariant, string> = {
   hero: cn(
-    "bg-[var(--surface-elevated)]",
-    "border border-[color-mix(in_oklab,var(--primary)_22%,var(--border))]",
+    "relative bg-[var(--surface-elevated)]",
+    "border border-[var(--border-glow)]",
     "shadow-[var(--shadow-lg)]",
     "p-5",
     "rounded-2xl",
+    "overflow-hidden",
   ),
   standard: cn(
     "bg-[var(--surface)]",
@@ -67,8 +76,18 @@ const VARIANT_CLASS: Record<DashboardCardVariant, string> = {
   ),
 };
 
+// Editorial Terminal typography :
+//   • hero     → Instrument Serif (editorial gravitas on the
+//                featured card). Regular weight; the italic shift
+//                is reserved for the hover micro-interaction.
+//   • standard → Geist Sans medium, tracking-tight. Reads as
+//                "section heading" without competing with the hero.
+//   • compact  → Geist Sans medium uppercase widely tracked. Reads
+//                as label, not a title — these cards are status
+//                strips, not features.
 const TITLE_CLASS: Record<DashboardCardVariant, string> = {
-  hero: "dash-text-lg font-semibold tracking-tight",
+  hero:
+    "font-[var(--font-instrument-serif)] dash-text-xl tracking-tight",
   standard: "dash-text-base font-semibold tracking-tight",
   compact: "dash-text-sm font-medium uppercase tracking-wider",
 };
@@ -99,6 +118,18 @@ export function DashboardCard({
         className,
       )}
     >
+      {/* Editorial halo behind the hero card — barely-there elliptical
+          accent so the featured content has a soft spotlight without
+          screaming "glow." Skipped on standard / compact to keep the
+          rest of the grid sober. */}
+      {variant === "hero" && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-0"
+          style={{ background: "var(--halo-hero)" }}
+        />
+      )}
+      <div className="relative z-[1] flex flex-col min-h-0 flex-1">
       {hasHeader && (
         <header
           className={cn(
@@ -144,6 +175,7 @@ export function DashboardCard({
 
       <div className="flex-1 min-h-0">
         {loading ? <CardSkeleton variant={variant} /> : children}
+      </div>
       </div>
     </section>
   );

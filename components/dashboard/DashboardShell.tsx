@@ -88,7 +88,10 @@ export function DashboardShell({
   accountSummarySlot,
 }: DashboardShellProps) {
   return (
-    <div className="h-full overflow-auto custom-scrollbar">
+    <div
+      className="h-full overflow-auto custom-scrollbar"
+      data-grain="on"
+    >
       <div
         className={cn(
           "max-w-[1400px] mx-auto",
