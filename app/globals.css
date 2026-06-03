@@ -232,24 +232,25 @@
 }
 
 /* === CHAR-IN — per-character entrance ===
-   Each glyph fades in and lifts from translateY(14px). Animation is
-   pure opacity + transform so the element stays on the GPU compositor
-   and the underlying text glyphs are rendered crisp from font outlines
-   instead of rasterised to a bitmap.
+   PURE OPACITY animation. No transform, no filter.
 
-   We deliberately do NOT use `filter` (blur, brightness, etc.) here —
-   any filter declaration on a text element forces Chrome to render
-   the element as a bitmap layer, which destroys sub-pixel rendering
-   on large headlines and reads as "pixelated". */
+   Why : both `transform` (even translateY(0) at the end of the
+   animation) and `filter` create a stacking context which Chrome
+   promotes to its own compositor layer. The text inside that layer
+   is rasterised to a bitmap at logical-pixel resolution, killing
+   sub-pixel rendering and reading as pixelated on big headlines.
+
+   Per-char animation × N chars = N persistent layers compositing
+   together → sub-pixel offsets and aliasing. With opacity-only and
+   a final state of opacity: 1, Chrome de-promotes each char back
+   to the regular text-rendering pipeline once the keyframe ends.
+
+   Staggered animation-delay on each char still produces the
+   "typing in" cascade reading — we just trade the lift for full
+   font fidelity. */
 @keyframes charIn {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .watchlist-flash-up {

@@ -141,26 +141,21 @@ export default function HeroSection() {
             footprint tools is that we render natively from the
             NinjaTrader data feed rather than wrapping it. Trader-
             coded kicker, hard product wordmark below. */}
-        <div style={{ animation: 'slideInUp 0.5s ease-out forwards' }}>
+        {/* No parent transform animation — slideInUp would hold the
+            h1 as a compositor layer for its full duration AND keep
+            the layer alive after via the residual `transform:
+            translateY(0)`. The per-character entrance below is the
+            only animation; it's pure opacity, so the text never
+            leaves the standard text-rendering pipeline. */}
+        <div>
           <h1
             className="leading-none"
             style={{
               fontFamily: 'var(--font-jetbrains-mono)',
               fontWeight: 500,
               color: 'var(--text-primary)',
-              // Crispness pass — Windows Chrome renders subpixel-AA
-              // sharper than grayscale-AA on dark backgrounds for
-              // headline-sized type. text-rendering left at the
-              // browser default since `optimizeLegibility` /
-              // `geometricPrecision` can both add light blur at
-              // huge sizes.
               WebkitFontSmoothing: 'subpixel-antialiased',
               MozOsxFontSmoothing: 'auto',
-              // No text-shadow : even a soft one (0 2px 24px) bleeds
-              // visible alpha around glyph edges and reads as
-              // pixelation on a noisy background. Atmospheric
-              // separation from the starfield handled by StellarCore
-              // mask alone.
             }}
           >
             <span
