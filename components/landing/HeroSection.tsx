@@ -141,33 +141,32 @@ export default function HeroSection() {
             coded kicker, hard product wordmark below. */}
         <div style={{ animation: 'slideInUp 0.5s ease-out forwards' }}>
           <h1
-            className="leading-[0.98]"
+            className="leading-none"
             style={{
-              fontFamily: 'var(--font-instrument-serif)',
-              fontWeight: 400,
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 500,
+              color: 'var(--text-primary)',
               textRendering: 'geometricPrecision',
               WebkitFontSmoothing: 'antialiased',
               MozOsxFontSmoothing: 'grayscale',
+              textShadow: '0 2px 24px rgba(0,0,0,0.65)',
             }}
           >
             <span
-              className="block text-3xl md:text-5xl lg:text-[64px] italic"
+              className="block text-5xl md:text-7xl lg:text-[112px] uppercase"
               style={{
-                color: 'var(--text-secondary)',
-                letterSpacing: '-0.01em',
+                letterSpacing: '-0.04em',
               }}
             >
-              Native
+              Order
             </span>
             <span
-              className="block text-6xl md:text-8xl lg:text-[136px] mt-2"
+              className="block text-5xl md:text-7xl lg:text-[112px] uppercase mt-1"
               style={{
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.035em',
-                textShadow: '0 2px 24px rgba(0,0,0,0.6)',
+                letterSpacing: '-0.04em',
               }}
             >
-              Order Flow
+              Flow
             </span>
           </h1>
         </div>
