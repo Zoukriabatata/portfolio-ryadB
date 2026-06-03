@@ -2,19 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import type { FeedEntry } from '@/hooks/useLiveAgent';
+import { SEVERITY_COLOR, MODE_STYLE } from '@/lib/ai/colors';
 
-// ─── Style maps ───────────────────────────────────────────────────────────────
-
-const SEV: Record<string, { dot: string }> = {
-  HIGH:   { dot: '#ef4444' },
-  MEDIUM: { dot: '#f97316' },
-  LOW:    { dot: '#64748b' },
-};
-
-const MODE_STYLE: Record<string, { bg: string; color: string }> = {
-  SIGNAL: { bg: 'rgba(239,68,68,.12)',  color: '#ef4444' },
-  UPDATE: { bg: 'rgba(59,130,246,.10)', color: '#60a5fa' },
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTime(iso: string): string {
   try {
@@ -29,20 +19,20 @@ function formatTime(iso: string): string {
 // ─── Single feed entry ────────────────────────────────────────────────────────
 
 function FeedRow({ entry, isNew }: { entry: FeedEntry; isNew: boolean }) {
-  const sev  = SEV[entry.severity]  ?? SEV.MEDIUM;
-  const mode = MODE_STYLE[entry.mode] ?? MODE_STYLE.UPDATE;
+  const sevColor = SEVERITY_COLOR[entry.severity] ?? SEVERITY_COLOR.MEDIUM;
+  const mode     = MODE_STYLE[entry.mode] ?? MODE_STYLE.UPDATE;
 
   return (
     <div
       className="flex items-start gap-3 px-4 py-2 border-b transition-colors duration-500"
       style={{
         borderColor: 'var(--border)',
-        background:  isNew ? `${sev.dot}08` : 'transparent',
+        background:  isNew ? 'var(--surface-hover)' : 'transparent',
       }}
     >
       {/* Severity dot */}
       <div className="flex-shrink-0 mt-1.5">
-        <div className="w-1.5 h-1.5 rounded-full" style={{ background: sev.dot }} />
+        <div className="w-1.5 h-1.5 rounded-full" style={{ background: sevColor }} />
       </div>
 
       {/* Time */}
@@ -53,7 +43,7 @@ function FeedRow({ entry, isNew }: { entry: FeedEntry; isNew: boolean }) {
 
       {/* Event type */}
       <span className="flex-shrink-0 text-[10px] font-bold mt-0.5"
-        style={{ color: sev.dot, minWidth: 160 }}>
+        style={{ color: sevColor, minWidth: 160 }}>
         {entry.event.replace(/_/g, ' ')}
       </span>
 

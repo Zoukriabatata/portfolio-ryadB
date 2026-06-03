@@ -4,6 +4,10 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ReactNode, useState, useEffect } from 'react';
 
+const MONO = 'var(--font-jetbrains-mono)';
+// Texte sombre posé sur un fond --accent (teal) — meilleur contraste que le blanc.
+const ON_ACCENT = '#04161a';
+
 /* ------------------------------------------------------------------ */
 /*  Feature list for the paywall CTA                                   */
 /* ------------------------------------------------------------------ */
@@ -137,7 +141,7 @@ function DecorativeBlur() {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="mb-6 rounded-xl border p-6"
+            className="mb-6 rounded-[var(--radius-lg)] border p-6"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
           >
             <div className="mb-3 h-5 w-48 rounded" style={{ background: 'var(--border)' }} />
@@ -239,51 +243,52 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
         {/* ── Paywall card ── */}
         <div className="absolute inset-x-0 top-8 flex justify-center px-4">
           <div
-            className="w-full max-w-lg overflow-hidden rounded-2xl border shadow-2xl"
+            className="w-full max-w-lg overflow-hidden rounded-[var(--radius-xl)] border"
             style={{
               borderColor: 'var(--border)',
               background: 'var(--surface)',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 80px rgba(99,102,241,0.08)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.55), 0 0 80px color-mix(in srgb, var(--accent) 8%, transparent)',
             }}
           >
             {/* Header */}
             <div
               className="px-6 py-5 text-center"
               style={{
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.08) 100%)',
+                background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 100%)',
                 borderBottom: '1px solid var(--border)',
               }}
             >
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: 'var(--accent)' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)]"
+                style={{ background: 'var(--accent)', boxShadow: '0 0 18px color-mix(in srgb, var(--accent) 35%, transparent)' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={ON_ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" />
                   <path d="M2 17l10 5 10-5" />
                   <path d="M2 12l10 5 10-5" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              <h3 style={{ fontFamily: MONO, fontWeight: 500, fontSize: 22, letterSpacing: '-0.02em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
                 Research Pack
               </h3>
-              <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Accès complet à la bibliothèque de recherche orderflow
               </p>
             </div>
 
             {/* Price */}
             <div className="px-6 py-5 text-center" style={{ borderBottom: '1px solid var(--border)' }}>
-              <div className="flex items-baseline justify-center gap-1">
-                <span className="text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>$39</span>
-                <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>one-time</span>
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-4xl font-semibold tabular-nums" style={{ fontFamily: MONO, color: 'var(--text-primary)' }}>$39</span>
+                <span className="text-[11px] uppercase" style={{ fontFamily: MONO, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>one-time</span>
               </div>
-              <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                 Paiement unique — consultation en ligne permanente
               </p>
-              <div className="mt-3 flex items-center justify-center gap-2 rounded-lg px-3 py-2"
-                style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+              <div className="mt-3 flex items-center justify-center gap-2 rounded-[var(--radius-md)] px-3 py-2"
+                style={{ background: 'color-mix(in srgb, var(--accent) 9%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
-                <span className="text-[11px]" style={{ color: 'var(--accent)' }}>
+                <span className="text-[11px] font-medium" style={{ color: 'var(--accent)' }}>
                   Aussi inclus avec l&apos;abonnement SENPRO
                 </span>
               </div>
@@ -291,15 +296,15 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
 
             {/* Preview quotes */}
             <div className="space-y-3 px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-                Aperçu du contenu
+              <p className="text-[10px] font-bold uppercase" style={{ fontFamily: MONO, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
+                · Aperçu du contenu
               </p>
               {PREVIEW_QUOTES.map((q, i) => (
-                <div key={i} className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
+                <div key={i} className="rounded-[var(--radius-md)] border px-3 py-2.5" style={{ borderColor: 'var(--border)', background: 'var(--background)' }}>
                   <p className="text-[12px] italic leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                     &ldquo;{q.text}&rdquo;
                   </p>
-                  <p className="mt-1 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
                     — {q.src}
                   </p>
                 </div>
@@ -308,8 +313,8 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
 
             {/* Features */}
             <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-                Inclus dans le pack
+              <p className="mb-3 text-[10px] font-bold uppercase" style={{ fontFamily: MONO, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
+                · Inclus dans le pack
               </p>
               <ul className="space-y-2">
                 {PACK_FEATURES.map((f, i) => (
@@ -326,11 +331,11 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
             {/* Security info */}
             <div className="px-6 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
               <div className="flex items-center gap-2">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
-                <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                   Consultation en ligne uniquement — lié à votre compte, non téléchargeable, non transférable
                 </span>
               </div>
@@ -347,12 +352,12 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <button
                     onClick={handlePurchase}
                     disabled={purchasing}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{ background: 'var(--accent)' }}
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ background: 'var(--accent)', color: ON_ACCENT, boxShadow: '0 0 16px color-mix(in srgb, var(--accent) 28%, transparent)' }}
                   >
                     {purchasing ? (
                       <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: ON_ACCENT, borderTopColor: 'transparent' }} />
                         Redirection vers Stripe...
                       </>
                     ) : (
@@ -366,9 +371,9 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                     )}
                   </button>
                   {purchaseError && (
-                    <p className="text-center text-xs" style={{ color: '#ef4444' }}>{purchaseError}</p>
+                    <p className="text-center text-xs" style={{ color: 'var(--bear)' }}>{purchaseError}</p>
                   )}
-                  <p className="text-center text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
                     Ou souscris à{' '}
                     <Link href="/pricing" className="underline" style={{ color: 'var(--accent)' }}>
                       SENPRO
@@ -380,12 +385,12 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                 <div className="space-y-3">
                   <Link
                     href="/auth/login?callbackUrl=/academy"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                    style={{ background: 'var(--accent)' }}
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+                    style={{ background: 'var(--accent)', color: ON_ACCENT, boxShadow: '0 0 16px color-mix(in srgb, var(--accent) 28%, transparent)' }}
                   >
                     Se connecter pour acheter
                   </Link>
-                  <p className="text-center text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
                     Pas encore de compte ?{' '}
                     <Link href="/auth/register?callbackUrl=/academy" className="underline" style={{ color: 'var(--accent)' }}>
                       Créer un compte

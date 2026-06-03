@@ -119,10 +119,15 @@ const TABS: { id: AccountTab; labelKey: TranslationKey; icon: React.ComponentTyp
   { id: 'support', labelKey: 'account.support', icon: UserIcon },
 ];
 
+const MONO = 'var(--font-jetbrains-mono)';
+// Texte sombre sur fond --primary (lime) — convention du site (cf. /ia, /academy).
+const ON_PRIMARY = '#06140b';
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl p-6 transition-all duration-200 hover:border-[var(--border-light)]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+    <div className="rounded-[var(--radius-lg)] p-6 transition-all duration-200 hover:border-[var(--border-light)]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <h3 className="mb-4 flex items-center gap-2"
+        style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
         <span className="w-1 h-4 rounded-full" style={{ background: 'var(--primary)' }} />
         {title}
       </h3>
@@ -133,8 +138,8 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="flex-1 pr-4">
+    <div className="flex items-center justify-between gap-4 py-3.5 border-b border-[var(--border)] last:border-b-0">
+      <div className="flex-1 pr-2 min-w-0">
         <div className="text-sm" style={{ color: 'var(--text-primary)' }}>{label}</div>
         {description && <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{description}</div>}
       </div>
@@ -155,7 +160,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       <div
         className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
         style={{
-          background: checked ? 'var(--primary-foreground, #fff)' : 'var(--text-muted)',
+          background: checked ? ON_PRIMARY : 'var(--text-muted)',
           left: checked ? '22px' : '2px',
         }}
       />
@@ -473,8 +478,12 @@ function AccountContent() {
   if (!session) return null;
 
   const tierStyles: Record<string, React.CSSProperties> = {
-    FREE: { color: 'var(--text-muted)', background: 'var(--surface-elevated)' },
-    PRO: { color: 'var(--accent, #c084fc)', background: 'var(--accent-bg, rgba(168, 85, 247, 0.2))' },
+    FREE: { color: 'var(--text-muted)', background: 'var(--surface-elevated)', border: '1px solid var(--border)' },
+    PRO: {
+      color: 'var(--accent)',
+      background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+      border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+    },
   };
 
   const inputStyle: React.CSSProperties = {
@@ -484,16 +493,96 @@ function AccountContent() {
   };
 
   return (
-    <div className="min-h-screen overflow-y-auto animate-fadeIn" style={{ background: 'var(--background)' }}>
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+    <div className="relative min-h-screen overflow-y-auto animate-fadeIn" style={{ background: 'var(--background)' }}>
+      <style>{`
+        /* Card entrance — staggered */
+        .account-stagger > * {
+          opacity: 0;
+          animation: accCardIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .account-stagger > *:nth-child(1) { animation-delay: 0.04s; }
+        .account-stagger > *:nth-child(2) { animation-delay: 0.10s; }
+        .account-stagger > *:nth-child(3) { animation-delay: 0.16s; }
+        .account-stagger > *:nth-child(4) { animation-delay: 0.22s; }
+        .account-stagger > *:nth-child(5) { animation-delay: 0.28s; }
+        .account-stagger > *:nth-child(n+6) { animation-delay: 0.34s; }
+        @keyframes accCardIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Focus ring on form controls — all tabs */
+        .account-stagger input:focus,
+        .account-stagger select:focus,
+        .account-stagger textarea:focus {
+          border-color: var(--primary) !important;
+          box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        /* Soft (neutral) button */
+        .acc-btn-soft {
+          background: var(--surface-elevated);
+          color: var(--text-primary);
+          border: 1px solid var(--border);
+          transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+        }
+        .acc-btn-soft:hover { background: var(--surface-hover); border-color: var(--border-light); }
+        .acc-btn-soft:active { transform: scale(0.99); }
+        /* Danger button — fills on hover */
+        .acc-danger-btn {
+          background: color-mix(in srgb, var(--error) 13%, transparent);
+          color: var(--error);
+          border: 1px solid color-mix(in srgb, var(--error) 42%, transparent);
+          transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+        }
+        .acc-danger-btn:hover { background: var(--error); color: #fff; }
+        .acc-danger-btn:active { transform: scale(0.97); }
+        /* Ambient animated background */
+        .account-bg {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          overflow: hidden;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.014) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.014) 1px, transparent 1px);
+          background-size: 46px 46px;
+        }
+        .account-bg::before,
+        .account-bg::after {
+          content: '';
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(90px);
+        }
+        .account-bg::before {
+          width: 52vw; height: 52vw; top: -12%; left: -12%;
+          background: radial-gradient(circle, rgba(74,222,128,0.07), transparent 70%);
+          animation: accGlowA 20s ease-in-out infinite alternate;
+        }
+        .account-bg::after {
+          width: 46vw; height: 46vw; bottom: -16%; right: -12%;
+          background: radial-gradient(circle, rgba(45,212,191,0.06), transparent 70%);
+          animation: accGlowB 26s ease-in-out infinite alternate;
+        }
+        @keyframes accGlowA { from { transform: translate(0,0); } to { transform: translate(7vw, 5vw); } }
+        @keyframes accGlowB { from { transform: translate(0,0); } to { transform: translate(-6vw, -7vw); } }
+        @media (prefers-reduced-motion: reduce) {
+          .account-stagger > * { opacity: 1; animation: none; }
+          .account-bg::before, .account-bg::after { animation: none; }
+        }
+      `}</style>
+      <div aria-hidden="true" className="account-bg" />
+      <div className="relative z-[1] max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 sm:mb-8 animate-slideUp stagger-1">
           <div className="flex items-center gap-4">
-            <Link href="/live" className="text-xl font-bold" style={{ color: 'var(--primary-light)' }}>
+            <Link href="/live"
+              style={{ fontFamily: MONO, fontSize: 20, fontWeight: 600, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--primary-light)' }}>
               SENZOUKRIA
             </Link>
-            <span className="text-xs px-2 py-1 rounded-full font-medium"
-              style={tierStyles[session.user.tier as keyof typeof tierStyles] || tierStyles.FREE}>
+            <span className="px-2 py-0.5 rounded-full"
+              style={{ ...(tierStyles[session.user.tier as keyof typeof tierStyles] || tierStyles.FREE),
+                fontFamily: MONO, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               {session.user.tier === 'PRO' ? 'SENPRO' : 'FREE'}
             </span>
           </div>
@@ -524,8 +613,12 @@ function AccountContent() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all text-left whitespace-nowrap flex-shrink-0 group"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-[var(--radius-md)] transition-all text-left whitespace-nowrap flex-shrink-0 group"
                     style={{
+                      fontFamily: MONO,
+                      fontSize: 12,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
                       background: isActive ? 'var(--surface-elevated)' : 'transparent',
                       color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                       borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
@@ -540,8 +633,8 @@ function AccountContent() {
           </nav>
 
           {/* Main Content */}
-          <div className="flex-1 space-y-6 min-w-0">
-            <div className="animate-fadeIn" key={activeTab}>
+          <div className="flex-1 min-w-0">
+            <div className="account-stagger space-y-6" key={activeTab}>
 
             {/* ===== PROFILE TAB ===== */}
             {activeTab === 'profile' && (
@@ -573,7 +666,7 @@ function AccountContent() {
                             <Image src={avatarUrl} alt="Avatar" width={56} height={56} className="w-14 h-14 rounded-full object-cover transition-transform group-hover:scale-105" unoptimized />
                           ) : (
                             <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold transition-transform group-hover:scale-105"
-                              style={{ background: 'var(--primary-dark)', color: 'var(--primary-foreground, #fff)' }}>
+                              style={{ background: 'var(--primary-dark)', color: ON_PRIMARY }}>
                               {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
                             </div>
                           )}
@@ -594,8 +687,7 @@ function AccountContent() {
                           <button
                             type="button"
                             onClick={() => document.querySelector<HTMLInputElement>('input[accept*="image"]')?.click()}
-                            className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
-                            style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                            className="acc-btn-soft text-xs px-3 py-1.5 rounded-lg"
                           >
                             {avatarUploading ? 'Uploading...' : 'Change photo'}
                           </button>
@@ -648,8 +740,8 @@ function AccountContent() {
                     <button
                       onClick={handleSaveProfile}
                       disabled={profileSaving}
-                      className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-                      style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #000)' }}
+                      className="px-5 py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+                      style={{ background: 'var(--primary)', color: ON_PRIMARY, boxShadow: '0 0 16px var(--primary-glow)' }}
                     >
                       {profileSaving ? t('common.loading') : t('account.saveProfile')}
                     </button>
@@ -675,14 +767,13 @@ function AccountContent() {
                   </div>
                   {session.user.tier === 'FREE' ? (
                     <Link href="/pricing"
-                      className="block w-full py-3 text-center font-semibold rounded-lg transition-colors"
-                      style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #fff)' }}>
+                      className="block w-full py-3 text-center font-semibold rounded-lg transition-all hover:opacity-90 active:scale-[0.99]"
+                      style={{ background: 'var(--primary)', color: ON_PRIMARY, boxShadow: '0 0 16px var(--primary-glow)' }}>
                       {t('account.upgradeTo')}
                     </Link>
                   ) : (
                     <button onClick={handleManageSubscription} disabled={isLoading}
-                      className="w-full py-3 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
-                      style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+                      className="acc-btn-soft flex w-full items-center justify-center gap-2 py-3 rounded-lg disabled:opacity-50 text-sm font-medium">
                       {isLoading ? t('common.loading') : t('account.manageSubscription')}
                     </button>
                   )}
@@ -701,7 +792,7 @@ function AccountContent() {
                         <Link
                           href="/pricing"
                           className="inline-block px-4 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-90"
-                          style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #000)' }}
+                          style={{ background: 'var(--primary)', color: ON_PRIMARY }}
                         >
                           Start 14-day free trial
                         </Link>
@@ -947,15 +1038,14 @@ function AccountContent() {
                                 <button
                                   onClick={() => handleConnect(broker.id)}
                                   disabled={connectionStatus[broker.id] === 'connecting'}
-                                  className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                                  style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #fff)' }}>
+                                  className="flex-1 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+                                  style={{ background: 'var(--primary)', color: ON_PRIMARY, boxShadow: '0 0 14px var(--primary-glow)' }}>
                                   {connectionStatus[broker.id] === 'connecting' ? 'Connecting...' : 'Connect'}
                                 </button>
                                 <button
                                   onClick={() => handleTestConnection(broker.id)}
                                   disabled={connectionStatus[broker.id] === 'testing'}
-                                  className="px-4 py-2 rounded-lg text-xs transition-colors disabled:opacity-50"
-                                  style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                                  className="acc-btn-soft px-4 py-2 rounded-lg text-xs disabled:opacity-50">
                                   {connectionStatus[broker.id] === 'testing' ? 'Testing...' : 'Test'}
                                 </button>
                               </div>
@@ -1010,8 +1100,7 @@ function AccountContent() {
                 <SectionCard title="Authentication">
                   <div className="space-y-0">
                     <SettingRow label="Password" description="Last changed: never">
-                      <button className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-                        style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+                      <button className="acc-btn-soft text-xs px-3 py-1.5 rounded-lg">
                         Change
                       </button>
                     </SettingRow>
@@ -1131,20 +1220,16 @@ function AccountContent() {
 
                 <SectionCard title="Import / Export">
                   <div className="grid grid-cols-2 gap-3">
-                    <button className="py-3 rounded-lg text-sm font-medium transition-colors"
-                      style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                    <button className="acc-btn-soft py-3 rounded-lg text-sm font-medium">
                       Export Settings
                     </button>
-                    <button className="py-3 rounded-lg text-sm font-medium transition-colors"
-                      style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                    <button className="acc-btn-soft py-3 rounded-lg text-sm font-medium">
                       Import Settings
                     </button>
-                    <button className="py-3 rounded-lg text-sm font-medium transition-colors"
-                      style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                    <button className="acc-btn-soft py-3 rounded-lg text-sm font-medium">
                       Export Journal (CSV)
                     </button>
-                    <button className="py-3 rounded-lg text-sm font-medium transition-colors"
-                      style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                    <button className="acc-btn-soft py-3 rounded-lg text-sm font-medium">
                       Export Journal (JSON)
                     </button>
                   </div>
@@ -1152,23 +1237,21 @@ function AccountContent() {
 
                 <SectionCard title="Danger Zone">
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--error-bg)', border: '1px solid var(--error)' }}>
+                    <div className="flex items-center justify-between p-3.5 rounded-lg" style={{ background: 'var(--error-bg)', border: '1px solid color-mix(in srgb, var(--error) 26%, transparent)' }}>
                       <div>
                         <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Reset Everything</div>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Deletes all local settings</div>
                       </div>
-                      <button className="text-xs px-3 py-1.5 rounded-lg font-medium"
-                        style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid var(--error)' }}>
+                      <button className="acc-danger-btn text-xs px-3 py-1.5 rounded-lg font-medium">
                         Reset
                       </button>
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--error-bg)', border: '1px solid var(--error)' }}>
+                    <div className="flex items-center justify-between p-3.5 rounded-lg" style={{ background: 'var(--error-bg)', border: '1px solid color-mix(in srgb, var(--error) 26%, transparent)' }}>
                       <div>
                         <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Delete Account</div>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Irreversible action</div>
                       </div>
-                      <button className="text-xs px-3 py-1.5 rounded-lg font-medium"
-                        style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid var(--error)' }}>
+                      <button className="acc-danger-btn text-xs px-3 py-1.5 rounded-lg font-medium">
                         Delete
                       </button>
                     </div>
@@ -1216,8 +1299,8 @@ function AccountContent() {
                         placeholder="Describe your issue in detail..." required />
                     </div>
                     <button type="submit" disabled={isLoading}
-                      className="w-full py-3 font-semibold rounded-lg transition-colors disabled:opacity-50 text-sm"
-                      style={{ background: 'var(--primary)', color: 'var(--primary-foreground, #fff)' }}>
+                      className="w-full py-3 font-semibold rounded-lg transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-50 text-sm"
+                      style={{ background: 'var(--primary)', color: ON_PRIMARY, boxShadow: '0 0 16px var(--primary-glow)' }}>
                       {isLoading ? 'Sending...' : 'Submit'}
                     </button>
                   </form>

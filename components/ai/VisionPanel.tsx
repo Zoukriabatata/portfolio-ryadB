@@ -8,6 +8,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Paperclip, Send, X, ScanEye, Square, Copy, Check, Trash2 } from 'lucide-react';
+import { ON_PRIMARY } from '@/lib/ai/colors';
+
+const MONO = 'var(--font-jetbrains-mono)';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -264,7 +267,7 @@ export default function VisionPanel() {
       <div className="flex-shrink-0 flex items-center gap-2 px-4 h-10 border-b"
         style={{ borderColor: 'var(--border)' }}>
         <ScanEye size={13} style={{ color: 'var(--primary)' }} />
-        <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Vision</span>
+        <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Vision</span>
         <span className="text-[9px] px-1.5 py-0.5 rounded font-mono"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           {backend === 'claude' ? 'claude · sonnet' : backend === 'ollama' ? 'local · ollama' : 'claude / ollama'}
@@ -313,7 +316,7 @@ export default function VisionPanel() {
 
             {msg.role === 'assistant' && (
               <div className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center mt-0.5"
-                style={{ background: 'var(--primary)15', border: '1px solid var(--primary)30' }}>
+                style={{ background: 'color-mix(in srgb, var(--primary) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)' }}>
                 <ScanEye size={11} style={{ color: 'var(--primary)' }} />
               </div>
             )}
@@ -323,11 +326,11 @@ export default function VisionPanel() {
               {/* Image — shown full-width above the text bubble */}
               {msg.imageUrl && (
                 <div className="mb-1.5 rounded-xl overflow-hidden border"
-                  style={{ borderColor: 'rgba(255,255,255,.12)' }}>
+                  style={{ borderColor: 'var(--border-light)' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={msg.imageUrl} alt="chart"
                     className="w-full object-contain max-h-96 cursor-zoom-in"
-                    style={{ background: '#0a0a0a' }}
+                    style={{ background: 'var(--background)' }}
                     onClick={() => window.open(msg.imageUrl, '_blank')}
                   />
                 </div>
@@ -338,7 +341,7 @@ export default function VisionPanel() {
                 msg.role === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'
               }`}
                 style={msg.role === 'user'
-                  ? { background: 'var(--primary)', color: '#fff' }
+                  ? { background: 'var(--primary)', color: ON_PRIMARY }
                   : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }
                 }>
                 {msg.loading && !msg.content
@@ -363,7 +366,7 @@ export default function VisionPanel() {
 
             {msg.role === 'user' && (
               <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 text-[9px] font-bold"
-                style={{ background: 'var(--primary)', color: '#fff' }}>U</div>
+                style={{ background: 'var(--primary)', color: ON_PRIMARY }}>U</div>
             )}
           </div>
         ))}
@@ -378,14 +381,14 @@ export default function VisionPanel() {
         {/* Large image preview when attached */}
         {attachedUrl && (
           <div className="relative rounded-xl overflow-hidden border"
-            style={{ borderColor: 'var(--primary)40', background: '#0a0a0a' }}>
+            style={{ borderColor: 'color-mix(in srgb, var(--primary) 40%, transparent)', background: 'var(--background)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={attachedUrl} alt="preview"
               className="w-full max-h-64 object-contain"
             />
             <button onClick={clearAttachment}
               className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(0,0,0,.7)', color: '#fff' }}>
+              style={{ background: 'rgba(0,0,0,.7)', color: 'white' }}>
               <X size={13} />
             </button>
             <div className="absolute bottom-0 left-0 right-0 px-3 py-1.5 text-[9px]"
@@ -401,8 +404,8 @@ export default function VisionPanel() {
             title="Joindre une image"
             className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all"
             style={{
-              background: attachedUrl ? 'var(--primary)15' : 'var(--surface)',
-              border:     `1px solid ${attachedUrl ? 'var(--primary)50' : 'var(--border)'}`,
+              background: attachedUrl ? 'color-mix(in srgb, var(--primary) 15%, transparent)' : 'var(--surface)',
+              border:     `1px solid ${attachedUrl ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'var(--border)'}`,
               color:      attachedUrl ? 'var(--primary)' : 'var(--text-muted)',
             }}>
             <Paperclip size={13} />
@@ -426,7 +429,7 @@ export default function VisionPanel() {
           {isLoading ? (
             <button onClick={stop}
               className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: '#ef444415', border: '1px solid #ef444440', color: '#ef4444' }}>
+              style={{ background: 'color-mix(in srgb, var(--bear) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--bear) 40%, transparent)', color: 'var(--bear)' }}>
               <Square size={11} fill="currentColor" />
             </button>
           ) : (
@@ -436,8 +439,8 @@ export default function VisionPanel() {
               style={{
                 background: canSend ? 'var(--primary)' : 'var(--surface)',
                 border:     `1px solid ${canSend ? 'var(--primary)' : 'var(--border)'}`,
-                color:      canSend ? '#fff' : 'var(--text-muted)',
-                boxShadow:  canSend ? '0 0 10px var(--primary)40' : 'none',
+                color:      canSend ? ON_PRIMARY : 'var(--text-muted)',
+                boxShadow:  canSend ? '0 0 10px var(--primary-glow)' : 'none',
               }}>
               <Send size={11} />
             </button>

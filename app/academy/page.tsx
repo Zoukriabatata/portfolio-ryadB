@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import AtasChartExamples from '@/components/pdf/AtasChartExamples';
 import FootprintScenarios from '@/components/pdf/FootprintScenarios';
 import ResearchPaywall from '@/components/pdf/ResearchPaywall';
@@ -8,6 +9,20 @@ export const metadata: Metadata = {
   title: 'Research Library',
   description:
     'Academic research synthesis on order flow, CVD, volume profile, absorption, DOM and heatmap — applied to trading.',
+};
+
+const MONO = 'var(--font-jetbrains-mono)';
+
+/* Palette par outil — alignée sur les tokens du site là où un équivalent existe
+   (teal/amber/rouge/vert), avec deux teintes curées (violet / cyan) pour les
+   outils sans token dédié. Source unique pour la page. */
+const TOOL = {
+  cvd:        'var(--accent)',  // teal
+  volume:     '#a78bfa',        // violet
+  absorption: 'var(--warning)', // amber
+  dom:        '#06b6d4',        // cyan
+  heatmap:    'var(--bear)',    // rouge
+  execution:  'var(--bull)',    // vert
 };
 
 /* ------------------------------------------------------------------ */
@@ -46,7 +61,7 @@ const TOOL_SECTIONS: ToolSection[] = [
   {
     tool: 'CVD — Cumulative Volume Delta',
     icon: 'M3 17l6-6 4 4 8-8',
-    color: 'var(--accent)',
+    color: TOOL.cvd,
     intro:
       'Le CVD mesure la pression nette achat/vente cumulée. La littérature confirme que l\'Order Flow Imbalance (OFI) — la base mathématique du CVD — est le prédicteur le plus puissant des mouvements de prix à court terme.',
     insights: [
@@ -61,7 +76,7 @@ const TOOL_SECTIONS: ToolSection[] = [
   {
     tool: 'Volume Profile',
     icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6m6 0h6m-6 0V9a2 2 0 012-2h2a2 2 0 012 2v10m6-4v4m0 0h-6',
-    color: '#a78bfa',
+    color: TOOL.volume,
     intro:
       'Le Volume Profile identifie les niveaux de prix où le volume a été échangé. La recherche montre que les patterns de volume intraday sont hautement prévisibles et que la liquidité varie systématiquement au cours de la journée.',
     insights: [
@@ -76,7 +91,7 @@ const TOOL_SECTIONS: ToolSection[] = [
   {
     tool: 'Absorption (Bid/Ask)',
     icon: 'M12 3v18m-9-9h18',
-    color: '#f59e0b',
+    color: TOOL.absorption,
     intro:
       'L\'absorption se produit quand de gros volumes agressifs sont absorbés par des ordres limites passifs sans que le prix ne bouge. C\'est un signal clé de présence institutionnelle.',
     insights: [
@@ -91,7 +106,7 @@ const TOOL_SECTIONS: ToolSection[] = [
   {
     tool: 'DOM — Depth of Market',
     icon: 'M4 6h16M4 10h16M4 14h16M4 18h16',
-    color: '#06b6d4',
+    color: TOOL.dom,
     intro:
       'Le DOM (carnet d\'ordres) montre la profondeur des ordres limites à chaque niveau de prix. La recherche révèle des dynamiques complexes de révision des prix et des patterns exploitables.',
     insights: [
@@ -106,7 +121,7 @@ const TOOL_SECTIONS: ToolSection[] = [
   {
     tool: 'Heatmap de Liquidité',
     icon: 'M4 4h16v16H4z',
-    color: '#ef4444',
+    color: TOOL.heatmap,
     intro:
       'La heatmap visualise la densité des ordres limites dans le temps et le prix. Les modèles académiques fournissent le cadre théorique pour interpréter ce que vous voyez.',
     insights: [
@@ -128,7 +143,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'hawkes-ofi',
     tag: 'CVD / OFI',
-    tagColor: 'var(--accent)',
+    tagColor: TOOL.cvd,
     title: 'Forecasting High Frequency Order Flow Imbalance',
     authors: 'Anantha & Jain (2024)',
     year: '2024',
@@ -148,7 +163,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'lob-markov',
     tag: 'DOM',
-    tagColor: '#06b6d4',
+    tagColor: TOOL.dom,
     title: 'Intraday Limit Order Price Change Dynamics via Markov Chains',
     authors: 'Luwang, Mukhia et al. (2026)',
     year: '2026',
@@ -172,7 +187,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'propagator',
     tag: 'Heatmap / Absorption',
-    tagColor: '#ef4444',
+    tagColor: TOOL.heatmap,
     title: 'Market Impact Modeling & Optimal Execution (Veldman + Coxon)',
     authors: 'Veldman (2024) & Coxon (2023)',
     year: '2023-24',
@@ -196,7 +211,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'volume-ml',
     tag: 'Volume Profile',
-    tagColor: '#a78bfa',
+    tagColor: TOOL.volume,
     title: 'Forecasting Intraday Volume with Machine Learning',
     authors: 'Cucuringu, Li & Zhang (2025)',
     year: '2025',
@@ -216,7 +231,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'rl-execution',
     tag: 'Execution',
-    tagColor: '#10b981',
+    tagColor: TOOL.execution,
     title: 'RL Optimal Execution with Transient Impact (MAP-Elites)',
     authors: 'de Witt & Pakkanen (2026)',
     year: '2026',
@@ -236,7 +251,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'flow-info',
     tag: 'CVD / DOM',
-    tagColor: 'var(--accent)',
+    tagColor: TOOL.cvd,
     title: 'Information Content of Book and Trade Order Flow',
     authors: 'Jonuzaj, Sancetta & Taranenko (2024)',
     year: '2024',
@@ -256,7 +271,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'options-flow',
     tag: 'Absorption / Options',
-    tagColor: '#f59e0b',
+    tagColor: TOOL.absorption,
     title: 'Order Flow & Expected Option Returns + Risky Intraday Order Flow',
     authors: 'Muravyev (2012) & Doshi, Pederzoli, Sert (2025)',
     year: '2012-25',
@@ -276,7 +291,7 @@ const KEY_PAPERS: PaperCard[] = [
   {
     id: 'hawkes-execution',
     tag: 'Execution / CVD',
-    tagColor: '#10b981',
+    tagColor: TOOL.execution,
     title: 'Optimal Execution under Endogenous & Self-Exciting Order Flow',
     authors: 'Chen-Horst-Tran (2023) & Tiwari (2025)',
     year: '2023-25',
@@ -356,11 +371,50 @@ function SvgIcon({ d, color }: { d: string; color: string }) {
 function Badge({ label, color }: { label: string; color: string }) {
   return (
     <span
-      className="inline-block rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
-      style={{ background: color, color: '#fff', opacity: 0.9 }}
+      className="inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase"
+      style={{
+        fontFamily: MONO,
+        letterSpacing: '0.14em',
+        background: `color-mix(in srgb, ${color} 13%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 32%, transparent)`,
+        color,
+      }}
     >
       {label}
     </span>
+  );
+}
+
+function SectionTitle({ kicker, children }: { kicker?: string; children: ReactNode }) {
+  return (
+    <div className="space-y-2">
+      {kicker && (
+        <p
+          style={{
+            fontFamily: MONO,
+            fontSize: 11,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
+        >
+          {kicker}
+        </p>
+      )}
+      <h2
+        style={{
+          fontFamily: MONO,
+          fontWeight: 500,
+          fontSize: 'clamp(22px, 3vw, 30px)',
+          letterSpacing: '-0.03em',
+          textTransform: 'uppercase',
+          color: 'var(--text-primary)',
+          WebkitFontSmoothing: 'subpixel-antialiased',
+        }}
+      >
+        {children}
+      </h2>
+    </div>
   );
 }
 
@@ -373,9 +427,27 @@ export default function PdfResearchPage() {
   const previewContent = (
     <div className="space-y-16">
       <header className="space-y-4">
+        <p
+          style={{
+            fontFamily: MONO,
+            fontSize: 11,
+            letterSpacing: '0.24em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
+        >
+          Academy · Order flow research
+        </p>
         <h1
-          className="text-3xl font-bold tracking-tight sm:text-4xl"
-          style={{ color: 'var(--text-primary)' }}
+          style={{
+            fontFamily: MONO,
+            fontWeight: 500,
+            fontSize: 'clamp(34px, 5vw, 56px)',
+            letterSpacing: '-0.04em',
+            textTransform: 'uppercase',
+            color: 'var(--text-primary)',
+            WebkitFontSmoothing: 'subpixel-antialiased',
+          }}
         >
           Research Library
         </h1>
@@ -390,7 +462,7 @@ export default function PdfResearchPage() {
         </p>
         <p
           className="text-sm italic"
-          style={{ color: 'var(--text-tertiary)' }}
+          style={{ color: 'var(--text-muted)' }}
         >
           Sources : Tiwari (2025), Chen-Horst-Tran (2023), Nutz-Webster-Zhao
           (2025), Anantha-Jain (2024), Chatziandreou-Karbach (2025),
@@ -403,12 +475,7 @@ export default function PdfResearchPage() {
 
       {/* ── Chiffres clés (teaser visible) ── */}
       <section className="space-y-6">
-        <h2
-          className="text-2xl font-bold tracking-tight"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Chiffres clés à retenir
-        </h2>
+        <SectionTitle kicker="· Aperçu">Chiffres clés à retenir</SectionTitle>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { stat: '17', label: 'Papers académiques analysés', src: '2012–2026' },
@@ -418,12 +485,11 @@ export default function PdfResearchPage() {
           ].map((item, i) => (
             <div
               key={i}
-              className="rounded-xl border px-5 py-4 text-center"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+              className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-center transition-colors duration-200 hover:border-[var(--border-light)]"
             >
-              <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>{item.stat}</p>
+              <p className="text-3xl font-semibold tabular-nums" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{item.stat}</p>
               <p className="mt-1 text-xs leading-snug" style={{ color: 'var(--text-secondary)' }}>{item.label}</p>
-              <p className="mt-1 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{item.src}</p>
+              <p className="mt-1.5 text-[10px]" style={{ fontFamily: MONO, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{item.src}</p>
             </div>
           ))}
         </div>
@@ -436,31 +502,28 @@ export default function PdfResearchPage() {
     <div className="space-y-16">
       {/* ── Tool-by-tool insights ── */}
       <section className="space-y-10">
-        <h2
-          className="text-2xl font-bold tracking-tight"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Insights par outil
-        </h2>
+        <SectionTitle kicker="· 5 outils">Insights par outil</SectionTitle>
 
         {TOOL_SECTIONS.map((ts) => (
           <div
             key={ts.tool}
-            className="overflow-hidden rounded-xl border"
-            style={{
-              borderColor: 'var(--border)',
-              background: 'var(--surface)',
-            }}
+            className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-colors duration-200 hover:border-[var(--border-light)]"
           >
             {/* card header */}
             <div
               className="flex items-center gap-3 border-b px-5 py-4"
-              style={{ borderColor: 'var(--border)' }}
+              style={{ borderColor: 'var(--border)', background: `color-mix(in srgb, ${ts.color} 5%, transparent)` }}
             >
               <SvgIcon d={ts.icon} color={ts.color} />
               <h3
-                className="text-lg font-semibold"
-                style={{ color: 'var(--text-primary)' }}
+                style={{
+                  fontFamily: MONO,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  letterSpacing: '0.02em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-primary)',
+                }}
               >
                 {ts.tool}
               </h3>
@@ -493,22 +556,13 @@ export default function PdfResearchPage() {
 
       {/* ── Key papers with applied findings ────────────── */}
       <section className="space-y-8">
-        <h2
-          className="text-2xl font-bold tracking-tight"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Papers clés — Findings appliqués
-        </h2>
+        <SectionTitle kicker="· 8 publications">Papers clés — Findings appliqués</SectionTitle>
 
         <div className="grid gap-6 md:grid-cols-2">
           {KEY_PAPERS.map((p) => (
             <article
               key={p.id}
-              className="flex flex-col overflow-hidden rounded-xl border"
-              style={{
-                borderColor: 'var(--border)',
-                background: 'var(--surface)',
-              }}
+              className="flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-colors duration-200 hover:border-[var(--border-light)]"
             >
               <div className="space-y-2 px-5 pt-5">
                 <Badge label={p.tag} color={p.tagColor} />
@@ -520,7 +574,7 @@ export default function PdfResearchPage() {
                 </h3>
                 <p
                   className="text-xs"
-                  style={{ color: 'var(--text-tertiary)' }}
+                  style={{ color: 'var(--text-muted)' }}
                 >
                   {p.authors}
                 </p>
@@ -536,15 +590,15 @@ export default function PdfResearchPage() {
                 {p.findings.map((f, i) => (
                   <div
                     key={i}
-                    className="rounded-lg border px-4 py-3"
+                    className="rounded-[var(--radius-md)] border px-4 py-3"
                     style={{
                       borderColor: 'var(--border)',
-                      background: 'var(--bg)',
+                      background: 'var(--background)',
                     }}
                   >
                     <p
-                      className="text-xs font-semibold uppercase tracking-wider"
-                      style={{ color: p.tagColor }}
+                      className="text-[11px] font-bold uppercase"
+                      style={{ fontFamily: MONO, letterSpacing: '0.1em', color: p.tagColor }}
                     >
                       {f.title}
                     </p>
@@ -573,12 +627,7 @@ export default function PdfResearchPage() {
 
       {/* ── Practical framework ────────────────────────── */}
       <section className="space-y-6">
-        <h2
-          className="text-2xl font-bold tracking-tight"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Framework pratique — Comment combiner les 5 outils
-        </h2>
+        <SectionTitle kicker="· Workflow">Framework pratique — Comment combiner les 5 outils</SectionTitle>
         <p
           className="max-w-3xl text-sm"
           style={{ color: 'var(--text-secondary)' }}
@@ -592,25 +641,28 @@ export default function PdfResearchPage() {
           {FRAMEWORK_STEPS.map((fs) => (
             <div
               key={fs.step}
-              className="rounded-xl border px-5 py-4"
-              style={{
-                borderColor: 'var(--border)',
-                background: 'var(--surface)',
-              }}
+              className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 transition-colors duration-200 hover:border-[var(--border-light)]"
             >
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex items-center gap-2.5">
                 <span
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold tabular-nums"
                   style={{
+                    fontFamily: MONO,
                     background: 'var(--accent)',
-                    color: '#fff',
+                    color: '#04161a',
                   }}
                 >
                   {fs.step}
                 </span>
                 <span
-                  className="text-sm font-semibold"
-                  style={{ color: 'var(--text-primary)' }}
+                  style={{
+                    fontFamily: MONO,
+                    fontWeight: 600,
+                    fontSize: 12,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-primary)',
+                  }}
                 >
                   {fs.label}
                 </span>
@@ -628,12 +680,7 @@ export default function PdfResearchPage() {
 
       {/* ── Formulas reference ─────────────────────────── */}
       <section className="space-y-6">
-        <h2
-          className="text-2xl font-bold tracking-tight"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          Formules essentielles
-        </h2>
+        <SectionTitle kicker="· Référence">Formules essentielles</SectionTitle>
 
         <div className="space-y-4">
           {[
@@ -675,11 +722,7 @@ export default function PdfResearchPage() {
           ].map((f) => (
             <div
               key={f.name}
-              className="rounded-lg border px-5 py-4"
-              style={{
-                borderColor: 'var(--border)',
-                background: 'var(--surface)',
-              }}
+              className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 transition-colors duration-200 hover:border-[var(--border-light)]"
             >
               <div className="flex items-baseline justify-between gap-4">
                 <p
@@ -689,14 +732,14 @@ export default function PdfResearchPage() {
                   {f.name}
                 </p>
                 <span
-                  className="flex-shrink-0 text-[10px]"
-                  style={{ color: 'var(--text-tertiary)' }}
+                  className="flex-shrink-0 text-[10px] uppercase"
+                  style={{ fontFamily: MONO, letterSpacing: '0.06em', color: 'var(--text-muted)' }}
                 >
                   {f.source}
                 </span>
               </div>
               <p
-                className="mt-2 font-mono text-sm"
+                className="mt-2.5 font-mono text-sm leading-relaxed"
                 style={{ color: 'var(--accent)' }}
               >
                 {f.formula}
@@ -708,10 +751,14 @@ export default function PdfResearchPage() {
 
       {/* ── Footer ─────────────────────────────────────── */}
       <footer
-        className="border-t pt-8 text-center text-xs"
+        className="border-t pt-8 text-center"
         style={{
           borderColor: 'var(--border)',
-          color: 'var(--text-tertiary)',
+          fontFamily: MONO,
+          fontSize: 10,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
         }}
       >
         17 papers analysés — Dernière mise à jour : Mars 2026
