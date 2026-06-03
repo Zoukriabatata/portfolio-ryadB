@@ -65,9 +65,13 @@ const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value
           color: 'var(--primary-light)',
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateY(0)' : 'translateY(8px)',
-          fontFamily: 'var(--font-instrument-serif)',
-          fontWeight: 400,
-          letterSpacing: '-0.01em',
+          // Match the hero wordmark : JetBrains Mono 500. The stats
+          // are data, so the same family as the headline keeps the
+          // brand visually consistent and gives the numbers the
+          // trader-terminal precision a serif italic couldn't.
+          fontFamily: 'var(--font-jetbrains-mono)',
+          fontWeight: 500,
+          letterSpacing: '-0.03em',
         }}
       >
         {target ? `${prefix}${count}${suffix}` : value}
