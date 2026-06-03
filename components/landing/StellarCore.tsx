@@ -72,6 +72,11 @@ export default function StellarCore() {
 
         {/* 7. Einstein-ring lens flare */}
         <div className="stellar-flare" />
+
+        {/* 8. Dither overlay — SVG noise composited on top of all
+             gradients to defeat 8-bit colour banding on the rings.
+             Pure data-URI, no network. */}
+        <div className="stellar-dither" />
       </div>
 
       <style>{`
@@ -86,14 +91,35 @@ export default function StellarCore() {
             linear-gradient(180deg, black 0vh, black 78vh, transparent 108vh);
         }
 
-        /* === 1. Vignette === */
+        /* === 8. Dither noise overlay ===
+           A high-frequency SVG turbulence rasterised once by the
+           browser, then tiled. Composited via mix-blend-mode:overlay
+           at low opacity. The noise breaks up smooth gradient
+           interpolation so 8-bit colour bands disappear into the
+           grain — same trick film grain plays in dark dramatic
+           cinematography. */
+        .stellar-dither {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.7'/></svg>");
+          background-size: 160px 160px;
+          opacity: 0.06;
+          mix-blend-mode: overlay;
+        }
+
+        /* === 1. Vignette ===
+           Gradient interpolated in oklab — perceptually-uniform colour
+           space avoids the muddy/banded mid-zone sRGB produces between
+           dark green and pure black. */
         .stellar-vignette {
           position: absolute;
           inset: 0;
           background:
             radial-gradient(
-              ellipse 60% 50% at 50% 46%,
+              ellipse 60% 50% at 50% 46% in oklab,
               rgba(20, 30, 22, 0.45) 0%,
+              rgba(8, 12, 9, 0.85) 40%,
               rgba(0, 0, 0, 0.95) 65%,
               #000 100%
             );
@@ -233,7 +259,13 @@ export default function StellarCore() {
           to { transform: translate(-50%, -50%) rotateZ(360deg); }
         }
 
-        /* === 5. Concentric ripples === */
+        /* === 5. Concentric ripples ===
+           Each ripple is a thin lime ring that scales from 1× → 14×.
+           A 1 px solid border kept a sharp, photocopied edge that
+           read as a discrete circle drawn on the scene. Replaced
+           with a radial-gradient *ring* (transparent → lime →
+           transparent) interpolated in oklab so both edges feather
+           into the background instead of cutting hard. */
         .stellar-ripple {
           position: absolute;
           left: 50%;
@@ -241,19 +273,27 @@ export default function StellarCore() {
           width: 6vh;
           height: 6vh;
           border-radius: 50%;
-          border: 1px solid rgba(74, 222, 128, 0.6);
+          background: radial-gradient(
+            circle in oklab,
+            transparent 0%,
+            transparent 42%,
+            rgba(180, 255, 200, 0.55) 49%,
+            rgba(74, 222, 128, 0.45) 50%,
+            transparent 58%
+          );
           transform: translate(-50%, -50%) scale(1);
           opacity: 0;
+          filter: blur(0.5px);
           animation: ripple-out 7s cubic-bezier(0.22, 1, 0.36, 1) infinite;
           will-change: transform, opacity;
         }
         .stellar-ripple-2 { animation-delay: 2.3s; }
         .stellar-ripple-3 { animation-delay: 4.6s; }
         @keyframes ripple-out {
-          0%   { transform: translate(-50%, -50%) scale(1);  opacity: 0.7; border-color: rgba(180, 255, 200, 0.9); }
-          15%  { opacity: 0.7; }
-          80%  { opacity: 0.06; }
-          100% { transform: translate(-50%, -50%) scale(14); opacity: 0; border-color: rgba(74, 222, 128, 0.2); }
+          0%   { transform: translate(-50%, -50%) scale(1);  opacity: 0.8; }
+          15%  { opacity: 0.8; }
+          80%  { opacity: 0.05; }
+          100% { transform: translate(-50%, -50%) scale(14); opacity: 0; }
         }
 
         /* === 6. Event horizon ===
@@ -267,12 +307,18 @@ export default function StellarCore() {
           width: 28vh;
           height: 28vh;
           transform: translate(-50%, -50%);
+          /* in oklab + extra intermediate stops to break up the
+             green→transparent banding the eye reads as concentric
+             rings on the radial. */
           background: radial-gradient(
-            circle at center,
+            circle at center in oklab,
             rgba(255, 255, 255, 0.6) 0%,
-            rgba(180, 255, 200, 0.35) 18%,
-            rgba(74, 222, 128, 0.18) 42%,
-            transparent 72%
+            rgba(220, 255, 230, 0.48) 10%,
+            rgba(180, 255, 200, 0.35) 22%,
+            rgba(120, 240, 160, 0.26) 32%,
+            rgba(74, 222, 128, 0.18) 46%,
+            rgba(40, 160, 90, 0.08) 60%,
+            transparent 78%
           );
           filter: blur(14px);
           animation: horizon-breathe 8s ease-in-out infinite;
@@ -287,11 +333,14 @@ export default function StellarCore() {
           transform: translate(-50%, -50%);
           border-radius: 50%;
           background: radial-gradient(
-            circle at center,
+            circle at center in oklab,
             rgba(255, 255, 255, 1) 0%,
-            rgba(220, 255, 230, 0.95) 24%,
-            rgba(74, 222, 128, 0.65) 55%,
-            transparent 90%
+            rgba(235, 255, 240, 0.97) 14%,
+            rgba(220, 255, 230, 0.92) 24%,
+            rgba(170, 240, 195, 0.78) 40%,
+            rgba(74, 222, 128, 0.55) 60%,
+            rgba(40, 160, 90, 0.22) 78%,
+            transparent 92%
           );
           box-shadow:
             0 0 18px rgba(255, 255, 255, 0.6),
