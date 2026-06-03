@@ -5,8 +5,12 @@
  * bar proportional to current OI and a 30-min delta percent on the
  * right. Compact variant so it fits the bento side column.
  *
- * Bar colour: solid `--text-secondary` so the colour budget stays for
- * the delta (bull / bear). No per-symbol brand colours.
+ * Editorial Terminal pass :
+ *   • Symbol → Geist Sans uppercase kicker tracking
+ *   • OI value → JetBrains Mono tabular-nums
+ *   • Delta 30-min → JetBrains Mono tabular-nums, lime / bear
+ *   • Bar → `var(--primary)` at low opacity. Single accent only; no
+ *     per-symbol brand colour.
  */
 
 import { BarChart3 } from "lucide-react";
@@ -57,25 +61,25 @@ export function OpenInterestCard({ oi, className }: OpenInterestCardProps) {
         {items.map((item) => {
           const barPct = maxOI > 0 ? (item.current / maxOI) * 100 : 0;
           const deltaColor =
-            item.change >= 0 ? "var(--bull)" : "var(--bear)";
+            item.change >= 0 ? "var(--primary)" : "var(--bear)";
           return (
             <li key={item.symbol} className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
                 <span
-                  className="dash-text-xs font-semibold w-10"
+                  className="dash-text-xs font-semibold w-10 uppercase tracking-[0.12em]"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {item.name}
                 </span>
                 <span
-                  className="dash-text-xs font-mono tabular-nums flex-1 text-right"
+                  className="dash-text-xs font-[var(--font-jetbrains-mono)] tabular-nums flex-1 text-right"
                   style={{ color: "var(--text-secondary)" }}
                 >
                   {item.current > 0 ? fmtOI(item.current) : "—"}
                 </span>
                 {item.current > 0 && (
                   <span
-                    className="dash-text-xs font-mono font-semibold tabular-nums w-14 text-right"
+                    className="dash-text-xs font-[var(--font-jetbrains-mono)] font-semibold tabular-nums w-14 text-right"
                     style={{ color: deltaColor }}
                   >
                     {item.change >= 0 ? "+" : ""}
@@ -91,8 +95,8 @@ export function OpenInterestCard({ oi, className }: OpenInterestCardProps) {
                   className="h-full rounded-full transition-all duration-700"
                   style={{
                     width: `${barPct}%`,
-                    background: "var(--text-secondary)",
-                    opacity: 0.6,
+                    background: "var(--primary)",
+                    opacity: 0.35,
                   }}
                 />
               </div>

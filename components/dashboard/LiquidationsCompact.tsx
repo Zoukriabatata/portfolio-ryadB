@@ -6,13 +6,20 @@
  * normal-volatility days. $100K cutoff matches the threshold most
  * trader dashboards (Coinglass, Hyblock) use for "actionable" liqs.
  *
- * Row: SYMBOL | LONG/SHORT pill | $value | time-ago. Whale emoji and
- * brand colours dropped — only the side pill and value carry colour.
+ * Editorial Terminal pass :
+ *   • Symbol → JetBrains Mono badge (border `var(--border)`, padding
+ *     compact) so the row reads as a tape entry, not a label.
+ *   • Side pill → LONG (forced sell = bearish) coloured `var(--bear)`;
+ *     SHORT (forced buy = bullish) coloured `var(--primary)`.
+ *   • $value → JetBrains Mono tabular-nums.
+ *   • Time ago → JetBrains Mono italic, muted.
+ *   • Card opts into `live` border (it streams forced-liq events).
  */
 
 import { Flame } from "lucide-react";
 
 import { DISPLAY_NAMES, type LiquidationEvent } from "@/hooks/dashboard";
+import { cn } from "@/lib/utils";
 
 import { DashboardCard } from "./DashboardCard";
 
@@ -51,55 +58,67 @@ export function LiquidationsCompact({
       icon={<Flame size={14} />}
       action={
         <span
-          className="dash-text-xs"
+          className="dash-text-xs font-[var(--font-jetbrains-mono)] tabular-nums"
           style={{ color: "var(--text-muted)" }}
         >
           ≥ $100K
         </span>
       }
       loading={filtered.length === 0}
+      live
       className={className}
     >
       <ul className="flex flex-col">
         {filtered.map((liq) => {
           const isLong = liq.side === "LONG";
-          // A LONG liquidation = forced sell = bearish pressure.
-          const sideColor = isLong ? "var(--bear)" : "var(--bull)";
+          // LONG liquidation = forced sell = bear pressure;
+          // SHORT liquidation = forced buy = bull pressure.
+          const sideColor = isLong ? "var(--bear)" : "var(--primary)";
           const name =
             DISPLAY_NAMES[liq.symbol] ?? liq.symbol.replace("USDT", "");
           return (
             <li
               key={liq.id}
-              className="flex items-center gap-2 py-1"
+              className={cn(
+                "flex items-center gap-2 py-1 transition-colors duration-150",
+                "hover:bg-[color-mix(in_oklab,var(--surface-elevated)_55%,transparent)]",
+              )}
               style={{ borderBottom: "1px solid var(--border)" }}
             >
+              {/* Symbol mono badge */}
               <span
-                className="dash-text-xs font-semibold w-12"
-                style={{ color: "var(--text-primary)" }}
+                className="dash-text-xs font-[var(--font-jetbrains-mono)] font-semibold px-1.5 py-0.5 rounded"
+                style={{
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface-elevated)",
+                }}
               >
                 {name}
               </span>
+              {/* Side pill */}
               <span
-                className="dash-text-xs font-bold px-1.5 py-0.5 rounded tabular-nums"
+                className="dash-text-xs font-semibold px-1.5 py-0.5 rounded uppercase tracking-[0.12em]"
                 style={{
                   background:
                     "color-mix(in oklab, " +
                     sideColor +
                     " 10%, transparent)",
                   color: sideColor,
-                  letterSpacing: "0.05em",
                 }}
               >
                 {liq.side}
               </span>
+              {/* $value */}
               <span
-                className="dash-text-xs font-mono font-semibold tabular-nums flex-1 text-right"
+                className="dash-text-xs font-[var(--font-jetbrains-mono)] font-semibold tabular-nums flex-1 text-right"
                 style={{ color: sideColor }}
               >
                 {fmtUSD(liq.valueUSD)}
               </span>
+              {/* Time-ago */}
               <span
-                className="dash-text-xs font-mono tabular-nums w-8 text-right"
+                className="dash-text-xs font-[var(--font-jetbrains-mono)] italic tabular-nums w-8 text-right"
                 style={{ color: "var(--text-muted)" }}
               >
                 {fmtAge(liq.time)}

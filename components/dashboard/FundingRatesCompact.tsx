@@ -2,13 +2,17 @@
 
 /**
  * Funding rates — top 6 by absolute rate. Compact variant, two-line
- * cells: symbol + rate on top, next-funding countdown underneath.
+ * cells: symbol + rate on top, next-funding countdown in the header
+ * action slot.
  *
- * Colour rule: positive = bull, negative = bear. The legacy strip
- * coloured positive funding *red* (because longs pay shorts when
- * funding is positive on Binance perps) — that's the trader-mental-
- * model convention, but it clashes with the new "green = good" pal-
- * ette guidance. We follow the brief: sign-based colouring, no orange.
+ * Editorial Terminal pass :
+ *   • Symbol → Geist Sans uppercase kicker tracking
+ *   • Rate   → JetBrains Mono tabular-nums
+ *   • Countdown → JetBrains Mono muted
+ *   • Colours: positive = `var(--primary)` (lime), negative =
+ *     `var(--bear)`. The legacy mental-model "longs pay shorts =
+ *     bearish for longs" is dropped in favour of sign-based colour,
+ *     which is what the rest of the dashboard does.
  */
 
 import { useState, useEffect } from "react";
@@ -65,7 +69,7 @@ export function FundingRatesCompact({
       action={
         countdown ? (
           <span
-            className="dash-text-xs font-mono tabular-nums"
+            className="dash-text-xs font-[var(--font-jetbrains-mono)] tabular-nums"
             style={{ color: "var(--text-muted)" }}
           >
             next {countdown}
@@ -81,27 +85,27 @@ export function FundingRatesCompact({
       >
         {sorted.map((r) => {
           const isPositive = r.fundingRate >= 0;
-          const color = isPositive ? "var(--bull)" : "var(--bear)";
+          const color = isPositive ? "var(--primary)" : "var(--bear)";
           const name =
             DISPLAY_NAMES[r.symbol] ?? r.symbol.replace("USDT", "");
           return (
             <div
               key={r.symbol}
               role="listitem"
-              className="flex flex-col gap-0.5 px-2 py-1.5 rounded-md min-w-[80px]"
+              className="flex flex-col gap-0.5 px-2 py-1.5 rounded-md min-w-[80px] transition-colors duration-150"
               style={{
                 background: "var(--surface-elevated)",
                 border: "1px solid var(--border)",
               }}
             >
               <span
-                className="dash-text-xs font-semibold tracking-wide"
+                className="dash-text-xs font-semibold uppercase tracking-[0.12em]"
                 style={{ color: "var(--text-secondary)" }}
               >
                 {name}
               </span>
               <span
-                className="dash-text-sm font-mono font-semibold tabular-nums"
+                className="dash-text-sm font-[var(--font-jetbrains-mono)] font-semibold tabular-nums"
                 style={{ color }}
               >
                 {isPositive ? "+" : ""}

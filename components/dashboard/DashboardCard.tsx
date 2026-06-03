@@ -42,6 +42,11 @@ export interface DashboardCardProps {
    *  by the bento shell. Kept separate from variant styling so the
    *  card itself doesn't have to know about its grid coordinates. */
   className?: string;
+  /** Editorial Terminal: opt-in lime "live" border for cards that
+   *  surface real-time streamed data (MarketPulse, Liquidations…).
+   *  Standard / compact variants override their neutral border with
+   *  `--border-glow`; the hero variant already wears it natively. */
+  live?: boolean;
 }
 
 // Editorial Terminal surface treatment :
@@ -106,6 +111,7 @@ export function DashboardCard({
   loading = false,
   children,
   className,
+  live = false,
 }: DashboardCardProps) {
   const hasHeader = Boolean(title || icon || action);
 
@@ -115,6 +121,7 @@ export function DashboardCard({
         "flex flex-col min-h-0 transition-colors duration-150",
         "hover:border-[color-mix(in_oklab,var(--primary)_18%,var(--border))]",
         VARIANT_CLASS[variant],
+        live && variant !== "hero" && "border-[var(--border-glow)]",
         className,
       )}
     >

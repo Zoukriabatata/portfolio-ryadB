@@ -6,11 +6,20 @@
  * when the user clicks). Not a DashboardCard: it sits *outside* the
  * grid so the visual weight stays banner-like.
  *
- * Palette: primary lime → accent teal gradient. No purple / orange.
+ * Editorial Terminal pass :
+ *   • Title → Instrument Serif italic `dash-text-lg`
+ *   • Description → Geist Sans `dash-text-sm` muted
+ *   • CTA → bordered lime, transparent bg, ArrowUpRight icon. The
+ *     legacy gradient pill (lime → teal) was too loud for a slim
+ *     status strip; the bordered ghost button fits the editorial
+ *     palette better.
  */
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { ArrowUpRight } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 export function UpgradeBanner() {
   const { data: session } = useSession();
@@ -20,10 +29,10 @@ export function UpgradeBanner() {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12px] relative"
+      className="flex items-center gap-4 px-4 py-3 rounded-xl relative"
       style={{
         background:
-          "linear-gradient(to right, color-mix(in oklab, var(--primary) 8%, transparent), color-mix(in oklab, var(--accent) 8%, transparent))",
+          "linear-gradient(to right, color-mix(in oklab, var(--primary) 6%, transparent), transparent)",
         border:
           "1px solid color-mix(in oklab, var(--primary) 18%, var(--border))",
       }}
@@ -32,27 +41,44 @@ export function UpgradeBanner() {
         className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0"
         style={{ background: "var(--primary)" }}
       />
-      <span style={{ color: "var(--text-secondary)" }}>
-        <span style={{ color: "var(--primary)", fontWeight: 600 }}>
-          Launch offer:
-        </span>{" "}
-        Unlock footprint charts, heatmap, GEX &amp; more for{" "}
-        <strong style={{ color: "var(--text-primary)" }}>$29/mo</strong> —
-        locked for life.
-      </span>
+      <div className="flex flex-col min-w-0 flex-1 leading-tight">
+        <span
+          className={cn(
+            "font-[var(--font-instrument-serif)] italic dash-text-lg",
+          )}
+          style={{ color: "var(--text-primary)" }}
+        >
+          Upgrade to PRO
+        </span>
+        <span
+          className="dash-text-sm"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Unlock footprint charts, heatmap, GEX &amp; more for{" "}
+          <span
+            className="font-[var(--font-jetbrains-mono)] tabular-nums"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            $29/mo
+          </span>{" "}
+          — locked for life.
+        </span>
+      </div>
       <a
         href="/pricing"
-        className="flex-shrink-0 px-3 py-1 rounded-lg text-[11px] font-bold transition-all hover:-translate-y-px"
+        className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg dash-text-sm font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--primary)_10%,transparent)]"
         style={{
-          background: "var(--primary)",
-          color: "var(--background, #0a0a0f)",
+          background: "transparent",
+          color: "var(--primary)",
+          border: "1px solid color-mix(in oklab, var(--primary) 40%, var(--border))",
         }}
       >
-        Upgrade →
+        Upgrade
+        <ArrowUpRight size={14} />
       </a>
       <button
         onClick={() => setDismissed(true)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-80 transition-opacity p-1"
+        className="absolute right-2 top-2 opacity-40 hover:opacity-80 transition-opacity p-1"
         aria-label="Dismiss"
         style={{ color: "var(--text-muted)" }}
       >

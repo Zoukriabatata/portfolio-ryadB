@@ -7,16 +7,20 @@
  * to scan twice. Single widget with three tabs (Gainers / Losers /
  * Volume) and a consolidated stats footer collapses the redundancy.
  *
- * Palette discipline: every coin rank/badge is rendered in neutral
- * gray, only the percent delta carries colour (bull / bear). No more
- * per-coin brand hex (orange BTC, purple SOL, …) — those clashed with
- * the new restricted palette.
+ * Editorial Terminal pass :
+ *   • Symbols  → Geist Sans uppercase, kicker tracking
+ *   • Prices / change% / volume → JetBrains Mono tabular-nums
+ *   • Footer stats labels → uppercase Geist; numbers → mono
+ *   • Palette restricted to lime (`--primary`) / red (`--bear`) /
+ *     text-{primary,secondary,muted}. No brand hex, no amber/orange.
+ *   • Card opts into the `live` border (it streams Binance tickers).
  */
 
 import { useState, useMemo } from "react";
 import { Activity } from "lucide-react";
 
 import { DISPLAY_NAMES, type TickerData } from "@/hooks/dashboard";
+import { cn } from "@/lib/utils";
 
 import { DashboardCard } from "./DashboardCard";
 
@@ -93,7 +97,7 @@ export function MarketPulse({ tickers, className }: MarketPulseProps) {
         <button
           key={t.id}
           onClick={() => setTab(t.id)}
-          className="dash-text-xs font-semibold px-2 py-0.5 rounded transition-colors"
+          className="dash-text-xs font-medium px-2 py-0.5 rounded uppercase tracking-wider transition-colors duration-150"
           style={{
             background: tab === t.id ? "var(--surface)" : "transparent",
             color:
@@ -113,6 +117,7 @@ export function MarketPulse({ tickers, className }: MarketPulseProps) {
       icon={<Activity size={14} />}
       action={tabSwitcher}
       loading={tickers.length === 0}
+      live
       className={className}
     >
       <div className="flex flex-col h-full">
@@ -130,44 +135,59 @@ export function MarketPulse({ tickers, className }: MarketPulseProps) {
             style={{ borderTop: "1px solid var(--border)" }}
           >
             <div className="flex items-center gap-1.5">
-              <span style={{ color: "var(--text-muted)" }}>BTC Dom</span>
               <span
-                className="font-mono font-semibold tabular-nums"
+                className="uppercase tracking-[0.12em]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                BTC Dom
+              </span>
+              <span
+                className="font-[var(--font-jetbrains-mono)] tabular-nums"
                 style={{ color: "var(--text-primary)" }}
               >
                 {stats.btcDom.toFixed(1)}%
               </span>
             </div>
             {stats.topGainer && (
-              <div className="flex items-center gap-1">
-                <span style={{ color: "var(--text-muted)" }}>↑</span>
+              <div className="flex items-center gap-1.5">
                 <span
-                  className="font-semibold"
+                  className="uppercase tracking-[0.12em]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Top
+                </span>
+                <span
+                  className="font-semibold uppercase tracking-wide"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {DISPLAY_NAMES[stats.topGainer.symbol] ??
                     stats.topGainer.symbol.replace("USDT", "")}
                 </span>
                 <span
-                  className="font-mono tabular-nums"
-                  style={{ color: "var(--bull)" }}
+                  className="font-[var(--font-jetbrains-mono)] tabular-nums"
+                  style={{ color: "var(--primary)" }}
                 >
                   +{stats.topGainer.changePercent.toFixed(2)}%
                 </span>
               </div>
             )}
             {stats.topLoser && (
-              <div className="flex items-center gap-1">
-                <span style={{ color: "var(--text-muted)" }}>↓</span>
+              <div className="flex items-center gap-1.5">
                 <span
-                  className="font-semibold"
+                  className="uppercase tracking-[0.12em]"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Bot
+                </span>
+                <span
+                  className="font-semibold uppercase tracking-wide"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {DISPLAY_NAMES[stats.topLoser.symbol] ??
                     stats.topLoser.symbol.replace("USDT", "")}
                 </span>
                 <span
-                  className="font-mono tabular-nums"
+                  className="font-[var(--font-jetbrains-mono)] tabular-nums"
                   style={{ color: "var(--bear)" }}
                 >
                   {stats.topLoser.changePercent.toFixed(2)}%
@@ -189,25 +209,28 @@ interface PulseRowProps {
 
 function PulseRow({ row, rank, tab }: PulseRowProps) {
   const isUp = row.changePercent >= 0;
-  const deltaColor = isUp ? "var(--bull)" : "var(--bear)";
+  const deltaColor = isUp ? "var(--primary)" : "var(--bear)";
   const name = DISPLAY_NAMES[row.symbol] ?? row.symbol.replace("USDT", "");
 
   return (
     <li
-      className="flex items-center gap-3 py-1.5"
+      className={cn(
+        "flex items-center gap-3 py-1.5 transition-colors duration-150",
+        "hover:bg-[color-mix(in_oklab,var(--surface-elevated)_55%,transparent)]",
+      )}
       style={{ borderBottom: "1px solid var(--border)" }}
     >
       {/* Rank */}
       <span
-        className="dash-text-xs font-mono tabular-nums w-4 text-right shrink-0"
+        className="dash-text-xs font-[var(--font-jetbrains-mono)] tabular-nums w-4 text-right shrink-0"
         style={{ color: "var(--text-muted)" }}
       >
         {rank}
       </span>
 
-      {/* Symbol */}
+      {/* Symbol — Geist Sans uppercase kicker */}
       <span
-        className="dash-text-sm font-semibold w-14 truncate"
+        className="dash-text-sm font-semibold w-14 truncate uppercase tracking-wide"
         style={{ color: "var(--text-primary)" }}
       >
         {name}
@@ -215,7 +238,7 @@ function PulseRow({ row, rank, tab }: PulseRowProps) {
 
       {/* Price */}
       <span
-        className="dash-text-xs font-mono tabular-nums flex-1 text-right"
+        className="dash-text-xs font-[var(--font-jetbrains-mono)] tabular-nums flex-1 text-right"
         style={{ color: "var(--text-secondary)" }}
       >
         ${fmtPrice(row.price)}
@@ -223,7 +246,7 @@ function PulseRow({ row, rank, tab }: PulseRowProps) {
 
       {/* Change% */}
       <span
-        className="dash-text-xs font-mono font-semibold tabular-nums w-16 text-right"
+        className="dash-text-xs font-[var(--font-jetbrains-mono)] font-semibold tabular-nums w-16 text-right"
         style={{ color: deltaColor }}
       >
         {isUp ? "+" : ""}
@@ -232,7 +255,7 @@ function PulseRow({ row, rank, tab }: PulseRowProps) {
 
       {/* Volume — emphasised in volume tab */}
       <span
-        className="dash-text-xs font-mono tabular-nums w-16 text-right shrink-0"
+        className="dash-text-xs font-[var(--font-jetbrains-mono)] tabular-nums w-16 text-right shrink-0"
         style={{
           color:
             tab === "volume"
