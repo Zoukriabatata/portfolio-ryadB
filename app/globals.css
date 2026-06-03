@@ -180,6 +180,21 @@
   z-index: 1;
 }
 
+/* === DASHBOARD SCROLL — invisible track ===
+   The dashboard reads as a single composition; a native scrollbar
+   would slice the right edge with a permanent vertical line that
+   breaks the editorial illusion. We keep the content scrollable but
+   hide the track in all engines. */
+.dashboard-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dashboard-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* === DASHBOARD STAGGERED MOUNT ===
    One orchestrated reveal at page load instead of a confetti of
    micro-interactions everywhere. Each bento slot opts in via

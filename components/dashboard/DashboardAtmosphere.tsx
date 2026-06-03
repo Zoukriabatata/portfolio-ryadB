@@ -1,34 +1,32 @@
 "use client";
 
 /**
- * Editorial Terminal atmosphere — three CSS-only layers that paint
- * subtle depth behind the bento without ever competing with the
- * widgets in front. All layers are `pointer-events-none` and sit on
- * a positioned-absolute layer below the dashboard content.
+ * Editorial Terminal atmosphere — "Aurora signal."
  *
- * Layer breakdown :
+ * Three soft lime gradient blobs drift across the viewport on
+ * desynchronised long-loop animations. Reads as ambient light
+ * breathing across the surface, never as a discrete effect. The
+ * desync (62 s / 84 s / 108 s) means the composite movement never
+ * resyncs — the user sees fluid organic motion instead of a tape
+ * loop.
  *
- *   1.  Blueprint grid          — hairline graph-paper reference at
- *                                 4 % opacity. Grounds the editorial
- *                                 aesthetic in a "trading chart"
- *                                 metaphor without screaming it.
+ * Replaces the previous "halos + blueprint grid + sweep" recipe :
+ *   • the grid was too quiet to register at 4 % opacity through
+ *     the grain overlay
+ *   • the sweep ended up reading as a progress bar on slower polls
+ *   • the halos were too symmetric to look alive
  *
- *   2.  Orbiting halos          — two large radial-gradient ellipses
- *                                 anchored at opposite corners. Each
- *                                 rotates on a 40-60 s loop so the
- *                                 light slowly breathes across the
- *                                 surface. Drop-shadow blur softens
- *                                 the edges to nothing.
- *
- *   3.  Phosphor sweep          — a single vertical line travels
- *                                 bottom → top once every 22 s with
- *                                 a wide blur radius. Reads as
- *                                 ambient CRT signal, never as a
- *                                 scanner / pulse / progress bar.
- *
- * Honours `prefers-reduced-motion` by killing the orbit + sweep
- * animations (the grid + halos stay static at their initial frame
- * so the page still has texture).
+ * Implementation notes :
+ *   • All three blobs sit on a single fixed-position layer so the
+ *     paint cost stays predictable on long sessions (no scroll-
+ *     bound layout invalidations).
+ *   • `will-change: transform, opacity` lifts each blob to its
+ *     own GPU layer so the 60 s+ animations don't cost CPU.
+ *   • `mix-blend-mode: screen` lets the blobs reinforce each
+ *     other where they overlap (organic specular highlight) and
+ *     fade properly over the surface gradient otherwise.
+ *   • `prefers-reduced-motion: reduce` freezes each blob at frame
+ *     0 — the texture survives, only the drift stops.
  */
 
 import { cn } from "@/lib/utils";
@@ -36,154 +34,157 @@ import { cn } from "@/lib/utils";
 export function DashboardAtmosphere() {
   return (
     <>
-      {/* Layer 1 — blueprint grid. Fixed position so it doesn't shift
-          on scroll which would ruin the "graph paper substrate"
-          illusion. */}
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none fixed inset-0 -z-[1]",
-          "atmosphere-grid",
-        )}
-      />
-
-      {/* Layer 2 — two orbiting halos. Wrapped in their own div so
-          we can rotate the wrapper rather than each gradient
-          (avoids subpixel artefacts on long-running animations). */}
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute inset-0 -z-[1]",
-          "overflow-hidden",
-        )}
-      >
-        <div className="atmosphere-halo atmosphere-halo-tl" />
-        <div className="atmosphere-halo atmosphere-halo-br" />
-      </div>
-
-      {/* Layer 3 — phosphor sweep. One slim horizontal band that
-          rises from below the viewport, peaks in the middle, and
-          fades into the top. */}
       <div
         aria-hidden
         className={cn(
           "pointer-events-none fixed inset-0 -z-[1]",
           "overflow-hidden",
+          "atmosphere-aurora",
         )}
       >
-        <div className="atmosphere-sweep" />
+        <div className="aurora-blob aurora-blob-a" />
+        <div className="aurora-blob aurora-blob-b" />
+        <div className="aurora-blob aurora-blob-c" />
+        <div className="aurora-vignette" />
       </div>
 
       <style>{`
-        /* === Blueprint grid ===
-           4 % opacity lime hairlines on a 48 px × 48 px grid. Two
-           perpendicular linear-gradients stacked do the job without
-           a SVG round-trip. */
-        .atmosphere-grid {
-          background-image:
-            linear-gradient(
-              to right,
-              rgba(74, 222, 128, 0.04) 1px,
-              transparent 1px
+        /* Surface tint behind the blobs — a subtle lime wash over
+           the base black so the aurora has something to "sit on"
+           even when the blobs drift to the corners. */
+        .atmosphere-aurora {
+          background:
+            radial-gradient(
+              ellipse 90% 70% at 50% 0%,
+              rgba(74, 222, 128, 0.04),
+              transparent 60%
             ),
-            linear-gradient(
-              to bottom,
-              rgba(74, 222, 128, 0.04) 1px,
-              transparent 1px
+            radial-gradient(
+              ellipse 70% 80% at 80% 100%,
+              rgba(74, 222, 128, 0.025),
+              transparent 60%
             );
-          background-size: 48px 48px;
-          mask-image: radial-gradient(
-            ellipse at 50% 40%,
-            black 35%,
-            transparent 80%
-          );
         }
 
-        /* === Orbiting halos ===
-           Each halo is a single radial gradient inside a wrapper
-           rotating around the centre. transform-origin set so the
-           gradient orbits roughly the viewport diagonal, never
-           crossing the centre (it would draw attention to the grid
-           middle which is where the widgets live). */
-        .atmosphere-halo {
+        .aurora-blob {
           position: absolute;
-          width: 80vw;
-          height: 80vw;
-          max-width: 1200px;
-          max-height: 1200px;
+          width: 65vw;
+          height: 65vw;
+          max-width: 1100px;
+          max-height: 1100px;
           border-radius: 50%;
-          filter: blur(80px);
-          opacity: 0.55;
-          will-change: transform;
+          filter: blur(110px);
+          mix-blend-mode: screen;
+          will-change: transform, opacity;
         }
-        .atmosphere-halo-tl {
-          top: -30vw;
-          left: -25vw;
+
+        /* Blob A — the brightest one. Wanders the upper-left
+           quadrant. Slowest of the three so the eye keeps
+           recognising it. */
+        .aurora-blob-a {
+          top: -10vh;
+          left: -10vw;
+          background: radial-gradient(
+            circle at center,
+            rgba(74, 222, 128, 0.30) 0%,
+            rgba(74, 222, 128, 0.10) 40%,
+            transparent 70%
+          );
+          opacity: 0.85;
+          animation: aurora-drift-a 62s ease-in-out infinite alternate;
+        }
+
+        /* Blob B — secondary. Mid-tone, anchors the bottom-right. */
+        .aurora-blob-b {
+          bottom: -15vh;
+          right: -15vw;
           background: radial-gradient(
             circle at center,
             rgba(74, 222, 128, 0.20) 0%,
-            rgba(74, 222, 128, 0.06) 45%,
+            rgba(74, 222, 128, 0.06) 40%,
             transparent 70%
           );
-          animation: halo-orbit-a 56s ease-in-out infinite alternate;
+          opacity: 0.8;
+          animation: aurora-drift-b 84s ease-in-out infinite alternate;
         }
-        .atmosphere-halo-br {
-          bottom: -35vw;
-          right: -30vw;
+
+        /* Blob C — accent. Cooler / deeper tone, drifts across the
+           middle band. The slight cyan-shift on this one (still in
+           the lime family but towards 140° hue) is the only place
+           we let the palette breathe. */
+        .aurora-blob-c {
+          top: 30vh;
+          left: 25vw;
           background: radial-gradient(
             circle at center,
-            rgba(74, 222, 128, 0.14) 0%,
-            rgba(74, 222, 128, 0.04) 40%,
-            transparent 70%
+            rgba(60, 200, 150, 0.18) 0%,
+            rgba(60, 200, 150, 0.05) 45%,
+            transparent 75%
           );
-          animation: halo-orbit-b 72s ease-in-out infinite alternate;
-        }
-        @keyframes halo-orbit-a {
-          0%   { transform: translate3d(0, 0, 0) scale(1); }
-          50%  { transform: translate3d(6vw, 4vw, 0) scale(1.08); }
-          100% { transform: translate3d(-3vw, 7vw, 0) scale(0.96); }
-        }
-        @keyframes halo-orbit-b {
-          0%   { transform: translate3d(0, 0, 0) scale(0.95); }
-          50%  { transform: translate3d(-5vw, -4vw, 0) scale(1.05); }
-          100% { transform: translate3d(4vw, -6vw, 0) scale(1.0); }
+          opacity: 0.7;
+          animation: aurora-drift-c 108s ease-in-out infinite alternate;
         }
 
-        /* === Phosphor sweep ===
-           A 1 px lime line + 60 px wide blurred bloom that travels
-           from below-viewport to above-viewport once per 22 s.
-           Opacity tapers at both ends so the entrance + exit feel
-           atmospheric, not scripted. */
-        .atmosphere-sweep {
+        /* Edge vignette — deepens the corners so the eye gravitates
+           toward the centre band where the bento sits. Static, no
+           animation. */
+        .aurora-vignette {
           position: absolute;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: rgba(74, 222, 128, 0.35);
-          box-shadow:
-            0 0 24px rgba(74, 222, 128, 0.25),
-            0 0 60px rgba(74, 222, 128, 0.15);
-          will-change: transform, opacity;
-          animation: phosphor-sweep 22s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-        }
-        @keyframes phosphor-sweep {
-          0%   { transform: translateY(110vh); opacity: 0; }
-          10%  { opacity: 0.6; }
-          50%  { transform: translateY(50vh); opacity: 0.5; }
-          90%  { opacity: 0.4; }
-          100% { transform: translateY(-10vh); opacity: 0; }
+          inset: 0;
+          background: radial-gradient(
+            ellipse 90% 90% at 50% 50%,
+            transparent 50%,
+            rgba(0, 0, 0, 0.35) 100%
+          );
+          mix-blend-mode: multiply;
         }
 
-        /* === Reduced motion ===
-           Freeze the orbit + sweep but keep the grid + halos so the
-           texture survives. */
-        @media (prefers-reduced-motion: reduce) {
-          .atmosphere-halo,
-          .atmosphere-sweep {
-            animation: none !important;
+        @keyframes aurora-drift-a {
+          0%   {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 0.85;
           }
-          .atmosphere-sweep {
-            display: none;
+          50%  {
+            transform: translate3d(15vw, 12vh, 0) scale(1.12);
+            opacity: 0.95;
+          }
+          100% {
+            transform: translate3d(-8vw, 22vh, 0) scale(0.92);
+            opacity: 0.75;
+          }
+        }
+        @keyframes aurora-drift-b {
+          0%   {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 0.8;
+          }
+          50%  {
+            transform: translate3d(-18vw, -10vh, 0) scale(0.9);
+            opacity: 0.7;
+          }
+          100% {
+            transform: translate3d(10vw, -18vh, 0) scale(1.08);
+            opacity: 0.85;
+          }
+        }
+        @keyframes aurora-drift-c {
+          0%   {
+            transform: translate3d(0, 0, 0) scale(0.95);
+            opacity: 0.65;
+          }
+          50%  {
+            transform: translate3d(20vw, -8vh, 0) scale(1.18);
+            opacity: 0.85;
+          }
+          100% {
+            transform: translate3d(-12vw, 14vh, 0) scale(1.0);
+            opacity: 0.7;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .aurora-blob {
+            animation: none !important;
           }
         }
       `}</style>

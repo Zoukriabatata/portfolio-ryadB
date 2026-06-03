@@ -114,7 +114,7 @@ export function DashboardShell({
 
   return (
     <div
-      className="h-full overflow-auto custom-scrollbar relative"
+      className="dashboard-scroll h-full overflow-auto relative"
       data-grain="on"
     >
       {/* Editorial Terminal atmosphere — blueprint grid + orbiting
