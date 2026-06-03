@@ -213,6 +213,33 @@
   }
 }
 
+/* === WATCHLIST TICK FLASH ===
+   A 480 ms ease-out backdrop wash fired each time the underlying
+   tick changes price. The featured ticker uses the same keyframes
+   on its <price> span; rows use it on the whole button. The lime
+   variant is the up-tick, bear is the down-tick. */
+@keyframes watchlist-flash-up {
+  0%   { background-color: rgba(74, 222, 128, 0.18); }
+  100% { background-color: rgba(74, 222, 128, 0); }
+}
+@keyframes watchlist-flash-down {
+  0%   { background-color: rgba(240, 79, 79, 0.18); }
+  100% { background-color: rgba(240, 79, 79, 0); }
+}
+.watchlist-flash-up {
+  animation: watchlist-flash-up 480ms ease-out;
+}
+.watchlist-flash-down {
+  animation: watchlist-flash-down 480ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watchlist-flash-up,
+  .watchlist-flash-down {
+    animation: none !important;
+  }
+}
+
 /* === DASHBOARD UTILITY CLASSES ===
    Drop-in replacements for `text-[8px]`-style arbitrary sizes. Keep
    the class names purposefully verbose so the search-and-replace

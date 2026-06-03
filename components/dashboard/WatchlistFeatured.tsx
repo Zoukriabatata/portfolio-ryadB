@@ -93,19 +93,37 @@ export function WatchlistFeatured({
       {/* Body — left: big serif price + change pill. right: sparkline. */}
       <div className="flex items-end justify-between gap-3 sm:gap-5">
         <div className="flex flex-col gap-1 min-w-0">
-          <span
-            className={cn(
-              "font-[var(--font-instrument-serif)]",
-              "leading-[0.95] tracking-tight",
-              "text-[40px] sm:text-[48px]",
+          {/* Live flash backdrop : sibling element that remounts each
+              tick to restart the keyframe animation. Sits one stacking
+              context below the price so it tints the area, not the
+              glyphs themselves. */}
+          <div className="relative inline-flex">
+            {tick?.direction && (
+              <span
+                key={tick.lastUpdated}
+                aria-hidden
+                className={cn(
+                  "absolute -inset-x-2 -inset-y-1 -z-[1] rounded-md pointer-events-none",
+                  tick.direction === "up"
+                    ? "watchlist-flash-up"
+                    : "watchlist-flash-down",
+                )}
+              />
             )}
-            style={{
-              color: "var(--text-primary)",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {formatPrice(tick?.price)}
-          </span>
+            <span
+              className={cn(
+                "font-[var(--font-instrument-serif)]",
+                "leading-[0.95] tracking-tight",
+                "text-[40px] sm:text-[48px]",
+              )}
+              style={{
+                color: "var(--text-primary)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {formatPrice(tick?.price)}
+            </span>
+          </div>
           <span
             className={cn(
               "font-[var(--font-jetbrains-mono)]",

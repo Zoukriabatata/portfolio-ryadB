@@ -55,6 +55,18 @@ export function WatchlistRow({
 
   const baseSymbol = label.split("/")[0];
 
+  // Live tick flash : a sibling absolute-positioned layer that
+  // mounts/remounts on each tick so the keyframe animation restarts.
+  // Keeping it OUT of the button itself preserves focus / hover
+  // state across price updates.
+  const tickKey = tick?.lastUpdated ?? 0;
+  const flashClass =
+    tick?.direction === "up"
+      ? "watchlist-flash-up"
+      : tick?.direction === "down"
+        ? "watchlist-flash-down"
+        : "";
+
   return (
     <button
       type="button"
@@ -66,7 +78,7 @@ export function WatchlistRow({
         }
       }}
       className={cn(
-        "group w-full text-left",
+        "group relative w-full text-left",
         "grid grid-cols-[64px_1fr_72px_72px] items-center gap-3",
         "py-1.5 px-2 -mx-2 rounded-md",
         "transition-[background,transform] duration-150",
@@ -75,6 +87,16 @@ export function WatchlistRow({
       )}
       aria-label={`Set ${label} as featured ticker`}
     >
+      {flashClass && (
+        <span
+          key={tickKey}
+          aria-hidden
+          className={cn(
+            "absolute inset-0 -z-[1] rounded-md pointer-events-none",
+            flashClass,
+          )}
+        />
+      )}
       {/* Symbol kicker */}
       <span
         className={cn(
