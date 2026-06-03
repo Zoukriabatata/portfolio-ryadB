@@ -1,22 +1,15 @@
 'use client';
 
 /**
- * Dashboard page — Phase 4 of the redesign.
+ * Dashboard page — final shell after Phase 5.
  *
- * Composition shell only. The bento layout lives in
- * `<DashboardShell>`; this file just sources data from
- * `@/hooks/dashboard`, plugs widgets into slots, and stitches the
- * dynamic AIChat FAB outside the grid.
- *
- * Slots marked `<WidgetPlaceholder>` are phase-5 work
- * (Watchlist, TodaysSignals, RecentActivity, AccountSummary). They
- * reserve their grid footprint so the bento doesn't reshuffle when
- * those land.
+ * Composition only. Layout lives in `<DashboardShell>`, widgets live
+ * in `@/components/dashboard`, data hooks in `@/hooks/dashboard`.
+ * This file is the wiring board.
  */
 
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import { Activity, History, Wallet } from 'lucide-react';
 
 import {
   useMarketTickers,
@@ -34,8 +27,10 @@ import {
   LiquidationsCompact,
   QuickLaunchGrid,
   DashboardShell,
-  WidgetPlaceholder,
   WatchlistCard,
+  TodaysSignals,
+  RecentActivity,
+  AccountSummary,
 } from '@/components/dashboard';
 
 const DashboardAIChat = dynamic(
@@ -64,32 +59,13 @@ export default function DashboardPage() {
         upgradeBanner={<UpgradeBanner />}
         watchlistSlot={<WatchlistCard />}
         marketPulseSlot={<MarketPulse tickers={tickers} />}
-        todaysSignalsSlot={
-          <WidgetPlaceholder
-            title="Today's Signals"
-            icon={<Activity size={14} />}
-            comingSoon="Economic calendar + earnings + expirations"
-          />
-        }
+        todaysSignalsSlot={<TodaysSignals />}
         fundingSlot={<FundingRatesCompact rates={fundingRates} />}
         openInterestSlot={<OpenInterestCard oi={oi} />}
         liquidationsSlot={<LiquidationsCompact liquidations={liquidations} />}
-        recentActivitySlot={
-          <WidgetPlaceholder
-            title="Recent Activity"
-            icon={<History size={14} />}
-            comingSoon="Your last 5 chart sessions"
-          />
-        }
+        recentActivitySlot={<RecentActivity />}
         quickLaunchSlot={<QuickLaunchGrid />}
-        accountSummarySlot={
-          <WidgetPlaceholder
-            title="Account"
-            icon={<Wallet size={14} />}
-            variant="compact"
-            comingSoon="Broker P&L summary — connect Rithmic in Settings"
-          />
-        }
+        accountSummarySlot={<AccountSummary />}
       />
       {/* AI chat FAB lives outside the grid so it stays anchored
           bottom-right across all routes. */}

@@ -29,3 +29,6 @@ export { WidgetPlaceholder } from "./WidgetPlaceholder";
 
 // Phase 5 widgets — editorial terminal aesthetic.
 export { WatchlistCard } from "./WatchlistCard";
+export { TodaysSignals } from "./TodaysSignals";
+export { RecentActivity } from "./RecentActivity";
+export { AccountSummary } from "./AccountSummary";
