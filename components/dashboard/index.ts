@@ -26,3 +26,6 @@ export { QuickLaunchGrid } from "./QuickLaunchGrid";
 export { DashboardShell } from "./DashboardShell";
 export type { DashboardShellProps } from "./DashboardShell";
 export { WidgetPlaceholder } from "./WidgetPlaceholder";
+
+// Phase 5 widgets — editorial terminal aesthetic.
+export { WatchlistCard } from "./WatchlistCard";

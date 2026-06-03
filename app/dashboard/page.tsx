@@ -16,7 +16,7 @@
 
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import { Activity, History, Star, Wallet } from 'lucide-react';
+import { Activity, History, Wallet } from 'lucide-react';
 
 import {
   useMarketTickers,
@@ -35,6 +35,7 @@ import {
   QuickLaunchGrid,
   DashboardShell,
   WidgetPlaceholder,
+  WatchlistCard,
 } from '@/components/dashboard';
 
 const DashboardAIChat = dynamic(
@@ -61,14 +62,7 @@ export default function DashboardPage() {
       <DashboardShell
         topBar={<TopBar userName={firstName} />}
         upgradeBanner={<UpgradeBanner />}
-        watchlistSlot={
-          <WidgetPlaceholder
-            title="Watchlist"
-            icon={<Star size={14} />}
-            variant="hero"
-            comingSoon="Watchlist with live sparklines"
-          />
-        }
+        watchlistSlot={<WatchlistCard />}
         marketPulseSlot={<MarketPulse tickers={tickers} />}
         todaysSignalsSlot={
           <WidgetPlaceholder
