@@ -12,6 +12,24 @@ import {
   ChevronDown, Flame,
 } from 'lucide-react';
 
+// Phase 2 of the dashboard redesign: data hooks now live in
+// hooks/dashboard/* so widgets can be split out one by one in
+// phases 3-5 without forking the data layer.
+import {
+  ALL_SYMBOLS,
+  DISPLAY_NAMES,
+  OI_SYMBOLS,
+  FUNDING_SYMBOLS_LIST,
+  useClock,
+  useMarketTickers,
+  useFundingRates,
+  useOpenInterest,
+  useLiquidations,
+  type TickerData,
+  type FundingData,
+  type LiquidationEvent,
+} from '@/hooks/dashboard';
+
 // ── Custom icons ────────────────────────────────────────────────────────────
 
 function IconLive({ size = 16 }: { size?: number }) {
@@ -108,50 +126,16 @@ function IconAI({ size = 16 }: { size?: number }) {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-interface TickerData {
-  symbol: string;
-  price: number;
-  changePercent: number;
-  quoteVolume24h: number;
-}
-
+// Display-only enrichment of TickerData with rank + maxVol used by
+// the TopMovers widget. Kept here (not in hooks/dashboard/types.ts)
+// because it's purely a presentation concern.
 interface MoverRow extends TickerData {
   rank: number;
   maxVol: number;
 }
 
-interface FundingData {
-  symbol: string;
-  fundingRate: number;
-  nextFundingTime: number;
-}
-
-interface LiquidationEvent {
-  id: string;
-  symbol: string;
-  side: 'LONG' | 'SHORT';
-  valueUSD: number;
-  price: number;
-  time: number;
-}
-
-// ── Constants ───────────────────────────────────────────────────────────────
-
-const ALL_SYMBOLS = [
-  'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT',
-  'AVAXUSDT', 'ADAUSDT', 'DOTUSDT', 'LINKUSDT', 'NEARUSDT', 'ATOMUSDT',
-  'UNIUSDT', 'APTUSDT', 'ARBUSDT', 'OPUSDT', 'SUIUSDT', 'INJUSDT',
-  'PEPEUSDT', 'WIFUSDT', 'FETUSDT', 'LTCUSDT', 'TRXUSDT', 'MATICUSDT',
-];
-
-const DISPLAY_NAMES: Record<string, string> = {
-  BTCUSDT: 'BTC', ETHUSDT: 'ETH', SOLUSDT: 'SOL', BNBUSDT: 'BNB',
-  XRPUSDT: 'XRP', DOGEUSDT: 'DOGE', AVAXUSDT: 'AVAX', ADAUSDT: 'ADA',
-  DOTUSDT: 'DOT', LINKUSDT: 'LINK', NEARUSDT: 'NEAR', ATOMUSDT: 'ATOM',
-  UNIUSDT: 'UNI', APTUSDT: 'APT', ARBUSDT: 'ARB', OPUSDT: 'OP',
-  SUIUSDT: 'SUI', INJUSDT: 'INJ', PEPEUSDT: 'PEPE', WIFUSDT: 'WIF',
-  FETUSDT: 'FET', LTCUSDT: 'LTC', TRXUSDT: 'TRX', MATICUSDT: 'MATIC',
-};
+// Constants (ALL_SYMBOLS, DISPLAY_NAMES, OI_SYMBOLS,
+// FUNDING_SYMBOLS_LIST) are imported from `@/hooks/dashboard`.
 
 const NEWS_ITEMS = [
   {
@@ -228,12 +212,7 @@ const QUICK_LAUNCH = [
   { href: '/ai',         label: 'AI',         desc: 'Assistant',    shortcut: '',  Icon: IconAI         },
 ];
 
-const OI_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT'] as const;
-
-const FUNDING_SYMBOLS_LIST = [
-  'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT',
-  'XRPUSDT', 'AVAXUSDT', 'LINKUSDT', 'ARBUSDT', 'APTUSDT', 'OPUSDT',
-];
+// OI_SYMBOLS + FUNDING_SYMBOLS_LIST imported from @/hooks/dashboard.
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 
@@ -256,174 +235,10 @@ function fmtPercent(pct: number): string {
 }
 
 // ── Hooks ───────────────────────────────────────────────────────────────────
-
-function useClock() {
-  const [time, setTime] = useState('');
-  const [greeting, setGreeting] = useState('');
-
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const h = now.getHours();
-      setGreeting(h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
-      setTime(
-        now.toLocaleTimeString('en-US', {
-          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-        })
-      );
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  return { time, greeting };
-}
-
-function useMarketTickers() {
-  const [tickers, setTickers] = useState<TickerData[]>([]);
-  const [lastFetch, setLastFetch] = useState(0);
-
-  const fetchData = useCallback(async () => {
-    try {
-      const symbolsParam = '[' + ALL_SYMBOLS.map(s => `"${s}"`).join(',') + ']';
-      const res = await fetch(
-        `https://fapi.binance.com/fapi/v1/ticker/24hr?symbols=${encodeURIComponent(symbolsParam)}`
-      );
-      if (!res.ok) return;
-      const raw = await res.json() as Array<{
-        symbol: string;
-        lastPrice: string;
-        priceChangePercent: string;
-        quoteVolume: string;
-      }>;
-
-      const mapped: TickerData[] = raw.map(t => ({
-        symbol: t.symbol,
-        price: parseFloat(t.lastPrice),
-        changePercent: parseFloat(t.priceChangePercent),
-        quoteVolume24h: parseFloat(t.quoteVolume),
-      }));
-
-      setTickers(mapped);
-      setLastFetch(Date.now());
-    } catch {
-      // network error — keep previous data
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    const id = setInterval(fetchData, 5000);
-    return () => clearInterval(id);
-  }, [fetchData]);
-
-  return { tickers, lastFetch };
-}
-
-function useFundingRates() {
-  const [rates, setRates] = useState<FundingData[]>([]);
-
-  const fetchRates = useCallback(async () => {
-    try {
-      const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
-      if (!res.ok) return;
-      const raw = await res.json() as Array<{
-        symbol: string; lastFundingRate: string; nextFundingTime: number;
-      }>;
-      const filtered = raw
-        .filter(r => FUNDING_SYMBOLS_LIST.includes(r.symbol))
-        .map(r => ({
-          symbol: r.symbol,
-          fundingRate: parseFloat(r.lastFundingRate) * 100,
-          nextFundingTime: r.nextFundingTime,
-        }))
-        .sort((a, b) => FUNDING_SYMBOLS_LIST.indexOf(a.symbol) - FUNDING_SYMBOLS_LIST.indexOf(b.symbol));
-      setRates(filtered);
-    } catch { /* network */ }
-  }, []);
-
-  useEffect(() => {
-    fetchRates();
-    const id = setInterval(fetchRates, 30_000);
-    return () => clearInterval(id);
-  }, [fetchRates]);
-
-  return rates;
-}
-
-function useOpenInterest() {
-  const [oi, setOi] = useState<Record<string, { current: number; prev: number }>>({});
-
-  const fetchOI = useCallback(async () => {
-    try {
-      const results = await Promise.all(
-        OI_SYMBOLS.map(sym =>
-          fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${sym}`)
-            .then(r => r.json())
-            .then((d: { symbol: string; openInterest: string }) => ({
-              symbol: d.symbol,
-              openInterest: parseFloat(d.openInterest),
-            }))
-            .catch(() => null)
-        )
-      );
-      setOi(prev => {
-        const next = { ...prev };
-        results.forEach(r => {
-          if (!r) return;
-          next[r.symbol] = {
-            current: r.openInterest,
-            prev: prev[r.symbol]?.current ?? r.openInterest,
-          };
-        });
-        return next;
-      });
-    } catch { /* network */ }
-  }, []);
-
-  useEffect(() => {
-    fetchOI();
-    const id = setInterval(fetchOI, 30_000);
-    return () => clearInterval(id);
-  }, [fetchOI]);
-
-  return oi;
-}
-
-function useLiquidations() {
-  const [liquidations, setLiquidations] = useState<LiquidationEvent[]>([]);
-  const counterRef = useRef(0);
-
-  useEffect(() => {
-    const ws = new WebSocket('wss://fstream.binance.com/ws/!forceOrder@arr');
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data as string) as { o: {
-          s: string; S: string; ap: string; p: string; q: string; T: number;
-        } };
-        const o = msg.o;
-        if (!o) return;
-        const price = parseFloat(o.ap || o.p);
-        const qty = parseFloat(o.q);
-        const valueUSD = price * qty;
-        if (valueUSD < 10_000) return;
-        const liq: LiquidationEvent = {
-          id: String(++counterRef.current),
-          symbol: o.s,
-          side: o.S === 'SELL' ? 'LONG' : 'SHORT',
-          valueUSD,
-          price,
-          time: o.T || Date.now(),
-        };
-        setLiquidations(prev => [liq, ...prev.slice(0, 24)]);
-      } catch { /* parse error */ }
-    };
-    return () => ws.close();
-  }, []);
-
-  return liquidations;
-}
+// useClock, useMarketTickers, useFundingRates, useOpenInterest,
+// useLiquidations all moved to hooks/dashboard/* in phase 2.
+// The remaining inline hooks below drive widgets that get deleted in
+// phase 3 (FearGreed, Discord). They stay here until that phase.
 
 function useFearGreed() {
   const [data, setData] = useState<{ value: number; classification: string } | null>(null);
