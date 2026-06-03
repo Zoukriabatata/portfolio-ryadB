@@ -21,3 +21,8 @@ export { FundingRatesCompact } from "./FundingRatesCompact";
 export { OpenInterestCard } from "./OpenInterestCard";
 export { LiquidationsCompact } from "./LiquidationsCompact";
 export { QuickLaunchGrid } from "./QuickLaunchGrid";
+
+// Phase 4 layout + Phase-5 placeholder.
+export { DashboardShell } from "./DashboardShell";
+export type { DashboardShellProps } from "./DashboardShell";
+export { WidgetPlaceholder } from "./WidgetPlaceholder";

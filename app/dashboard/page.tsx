@@ -1,24 +1,22 @@
 'use client';
 
 /**
- * Dashboard page — Phase 3 of the redesign.
+ * Dashboard page — Phase 4 of the redesign.
  *
- * The page is now a thin composition shell:
- *   - data hooks live in `@/hooks/dashboard` (phase 2)
- *   - widget components live in `@/components/dashboard` (phase 3)
- *   - this file only mounts them and feeds props.
+ * Composition shell only. The bento layout lives in
+ * `<DashboardShell>`; this file just sources data from
+ * `@/hooks/dashboard`, plugs widgets into slots, and stitches the
+ * dynamic AIChat FAB outside the grid.
  *
- * The bento layout itself is *intentionally* still the legacy 1-col /
- * 3-col stack — phase 4 will replace it with a proper bento grid.
- * Keeping the layout untouched here keeps phase 3 a pure structural
- * move with zero visual regression risk.
- *
- * Removed in phase 3: NewsFeed, CommunityFeed (+ Discord hook),
- * FearGreedWidget, HeroBar, PriceChip, TopMovers, MarketStatsCard.
+ * Slots marked `<WidgetPlaceholder>` are phase-5 work
+ * (Watchlist, TodaysSignals, RecentActivity, AccountSummary). They
+ * reserve their grid footprint so the bento doesn't reshuffle when
+ * those land.
  */
 
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
+import { Activity, History, Star, Wallet } from 'lucide-react';
 
 import {
   useMarketTickers,
@@ -35,6 +33,8 @@ import {
   OpenInterestCard,
   LiquidationsCompact,
   QuickLaunchGrid,
+  DashboardShell,
+  WidgetPlaceholder,
 } from '@/components/dashboard';
 
 const DashboardAIChat = dynamic(
@@ -56,30 +56,50 @@ export default function DashboardPage() {
   const firstName = session?.user?.name?.split(' ')[0];
 
   return (
-    <div className="h-full overflow-auto custom-scrollbar">
+    <>
       <WelcomeModal />
-      <div className="max-w-[1400px] mx-auto px-3 py-3 space-y-3 animate-fadeIn">
-        <UpgradeBanner />
-
-        <TopBar userName={firstName} />
-
-        {/* Phase 4 will replace this stack with the bento grid. */}
-        <div className="grid lg:grid-cols-3 gap-3" style={{ alignItems: 'stretch' }}>
-          <div className="lg:col-span-2">
-            <MarketPulse tickers={tickers} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FundingRatesCompact rates={fundingRates} />
-            <OpenInterestCard oi={oi} />
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-3" style={{ alignItems: 'stretch' }}>
-          <LiquidationsCompact liquidations={liquidations} />
-          <QuickLaunchGrid />
-          <DashboardAIChat />
-        </div>
-      </div>
-    </div>
+      <DashboardShell
+        topBar={<TopBar userName={firstName} />}
+        upgradeBanner={<UpgradeBanner />}
+        watchlistSlot={
+          <WidgetPlaceholder
+            title="Watchlist"
+            icon={<Star size={14} />}
+            variant="hero"
+            comingSoon="Watchlist with live sparklines"
+          />
+        }
+        marketPulseSlot={<MarketPulse tickers={tickers} />}
+        todaysSignalsSlot={
+          <WidgetPlaceholder
+            title="Today's Signals"
+            icon={<Activity size={14} />}
+            comingSoon="Economic calendar + earnings + expirations"
+          />
+        }
+        fundingSlot={<FundingRatesCompact rates={fundingRates} />}
+        openInterestSlot={<OpenInterestCard oi={oi} />}
+        liquidationsSlot={<LiquidationsCompact liquidations={liquidations} />}
+        recentActivitySlot={
+          <WidgetPlaceholder
+            title="Recent Activity"
+            icon={<History size={14} />}
+            comingSoon="Your last 5 chart sessions"
+          />
+        }
+        quickLaunchSlot={<QuickLaunchGrid />}
+        accountSummarySlot={
+          <WidgetPlaceholder
+            title="Account"
+            icon={<Wallet size={14} />}
+            variant="compact"
+            comingSoon="Broker P&L summary — connect Rithmic in Settings"
+          />
+        }
+      />
+      {/* AI chat FAB lives outside the grid so it stays anchored
+          bottom-right across all routes. */}
+      <DashboardAIChat />
+    </>
   );
 }
