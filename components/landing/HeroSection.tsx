@@ -148,10 +148,19 @@ export default function HeroSection() {
               fontFamily: 'var(--font-jetbrains-mono)',
               fontWeight: 500,
               color: 'var(--text-primary)',
-              textRendering: 'geometricPrecision',
-              WebkitFontSmoothing: 'antialiased',
-              MozOsxFontSmoothing: 'grayscale',
-              textShadow: '0 2px 24px rgba(0,0,0,0.65)',
+              // Crispness pass — Windows Chrome renders subpixel-AA
+              // sharper than grayscale-AA on dark backgrounds for
+              // headline-sized type. text-rendering left at the
+              // browser default since `optimizeLegibility` /
+              // `geometricPrecision` can both add light blur at
+              // huge sizes.
+              WebkitFontSmoothing: 'subpixel-antialiased',
+              MozOsxFontSmoothing: 'auto',
+              // No text-shadow : even a soft one (0 2px 24px) bleeds
+              // visible alpha around glyph edges and reads as
+              // pixelation on a noisy background. Atmospheric
+              // separation from the starfield handled by StellarCore
+              // mask alone.
             }}
           >
             <span

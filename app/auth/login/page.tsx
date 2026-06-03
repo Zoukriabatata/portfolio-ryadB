@@ -152,7 +152,11 @@ function BrandPanel() {
             color: 'var(--text-primary)',
             letterSpacing: '-0.04em',
             textTransform: 'uppercase',
-            textShadow: '0 2px 24px rgba(0,0,0,0.6)',
+            // Crispness pass — drop text-shadow (bleeds glyph edges
+            // and reads as pixelation), force subpixel-AA which is
+            // sharper on dark Windows Chrome at headline sizes.
+            WebkitFontSmoothing: 'subpixel-antialiased',
+            MozOsxFontSmoothing: 'auto',
           }}
         >
           <AnimatedChars text="Welcome" baseDelay={220} charDelay={36} />

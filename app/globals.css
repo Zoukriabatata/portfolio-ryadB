@@ -232,20 +232,23 @@
 }
 
 /* === CHAR-IN — per-character entrance ===
-   Each glyph fades in, lifts from translateY(14px), and sharpens
-   from blur(4px) to blur(0). Used on hero / login big headlines via
-   the <AnimatedChars> helper which wraps each character in an
-   inline-block span and applies a staggered animation-delay. */
+   Each glyph fades in and lifts from translateY(14px). Animation is
+   pure opacity + transform so the element stays on the GPU compositor
+   and the underlying text glyphs are rendered crisp from font outlines
+   instead of rasterised to a bitmap.
+
+   We deliberately do NOT use `filter` (blur, brightness, etc.) here —
+   any filter declaration on a text element forces Chrome to render
+   the element as a bitmap layer, which destroys sub-pixel rendering
+   on large headlines and reads as "pixelated". */
 @keyframes charIn {
   from {
     opacity: 0;
     transform: translateY(14px);
-    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    filter: blur(0);
   }
 }
 
