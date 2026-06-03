@@ -99,41 +99,54 @@ export default function HeroSection() {
     <section id="hero" className="relative min-h-dvh flex items-center justify-center px-6 overflow-hidden">
       <div className="relative z-10 max-w-3xl mx-auto text-center pt-16">
 
-        {/* Badge */}
+        {/* Badge — JetBrains Mono uppercase kicker. Replaces the
+            backdrop-blur pill that read as a notification. */}
         <div
-          className="inline-flex items-center gap-2.5 mb-10 px-4 py-1.5 rounded-full text-[11px] tracking-widest uppercase"
+          className="inline-flex items-center gap-2.5 mb-10 px-4 py-1.5 rounded-full"
           style={{
-            color: 'rgb(var(--primary-light-rgb) / 0.8)',
-            border: '1px solid rgb(var(--primary-rgb) / 0.15)',
-            background: 'rgb(var(--primary-rgb) / 0.04)',
-            backdropFilter: 'blur(8px)',
+            color: 'var(--primary)',
+            border: '1px solid var(--border-glow)',
+            background: 'rgba(74, 222, 128, 0.04)',
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: 'var(--text-xs)',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
             animation: 'fadeInDown 0.7s ease-out forwards',
             opacity: 0,
           }}
         >
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary-light)' }} />
-          Public preview — Free PRO access until 17 June 2026
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{
+              backgroundColor: 'var(--primary)',
+              boxShadow: '0 0 8px rgba(74, 222, 128, 0.55)',
+              animation: 'pulse 1.6s ease-in-out infinite',
+            }}
+          />
+          Public preview · Free PRO until 17 June 2026
         </div>
 
-        {/* Title — slideInUp has no opacity transition, h1 is immediately visible for LCP */}
+        {/* Title — Editorial Terminal voice. Instrument Serif italic
+            "Professional" kicks the magazine feel, Geist Sans black
+            "Order Flow" anchors as the product wordmark. No rainbow
+            gradient, no neon glow drop-shadow — the lime accent
+            lives in the badge, the ribbon, and the CTA. */}
         <div style={{ animation: 'slideInUp 0.5s ease-out forwards' }}>
-          <h1 className="font-black tracking-tight leading-[1.05]">
-            <span className="block text-4xl md:text-6xl lg:text-7xl text-white/90">
+          <h1 className="leading-[1.02]">
+            <span
+              className="block text-3xl md:text-5xl lg:text-6xl italic"
+              style={{
+                fontFamily: 'var(--font-instrument-serif)',
+                color: 'var(--text-secondary)',
+                fontWeight: 400,
+              }}
+            >
               Professional
             </span>
             <span
-              className="block text-5xl md:text-7xl lg:text-8xl mt-1"
+              className="block text-5xl md:text-7xl lg:text-[112px] mt-1 font-black tracking-tight"
               style={{
-                background: 'linear-gradient(135deg, var(--primary-light), var(--primary), var(--primary-dark), var(--primary-light))',
-                backgroundSize: '200% 100%',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                animation: 'gradientShift 4s ease infinite',
-                /* Softened from 0.25 → 0.15: at 30px blur the glow was
-                   borderline neon and clashed with the rest of the
-                   primary palette which sits at ~0.15 across the page
-                   (button shadows, card borders, etc.). */
-                filter: 'drop-shadow(0 0 30px rgb(var(--primary-rgb) / 0.15))',
+                color: 'var(--text-primary)',
               }}
             >
               Order Flow
