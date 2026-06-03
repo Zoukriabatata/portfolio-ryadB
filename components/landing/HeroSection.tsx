@@ -126,11 +126,11 @@ export default function HeroSection() {
           Public preview · Free PRO until 17 June 2026
         </div>
 
-        {/* Title — Editorial Terminal voice. Instrument Serif italic
-            "Professional" kicks the magazine feel, Geist Sans black
-            "Order Flow" anchors as the product wordmark. No rainbow
-            gradient, no neon glow drop-shadow — the lime accent
-            lives in the badge, the ribbon, and the CTA. */}
+        {/* Title — Editorial Terminal voice. "Native" replaces
+            "Professional" : the real differentiator vs other
+            footprint tools is that we render natively from the
+            NinjaTrader data feed rather than wrapping it. Trader-
+            coded kicker, hard product wordmark below. */}
         <div style={{ animation: 'slideInUp 0.5s ease-out forwards' }}>
           <h1 className="leading-[1.02]">
             <span
@@ -141,7 +141,7 @@ export default function HeroSection() {
                 fontWeight: 400,
               }}
             >
-              Professional
+              Native
             </span>
             <span
               className="block text-5xl md:text-7xl lg:text-[112px] mt-1 font-black tracking-tight"
