@@ -140,21 +140,31 @@ export default function HeroSection() {
             NinjaTrader data feed rather than wrapping it. Trader-
             coded kicker, hard product wordmark below. */}
         <div style={{ animation: 'slideInUp 0.5s ease-out forwards' }}>
-          <h1 className="leading-[1.02]">
+          <h1
+            className="leading-[0.98]"
+            style={{
+              fontFamily: 'var(--font-instrument-serif)',
+              fontWeight: 400,
+              textRendering: 'geometricPrecision',
+              WebkitFontSmoothing: 'antialiased',
+              MozOsxFontSmoothing: 'grayscale',
+            }}
+          >
             <span
-              className="block text-3xl md:text-5xl lg:text-6xl italic"
+              className="block text-3xl md:text-5xl lg:text-[64px] italic"
               style={{
-                fontFamily: 'var(--font-instrument-serif)',
                 color: 'var(--text-secondary)',
-                fontWeight: 400,
+                letterSpacing: '-0.01em',
               }}
             >
               Native
             </span>
             <span
-              className="block text-5xl md:text-7xl lg:text-[112px] mt-1 font-black tracking-tight"
+              className="block text-6xl md:text-8xl lg:text-[136px] mt-2"
               style={{
                 color: 'var(--text-primary)',
+                letterSpacing: '-0.035em',
+                textShadow: '0 2px 24px rgba(0,0,0,0.6)',
               }}
             >
               Order Flow
