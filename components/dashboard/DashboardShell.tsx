@@ -21,6 +21,8 @@ import { useEffect } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { DashboardAtmosphere } from "./DashboardAtmosphere";
+
 export interface DashboardShellProps {
   topBar: ReactNode;
   upgradeBanner?: ReactNode;
@@ -112,9 +114,13 @@ export function DashboardShell({
 
   return (
     <div
-      className="h-full overflow-auto custom-scrollbar"
+      className="h-full overflow-auto custom-scrollbar relative"
       data-grain="on"
     >
+      {/* Editorial Terminal atmosphere — blueprint grid + orbiting
+          halos + slow phosphor sweep. Pure CSS, sits below z-index 1
+          so it never competes with content. */}
+      <DashboardAtmosphere />
       <div
         className={cn(
           "max-w-[1400px] mx-auto",

@@ -32,3 +32,6 @@ export { WatchlistCard } from "./WatchlistCard";
 export { TodaysSignals } from "./TodaysSignals";
 export { RecentActivity } from "./RecentActivity";
 export { AccountSummary } from "./AccountSummary";
+
+// Phase 6 polish — animated atmosphere.
+export { DashboardAtmosphere } from "./DashboardAtmosphere";
