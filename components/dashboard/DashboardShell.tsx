@@ -115,7 +115,6 @@ export function DashboardShell({
   return (
     <div
       className="dashboard-scroll h-full overflow-auto relative"
-      data-grain="on"
     >
       {/* Editorial Terminal atmosphere — blueprint grid + orbiting
           halos + slow phosphor sweep. Pure CSS, sits below z-index 1
@@ -126,6 +125,11 @@ export function DashboardShell({
           "max-w-[1400px] mx-auto",
           "px-3 sm:px-4 lg:px-5 py-3 sm:py-4",
           "flex flex-col gap-3 sm:gap-4",
+          // min-h-full so the page never shows a bare scroll-area
+          // gap below the last card — the Architectural Depth
+          // gradient stays visible behind any leftover space
+          // instead of revealing a stark black band.
+          "min-h-full",
         )}
       >
         <div data-stagger-slot="0">{topBar}</div>

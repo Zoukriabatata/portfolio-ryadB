@@ -1,32 +1,27 @@
 "use client";
 
 /**
- * Editorial Terminal atmosphere — "Aurora signal."
+ * Editorial Terminal atmosphere — "Architectural Depth."
  *
- * Three soft lime gradient blobs drift across the viewport on
- * desynchronised long-loop animations. Reads as ambient light
- * breathing across the surface, never as a discrete effect. The
- * desync (62 s / 84 s / 108 s) means the composite movement never
- * resyncs — the user sees fluid organic motion instead of a tape
- * loop.
+ * The previous "Aurora" recipe (three drifting lime blobs +
+ * vignette + grain) read as "green dots / grain on dark" — the
+ * user reported it as visually noisy. This version commits to a
+ * radically calmer background :
  *
- * Replaces the previous "halos + blueprint grid + sweep" recipe :
- *   • the grid was too quiet to register at 4 % opacity through
- *     the grain overlay
- *   • the sweep ended up reading as a progress bar on slower polls
- *   • the halos were too symmetric to look alive
+ *   • A static three-stop vertical depth gradient. Slightly lighter
+ *     mid-band suggests a horizon line that the bento "sits on."
+ *   • A single very large soft halo behind the upper third —
+ *     barely-perceptible lime, exists only to keep the surface
+ *     alive without colouring it.
+ *   • One slow horizontal ribbon traverses the viewport every
+ *     38 seconds. Sub-1 px tall + 80 px blur means it reads as
+ *     ambient motion, never as a scanline.
  *
- * Implementation notes :
- *   • All three blobs sit on a single fixed-position layer so the
- *     paint cost stays predictable on long sessions (no scroll-
- *     bound layout invalidations).
- *   • `will-change: transform, opacity` lifts each blob to its
- *     own GPU layer so the 60 s+ animations don't cost CPU.
- *   • `mix-blend-mode: screen` lets the blobs reinforce each
- *     other where they overlap (organic specular highlight) and
- *     fade properly over the surface gradient otherwise.
- *   • `prefers-reduced-motion: reduce` freezes each blob at frame
- *     0 — the texture survives, only the drift stops.
+ * No grain, no multiple blobs, no vignette. The background is now
+ * structural, not decorative.
+ *
+ * Honours `prefers-reduced-motion: reduce` by killing the ribbon
+ * animation; the static depth gradient remains.
  */
 
 import { cn } from "@/lib/utils";
@@ -39,152 +34,85 @@ export function DashboardAtmosphere() {
         className={cn(
           "pointer-events-none fixed inset-0 -z-[1]",
           "overflow-hidden",
-          "atmosphere-aurora",
+          "atmosphere-depth",
         )}
       >
-        <div className="aurora-blob aurora-blob-a" />
-        <div className="aurora-blob aurora-blob-b" />
-        <div className="aurora-blob aurora-blob-c" />
-        <div className="aurora-vignette" />
+        <div className="atmosphere-halo" />
+        <div className="atmosphere-ribbon" />
       </div>
 
       <style>{`
-        /* Surface tint behind the blobs — a subtle lime wash over
-           the base black so the aurora has something to "sit on"
-           even when the blobs drift to the corners. */
-        .atmosphere-aurora {
+        /* Vertical depth gradient — top is deepest black, the
+           middle "horizon" is barely lifted toward warm charcoal,
+           bottom returns to near-black. The 3-stop ramp gives the
+           page a centre of gravity without a single accent colour. */
+        .atmosphere-depth {
           background:
-            radial-gradient(
-              ellipse 90% 70% at 50% 0%,
-              rgba(74, 222, 128, 0.04),
-              transparent 60%
-            ),
-            radial-gradient(
-              ellipse 70% 80% at 80% 100%,
-              rgba(74, 222, 128, 0.025),
-              transparent 60%
+            linear-gradient(
+              180deg,
+              #06060c 0%,
+              #0a0a12 38%,
+              #0c0d16 50%,
+              #08080f 78%,
+              #050509 100%
             );
         }
 
-        .aurora-blob {
+        /* Soft architectural halo anchored to the upper third. Very
+           low alpha, very large radius — keeps the surface "lit"
+           without colouring the cards in front of it. The halo is
+           static; the only motion comes from the ribbon below. */
+        .atmosphere-halo {
           position: absolute;
-          width: 65vw;
-          height: 65vw;
-          max-width: 1100px;
-          max-height: 1100px;
-          border-radius: 50%;
-          filter: blur(110px);
-          mix-blend-mode: screen;
+          top: -20vh;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 120vw;
+          max-width: 1600px;
+          height: 70vh;
+          background: radial-gradient(
+            ellipse 60% 100% at 50% 30%,
+            rgba(74, 222, 128, 0.05) 0%,
+            rgba(74, 222, 128, 0.02) 35%,
+            transparent 65%
+          );
+          filter: blur(40px);
+        }
+
+        /* A 1 px lime hairline + 80 px wide bloom that travels from
+           left to right once per 38 s. Opacity tapers at both ends
+           so the cross feels atmospheric, not scripted. The line
+           sits at ~62 % of the viewport height so the bento bottom
+           rows pick up the most of the bloom — that's where the eye
+           naturally lingers on a dashboard. */
+        .atmosphere-ribbon {
+          position: absolute;
+          top: 62%;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background: rgba(74, 222, 128, 0.45);
+          box-shadow:
+            0 0 32px rgba(74, 222, 128, 0.30),
+            0 0 80px rgba(74, 222, 128, 0.15);
+          opacity: 0;
+          transform: translateX(-110%);
+          animation: ribbon-traverse 38s linear infinite;
           will-change: transform, opacity;
         }
 
-        /* Blob A — the brightest one. Wanders the upper-left
-           quadrant. Slowest of the three so the eye keeps
-           recognising it. */
-        .aurora-blob-a {
-          top: -10vh;
-          left: -10vw;
-          background: radial-gradient(
-            circle at center,
-            rgba(74, 222, 128, 0.30) 0%,
-            rgba(74, 222, 128, 0.10) 40%,
-            transparent 70%
-          );
-          opacity: 0.85;
-          animation: aurora-drift-a 62s ease-in-out infinite alternate;
-        }
-
-        /* Blob B — secondary. Mid-tone, anchors the bottom-right. */
-        .aurora-blob-b {
-          bottom: -15vh;
-          right: -15vw;
-          background: radial-gradient(
-            circle at center,
-            rgba(74, 222, 128, 0.20) 0%,
-            rgba(74, 222, 128, 0.06) 40%,
-            transparent 70%
-          );
-          opacity: 0.8;
-          animation: aurora-drift-b 84s ease-in-out infinite alternate;
-        }
-
-        /* Blob C — accent. Cooler / deeper tone, drifts across the
-           middle band. The slight cyan-shift on this one (still in
-           the lime family but towards 140° hue) is the only place
-           we let the palette breathe. */
-        .aurora-blob-c {
-          top: 30vh;
-          left: 25vw;
-          background: radial-gradient(
-            circle at center,
-            rgba(60, 200, 150, 0.18) 0%,
-            rgba(60, 200, 150, 0.05) 45%,
-            transparent 75%
-          );
-          opacity: 0.7;
-          animation: aurora-drift-c 108s ease-in-out infinite alternate;
-        }
-
-        /* Edge vignette — deepens the corners so the eye gravitates
-           toward the centre band where the bento sits. Static, no
-           animation. */
-        .aurora-vignette {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(
-            ellipse 90% 90% at 50% 50%,
-            transparent 50%,
-            rgba(0, 0, 0, 0.35) 100%
-          );
-          mix-blend-mode: multiply;
-        }
-
-        @keyframes aurora-drift-a {
-          0%   {
-            transform: translate3d(0, 0, 0) scale(1);
-            opacity: 0.85;
-          }
-          50%  {
-            transform: translate3d(15vw, 12vh, 0) scale(1.12);
-            opacity: 0.95;
-          }
-          100% {
-            transform: translate3d(-8vw, 22vh, 0) scale(0.92);
-            opacity: 0.75;
-          }
-        }
-        @keyframes aurora-drift-b {
-          0%   {
-            transform: translate3d(0, 0, 0) scale(1);
-            opacity: 0.8;
-          }
-          50%  {
-            transform: translate3d(-18vw, -10vh, 0) scale(0.9);
-            opacity: 0.7;
-          }
-          100% {
-            transform: translate3d(10vw, -18vh, 0) scale(1.08);
-            opacity: 0.85;
-          }
-        }
-        @keyframes aurora-drift-c {
-          0%   {
-            transform: translate3d(0, 0, 0) scale(0.95);
-            opacity: 0.65;
-          }
-          50%  {
-            transform: translate3d(20vw, -8vh, 0) scale(1.18);
-            opacity: 0.85;
-          }
-          100% {
-            transform: translate3d(-12vw, 14vh, 0) scale(1.0);
-            opacity: 0.7;
-          }
+        @keyframes ribbon-traverse {
+          0%   { transform: translateX(-110%); opacity: 0; }
+          12%  { opacity: 0.55; }
+          50%  { opacity: 0.45; }
+          88%  { opacity: 0.35; }
+          100% { transform: translateX(110%); opacity: 0; }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .aurora-blob {
+          .atmosphere-ribbon {
             animation: none !important;
+            display: none;
           }
         }
       `}</style>
