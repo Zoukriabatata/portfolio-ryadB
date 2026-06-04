@@ -71,14 +71,100 @@ const content = {
         body: (
           <>
             <p className="text-zinc-400 leading-relaxed">
-              L&apos;abonnement est mensuel et facturable via PayPal. Le paiement est dû au début de chaque période.
+              L&apos;abonnement est mensuel et facturable via Stripe. Le paiement est dû au début de chaque période.
               L&apos;accès au logiciel est activé après réception et confirmation du paiement.
+              Le prix affiché inclut la TVA applicable selon le pays de facturation de l&apos;utilisateur,
+              calculée automatiquement par Stripe Tax.
             </p>
             <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
-              <li>Paiement mensuel par PayPal</li>
-              <li>Pas de remboursement une fois la période entamée</li>
-              <li>L&apos;abonnement ne couvre QUE le logiciel, pas les données de marché</li>
+              <li>Paiement mensuel par Stripe (carte bancaire)</li>
+              <li>Période d&apos;essai gratuite de 14 jours pour les nouveaux comptes</li>
+              <li>Résiliation à tout moment depuis l&apos;onglet « Account » du logiciel ou via le portail Stripe</li>
+              <li>L&apos;abonnement ne couvre QUE le logiciel, pas les données de marché (l&apos;utilisateur doit avoir son propre abonnement broker / data feed)</li>
             </ul>
+          </>
+        ),
+      },
+      {
+        title: '4 bis. Droit de rétractation',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              Conformément à l&apos;article L221-28-13° du Code de la consommation,
+              le droit de rétractation de 14 jours ne s&apos;applique <strong className="text-white">pas</strong>{' '}
+              aux services numériques dont l&apos;exécution a commencé avec l&apos;accord
+              préalable et exprès du consommateur, qui a expressément renoncé à son
+              droit de rétractation.
+            </p>
+            <p className="text-zinc-400 mt-2">
+              En cochant la case <em>« J&apos;accepte les conditions générales d&apos;utilisation »</em>{' '}
+              lors de la création du compte, et en confirmant le paiement de l&apos;abonnement,
+              l&apos;utilisateur :
+            </p>
+            <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
+              <li>demande l&apos;exécution immédiate du service numérique ;</li>
+              <li>reconnaît avoir été informé de la perte de son droit de rétractation
+                  dès l&apos;activation de l&apos;accès au logiciel.</li>
+            </ul>
+            <p className="text-zinc-400 mt-2">
+              Cette renonciation ne s&apos;applique <strong className="text-white">pas</strong>{' '}
+              à la période d&apos;essai gratuit de 14 jours : pendant cette période,
+              l&apos;utilisateur peut résilier sans frais et sans justification.
+              Le premier prélèvement n&apos;intervient qu&apos;à l&apos;issue de cette période.
+            </p>
+          </>
+        ),
+      },
+      {
+        title: '4 ter. Modalités de résiliation',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              L&apos;abonnement peut être résilié à tout moment, conformément à
+              l&apos;article L215-1 du Code de la consommation (loi du 1er juin 2023
+              sur la résiliation en trois clics) :
+            </p>
+            <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
+              <li><strong className="text-white">Depuis le logiciel</strong> : onglet « Account » → « Cancel subscription » (accès direct au portail Stripe).</li>
+              <li><strong className="text-white">Depuis le site web</strong> : <a href="/account/billing/cancel" className="text-green-400 underline">orderflow-v2.vercel.app/account/billing/cancel</a>.</li>
+              <li><strong className="text-white">Par email</strong> : ryad.bouderga78@gmail.com avec mention « Résiliation [email du compte] ».</li>
+            </ul>
+            <p className="text-zinc-400 mt-2">
+              La résiliation prend effet immédiatement. L&apos;accès au logiciel reste
+              ouvert jusqu&apos;à la fin de la période de facturation déjà payée.
+              Aucun remboursement n&apos;est dû pour la période en cours (article L221-28 13°),
+              sauf en cas de défaut technique avéré de notre part.
+            </p>
+          </>
+        ),
+      },
+      {
+        title: '4 quater. Médiation et règlement des litiges',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              Conformément aux articles L611-1 et suivants du Code de la consommation,
+              en cas de litige non résolu après une réclamation écrite préalable
+              auprès de SENZOUKRIA (par email à ryad.bouderga78@gmail.com),
+              l&apos;utilisateur consommateur peut recourir gratuitement au service
+              de médiation suivant :
+            </p>
+            <p className="text-zinc-400 mt-2 font-mono text-sm">
+              <strong className="text-white">Médiateur de la consommation</strong> :{' '}
+              <em>(à compléter par l&apos;éditeur — voir Centre de médiation
+              de la consommation des conciliateurs de justice : <a
+              href="https://cm2c.net" target="_blank" rel="noreferrer" className="text-green-400 underline">cm2c.net</a>)</em>
+            </p>
+            <p className="text-zinc-400 mt-2">
+              L&apos;utilisateur peut également saisir la plateforme européenne de
+              règlement en ligne des litiges :{' '}
+              <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noreferrer"
+                 className="text-green-400 underline">ec.europa.eu/consumers/odr</a>.
+            </p>
+            <p className="text-zinc-400 mt-2">
+              Tout litige relève à défaut des tribunaux français compétents,
+              conformément aux règles de compétence territoriale du droit français.
+            </p>
           </>
         ),
       },
@@ -199,14 +285,101 @@ const content = {
         body: (
           <>
             <p className="text-zinc-400 leading-relaxed">
-              The subscription is billed monthly via PayPal. Payment is due at the beginning of each billing period.
+              The subscription is billed monthly via Stripe. Payment is due at the beginning of each billing period.
               Access to the software is activated upon receipt and confirmation of payment.
+              Prices shown include applicable VAT/sales tax for the user&apos;s billing country,
+              automatically computed by Stripe Tax.
             </p>
             <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
-              <li>Monthly payment via PayPal</li>
-              <li>No refunds once a billing period has started</li>
-              <li>The subscription covers ONLY the software, not market data</li>
+              <li>Monthly payment via Stripe (credit/debit card)</li>
+              <li>14-day free trial for new accounts</li>
+              <li>Cancellation at any time from the &laquo; Account &raquo; tab in the desktop app or the Stripe portal</li>
+              <li>The subscription covers ONLY the software, not market data (the user must have their own broker / data-feed subscription)</li>
             </ul>
+          </>
+        ),
+      },
+      {
+        title: '4.1 Withdrawal Right (EU consumers)',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              Pursuant to Article L221-28 13° of the French Consumer Code
+              (transposing EU Directive 2011/83/EU), the 14-day withdrawal right
+              does <strong className="text-white">not</strong> apply to digital
+              services whose execution has begun with the consumer&apos;s prior
+              express consent and acknowledgment of the loss of the withdrawal
+              right.
+            </p>
+            <p className="text-zinc-400 mt-2">
+              By checking <em>&laquo; I accept the Terms of Service &raquo;</em> at
+              account creation and confirming the subscription payment, the user:
+            </p>
+            <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
+              <li>requests immediate execution of the digital service;</li>
+              <li>acknowledges the loss of the right of withdrawal upon
+                  activation of access to the software.</li>
+            </ul>
+            <p className="text-zinc-400 mt-2">
+              This waiver does <strong className="text-white">not</strong> apply
+              to the 14-day free trial period: during the trial the user can
+              cancel at any time without fee or justification, and the first
+              charge only occurs at the end of the trial period.
+            </p>
+          </>
+        ),
+      },
+      {
+        title: '4.2 Cancellation procedure',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              The subscription can be cancelled at any time, in compliance with
+              French Consumer Code Article L215-1 (the &laquo; three-click
+              cancellation &raquo; law of 1 June 2023):
+            </p>
+            <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
+              <li><strong className="text-white">From the desktop app</strong>: Account tab &rarr; &laquo; Cancel subscription &raquo; (direct link to the Stripe portal).</li>
+              <li><strong className="text-white">From the website</strong>: <a href="/account/billing/cancel" className="text-green-400 underline">orderflow-v2.vercel.app/account/billing/cancel</a>.</li>
+              <li><strong className="text-white">By email</strong>: ryad.bouderga78@gmail.com with subject &laquo; Cancellation [account email] &raquo;.</li>
+            </ul>
+            <p className="text-zinc-400 mt-2">
+              Cancellation takes effect immediately. Access to the software
+              remains open until the end of the already-paid billing period.
+              No refund is owed for the current period (Article L221-28 13°),
+              except in the case of a proven technical defect on our part.
+            </p>
+          </>
+        ),
+      },
+      {
+        title: '4.3 Mediation & dispute resolution',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              In accordance with Articles L611-1 et seq. of the French Consumer
+              Code, in case of a dispute that remains unresolved after a written
+              complaint to SENZOUKRIA (by email to ryad.bouderga78@gmail.com),
+              the consumer user may freely refer the matter to the following
+              mediation service:
+            </p>
+            <p className="text-zinc-400 mt-2 font-mono text-sm">
+              <strong className="text-white">Consumer mediator</strong>:{' '}
+              <em>(to be completed by the editor — see Centre de médiation de
+              la consommation des conciliateurs de justice: <a
+              href="https://cm2c.net" target="_blank" rel="noreferrer" className="text-green-400 underline">cm2c.net</a>)</em>
+            </p>
+            <p className="text-zinc-400 mt-2">
+              The user may also refer the dispute to the European Online Dispute
+              Resolution platform:{' '}
+              <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noreferrer"
+                 className="text-green-400 underline">ec.europa.eu/consumers/odr</a>.
+            </p>
+            <p className="text-zinc-400 mt-2">
+              Failing amicable resolution, any dispute falls under the
+              jurisdiction of the competent French courts, in accordance with
+              French rules on territorial jurisdiction.
+            </p>
           </>
         ),
       },
