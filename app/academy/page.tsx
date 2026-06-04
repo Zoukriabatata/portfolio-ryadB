@@ -476,7 +476,7 @@ export default function PdfResearchPage() {
       {/* ── Chiffres clés (teaser visible) ── */}
       <section className="space-y-6">
         <SectionTitle kicker="· Aperçu">Chiffres clés à retenir</SectionTitle>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="acad-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { stat: '17', label: 'Papers académiques analysés', src: '2012–2026' },
             { stat: '5', label: 'Outils couverts en détail', src: 'CVD, VP, Absorption, DOM, Heatmap' },
@@ -501,7 +501,7 @@ export default function PdfResearchPage() {
   const gatedContent = (
     <div className="space-y-16">
       {/* ── Tool-by-tool insights ── */}
-      <section className="space-y-10">
+      <section className="acad-stagger space-y-10">
         <SectionTitle kicker="· 5 outils">Insights par outil</SectionTitle>
 
         {TOOL_SECTIONS.map((ts) => (
@@ -558,7 +558,7 @@ export default function PdfResearchPage() {
       <section className="space-y-8">
         <SectionTitle kicker="· 8 publications">Papers clés — Findings appliqués</SectionTitle>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="acad-stagger grid gap-6 md:grid-cols-2">
           {KEY_PAPERS.map((p) => (
             <article
               key={p.id}
@@ -637,7 +637,7 @@ export default function PdfResearchPage() {
           ensemble.
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="acad-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FRAMEWORK_STEPS.map((fs) => (
             <div
               key={fs.step}
@@ -682,7 +682,7 @@ export default function PdfResearchPage() {
       <section className="space-y-6">
         <SectionTitle kicker="· Référence">Formules essentielles</SectionTitle>
 
-        <div className="space-y-4">
+        <div className="acad-stagger space-y-4">
           {[
             {
               name: 'Order Flow Imbalance (CVD normalisé)',
@@ -767,10 +767,58 @@ export default function PdfResearchPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <ResearchPaywall preview={previewContent}>
-        {gatedContent}
-      </ResearchPaywall>
-    </div>
+    <>
+      <style>{`
+        /* Ambient animated background — emerald + champagne, faint grid */
+        .academy-bg {
+          position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+          background-size: 48px 48px;
+        }
+        .academy-bg::before, .academy-bg::after {
+          content: ''; position: absolute; border-radius: 50%; filter: blur(100px);
+        }
+        .academy-bg::before {
+          width: 48vw; height: 48vw; top: -14%; left: -12%;
+          background: radial-gradient(circle, rgba(52,211,153,0.08), transparent 70%);
+          animation: acadGlowA 22s ease-in-out infinite alternate;
+        }
+        .academy-bg::after {
+          width: 44vw; height: 44vw; bottom: -16%; right: -12%;
+          background: radial-gradient(circle, rgba(214,193,150,0.07), transparent 70%);
+          animation: acadGlowB 28s ease-in-out infinite alternate;
+        }
+        @keyframes acadGlowA { from { transform: translate(0,0); } to { transform: translate(7vw, 5vw); } }
+        @keyframes acadGlowB { from { transform: translate(0,0); } to { transform: translate(-6vw, -7vw); } }
+        /* Panel entrance — staggered within each section */
+        .acad-stagger > * {
+          opacity: 0;
+          animation: acadIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .acad-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+        .acad-stagger > *:nth-child(2) { animation-delay: 0.11s; }
+        .acad-stagger > *:nth-child(3) { animation-delay: 0.17s; }
+        .acad-stagger > *:nth-child(4) { animation-delay: 0.23s; }
+        .acad-stagger > *:nth-child(5) { animation-delay: 0.29s; }
+        .acad-stagger > *:nth-child(6) { animation-delay: 0.35s; }
+        .acad-stagger > *:nth-child(n+7) { animation-delay: 0.41s; }
+        @keyframes acadIn {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .academy-bg::before, .academy-bg::after { animation: none; }
+          .acad-stagger > * { opacity: 1; animation: none; }
+        }
+      `}</style>
+      <div aria-hidden="true" className="academy-bg" />
+      <div className="relative z-[1] mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <ResearchPaywall preview={previewContent}>
+          {gatedContent}
+        </ResearchPaywall>
+      </div>
+    </>
   );
 }
