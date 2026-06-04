@@ -49,17 +49,20 @@ function pct(a: number, b: number) {
 const ETF_SYMBOLS = ['SPY', 'QQQ', 'IWM', 'DIA'];
 const STOCK_SYMBOLS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'META'];
 
+const MONO = 'var(--font-jetbrains-mono)';
+const ON_PRIMARY = '#06140b'; // dark text on lime, per site convention
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function MetricRow({ label, value, sub, bull }: {
   label: string; value: string; sub?: string; bull?: boolean;
 }) {
-  const color = bull === undefined ? 'var(--text-primary)' : bull ? '#22c55e' : '#ef4444';
+  const color = bull === undefined ? 'var(--text-primary)' : bull ? 'var(--bull)' : 'var(--bear)';
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-[var(--border)]/40 last:border-0">
       <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
       <div className="text-right">
-        <span className="text-[12px] font-mono font-semibold" style={{ color }}>{value}</span>
+        <span className="text-[12px] font-mono font-semibold tabular-nums" style={{ color }}>{value}</span>
         {sub && <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{sub}</span>}
       </div>
     </div>
@@ -68,8 +71,8 @@ function MetricRow({ label, value, sub, bull }: {
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2 mt-3 first:mt-0">
-      {children}
+    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2 mt-3 first:mt-0" style={{ fontFamily: MONO }}>
+      · {children}
     </p>
   );
 }
@@ -153,7 +156,7 @@ export default function GEXPageContent() {
     return 'NEUTRAL';
   }, [multiGreekSummary, effectiveSpot]);
 
-  const biasColor = bias === 'BULLISH' ? '#22c55e' : bias === 'BEARISH' ? '#ef4444' : '#eab308';
+  const biasColor = bias === 'BULLISH' ? 'var(--bull)' : bias === 'BEARISH' ? 'var(--bear)' : 'var(--warning)';
 
   // Wall bar position — uses 10s live spot for real-time wall proximity
   const wallBarPct = useMemo(() => {
@@ -244,7 +247,7 @@ export default function GEXPageContent() {
   const greekMeta = GREEK_META[selectedGreek];
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-[var(--background)]">
+    <div className="h-full flex flex-col overflow-hidden bg-[var(--background)] animate-fadeIn">
 
       {/* ═══ HEADER ══════════════════════════════════════════════════════════ */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
@@ -259,7 +262,7 @@ export default function GEXPageContent() {
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-light)] transition-colors text-sm font-bold text-[var(--text-primary)]"
               style={{ background: 'var(--surface-elevated)' }}
             >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: biasColor ?? '#6b7280' }} />
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: biasColor || 'var(--text-muted)' }} />
               {symbol}
               <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform ${symbolOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -267,7 +270,7 @@ export default function GEXPageContent() {
             </button>
 
             {symbolOpen && (
-              <div className="absolute top-full left-0 mt-1.5 z-[100] w-56 rounded-xl border border-[var(--border)] shadow-2xl overflow-hidden" style={{ background: '#0d1117' }}>
+              <div className="absolute top-full left-0 mt-1.5 z-[100] w-56 rounded-xl border border-[var(--border)] shadow-2xl overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
                 <div className="p-2 border-b border-[var(--border)]">
                   <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest px-1 mb-1.5">ETF</p>
                   <div className="grid grid-cols-2 gap-1">
@@ -315,8 +318,11 @@ export default function GEXPageContent() {
           {/* Spot price — live 10s update */}
           {effectiveSpot > 0 && (
             <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: biasColor }} />
-              <span className="text-[13px] font-mono font-bold" style={{ color: biasColor }}>
+              <span className="relative inline-flex w-1.5 h-1.5">
+                <span className="absolute inset-0 rounded-full animate-ping" style={{ backgroundColor: biasColor, opacity: 0.6 }} />
+                <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={{ backgroundColor: biasColor }} />
+              </span>
+              <span className="text-[13px] font-mono font-bold tabular-nums" style={{ color: biasColor }}>
                 ${effectiveSpot.toFixed(2)}
               </span>
             </div>
@@ -326,7 +332,14 @@ export default function GEXPageContent() {
         {/* Right: status + refresh */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${dataSource === 'cboe' ? 'bg-green-500 animate-pulse' : 'bg-[var(--text-dimmed)]'}`} />
+            {dataSource === 'cboe' ? (
+              <span className="relative inline-flex w-1.5 h-1.5">
+                <span className="absolute inset-0 rounded-full animate-ping" style={{ backgroundColor: 'var(--bull)', opacity: 0.6 }} />
+                <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bull)' }} />
+              </span>
+            ) : (
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-dimmed)]" />
+            )}
             <span className="text-[10px] text-[var(--text-muted)]">
               {dataSource === 'cboe' ? 'CBOE' : 'Loading'}
               {lastUpdate && ` · ${lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
@@ -348,10 +361,10 @@ export default function GEXPageContent() {
 
             {/* BIAS */}
             <div className="text-center pb-4 border-b border-[var(--border)]/50 mb-3">
-              <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest mb-2">Market Bias</p>
+              <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest mb-2" style={{ fontFamily: MONO }}>· Market Bias</p>
               {bias ? (
                 <>
-                  <p className="text-2xl font-black tracking-tight" style={{ color: biasColor }}>{bias}</p>
+                  <p className="text-2xl font-black tracking-tight transition-colors duration-300" style={{ color: biasColor, fontFamily: MONO }}>{bias}</p>
                   <p className="text-[9px] text-[var(--text-muted)] mt-1">
                     {bias === 'BULLISH' ? '2+ bullish signals' : bias === 'BEARISH' ? '2+ bearish signals' : 'Mixed signals'}
                   </p>
@@ -388,18 +401,18 @@ export default function GEXPageContent() {
                 {/* WALLS BAR */}
                 <div className="mt-4 mb-2">
                   <div className="flex justify-between text-[9px] text-[var(--text-muted)] mb-1">
-                    <span className="text-red-400 font-bold">${putWall > 0 ? putWall.toFixed(0) : '—'}</span>
+                    <span className="text-[var(--bear)] font-bold">${putWall > 0 ? putWall.toFixed(0) : '—'}</span>
                     <span className="text-[var(--text-secondary)] font-mono text-[10px]">${effectiveSpot > 0 ? effectiveSpot.toFixed(1) : '—'}</span>
-                    <span className="text-green-400 font-bold">${callWall > 0 ? callWall.toFixed(0) : '—'}</span>
+                    <span className="text-[var(--bull)] font-bold">${callWall > 0 ? callWall.toFixed(0) : '—'}</span>
                   </div>
                   <div className="relative h-2 rounded-full overflow-hidden bg-[var(--background)]">
-                    <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${wallBarPct}%`, background: 'linear-gradient(90deg,#ef4444,#eab308,#22c55e)' }} />
+                    <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${wallBarPct}%`, background: 'linear-gradient(90deg, var(--bear), var(--warning), var(--bull))' }} />
                     <div className="absolute top-0 bottom-0 w-px bg-white/70" style={{ left: `${wallBarPct}%`, transform: 'translateX(-50%)' }} />
                   </div>
                   <div className="flex justify-between text-[9px] mt-1 text-[var(--text-muted)]">
-                    <span className="text-red-400">{putWall > 0 && spotPrice > 0 ? pct(putWall, spotPrice) : ''}</span>
+                    <span className="text-[var(--bear)]">{putWall > 0 && spotPrice > 0 ? pct(putWall, spotPrice) : ''}</span>
                     <span>Put → Spot → Call</span>
-                    <span className="text-green-400">{callWall > 0 && spotPrice > 0 ? `+${pct(callWall, spotPrice).replace('-', '')}` : ''}</span>
+                    <span className="text-[var(--bull)]">{callWall > 0 && spotPrice > 0 ? `+${pct(callWall, spotPrice).replace('-', '')}` : ''}</span>
                   </div>
                 </div>
 

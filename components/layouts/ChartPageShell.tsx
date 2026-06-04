@@ -39,7 +39,7 @@ export default function ChartPageShell({
         {hasToolbar && (
           <div
             className="flex items-center justify-between gap-2 px-2 py-0.5"
-            style={{ borderBottom: '1px solid var(--border)', minHeight: 32 }}
+            style={{ borderBottom: '1px solid var(--border)', minHeight: 26 }}
           >
             <div className="flex items-center gap-1">{toolbarLeft}</div>
             <div className="flex items-center gap-1">{toolbarRight}</div>

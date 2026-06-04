@@ -397,8 +397,8 @@ const DEFAULT_COLORS: FootprintColors = {
   deltaNegative: '#ef5350',
 
   // Cluster Static Delta (bottom panel)
-  clusterDeltaPositive: '#26a69a',
-  clusterDeltaNegative: '#ef5350',
+  clusterDeltaPositive: '#26d97f',
+  clusterDeltaNegative: '#f04f4f',
   clusterDeltaOpacity: 0.35,
 
   // Imbalance (now used for bright number colors, not backgrounds)

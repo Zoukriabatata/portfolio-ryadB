@@ -2966,15 +2966,15 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0"
+        className="flex items-center justify-between px-2.5 py-1 border-b flex-shrink-0"
         style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor }}
       >
         {/* Group 1: Symbol & Price */}
-        <div className="flex items-center gap-3 pr-3" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
+        <div className="flex items-center gap-2 pr-2.5" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
           <div className="relative">
             <button
               onClick={() => setShowSymbolSelector(!showSymbolSelector)}
-              className="flex items-center gap-2 text-sm font-bold rounded px-3 py-1.5 border focus:outline-none hover:brightness-110 transition-all"
+              className="flex items-center gap-2 text-sm font-bold rounded px-2.5 py-1 border focus:outline-none hover:brightness-110 transition-all"
               style={{ backgroundColor: settings.colors.background, borderColor: settings.colors.gridColor, color: settings.colors.textPrimary }}
             >
               <span>{selectedSymbolLabel}</span>
@@ -3091,7 +3091,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
             {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : getCMEAdapterLabel()}
           </span>
 
-          <span ref={priceRef} className="text-xl font-mono font-bold" style={{ color: settings.colors.textPrimary }}>
+          <span ref={priceRef} className="text-lg font-mono font-bold" style={{ color: settings.colors.textPrimary }}>
             {SYMBOL_EXCHANGE[symbol] === 'cme' ? '' : '$'}0.00
           </span>
           <span className="text-xs" style={{ color: settings.colors.textMuted }}>
@@ -3100,7 +3100,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         </div>
 
         {/* Group 2: Timeframes (tick-based + time-based) */}
-        <div className="flex items-center gap-1 px-3" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
+        <div className="flex items-center gap-1 px-2.5" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
           {/* Tick-based timeframes */}
           <div className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: settings.colors.background }}>
             {TICK_TIMEFRAMES.map((tf) => {
@@ -3145,7 +3145,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         </div>
 
         {/* Group 3: Controls */}
-        <div className="flex items-center gap-2 pl-3 ml-auto">
+        <div className="flex items-center gap-1.5 pl-2.5 ml-auto">
           {/* Magnet Toggle */}
           <FootprintMagnetToggle colors={settings.colors} />
 
@@ -3177,7 +3177,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           {/* Layout Manager */}
           <button
             onClick={() => setShowLayoutManager(!showLayoutManager)}
-            className="px-2 py-1.5 rounded text-xs border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+            className="px-2 py-1 rounded text-xs border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
               backgroundColor: showLayoutManager ? settings.colors.currentPriceColor : settings.colors.background,
               borderColor: settings.colors.gridColor,
@@ -3228,7 +3228,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           {/* Replay Mode Toggle */}
           <button
             onClick={() => replayActive ? handleReplayExit() : handleReplayEnter()}
-            className="px-2 py-1.5 rounded text-xs border flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="px-2 py-1 rounded text-xs border flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
               backgroundColor: replayActive ? 'rgba(245, 158, 11, 0.2)' : settings.colors.background,
               borderColor: replayActive ? 'rgba(245, 158, 11, 0.4)' : settings.colors.gridColor,
@@ -3245,7 +3245,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           {/* Settings */}
           <button
             onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-            className="px-2 py-1.5 rounded text-xs border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+            className="px-2 py-1 rounded text-xs border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
               backgroundColor: showAdvancedSettings ? settings.colors.currentPriceColor : settings.colors.background,
               borderColor: settings.colors.gridColor,
@@ -3698,7 +3698,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
       {/* Footer */}
       <div
-        className="flex items-center justify-between px-3 py-1 text-xs border-t flex-shrink-0"
+        className="flex items-center justify-between px-3 py-0.5 text-[11px] border-t flex-shrink-0"
         style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor, color: settings.colors.textMuted }}
       >
         <span>
