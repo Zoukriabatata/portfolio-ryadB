@@ -3323,7 +3323,9 @@ export class FootprintCanvasRenderer {
             ctx.fillRect(cellX + 1, rowY + 1, cellW - 2, rowH - 1);
             ctx.globalAlpha = 1;
           }
-          ctx.fillStyle = delta >= 0 ? colors.deltaPositive : colors.deltaNegative;
+          ctx.fillStyle = delta >= 0
+            ? (colors.clusterDeltaPositive ?? colors.deltaPositive)
+            : (colors.clusterDeltaNegative ?? colors.deltaNegative);
           ctx.font = `bold ${fontSize}px "${font}", "Monaco", monospace`;
           ctx.fillText(formatVal(delta), centerX, rowY + rowH - 4);
         } else if (type === 'vol') {
