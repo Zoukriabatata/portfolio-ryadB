@@ -17,7 +17,7 @@ const content = {
             <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
               <li><strong className="text-white">Compte</strong> : email, nom (optionnel), mot de passe (chiffré bcrypt)</li>
               <li><strong className="text-white">Sécurité</strong> : adresse IP, user-agent, empreinte appareil (pour anti-partage)</li>
-              <li><strong className="text-white">Paiement</strong> : identifiant de transaction PayPal (pas de données bancaires)</li>
+              <li><strong className="text-white">Paiement</strong> : identifiant de transaction Stripe (pas de données bancaires)</li>
               <li><strong className="text-white">Usage</strong> : timestamps de connexion, pages visitées</li>
             </ul>
           </>
@@ -70,7 +70,7 @@ const content = {
         body: (
           <p className="text-zinc-400 leading-relaxed">
             Nous ne vendons, ne partageons et ne transférons aucune donnée personnelle à des tiers,
-            sauf obligation légale. PayPal reçoit uniquement les informations nécessaires au traitement du paiement.
+            sauf obligation légale. Stripe reçoit uniquement les informations nécessaires au traitement du paiement.
           </p>
         ),
       },
@@ -107,7 +107,7 @@ const content = {
             <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
               <li><strong className="text-white">Account</strong>: email, name (optional), password (bcrypt-hashed)</li>
               <li><strong className="text-white">Security</strong>: IP address, user-agent, device fingerprint (for anti-sharing)</li>
-              <li><strong className="text-white">Payment</strong>: PayPal transaction ID (no banking data)</li>
+              <li><strong className="text-white">Payment</strong>: Stripe transaction ID (no banking data)</li>
               <li><strong className="text-white">Usage</strong>: login timestamps, pages visited</li>
             </ul>
           </>
@@ -160,7 +160,7 @@ const content = {
         body: (
           <p className="text-zinc-400 leading-relaxed">
             We do not sell, share, or transfer any personal data to third parties,
-            except as required by law. PayPal only receives the information necessary to process payments.
+            except as required by law. Stripe only receives the information necessary to process payments.
           </p>
         ),
       },

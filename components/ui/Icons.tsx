@@ -4,7 +4,16 @@ import { useId } from 'react';
 
 /**
  * Custom SVG Icons for SENZOUKRIA
- * Scientific/Trading aesthetic
+ *
+ * ICON SPEC (Editorial Terminal) — for the functional / "signature" set:
+ *   • viewBox 0 0 24 24, optical padding ~3px.
+ *   • Single colour driven by the `color` prop (defaults to currentColor).
+ *     No hard-coded hex on functional icons — they must inherit context.
+ *     Exception: semantic bull/bear (green/red) on position icons only.
+ *   • Stroke 1.5, strokeLinecap/Join "round". Fills = same `color` with low
+ *     fillOpacity for depth (≤ 0.6), never a second hue, never gradients.
+ *   • Keep each icon's concept; aim for calm, geometric, legible at 16-20px.
+ * Brand logos (Binance, Rithmic, …) and the gamification set are exempt.
  */
 
 interface IconProps {
@@ -28,17 +37,19 @@ export function LiveIcon({ size = 20, className = '', color = 'currentColor' }: 
 export function FootprintIcon({ size = 20, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      {/* Candle bars */}
-      <rect x="3" y="8" width="4" height="10" rx="1" fill={color} fillOpacity="0.3" />
-      <rect x="3" y="4" width="4" height="16" rx="1" stroke={color} strokeWidth="1.5" />
-      <rect x="10" y="6" width="4" height="8" rx="1" fill={color} fillOpacity="0.6" />
-      <rect x="10" y="2" width="4" height="16" rx="1" stroke={color} strokeWidth="1.5" />
-      <rect x="17" y="10" width="4" height="6" rx="1" fill={color} fillOpacity="0.3" />
-      <rect x="17" y="6" width="4" height="14" rx="1" stroke={color} strokeWidth="1.5" />
-      {/* Volume dots */}
-      <circle cx="5" cy="21" r="1.5" fill={color} fillOpacity="0.5" />
-      <circle cx="12" cy="21" r="2" fill={color} />
-      <circle cx="19" cy="21" r="1" fill={color} fillOpacity="0.3" />
+      {/* Footprint ladder — bid (left) vs ask (right) volume per price level */}
+      {/* bid column */}
+      <rect x="3.5" y="4"    width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.15" />
+      <rect x="3.5" y="8.4"  width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.5" />
+      <rect x="3.5" y="12.8" width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.25" />
+      <rect x="3.5" y="17.2" width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.1" />
+      {/* ask column */}
+      <rect x="13" y="4"    width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.25" />
+      <rect x="13" y="8.4"  width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.6" />
+      <rect x="13" y="12.8" width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.4" />
+      <rect x="13" y="17.2" width="7.5" height="3.2" rx="0.8" fill={color} fillOpacity="0.15" />
+      {/* delta divider */}
+      <line x1="12" y1="3" x2="12" y2="21.2" stroke={color} strokeWidth="1" strokeOpacity="0.4" />
     </svg>
   );
 }
@@ -46,29 +57,25 @@ export function FootprintIcon({ size = 20, className = '', color = 'currentColor
 export function GexIcon({ size = 20, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      {/* Greek gamma symbol stylized */}
+      {/* Gamma exposure profile — peak (call/put wall) over a zero-gamma line */}
       <path
-        d="M6 4L12 20M12 20L18 4M12 20V12"
+        d="M3 18C7 18 7.5 7 12 7C16.5 7 17 18 21 18"
         stroke={color}
-        strokeWidth="2"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Energy waves */}
       <path
-        d="M3 12C5 10 7 14 9 12"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeOpacity="0.5"
-        strokeLinecap="round"
+        d="M3 18C7 18 7.5 7 12 7C16.5 7 17 18 21 18L21 18H3Z"
+        fill={color}
+        fillOpacity="0.12"
+        stroke="none"
       />
-      <path
-        d="M15 12C17 10 19 14 21 12"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeOpacity="0.5"
-        strokeLinecap="round"
-      />
+      {/* zero-gamma baseline */}
+      <line x1="3" y1="18" x2="21" y2="18" stroke={color} strokeWidth="1" strokeOpacity="0.35" strokeDasharray="2 2" />
+      {/* key-level marker */}
+      <line x1="12" y1="3.5" x2="12" y2="7" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="12" cy="7" r="1.5" fill={color} />
     </svg>
   );
 }
@@ -76,23 +83,20 @@ export function GexIcon({ size = 20, className = '', color = 'currentColor' }: I
 export function VolatilityIcon({ size = 20, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      {/* Volatility smile curve */}
+      {/* IV smile — implied-vol curve over a strike axis */}
       <path
-        d="M3 16C6 20 10 8 12 12C14 16 18 4 21 8"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Sigma symbol */}
-      <path
-        d="M4 4H10L6 10L10 16H4"
+        d="M3 8C7 8 8 15 12 15C16 15 17 8 21 8"
         stroke={color}
         strokeWidth="1.5"
-        strokeOpacity="0.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+      {/* axis */}
+      <line x1="3" y1="20" x2="21" y2="20" stroke={color} strokeWidth="1" strokeOpacity="0.3" />
+      {/* min-vol point + wings */}
+      <circle cx="12" cy="15" r="1.6" fill={color} />
+      <circle cx="3" cy="8" r="1.3" fill={color} fillOpacity="0.5" />
+      <circle cx="21" cy="8" r="1.3" fill={color} fillOpacity="0.5" />
     </svg>
   );
 }
@@ -469,15 +473,17 @@ export function RefreshIcon({ size = 18, className = '', color = 'currentColor' 
 export function GammaIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      {/* Greek gamma symbol stylized */}
+      {/* Greek capital gamma Γ */}
       <path
-        d="M6 4L12 20M12 20L18 4"
+        d="M8 20V5h9"
         stroke={color}
-        strokeWidth="2.5"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="12" cy="12" r="3" fill={color} fillOpacity="0.3" stroke={color} strokeWidth="1" />
+      {/* node accents */}
+      <circle cx="17" cy="5" r="1.6" fill={color} />
+      <circle cx="8" cy="20" r="1.6" fill={color} fillOpacity="0.5" />
     </svg>
   );
 }
@@ -485,21 +491,21 @@ export function GammaIcon({ size = 18, className = '', color = 'currentColor' }:
 export function ChartSmileIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      {/* Volatility smile curve */}
+      {/* IV smile curve over X/Y axes */}
       <path
-        d="M4 14C6 18 9 10 12 12C15 14 18 6 20 10"
+        d="M5 7C8 7 9 14 12 14C15 14 16 7 19 7"
         stroke={color}
-        strokeWidth="2"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Axis */}
+      {/* Axes */}
       <line x1="4" y1="20" x2="20" y2="20" stroke={color} strokeWidth="1" strokeOpacity="0.3" />
       <line x1="4" y1="4" x2="4" y2="20" stroke={color} strokeWidth="1" strokeOpacity="0.3" />
       {/* Data points */}
-      <circle cx="4" cy="14" r="1.5" fill={color} />
-      <circle cx="12" cy="12" r="1.5" fill={color} />
-      <circle cx="20" cy="10" r="1.5" fill={color} />
+      <circle cx="5" cy="7" r="1.4" fill={color} fillOpacity="0.5" />
+      <circle cx="12" cy="14" r="1.6" fill={color} />
+      <circle cx="19" cy="7" r="1.4" fill={color} fillOpacity="0.5" />
     </svg>
   );
 }
@@ -627,14 +633,16 @@ export function OptionsIcon({ size = 16, className = '', color = 'currentColor' 
 export function DataFeedIcon({ size = 18, className = '', color = 'currentColor' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-      {/* Database */}
-      <ellipse cx="12" cy="6" rx="8" ry="3" stroke={color} strokeWidth="1.5" />
-      <path d="M4 6v4c0 1.66 3.58 3 8 3s8-1.34 8-3V6" stroke={color} strokeWidth="1.5" />
-      <path d="M4 10v4c0 1.66 3.58 3 8 3s8-1.34 8-3v-4" stroke={color} strokeWidth="1.5" />
-      <path d="M4 14v4c0 1.66 3.58 3 8 3s8-1.34 8-3v-4" stroke={color} strokeWidth="1.5" />
-      {/* Signal indicator */}
-      <circle cx="18" cy="4" r="2.5" fill="#22c55e" stroke={color} strokeWidth="0.5" />
-      <path d="M17 4l1 1 2-2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Live data stream — tick waveform reading left to right */}
+      <path
+        d="M2 12h3l2-6 3 12 2.5-8 1.8 5H20"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* leading pulse */}
+      <circle cx="21" cy="12" r="1.7" fill={color} className="animate-pulse" />
     </svg>
   );
 }
