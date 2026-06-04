@@ -73,13 +73,22 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       cx = w / 2;
-      cy = viewH * 0.44;
-      R = Math.min(w, viewH) * 0.18;
+      // Slightly higher centre so the event horizon clears the
+      // hero badge + sits above the title without pushing the
+      // CTAs off-axis.
+      cy = viewH * 0.46;
+      // Larger central singularity — the user asked for the
+      // black hole to feel like the homepage signature. Bumped
+      // from 0.18 → 0.24 of the smaller viewport dimension so it
+      // anchors the layout instead of competing with the title.
+      R = Math.min(w, viewH) * 0.24;
     };
     resize();
 
-    // Stars — with parallax depth layers
-    const bgStars = Array.from({ length: isMobile ? 350 : 700 }, () => {
+    // Stars — with parallax depth layers.
+    // Counts cut ~40 % (700 → 420 desktop, 350 → 220 mobile) so
+    // the starfield reads as depth, not a confetti field.
+    const bgStars = Array.from({ length: isMobile ? 220 : 420 }, () => {
       const depth = Math.random(); // 0=far, 1=near
       return {
         x: Math.random(),
@@ -92,8 +101,9 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
       };
     });
 
-    // Dust motes
-    const dustMotes = Array.from({ length: isMobile ? 25 : 60 }, () => ({
+    // Dust motes — cut from 60 → 30 desktop. The few that remain
+    // are still enough to make the foreground feel volumetric.
+    const dustMotes = Array.from({ length: isMobile ? 15 : 30 }, () => ({
       x: Math.random() * 2000,
       y: Math.random(),
       vx: (Math.random() - 0.5) * 0.15,
@@ -103,14 +113,16 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
       hue: pHue - 10 + Math.random() * 30,
     }));
 
-    // Secondary gravitational distortions
+    // Secondary gravitational distortions — removed. They cluttered
+    // the corners with three more event horizons competing for
+    // attention with the main one. The main BH now carries the
+    // composition alone.
     const TILT = 0.28;
-
-    const secondaryBHs = [
-      { normX: 0.08, yMul: 0.70, radiusFrac: 0.18, intensity: 0.85, phase: 0, pulse: 0.0007 },
-      { normX: 0.89, yMul: 0.35, radiusFrac: 0.05, intensity: 0.35, phase: 3.1, pulse: 0.0016 },
-      { normX: 0.91, yMul: 0.85, radiusFrac: 0.10, intensity: 0.60, phase: 1.8, pulse: 0.0011 },
-    ].map(bh => ({ ...bh, absX: 0, absY: 0, absR: 0 }));
+    const secondaryBHs: Array<{
+      normX: number; yMul: number; radiusFrac: number;
+      intensity: number; phase: number; pulse: number;
+      absX: number; absY: number; absR: number;
+    }> = [];
 
     const updateSecondaryBHPositions = () => {
       secondaryBHs.forEach(bh => {
@@ -121,11 +133,16 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
     };
     updateSecondaryBHPositions();
 
-    // Horizontal accretion disk
-    const diskCount = isMobile ? 250 : 600;
+    // Horizontal accretion disk — tighter orbit envelope so the
+    // disk hugs the singularity instead of bleeding to the corners.
+    // orbitR range was 1.2..4.7 → now 1.2..3.2 (max distance cut
+    // ~30 %). Particle count cut from 600 → 360 desktop, 250 → 160
+    // mobile. The disk reads sharper and the surrounding void
+    // breathes again.
+    const diskCount = isMobile ? 160 : 360;
     const disk = Array.from({ length: diskCount }, () => {
-      const orbitR = 1.2 + Math.random() * 3.5;
-      const isInner = orbitR < 2.2;
+      const orbitR = 1.2 + Math.random() * 2.0;
+      const isInner = orbitR < 2.0;
       return {
         angle: Math.random() * Math.PI * 2,
         orbitR,
@@ -134,14 +151,18 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         speed: (0.004 + Math.random() * 0.007) / Math.pow(orbitR, 0.65),
         drift: 0.00003 + Math.random() * 0.00005,
         size: isInner ? (0.4 + Math.random() * 1.8) : (0.3 + Math.random() * 1.0),
-        baseHue: isInner ? (pHue - 5 + Math.random() * 20) : (pHue - 15 + Math.random() * 25),
+        // Tightened hue spread — particles stay closer to brand
+        // lime instead of fanning across orange / amber. Inner
+        // band ±12°, outer ±18°.
+        baseHue: isInner ? (pHue - 6 + Math.random() * 12) : (pHue - 10 + Math.random() * 18),
         br: isInner ? (0.5 + Math.random() * 0.5) : (0.25 + Math.random() * 0.55),
         isInner,
       };
     });
 
-    // Vertical lensing ring
-    const lensRingCount = isMobile ? 120 : 300;
+    // Vertical lensing ring — count cut from 300 → 180, hue spread
+    // tightened to match the disk.
+    const lensRingCount = isMobile ? 80 : 180;
     const lensRing = Array.from({ length: lensRingCount }, () => {
       const orbitR = 1.15 + Math.random() * 1.0;
       return {
@@ -149,15 +170,17 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
         orbitR,
         speed: (0.004 + Math.random() * 0.006) / Math.pow(orbitR, 0.5),
         size: 0.3 + Math.random() * 1.2,
-        baseHue: pHue - 5 + Math.random() * 30,
+        baseHue: pHue - 6 + Math.random() * 14,
         br: 0.3 + Math.random() * 0.7,
       };
     });
 
-    // Infalling matter streaks
-    const streaks = Array.from({ length: isMobile ? 10 : 25 }, () => ({
+    // Infalling matter streaks — kept count but slightly tighter
+    // distance envelope so they always read as falling into the
+    // singularity rather than drifting across empty space.
+    const streaks = Array.from({ length: isMobile ? 8 : 18 }, () => ({
       angle: Math.random() * Math.PI * 2,
-      dist: 3 + Math.random() * 7,
+      dist: 3 + Math.random() * 5,
       speed: 0.0015 + Math.random() * 0.003,
       len: 0.3 + Math.random() * 0.9,
       alpha: 0.06 + Math.random() * 0.14,
@@ -728,7 +751,19 @@ export default function BlackHole({ scrollContainerRef }: { scrollContainerRef: 
     <canvas
       ref={canvasRef}
       className="absolute top-0 left-0 w-full pointer-events-none"
-      style={{ zIndex: 0 }}
+      style={{
+        zIndex: 0,
+        // Fade the canvas to black across the hero → next section
+        // boundary so the disk + starfield don't bleed into
+        // Features / Brokers / Pricing where they'd compete with
+        // the editorial typography. The mask is anchored in vh
+        // units (not canvas px) so it tracks the viewport rather
+        // than the canvas height.
+        WebkitMaskImage:
+          'linear-gradient(180deg, black 0vh, black 85vh, transparent 110vh)',
+        maskImage:
+          'linear-gradient(180deg, black 0vh, black 85vh, transparent 110vh)',
+      }}
     />
   );
 }

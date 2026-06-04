@@ -6,6 +6,7 @@
 pub mod account;
 pub mod ai_agent;
 pub mod bridge;
+pub mod bridge_depth;
 pub mod bridge_events;
 pub mod brokers;
 pub mod cache;

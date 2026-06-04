@@ -6,17 +6,32 @@ const FAQS = [
   {
     question: 'What is OrderflowV2?',
     answer:
-      'OrderflowV2 (by Senzoukria) is a Windows desktop platform for native footprint charts — delta, imbalance, absorption detection — with the same daily volume NinjaTrader shows you on its Market Analyzer. Built for futures traders on Apex / Rithmic, with a crypto fallback for users without a broker.',
+      'A Windows desktop for native footprint charts — delta, imbalance, absorption, CVD — wired into your existing NinjaTrader feed via a NinjaScript bridge. Built for futures traders on Apex / Rithmic, with a crypto path for users without a broker.',
+  },
+  {
+    question: 'Why NinjaTrader and not Sierra or ATAS?',
+    answer:
+      'Because Apex Trader Funding ships NinjaTrader by default — that is where the live tick stream already runs. Sierra / ATAS users pay $50–$150/month for a closed stack. We tap the feed you already trade on, render the footprint natively, and add nothing between the exchange and your canvas.',
+  },
+  {
+    question: 'Does the bridge work on Apex evaluations?',
+    answer:
+      'Yes. The NinjaScript indicator runs inside any NinjaTrader instance — eval, PA, live. It only reads the tick stream and forwards it to OrderflowV2 over loopback (127.0.0.1). No order routing, no broker credentials touched.',
+  },
+  {
+    question: 'Latency vs cloud platforms?',
+    answer:
+      'Sub-5ms on the bridge — TCP loopback, no proxy hop, no cloud round-trip. Cloud orderflow tools route the tick through their servers (typically 80–200ms) before it reaches your browser. We render on the same machine that receives the tick.',
   },
   {
     question: 'How is the public preview different from the paid plan?',
     answer:
-      'Between 30 May and 17 June 2026, every account gets full PRO access for free — no credit card, no commitment. After 17 June, the standard plan becomes $29/month. You\'re not locked in: if you don\'t want to pay you just don\'t subscribe and your account drops to a read-only state.',
+      'Between 30 May and 17 June 2026 every account gets full PRO for free — no card, no commitment. After 17 June the plan is $29/month. If you don\'t subscribe the account drops to read-only — no lock-in.',
   },
   {
     question: 'How does it compare to ATAS, Bookmap or Sierra Chart?',
     answer:
-      'ATAS, Bookmap and Sierra Chart cost $50–$150/month and are powerful but heavy. OrderflowV2 ships the orderflow features 95% of retail traders actually use (footprint + delta + imbalance + heatmap), with the bridge to NinjaTrader so you keep your existing Apex / Rithmic data feed. At $29/month it sits cleanly under the alternatives.',
+      'ATAS, Bookmap and Sierra Chart sit at $50–$150/month and lock you into their data layer. OrderflowV2 ships the orderflow primitives 95% of retail traders actually use — footprint, delta, imbalance, CVD, heatmap — over the NinjaTrader feed you already own. $29/month, native Windows, no broker re-onboarding.',
   },
   {
     question: 'How do I connect my data feed?',
@@ -41,7 +56,7 @@ const FAQS = [
   {
     question: 'How does the footprint chart work?',
     answer:
-      'Each candle is split into price-level cells. Each cell shows aggressive buy volume vs aggressive sell volume, with delta (buy − sell) highlighted. Imbalances (one side dominating 3:1 or more) are flagged visually. Cell size, color scheme and delta threshold are configurable. The bridge sends NinjaTrader\'s exact daily volume counter so the numbers match NT bar-for-bar.',
+      'Each candle splits into price-level cells. Each cell shows aggressive buy volume vs aggressive sell volume with delta (buy − sell) highlighted. Imbalances (one side dominating 3:1 or more) are flagged. Cell size, palette and threshold are user-configurable. The bridge forwards NinjaTrader\'s exact daily volume counter — numbers match NT bar-for-bar.',
   },
   {
     question: 'Can I use it on multiple devices?',
@@ -51,7 +66,7 @@ const FAQS = [
   {
     question: 'Do I need coding knowledge?',
     answer:
-      'No. Point-and-click throughout. The only "setup" step is copying one NinjaScript file if you use the NinjaTrader Bridge — a 5-step walkthrough lives at /download.',
+      'No. Point-and-click throughout. The only setup step is dropping one NinjaScript file into NT if you use the bridge — a 5-step walkthrough lives at /download.',
   },
 ];
 
@@ -79,18 +94,42 @@ export default function FAQSection() {
 
       <div className="max-w-3xl mx-auto relative" style={{ zIndex: 10 }}>
         <div className="text-center mb-14">
+          <div
+            data-animate="up"
+            className="mb-4"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 11,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            · Before you install
+          </div>
           <h2
             data-animate="up"
-            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+            data-animate-delay="1"
+            className="leading-none"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 500,
+              fontSize: 'clamp(36px, 4.5vw, 60px)',
+              letterSpacing: '-0.04em',
+              textTransform: 'uppercase',
+              WebkitFontSmoothing: 'subpixel-antialiased',
+            }}
           >
-            Frequently Asked Questions
+            Questions, answered
           </h2>
           <p
             data-animate="up"
-            data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
+            data-animate-delay="2"
+            className="mt-4 dash-text-sm md:dash-text-base max-w-lg mx-auto"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Everything you need to know before downloading OrderflowV2
+            Everything we get asked twice. Anything else — ping us.
           </p>
         </div>
 
@@ -115,12 +154,12 @@ export default function FAQSection() {
                   className="w-full flex items-center justify-between py-5 text-left group cursor-pointer"
                 >
                   <span
-                    className={`text-[14px] font-medium transition-colors duration-200 ${
+                    className={`dash-text-base font-medium transition-colors duration-200 ${
                       isOpen
                         ? ''
-                        : 'text-white group-hover:text-[var(--primary-light)]'
+                        : 'group-hover:text-[var(--primary-light)]'
                     }`}
-                    style={isOpen ? { color: 'var(--primary-light)' } : undefined}
+                    style={isOpen ? { color: 'var(--primary-light)' } : { color: 'var(--text-primary)' }}
                   >
                     {faq.question}
                   </span>
@@ -155,7 +194,10 @@ export default function FAQSection() {
                     opacity: isOpen ? 1 : 0,
                   }}
                 >
-                  <p className="text-[13px] text-white/45 leading-relaxed pb-5 mt-0">
+                  <p
+                    className="dash-text-sm leading-relaxed pb-5 mt-0"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
                     {faq.answer}
                   </p>
                 </div>
@@ -170,14 +212,17 @@ export default function FAQSection() {
           data-animate-delay="3"
           className="mt-12 text-center"
         >
-          <p className="text-[13px] text-white/40">
-            Still have questions?{' '}
+          <p
+            className="dash-text-sm"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Still stuck?{' '}
             <a
               href="/contact"
               className="hover:text-[var(--primary-light)] transition-colors underline underline-offset-2"
-              style={{ color: 'rgb(var(--primary-light-rgb) / 0.7)' }}
+              style={{ color: 'rgb(var(--primary-light-rgb) / 0.75)' }}
             >
-              Contact us
+              Ping us
             </a>
           </p>
         </div>

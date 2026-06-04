@@ -1,7 +1,31 @@
 import type { Metadata, Viewport } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
+import { JetBrains_Mono } from 'next/font/google';
 import '@/app/globals.css';
+
+/**
+ * Editorial Terminal typography stack.
+ *
+ *   • JetBrains Mono → every headline, kicker, label, data cell, big
+ *     price across landing / login / download / dashboard. Single
+ *     terminal voice end-to-end.
+ *   • Geist Sans     → body copy + paragraphs (loaded above).
+ *   • Geist Mono     → embedded code blocks (loaded above), kept
+ *     separate so we don't conflate "display mono" with "code mono".
+ *
+ * Instrument Serif was dropped after the typography sweep — every
+ * surface that used it (hero, login, dashboard hero card, broker
+ * placeholder, AI welcome, big watchlist price) now uses JetBrains
+ * Mono. Saves the WOFF2 fetch + a font-display: swap flash on first
+ * paint.
+ */
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
 import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 import SessionProviderWrapper from '@/components/layouts/SessionProviderWrapper';
@@ -126,7 +150,10 @@ if(typeof Node!=='undefined'){
         />
         <JsonLd />
       </head>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans`} suppressHydrationWarning>
+      <body
+        className={`${GeistSans.variable} ${GeistMono.variable} ${jetbrainsMono.variable} font-sans`}
+        suppressHydrationWarning
+      >
         <SessionProviderWrapper>
           <DashboardClientLayout>{children}</DashboardClientLayout>
         </SessionProviderWrapper>

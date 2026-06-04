@@ -127,6 +127,24 @@ export type FootprintCanvasHandle = {
    *  renderer. The React layer's IndicatorsRunner produces these
    *  off the main thread and pipes them through this method. */
   applyIndicators: (result: IndicatorsResult) => void;
+  /** Sibling components (DOM panel, indicator sidebars) that render
+   *  in their own DOM element next to the canvas can read this on
+   *  RAF to align their rows with the chart's price axis. Returns
+   *  null until the first paint has produced metrics. */
+  getPriceMap: () => PriceMap | null;
+};
+
+export type PriceMap = {
+  /** Lowest price visible in the chart's price area. */
+  minPrice: number;
+  /** Highest price visible in the chart's price area. */
+  maxPrice: number;
+  /** Top of the price area in CSS pixels relative to the canvas
+   *  DOM element's top. Includes any header / OHLC strip space. */
+  areaTopPx: number;
+  /** Height of the price area in CSS pixels — corresponds to the
+   *  full minPrice→maxPrice band. */
+  areaHeightPx: number;
 };
 
 export const FootprintCanvas = forwardRef<
@@ -1885,6 +1903,16 @@ export const FootprintCanvas = forwardRef<
       applyIndicators: (result) => {
         rendererRef.current?.setIndicators(result);
         tickRender();
+      },
+      getPriceMap: () => {
+        const m = rendererRef.current?.getLastMetrics();
+        if (!m) return null;
+        return {
+          minPrice: m.visiblePriceMin,
+          maxPrice: m.visiblePriceMax,
+          areaTopPx: m.footprintAreaY,
+          areaHeightPx: m.footprintAreaHeight,
+        };
       },
     }),
     // The handlers read mutable refs only, so a stable identity is

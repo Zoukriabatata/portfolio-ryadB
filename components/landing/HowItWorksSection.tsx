@@ -5,8 +5,8 @@ import { useState, useEffect, useRef } from 'react';
 const STEPS = [
   {
     step: '01',
-    title: 'Create your account',
-    desc: 'Email or Google sign-in — no credit card, no setup fee. Auto-PRO during the preview window.',
+    title: 'Open the account',
+    desc: 'Email or Google sign-in. No card. Auto-PRO until 17 June 2026.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
@@ -16,8 +16,8 @@ const STEPS = [
   },
   {
     step: '02',
-    title: 'Download for Windows',
-    desc: 'Get the 8 MB .msi installer. Two clicks to install — guided SmartScreen workaround on /download.',
+    title: 'Install the .msi',
+    desc: '8 MB installer, two clicks. SmartScreen walkthrough lives on /download if Windows balks.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -28,8 +28,8 @@ const STEPS = [
   },
   {
     step: '03',
-    title: 'Connect NinjaTrader bridge',
-    desc: 'Copy our NinjaScript file to NT, F5-compile, drop the indicator on your chart — live data starts in seconds.',
+    title: 'Wire the bridge',
+    desc: 'Drop the NinjaScript into NT, hit F5, attach the indicator to your chart. The tape goes live in seconds.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
@@ -72,18 +72,42 @@ export default function HowItWorksSection() {
 
       <div className="max-w-4xl mx-auto relative" style={{ zIndex: 10 }}>
         <div className="text-center mb-14">
+          <div
+            data-animate="up"
+            className="mb-4"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 11,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            · Three moves
+          </div>
           <h2
             data-animate="up"
-            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+            data-animate-delay="1"
+            className="leading-none"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 500,
+              fontSize: 'clamp(36px, 4.5vw, 60px)',
+              letterSpacing: '-0.04em',
+              textTransform: 'uppercase',
+              WebkitFontSmoothing: 'subpixel-antialiased',
+            }}
           >
             Live in under 5 minutes
           </h2>
           <p
             data-animate="up"
-            data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-lg mx-auto"
+            data-animate-delay="2"
+            className="mt-4 dash-text-sm md:dash-text-base max-w-lg mx-auto"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Register, install, plug your NinjaTrader feed — and the footprint goes live.
+            Register. Install. Wire the bridge. Footprint starts printing.
           </p>
         </div>
 
@@ -115,14 +139,29 @@ export default function HowItWorksSection() {
                 </div>
                 {/* Step number badge */}
                 <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.2)', border: '1px solid rgb(var(--primary-rgb) / 0.3)' }}>
-                  <span className="text-[10px] font-bold" style={{ color: 'var(--primary-light)' }}>{step.step}</span>
+                  <span
+                    style={{
+                      color: 'var(--primary-light)',
+                      fontFamily: 'var(--font-jetbrains-mono)',
+                      fontSize: '10px',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {step.step}
+                  </span>
                 </div>
               </div>
 
-              <h3 className="text-[15px] font-semibold text-white mb-2">
+              <h3
+                className="dash-text-base font-semibold mb-2"
+                style={{ color: 'var(--text-primary)' }}
+              >
                 {step.title}
               </h3>
-              <p className="text-[12px] text-white/40 leading-relaxed max-w-[220px] mx-auto">
+              <p
+                className="dash-text-sm leading-relaxed max-w-[220px] mx-auto"
+                style={{ color: 'var(--text-secondary)' }}
+              >
                 {step.desc}
               </p>
             </div>

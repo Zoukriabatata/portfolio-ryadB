@@ -56,8 +56,11 @@ export default function LandingFooter() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <Logo size="sm" showText={true} />
-            <p className="mt-3 text-[12px] text-white/40 leading-relaxed max-w-[210px]">
-              OrderflowV2 by Senzoukria — native footprint platform for futures &amp; crypto traders.
+            <p
+              className="mt-3 dash-text-sm leading-relaxed max-w-[210px]"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              OrderflowV2 by Senzoukria — native footprint for futures &amp; crypto.
             </p>
 
             {/* Social icons */}
@@ -80,7 +83,16 @@ export default function LandingFooter() {
           {/* Link columns */}
           {FOOTER_COLUMNS.map((col) => (
             <div key={col.title}>
-              <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] mb-4" style={{ color: 'rgb(var(--primary-rgb) / 0.7)' }}>
+              <h4
+                className="mb-4"
+                style={{
+                  color: 'rgb(var(--primary-rgb) / 0.7)',
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: '11px',
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                }}
+              >
                 {col.title}
               </h4>
               <ul className="space-y-2.5">
@@ -93,14 +105,14 @@ export default function LandingFooter() {
                           href={link.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[12px] text-white/35 hover:text-white/70 transition-colors duration-200"
+                          className="dash-text-sm text-white/40 hover:text-white/75 transition-colors duration-200"
                         >
                           {link.label}
                         </a>
                       ) : (
                         <Link
                           href={link.href}
-                          className="text-[12px] text-white/35 hover:text-white/70 transition-colors duration-200"
+                          className="dash-text-sm text-white/40 hover:text-white/75 transition-colors duration-200"
                         >
                           {link.label}
                         </Link>
@@ -115,17 +127,42 @@ export default function LandingFooter() {
 
         {/* Risk disclaimer */}
         <div className="py-5 border-t border-white/[0.06]">
-          <p className="text-[11px] text-white/30 leading-relaxed text-center max-w-2xl mx-auto">
-            <strong className="text-white/40">Risk Disclaimer:</strong> Trading futures and derivatives involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. This platform provides analytical tools only and does not constitute financial advice.
+          <p
+            className="leading-relaxed text-center max-w-2xl mx-auto"
+            style={{
+              color: 'var(--text-muted)',
+              fontSize: '11px',
+            }}
+          >
+            <strong style={{ color: 'var(--text-secondary)' }}>Risk disclaimer.</strong>{' '}
+            Trading futures and derivatives carries substantial risk of loss
+            and is not suitable for all investors. Past performance does not
+            indicate future results. This platform provides analytical tools
+            only — not financial advice.
           </p>
         </div>
 
         {/* Bottom bar */}
         <div className="pt-4 border-t border-white/[0.06] flex flex-col md:flex-row items-center justify-between gap-3">
-          <span className="text-[11px] text-white/25">
-            &copy; 2026 Senzoukria &middot; OrderflowV2. All rights reserved.
+          <span
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+            }}
+          >
+            &copy; 2026 Senzoukria &middot; OrderflowV2
           </span>
-          <span className="text-[10px] text-white/15 tracking-wide">
+          <span
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 10,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'var(--text-dimmed)',
+            }}
+          >
             Built for traders who watch the tape
           </span>
         </div>

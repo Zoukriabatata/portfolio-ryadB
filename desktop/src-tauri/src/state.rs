@@ -159,6 +159,10 @@ pub struct BridgeState {
     pub engine: Arc<FootprintEngine>,
     pub engine_pump: Mutex<Option<JoinHandle<()>>>,
     pub state_emit: Mutex<Option<JoinHandle<()>>>,
+    /// Per-session pump for L2 depth updates. Lives only while the
+    /// adapter is connected — aborted on disconnect alongside
+    /// engine_pump + state_emit.
+    pub depth_pump: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl BridgeState {
@@ -168,6 +172,7 @@ impl BridgeState {
             engine,
             engine_pump: Mutex::new(None),
             state_emit: Mutex::new(None),
+            depth_pump: Mutex::new(None),
         }
     }
 }

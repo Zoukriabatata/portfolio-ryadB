@@ -9,9 +9,9 @@ const CAPABILITIES = [
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
       </svg>
     ),
-    title: 'Ultra-Low Latency',
-    desc: 'Sub-5ms data processing with direct WebSocket connections. No middleman, no delays — raw market data streamed to your screen.',
-    features: ['Direct WebSocket', 'No Middleware', 'Real-Time Processing'],
+    title: 'Sub-5ms hot path',
+    desc: 'Raw WebSocket on crypto, TCP loopback on the NT bridge. No proxy, no middleware, no cloud round-trip. Ticks land on your canvas under 5ms.',
+    features: ['Direct WebSocket', 'No middleware', 'TCP loopback bridge'],
   },
   {
     icon: (
@@ -24,8 +24,8 @@ const CAPABILITIES = [
       </svg>
     ),
     title: 'Native rendering',
-    desc: 'Footprint cells and tick streams drawn in a native Canvas / WebGL pipeline. Handles millions of ticks per session without dropping a frame.',
-    features: ['GPU Accelerated', '60fps Rendering', 'Hot-path optimized'],
+    desc: 'Footprint cells and tick streams drawn in a Canvas / WebGL pipeline. Millions of ticks per session, no dropped frames, no DOM-per-tick.',
+    features: ['GPU accelerated', '60fps locked', 'Hot-path Rust'],
   },
   {
     icon: (
@@ -35,9 +35,9 @@ const CAPABILITIES = [
         <circle cx="18" cy="4" r="3" fill="var(--primary)" stroke="none" />
       </svg>
     ),
-    title: 'Smart Alerts',
-    desc: 'Custom alerts on volume spikes, orderbook imbalances, spoofing detection, and key level breaks. Never miss a setup.',
-    features: ['Volume Spikes', 'Spoofing Detection', 'Key Level Breaks'],
+    title: 'Tape alerts',
+    desc: 'Trigger on volume spikes, 3:1 imbalances, iceberg refills, spoof pulls and key-level breaks. Fires from the engine, not a JS timer.',
+    features: ['Volume spikes', 'Spoof detection', 'Level breaks'],
   },
   {
     icon: (
@@ -48,8 +48,8 @@ const CAPABILITIES = [
       </svg>
     ),
     title: 'Multi-source data',
-    desc: 'NinjaTrader Bridge for Apex / Rithmic users, Rithmic direct if you have your own creds, or crypto with no broker at all. Switch sources from the app.',
-    features: ['NinjaTrader Bridge', 'Rithmic direct', 'Crypto'],
+    desc: 'NT bridge for Apex / Rithmic, Rithmic R | API direct if you hold the creds, crypto with zero broker. Switch sources mid-session from the app.',
+    features: ['NT bridge', 'Rithmic direct', 'Crypto'],
   },
 ];
 
@@ -90,15 +90,30 @@ function CapabilityCard({ cap, i }: { cap: typeof CAPABILITIES[number]; i: numbe
         <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110" style={{ background: 'linear-gradient(to bottom right, rgb(var(--accent-rgb) / 0.15), rgb(var(--primary-rgb) / 0.08))', border: '1px solid rgb(var(--accent-rgb) / 0.15)', color: 'var(--primary-light)' }}>
           {cap.icon}
         </div>
-        <h3 className="text-[16px] font-semibold text-white group-hover:text-[var(--accent-light)] transition-colors">
+        <h3
+          className="dash-text-lg font-semibold group-hover:text-[var(--accent-light)] transition-colors"
+          style={{ color: 'var(--text-primary)' }}
+        >
           {cap.title}
         </h3>
-        <p className="mt-2 text-[13px] text-white/45 leading-relaxed group-hover:text-white/60 transition-colors">
+        <p
+          className="mt-2 dash-text-sm leading-relaxed group-hover:text-white/65 transition-colors"
+          style={{ color: 'var(--text-secondary)' }}
+        >
           {cap.desc}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           {cap.features.map((feat) => (
-            <span key={feat} className="inline-flex items-center gap-1.5 text-[11px] text-white/55">
+            <span
+              key={feat}
+              className="inline-flex items-center gap-1.5"
+              style={{
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: '11px',
+                letterSpacing: '0.02em',
+                color: 'var(--text-secondary)',
+              }}
+            >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--primary)' }}>
                 <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -131,19 +146,43 @@ export default function CapabilitiesSection() {
 
       <div className="max-w-5xl mx-auto relative" style={{ zIndex: 10 }}>
         <div className="text-center mb-16">
+          <div
+            data-animate="up"
+            className="mb-4"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 11,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            · Under the hood
+          </div>
           <h2
             data-animate="up"
-            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+            data-animate-delay="1"
+            className="leading-none"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 500,
+              fontSize: 'clamp(36px, 4.5vw, 60px)',
+              letterSpacing: '-0.04em',
+              textTransform: 'uppercase',
+              WebkitFontSmoothing: 'subpixel-antialiased',
+            }}
           >
-            Why OrderflowV2
+            Native Windows. Rust on the hot path.
           </h2>
           <p
             data-animate="up"
-            data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-xl mx-auto"
+            data-animate-delay="2"
+            className="mt-4 dash-text-sm md:dash-text-base max-w-xl mx-auto"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Native Windows app. Rust engine on the hot path. No browser, no Electron bloat —
-            the same stack the desks at the prop firms run.
+            No browser shell, no Electron bloat, no GC pauses mid-tape. The
+            same stack a prop desk would ship — packaged as a 8 MB .msi.
           </p>
         </div>
 
@@ -156,7 +195,13 @@ export default function CapabilitiesSection() {
           {['Rust', 'Tauri 2', 'Tokio async', 'Canvas + WebGL', 'TCP loopback', 'Native .msi'].map((tech) => (
             <span
               key={tech}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium text-white/40 border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm hover:border-[rgb(var(--primary-rgb)_/_0.2)] hover:text-[rgb(var(--primary-light-rgb)_/_0.6)] transition-all duration-300"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm hover:border-[rgb(var(--primary-rgb)_/_0.2)] hover:text-[rgb(var(--primary-light-rgb)_/_0.6)] transition-all duration-300"
+              style={{
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: '11px',
+                letterSpacing: '0.04em',
+                color: 'var(--text-muted)',
+              }}
             >
               <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.4)' }} />
               {tech}

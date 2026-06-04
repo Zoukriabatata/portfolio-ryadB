@@ -116,7 +116,179 @@
 
   /* === NAV === */
   --nav-height: 44px;
+
+  /* === DASHBOARD TYPE SCALE ===
+     Unifies the 8-15px arbitrary sizes that crept into the legacy
+     dashboard. Every text node in components/dashboard/* must use
+     one of these (via Tailwind's `text-[var(--text-xs)]` or
+     standardised utility classes below). */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+  --text-display: 48px;
+
+  /* === DASHBOARD EDITORIAL TERMINAL TOKENS ===
+     The dashboard redesign commits to a distinct aesthetic — these
+     tokens are scoped here so we can backport them across phases
+     without touching widget by widget. */
+
+  /* Lime brand at 12% opacity for the "live data" card border —
+     subtle electric signature, not a full primary border. */
+  --border-glow: rgba(74, 222, 128, 0.12);
+
+  /* Phosphor green glow — used SPARINGLY on the last sparkline
+     point, live dot, and on hover-states of live rows. Never as a
+     full-card glow (would look like a notification). */
+  --glow-phosphor: 0 0 12px rgba(74, 222, 128, 0.35);
+
+  /* Halo under the hero card — barely-there elliptical accent so the
+     featured ticker has a soft spotlight. */
+  --halo-hero:
+    radial-gradient(
+      ellipse 60% 50% at 20% 30%,
+      rgba(74, 222, 128, 0.05),
+      transparent 70%
+    );
 }
+
+/* Grain overlay retired with the "Architectural Depth" atmosphere
+   — the visual noise it added competed with the editorial
+   typography instead of supporting it. The data-grain attribute is
+   left unbound so re-adding it on a future surface is a one-line
+   change. */
+
+/* === DASHBOARD SCROLL — invisible track ===
+   The dashboard reads as a single composition; a native scrollbar
+   would slice the right edge with a permanent vertical line that
+   breaks the editorial illusion. We keep the content scrollable but
+   hide the track in all engines. */
+.dashboard-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dashboard-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* === DASHBOARD STAGGERED MOUNT ===
+   One orchestrated reveal at page load instead of a confetti of
+   micro-interactions everywhere. Each bento slot opts in via
+   `data-stagger-slot="N"` and inherits its animation-delay from
+   the matching ring. */
+@keyframes dashboard-slot-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+[data-stagger-slot] {
+  animation: dashboard-slot-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+[data-stagger-slot="0"] { animation-delay: 0ms; }
+[data-stagger-slot="1"] { animation-delay: 60ms; }
+[data-stagger-slot="2"] { animation-delay: 120ms; }
+[data-stagger-slot="3"] { animation-delay: 180ms; }
+[data-stagger-slot="4"] { animation-delay: 240ms; }
+[data-stagger-slot="5"] { animation-delay: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-stagger-slot],
+  [data-grain="on"]::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* === WATCHLIST TICK FLASH ===
+   A 480 ms ease-out backdrop wash fired each time the underlying
+   tick changes price. The featured ticker uses the same keyframes
+   on its <price> span; rows use it on the whole button. The lime
+   variant is the up-tick, bear is the down-tick. */
+@keyframes watchlist-flash-up {
+  0%   { background-color: rgba(74, 222, 128, 0.18); }
+  100% { background-color: rgba(74, 222, 128, 0); }
+}
+@keyframes watchlist-flash-down {
+  0%   { background-color: rgba(240, 79, 79, 0.18); }
+  100% { background-color: rgba(240, 79, 79, 0); }
+}
+/* === DOWNLOAD PAGE ORDERED LIST ===
+   Forces the list-decimal markers into JetBrains Mono so the counter
+   reads as data alongside the rest of the page voice. `::marker` is
+   styleable in Chrome/Firefox/Safari modern. */
+.download-ol li::marker {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-dimmed);
+}
+
+/* === LOGIN GOOGLE CTA — lime sweep on hover ===
+   A horizontal lime gradient that travels across the button while
+   the cursor is over it. Pure CSS, GPU compositor (transform only),
+   so it adds zero work to the page when not hovered. */
+@keyframes loginSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* === CHAR-IN — per-character entrance ===
+   PURE OPACITY animation. No transform, no filter.
+
+   Why : both `transform` (even translateY(0) at the end of the
+   animation) and `filter` create a stacking context which Chrome
+   promotes to its own compositor layer. The text inside that layer
+   is rasterised to a bitmap at logical-pixel resolution, killing
+   sub-pixel rendering and reading as pixelated on big headlines.
+
+   Per-char animation × N chars = N persistent layers compositing
+   together → sub-pixel offsets and aliasing. With opacity-only and
+   a final state of opacity: 1, Chrome de-promotes each char back
+   to the regular text-rendering pipeline once the keyframe ends.
+
+   Staggered animation-delay on each char still produces the
+   "typing in" cascade reading — we just trade the lift for full
+   font fidelity. */
+@keyframes charIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.watchlist-flash-up {
+  animation: watchlist-flash-up 480ms ease-out;
+}
+.watchlist-flash-down {
+  animation: watchlist-flash-down 480ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watchlist-flash-up,
+  .watchlist-flash-down {
+    animation: none !important;
+  }
+}
+
+/* === DASHBOARD UTILITY CLASSES ===
+   Drop-in replacements for `text-[8px]`-style arbitrary sizes. Keep
+   the class names purposefully verbose so the search-and-replace
+   from legacy → new sizes stays explicit. */
+.dash-text-xs   { font-size: var(--text-xs);   line-height: 1.4; }
+.dash-text-sm   { font-size: var(--text-sm);   line-height: 1.4; }
+.dash-text-base { font-size: var(--text-base); line-height: 1.45; }
+.dash-text-lg   { font-size: var(--text-lg);   line-height: 1.4; }
+.dash-text-xl   { font-size: var(--text-xl);   line-height: 1.3; }
+.dash-text-2xl  { font-size: var(--text-2xl);  line-height: 1.2; }
+.dash-text-3xl  { font-size: var(--text-3xl);  line-height: 1.15; }
 
 @theme inline {
   --color-background: var(--background);

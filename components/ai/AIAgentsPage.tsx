@@ -5,6 +5,10 @@ import { Radio, Activity, MessageSquare, ScanEye } from 'lucide-react';
 import VisionPanel from '@/components/ai/VisionPanel';
 import type { MarketData, OptionsExpiration } from '@/lib/ai/agents/analysisAgent';
 import { LiveAgentPanel } from '@/components/ai/LiveAgentPanel';
+import {
+  BIAS_CFG, regimeColor, ON_PRIMARY, LEVEL_COLOR, SETUP_COLOR,
+  AI_ACCENT, AI_BULL, AI_BEAR, AI_WARNING, AI_NEUTRAL,
+} from '@/lib/ai/colors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,33 +41,7 @@ interface ChatMessage {
   loading?: boolean;
 }
 
-const BIAS_CFG = {
-  LONG:    { label: 'LONG',    color: '#22c55e', glow: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.3)',  icon: '↑' },
-  SHORT:   { label: 'SHORT',   color: '#ef4444', glow: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.3)',  icon: '↓' },
-  NEUTRAL: { label: 'NEUTRAL', color: '#eab308', glow: 'rgba(234,179,8,0.15)',  border: 'rgba(234,179,8,0.3)',  icon: '→' },
-};
-
-const REGIME_COLOR: Record<string, string> = {
-  LONG_GAMMA:             '#22c55e',
-  SHORT_GAMMA:            '#ef4444',
-  NEAR_FLIP:              '#f97316',
-  BULLISH:                '#22c55e',
-  BEARISH:                '#ef4444',
-  NEUTRAL:                '#64748b',
-  EXPANSION:              '#a855f7',
-  COMPRESSION:            '#3b82f6',
-  TRAPPED_SHORT:          '#ef4444',
-  TRAPPED_LONG:           '#ef4444',
-  STABLE:                 '#22c55e',
-  TRANSITION:             '#f97316',
-  HIGH_PROBABILITY_TREND: '#22c55e',
-  RANGE_MARKET:           '#3b82f6',
-  BREAKOUT_WATCH:         '#f97316',
-  GAMMA_SQUEEZE:          '#ef4444',
-  VOLATILE_TREND:         '#a855f7',
-  DISTRIBUTION:           '#ef4444',
-  AMBIGUOUS:              '#64748b',
-};
+const MONO = 'var(--font-jetbrains-mono)';
 
 const SUGGESTED = [
   "C'est quoi le GEX ?", "Comment lire le skew ?",
@@ -136,15 +114,17 @@ function useElapsed(active: boolean): number {
 
 function Badge({ ok }: { ok: 'checking' | 'ok' | 'offline' }) {
   const map = {
-    checking: { text: 'Connexion…',         bg: 'rgba(234,179,8,.12)',  border: 'rgba(234,179,8,.3)',  dot: '#eab308' },
-    ok:       { text: 'Python Engine · Live',bg: 'rgba(34,197,94,.12)', border: 'rgba(34,197,94,.3)', dot: '#22c55e' },
-    offline:  { text: 'JS Engine · Local',  bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.3)', dot: '#3b82f6' },
+    checking: { text: 'Connexion…',          color: AI_WARNING },
+    ok:       { text: 'Python Engine · Live', color: AI_BULL    },
+    offline:  { text: 'JS Engine · Local',    color: AI_ACCENT  },
   }[ok];
   return (
-    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium"
-      style={{ background: map.bg, border: `1px solid ${map.border}`, color: map.dot }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: map.dot,
-        boxShadow: ok === 'ok' ? `0 0 6px ${map.dot}` : 'none',
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
+      style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
+        background: `color-mix(in srgb, ${map.color} 12%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${map.color} 30%, transparent)`, color: map.color }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: map.color,
+        boxShadow: ok === 'ok' ? `0 0 6px ${map.color}` : 'none',
         animation: ok === 'ok' ? 'pulse 2s infinite' : 'none' }} />
       {map.text}
     </span>
@@ -153,8 +133,8 @@ function Badge({ ok }: { ok: 'checking' | 'ok' | 'offline' }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-bold uppercase tracking-widest mb-2"
-      style={{ color: 'var(--text-muted)' }}>
+    <p className="text-[10px] uppercase tracking-widest mb-2"
+      style={{ fontFamily: MONO, fontWeight: 600, color: 'var(--text-muted)' }}>
       {children}
     </p>
   );
@@ -193,11 +173,11 @@ function SliderRow({ label, value, onChange, color }: {
     <div>
       <div className="flex justify-between mb-1">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-        <span className="text-xs font-mono font-bold" style={{ color }}>{value}%</span>
+        <span className="text-xs font-mono font-bold tabular-nums" style={{ color }}>{value}%</span>
       </div>
       <div className="relative h-2 rounded-full" style={{ background: 'var(--border)' }}>
         <div className="absolute left-0 top-0 h-full rounded-full transition-all duration-200"
-          style={{ width: `${value}%`, background: color, boxShadow: `0 0 8px ${color}60` }} />
+          style={{ width: `${value}%`, background: color, boxShadow: `0 0 8px color-mix(in srgb, ${color} 45%, transparent)` }} />
         <input type="range" min={0} max={100} value={value}
           onChange={e => onChange(parseInt(e.target.value))}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -245,17 +225,18 @@ function AnalysisPanel() {
       <div className="flex-shrink-0 px-5 pt-5 pb-3">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+            <h2 style={{ fontFamily: MONO, fontWeight: 600, fontSize: 14, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
               Analyse de Marché
             </h2>
-            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-0.5" style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               GEX · Skew · Option Flow
             </p>
           </div>
           <button onClick={analyse} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-60"
-            style={{ background: loading ? 'var(--surface)' : 'var(--primary)',
-                     color: '#fff', boxShadow: loading ? 'none' : '0 0 16px var(--primary)60' }}>
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all disabled:opacity-60"
+            style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+                     background: loading ? 'var(--surface)' : 'var(--primary)',
+                     color: loading ? 'var(--text-muted)' : ON_PRIMARY, boxShadow: loading ? 'none' : '0 0 16px var(--primary-glow)' }}>
             {loading ? (
               <>
                 <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -283,9 +264,9 @@ function AnalysisPanel() {
                 className="px-2 py-1 rounded-md text-[11px] font-bold transition-all"
                 style={{
                   background: form.symbol === s.label ? 'var(--primary)' : 'var(--surface)',
-                  color: form.symbol === s.label ? '#fff' : 'var(--text-muted)',
+                  color: form.symbol === s.label ? ON_PRIMARY : 'var(--text-muted)',
                   border: `1px solid ${form.symbol === s.label ? 'var(--primary)' : 'var(--border)'}`,
-                  boxShadow: form.symbol === s.label ? '0 0 10px var(--primary)40' : 'none',
+                  boxShadow: form.symbol === s.label ? '0 0 10px var(--primary-glow)' : 'none',
                 }}>
                 {s.label}
               </button>
@@ -318,15 +299,15 @@ function AnalysisPanel() {
                     style={{
                       background: form.expiration === exp.value ? 'var(--primary)' : 'var(--background)',
                       border:     `1px solid ${form.expiration === exp.value ? 'var(--primary)' : 'var(--border)'}`,
-                      boxShadow:  form.expiration === exp.value ? '0 0 10px var(--primary)40' : 'none',
+                      boxShadow:  form.expiration === exp.value ? '0 0 10px var(--primary-glow)' : 'none',
                     }}
                   >
                     <span className="text-[11px] font-bold"
-                      style={{ color: form.expiration === exp.value ? '#fff' : 'var(--text-secondary)' }}>
+                      style={{ color: form.expiration === exp.value ? ON_PRIMARY : 'var(--text-secondary)' }}>
                       {exp.label}
                     </span>
                     <span className="text-[9px] mt-0.5"
-                      style={{ color: form.expiration === exp.value ? 'rgba(255,255,255,.7)' : 'var(--text-muted)' }}>
+                      style={{ color: form.expiration === exp.value ? 'color-mix(in srgb, #06140b 65%, transparent)' : 'var(--text-muted)' }}>
                       {exp.sublabel}
                     </span>
                   </button>
@@ -347,7 +328,7 @@ function AnalysisPanel() {
             <button key={t} onClick={() => setTab(t)}
               className="flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all"
               style={{
-                background: tab === t ? 'var(--surface-elevated, #1e293b)' : 'transparent',
+                background: tab === t ? 'var(--surface-elevated)' : 'transparent',
                 color: tab === t ? 'var(--text-primary)' : 'var(--text-muted)',
                 boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
               }}>
@@ -371,8 +352,8 @@ function AnalysisPanel() {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>GEX</span>
-                <span className="text-xs font-mono font-bold"
-                  style={{ color: (form.gex ?? 0) >= 0 ? '#22c55e' : '#ef4444' }}>
+                <span className="text-xs font-mono font-bold tabular-nums"
+                  style={{ color: (form.gex ?? 0) >= 0 ? AI_BULL : AI_BEAR }}>
                   {(form.gex ?? 0) >= 0 ? '+' : ''}{form.gex ?? 0}B$
                 </span>
               </div>
@@ -381,14 +362,14 @@ function AnalysisPanel() {
                   style={{
                     left:  (form.gex ?? 0) >= 0 ? '50%' : `${50 + Math.max(-50, (form.gex ?? 0) * 5)}%`,
                     width: `${Math.min(50, Math.abs(form.gex ?? 0) * 5)}%`,
-                    background: (form.gex ?? 0) >= 0 ? '#22c55e' : '#ef4444',
-                    boxShadow: `0 0 8px ${(form.gex ?? 0) >= 0 ? '#22c55e' : '#ef4444'}80`,
+                    background: (form.gex ?? 0) >= 0 ? AI_BULL : AI_BEAR,
+                    boxShadow: `0 0 8px color-mix(in srgb, ${(form.gex ?? 0) >= 0 ? AI_BULL : AI_BEAR} 50%, transparent)`,
                   }} />
                 <div className="absolute top-0 bottom-0 w-px" style={{ left: '50%', background: 'var(--text-muted)' }} />
               </div>
               <input type="range" min={-5} max={5} step={0.1} value={form.gex ?? 0}
                 onChange={e => set('gex', parseFloat(e.target.value))}
-                className="w-full cursor-pointer" style={{ accentColor: (form.gex ?? 0) >= 0 ? '#22c55e' : '#ef4444' }} />
+                className="w-full cursor-pointer" style={{ accentColor: (form.gex ?? 0) >= 0 ? AI_BULL : AI_BEAR }} />
             </div>
 
             <NumInput label="GEX Flip Level" value={form.gexFlipLevel} onChange={v => set('gexFlipLevel', v)} step={100} hint="$" />
@@ -403,15 +384,15 @@ function AnalysisPanel() {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Skew 25δ</span>
-                <span className="text-xs font-mono font-bold"
-                  style={{ color: (form.skew25d ?? 0) > 2 ? '#22c55e' : (form.skew25d ?? 0) < -2 ? '#ef4444' : '#eab308' }}>
+                <span className="text-xs font-mono font-bold tabular-nums"
+                  style={{ color: (form.skew25d ?? 0) > 2 ? AI_BULL : (form.skew25d ?? 0) < -2 ? AI_BEAR : AI_WARNING }}>
                   {(form.skew25d ?? 0) > 0 ? '+' : ''}{form.skew25d ?? 0}%
                 </span>
               </div>
               <input type="range" min={-10} max={10} step={0.5} value={form.skew25d ?? 0}
                 onChange={e => set('skew25d', parseFloat(e.target.value))}
                 className="w-full cursor-pointer"
-                style={{ accentColor: (form.skew25d ?? 0) > 0 ? '#22c55e' : '#ef4444' }} />
+                style={{ accentColor: (form.skew25d ?? 0) > 0 ? AI_BULL : AI_BEAR }} />
               <div className="flex justify-between text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                 <span>Put skew (baissier)</span><span>Neutre</span><span>Call skew (haussier)</span>
               </div>
@@ -422,15 +403,15 @@ function AnalysisPanel() {
 
             <SliderRow label="Calls %" value={form.callFlowPercent ?? 50}
               onChange={v => { set('callFlowPercent', v); set('putFlowPercent', 100 - v); }}
-              color="#22c55e" />
+              color={AI_BULL} />
             <SliderRow label="Puts %"  value={form.putFlowPercent ?? 50}
               onChange={v => { set('putFlowPercent', v); set('callFlowPercent', 100 - v); }}
-              color="#ef4444" />
+              color={AI_BEAR} />
 
             {/* Flow visual */}
             <div className="flex rounded-full overflow-hidden h-2.5">
-              <div className="transition-all duration-300" style={{ width: `${form.callFlowPercent ?? 50}%`, background: '#22c55e' }} />
-              <div className="transition-all duration-300" style={{ width: `${form.putFlowPercent ?? 50}%`, background: '#ef4444' }} />
+              <div className="transition-all duration-300" style={{ width: `${form.callFlowPercent ?? 50}%`, background: AI_BULL }} />
+              <div className="transition-all duration-300" style={{ width: `${form.putFlowPercent ?? 50}%`, background: AI_BEAR }} />
             </div>
 
             <NumInput label="Put/Call Ratio" value={form.putCallRatio} onChange={v => set('putCallRatio', v)} step={0.01}
@@ -458,7 +439,7 @@ function AnalysisPanel() {
         {/* ── Error ────────────────────────────────────────────────────────── */}
         {error && (
           <div className="p-3 rounded-lg text-xs flex gap-2 items-start"
-            style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.25)', color: '#fca5a5' }}>
+            style={{ background: 'var(--bear-bg)', border: '1px solid color-mix(in srgb, var(--bear) 25%, transparent)', color: 'color-mix(in srgb, var(--bear) 55%, white)' }}>
             <span className="flex-shrink-0 mt-0.5">⚠</span>
             <div>
               <p className="font-semibold mb-1">Erreur</p>
@@ -483,7 +464,7 @@ function AnalysisPanel() {
               <div className="relative flex items-center justify-between">
                 <div>
                   <div className="text-3xl font-black tracking-tight flex items-center gap-2"
-                    style={{ color: bc.color, textShadow: `0 0 20px ${bc.color}60` }}>
+                    style={{ color: bc.color, textShadow: `0 0 20px ${bc.glow}` }}>
                     <span>{bc.icon}</span><span>{bc.label}</span>
                   </div>
                   <div className="text-xs mt-1 font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -491,7 +472,7 @@ function AnalysisPanel() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-black" style={{ color: bc.color }}>
+                  <div className="text-2xl font-black tabular-nums" style={{ color: bc.color }}>
                     {Math.round(result.confidence * 100)}%
                   </div>
                   <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>confiance</div>
@@ -508,16 +489,16 @@ function AnalysisPanel() {
             {/* Gamma squeeze alert */}
             {result.gamma_squeeze && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                style={{ background: 'rgba(239,68,68,.10)', border: '1px solid rgba(239,68,68,.3)' }}>
-                <span className="text-[10px] font-black animate-pulse" style={{ color: '#ef4444' }}>
+                style={{ background: 'var(--bear-bg)', border: '1px solid color-mix(in srgb, var(--bear) 30%, transparent)' }}>
+                <span className="text-[10px] font-black animate-pulse" style={{ color: 'var(--bear)' }}>
                   ⚡ GAMMA SQUEEZE
                 </span>
                 <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
                   <div className="h-full rounded-full"
-                    style={{ width: `${Math.round((result.squeeze_strength ?? 0) * 100)}%`, background: '#ef4444',
+                    style={{ width: `${Math.round((result.squeeze_strength ?? 0) * 100)}%`, background: 'var(--bear)',
                              transition: 'width 0.5s ease' }} />
                 </div>
-                <span className="text-[10px] font-bold font-mono" style={{ color: '#ef4444' }}>
+                <span className="text-[10px] font-bold font-mono tabular-nums" style={{ color: 'var(--bear)' }}>
                   {Math.round((result.squeeze_strength ?? 0) * 100)}%
                 </span>
               </div>
@@ -536,7 +517,7 @@ function AnalysisPanel() {
                   <div className="text-[9px] font-bold uppercase tracking-widest mb-0.5"
                     style={{ color: 'var(--text-muted)' }}>{label}</div>
                   <div className="text-[11px] font-bold"
-                    style={{ color: REGIME_COLOR[value] ?? '#64748b' }}>
+                    style={{ color: regimeColor(value) }}>
                     {value.replace(/_/g, ' ')}
                   </div>
                 </div>
@@ -552,7 +533,7 @@ function AnalysisPanel() {
                     <div className="text-[9px] font-bold uppercase tracking-widest mb-0.5"
                       style={{ color: 'var(--text-muted)' }}>Régime Marché</div>
                     <div className="text-[11px] font-bold"
-                      style={{ color: REGIME_COLOR[result.regime] ?? '#64748b' }}>
+                      style={{ color: regimeColor(result.regime) }}>
                       {result.regime.replace(/_/g, ' ')}
                     </div>
                   </div>
@@ -561,9 +542,9 @@ function AnalysisPanel() {
                   <div className="text-right">
                     <div className="text-[9px] font-bold uppercase tracking-widest mb-0.5"
                       style={{ color: 'var(--text-muted)' }}>Confluence</div>
-                    <div className="text-lg font-black font-mono"
-                      style={{ color: result.confluence_score > 0 ? '#22c55e'
-                               : result.confluence_score < 0 ? '#ef4444' : '#64748b' }}>
+                    <div className="text-lg font-black font-mono tabular-nums"
+                      style={{ color: result.confluence_score > 0 ? AI_BULL
+                               : result.confluence_score < 0 ? AI_BEAR : AI_NEUTRAL }}>
                       {result.confluence_score > 0 ? '+' : ''}{result.confluence_score.toFixed(1)}
                       <span className="text-[10px] font-normal opacity-50">/8</span>
                     </div>
@@ -578,28 +559,28 @@ function AnalysisPanel() {
                 <SectionLabel>Niveaux Clés</SectionLabel>
                 <div className="grid grid-cols-3 gap-1.5">
                   {result.key_levels.support.length > 0 && (
-                    <div className="p-2 rounded-lg" style={{ background: 'rgba(34,197,94,.05)', border: '1px solid rgba(34,197,94,.2)' }}>
-                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#22c55e' }}>▲ Support</div>
+                    <div className="p-2 rounded-lg" style={{ background: `color-mix(in srgb, ${LEVEL_COLOR.support} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${LEVEL_COLOR.support} 20%, transparent)` }}>
+                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: LEVEL_COLOR.support }}>▲ Support</div>
                       {result.key_levels.support.map((l, i) => (
-                        <div key={i} className="text-xs font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        <div key={i} className="text-xs font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                           ${l.toLocaleString()}
                         </div>
                       ))}
                     </div>
                   )}
                   {result.key_levels.gamma_flip > 0 && (
-                    <div className="p-2 rounded-lg" style={{ background: 'rgba(249,115,22,.05)', border: '1px solid rgba(249,115,22,.2)' }}>
-                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#f97316' }}>⊙ Flip</div>
-                      <div className="text-xs font-mono font-semibold" style={{ color: '#f97316' }}>
+                    <div className="p-2 rounded-lg" style={{ background: `color-mix(in srgb, ${LEVEL_COLOR.flip} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${LEVEL_COLOR.flip} 20%, transparent)` }}>
+                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: LEVEL_COLOR.flip }}>⊙ Flip</div>
+                      <div className="text-xs font-mono font-semibold tabular-nums" style={{ color: LEVEL_COLOR.flip }}>
                         ${result.key_levels.gamma_flip.toLocaleString()}
                       </div>
                     </div>
                   )}
                   {result.key_levels.resistance.length > 0 && (
-                    <div className="p-2 rounded-lg" style={{ background: 'rgba(239,68,68,.05)', border: '1px solid rgba(239,68,68,.2)' }}>
-                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#ef4444' }}>▼ Résistance</div>
+                    <div className="p-2 rounded-lg" style={{ background: `color-mix(in srgb, ${LEVEL_COLOR.resistance} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${LEVEL_COLOR.resistance} 20%, transparent)` }}>
+                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: LEVEL_COLOR.resistance }}>▼ Résistance</div>
                       {result.key_levels.resistance.map((l, i) => (
-                        <div key={i} className="text-xs font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        <div key={i} className="text-xs font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                           ${l.toLocaleString()}
                         </div>
                       ))}
@@ -614,9 +595,9 @@ function AnalysisPanel() {
               <div className="space-y-1.5">
                 <SectionLabel>Setup</SectionLabel>
                 {[
-                  { label: 'Entrée',       value: result.setup.entry,        color: '#60a5fa' },
-                  { label: 'Objectif',     value: result.setup.target,       color: '#22c55e' },
-                  { label: 'Invalidation', value: result.setup.invalidation, color: '#ef4444' },
+                  { label: 'Entrée',       value: result.setup.entry,        color: SETUP_COLOR.entry },
+                  { label: 'Objectif',     value: result.setup.target,       color: SETUP_COLOR.target },
+                  { label: 'Invalidation', value: result.setup.invalidation, color: SETUP_COLOR.invalidation },
                 ].map(({ label, value, color }) => value ? (
                   <div key={label} className="flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -650,14 +631,14 @@ function AnalysisPanel() {
             {/* LLM explanation (optional, secondary) */}
             {result.llm_explanation && (
               <div className="p-3 rounded-lg flex gap-2.5"
-                style={{ background: 'rgba(168,85,247,.05)', border: '1px solid rgba(168,85,247,.2)' }}>
+                style={{ background: `color-mix(in srgb, ${AI_ACCENT} 5%, transparent)`, border: `1px solid color-mix(in srgb, ${AI_ACCENT} 20%, transparent)` }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                  stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0 mt-0.5">
+                  stroke={AI_ACCENT} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0 mt-0.5">
                   <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1 0-6h1V6a4 4 0 0 1 4-4z"/>
                 </svg>
                 <div>
                   <div className="text-[9px] font-bold uppercase tracking-widest mb-1.5"
-                    style={{ color: '#a855f7' }}>Contexte IA</div>
+                    style={{ color: AI_ACCENT }}>Contexte IA</div>
                   <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                     {result.llm_explanation}
                   </p>
@@ -670,7 +651,7 @@ function AnalysisPanel() {
               style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full"
-                  style={{ background: result.source === 'python' ? '#22c55e' : '#3b82f6' }} />
+                  style={{ background: result.source === 'python' ? AI_BULL : AI_ACCENT }} />
                 {result.source === 'python' ? 'Python Engine' : 'JS Engine'}
               </span>
               <span>{result.meta?.timestamp ? new Date(result.meta.timestamp).toLocaleTimeString() : ''}</span>
@@ -801,15 +782,15 @@ function ChatPanel() {
       {/* Header */}
       <div className="flex-shrink-0 px-5 pt-5 pb-3">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Assistant Trading</h2>
+          <h2 style={{ fontFamily: MONO, fontWeight: 600, fontSize: 14, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Assistant Trading</h2>
           <button onClick={() => setMessages([messages[0]])}
-            className="text-[11px] px-2 py-0.5 rounded transition-colors hover:opacity-80"
-            style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+            className="px-2 py-0.5 rounded transition-colors hover:opacity-80"
+            style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
             title="Effacer la conversation">
             Effacer
           </button>
         </div>
-        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>GEX · Skew · Footprint · Option Flow</p>
+        <p style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>GEX · Skew · Footprint · Option Flow</p>
       </div>
 
       {/* Messages */}
@@ -819,15 +800,15 @@ function ChatPanel() {
             {/* Avatar */}
             {msg.role === 'assistant' && (
               <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5"
-                style={{ background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)40' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                style={{ background: 'var(--primary)', boxShadow: '0 0 10px var(--primary-glow)' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ON_PRIMARY} strokeWidth="2">
                   <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1 0-6h1V6a4 4 0 0 1 4-4z"/>
                 </svg>
               </div>
             )}
             {msg.role === 'user' && (
               <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5"
-                style={{ background: 'var(--surface-elevated, var(--surface))', border: '1px solid var(--border)' }}>
+                style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2">
                   <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
                 </svg>
@@ -838,9 +819,9 @@ function ChatPanel() {
               msg.role === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'
             }`} style={{
               background:   msg.role === 'user' ? 'var(--primary)' : 'var(--surface)',
-              color:        msg.role === 'user' ? '#fff' : 'var(--text-primary)',
+              color:        msg.role === 'user' ? ON_PRIMARY : 'var(--text-primary)',
               border:       msg.role === 'assistant' ? '1px solid var(--border)' : 'none',
-              boxShadow:    msg.role === 'user' ? '0 2px 12px var(--primary)30' : 'none',
+              boxShadow:    msg.role === 'user' ? '0 2px 12px var(--primary-glow)' : 'none',
             }}>
               {msg.loading && !msg.content ? (
                 <div className="flex gap-1 items-center py-0.5">
@@ -888,7 +869,7 @@ function ChatPanel() {
           {loading ? (
             <button onClick={() => { abortRef.current?.abort(); setLoading(false); }}
               className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-              style={{ background: '#ef4444', color: '#fff' }} title="Arrêter">
+              style={{ background: 'var(--bear)', color: 'white' }} title="Arrêter">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="6" width="12" height="12" rx="2"/>
               </svg>
@@ -897,7 +878,7 @@ function ChatPanel() {
             <button onClick={() => send(input)} disabled={!input.trim()}
               className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
               style={{ background: input.trim() ? 'var(--primary)' : 'var(--border)',
-                       color: '#fff', boxShadow: input.trim() ? '0 0 10px var(--primary)50' : 'none' }}>
+                       color: input.trim() ? ON_PRIMARY : 'var(--text-muted)', boxShadow: input.trim() ? '0 0 10px var(--primary-glow)' : 'none' }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="22" y1="2" x2="11" y2="13"/>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -953,15 +934,15 @@ export default function AIAgentsPage() {
         {/* Left: icon + title + engine badge */}
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center"
-            style={{ background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)50' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff"
+            style={{ background: 'var(--primary)', boxShadow: '0 0 10px var(--primary-glow)' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={ON_PRIMARY}
               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z"/>
               <path d="M19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75z"/>
             </svg>
           </div>
-          <span className="text-[13px] font-bold whitespace-nowrap"
-            style={{ color: 'var(--text-primary)' }}>
+          <span className="whitespace-nowrap"
+            style={{ fontFamily: MONO, fontWeight: 600, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
             AI Trading Suite
           </span>
           <Badge ok={status} />
@@ -980,11 +961,12 @@ export default function AIAgentsPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-md
-                            text-[11px] font-medium transition-all duration-150 ${
+                            transition-all duration-150 ${
                   active
                     ? 'bg-[var(--surface)] text-[var(--text-primary)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]/60'
                 }`}
+                style={{ fontFamily: MONO, fontSize: 11, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}
               >
                 <IconCmp size={12} />
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -1010,10 +992,10 @@ export default function AIAgentsPage() {
             <div className="flex-shrink-0 flex items-center gap-2 px-4 py-1.5 border-b text-[11px]"
               style={{
                 borderColor: 'var(--border)',
-                background: 'rgba(59,130,246,.04)',
+                background: `color-mix(in srgb, ${AI_ACCENT} 5%, transparent)`,
                 color: 'var(--text-muted)',
               }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#3b82f6"
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={AI_ACCENT}
                 strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>

@@ -12,6 +12,7 @@ const IVSmileChart = dynamic(() => import('@/components/charts/IVSmileChart'), {
 import { useEquityOptionsStore } from '@/stores/useEquityOptionsStore';
 import type { EquitySymbol } from '@/types/options';
 import { RefreshIcon } from '@/components/ui/Icons';
+import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
 type ViewMode = 'smile' | 'surface3D' | 'termStructure';
 
@@ -35,6 +36,7 @@ export default function VolatilityPageContent() {
     reset,
   } = useEquityOptionsStore();
 
+  useTrackChartVisit(symbol, '/volatility');
   const isActive = usePageActive();
   const liveSpot = useLiveSpot(symbol, 10_000);
 

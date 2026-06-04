@@ -314,6 +314,19 @@ pub fn run() {
             app.manage(rithmic_state);
             app.manage(state::BridgeState::new(bridge_engine));
 
+            // L2 depth holder for the bridge — shared by the pump
+            // (spawned at bridge_connect) and the IPC emitter (spawned
+            // here once and running forever, emits only when books are
+            // dirty so the idle cost is zero).
+            let bridge_depth_state = std::sync::Arc::new(
+                commands::bridge_depth::BridgeDepthState::new(),
+            );
+            commands::bridge_depth::spawn_emitter(
+                app.handle().clone(),
+                bridge_depth_state.clone(),
+            );
+            app.manage(bridge_depth_state);
+
             // Phase B / M2 — public crypto adapters share their own
             // FootprintEngine. M3 wires a dedicated event emitter
             // (`crypto-footprint-update`) so React can disambiguate
@@ -448,6 +461,7 @@ pub fn run() {
             commands::bridge::bridge_connect,
             commands::bridge::bridge_disconnect,
             commands::bridge::bridge_status,
+            commands::bridge_depth::bridge_get_depth,
             commands::cache::cache_query,
             // Native Journal — Day 1: trades CRUD + listing + stats.
             journal::commands::journal_list_trades,

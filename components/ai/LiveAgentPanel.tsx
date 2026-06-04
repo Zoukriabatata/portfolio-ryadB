@@ -7,57 +7,25 @@ import {
 } from 'lucide-react';
 import { useLiveAgent, type AgentSignal, type AgentSource } from '@/hooks/useLiveAgent';
 import { LiveFeed } from '@/components/ai/LiveFeed';
+import {
+  BIAS_CFG, regimeColor, SEVERITY_COLOR, STATUS_COLOR, MODE_STYLE,
+  SETUP_COLOR, LEVEL_COLOR, AI_ACCENT, AI_NEUTRAL,
+} from '@/lib/ai/colors';
 
 // ─── Style maps ───────────────────────────────────────────────────────────────
+// Couleurs/régimes : voir lib/ai/colors.ts. Ici, seul le mapping d'icônes lucide
+// (spécifique à ce panneau) reste local.
 
-const BIAS = {
-  LONG:    { label: 'LONG',    color: '#22c55e', bg: 'rgba(34,197,94,.08)',   border: 'rgba(34,197,94,.20)',  Icon: TrendingUp  },
-  SHORT:   { label: 'SHORT',   color: '#ef4444', bg: 'rgba(239,68,68,.08)',   border: 'rgba(239,68,68,.20)',  Icon: TrendingDown },
-  NEUTRAL: { label: 'NEUTRAL', color: '#eab308', bg: 'rgba(234,179,8,.08)',   border: 'rgba(234,179,8,.20)',  Icon: Minus       },
+const BIAS_ICON = {
+  LONG:    TrendingUp,
+  SHORT:   TrendingDown,
+  NEUTRAL: Minus,
 } as const;
-
-const REGIME_COLOR: Record<string, string> = {
-  LONG_GAMMA:             '#22c55e',
-  SHORT_GAMMA:            '#ef4444',
-  NEAR_FLIP:              '#f97316',
-  BULLISH:                '#22c55e',
-  BEARISH:                '#ef4444',
-  NEUTRAL:                '#64748b',
-  EXPANSION:              '#a855f7',
-  COMPRESSION:            '#3b82f6',
-  CALM:                   '#64748b',
-  EVENT_RISK:             '#f97316',
-  BREAKOUT_ZONE:          '#f97316',
-  TRAPPED_SHORT:          '#ef4444',
-  TRAPPED_LONG:           '#ef4444',
-  STABLE:                 '#22c55e',
-  TRANSITION:             '#f97316',
-  HIGH_PROBABILITY_TREND: '#22c55e',
-  RANGE_MARKET:           '#3b82f6',
-  BREAKOUT_WATCH:         '#f97316',
-  GAMMA_SQUEEZE:          '#ef4444',
-  VOLATILE_TREND:         '#a855f7',
-  DISTRIBUTION:           '#ef4444',
-  AMBIGUOUS:              '#64748b',
-};
-
-const SEVERITY_COLOR: Record<string, string> = {
-  HIGH:   '#ef4444',
-  MEDIUM: '#f97316',
-  LOW:    '#64748b',
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  live:         '#22c55e',
-  connecting:   '#eab308',
-  reconnecting: '#eab308',
-  offline:      '#ef4444',
-};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function RegimeChip({ label, value }: { label: string; value: string }) {
-  const color = REGIME_COLOR[value] ?? '#64748b';
+  const color = regimeColor(value);
   return (
     <div className="flex flex-col gap-1 min-w-0">
       <span className="text-[9px] font-bold uppercase tracking-widest"
@@ -67,8 +35,8 @@ function RegimeChip({ label, value }: { label: string; value: string }) {
       <span
         className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold truncate"
         style={{
-          background: `${color}15`,
-          border:     `1px solid ${color}35`,
+          background: `color-mix(in srgb, ${color} 14%, transparent)`,
+          border:     `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
           color,
         }}>
         {value.replace(/_/g, ' ')}
@@ -78,10 +46,10 @@ function RegimeChip({ label, value }: { label: string; value: string }) {
 }
 
 function EventPill({ event }: { event: { type: string; severity: string } }) {
-  const color = SEVERITY_COLOR[event.severity] ?? '#64748b';
+  const color = SEVERITY_COLOR[event.severity] ?? AI_NEUTRAL;
   return (
     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium"
-      style={{ background: `${color}18`, border: `1px solid ${color}40`, color }}>
+      style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`, color }}>
       <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: color }} />
       {event.type.replace(/_/g, ' ')}
     </div>
@@ -128,7 +96,9 @@ function ConfluenceBar({ score }: { score: number }) {
   const MAX    = 8;
   const bullPct = score > 0 ? Math.min((score / MAX) * 100, 100) : 0;
   const bearPct = score < 0 ? Math.min((Math.abs(score) / MAX) * 100, 100) : 0;
-  const color   = score > 3 ? '#22c55e' : score < -3 ? '#ef4444' : score > 0 ? '#86efac' : score < 0 ? '#fca5a5' : '#64748b';
+  const color   = score > 3 ? 'var(--bull)' : score < -3 ? 'var(--bear)'
+                : score > 0 ? 'var(--primary-light)' : score < 0 ? 'color-mix(in srgb, var(--bear) 55%, white)'
+                : 'var(--text-muted)';
   const label   = score > 5 ? 'STRONG BULL' : score > 3 ? 'BULL' : score < -5 ? 'STRONG BEAR' : score < -3 ? 'BEAR' : 'NEUTRAL';
 
   return (
@@ -141,11 +111,11 @@ function ConfluenceBar({ score }: { score: number }) {
         <div className="absolute top-0 bottom-0 w-px" style={{ left: '50%', background: 'var(--text-muted)', opacity: 0.4 }} />
         {bullPct > 0 && (
           <div className="absolute top-0 bottom-0 rounded-full"
-            style={{ left: '50%', width: `${bullPct / 2}%`, background: '#22c55e', transition: 'width 0.5s ease' }} />
+            style={{ left: '50%', width: `${bullPct / 2}%`, background: 'var(--bull)', transition: 'width 0.5s ease' }} />
         )}
         {bearPct > 0 && (
           <div className="absolute top-0 bottom-0 rounded-full"
-            style={{ right: '50%', width: `${bearPct / 2}%`, background: '#ef4444', transition: 'width 0.5s ease' }} />
+            style={{ right: '50%', width: `${bearPct / 2}%`, background: 'var(--bear)', transition: 'width 0.5s ease' }} />
         )}
       </div>
     </div>
@@ -156,22 +126,22 @@ function GammaSqueezeAlert({ strength }: { strength: number }) {
   const pct = Math.round(strength * 100);
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-md"
-      style={{ background: 'rgba(239,68,68,.10)', border: '1px solid rgba(239,68,68,.3)' }}>
-      <Zap size={12} color="#ef4444" className="flex-shrink-0 animate-pulse" />
-      <span className="text-[10px] font-black" style={{ color: '#ef4444' }}>GAMMA SQUEEZE</span>
+      style={{ background: 'var(--bear-bg)', border: '1px solid color-mix(in srgb, var(--bear) 30%, transparent)' }}>
+      <Zap size={12} color="var(--bear)" className="flex-shrink-0 animate-pulse" />
+      <span className="text-[10px] font-black" style={{ color: 'var(--bear)' }}>GAMMA SQUEEZE</span>
       <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#ef4444', transition: 'width 0.5s ease' }} />
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--bear)', transition: 'width 0.5s ease' }} />
       </div>
-      <span className="text-[10px] font-bold font-mono flex-shrink-0" style={{ color: '#ef4444' }}>{pct}%</span>
+      <span className="text-[10px] font-bold font-mono flex-shrink-0" style={{ color: 'var(--bear)' }}>{pct}%</span>
     </div>
   );
 }
 
 function SetupBlock({ setup }: { setup: { entry: string; target: string; invalidation: string } }) {
   const rows = [
-    { label: 'Entry',        value: setup.entry,        color: '#60a5fa', Icon: ArrowRight   },
-    { label: 'Target',       value: setup.target,       color: '#22c55e', Icon: Target       },
-    { label: 'Invalidation', value: setup.invalidation, color: '#ef4444', Icon: AlertTriangle },
+    { label: 'Entry',        value: setup.entry,        color: SETUP_COLOR.entry,        Icon: ArrowRight   },
+    { label: 'Target',       value: setup.target,       color: SETUP_COLOR.target,       Icon: Target       },
+    { label: 'Invalidation', value: setup.invalidation, color: SETUP_COLOR.invalidation, Icon: AlertTriangle },
   ];
   return (
     <div className="space-y-2">
@@ -206,12 +176,13 @@ function MiniMetric({ label, value, color }: { label: string; value: number; col
 function SourceBadge({ source }: { source: AgentSource }) {
   if (!source) return null;
   const isPython = source === 'python_agent';
+  const color = isPython ? 'var(--primary)' : AI_ACCENT;
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide"
       style={{
-        background: isPython ? 'rgba(168,85,247,.12)' : 'rgba(59,130,246,.12)',
-        border:     isPython ? '1px solid rgba(168,85,247,.3)' : '1px solid rgba(59,130,246,.3)',
-        color:      isPython ? '#a855f7' : '#3b82f6',
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        border:     `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
+        color,
       }}>
       {isPython ? '🐍 Python' : '⚡ JS Sim'}
     </span>
@@ -227,9 +198,9 @@ export function LiveAgentPanel() {
   });
 
   const bias   = signal?.bias ?? 'NEUTRAL';
-  const bStyle = BIAS[bias];
+  const bStyle = BIAS_CFG[bias];
   const conf   = signal?.confidence ?? 0;
-  const BiasIcon = bStyle.Icon;
+  const BiasIcon = BIAS_ICON[bias];
 
   const secAgo = lastUpdate
     ? Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
@@ -258,13 +229,13 @@ export function LiveAgentPanel() {
           </span>
         </div>
 
-        {status === 'offline' && <WifiOff size={12} color="#ef4444" />}
-        {status === 'reconnecting' && <RefreshCw size={12} color="#eab308" className="animate-spin" />}
+        {status === 'offline' && <WifiOff size={12} color="var(--bear)" />}
+        {status === 'reconnecting' && <RefreshCw size={12} color="var(--warning)" className="animate-spin" />}
 
         <div className="h-3 w-px" style={{ background: 'var(--border)' }} />
 
         <Radio size={12} style={{ color: 'var(--text-muted)' }} />
-        <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
           Agent Continu
         </span>
 
@@ -273,9 +244,9 @@ export function LiveAgentPanel() {
         {signal?.mode && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide"
             style={{
-              background: signal.mode === 'SIGNAL' ? 'rgba(239,68,68,.12)' : 'rgba(59,130,246,.10)',
-              color:      signal.mode === 'SIGNAL' ? '#ef4444' : '#60a5fa',
-              border:     `1px solid ${signal.mode === 'SIGNAL' ? 'rgba(239,68,68,.3)' : 'rgba(59,130,246,.25)'}`,
+              background: signal.mode === 'SIGNAL' ? MODE_STYLE.SIGNAL.bg : MODE_STYLE.UPDATE.bg,
+              color:      signal.mode === 'SIGNAL' ? MODE_STYLE.SIGNAL.color : MODE_STYLE.UPDATE.color,
+              border:     `1px solid color-mix(in srgb, ${signal.mode === 'SIGNAL' ? MODE_STYLE.SIGNAL.color : MODE_STYLE.UPDATE.color} 28%, transparent)`,
             }}>
             {signal.mode}
           </span>
@@ -298,7 +269,7 @@ export function LiveAgentPanel() {
           <div className="flex items-center gap-1.5">
             <BiasIcon size={18} color={bStyle.color} />
             <span className="text-xl font-black tracking-tight"
-              style={{ color: bStyle.color, textShadow: `0 0 16px ${bStyle.color}40` }}>
+              style={{ color: bStyle.color, textShadow: `0 0 16px ${bStyle.glow}` }}>
               {bStyle.label}
             </span>
           </div>
@@ -325,17 +296,17 @@ export function LiveAgentPanel() {
             <div className="flex items-center gap-3 mt-3 pt-2 border-t text-[10px]"
               style={{ borderColor: 'var(--border)' }}>
               {signal.key_levels.support.length > 0 && (
-                <span style={{ color: '#22c55e' }}>
+                <span style={{ color: LEVEL_COLOR.support }}>
                   S: {signal.key_levels.support.map(v => v.toFixed(0)).join(' · ')}
                 </span>
               )}
               {signal.key_levels.resistance.length > 0 && (
-                <span style={{ color: '#ef4444' }}>
+                <span style={{ color: LEVEL_COLOR.resistance }}>
                   R: {signal.key_levels.resistance.map(v => v.toFixed(0)).join(' · ')}
                 </span>
               )}
               {signal.key_levels.gamma_flip > 0 && (
-                <span style={{ color: '#f97316' }}>
+                <span style={{ color: LEVEL_COLOR.flip }}>
                   Flip: {signal.key_levels.gamma_flip.toFixed(0)}
                 </span>
               )}
@@ -370,7 +341,7 @@ export function LiveAgentPanel() {
               <span className="text-[9px] font-bold uppercase tracking-widest"
                 style={{ color: 'var(--text-muted)' }}>Régime</span>
               <span className="text-[11px] font-bold"
-                style={{ color: REGIME_COLOR[signal.regime] ?? '#64748b' }}>
+                style={{ color: regimeColor(signal.regime) }}>
                 {signal.regime.replace(/_/g, ' ')}
               </span>
             </div>
@@ -383,13 +354,13 @@ export function LiveAgentPanel() {
           {(signal?.signal_confidence !== undefined || signal?.signal_quality !== undefined) && (
             <div className="flex items-center gap-4">
               {signal.signal_confidence !== undefined && (
-                <MiniMetric label="Sig Conf" value={signal.signal_confidence} color="#60a5fa" />
+                <MiniMetric label="Sig Conf" value={signal.signal_confidence} color={AI_ACCENT} />
               )}
               {signal.persistence_score !== undefined && (
-                <MiniMetric label="Persist" value={signal.persistence_score} color="#a855f7" />
+                <MiniMetric label="Persist" value={signal.persistence_score} color="var(--accent-light)" />
               )}
               {signal.signal_quality !== undefined && (
-                <MiniMetric label="Quality" value={signal.signal_quality} color="#22c55e" />
+                <MiniMetric label="Quality" value={signal.signal_quality} color="var(--bull)" />
               )}
             </div>
           )}
@@ -420,7 +391,7 @@ export function LiveAgentPanel() {
                   const x = (i / Math.max(arr.length - 1, 1)) * 100;
                   const y = 22 - s.confidence * 18;
                   return <circle key={i} cx={`${x}%`} cy={y} r="2"
-                    fill={BIAS[s.bias]?.color ?? '#64748b'} opacity="0.85" />;
+                    fill={BIAS_CFG[s.bias]?.color ?? AI_NEUTRAL} opacity="0.85" />;
                 })}
                 {history.slice(-20).map((s, i, arr) => {
                   if (i === 0) return null;

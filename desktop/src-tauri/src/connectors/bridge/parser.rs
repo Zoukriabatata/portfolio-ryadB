@@ -6,6 +6,9 @@
 //!   E                                              end-of-history sentinel
 //!   L,<ts_ns>,<price>,<qty>,<side>[,<seq>]         live tick
 //!   V,<ts_ns>,<daily_volume>                       exchange-pushed session vol
+//!   D,<ts_ns>,<side>,<op>,<price>,<volume>         L2 depth update
+//!                                                   side: 0=bid 1=ask
+//!                                                   op:   0=update/insert 1=delete
 //!   P                                              ping / keepalive
 //!
 //! `seq` is an optional monotonic per-session counter emitted by the
@@ -31,6 +34,30 @@ pub struct DailyVolume {
     pub volume: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DepthSide {
+    Bid,
+    Ask,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DepthOp {
+    /// Insert a new level or update an existing one (NT's Add + Update).
+    /// State semantics: the level's volume becomes the value in this event.
+    Upsert,
+    /// Remove a price level from the book.
+    Delete,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DepthUpdate {
+    pub timestamp_ns: u64,
+    pub side: DepthSide,
+    pub op: DepthOp,
+    pub price: f64,
+    pub volume: u64,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum BridgeMessage {
     Meta(BridgeMeta),
@@ -38,6 +65,7 @@ pub enum BridgeMessage {
     EndOfHistory,
     Live(Tick),
     DailyVolume(DailyVolume),
+    Depth(DepthUpdate),
     Ping,
 }
 
@@ -81,10 +109,63 @@ pub fn parse_line(line: &str) -> Result<BridgeMessage, ParseError> {
         'H' => parse_tick(rest).map(BridgeMessage::Historical),
         'L' => parse_tick(rest).map(BridgeMessage::Live),
         'V' => parse_daily_volume(rest).map(BridgeMessage::DailyVolume),
+        'D' => parse_depth(rest).map(BridgeMessage::Depth),
         'E' => Ok(BridgeMessage::EndOfHistory),
         'P' => Ok(BridgeMessage::Ping),
         c => Err(ParseError::UnknownType(c)),
     }
+}
+
+fn parse_depth(rest: &str) -> Result<DepthUpdate, ParseError> {
+    // Expected: ,<ts_ns>,<side>,<op>,<price>,<volume>
+    let mut parts = rest.splitn(6, ',');
+    let _leading_comma = parts.next().ok_or(ParseError::MissingField(0))?;
+    let ts_s = parts.next().ok_or(ParseError::MissingField(1))?;
+    let side_s = parts.next().ok_or(ParseError::MissingField(2))?;
+    let op_s = parts.next().ok_or(ParseError::MissingField(3))?;
+    let price_s = parts.next().ok_or(ParseError::MissingField(4))?;
+    let vol_s = parts.next().ok_or(ParseError::MissingField(5))?;
+
+    let timestamp_ns: u64 = ts_s.parse().map_err(|e| ParseError::InvalidInteger {
+        field: "ts_ns",
+        source: e,
+    })?;
+    let side_n: u8 = side_s.parse().map_err(|e| ParseError::InvalidInteger {
+        field: "side",
+        source: e,
+    })?;
+    let side = match side_n {
+        0 => DepthSide::Bid,
+        1 => DepthSide::Ask,
+        other => return Err(ParseError::InvalidSide(other)),
+    };
+    let op_n: u8 = op_s.parse().map_err(|e| ParseError::InvalidInteger {
+        field: "op",
+        source: e,
+    })?;
+    let op = match op_n {
+        0 => DepthOp::Upsert,
+        1 => DepthOp::Delete,
+        // The wire protocol only defines 0 and 1; treat any other
+        // numeric value as Upsert (safest — never silently drop a
+        // level off the book based on a corrupt op flag).
+        _ => DepthOp::Upsert,
+    };
+    let price: f64 = price_s.parse().map_err(|e| ParseError::InvalidNumber {
+        field: "price",
+        source: e,
+    })?;
+    let volume: u64 = vol_s.parse().map_err(|e| ParseError::InvalidInteger {
+        field: "volume",
+        source: e,
+    })?;
+    Ok(DepthUpdate {
+        timestamp_ns,
+        side,
+        op,
+        price,
+        volume,
+    })
 }
 
 fn parse_daily_volume(rest: &str) -> Result<DailyVolume, ParseError> {

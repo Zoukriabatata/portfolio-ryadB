@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { usePageActive } from '@/hooks/usePageActive';
 import type { FlowItem } from '@/app/api/options-flow/route';
+import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const TEAL = '#26beaf';
@@ -309,6 +310,7 @@ export default function FlowPageContent() {
   const isActive = usePageActive();
 
   const [symbol,     setSymbol]     = useState('QQQ');
+  useTrackChartVisit(symbol, '/flow');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [tagFilter,  setTagFilter]  = useState<TagFilter>('all');
   const [sortKey,    setSortKey]    = useState<SortKey>('premium');

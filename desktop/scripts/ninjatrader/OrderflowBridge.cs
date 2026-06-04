@@ -509,6 +509,55 @@ namespace NinjaTrader.NinjaScript.Indicators
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // Level-2 depth (DOM)
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // NinjaTrader fires OnMarketDepth(MarketDepthEventArgs) every time a
+        // price level on the bid or ask side changes (add / update / remove).
+        // We forward each event on a single `D` wire line:
+        //
+        //   D,<ts_ns>,<side>,<op>,<price>,<volume>
+        //
+        // where
+        //   side   = 0 (bid) | 1 (ask)
+        //   op     = 0 (update or insert) | 1 (delete)
+        //   price  = F4 formatted
+        //   volume = i64 (0 is allowed on op=1)
+        //
+        // We use price as the level identity on the Rust side (a HashMap<price,
+        // volume> per side) — NT's Position field would only be a current
+        // rank and isn't stable across updates. State.Historical depth is
+        // not replayed by NT; only live ticks reach here, so no replay
+        // path is needed.
+        //
+        // Bail outs:
+        //   • _invalidChart (non-Tick chart hard-guard)
+        //   • State != Realtime (don't emit depth during DataLoaded /
+        //     Historical / Transition — engine isn't ready yet)
+        //
+        // Throttling lives on the Rust side (16ms HashMap accumulator) so
+        // we don't drop events here even on storm bursts.
+        protected override void OnMarketDepth(MarketDepthEventArgs e)
+        {
+            if (_invalidChart) return;
+            if (!_running) return;
+            if (State != State.Realtime) return;
+
+            int side = e.MarketDataType == MarketDataType.Ask ? 1 : 0;
+            int op = e.Operation == Operation.Remove ? 1 : 0;
+            long tsNs = ToUnixNanos(e.Time);
+            long vol = (long)e.Volume;
+
+            _liveOutbox.Enqueue(string.Format(IC,
+                "D,{0},{1},{2},{3},{4}",
+                tsNs.ToString(IC),
+                side.ToString(IC),
+                op.ToString(IC),
+                e.Price.ToString("F4", IC),
+                vol.ToString(IC)));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // Historical tick accumulation
         // ═══════════════════════════════════════════════════════════════════
 

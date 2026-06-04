@@ -1,11 +1,29 @@
 'use client';
 
 /**
- * DashboardAIChat — panel IA inline intégré dans le dashboard.
- * Même API /api/ai/support mais version embedded (pas floating).
+ * DashboardAIChat — Editorial Terminal redesign.
+ *
+ * Renders the conversation area + suggestion chips + input row.
+ * The component header (logo + "OrderFlow AI" title + close button)
+ * is owned by the FloatingAIChat slide-over wrapper, so this body
+ * no longer duplicates it.
+ *
+ * Visual direction matches the rest of the dashboard surface :
+ *   • Geist Sans body, Instrument Serif italic for editorial flourish.
+ *   • JetBrains Mono on labels / live indicator / placeholder.
+ *   • Pure lime accent reserved for the live dot, focus ring, send
+ *     button, and user message bubble. No teal, no orange, no
+ *     emoji.
+ *   • Message bubbles use minimal-radius (10 px) and 1 px hairline
+ *     borders instead of the prior asymmetric speech-bubble shape.
+ *     Reads as editorial transcript, not WhatsApp.
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { ArrowUp, Square } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { cn } from '@/lib/utils';
+
 import { renderMessage } from './renderMessage';
 
 interface Msg {
@@ -14,21 +32,24 @@ interface Msg {
   loading?: boolean;
 }
 
-const WELCOME = 'Bonjour ! Posez-moi vos questions sur les marchés, la plateforme, ou le Discord 🚀';
+const WELCOME =
+  'Posez-moi vos questions sur les marchés, la plateforme, ou le Discord.';
 
 const CHIPS = [
-  'Qu\'est-ce que le GEX ?',
+  "Qu'est-ce que le GEX ?",
   'Lien Discord ?',
   'Comment lire le footprint ?',
-  'C\'est quoi le skew ?',
+  "C'est quoi le skew ?",
   'Explain funding rates',
 ];
 
 export default function DashboardAIChat() {
-  const [messages, setMessages] = useState<Msg[]>([{ role: 'assistant', content: WELCOME }]);
-  const [input, setInput]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const endRef   = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<Msg[]>([
+    { role: 'assistant', content: WELCOME },
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -36,172 +57,276 @@ export default function DashboardAIChat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const send = useCallback(async (text: string) => {
-    if (!text.trim() || loading) return;
-    const history = messages.filter(m => !m.loading).slice(-12)
-      .map(m => ({ role: m.role, content: m.content }));
+  const send = useCallback(
+    async (text: string) => {
+      if (!text.trim() || loading) return;
+      const history = messages
+        .filter((m) => !m.loading)
+        .slice(-12)
+        .map((m) => ({ role: m.role, content: m.content }));
 
-    setMessages(prev => [
-      ...prev,
-      { role: 'user', content: text.trim() },
-      { role: 'assistant', content: '', loading: true },
-    ]);
-    setInput('');
-    setLoading(true);
-    abortRef.current = new AbortController();
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: text.trim() },
+        { role: 'assistant', content: '', loading: true },
+      ]);
+      setInput('');
+      setLoading(true);
+      abortRef.current = new AbortController();
 
-    try {
-      const res = await fetch('/api/ai/support', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text.trim(), history }),
-        signal: abortRef.current.signal,
-      });
+      try {
+        const res = await fetch('/api/ai/support', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text.trim(), history }),
+          signal: abortRef.current.signal,
+        });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const reader  = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let full = '';
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let full = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        for (const line of decoder.decode(value, { stream: true }).split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const d = line.slice(6);
-          if (d === '[DONE]') break;
-          try {
-            const { token } = JSON.parse(d) as { token: string };
-            full += token;
-            setMessages(prev => {
-              const copy = [...prev];
-              copy[copy.length - 1] = { role: 'assistant', content: full };
-              return copy;
-            });
-          } catch { /* skip */ }
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          for (const line of decoder.decode(value, { stream: true }).split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const d = line.slice(6);
+            if (d === '[DONE]') break;
+            try {
+              const { token } = JSON.parse(d) as { token: string };
+              full += token;
+              setMessages((prev) => {
+                const copy = [...prev];
+                copy[copy.length - 1] = { role: 'assistant', content: full };
+                return copy;
+              });
+            } catch {
+              /* skip */
+            }
+          }
         }
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+        setMessages((prev) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = {
+            role: 'assistant',
+            content: 'Connection error. Try again in a moment.',
+          };
+          return copy;
+        });
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
-      setMessages(prev => {
-        const copy = [...prev];
-        copy[copy.length - 1] = { role: 'assistant', content: '⚠️ Erreur de connexion.' };
-        return copy;
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [messages, loading]);
+    },
+    [messages, loading],
+  );
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send(input);
+    }
   };
+
+  const showChips = messages.length === 1;
 
   return (
     <div
-      className="rounded-[10px] border flex flex-col overflow-hidden"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', minHeight: 340 }}
+      className={cn(
+        'flex flex-col h-full',
+        'bg-[var(--surface)]',
+      )}
     >
-      {/* ── Header ── */}
+      {/* Live / status strip — slim editorial kicker under the
+          parent header. Carries the JetBrains Mono "thinking" /
+          "ready" state + an abort affordance during a stream. */}
       <div
-        className="px-4 py-2.5 flex items-center gap-2.5 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        className={cn(
+          'flex items-center justify-between gap-2',
+          'px-4 py-2 shrink-0',
+          'border-b border-[var(--border)]',
+          'font-[var(--font-jetbrains-mono)] dash-text-xs uppercase tracking-[0.18em]',
+        )}
+        style={{ color: 'var(--text-muted)' }}
       >
-        <div
-          className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)' }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth={2}>
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v3m0 14v3M2 12h3m14 0h3m-2.6-7.4-2.1 2.1M6.7 17.3l-2.1 2.1m0-14.8 2.1 2.1m10.6 10.6 2.1 2.1" />
-          </svg>
-        </div>
-        <div className="flex-1">
-          <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-            OrderFlow AI
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{
+              background: 'var(--primary)',
+              boxShadow: '0 0 8px rgba(74, 222, 128, 0.55)',
+              animation: 'ai-live-pulse 1.6s ease-in-out infinite',
+            }}
+          />
+          <span style={{ color: 'var(--primary)' }}>
+            {loading ? 'thinking' : 'ready'}
           </span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full"
-          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--primary)' }} />
-          <span className="text-[9px] font-medium" style={{ color: 'var(--primary)' }}>live</span>
         </div>
         {loading && (
           <button
+            type="button"
             onClick={() => abortRef.current?.abort()}
-            className="text-[9px] px-2 py-0.5 rounded-full transition-colors"
-            style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
+            className={cn(
+              'inline-flex items-center gap-1.5',
+              'px-2 py-0.5 rounded-md',
+              'border border-[color-mix(in_oklab,var(--bear)_40%,transparent)]',
+              'transition-colors duration-150',
+              'hover:bg-[color-mix(in_oklab,var(--bear)_12%,transparent)]',
+              'focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--bear)]',
+            )}
+            style={{ color: 'var(--bear)' }}
           >
-            stop
+            <Square size={9} fill="currentColor" />
+            <span>stop</span>
           </button>
         )}
+
+        <style>{`
+          @keyframes ai-live-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50%      { transform: scale(1.45); opacity: 0.55; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [style*="ai-live-pulse"] {
+              animation: none !important;
+            }
+          }
+        `}</style>
       </div>
 
-      {/* ── Messages ── */}
+      {/* Messages area */}
       <div
-        className="flex-1 overflow-y-auto px-3 py-3 space-y-3 custom-scrollbar"
-        style={{ background: 'var(--background)', maxHeight: 260 }}
+        className={cn(
+          'flex-1 overflow-y-auto custom-scrollbar',
+          'px-4 py-4 flex flex-col gap-3',
+        )}
       >
-        {messages.map((m, i) => (
-          <div key={i} className={`flex items-end gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {m.role === 'assistant' && (
-              <div
-                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 self-end"
-                style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.2)' }}
-              >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth={2.5}>
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
+        {messages.map((m, i) => {
+          const isUser = m.role === 'user';
+          const isFirst = i === 0;
+
+          if (isFirst && !isUser) {
+            // Mono terminal kicker on first paint — matches the rest
+            // of the surface (landing, login, dashboard cards).
+            return (
+              <div key={i} className="flex flex-col gap-2 pt-1">
+                <span
+                  className={cn(
+                    'font-[var(--font-jetbrains-mono)] uppercase',
+                    'dash-text-base font-medium tracking-[0.14em]',
+                  )}
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  How can I help today?
+                </span>
+                <span
+                  className="dash-text-sm"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {m.content}
+                </span>
               </div>
-            )}
+            );
+          }
+
+          return (
             <div
-              className="max-w-[84%] px-3 py-2 text-[12px] leading-relaxed"
-              style={{
-                borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-                background: m.role === 'user' ? 'var(--primary)' : 'var(--surface-elevated)',
-                color: m.role === 'user' ? '#000' : 'var(--text-primary)',
-                border: m.role === 'assistant' ? '1px solid var(--border)' : 'none',
-                fontWeight: m.role === 'user' ? 500 : 400,
-                animation: 'slideUp 0.2s ease',
-              }}
-            >
-              {m.loading && !m.content ? (
-                <div className="flex gap-1 py-0.5">
-                  {[0,1,2].map(j => (
-                    <span key={j} className="w-1.5 h-1.5 rounded-full animate-bounce"
-                      style={{ background: 'var(--text-muted)', animationDelay: `${j*0.12}s` }} />
-                  ))}
-                </div>
-              ) : (
-                <span style={{ whiteSpace: 'pre-wrap' }}>{renderMessage(m.content, m.role === 'user')}</span>
+              key={i}
+              className={cn(
+                'flex',
+                isUser ? 'justify-end' : 'justify-start',
               )}
+              style={{ animation: 'ai-msg-in 200ms ease-out both' }}
+            >
+              <div
+                className={cn(
+                  'max-w-[86%] px-3 py-2 rounded-[10px]',
+                  'dash-text-sm leading-relaxed',
+                  isUser
+                    ? 'text-black'
+                    : 'border border-[var(--border)]',
+                )}
+                style={{
+                  background: isUser
+                    ? 'var(--primary)'
+                    : 'var(--surface-elevated)',
+                  color: isUser ? '#0a0a0a' : 'var(--text-primary)',
+                  fontWeight: isUser ? 500 : 400,
+                }}
+              >
+                {m.loading && !m.content ? (
+                  <div className="flex gap-1.5 py-1" aria-label="Thinking">
+                    {[0, 1, 2].map((j) => (
+                      <span
+                        key={j}
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{
+                          background: 'var(--text-muted)',
+                          animation: `ai-typing 0.9s ease-in-out ${j * 0.15}s infinite`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ whiteSpace: 'pre-wrap' }}>
+                    {renderMessage(m.content, isUser)}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={endRef} />
+
+        <style>{`
+          @keyframes ai-msg-in {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes ai-typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30%           { transform: translateY(-3px); opacity: 1; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [style*="ai-msg-in"],
+            [style*="ai-typing"] {
+              animation: none !important;
+            }
+          }
+        `}</style>
       </div>
 
-      {/* ── Chips ── */}
-      {messages.length === 1 && (
+      {/* Suggestion chips — first-paint only. Editorial pill style
+          with lime hover. */}
+      {showChips && (
         <div
-          className="px-3 py-2 flex gap-1.5 flex-wrap flex-shrink-0"
-          style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
+          className={cn(
+            'px-4 py-3 shrink-0 flex flex-wrap gap-2',
+            'border-t border-[var(--border)]',
+          )}
         >
-          {CHIPS.map(q => (
+          {CHIPS.map((q) => (
             <button
               key={q}
+              type="button"
               onClick={() => send(q)}
-              className="text-[10px] px-2.5 py-1 rounded-full transition-all duration-100"
-              style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.4)';
-                (e.currentTarget as HTMLElement).style.color = 'var(--primary)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
-                (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-              }}
+              className={cn(
+                'inline-flex items-center',
+                'dash-text-xs',
+                'px-2.5 py-1 rounded-full',
+                'border border-[var(--border)]',
+                'bg-[var(--surface-elevated)]',
+                'text-[var(--text-secondary)]',
+                'transition-colors duration-150',
+                'hover:border-[var(--border-glow)]',
+                'hover:text-[var(--primary)]',
+                'focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]',
+              )}
             >
               {q}
             </button>
@@ -209,41 +334,75 @@ export default function DashboardAIChat() {
         </div>
       )}
 
-      {/* ── Input ── */}
+      {/* Input row */}
       <div
-        className="flex items-end gap-2 px-3 py-2 flex-shrink-0"
-        style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
+        className={cn(
+          'px-3 py-3 shrink-0',
+          'border-t border-[var(--border)]',
+        )}
       >
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={onKey}
-          placeholder="Posez votre question… (Entrée pour envoyer)"
-          rows={1}
-          disabled={loading}
-          className="flex-1 resize-none text-[12px] rounded-lg px-3 py-2 outline-none transition-colors"
-          style={{
-            background: 'var(--surface-elevated)',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border)',
-            maxHeight: 72,
-            minHeight: 34,
-          }}
-          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(74,222,128,0.4)'; }}
-          onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
-        />
-        <button
-          onClick={() => send(input)}
-          disabled={!input.trim() || loading}
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-30"
-          style={{ background: 'var(--primary)', color: '#000' }}
+        <div
+          className={cn(
+            'flex items-end gap-2',
+            'rounded-lg p-1',
+            'border border-[var(--border)]',
+            'bg-[var(--surface-elevated)]',
+            'transition-colors duration-150',
+            'focus-within:border-[var(--border-glow)]',
+          )}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={onKey}
+            placeholder="Ask anything…"
+            rows={1}
+            disabled={loading}
+            className={cn(
+              'flex-1 resize-none bg-transparent outline-none',
+              'dash-text-sm px-2 py-2',
+              'placeholder:font-[var(--font-jetbrains-mono)]',
+              'placeholder:text-[var(--text-muted)]',
+            )}
+            style={{
+              color: 'var(--text-primary)',
+              maxHeight: 96,
+              minHeight: 34,
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => send(input)}
+            disabled={!input.trim() || loading}
+            aria-label="Send message"
+            className={cn(
+              'shrink-0 w-9 h-9 rounded-md',
+              'grid place-items-center',
+              'transition-all duration-150',
+              'disabled:opacity-30 disabled:cursor-not-allowed',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]',
+              !input.trim() || loading
+                ? 'bg-[var(--surface)]'
+                : 'bg-[var(--primary)] text-black hover:scale-[1.04]',
+            )}
+            style={{
+              color: !input.trim() || loading ? 'var(--text-muted)' : '#0a0a0a',
+            }}
+          >
+            <ArrowUp size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+        <div
+          className={cn(
+            'mt-2 px-1 flex items-center justify-between',
+            'font-[var(--font-jetbrains-mono)] dash-text-xs',
+          )}
+          style={{ color: 'var(--text-dimmed)' }}
+        >
+          <span>Enter to send · Shift+Enter for newline</span>
+          <span className="uppercase tracking-[0.18em]">v1</span>
+        </div>
       </div>
     </div>
   );

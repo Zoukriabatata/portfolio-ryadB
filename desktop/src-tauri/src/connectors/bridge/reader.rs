@@ -83,16 +83,25 @@ pub fn spawn(
     config: BridgeConfig,
     tick_tx: broadcast::Sender<Tick>,
     state_tx: broadcast::Sender<BridgeConnState>,
+    depth_tx: broadcast::Sender<(String, crate::connectors::bridge::parser::DepthUpdate)>,
     shutdown_rx: oneshot::Receiver<()>,
     engine: Arc<FootprintEngine>,
 ) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(reader_task(config, tick_tx, state_tx, shutdown_rx, engine))
+    tokio::spawn(reader_task(
+        config,
+        tick_tx,
+        state_tx,
+        depth_tx,
+        shutdown_rx,
+        engine,
+    ))
 }
 
 async fn reader_task(
     config: BridgeConfig,
     tick_tx: broadcast::Sender<Tick>,
     state_tx: broadcast::Sender<BridgeConnState>,
+    depth_tx: broadcast::Sender<(String, crate::connectors::bridge::parser::DepthUpdate)>,
     mut shutdown_rx: oneshot::Receiver<()>,
     engine: Arc<FootprintEngine>,
 ) {
@@ -131,8 +140,15 @@ async fn reader_task(
         };
 
         // Drive one TCP session until it ends or shutdown is requested.
-        let outcome =
-            drive_session(stream, &tick_tx, &state_tx, &mut shutdown_rx, &engine).await;
+        let outcome = drive_session(
+            stream,
+            &tick_tx,
+            &state_tx,
+            &depth_tx,
+            &mut shutdown_rx,
+            &engine,
+        )
+        .await;
 
         match outcome {
             SessionOutcome::Shutdown => break,
@@ -163,6 +179,7 @@ async fn drive_session(
     stream: tokio::net::TcpStream,
     tick_tx: &broadcast::Sender<Tick>,
     state_tx: &broadcast::Sender<BridgeConnState>,
+    depth_tx: &broadcast::Sender<(String, crate::connectors::bridge::parser::DepthUpdate)>,
     shutdown_rx: &mut oneshot::Receiver<()>,
     engine: &Arc<FootprintEngine>,
 ) -> SessionOutcome {
@@ -316,6 +333,15 @@ async fn drive_session(
                                 symbol: symbol.clone(),
                                 volume: dv.volume,
                             });
+                        }
+                        Ok(BridgeMessage::Depth(d)) => {
+                            // L2 depth update — forward raw to the
+                            // depth broadcast channel, tagged with the
+                            // current session symbol so consumers
+                            // (IPC emitter, snapshot holder) can key
+                            // by instrument across mid-session
+                            // instrument switches.
+                            let _ = depth_tx.send((symbol.clone(), d));
                         }
                         Ok(BridgeMessage::Ping) => {
                             tracing::trace!("Bridge: ping");

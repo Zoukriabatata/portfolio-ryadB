@@ -2,16 +2,30 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+
 import { useScrollAnimations } from '@/hooks/useScrollAnimations';
 
 // Browser-only — decorative/interactive, no impact on LCP
-const BlackHole = dynamic(() => import('@/components/canvas/BlackHole'), { ssr: false });
-const CursorGlow = dynamic(() => import('@/components/landing/CursorGlow'), { ssr: false });
+const StellarCore = dynamic(() => import('@/components/landing/StellarCore'), { ssr: false });
 const ScrollProgress = dynamic(() => import('@/components/landing/ScrollProgress'), { ssr: false });
 const ScrollSpy = dynamic(() => import('@/components/landing/ScrollSpy'), { ssr: false });
 const BackToTop = dynamic(() => import('@/components/landing/BackToTop'), { ssr: false });
 const FloatingChat = dynamic(() => import('@/components/ai/FloatingChat'), { ssr: false });
 
+/**
+ * Landing shell — Editorial Terminal pass.
+ *
+ * Composition :
+ *   • StellarCore behind the hero — a pure-CSS replacement for the
+ *     legacy BlackHole canvas. Same brand signature (burning
+ *     singularity + accretion disk + starfield) but runs entirely
+ *     on the GPU compositor, so the homepage no longer pays a
+ *     25-30 % CPU tax on mid-range laptops.
+ *
+ * Inside the app (dashboard, account, routes) the `DashboardAtmosphere`
+ * runs instead — keeps the editorial typography readable. Two
+ * surfaces, two atmospheres, one brand voice.
+ */
 export default function LandingClientShell({ children }: { children: React.ReactNode }) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -26,15 +40,13 @@ export default function LandingClientShell({ children }: { children: React.React
       className="h-full w-full overflow-auto bg-black relative"
       style={{ scrollBehavior: 'smooth' }}
     >
-      <BlackHole scrollContainerRef={scrollContainerRef} />
-      <CursorGlow />
+      <StellarCore />
       <ScrollProgress />
       <ScrollSpy />
 
       {children}
 
       <BackToTop />
-      <div className="noise-overlay" />
       <FloatingChat />
     </div>
   );

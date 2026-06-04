@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
+import { AnimatedChars } from '@/components/ui/AnimatedChars';
+
 const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value: string; label: string; delay: number }) {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -58,20 +60,32 @@ const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value
   return (
     <div ref={ref} className="text-center">
       <div
-        className="text-lg md:text-xl font-bold transition-all duration-500"
+        className="dash-text-xl md:dash-text-2xl transition-all duration-500 tabular-nums"
         style={{
           color: 'var(--primary-light)',
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateY(0)' : 'translateY(8px)',
+          // Match the hero wordmark : JetBrains Mono 500. The stats
+          // are data, so the same family as the headline keeps the
+          // brand visually consistent and gives the numbers the
+          // trader-terminal precision a serif italic couldn't.
+          fontFamily: 'var(--font-jetbrains-mono)',
+          fontWeight: 500,
+          letterSpacing: '-0.03em',
         }}
       >
         {target ? `${prefix}${count}${suffix}` : value}
       </div>
       <div
-        className="text-[10px] text-white/25 mt-0.5 transition-all duration-500"
+        className="mt-1 transition-all duration-500"
         style={{
           opacity: visible ? 1 : 0,
           transitionDelay: '100ms',
+          fontFamily: 'var(--font-jetbrains-mono)',
+          fontSize: '9px',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
         }}
       >
         {label}
@@ -99,44 +113,72 @@ export default function HeroSection() {
     <section id="hero" className="relative min-h-dvh flex items-center justify-center px-6 overflow-hidden">
       <div className="relative z-10 max-w-3xl mx-auto text-center pt-16">
 
-        {/* Badge */}
+        {/* Badge — JetBrains Mono uppercase kicker. Replaces the
+            backdrop-blur pill that read as a notification. */}
         <div
-          className="inline-flex items-center gap-2.5 mb-10 px-4 py-1.5 rounded-full text-[11px] tracking-widest uppercase"
+          className="inline-flex items-center gap-2.5 mb-10 px-4 py-1.5 rounded-full"
           style={{
-            color: 'rgb(var(--primary-light-rgb) / 0.8)',
-            border: '1px solid rgb(var(--primary-rgb) / 0.15)',
-            background: 'rgb(var(--primary-rgb) / 0.04)',
-            backdropFilter: 'blur(8px)',
+            color: 'var(--primary)',
+            border: '1px solid var(--border-glow)',
+            background: 'rgba(74, 222, 128, 0.04)',
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: 'var(--text-xs)',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
             animation: 'fadeInDown 0.7s ease-out forwards',
             opacity: 0,
           }}
         >
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary-light)' }} />
-          Public preview — Free PRO access until 17 June 2026
+          <span className="relative inline-flex w-1.5 h-1.5 flex-shrink-0">
+            <span
+              className="absolute inset-0 rounded-full animate-ping"
+              style={{ backgroundColor: 'var(--primary)', opacity: 0.55 }}
+            />
+            <span
+              className="relative inline-flex w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: 'var(--primary)' }}
+            />
+          </span>
+          Public preview · Free PRO until 17 June 2026
         </div>
 
-        {/* Title — slideInUp has no opacity transition, h1 is immediately visible for LCP */}
-        <div style={{ animation: 'slideInUp 0.5s ease-out forwards' }}>
-          <h1 className="font-black tracking-tight leading-[1.05]">
-            <span className="block text-4xl md:text-6xl lg:text-7xl text-white/90">
-              Professional
-            </span>
+        {/* Title — Editorial Terminal voice. "Native" replaces
+            "Professional" : the real differentiator vs other
+            footprint tools is that we render natively from the
+            NinjaTrader data feed rather than wrapping it. Trader-
+            coded kicker, hard product wordmark below. */}
+        {/* No parent transform animation — slideInUp would hold the
+            h1 as a compositor layer for its full duration AND keep
+            the layer alive after via the residual `transform:
+            translateY(0)`. The per-character entrance below is the
+            only animation; it's pure opacity, so the text never
+            leaves the standard text-rendering pipeline. */}
+        <div>
+          <h1
+            className="leading-none"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+              WebkitFontSmoothing: 'subpixel-antialiased',
+              MozOsxFontSmoothing: 'auto',
+            }}
+          >
             <span
-              className="block text-5xl md:text-7xl lg:text-8xl mt-1"
+              className="block text-5xl md:text-7xl lg:text-[112px] uppercase"
               style={{
-                background: 'linear-gradient(135deg, var(--primary-light), var(--primary), var(--primary-dark), var(--primary-light))',
-                backgroundSize: '200% 100%',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                animation: 'gradientShift 4s ease infinite',
-                /* Softened from 0.25 → 0.15: at 30px blur the glow was
-                   borderline neon and clashed with the rest of the
-                   primary palette which sits at ~0.15 across the page
-                   (button shadows, card borders, etc.). */
-                filter: 'drop-shadow(0 0 30px rgb(var(--primary-rgb) / 0.15))',
+                letterSpacing: '-0.04em',
               }}
             >
-              Order Flow
+              <AnimatedChars text="Order" baseDelay={120} charDelay={45} duration={700} />
+            </span>
+            <span
+              className="block text-5xl md:text-7xl lg:text-[112px] uppercase mt-1"
+              style={{
+                letterSpacing: '-0.04em',
+              }}
+            >
+              <AnimatedChars text="Flow" baseDelay={440} charDelay={45} duration={700} />
             </span>
           </h1>
         </div>
@@ -147,12 +189,16 @@ export default function HeroSection() {
             mentions (heatmap, GEX) the FeaturesSection cleanup
             already removed. */}
         <p
-          className="mt-6 text-sm md:text-base text-white/45 max-w-lg mx-auto leading-relaxed"
-          style={{ animation: 'fadeInUp 0.7s ease-out 0.3s forwards', opacity: 0 }}
+          className="mt-6 dash-text-base md:dash-text-lg max-w-lg mx-auto leading-relaxed"
+          style={{
+            animation: 'fadeInUp 0.7s ease-out 0.3s forwards',
+            opacity: 0,
+            color: 'var(--text-secondary)',
+          }}
         >
-          Native footprint charts with the same daily volume NinjaTrader shows you.
-          NT Bridge for Apex &amp; Rithmic accounts — install one NinjaScript file,
-          done.
+          Footprint charts rendered tick-by-tick from your NinjaTrader feed.
+          One NinjaScript file installs the bridge — Apex and Rithmic
+          accounts, no proxy lag.
         </p>
 
         {/* CTA Buttons */}
@@ -169,8 +215,12 @@ export default function HeroSection() {
               <Link href="/auth/register" className="landing-btn-primary">
                 Get free preview
               </Link>
-              <Link href="/download" className="landing-btn-ghost">
-                Download for Windows
+              <Link
+                href="/download"
+                className="landing-btn-ghost"
+                style={{ fontFamily: 'var(--font-jetbrains-mono)', letterSpacing: '0.04em' }}
+              >
+                Download · Windows
               </Link>
             </>
           )}
@@ -182,10 +232,10 @@ export default function HeroSection() {
           style={{ animation: 'fadeInUp 0.7s ease-out 0.6s forwards', opacity: 0 }}
         >
           {[
-            { v: '<5ms', l: 'Latency' },
-            { v: '8', l: 'Data Feeds' },
-            { v: '6', l: 'Pro Tools' },
-            { v: '12+', l: 'Markets' },
+            { v: '<5ms', l: 'TICK LATENCY' },
+            { v: '8', l: 'BROKER FEEDS' },
+            { v: '6', l: 'TOOLS' },
+            { v: '12+', l: 'MARKETS COVERED' },
           ].map((s, i) => (
             <AnimatedStat key={i} value={s.v} label={s.l} delay={800 + i * 200} />
           ))}
@@ -212,7 +262,10 @@ export default function HeroSection() {
               </div>
               <div className="flex-1 text-center text-[10px] text-white/20 tracking-wide">ORDERFLOWV2 — MNQ M6 · 1m</div>
               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 animate-pulse" />
+                <span className="relative inline-flex w-1.5 h-1.5">
+                  <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
+                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                </span>
                 <span className="text-[9px] text-emerald-500/50">LIVE</span>
               </div>
             </div>
@@ -302,7 +355,15 @@ export default function HeroSection() {
           className="mt-8 flex flex-col items-center gap-2"
           style={{ animation: 'fadeIn 1s ease-out 1.2s forwards', opacity: 0 }}
         >
-          <span className="text-[10px] uppercase tracking-[0.2em] text-white/20">Scroll to explore</span>
+          <span
+            className="text-[10px] uppercase tracking-[0.22em]"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            Scroll
+          </span>
           <svg
             width="20" height="20" viewBox="0 0 24 24" fill="none"
             className="text-white/20"

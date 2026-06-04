@@ -2,27 +2,27 @@
 
 const BROKERS = [
   {
-    name: 'NinjaTrader Bridge',
+    name: 'NinjaTrader bridge',
     initial: 'NT',
     color: '#ff6d00',
-    features: ['Futures', 'Apex / Rithmic', 'Recommended'],
-    desc: 'Already trade with NinjaTrader? Install our NinjaScript indicator (one F5) and OrderflowV2 reads your existing data feed locally — no extra broker credentials needed.',
+    features: ['Futures', 'Apex · Rithmic', 'Recommended'],
+    desc: 'You already run NinjaTrader. Drop our NinjaScript file, F5 compile, attach the indicator — OrderflowV2 reads the same tick feed NT shows you, locally, no extra creds.',
     highlighted: true,
   },
   {
     name: 'Rithmic direct',
     initial: 'R',
     color: '#00c853',
-    features: ['Futures', 'Low Latency', 'Apex'],
-    desc: 'Sign in with your Rithmic / Apex credentials directly inside the app. No NinjaTrader required — the desktop talks to the R | Protocol gateway natively.',
+    features: ['Futures', 'R | API', 'Apex'],
+    desc: 'Bring your Rithmic / Apex login. The desktop speaks R | Protocol natively — Protocol Buffers, WebSocket, separate sessions for market data and order routing.',
     highlighted: true,
   },
   {
     name: 'Crypto',
-    initial: '₿',
-    color: '#7c3aed',
+    initial: 'BTC',
+    color: '#4ade80',
     features: ['Binance', 'Bybit', 'Deribit'],
-    desc: 'Public market data on Binance, Bybit and Deribit — no account, no API key required. Live trades, orderbook depth and options data flow in seconds after launch.',
+    desc: 'Public market data on Binance, Bybit and Deribit. No account, no API key. Trades, depth and options chain online within seconds of launch.',
     highlighted: true,
   },
 ];
@@ -47,20 +47,44 @@ export default function BrokersSection() {
 
       <div className="max-w-5xl mx-auto relative" style={{ zIndex: 10 }}>
         <div className="text-center mb-16">
+          <div
+            data-animate="up"
+            className="mb-4"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 11,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            · Where the data comes from
+          </div>
           <h2
             data-animate="up"
-            className="text-3xl md:text-4xl font-bold text-white tracking-tight"
+            data-animate-delay="1"
+            className="leading-none"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontWeight: 500,
+              fontSize: 'clamp(36px, 4.5vw, 60px)',
+              letterSpacing: '-0.04em',
+              textTransform: 'uppercase',
+              WebkitFontSmoothing: 'subpixel-antialiased',
+            }}
           >
             Three ways to plug in
           </h2>
           <p
             data-animate="up"
-            data-animate-delay="1"
-            className="mt-4 text-sm md:text-base text-white/50 max-w-xl mx-auto"
+            data-animate-delay="2"
+            className="mt-4 dash-text-sm md:dash-text-base max-w-xl mx-auto"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Pick the path that matches how you already trade. NinjaTrader users keep their setup,
-            Apex / Rithmic traders connect direct, and crypto works out of the box without
-            any broker.
+            Pick the path that matches your setup. NT users keep their
+            existing feed. Rithmic / Apex traders connect direct. Crypto
+            works with no broker at all.
           </p>
         </div>
 
@@ -113,10 +137,16 @@ export default function BrokersSection() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-[15px] font-semibold text-white group-hover:text-[var(--primary-light)] transition-colors">
+                  <h3
+                    className="dash-text-base font-semibold group-hover:text-[var(--primary-light)] transition-colors"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
                     {broker.name}
                   </h3>
-                  <p className="mt-1 text-[12px] text-white/45 leading-relaxed group-hover:text-white/60 transition-colors">
+                  <p
+                    className="mt-1 dash-text-sm leading-relaxed group-hover:text-white/65 transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
                     {broker.desc}
                   </p>
 
@@ -125,11 +155,15 @@ export default function BrokersSection() {
                     {broker.features.map((feat) => (
                       <span
                         key={feat}
-                        className="px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide uppercase border"
+                        className="px-2 py-0.5 rounded-full border"
                         style={{
                           color: broker.color,
                           borderColor: `${broker.color}30`,
                           background: `${broker.color}12`,
+                          fontFamily: 'var(--font-jetbrains-mono)',
+                          fontSize: '10px',
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
                         }}
                       >
                         {feat}
@@ -148,14 +182,17 @@ export default function BrokersSection() {
           data-animate-delay="3"
           className="mt-12 text-center"
         >
-          <p className="text-[13px] text-white/35 mb-4">
-            Mix and match — switch between sources inside the app at any time
+          <p
+            className="dash-text-sm mb-4"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Switch source mid-session. No restart, no relog.
           </p>
           <a
             href="/auth/register"
             className="landing-btn-primary"
           >
-            Get started — free preview until 17 June
+            Get free preview
           </a>
         </div>
       </div>

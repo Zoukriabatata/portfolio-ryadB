@@ -49,6 +49,7 @@ import { MagnetToggle } from "./footprint/MagnetToggle";
 import { IndicatorsButton } from "./footprint/IndicatorsButton";
 import { AdvancedSettingsModal } from "./footprint/AdvancedSettingsModal";
 import { SimTradePanel } from "./sim/SimTradePanel";
+import { BridgeDomPanel } from "./BridgeDomPanel";
 import { QuickTradePanel } from "./sim/QuickTradePanel";
 import { useSimTicker } from "../lib/sim/useSimTicker";
 import { useSimPositionOverlay } from "../lib/sim/useSimPositionOverlay";
@@ -158,6 +159,40 @@ export function BridgeFootprint({
   // ── UI state ──────────────────────────────────────────────
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [simPanelOpen, setSimPanelOpen] = useState(true);
+  // L2 DOM panel toggle — defaults on so users discover the feature.
+  // No persistence yet (would live in useFootprintSettingsStore in a
+  // follow-up if the user wants).
+  const [domPanelOpen, setDomPanelOpen] = useState(true);
+  // Live price-axis map polled from the canvas so the DOM ladder can
+  // align its rows with the chart's price grid. Updated on RAF.
+  const [priceMap, setPriceMap] = useState<{
+    minPrice: number;
+    maxPrice: number;
+    areaTopPx: number;
+    areaHeightPx: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!domPanelOpen) return;
+    let raf = 0;
+    let prev = "";
+    const tick = () => {
+      const next = canvasHandle.current?.getPriceMap() ?? null;
+      // Stringify-compare to avoid setState churn when the map is
+      // unchanged frame-over-frame (no pan / zoom). Cheap — only
+      // four numbers.
+      const key = next
+        ? `${next.minPrice}|${next.maxPrice}|${next.areaTopPx}|${next.areaHeightPx}`
+        : "";
+      if (key !== prev) {
+        prev = key;
+        setPriceMap(next);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [domPanelOpen]);
 
   // Sim ticker — feeds the sim trading store with live closes.
   useSimTicker();
@@ -969,6 +1004,43 @@ export function BridgeFootprint({
               bare
             />
             <QuickTradePanel symbol={symbol} />
+          </div>
+          {/* Live L2 DOM ladder. Lives between the canvas and the sim
+              panel so the user gets order-book context next to the
+              footprint without sacrificing chart real estate. The
+              [▤] button toggles it; closed state collapses to a
+              ~14px reveal strip with a single-button toggle. */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexShrink: 0,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setDomPanelOpen((v) => !v)}
+              title={domPanelOpen ? "Hide DOM panel" : "Show DOM panel"}
+              aria-label={domPanelOpen ? "Hide DOM panel" : "Show DOM panel"}
+              style={{
+                width: 14,
+                background: "#0a0a0a",
+                border: "none",
+                borderLeft: "1px solid rgba(255, 255, 255, 0.06)",
+                color: "#787B86",
+                cursor: "pointer",
+                fontSize: 10,
+                padding: 0,
+                writingMode: "vertical-rl",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              {domPanelOpen ? "▶ DOM" : "◀ DOM"}
+            </button>
+            {domPanelOpen && (
+              <BridgeDomPanel symbol={symbol} priceMap={priceMap} />
+            )}
           </div>
           <div
             className={`rf-sim-dock ${simPanelOpen ? "rf-sim-dock-open" : "rf-sim-dock-closed"}`}
