@@ -129,14 +129,16 @@ export default function HeroSection() {
             opacity: 0,
           }}
         >
-          <span
-            className="w-1.5 h-1.5 rounded-full"
-            style={{
-              backgroundColor: 'var(--primary)',
-              boxShadow: '0 0 8px rgba(74, 222, 128, 0.55)',
-              animation: 'pulse 1.6s ease-in-out infinite',
-            }}
-          />
+          <span className="relative inline-flex w-1.5 h-1.5 flex-shrink-0">
+            <span
+              className="absolute inset-0 rounded-full animate-ping"
+              style={{ backgroundColor: 'var(--primary)', opacity: 0.55 }}
+            />
+            <span
+              className="relative inline-flex w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: 'var(--primary)' }}
+            />
+          </span>
           Public preview · Free PRO until 17 June 2026
         </div>
 
@@ -260,7 +262,10 @@ export default function HeroSection() {
               </div>
               <div className="flex-1 text-center text-[10px] text-white/20 tracking-wide">ORDERFLOWV2 — MNQ M6 · 1m</div>
               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 animate-pulse" />
+                <span className="relative inline-flex w-1.5 h-1.5">
+                  <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
+                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                </span>
                 <span className="text-[9px] text-emerald-500/50">LIVE</span>
               </div>
             </div>

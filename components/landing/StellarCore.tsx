@@ -135,16 +135,16 @@ export default function StellarCore() {
           transform: translate(-50%, -50%);
           background: conic-gradient(
             from 0deg,
-            rgba(74, 222, 128, 0.10) 0%,
+            rgba(74, 222, 128, 0.18) 0%,
             rgba(20, 30, 22, 0.04) 18%,
-            rgba(74, 222, 128, 0.08) 35%,
-            rgba(45, 212, 191, 0.05) 55%,
+            rgba(74, 222, 128, 0.15) 35%,
+            rgba(45, 212, 191, 0.10) 55%,
             rgba(20, 30, 22, 0.02) 75%,
-            rgba(74, 222, 128, 0.12) 100%
+            rgba(74, 222, 128, 0.22) 100%
           );
           mix-blend-mode: screen;
           filter: blur(60px);
-          opacity: 0.6;
+          opacity: 0.82;
           animation: nebula-spin 80s linear infinite;
           will-change: transform;
         }
@@ -232,18 +232,18 @@ export default function StellarCore() {
           border-radius: 50%;
           background: conic-gradient(
             from 90deg,
-            rgba(74, 222, 128, 0)    0%,
-            rgba(74, 222, 128, 0.5)  18%,
-            rgba(180, 255, 200, 0.7) 26%,
-            rgba(74, 222, 128, 0.4)  35%,
-            rgba(74, 222, 128, 0)    50%,
-            rgba(74, 222, 128, 0.4)  65%,
-            rgba(180, 255, 200, 0.7) 74%,
-            rgba(74, 222, 128, 0.5)  82%,
-            rgba(74, 222, 128, 0)    100%
+            rgba(74, 222, 128, 0)     0%,
+            rgba(74, 222, 128, 0.72)  18%,
+            rgba(190, 255, 205, 0.95) 26%,
+            rgba(74, 222, 128, 0.6)   35%,
+            rgba(74, 222, 128, 0)     50%,
+            rgba(74, 222, 128, 0.6)   65%,
+            rgba(190, 255, 205, 0.95) 74%,
+            rgba(74, 222, 128, 0.72)  82%,
+            rgba(74, 222, 128, 0)     100%
           );
           filter: blur(8px);
-          opacity: 0.7;
+          opacity: 0.9;
           animation: disk-spin 22s linear infinite;
           will-change: transform;
         }
@@ -251,7 +251,7 @@ export default function StellarCore() {
           width: 36vh;
           height: 9vh;
           filter: blur(4px);
-          opacity: 0.85;
+          opacity: 1;
           animation-duration: 14s;
           animation-direction: reverse;
         }
@@ -277,8 +277,8 @@ export default function StellarCore() {
             circle in oklab,
             transparent 0%,
             transparent 42%,
-            rgba(180, 255, 200, 0.55) 49%,
-            rgba(74, 222, 128, 0.45) 50%,
+            rgba(190, 255, 205, 0.78) 49%,
+            rgba(74, 222, 128, 0.62) 50%,
             transparent 58%
           );
           transform: translate(-50%, -50%) scale(1);
@@ -312,13 +312,13 @@ export default function StellarCore() {
              rings on the radial. */
           background: radial-gradient(
             circle at center in oklab,
-            rgba(255, 255, 255, 0.6) 0%,
-            rgba(220, 255, 230, 0.48) 10%,
-            rgba(180, 255, 200, 0.35) 22%,
-            rgba(120, 240, 160, 0.26) 32%,
-            rgba(74, 222, 128, 0.18) 46%,
-            rgba(40, 160, 90, 0.08) 60%,
-            transparent 78%
+            rgba(255, 255, 255, 0.58) 0%,
+            rgba(220, 255, 230, 0.5) 10%,
+            rgba(180, 255, 200, 0.46) 22%,
+            rgba(110, 245, 160, 0.4) 32%,
+            rgba(74, 222, 128, 0.3) 46%,
+            rgba(45, 200, 110, 0.15) 60%,
+            transparent 80%
           );
           filter: blur(14px);
           animation: horizon-breathe 8s ease-in-out infinite;
@@ -337,15 +337,15 @@ export default function StellarCore() {
             rgba(255, 255, 255, 1) 0%,
             rgba(235, 255, 240, 0.97) 14%,
             rgba(220, 255, 230, 0.92) 24%,
-            rgba(170, 240, 195, 0.78) 40%,
-            rgba(74, 222, 128, 0.55) 60%,
-            rgba(40, 160, 90, 0.22) 78%,
+            rgba(160, 245, 190, 0.85) 40%,
+            rgba(74, 222, 128, 0.72) 60%,
+            rgba(45, 200, 110, 0.32) 78%,
             transparent 92%
           );
           box-shadow:
             0 0 18px rgba(255, 255, 255, 0.6),
-            0 0 40px rgba(180, 255, 200, 0.5),
-            0 0 80px rgba(74, 222, 128, 0.45);
+            0 0 44px rgba(190, 255, 205, 0.6),
+            0 0 90px rgba(74, 222, 128, 0.6);
           animation: core-pulse 2.4s ease-in-out infinite;
           will-change: transform, opacity;
         }
@@ -370,14 +370,14 @@ export default function StellarCore() {
             90deg,
             transparent 0%,
             rgba(74, 222, 128, 0.0) 18%,
-            rgba(180, 255, 200, 0.5) 50%,
+            rgba(190, 255, 205, 0.7) 50%,
             rgba(74, 222, 128, 0.0) 82%,
             transparent 100%
           );
           box-shadow:
-            0 0 12px rgba(180, 255, 200, 0.5),
-            0 0 32px rgba(74, 222, 128, 0.4);
-          opacity: 0.85;
+            0 0 14px rgba(190, 255, 205, 0.65),
+            0 0 36px rgba(74, 222, 128, 0.55);
+          opacity: 0.9;
           animation: flare-blink 3.2s ease-in-out infinite;
           will-change: opacity;
         }
