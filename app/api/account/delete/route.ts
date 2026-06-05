@@ -23,8 +23,20 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma, isPrismaAvailable } from '@/lib/db';
 import { stripe } from '@/lib/stripe';
+import { sendEmail } from '@/lib/auth/email-verification';
 
 export const dynamic = 'force-dynamic';
+
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'ryad.bouderga78@gmail.com';
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -35,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Database unavailable' }, { status: 503 });
   }
 
-  let body: { confirm?: string; password?: string };
+  let body: { confirm?: string; password?: string; reason?: string; details?: string };
   try {
     body = await req.json();
   } catch {
@@ -81,6 +93,40 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.warn('[account/delete] Stripe cancel failed (continuing):', e);
     }
+  }
+
+  // Exit-survey notification — fire BEFORE the delete so we still have
+  // the user's details. Non-blocking failure: a bounced email must never
+  // stop the user from deleting their account.
+  {
+    const reason = (body.reason || '').toString().slice(0, 200).trim();
+    const details = (body.details || '').toString().slice(0, 2000).trim();
+    const tier = user.subscriptionTier ?? 'FREE';
+    const html = `
+      <h2 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#e2e8f0;">
+        Account deletion — exit survey
+      </h2>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;border:1px solid #1e1e2e;border-radius:10px;margin-bottom:20px;">
+        <tr><td style="padding:18px 22px;">
+          <p style="margin:0 0 8px;"><span style="display:inline-block;min-width:80px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#475569;">User</span>
+            <span style="font-size:14px;color:#e2e8f0;">${escapeHtml(user.email)}</span></p>
+          <p style="margin:0 0 8px;"><span style="display:inline-block;min-width:80px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#475569;">Tier</span>
+            <span style="font-size:14px;color:#a78bfa;">${escapeHtml(tier)}</span></p>
+          <p style="margin:0;"><span style="display:inline-block;min-width:80px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#475569;">Reason</span>
+            <span style="font-size:14px;color:#fca5a5;">${escapeHtml(reason || '—')}</span></p>
+        </td></tr>
+      </table>
+      ${details ? `<p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">Details</p>
+      <div style="padding:14px 18px;background:#0f0f1a;border:1px solid #1e1e2e;border-radius:8px;font-size:14px;color:#cbd5e1;line-height:1.6;white-space:pre-wrap;">${escapeHtml(details)}</div>` : ''}
+    `;
+    await sendEmail({
+      to: SUPPORT_EMAIL,
+      subject: `[Account deleted] ${reason || 'No reason given'} — ${user.email}`,
+      content: html,
+      text: `Account deletion\nUser: ${user.email}\nTier: ${tier}\nReason: ${reason || '—'}\n\n${details || '(no details)'}`,
+    }).catch((e) => {
+      console.warn('[account/delete] exit-survey email failed (continuing):', e);
+    });
   }
 
   // Wipe the user row — Prisma cascade handles every relation listed

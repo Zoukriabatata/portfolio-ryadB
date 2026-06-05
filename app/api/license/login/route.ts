@@ -118,31 +118,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Heal users created before the preview-grant logic was deployed:
-    // if we're inside the public preview window (2026-05-30 → 2026-06-17)
-    // and the user is still FREE — i.e. they signed up months ago via
-    // email/password, or via Google before lib/auth/auth-options.ts
-    // started applying the grant — promote them silently to PRO with
-    // the same shape as a fresh preview signup. The missing-License
-    // healer below this block creates the License row on the same
-    // call. Net effect: every existing user who actually tries to
-    // use the desktop app during the preview gets in, without a
-    // batch SQL migration touching the 200+ dormant accounts.
-    if (isPreviewWindow() && user.subscriptionTier === 'FREE') {
+    // Admins (env ADMIN_EMAILS, same allowlist the web uses) always get
+    // full access — no tier / expiry / license / device-slot gating.
+    const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const isAdmin = ADMIN_EMAILS.includes(email);
+
+    // Grant / heal logic:
+    //  • Admins → PRO with NO expiry (subscriptionEnd = null).
+    //  • During the public preview window (→ 2026-06-17) EVERYONE who
+    //    would otherwise be denied gets bumped to PRO through PREVIEW_END.
+    //    This now covers PRO accounts whose subscriptionEnd already
+    //    lapsed (e.g. a test/admin account), not just FREE ones — the
+    //    earlier FREE-only healer let a PRO-but-expired account fall
+    //    straight through to SUBSCRIPTION_EXPIRED.
+    const isExpired = !!(user.subscriptionEnd && user.subscriptionEnd < new Date());
+    if (isAdmin || (isPreviewWindow() && (user.subscriptionTier !== 'PRO' || isExpired))) {
       const healNow = new Date();
+      const newEnd = isAdmin ? null : PREVIEW_END;
       await prisma.user.update({
         where: { id: user.id },
         data: {
           subscriptionTier: 'PRO',
-          subscriptionStart: healNow,
-          subscriptionEnd: PREVIEW_END,
-          maxDevices: 2,
+          subscriptionStart: user.subscriptionStart ?? healNow,
+          subscriptionEnd: newEnd,
+          maxDevices: Math.max(user.maxDevices ?? 0, 2),
         },
       });
       user.subscriptionTier = 'PRO';
-      user.subscriptionStart = healNow;
-      user.subscriptionEnd = PREVIEW_END;
-      user.maxDevices = 2;
+      user.subscriptionStart = user.subscriptionStart ?? healNow;
+      user.subscriptionEnd = newEnd;
+      user.maxDevices = Math.max(user.maxDevices ?? 0, 2);
     }
 
     if (user.subscriptionTier !== 'PRO') {
@@ -152,7 +160,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (user.subscriptionEnd && user.subscriptionEnd < new Date()) {
+    if (!isAdmin && user.subscriptionEnd && user.subscriptionEnd < new Date()) {
       return NextResponse.json(
         { ok: false, error: 'SUBSCRIPTION_EXPIRED' },
         { status: 402, headers: rlHeaders },
@@ -176,7 +184,7 @@ export async function POST(req: NextRequest) {
       user.license = healed;
     }
 
-    if (user.license.status !== 'ACTIVE') {
+    if (!isAdmin && user.license.status !== 'ACTIVE') {
       return NextResponse.json(
         { ok: false, error: 'LICENSE_INACTIVE', status: user.license.status },
         { status: 402, headers: rlHeaders },
@@ -190,7 +198,7 @@ export async function POST(req: NextRequest) {
       where: { licenseId_machineId: { licenseId: user.license.id, machineId } },
     });
 
-    if (!existing) {
+    if (!isAdmin && !existing) {
       const activeCount = await prisma.machine.count({
         where: {
           licenseId:       user.license.id,

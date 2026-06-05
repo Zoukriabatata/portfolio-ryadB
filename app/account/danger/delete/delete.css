@@ -105,6 +105,51 @@
   outline: none;
   border-color: rgba(239, 68, 68, 0.60);
 }
+.acct-delete-field textarea {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.40);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #f3f4f6;
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.acct-delete-field textarea:focus {
+  outline: none;
+  border-color: rgba(239, 68, 68, 0.60);
+}
+
+/* Exit-survey reason chips */
+.acct-delete-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.acct-delete-reason {
+  padding: 6px 11px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: #cbd5e1;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.acct-delete-reason:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #f3f4f6;
+}
+.acct-delete-reason-on {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #fca5a5;
+}
+.acct-delete-reason:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .acct-delete-err {
   padding: 9px 12px;
