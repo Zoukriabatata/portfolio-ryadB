@@ -1242,7 +1242,16 @@ function AccountContent() {
                         <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Reset Everything</div>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Deletes all local settings</div>
                       </div>
-                      <button className="acc-danger-btn text-xs px-3 py-1.5 rounded-lg font-medium">
+                      <button
+                        type="button"
+                        className="acc-danger-btn text-xs px-3 py-1.5 rounded-lg font-medium"
+                        onClick={() => {
+                          if (typeof window === 'undefined') return;
+                          if (!window.confirm('Reset all local settings? This clears this device only — your account is untouched.')) return;
+                          localStorage.clear();
+                          location.reload();
+                        }}
+                      >
                         Reset
                       </button>
                     </div>
@@ -1251,7 +1260,11 @@ function AccountContent() {
                         <div className="text-sm font-medium" style={{ color: 'var(--error)' }}>Delete Account</div>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Irreversible action</div>
                       </div>
-                      <button className="acc-danger-btn text-xs px-3 py-1.5 rounded-lg font-medium">
+                      <button
+                        type="button"
+                        className="acc-danger-btn text-xs px-3 py-1.5 rounded-lg font-medium"
+                        onClick={() => router.push('/account/danger/delete')}
+                      >
                         Delete
                       </button>
                     </div>

@@ -94,13 +94,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'USER_NOT_FOUND' }, { status: 404, headers: rlHeaders });
     }
 
-    if (user.subscriptionTier !== 'PRO') {
+    // Admins (env ADMIN_EMAILS) bypass tier / expiry / license gating —
+    // mirrors /api/license/login so an admin is never kicked mid-session.
+    const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
+
+    if (!isAdmin && user.subscriptionTier !== 'PRO') {
       return NextResponse.json(
         { ok: false, error: 'NOT_SUBSCRIBED' },
         { status: 402, headers: rlHeaders },
       );
     }
-    if (user.subscriptionEnd && user.subscriptionEnd < new Date()) {
+    if (!isAdmin && user.subscriptionEnd && user.subscriptionEnd < new Date()) {
       return NextResponse.json(
         { ok: false, error: 'SUBSCRIPTION_EXPIRED' },
         { status: 402, headers: rlHeaders },
@@ -110,7 +118,7 @@ export async function POST(req: NextRequest) {
     if (!user.license) {
       return NextResponse.json({ ok: false, error: 'LICENSE_NOT_FOUND' }, { status: 404, headers: rlHeaders });
     }
-    if (user.license.status !== 'ACTIVE') {
+    if (!isAdmin && user.license.status !== 'ACTIVE') {
       return NextResponse.json(
         { ok: false, error: 'LICENSE_INACTIVE', status: user.license.status },
         { status: 402, headers: rlHeaders },
