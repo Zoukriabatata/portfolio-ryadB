@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
-import { AnimatedChars } from '@/components/ui/AnimatedChars';
+import HeroBackground from './HeroBackground';
 
 const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value: string; label: string; delay: number }) {
   const [visible, setVisible] = useState(false);
@@ -111,6 +111,7 @@ export default function HeroSection() {
 
   return (
     <section id="hero" className="relative min-h-dvh flex items-center justify-center px-6 overflow-hidden">
+      <HeroBackground />
       <div className="relative z-10 max-w-3xl mx-auto text-center pt-16">
 
         {/* Badge — JetBrains Mono uppercase kicker. Replaces the
@@ -154,31 +155,19 @@ export default function HeroSection() {
             only animation; it's pure opacity, so the text never
             leaves the standard text-rendering pipeline. */}
         <div>
-          <h1
-            className="leading-none"
-            style={{
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontWeight: 500,
-              color: 'var(--text-primary)',
-              WebkitFontSmoothing: 'subpixel-antialiased',
-              MozOsxFontSmoothing: 'auto',
-            }}
-          >
+          {/* H1 — piste A « editorial contraste » : light 400 + bold 600 italic lime */}
+          <h1 className="leading-none" style={{ fontFamily: 'var(--font-fraunces)', margin: 0, letterSpacing: '-0.042em' }}>
             <span
-              className="block text-5xl md:text-7xl lg:text-[112px] uppercase"
-              style={{
-                letterSpacing: '-0.04em',
-              }}
+              className="block text-5xl md:text-7xl lg:text-[80px]"
+              style={{ fontWeight: 400, color: 'var(--text-primary)', lineHeight: 0.95 }}
             >
-              <AnimatedChars text="Order" baseDelay={120} charDelay={45} duration={700} />
+              The science of
             </span>
             <span
-              className="block text-5xl md:text-7xl lg:text-[112px] uppercase mt-1"
-              style={{
-                letterSpacing: '-0.04em',
-              }}
+              className="block text-5xl md:text-7xl lg:text-[80px]"
+              style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--primary)', lineHeight: 0.95, textShadow: '0 0 42px rgba(74,222,128,.42)' }}
             >
-              <AnimatedChars text="Flow" baseDelay={440} charDelay={45} duration={700} />
+              orderflow.
             </span>
           </h1>
         </div>
