@@ -7,7 +7,7 @@ const content = {
   fr: {
     back: 'Retour',
     title: "Conditions Générales d'Utilisation",
-    updated: 'Dernière mise à jour : Février 2026',
+    updated: 'Dernière mise à jour : juin 2026',
     sections: [
       {
         title: '1. Objet du service',
@@ -36,12 +36,15 @@ const content = {
           <>
             <p className="text-zinc-400 leading-relaxed">
               L&apos;abonnement confère une licence personnelle, non-transférable et non-exclusive
-              d&apos;utilisation du logiciel SENZOUKRIA. Cette licence est strictement limitée à :
+              d&apos;utilisation du logiciel SENZOUKRIA, incluant <strong className="text-white">l&apos;application web</strong> (accessible via navigateur)
+              et <strong className="text-white">l&apos;application desktop</strong> (binaire Windows distribué via GitHub Releases et mis à jour automatiquement).
+              Cette licence est strictement limitée à :
             </p>
             <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
               <li>Un seul compte par personne physique</li>
               <li>Un seul appareil connecté simultanément</li>
               <li>Usage personnel uniquement (pas de revente, sous-licence ou partage)</li>
+              <li>Toute copie, reverse engineering, décompilation ou extraction du code — web ou desktop — est strictement interdite</li>
             </ul>
           </>
         ),
@@ -97,8 +100,9 @@ const content = {
               droit de rétractation.
             </p>
             <p className="text-zinc-400 mt-2">
-              En cochant la case <em>« J&apos;accepte les conditions générales d&apos;utilisation »</em>{' '}
-              lors de la création du compte, et en confirmant le paiement de l&apos;abonnement,
+                      En cochant la case <em>« J&apos;accepte les conditions générales d&apos;utilisation »</em>{' '}
+              lors de la création du compte (ou en se connectant via Google OAuth après avoir coché cette case),
+              et en confirmant le paiement de l&apos;abonnement,
               l&apos;utilisateur :
             </p>
             <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
@@ -169,22 +173,47 @@ const content = {
         ),
       },
       {
-        title: '5. Limitation de responsabilité',
+        title: "5. Connecteurs broker et responsabilité données de marché",
         body: (
           <>
             <p className="text-zinc-400 leading-relaxed">
-              SENZOUKRIA est un outil de visualisation. Il ne constitue en aucun cas un conseil en investissement,
-              une recommandation de trading ou une incitation à acheter ou vendre des instruments financiers.
+              L&apos;application desktop SENZOUKRIA propose des connecteurs vers des plateformes et brokers tiers
+              (Rithmic, Apex Trader Funding, Interactive Brokers, NinjaTrader, etc.).
+            </p>
+            <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
+              <li><strong className="text-white">Absence d&apos;affiliation</strong> : SENZOUKRIA n&apos;est pas affilié, sponsorisé ni approuvé par Rithmic, Apex Trader Funding, Interactive Brokers Group, NinjaTrader LLC, CME Group, ni par aucun autre broker ou échange cité dans l&apos;application.</li>
+              <li><strong className="text-white">Marques tierces</strong> : ATAS, Bookmap, Sierra Chart, NinjaTrader, Rithmic, Apex Trader Funding, Quantower sont des marques déposées de leurs propriétaires respectifs. Toute mention est uniquement à des fins d&apos;identification ; aucune association ni endossement n&apos;est sous-entendu.</li>
+              <li><strong className="text-white">Exactitude des données</strong> : SENZOUKRIA ne garantit pas l&apos;exactitude, la continuité ni la disponibilité des données de marché reçues via les connecteurs broker. Ces données sont fournies « telles quelles » par le broker de l&apos;utilisateur.</li>
+              <li><strong className="text-white">Ordres et latence</strong> : SENZOUKRIA n&apos;est pas responsable des ordres transmis, de leur exécution, de leur rejet ou de la latence du connecteur. Le routage d&apos;ordres reste sous l&apos;entière responsabilité de l&apos;utilisateur et de son broker.</li>
+              <li><strong className="text-white">Credentials broker</strong> : les identifiants de connexion broker sont stockés uniquement dans le trousseau OS local de l&apos;utilisateur et ne transitent jamais par les serveurs SENZOUKRIA.</li>
+            </ul>
+          </>
+        ),
+      },
+      {
+        title: '6. Limitation de responsabilité',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              SENZOUKRIA est un outil de visualisation et d&apos;analyse. Il ne constitue en aucun cas un conseil en investissement,
+              une recommandation de trading, une analyse financière au sens de la directive MiFID II,
+              ni une incitation à acheter ou vendre des instruments financiers.
+            </p>
+            <p className="text-zinc-400 mt-2">
+              L&apos;assistant IA intégré produit des analyses descriptives à titre informatif uniquement.
+              Toute référence à des niveaux de prix, biais directionnels ou zones d&apos;invalidation
+              est une description technique de l&apos;orderflow, non une recommandation personnalisée.
             </p>
             <p className="text-zinc-400 mt-2">
               L&apos;utilisateur est seul responsable de ses décisions de trading et des pertes éventuelles.
-              SENZOUKRIA ne peut être tenu responsable des pertes financières liées à l&apos;utilisation du logiciel.
+              SENZOUKRIA ne peut être tenu responsable des pertes financières, interruptions de service
+              ou bugs affectant l&apos;utilisation du logiciel.
             </p>
           </>
         ),
       },
       {
-        title: '6. Propriété intellectuelle',
+        title: '7. Propriété intellectuelle',
         body: (
           <p className="text-zinc-400 leading-relaxed">
             Le code source, l&apos;interface, les algorithmes et le design de SENZOUKRIA sont protégés par le droit d&apos;auteur.
@@ -193,7 +222,7 @@ const content = {
         ),
       },
       {
-        title: '7. Conformité CME Group',
+        title: '8. Conformité CME Group',
         body: (
           <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
             <ul className="text-zinc-400 space-y-2">
@@ -207,12 +236,12 @@ const content = {
         ),
       },
       {
-        title: '8. Résiliation',
+        title: '9. Résiliation par SENZOUKRIA',
         body: (
           <p className="text-zinc-400 leading-relaxed">
-            L&apos;utilisateur peut résilier son abonnement à tout moment. L&apos;accès reste actif jusqu&apos;à la fin
-            de la période payée. SENZOUKRIA se réserve le droit de suspendre ou résilier un compte en cas de
-            violation des présentes conditions.
+            SENZOUKRIA se réserve le droit de suspendre ou résilier un compte en cas de violation des présentes
+            conditions (partage de compte, usage abusif, reverse engineering). La procédure de résiliation
+            par l&apos;utilisateur est décrite au §4 ter.
           </p>
         ),
       },
@@ -221,7 +250,7 @@ const content = {
   en: {
     back: 'Back',
     title: 'Terms of Service',
-    updated: 'Last updated: February 2026',
+    updated: 'Last updated: June 2026',
     sections: [
       {
         title: '1. Service Description',
@@ -384,22 +413,47 @@ const content = {
         ),
       },
       {
-        title: '5. Limitation of Liability',
+        title: '5. Broker connectors & market data liability',
         body: (
           <>
             <p className="text-zinc-400 leading-relaxed">
-              SENZOUKRIA is a visualization tool. It does not constitute investment advice,
-              trading recommendations, or an incentive to buy or sell financial instruments.
+              The SENZOUKRIA desktop app provides connectors to third-party platforms and brokers
+              (Rithmic, Apex Trader Funding, Interactive Brokers, NinjaTrader, etc.).
+            </p>
+            <ul className="list-disc list-inside text-zinc-400 space-y-1 mt-2">
+              <li><strong className="text-white">No affiliation</strong>: SENZOUKRIA is not affiliated with, sponsored by, or endorsed by Rithmic, Apex Trader Funding, Interactive Brokers Group, NinjaTrader LLC, CME Group, or any other broker or exchange mentioned in the app.</li>
+              <li><strong className="text-white">Third-party trademarks</strong>: ATAS, Bookmap, Sierra Chart, NinjaTrader, Rithmic, Apex Trader Funding, and Quantower are registered trademarks of their respective owners. Any mention is for identification purposes only; no association or endorsement is implied.</li>
+              <li><strong className="text-white">Data accuracy</strong>: SENZOUKRIA does not guarantee the accuracy, continuity, or availability of market data received through broker connectors. Such data is provided "as-is" by the user's broker.</li>
+              <li><strong className="text-white">Orders and latency</strong>: SENZOUKRIA is not responsible for orders submitted, their execution, rejection, or connector latency. Order routing remains entirely the responsibility of the user and their broker.</li>
+              <li><strong className="text-white">Broker credentials</strong>: broker login credentials are stored only in the user's local OS keychain and never transmitted to SENZOUKRIA servers.</li>
+            </ul>
+          </>
+        ),
+      },
+      {
+        title: '6. Limitation of Liability',
+        body: (
+          <>
+            <p className="text-zinc-400 leading-relaxed">
+              SENZOUKRIA is a visualization and analysis tool. It does not constitute investment advice,
+              trading recommendations, financial analysis under MiFID II,
+              or an incentive to buy or sell financial instruments.
+            </p>
+            <p className="text-zinc-400 mt-2">
+              The integrated AI assistant produces descriptive analyses for informational purposes only.
+              Any reference to price levels, directional bias, or invalidation zones
+              is a technical description of orderflow, not a personalized recommendation.
             </p>
             <p className="text-zinc-400 mt-2">
               The user is solely responsible for their trading decisions and any resulting losses.
-              SENZOUKRIA cannot be held liable for financial losses related to the use of the software.
+              SENZOUKRIA cannot be held liable for financial losses, service interruptions,
+              or software bugs affecting the use of the application.
             </p>
           </>
         ),
       },
       {
-        title: '6. Intellectual Property',
+        title: '7. Intellectual Property',
         body: (
           <p className="text-zinc-400 leading-relaxed">
             The source code, interface, algorithms, and design of SENZOUKRIA are protected by copyright.
@@ -408,7 +462,7 @@ const content = {
         ),
       },
       {
-        title: '7. CME Group Compliance',
+        title: '8. CME Group Compliance',
         body: (
           <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg">
             <ul className="text-zinc-400 space-y-2">
@@ -422,12 +476,12 @@ const content = {
         ),
       },
       {
-        title: '8. Termination',
+        title: '9. Termination by SENZOUKRIA',
         body: (
           <p className="text-zinc-400 leading-relaxed">
-            The user may cancel their subscription at any time. Access remains active until the end
-            of the paid period. SENZOUKRIA reserves the right to suspend or terminate an account in case of
-            violation of these terms.
+            SENZOUKRIA reserves the right to suspend or terminate an account in case of violation of these
+            terms (account sharing, abusive use, reverse engineering). User-initiated cancellation
+            procedures are described in section 4.2.
           </p>
         ),
       },

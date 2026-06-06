@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
 
 export default function JournalError({
   error,
@@ -11,7 +10,6 @@ export default function JournalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error, { tags: { errorBoundary: 'journal' } });
     console.error('[Journal Error]', error);
   }, [error]);
 

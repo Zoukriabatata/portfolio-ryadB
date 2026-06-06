@@ -95,6 +95,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Best-effort: delete the Stripe customer so no orphan customer records
+  // accumulate in the Stripe dashboard after account deletion.
+  if (user.customerId) {
+    try {
+      await stripe.customers.del(user.customerId);
+    } catch (err) {
+      // non-bloquant : log uniquement
+      console.error('[delete] stripe customer delete failed:', err);
+    }
+  }
+
   // Exit-survey notification — fire BEFORE the delete so we still have
   // the user's details. Non-blocking failure: a bounced email must never
   // stop the user from deleting their account.

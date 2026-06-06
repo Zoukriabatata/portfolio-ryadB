@@ -21,17 +21,6 @@ interface User {
   maxDevices: number;
 }
 
-interface PaymentProof {
-  id: string;
-  email: string;
-  method: string;
-  amount: string;
-  reference: string;
-  date: string;
-  status: string;
-}
-
-type AdminTab = 'users' | 'payments';
 
 const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
@@ -42,13 +31,11 @@ export default function AdminPage() {
   const router = useRouter();
 
   const [users, setUsers] = useState<User[]>([]);
-  const [proofs, setProofs] = useState<PaymentProof[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchEmail, setSearchEmail] = useState('');
   const [selectedDuration, setSelectedDuration] = useState<'month' | 'year' | 'lifetime'>('month');
-  const [activeTab, setActiveTab] = useState<AdminTab>('users');
 
   const isAdmin = session?.user?.email && ADMIN_EMAILS.includes(session.user.email);
 
@@ -61,7 +48,6 @@ export default function AdminPage() {
     }
 
     fetchUsers();
-    fetchProofs();
   }, [session, status, isAdmin, router]);
 
   const fetchUsers = async () => {
@@ -82,53 +68,6 @@ export default function AdminPage() {
       setError('Erreur de connexion');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchProofs = async () => {
-    try {
-      const res = await throttledFetch('/api/admin/payments');
-      if (!res.ok) return;
-      const data = await res.json();
-
-      if (data.error) {
-        console.error('Fetch proofs error:', data.error);
-      } else {
-        setProofs(data.proofs || []);
-      }
-    } catch {
-      console.error('Erreur de connexion (proofs)');
-    }
-  };
-
-  const handleProofAction = async (proofId: string, action: 'approve' | 'reject') => {
-    setActionLoading(proofId);
-
-    try {
-      const res = await throttledFetch('/api/admin/payments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proofId, action }),
-      });
-
-      if (!res.ok) {
-        toast.error(`Erreur serveur (${res.status})`);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.success) {
-        await fetchProofs();
-        await fetchUsers();
-        toast.success('Action effectuée');
-      } else {
-        toast.error(data.error || 'Erreur');
-      }
-    } catch {
-      toast.error('Erreur de connexion');
-    } finally {
-      setActionLoading(null);
     }
   };
 
@@ -259,105 +198,8 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-8 p-1 rounded-lg" style={{ background: 'var(--surface)' }}>
-          {(['users', 'payments'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all"
-              style={{
-                background: activeTab === tab ? 'var(--primary-glow)' : 'transparent',
-                color: activeTab === tab ? 'var(--primary-light)' : 'var(--text-muted)',
-              }}
-            >
-              {tab === 'users' ? `Utilisateurs (${users.length})` : `Preuves de Paiement (${proofs.filter(p => p.status === 'PENDING').length})`}
-            </button>
-          ))}
-        </div>
-
-        <div className="animate-fadeIn" key={activeTab}>
-        {activeTab === 'payments' && (
-          <div className="rounded-xl overflow-hidden mb-8" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="p-4" style={{ background: 'var(--surface-elevated)', borderBottom: '1px solid var(--border)' }}>
-              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Preuves de Paiement en Attente</h2>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Vérifiez et approuvez les paiements manuels</p>
-            </div>
-
-            {proofs.length === 0 ? (
-              <div className="p-8 text-center" style={{ color: 'var(--text-dimmed)' }}>
-                Aucune preuve de paiement en attente
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr style={{ background: 'var(--surface-elevated)' }}>
-                      <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Email</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Méthode</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Référence</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Date</th>
-                      <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Statut</th>
-                      <th className="text-right px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {proofs.map((proof) => (
-                      <tr key={proof.id} className="transition-colors" style={{ borderTop: '1px solid var(--border)' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
-                        <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-primary)' }}>{proof.email}</td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium" style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                            {proof.method}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono" style={{ color: 'var(--text-muted)' }}>{proof.reference || '-'}</td>
-                        <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-dimmed)' }}>{formatDate(proof.date)}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                            style={
-                              proof.status === 'PENDING'
-                                ? { background: 'var(--warning-bg)', color: 'var(--warning)' }
-                                : proof.status === 'COMPLETED'
-                                  ? { background: 'var(--success-bg)', color: 'var(--success)' }
-                                  : { background: 'var(--error-bg)', color: 'var(--error)' }
-                            }
-                          >
-                            {proof.status === 'PENDING' ? 'En attente' : proof.status === 'COMPLETED' ? 'Approuvé' : 'Rejeté'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {proof.status === 'PENDING' && (
-                            <div className="flex gap-2 justify-end">
-                              <button
-                                onClick={() => handleProofAction(proof.id, 'approve')}
-                                disabled={actionLoading === proof.id}
-                                className="px-3 py-1 rounded transition-colors text-sm disabled:opacity-50"
-                                style={{ background: 'var(--success-bg)', color: 'var(--success)' }}
-                              >
-                                {actionLoading === proof.id ? '...' : 'Approuver'}
-                              </button>
-                              <button
-                                onClick={() => handleProofAction(proof.id, 'reject')}
-                                disabled={actionLoading === proof.id}
-                                className="px-3 py-1 rounded transition-colors text-sm disabled:opacity-50"
-                                style={{ background: 'var(--error-bg)', color: 'var(--error)' }}
-                              >
-                                {actionLoading === proof.id ? '...' : 'Rejeter'}
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'users' && <>
+        <div className="animate-fadeIn">
+        <>
         {/* Quick Activate */}
         <div className="mb-8 p-6 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Activation rapide</h2>
@@ -492,7 +334,7 @@ export default function AdminPage() {
             </div>
           )}
         </div>
-        </>}
+        </>
         </div>
       </div>
     </div>

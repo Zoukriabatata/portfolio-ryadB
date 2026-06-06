@@ -14,7 +14,7 @@ interface AuthResult {
     id: string;
     email: string;
     tier: string;
-    [key: string]: any;
+    name?: string;
   };
   rateLimit: {
     allowed: boolean;

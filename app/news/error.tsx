@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
 
 export default function NewsError({
   error,
@@ -11,7 +10,6 @@ export default function NewsError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error, { tags: { errorBoundary: 'news' } });
     console.error('[News Error]', error);
   }, [error]);
 

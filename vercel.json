@@ -4,5 +4,11 @@
     "app/api/**/*.ts": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/purge",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { Component, type ReactNode } from 'react';
-import * as Sentry from '@sentry/nextjs';
+
 
 interface Props {
   children: ReactNode;
@@ -45,16 +45,7 @@ export default class ChartErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    Sentry.captureException(error, {
-      contexts: {
-        react: {
-          componentStack: errorInfo.componentStack,
-        },
-      },
-      tags: {
-        errorBoundary: this.props.fallbackTitle || 'ChartErrorBoundary',
-      },
-    });
+    console.error('[ChartErrorBoundary]', error, errorInfo.componentStack);
   }
 
   handleRetry = () => {

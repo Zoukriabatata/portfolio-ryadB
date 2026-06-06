@@ -42,6 +42,44 @@ jobs:
         run: npm ci
         working-directory: desktop
 
+      - name: Rust tests (gate before signing)
+        run: cargo test
+        working-directory: desktop/src-tauri
+
+      - name: Import Authenticode certificate
+        # Runs only when WINDOWS_CERTIFICATE secret is configured.
+        # Decodes the base64 PFX, imports it into the Windows cert store,
+        # then patches bundle.windows.certificateThumbprint in tauri.conf.json
+        # so tauri build signs the MSI with signtool automatically.
+        # Without this step the MSI builds fine but without Authenticode
+        # (SmartScreen "Unknown publisher" warning on every install).
+        # To activate: add WINDOWS_CERTIFICATE (base64 PFX) and
+        # WINDOWS_CERTIFICATE_PASSWORD to repository secrets.
+        if: env.WINDOWS_CERTIFICATE != ''
+        env:
+          WINDOWS_CERTIFICATE:          ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+          $certPath  = [System.IO.Path]::GetTempFileName() + ".pfx"
+          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate `
+            -FilePath $certPath `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -Password $password
+          Remove-Item $certPath -Force
+          Write-Host "Authenticode cert imported — thumbprint: $($cert.Thumbprint)"
+          # Patch tauri.conf.json via Node (already installed; avoids PS JSON round-trip issues)
+          node -e @"
+            const fs  = require('fs');
+            const p   = 'desktop/src-tauri/tauri.conf.json';
+            const cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            cfg.bundle.windows.certificateThumbprint = '$($cert.Thumbprint)';
+            fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + '\n');
+          "@
+
       - name: Tauri build
         run: npm run tauri build
         working-directory: desktop

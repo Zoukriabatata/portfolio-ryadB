@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
 
 export default function BacktestError({
   error,
@@ -11,7 +10,6 @@ export default function BacktestError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error, { tags: { errorBoundary: 'backtest' } });
     console.error('[Backtest Error]', error);
   }, [error]);
 

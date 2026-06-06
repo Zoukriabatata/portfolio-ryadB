@@ -5,14 +5,8 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-
-// Warn if critical env vars are missing in production
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  console.warn('WARNING: JWT_SECRET not configured - authentication features will not work properly');
-}
 
 // ============ PASSWORD HASHING ============
 
@@ -22,36 +16,6 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   return bcrypt.compare(password, hashedPassword);
-}
-
-// ============ JWT TOKENS ============
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
-const TOKEN_EXPIRY = '24h';
-const REFRESH_TOKEN_EXPIRY = '7d';
-
-export interface TokenPayload {
-  userId: string;
-  email: string;
-  tier: string;
-  deviceId: string;
-  sessionId: string;
-}
-
-export function generateAccessToken(payload: TokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
-}
-
-export function generateRefreshToken(payload: TokenPayload): string {
-  return jwt.sign({ ...payload, type: 'refresh' }, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
-}
-
-export function verifyToken(token: string): TokenPayload | null {
-  try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
-  } catch {
-    return null;
-  }
 }
 
 // ============ DEVICE FINGERPRINTING ============
@@ -250,29 +214,6 @@ export function getRequiredTierForPage(pathname: string): SubscriptionTier {
     }
   }
   return 'PRO'; // Default to highest if not found
-}
-
-// ============ ENCRYPTION ============
-
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '32-character-default-key-here!!';
-const IV_LENGTH = 16;
-
-export function encrypt(text: string): string {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
-
-export function decrypt(text: string): string {
-  const textParts = text.split(':');
-  const iv = Buffer.from(textParts.shift()!, 'hex');
-  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
 }
 
 // ============ INPUT VALIDATION ============

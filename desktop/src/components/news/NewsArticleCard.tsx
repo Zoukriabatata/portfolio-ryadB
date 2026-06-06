@@ -22,11 +22,17 @@ export function NewsArticleCard({ article }: { article: NewsArticle }) {
       className="news-card"
       role="link"
       tabIndex={0}
-      onClick={() => void openUrl(article.url)}
+      onClick={() => {
+        const url = article.url;
+        if (!url.startsWith('https://') && !url.startsWith('http://')) return;
+        void openUrl(url);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          void openUrl(article.url);
+          const url = article.url;
+          if (!url.startsWith('https://') && !url.startsWith('http://')) return;
+          void openUrl(url);
         }
       }}
     >

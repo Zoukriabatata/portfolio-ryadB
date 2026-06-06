@@ -20,6 +20,7 @@ import {
   type SubscriptionTier,
 } from './security';
 import { generateLicenseKey, isPreviewWindow, PREVIEW_END } from './license';
+import { checkRateLimit as checkRateLimitDistrib } from './rate-limiter';
 
 // Dev mode user when DB is not available
 const DEV_USER = {
@@ -62,7 +63,20 @@ export const authOptions: NextAuthOptions = {
 
         const email = credentials.email.toLowerCase().trim();
 
-        // Rate limiting
+        // IP-based distributed rate limit (5 req/min per IP, fail-closed in prod).
+        // req.headers is a plain Record<string,string> in NextAuth RequestInternal —
+        // NOT a NextRequest — so we cannot use loginRateLimit(req) directly.
+        const ip =
+          (req?.headers?.['x-forwarded-for'] as string | undefined)
+            ?.split(',')[0]?.trim() ??
+          (req?.headers?.['x-real-ip'] as string | undefined) ??
+          '127.0.0.1';
+        const ipRl = await checkRateLimitDistrib(`ip:login:${ip}`, 5, 60_000, true);
+        if (!ipRl.allowed) {
+          throw new Error('Trop de tentatives. Réessayez dans quelques minutes.');
+        }
+
+        // Per-email in-memory check (secondary layer within a lambda instance)
         const rateLimit = checkRateLimit(email);
         if (!rateLimit.allowed) {
           throw new Error(`Trop de tentatives. Réessayez dans ${rateLimit.lockoutTime} minutes.`);
@@ -104,7 +118,7 @@ export const authOptions: NextAuthOptions = {
 
         // Get device info
         const userAgent = req?.headers?.['user-agent'] || 'Unknown';
-        const ip = req?.headers?.['x-forwarded-for']?.toString().split(',')[0] || 'Unknown';
+        // ip already extracted above for rate-limiting
         const deviceFingerprint = credentials.deviceFingerprint ||
           generateDeviceFingerprint(userAgent, ip);
         const deviceInfo = parseUserAgent(userAgent);

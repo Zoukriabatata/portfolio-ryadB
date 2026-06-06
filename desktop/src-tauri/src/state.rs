@@ -95,8 +95,8 @@ pub struct CryptoState {
     pub binance_pump: Mutex<Option<JoinHandle<()>>>,
     pub bybit_pump: Mutex<Option<JoinHandle<()>>>,
     pub deribit_pump: Mutex<Option<JoinHandle<()>>>,
-    /// M6b-1 — `crypto-tick-update` event emitter task. Symmetric
-    /// to the engine pump but routed at the per-tick rate to a
+    /// M6b-1 — `crypto-tick-batch` event emitter task (coalesced 16 ms).
+    /// Symmetric to the engine pump but batched and routed to a
     /// Tauri event for the heatmap trade-bubbles overlay. Per-
     /// adapter Mutex<Option<JoinHandle>> so the cleanup path
     /// matches the existing pump pattern.

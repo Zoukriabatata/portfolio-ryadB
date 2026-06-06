@@ -29,8 +29,7 @@ const jetbrainsMono = JetBrains_Mono({
 import '@/styles/chart-animations.css';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 import SessionProviderWrapper from '@/components/layouts/SessionProviderWrapper';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
+
 import { Toaster } from 'sonner';
 import { JsonLd } from '@/components/seo/JsonLd';
 
@@ -171,8 +170,7 @@ if(typeof Node!=='undefined'){
           }}
           gap={8}
         />
-        <Analytics />
-        <SpeedInsights />
+
       </body>
     </html>
   );

@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
 
 export default function BoutiqueError({
   error,
@@ -11,7 +10,6 @@ export default function BoutiqueError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error, { tags: { errorBoundary: 'boutique' } });
     console.error('[Boutique Error]', error);
   }, [error]);
 

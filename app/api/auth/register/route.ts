@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
         subscriptionStart: inPreview ? now : null,
         subscriptionEnd: inPreview ? PREVIEW_END : null,
         verificationToken: generateSecureToken(),
+        verificationTokenExpiry: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h
         ...(inPreview && {
           license: {
             create: {

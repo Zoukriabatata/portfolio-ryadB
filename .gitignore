@@ -61,9 +61,16 @@ prisma/dev.db-journal
 # temp files
 nul
 
+# working-tree artefacts (not committed, but protect from accidental git add -A)
+/REPORT.md
+/*.mp3
+
 .vercel
 
 backups/
+
+# gateway deps (Dockerfile uses npm ci — no need to commit node_modules)
+gateway/node_modules/
 
 # session recap files (local notes, never committed)
 SESSION_*.md

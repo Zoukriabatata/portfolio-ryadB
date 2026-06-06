@@ -180,12 +180,61 @@ export default function RegisterPage() {
           <PreviewBanner />
 
 
+          {/* ── GDPR consent checkboxes — required before ANY sign-up
+              method (Google or email). Placed here so the user sees
+              them before interacting with either button.
+              Both buttons stay disabled until both boxes are ticked. ── */}
+          <div className="space-y-2 mb-5">
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
+              <input
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded cursor-pointer flex-shrink-0"
+                style={{ accentColor: 'var(--primary)' }}
+              />
+              <span>
+                I have read and accept the{' '}
+                <Link
+                  href="/legal/terms"
+                  target="_blank"
+                  className="underline"
+                  style={{ color: 'var(--primary-light)' }}
+                >
+                  Terms of Service
+                </Link>
+                .
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
+              <input
+                type="checkbox"
+                checked={acceptPrivacy}
+                onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded cursor-pointer flex-shrink-0"
+                style={{ accentColor: 'var(--primary)' }}
+              />
+              <span>
+                I have read and accept the{' '}
+                <Link
+                  href="/legal/privacy"
+                  target="_blank"
+                  className="underline"
+                  style={{ color: 'var(--primary-light)' }}
+                >
+                  Privacy Policy
+                </Link>{' '}
+                and consent to the processing of my personal data as described.
+              </span>
+            </label>
+          </div>
+
           {/* ── PRIMARY: Google ── */}
           <button
             type="button"
             onClick={handleGoogleSignUp}
-            disabled={isGoogleLoading}
-            className="w-full py-3 flex items-center justify-center gap-3 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+            disabled={isGoogleLoading || !acceptTerms || !acceptPrivacy}
+            className="w-full py-3 flex items-center justify-center gap-3 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: 'var(--surface-elevated)',
               border: '1px solid var(--border)',
@@ -286,54 +335,6 @@ export default function RegisterPage() {
                     style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                 </div>
-                {/* GDPR consent checkboxes — required affirmative action. */}
-                <div className="space-y-2 pt-1">
-                  <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
-                    <input
-                      type="checkbox"
-                      checked={acceptTerms}
-                      onChange={(e) => setAcceptTerms(e.target.checked)}
-                      required
-                      className="mt-0.5 h-4 w-4 rounded cursor-pointer"
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    <span>
-                      I have read and accept the{' '}
-                      <Link
-                        href="/legal/terms"
-                        target="_blank"
-                        className="underline"
-                        style={{ color: 'var(--primary-light)' }}
-                      >
-                        Terms of Service
-                      </Link>
-                      .
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
-                    <input
-                      type="checkbox"
-                      checked={acceptPrivacy}
-                      onChange={(e) => setAcceptPrivacy(e.target.checked)}
-                      required
-                      className="mt-0.5 h-4 w-4 rounded cursor-pointer"
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    <span>
-                      I have read and accept the{' '}
-                      <Link
-                        href="/legal/privacy"
-                        target="_blank"
-                        className="underline"
-                        style={{ color: 'var(--primary-light)' }}
-                      >
-                        Privacy Policy
-                      </Link>{' '}
-                      and consent to the processing of my personal data as described.
-                    </span>
-                  </label>
-                </div>
-
                 <button
                   type="submit"
                   disabled={isLoading || success || !acceptTerms || !acceptPrivacy}

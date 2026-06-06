@@ -38,19 +38,30 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('ton_mot_de_passe_secure', 12);
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password) throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD env vars');
 
-  const admin = await prisma.user.create({
-    data: {
-      email: 'admin@orderflow.com',
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  const admin = await prisma.user.upsert({
+    where: { email },
+    update: {
+      subscriptionTier: 'PRO',   // 'ULTRA' n'existe plus
+      emailVerified: new Date(),  // DateTime, pas boolean
+      subscriptionEnd: new Date('2099-12-31'),
+    },
+    create: {
+      email,
       password: hashedPassword,
       name: 'Admin',
-      subscriptionTier: 'ULTRA',
-      emailVerified: true,
+      subscriptionTier: 'PRO',
+      emailVerified: new Date(),
+      subscriptionEnd: new Date('2099-12-31'),
     },
   });
 
-  console.log('✅ Admin créé:', admin.email);
+  console.log('✅ Admin créé/mis à jour:', admin.email);
 }
 
 main()
@@ -60,7 +71,7 @@ main()
 
 Exécuter avec :
 ```bash
-npx tsx scripts/create-admin.ts
+ADMIN_EMAIL="ton@email.com" ADMIN_PASSWORD="motdepasse" npx tsx scripts/create-admin.ts
 ```
 
 ---

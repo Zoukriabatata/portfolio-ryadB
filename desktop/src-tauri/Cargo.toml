@@ -42,7 +42,7 @@ thiserror      = "1"
 keyring        = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
 
 # Rithmic R|Protocol connector (Phase 7)
-tokio-tungstenite = { version = "0.21", default-features = false, features = ["rustls-tls-webpki-roots", "connect"] }
+tokio-tungstenite = { version = "0.23", default-features = false, features = ["rustls-tls-webpki-roots", "connect"] }
 prost          = "0.12"
 prost-types    = "0.12"
 tokio-stream   = "0.1"

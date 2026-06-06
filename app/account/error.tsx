@@ -1,7 +1,6 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
 
 export default function AccountError({
   error,
@@ -11,7 +10,6 @@ export default function AccountError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error, { tags: { errorBoundary: 'account' } });
     console.error('[Account Error]', error);
   }, [error]);
 

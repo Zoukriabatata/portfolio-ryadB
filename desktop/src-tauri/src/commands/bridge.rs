@@ -55,7 +55,13 @@ pub async fn bridge_connect(
         return bridge_status(state).await;
     }
 
-    let host = args.host.unwrap_or_else(|| "127.0.0.1".to_string());
+    let host = {
+        let h = args.host.unwrap_or_else(|| "127.0.0.1".to_string());
+        if h != "127.0.0.1" && h != "localhost" && h != "::1" {
+            return Err("bridge host must be a loopback address (127.0.0.1 / localhost)".to_string());
+        }
+        h
+    };
     let port = args.port.unwrap_or(7272);
     let config = BridgeConfig {
         host: host.clone(),
