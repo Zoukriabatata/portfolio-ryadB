@@ -230,11 +230,45 @@ export default function HeroSection() {
           ))}
         </div>
 
-        {/* Platform Preview Mockup */}
+        {/* Platform Preview Mockup — scène produit avec cartes flottantes */}
         <div
-          className="mt-16 max-w-2xl mx-auto"
+          className="relative mt-16 max-w-2xl mx-auto"
           style={{ animation: 'fadeInUp 0.8s ease-out 0.8s forwards', opacity: 0 }}
         >
+          {/* Carte flottante : Absorption */}
+          <div
+            className="brand-anim hidden md:block"
+            style={{ position: 'absolute', zIndex: 20, top: -20, left: -56, background: 'rgba(17,20,38,.82)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 11, padding: '11px 13px', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 18px 40px rgba(0,0,0,.5)', animation: 'brand-float 6s ease-in-out infinite' }}
+          >
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 8, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 6px var(--primary)' }} />Absorption
+            </div>
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-primary)' }}>20,374.25</div>
+          </div>
+
+          {/* Carte flottante : CVD */}
+          <div
+            className="brand-anim hidden md:block"
+            style={{ position: 'absolute', zIndex: 20, top: '38%', right: -64, background: 'rgba(17,20,38,.82)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 11, padding: '11px 13px', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 18px 40px rgba(0,0,0,.5)', animation: 'brand-float 7s ease-in-out .8s infinite' }}
+          >
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 8, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5 }}>CVD · session</div>
+            <svg width="84" height="34" viewBox="0 0 84 34">
+              <defs><linearGradient id="cvdg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4ade80" stopOpacity=".35" /><stop offset="1" stopColor="#4ade80" stopOpacity="0" /></linearGradient></defs>
+              <path d="M2,28 L14,24 L26,26 L38,17 L50,19 L62,10 L74,12 L82,4" fill="none" stroke="#4ade80" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2,28 L14,24 L26,26 L38,17 L50,19 L62,10 L74,12 L82,4 L82,34 L2,34 Z" fill="url(#cvdg)" />
+            </svg>
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 13, fontWeight: 600, color: 'var(--primary)', marginTop: 2 }}>+6,910</div>
+          </div>
+
+          {/* Carte flottante : Σ Delta */}
+          <div
+            className="brand-anim hidden md:block"
+            style={{ position: 'absolute', zIndex: 20, bottom: 32, left: -48, background: 'rgba(17,20,38,.82)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 11, padding: '11px 13px', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 18px 40px rgba(0,0,0,.5)', animation: 'brand-float 6.5s ease-in-out .4s infinite' }}
+          >
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 8, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5 }}>Σ Delta</div>
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 18, fontWeight: 600, color: 'var(--primary)' }}>+1,284</div>
+          </div>
+
           <div className="mockup-border relative rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 80px rgb(var(--primary-rgb) / 0.05)' }}>
             {/* Shimmer sweep */}
             <div className="absolute inset-0 z-20 pointer-events-none" style={{
