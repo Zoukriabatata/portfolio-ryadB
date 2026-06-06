@@ -28,50 +28,47 @@
 
 /* ─── Buttons ─── */
 
-.landing-btn-primary {
+/* Glassmorphism — primaire teinté lime, secondaire neutre. */
+.landing-btn-primary,
+.landing-btn-ghost {
   display: inline-flex;
   align-items: center;
-  padding: 11px 26px;
+  gap: 8px;
+  padding: 12px 22px;
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #000;
-  /* Lime green primary gradient. The fallback hex values must match
-     the actual brand palette in app/globals.css — historical amber
-     fallbacks (#fbbf24 / #f59e0b) leaked through whenever the CSS
-     var was missing and flashed an orange button at first paint. */
-  background: linear-gradient(135deg, var(--primary-light, #86efac), var(--primary, #4ade80));
-  border-radius: 8px;
+  letter-spacing: 0.01em;
+  border-radius: 11px;
   text-decoration: none;
-  transition: all 0.25s ease;
-  box-shadow: 0 0 20px rgb(var(--primary-rgb) / 0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.2s ease;
+}
+
+.landing-btn-primary {
+  font-weight: 600;
+  color: var(--primary-light, #86efac);
+  background: rgba(74, 222, 128, 0.09);
+  border: 1px solid rgba(74, 222, 128, 0.30);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 8px 26px rgba(74, 222, 128, 0.16);
 }
 
 .landing-btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-light, #86efac), var(--primary-light, #86efac));
-  box-shadow: 0 0 30px rgb(var(--primary-rgb) / 0.3);
+  background: rgba(74, 222, 128, 0.14);
+  border-color: rgba(74, 222, 128, 0.45);
   transform: translateY(-1px);
 }
 
 .landing-btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  padding: 11px 26px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: rgba(255,255,255,0.5);
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  text-decoration: none;
-  transition: all 0.25s ease;
+  font-weight: 500;
+  color: var(--text-primary, #e8eaf6);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .landing-btn-ghost:hover {
-  color: rgba(255,255,255,0.8);
-  border-color: rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
   transform: translateY(-1px);
 }
 
