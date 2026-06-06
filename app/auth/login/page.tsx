@@ -643,9 +643,51 @@ function LoginForm() {
               </p>
             </div>
 
+            {/* ── Legal consent + risk disclaimer ─────────────────────── */}
+            <div
+              className="mt-6 space-y-3"
+              style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 750ms forwards', opacity: 0 }}
+            >
+              {/* Trading risk disclaimer */}
+              <div
+                className="px-3 py-2.5 rounded-md text-[11px] leading-relaxed"
+                style={{
+                  background: 'rgba(245,158,11,0.06)',
+                  border: '1px solid rgba(245,158,11,0.2)',
+                  color: 'rgba(245,158,11,0.75)',
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                }}
+              >
+                ⚠ Trading involves risk of loss. SENZOUKRIA is a visualization tool only — not financial advice.
+              </div>
+
+              {/* Implied consent notice (returning users) */}
+              <p
+                className="text-center"
+                style={{
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: 10,
+                  letterSpacing: '0.12em',
+                  color: 'var(--text-dimmed)',
+                  lineHeight: 1.6,
+                }}
+              >
+                By signing in you agree to our{' '}
+                <Link href="/legal/terms" className="underline hover:text-zinc-400 transition-colors">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link href="/legal/privacy" className="underline hover:text-zinc-400 transition-colors">
+                  Privacy&nbsp;&amp;&nbsp;Cookie&nbsp;Policy
+                </Link>
+                .<br />
+                We use essential cookies only (authentication session).
+              </p>
+            </div>
+
             {/* Trust signals — small mono baseline */}
             <div
-              className="mt-10 pt-6 flex items-center gap-5"
+              className="mt-8 pt-6 flex items-center gap-5"
               style={{
                 borderTop: '1px solid var(--border)',
                 animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 800ms forwards',

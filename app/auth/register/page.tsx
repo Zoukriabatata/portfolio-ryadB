@@ -362,17 +362,32 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Footnote — links to legal pages for users who want to review
-            them before signing up. The actual GDPR consent is captured
-            via the two checkboxes inside the email-signup form. */}
-        <div className="mt-5 text-center">
-          <p className="text-xs" style={{ color: 'var(--text-dimmed)' }}>
+        {/* Trading risk disclaimer */}
+        <div
+          className="mt-5 px-3 py-2.5 rounded-md text-[11px] leading-relaxed"
+          style={{
+            background: 'rgba(245,158,11,0.06)',
+            border: '1px solid rgba(245,158,11,0.2)',
+            color: 'rgba(245,158,11,0.75)',
+            fontFamily: 'var(--font-jetbrains-mono)',
+          }}
+        >
+          ⚠ Trading involves risk of loss. SENZOUKRIA is a visualization tool only — not financial advice.
+        </div>
+
+        {/* Footnote — links to legal pages. GDPR consent captured via checkboxes above. */}
+        <div className="mt-4 text-center">
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-dimmed)' }}>
             See our{' '}
             <Link href="/legal/terms" className="underline" style={{ color: 'var(--text-muted)' }}>Terms of Service</Link>
             ,{' '}
-            <Link href="/legal/privacy" className="underline" style={{ color: 'var(--text-muted)' }}>Privacy Policy</Link>
+            <Link href="/legal/privacy" className="underline" style={{ color: 'var(--text-muted)' }}>Privacy&nbsp;&amp;&nbsp;Cookie&nbsp;Policy</Link>
             {' '}and{' '}
             <Link href="/legal/mentions-legales" className="underline" style={{ color: 'var(--text-muted)' }}>Mentions légales</Link>.
+            <br />
+            <span style={{ fontSize: 10, letterSpacing: '0.1em' }}>
+              Essential cookies only (authentication session).
+            </span>
           </p>
         </div>
       </div>
