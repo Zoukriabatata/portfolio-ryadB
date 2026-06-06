@@ -65,16 +65,14 @@ export default function BrokersSection() {
             data-animate-delay="1"
             className="leading-none"
             style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontWeight: 400,
+              fontSize: 'clamp(36px, 4.5vw, 56px)',
+              letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontWeight: 500,
-              fontSize: 'clamp(36px, 4.5vw, 60px)',
-              letterSpacing: '-0.04em',
-              textTransform: 'uppercase',
-              WebkitFontSmoothing: 'subpixel-antialiased',
             }}
           >
-            Three ways to plug in
+            Three ways to <span style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--primary)' }}>plug in</span>
           </h2>
           <p
             data-animate="up"
