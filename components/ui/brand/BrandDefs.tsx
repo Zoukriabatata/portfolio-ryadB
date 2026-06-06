@@ -2,23 +2,26 @@
  * Defs SVG partagées par tous les composants de marque.
  * Monté UNE seule fois (layout). Les ids (#szFill, #szEdge, #szCharge,
  * #szGlow, #neon) sont référencés par url(#id) depuis les autres SVG.
+ *
+ * Les couleurs de marque passent par les variables de thème (var(--primary)…)
+ * via `style` (les attributs SVG ne résolvent pas var()). → suit le thème actif.
  */
 export default function BrandDefs() {
   return (
     <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
       <defs>
         <radialGradient id="szFill" cx="30%" cy="16%" r="85%">
-          <stop offset="0%" stopColor="#4ade80" stopOpacity=".12" />
-          <stop offset="42%" stopColor="#fff" stopOpacity=".018" />
-          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0%" style={{ stopColor: 'var(--primary)', stopOpacity: 0.12 }} />
+          <stop offset="42%" style={{ stopColor: '#ffffff', stopOpacity: 0.018 }} />
+          <stop offset="100%" style={{ stopColor: '#ffffff', stopOpacity: 0 }} />
         </radialGradient>
         <linearGradient id="szEdge" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fff" stopOpacity=".22" />
-          <stop offset="100%" stopColor="#fff" stopOpacity=".05" />
+          <stop offset="0%" style={{ stopColor: '#ffffff', stopOpacity: 0.22 }} />
+          <stop offset="100%" style={{ stopColor: '#ffffff', stopOpacity: 0.05 }} />
         </linearGradient>
         <linearGradient id="szCharge" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#86efac" />
-          <stop offset="100%" stopColor="#22c55e" />
+          <stop offset="0%" style={{ stopColor: 'var(--primary-light)' }} />
+          <stop offset="100%" style={{ stopColor: 'var(--primary-dark)' }} />
         </linearGradient>
         <filter id="szGlow" x="-80%" y="-80%" width="260%" height="260%">
           <feGaussianBlur stdDeviation="1.6" result="b" />

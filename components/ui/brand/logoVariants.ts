@@ -11,17 +11,21 @@ export interface MarkColors {
   electron: string;
 }
 
-/** Résout les couleurs d'une variante de mark (logique pure, testée). */
+/**
+ * Résout les couleurs d'une variante de mark (logique pure, testée).
+ * Couleurs via variables de thème → la marque suit le thème actif.
+ * (Appliquées en `style` côté SVG, pas en attribut.)
+ */
 export function resolveMarkColors(v: MarkVariant): MarkColors {
   switch (v) {
     case 'mono':
-      return { fill: 'rgba(255,255,255,.02)', edge: 'rgba(255,255,255,.14)', symbol: '#e8eaf6', electron: '#e8eaf6' };
+      return { fill: 'rgb(255 255 255 / 0.02)', edge: 'rgb(255 255 255 / 0.14)', symbol: 'var(--text-primary)', electron: 'var(--text-primary)' };
     case 'stone':
-      return { fill: 'rgba(255,255,255,.02)', edge: 'rgba(255,255,255,.16)', symbol: '#cfd2df', electron: '#cfd2df' };
+      return { fill: 'rgb(255 255 255 / 0.02)', edge: 'rgb(255 255 255 / 0.16)', symbol: 'var(--stone)', electron: 'var(--stone)' };
     case 'light':
-      return { fill: 'rgba(7,8,15,.04)', edge: 'rgba(7,8,15,.18)', symbol: '#0a0c16', electron: '#22c55e' };
+      return { fill: 'rgb(7 8 15 / 0.04)', edge: 'rgb(7 8 15 / 0.18)', symbol: '#0a0c16', electron: 'var(--primary-dark)' };
     case 'default':
     default:
-      return { fill: 'url(#szFill)', edge: 'url(#szEdge)', symbol: '#e8eaf6', electron: '#4ade80' };
+      return { fill: 'url(#szFill)', edge: 'url(#szEdge)', symbol: 'var(--text-primary)', electron: 'var(--primary)' };
   }
 }

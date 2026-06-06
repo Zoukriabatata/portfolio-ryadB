@@ -26,6 +26,8 @@ export default function LogoMark({
   const showAtom = !minimal;
   const svgClass = `${animated ? 'brand-anim' : ''}${className ? ` ${className}` : ''}`.trim();
 
+  // fill/stroke en `style` (CSS) pour que var(--…) résolve le thème — les
+  // attributs SVG (fill="…") ne supportent pas var().
   return (
     <svg
       width={size}
@@ -36,13 +38,13 @@ export default function LogoMark({
       aria-label="Senzoukria"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle cx="50" cy="50" r="45" fill={c.fill} stroke={c.edge} strokeWidth="1.3" />
+      <circle cx="50" cy="50" r="45" strokeWidth="1.3" style={{ fill: c.fill, stroke: c.edge }} />
 
       {showAtom && (
         <>
           <g transform="rotate(-26 50 50)">
-            <path d={ORBIT_PATH} fill="none" stroke={c.electron} strokeOpacity="0.16" strokeWidth="1" />
-            <circle r="2.6" cx={anim ? 0 : 6} cy={anim ? 0 : 50} fill={c.electron} filter="url(#szGlow)">
+            <path d={ORBIT_PATH} fill="none" strokeWidth="1" style={{ stroke: c.electron, strokeOpacity: 0.16 }} />
+            <circle r="2.6" cx={anim ? 0 : 6} cy={anim ? 0 : 50} filter="url(#szGlow)" style={{ fill: c.electron }}>
               {anim && <animateMotion dur="6s" repeatCount="indefinite" path={ORBIT_PATH} />}
             </circle>
           </g>
@@ -72,8 +74,7 @@ export default function LogoMark({
             fontSize="9.5"
             fontWeight={500}
             letterSpacing="0.5"
-            fill={c.electron}
-            fillOpacity="0.9"
+            style={{ fill: c.electron, fillOpacity: 0.9 }}
           >
             79
           </text>
@@ -88,7 +89,7 @@ export default function LogoMark({
         fontSize={showAtom ? 34 : 47}
         fontWeight={showAtom ? 600 : 700}
         letterSpacing={showAtom ? -1.2 : -1.6}
-        fill={c.symbol}
+        style={{ fill: c.symbol }}
       >
         Sz
       </text>
