@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { JetBrains_Mono } from 'next/font/google';
+import { Fraunces } from 'next/font/google';
 import '@/app/globals.css';
 
 /**
@@ -26,7 +27,17 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
   display: 'swap',
 });
+
+// Display serif — wordmark SENZOUKRIA + H1/H2 marketing (Editorial premium).
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  variable: '--font-fraunces',
+  display: 'swap',
+});
 import '@/styles/chart-animations.css';
+import BrandDefs from '@/components/ui/brand/BrandDefs';
 import { DashboardClientLayout } from '@/components/layouts/DashboardClientLayout';
 import SessionProviderWrapper from '@/components/layouts/SessionProviderWrapper';
 
@@ -150,9 +161,10 @@ if(typeof Node!=='undefined'){
         <JsonLd />
       </head>
       <body
-        className={`${GeistSans.variable} ${GeistMono.variable} ${jetbrainsMono.variable} font-sans`}
+        className={`${GeistSans.variable} ${GeistMono.variable} ${jetbrainsMono.variable} ${fraunces.variable} font-sans`}
         suppressHydrationWarning
       >
+        <BrandDefs />
         <SessionProviderWrapper>
           <DashboardClientLayout>{children}</DashboardClientLayout>
         </SessionProviderWrapper>
