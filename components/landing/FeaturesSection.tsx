@@ -121,9 +121,11 @@ const FeatureCard = memo(function FeatureCard({ f, i }: { f: typeof FEATURES[num
 export default function FeaturesSection() {
   return (
     <section id="features" className="relative px-6 py-20 md:py-28" style={{ zIndex: 2 }}>
-      {/* Semi-transparent backdrop */}
+      {/* Semi-transparent backdrop — démarre transparent en haut pour se
+          fondre dans le bas-de-hero déjà sombre (évite la dalle nette qui
+          cassait la couture hero → Features). */}
       <div className="absolute inset-0" style={{
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.5) 100%)',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.5) 16%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.45) 100%)',
         zIndex: 1,
       }} />
 

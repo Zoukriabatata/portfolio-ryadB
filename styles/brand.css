@@ -31,6 +31,23 @@
 /* cartes flottantes de la scène produit */
 @keyframes brand-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
 
+/* panel tombant (announce) — drop-in qui accroche le regard */
+@keyframes brand-drop {
+  0%   { transform: translateY(-180%); opacity: 0; }
+  70%  { transform: translateY(6px);   opacity: 1; }
+  100% { transform: translateY(0);     opacity: 1; }
+}
+/* flottement léger continu (après le drop-in) */
+@keyframes brand-floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+/* sortie à la fermeture */
+@keyframes brand-drop-out { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-140%); opacity: 0; } }
+
+/* scroll-snap léger sur les sections de la landing (effet "1 page" doux) */
+[data-scroll-root] > section { scroll-snap-align: start; }
+@media (prefers-reduced-motion: reduce) {
+  [data-scroll-root] { scroll-snap-type: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .brand-anim,
   .brand-anim * { animation: none !important; }

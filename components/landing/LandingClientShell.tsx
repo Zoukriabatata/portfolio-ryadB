@@ -37,7 +37,7 @@ export default function LandingClientShell({ children }: { children: React.React
       ref={scrollContainerRef}
       data-scroll-root
       className="h-full w-full overflow-auto relative"
-      style={{ scrollBehavior: 'smooth', backgroundColor: 'var(--background)' }}
+      style={{ scrollBehavior: 'smooth', backgroundColor: 'var(--background)', scrollSnapType: 'y proximity', scrollPaddingTop: 80 }}
     >
       <ScrollProgress />
       <ScrollSpy />

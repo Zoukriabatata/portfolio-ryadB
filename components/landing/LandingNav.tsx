@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import Logotype from '@/components/ui/brand/Logotype';
+import { Menu, X, Zap, Plug, Tag, Download, Users, ChevronRight } from 'lucide-react';
 
 const NAV_LINKS = [
-  { label: 'Features', href: '#features' },
-  { label: 'Brokers', href: '#brokers' },
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'Download', href: '/download' },
-  { label: 'Community', href: '#community' },
+  { label: 'Features', href: '#features', Icon: Zap },
+  { label: 'Brokers', href: '#brokers', Icon: Plug },
+  { label: 'Pricing', href: '/pricing', Icon: Tag },
+  { label: 'Download', href: '/download', Icon: Download },
+  { label: 'Community', href: '#community', Icon: Users },
 ];
 
 export default function LandingNav() {
@@ -73,11 +74,13 @@ export default function LandingNav() {
         <div
           className="flex items-center h-[54px] pl-[18px] pr-[10px] rounded-[15px] transition-all duration-300"
           style={{
-            border: '1px solid rgba(255,255,255,.10)',
-            background: scrolled || mobileOpen ? 'rgba(13,15,27,.62)' : 'rgba(13,15,27,.42)',
-            backdropFilter: 'blur(18px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-            boxShadow: '0 12px 36px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.07)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.18)',
+            background: scrolled || mobileOpen
+              ? 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.05), rgba(13,15,27,0.50))'
+              : 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.04), rgba(13,15,27,0.30))',
+            backdropFilter: 'blur(26px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+            boxShadow: '0 16px 44px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 26px rgb(var(--primary-rgb) / 0.05), 0 0 26px rgb(var(--primary-rgb) / 0.07)',
           }}
         >
           {/* Brand */}
@@ -122,56 +125,65 @@ export default function LandingNav() {
             {/* Hamburger (mobile) */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-[10px] transition-colors"
+              style={{ border: '1px solid rgb(var(--primary-rgb) / 0.22)', background: 'rgb(var(--primary-rgb) / 0.06)', color: 'var(--primary-light)' }}
               aria-label="Toggle menu"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-white/60">
-                {mobileOpen ? (
-                  <>
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </>
-                ) : (
-                  <>
-                    <line x1="4" y1="7" x2="20" y2="7" />
-                    <line x1="4" y1="12" x2="20" y2="12" />
-                    <line x1="4" y1="17" x2="20" y2="17" />
-                  </>
-                )}
-              </svg>
+              {mobileOpen ? <X size={17} strokeWidth={2.2} /> : <Menu size={17} strokeWidth={2.2} />}
             </button>
           </div>
         </div>
 
-        {/* Dropdown mobile (panneau verre sous la pill) */}
+        {/* Dropdown mobile — panneau verre teinté thème */}
         <div
-          className={`
-            md:hidden mt-2 rounded-[14px] border border-white/[0.08] px-4 flex flex-col gap-1
-            overflow-hidden transition-all duration-300 ease-in-out
-            ${mobileOpen ? 'max-h-72 py-3 opacity-100' : 'max-h-0 py-0 opacity-0 border-transparent'}
-          `}
+          className={`md:hidden mt-2 rounded-2xl overflow-hidden transition-all duration-300 ease-in-out ${mobileOpen ? 'max-h-[440px] opacity-100' : 'max-h-0 opacity-0'}`}
           style={{
-            background: 'rgba(13,15,27,.85)',
-            backdropFilter: 'blur(18px)',
-            WebkitBackdropFilter: 'blur(18px)',
+            border: `1px solid ${mobileOpen ? 'rgb(var(--primary-rgb) / 0.18)' : 'transparent'}`,
+            background: 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.07), rgba(13,15,27,0.72))',
+            backdropFilter: 'blur(26px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(26px) saturate(170%)',
+            boxShadow: mobileOpen ? '0 22px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.10), 0 0 30px rgb(var(--primary-rgb) / 0.07)' : 'none',
           }}
         >
-          {NAV_LINKS.map((link, i) => (
-            <a
-              key={link.label}
-              href={link.href}
-              onClick={(e) => handleLinkClick(e, link.href)}
-              className="text-sm font-medium transition-all py-2.5 px-3 rounded-lg hover:bg-white/[0.04]"
-              style={{
-                transitionDelay: mobileOpen ? `${i * 50}ms` : '0ms',
-                transform: mobileOpen ? 'translateX(0)' : 'translateX(-12px)',
-                opacity: mobileOpen ? 1 : 0,
-                color: isActive(link.href) ? 'var(--text-primary)' : 'var(--text-secondary)',
-              }}
-            >
-              {link.label}
-            </a>
-          ))}
+          <div className="flex flex-col gap-1 p-2.5">
+            {NAV_LINKS.map((link, i) => {
+              const active = isActive(link.href);
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={(e) => handleLinkClick(e, link.href)}
+                  className="flex items-center gap-3 py-2.5 px-3 rounded-xl transition-all"
+                  style={{
+                    transitionDelay: mobileOpen ? `${i * 45}ms` : '0ms',
+                    transform: mobileOpen ? 'translateX(0)' : 'translateX(-10px)',
+                    opacity: mobileOpen ? 1 : 0,
+                    background: active ? 'rgb(var(--primary-rgb) / 0.10)' : 'transparent',
+                    color: active ? 'var(--primary-light)' : 'var(--text-secondary)',
+                    fontSize: 15,
+                    fontWeight: 500,
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  <span
+                    className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
+                    style={{ background: 'rgb(var(--primary-rgb) / 0.08)', border: '1px solid rgb(var(--primary-rgb) / 0.15)', color: 'var(--primary)' }}
+                  >
+                    <link.Icon size={16} strokeWidth={2} />
+                  </span>
+                  {link.label}
+                  <ChevronRight size={15} className="ml-auto" style={{ color: 'var(--text-dimmed)' }} />
+                </a>
+              );
+            })}
+          </div>
+
+          {!session && (
+            <div className="flex flex-col gap-2 p-2.5 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <Link href="/auth/register" onClick={() => setMobileOpen(false)} className="landing-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>Get free preview</Link>
+              <Link href="/auth/login" onClick={() => setMobileOpen(false)} className="landing-btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>Sign in</Link>
+            </div>
+          )}
         </div>
       </div>
     </nav>

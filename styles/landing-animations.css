@@ -206,6 +206,116 @@
   50% { transform: translateY(8px); opacity: 0.7; }
 }
 
+/* Bouton "Fill a demo order" — pill verre qui appelle le clic : glow qui
+   respire au repos, lift + glow renforcé au survol, flèche qui avance. */
+.fill-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 19px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--primary-light);
+  background: rgb(var(--primary-rgb) / 0.08);
+  border: 1px solid rgb(var(--primary-rgb) / 0.30);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 8px 26px rgb(var(--primary-rgb) / 0.16);
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  animation: fill-cta-breathe 3.2s ease-in-out infinite;
+}
+.fill-cta-btn:hover {
+  transform: translateY(-2px);
+  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--primary-rgb) / 0.50);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 34px rgb(var(--primary-rgb) / 0.30);
+  animation: none;
+}
+.fill-cta-btn:focus-visible {
+  outline: 1px solid rgb(var(--primary-rgb) / 0.6);
+  outline-offset: 3px;
+}
+.fill-cta-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 9px rgb(var(--primary-rgb) / 0.9);
+}
+.fill-cta-arrow {
+  transition: transform 0.2s ease;
+}
+.fill-cta-btn:hover .fill-cta-arrow {
+  transform: translateX(3px);
+}
+
+@keyframes fill-cta-breathe {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 8px 26px rgb(var(--primary-rgb) / 0.16); }
+  50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 9px 32px rgb(var(--primary-rgb) / 0.32); }
+}
+
+/* Révélation après le fill : confirmation "ORDER FILLED" + CTA de
+   conversion (Get free preview / Download). En overlay ABSOLU centré sur
+   le bouton : le bouton reste dans le flux (hauteur constante) donc la
+   page ne bouge pas d'un pixel au clic. */
+.order-fill-reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  animation: order-reveal-in 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes order-reveal-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes order-fill-flash {
+  0% {
+    box-shadow: inset 0 0 0 1px rgb(var(--primary-rgb)),
+      0 0 26px rgb(var(--primary-rgb) / 0.5),
+      0 18px 40px rgba(0, 0, 0, 0.4);
+  }
+  100% {
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4),
+      0 0 28px rgb(var(--primary-rgb) / 0.12);
+  }
+}
+
+/* Lien discret "Explore the platform" sous les CTA. */
+.fill-explore-link {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dimmed);
+  transition: color 0.2s ease;
+}
+.fill-explore-link:hover {
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill-cta-btn,
+  .fill-cta-btn:hover,
+  .fill-cta-arrow {
+    animation: none;
+    transform: none;
+  }
+  .order-fill-reveal {
+    animation: none;
+  }
+}
+
 /* ─── Section Dividers ─── */
 
 .section-divider {
@@ -246,7 +356,7 @@
   left: 0;
   width: 40%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgb(var(--primary-rgb) / 0.25), rgb(var(--primary-rgb) / 0.4), rgb(var(--primary-rgb) / 0.25), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--primary-rgb) / 0.10), rgb(var(--primary-rgb) / 0.16), rgb(var(--primary-rgb) / 0.10), transparent);
   animation: dividerShimmer 4s ease-in-out infinite;
 }
 
