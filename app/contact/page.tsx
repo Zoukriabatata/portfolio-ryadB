@@ -2,14 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Logotype from '@/components/ui/brand/Logotype';
+import MarketingShell from '@/components/marketing/MarketingShell';
 
 type Category = 'QUESTION' | 'BUG' | 'FEATURE_REQUEST' | 'OTHER';
 
 const CATEGORIES: { value: Category; label: string; description: string }[] = [
-  { value: 'QUESTION',        label: 'Question',         description: 'Une question sur la plateforme'           },
-  { value: 'BUG',             label: 'Bug',              description: 'Quelque chose ne fonctionne pas'          },
-  { value: 'FEATURE_REQUEST', label: 'Suggestion',       description: 'Idée d\'amélioration ou nouvelle feature' },
-  { value: 'OTHER',           label: 'Autre',            description: 'Autre demande'                            },
+  { value: 'QUESTION',        label: 'Question', description: 'A question about the platform'   },
+  { value: 'BUG',             label: 'Bug',      description: 'Something is not working'         },
+  { value: 'FEATURE_REQUEST', label: 'Feature',  description: 'An idea or improvement request'   },
+  { value: 'OTHER',           label: 'Other',    description: 'Anything else'                    },
 ];
 
 export default function ContactPage() {
@@ -35,233 +37,242 @@ export default function ContactPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error ?? 'Une erreur est survenue. Réessayez.');
+        setError(data?.error ?? 'Something went wrong. Please try again.');
         return;
       }
       setSent(true);
     } catch {
-      setError('Une erreur est survenue. Vérifiez votre connexion.');
+      setError('Something went wrong. Check your connection.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{ background: 'var(--background)' }}
-    >
+    <MarketingShell>
       <div
-        className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(74,222,128,0.06) 0%, transparent 70%)', filter: 'blur(80px)' }}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(74,222,128,0.03) 0%, transparent 70%)', filter: 'blur(80px)' }}
-      />
-
-      <div className="w-full max-w-2xl animate-fadeIn relative z-10 py-10">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <div
-              className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', boxShadow: '0 0 40px rgba(74,222,128,0.25)' }}
-            >
-              <span className="text-xl font-black text-white">S</span>
-            </div>
-          </Link>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Contactez-nous</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Une question, un bug, une suggestion ? Écrivez-nous, on répond sous 24-48h.
-          </p>
-        </div>
-
+        className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+        style={{ background: 'var(--background)' }}
+      >
         <div
-          className="rounded-2xl p-8 animate-slideUp backdrop-blur-sm"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
-        >
-          {sent ? (
-            <div className="text-center py-8">
-              <div
-                className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
-                style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid var(--primary)' }}
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: 'var(--primary)' }}>
-                  <path d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Message envoyé ✓</h2>
-              <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-                Merci pour votre message. Nous vous répondrons à <strong style={{ color: 'var(--text-primary)' }}>{email}</strong> sous 24-48h.
-              </p>
-              <Link
-                href="/"
-                className="inline-block px-6 py-3 font-semibold rounded-lg transition-all duration-200 hover:opacity-90"
-                style={{ background: 'linear-gradient(to right, var(--primary), var(--primary-dark))', color: '#fff' }}
-              >
-                Retour à l&apos;accueil
-              </Link>
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.06) 0%, transparent 70%)', filter: 'blur(80px)' }}
+        />
+        <div
+          className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.03) 0%, transparent 70%)', filter: 'blur(80px)' }}
+        />
+
+        <div className="w-full max-w-2xl animate-fadeIn relative z-10 py-10">
+          <div className="text-center mb-8">
+            <Link href="/" className="inline-flex mb-5" aria-label="Senzoukria">
+              <Logotype fontSize={24} />
+            </Link>
+            <div
+              className="mb-3"
+              style={{
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: 11,
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+              }}
+            >
+              · Contact
             </div>
-          ) : (
-            <>
-              {error && (
-                <div
-                  className="mb-4 p-3 rounded-lg text-sm animate-error-shake"
-                  role="alert"
-                  style={{ background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error)' }}
-                >
-                  {error}
-                </div>
-              )}
+            <h1 className="font-display text-4xl md:text-5xl mb-3" style={{ color: 'var(--text-primary)' }}>
+              Get in touch
+            </h1>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              A question, a bug, a suggestion? Write to us — we reply within 24-48h.
+            </p>
+          </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Honeypot — hidden from real users, visible to bots */}
+          <div
+            className="rounded-2xl p-8 animate-slideUp backdrop-blur-sm"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+          >
+            {sent ? (
+              <div className="text-center py-8">
                 <div
-                  style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}
-                  aria-hidden="true"
-                  tabIndex={-1}
+                  className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgb(var(--primary-rgb) / 0.1)', border: '1px solid var(--primary)' }}
                 >
-                  <label>
-                    Company (do not fill)
-                    <input
-                      type="text"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      tabIndex={-1}
-                      autoComplete="off"
-                    />
-                  </label>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: 'var(--primary)' }}>
+                    <path d="M5 13l4 4L19 7" />
+                  </svg>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                      Votre nom
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      autoComplete="name"
-                      required
-                      maxLength={100}
-                      placeholder="Jean Dupont"
-                      className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-                      style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    />
+                <h2 className="font-display text-2xl mb-2" style={{ color: 'var(--text-primary)' }}>Message sent</h2>
+                <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                  Thanks for reaching out. We&apos;ll reply to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong> within 24-48h.
+                </p>
+                <Link
+                  href="/"
+                  className="btn-brand inline-flex items-center justify-center px-6 py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5"
+                >
+                  Back to home
+                </Link>
+              </div>
+            ) : (
+              <>
+                {error && (
+                  <div
+                    className="mb-4 p-3 rounded-lg text-sm animate-error-shake"
+                    role="alert"
+                    style={{ background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error)' }}
+                  >
+                    {error}
                   </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* Honeypot — hidden from real users, visible to bots */}
+                  <div
+                    style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}
+                    aria-hidden="true"
+                    tabIndex={-1}
+                  >
+                    <label>
+                      Company (do not fill)
+                      <input
+                        type="text"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                        Your name
+                      </label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        autoComplete="name"
+                        required
+                        maxLength={100}
+                        placeholder="Jane Doe"
+                        className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                        style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
+                        required
+                        maxLength={200}
+                        placeholder="you@example.com"
+                        className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                        style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                      Email
+                      Category
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {CATEGORIES.map((c) => (
+                        <button
+                          type="button"
+                          key={c.value}
+                          onClick={() => setCategory(c.value)}
+                          className="text-left p-3 rounded-lg transition-all duration-150"
+                          style={{
+                            background:   category === c.value ? 'rgb(var(--primary-rgb) / 0.08)' : 'var(--surface-elevated)',
+                            border:       `1px solid ${category === c.value ? 'var(--primary)' : 'var(--border)'}`,
+                            color:        'var(--text-primary)',
+                          }}
+                        >
+                          <div className="font-medium text-sm">{c.label}</div>
+                          <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{c.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                      Subject
                     </label>
                     <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoComplete="email"
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
                       required
+                      minLength={3}
                       maxLength={200}
-                      placeholder="vous@exemple.com"
+                      placeholder="Summary of your message"
                       className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                       style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                    Catégorie
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {CATEGORIES.map((c) => (
-                      <button
-                        type="button"
-                        key={c.value}
-                        onClick={() => setCategory(c.value)}
-                        className="text-left p-3 rounded-lg transition-all duration-150"
-                        style={{
-                          background:   category === c.value ? 'rgba(74,222,128,0.08)' : 'var(--surface-elevated)',
-                          border:       `1px solid ${category === c.value ? 'var(--primary)' : 'var(--border)'}`,
-                          color:        'var(--text-primary)',
-                        }}
-                      >
-                        <div className="font-medium text-sm">{c.label}</div>
-                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{c.description}</div>
-                      </button>
-                    ))}
+                  <div>
+                    <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                      Message
+                    </label>
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      required
+                      minLength={10}
+                      maxLength={5000}
+                      rows={6}
+                      placeholder="Describe your request in detail..."
+                      className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-y"
+                      style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    />
+                    <p className="text-xs mt-1.5" style={{ color: 'var(--text-dimmed)' }}>
+                      {message.length} / 5000
+                    </p>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                    Sujet
-                  </label>
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    required
-                    minLength={3}
-                    maxLength={200}
-                    placeholder="Résumé de votre message"
-                    className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-                    style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  />
-                </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="btn-brand w-full py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent opacity-60" />
+                        Sending…
+                      </span>
+                    ) : (
+                      'Send message'
+                    )}
+                  </button>
+                </form>
 
-                <div>
-                  <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                    Message
-                  </label>
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    required
-                    minLength={10}
-                    maxLength={5000}
-                    rows={6}
-                    placeholder="Décrivez votre demande en détail..."
-                    className="w-full px-4 py-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-y"
-                    style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  />
-                  <p className="text-xs mt-1.5" style={{ color: 'var(--text-dimmed)' }}>
-                    {message.length} / 5000
+                <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
+                    You can also reach us directly by email at{' '}
+                    <a
+                      href="mailto:ryad.bouderga78@gmail.com"
+                      className="font-medium hover:underline"
+                      style={{ color: 'var(--primary-light)' }}
+                    >
+                      ryad.bouderga78@gmail.com
+                    </a>
                   </p>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3 font-semibold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
-                  style={{ background: 'linear-gradient(to right, var(--primary), var(--primary-dark))', color: '#fff' }}
-                >
-                  {isLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white/50" />
-                      Envoi en cours…
-                    </span>
-                  ) : (
-                    'Envoyer le message'
-                  )}
-                </button>
-              </form>
-
-              <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
-                <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
-                  Vous pouvez aussi nous joindre directement par email à{' '}
-                  <a
-                    href="mailto:ryad.bouderga78@gmail.com"
-                    className="font-medium hover:underline"
-                    style={{ color: 'var(--primary-light)' }}
-                  >
-                    ryad.bouderga78@gmail.com
-                  </a>
-                </p>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </MarketingShell>
   );
 }
