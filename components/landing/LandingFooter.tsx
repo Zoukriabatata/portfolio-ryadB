@@ -26,6 +26,7 @@ const FOOTER_COLUMNS = [
     links: [
       { label: 'Terms of Service', href: '/legal/terms' },
       { label: 'Privacy Policy', href: '/legal/privacy' },
+      { label: 'Mentions légales', href: '/legal/mentions-legales' },
     ],
   },
 ];
@@ -60,7 +61,7 @@ export default function LandingFooter() {
               className="mt-3 dash-text-sm leading-relaxed max-w-[210px]"
               style={{ color: 'var(--text-secondary)' }}
             >
-              OrderflowV2 by Senzoukria — native footprint for futures &amp; crypto.
+              Senzoukria — native footprint for futures &amp; crypto.
             </p>
 
             {/* Social icons */}
@@ -152,7 +153,7 @@ export default function LandingFooter() {
               color: 'var(--text-muted)',
             }}
           >
-            &copy; 2026 Senzoukria &middot; OrderflowV2
+            &copy; 2026 Senzoukria
           </span>
           <span
             style={{

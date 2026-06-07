@@ -64,30 +64,30 @@ export default function TwitterImage() {
         >
           <div
             style={{
+              position: 'relative',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '80px',
-              height: '80px',
-              borderRadius: '20px',
-              background: 'linear-gradient(135deg, #4ade80, #2dd4bf)',
-              marginBottom: '8px',
-              boxShadow: '0 0 60px rgba(74,222,128,0.35)',
+              width: '96px',
+              height: '96px',
+              borderRadius: '24px',
+              background: 'linear-gradient(160deg, #141830, #0a0c16)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              marginBottom: '10px',
+              boxShadow: '0 0 60px rgba(74,222,128,0.25)',
             }}
           >
-            <svg
-              width="44"
-              height="44"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 3v18h18" />
-              <path d="M7 16l4-8 4 4 4-8" />
-            </svg>
+            <div
+              style={{
+                position: 'absolute',
+                width: '70px',
+                height: '70px',
+                borderRadius: '50%',
+                border: '2px solid rgba(74,222,128,0.30)',
+                display: 'flex',
+              }}
+            />
+            <div style={{ display: 'flex', fontSize: '46px', fontWeight: 600, fontFamily: 'Georgia, serif', color: '#e8eaf6' }}>Sz</div>
           </div>
 
           <div
@@ -124,7 +124,7 @@ export default function TwitterImage() {
               display: 'flex',
             }}
           >
-            Professional Order Flow Analytics
+            The Science of Orderflow
           </div>
 
           <div

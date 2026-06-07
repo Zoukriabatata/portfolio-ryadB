@@ -165,6 +165,11 @@ export async function detectConcurrentSession(
   };
 }
 
+type SecurityEventData =
+  | { sessionId: string; ip1: string; ip2: string; timeDiff: number }
+  | { count: number; max: number }
+  | { sessionId: string; fingerprint1: string; fingerprint2: string };
+
 /**
  * Log security event to database
  *
@@ -173,7 +178,7 @@ export async function detectConcurrentSession(
 async function logSecurityEvent(
   userId: string,
   event: string,
-  data: any
+  data: SecurityEventData
 ): Promise<void> {
   try {
     if (!isPrismaAvailable()) {

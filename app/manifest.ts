@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Institutional-grade orderflow analytics platform with real-time heatmaps, footprint charts, and gamma exposure.',
     start_url: '/live',
     display: 'standalone',
-    background_color: '#0a0a12',
-    theme_color: '#10b981',
+    background_color: '#07080f',
+    theme_color: '#4ade80',
     icons: [
       {
         src: '/favicon.ico',

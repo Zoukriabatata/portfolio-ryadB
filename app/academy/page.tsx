@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 
 const MONO = 'var(--font-jetbrains-mono)';
 
-/* Palette par outil — alignée sur les tokens du site là où un équivalent existe
-   (teal/amber/rouge/vert), avec deux teintes curées (violet / cyan) pour les
-   outils sans token dédié. Source unique pour la page. */
+/* Per-tool palette — aligned with the site tokens wherever an equivalent exists
+   (teal/amber/red/green), with two curated hues (violet / cyan) for the
+   tools without a dedicated token. Single source of truth for the page. */
 const TOOL = {
   cvd:        'var(--accent)',  // teal
   volume:     '#a78bfa',        // violet
@@ -63,14 +63,14 @@ const TOOL_SECTIONS: ToolSection[] = [
     icon: 'M3 17l6-6 4 4 8-8',
     color: TOOL.cvd,
     intro:
-      'Le CVD mesure la pression nette achat/vente cumulée. La littérature confirme que l\'Order Flow Imbalance (OFI) — la base mathématique du CVD — est le prédicteur le plus puissant des mouvements de prix à court terme.',
+      'CVD measures cumulative net buy/sell pressure. The literature confirms that Order Flow Imbalance (OFI) — the mathematical foundation of CVD — is the single most powerful predictor of short-term price moves.',
     insights: [
-      'L\'OFI prédit linéairement les variations de prix à haute fréquence avec un R² significatif (Cont et al., confirmé par Coxon, Veldman, Prenzel). Le CVD est donc un proxy direct de la pression informationnelle.',
-      'Les flux d\'ordres buy/sell exhibent un "self-excitement" (processus de Hawkes) : un gros achat déclenche des achats enfants. Cela signifie qu\'une divergence CVD/prix n\'est PAS du bruit — c\'est un signal de cascade en formation (Tiwari, Chen-Horst-Tran, Anantha-Jain).',
-      'L\'excitation croisée buy↔sell est asymétrique : les ventes agressives déclenchent plus de réactions que les achats. Surveillez les divergences CVD baissières plus attentivement (Anantha-Jain, Hawkes bivarié).',
-      'L\'information du CVD se dissipe en ~10 millisecondes sur les actions NASDAQ (Jonuzaj et al.). Pour les futures crypto, la fenêtre est plus large mais toujours courte — agir vite est crucial.',
-      'Le CVD par taille de trade révèle les acteurs : les hedge funds prennent des positions 3-4x plus grosses que le retail sur les surprises macro. Un spike CVD sur gros lots = flow institutionnel (Wang 2025).',
-      'Le flow martingale (CVD plat) = absence de biais directionnel. Seul le flow martingale se dénoue de façon myope. Tout autocorrélation dans le CVD implique un ajustement optimal de la stratégie (Nutz-Webster-Zhao).',
+      'OFI linearly predicts high-frequency price changes with a significant R² (Cont et al., confirmed by Coxon, Veldman, Prenzel). CVD is therefore a direct proxy for informational pressure.',
+      'Buy/sell order flow exhibits self-excitement (Hawkes processes): a large buy triggers child buys. This means a CVD/price divergence is NOT noise — it is a forming cascade signal (Tiwari, Chen-Horst-Tran, Anantha-Jain).',
+      'Buy↔sell cross-excitation is asymmetric: aggressive sells trigger more reactions than buys. Watch bearish CVD divergences more closely (Anantha-Jain, bivariate Hawkes).',
+      'CVD information dissipates in ~10 milliseconds on NASDAQ equities (Jonuzaj et al.). For crypto futures the window is wider but still short — acting fast is critical.',
+      'CVD broken down by trade size reveals the players: hedge funds take positions 3-4x larger than retail on macro surprises. A CVD spike on large lots = institutional flow (Wang 2025).',
+      'Martingale flow (flat CVD) = no directional bias. Only martingale flow unwinds myopically. Any autocorrelation in CVD implies an optimal adjustment of the strategy (Nutz-Webster-Zhao).',
     ],
   },
   {
@@ -78,14 +78,14 @@ const TOOL_SECTIONS: ToolSection[] = [
     icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6m6 0h6m-6 0V9a2 2 0 012-2h2a2 2 0 012 2v10m6-4v4m0 0h-6',
     color: TOOL.volume,
     intro:
-      'Le Volume Profile identifie les niveaux de prix où le volume a été échangé. La recherche montre que les patterns de volume intraday sont hautement prévisibles et que la liquidité varie systématiquement au cours de la journée.',
+      'Volume Profile identifies the price levels where volume has traded. Research shows that intraday volume patterns are highly predictable and that liquidity varies systematically over the course of the day.',
     insights: [
-      'Le volume intraday suit un pattern en U persistant : élevé à l\'ouverture, creux en milieu de journée, remontée vers la clôture. Ce pattern est stable cross-sectoriel et exploitable pour timer les entrées (Harris, Schlie, Luwang et al.).',
-      'Le ML (XGBoost, LSTM) prédit le volume intraday avec une précision 30-50% supérieure aux modèles classiques. La "commonality" (facteur commun de volume entre stocks) améliore encore les prédictions (Cucuringu-Li-Zhang).',
-      'Le coefficient d\'impact λ varie intraday : il est plus élevé en milieu de journée (moins de liquidité) et plus bas à l\'ouverture/clôture. Trader dans les zones de fort volume réduit le slippage de 20-80% vs TWAP (Coxon, Veldman).',
-      'Les niveaux de prix à fort volume agissent comme des "attracteurs" : les prix stationnaires du profil (POC, VAH, VAL) correspondent aux distributions stationnaires des chaînes de Markov des prix limites — les prix y reviennent avec le temps de récurrence le plus court (Luwang et al.).',
-      'Pour les futures crypto : le volume profile doit être recalibré fréquemment. Le coefficient d\'impact change significativement pendant les crises (COVID crash, hausses de taux) — recalibrer mensuellement au minimum (Coxon).',
-      'La participation rate optimale suit le profil de volume : trader proportionnellement au volume attendu (VWAP) est sous-optimal. L\'exécution optimale front-load ou back-load selon la concavité de l\'impact (Veldman, de Witt).',
+      'Intraday volume follows a persistent U-shape: high at the open, troughing mid-session, climbing back into the close. This pattern is stable cross-sectionally and exploitable for timing entries (Harris, Schlie, Luwang et al.).',
+      'ML (XGBoost, LSTM) predicts intraday volume with 30-50% higher accuracy than classical models. Commonality (the common volume factor across stocks) improves predictions further (Cucuringu-Li-Zhang).',
+      'The impact coefficient λ varies intraday: higher mid-session (less liquidity) and lower at the open/close. Trading in high-volume zones cuts slippage by 20-80% vs TWAP (Coxon, Veldman).',
+      'High-volume price levels act as attractors: the profile\'s stationary prices (POC, VAH, VAL) match the stationary distributions of the limit-order-price Markov chains — prices return to them with the shortest recurrence time (Luwang et al.).',
+      'For crypto futures: the volume profile must be recalibrated frequently. The impact coefficient shifts significantly during crises (COVID crash, rate hikes) — recalibrate monthly at minimum (Coxon).',
+      'The optimal participation rate follows the volume profile: trading proportionally to expected volume (VWAP) is suboptimal. Optimal execution front-loads or back-loads depending on the concavity of impact (Veldman, de Witt).',
     ],
   },
   {
@@ -93,14 +93,14 @@ const TOOL_SECTIONS: ToolSection[] = [
     icon: 'M12 3v18m-9-9h18',
     color: TOOL.absorption,
     intro:
-      'L\'absorption se produit quand de gros volumes agressifs sont absorbés par des ordres limites passifs sans que le prix ne bouge. C\'est un signal clé de présence institutionnelle.',
+      'Absorption occurs when large aggressive volume is absorbed by passive limit orders without the price moving. It is a key signal of institutional presence.',
     insights: [
-      'L\'absorption est formalisée par l\'impact transient : chaque trade aggressif impacte le prix, mais cet impact décroît exponentiellement (demi-vie ~5-15 min sur futures). Si le prix ne bouge pas malgré du volume = quelqu\'un absorbe (Bouchaud propagator, Coxon, Veldman).',
-      'Le ratio d\'auto-excitation ρ = α/(β−α) mesure combien de "child orders" un trade génère. Un ρ élevé + prix stable = absorption massive. Les stocks NASDAQ ont ρ entre 0.3 et 0.7 (Chen-Horst-Tran).',
-      'L\'impact concave (square-root law) signifie que doubler le volume ne double pas l\'impact. δ ≈ 0.4-0.7 empiriquement. Quand vous voyez 10x le volume normal avec seulement 2x le mouvement de prix = absorption active (Coxon, Veldman, Almgren).',
-      'Le spread bid-ask s\'élargit AVANT l\'absorption : les market makers augmentent leurs spreads quand ils anticipent du flow toxique. Un spread qui s\'élargit + gros volume = set up d\'absorption en cours (Doshi-Pederzoli-Sert, Muravyev).',
-      'La "resilience" du LOB (vitesse à laquelle le carnet se recharge après un market order) est le proxy mesurable de l\'absorption. Haute résilience = forte absorption. Le modèle Obizhaeva-Wang formalise ce concept.',
-      'Les ordres d\'internalization dans le Central Risk Book (CRB) sont de l\'absorption invisible : les banques nettent les flux opposés en interne avant d\'externaliser. 40-60% du flow peut être internalisé — ce que vous ne voyez pas sur le tape (Nutz-Webster-Zhao).',
+      'Absorption is formalized through transient impact: every aggressive trade impacts price, but that impact decays exponentially (half-life ~5-15 min on futures). If price doesn\'t move despite volume = someone is absorbing (Bouchaud propagator, Coxon, Veldman).',
+      'The self-excitation ratio ρ = α/(β−α) measures how many child orders a trade generates. High ρ + stable price = massive absorption. NASDAQ stocks have ρ between 0.3 and 0.7 (Chen-Horst-Tran).',
+      'Concave impact (square-root law) means doubling volume does not double impact. δ ≈ 0.4-0.7 empirically. When you see 10x normal volume with only 2x the price move = active absorption (Coxon, Veldman, Almgren).',
+      'The bid-ask spread widens BEFORE absorption: market makers widen their spreads when they anticipate toxic flow. A widening spread + large volume = an absorption setup in progress (Doshi-Pederzoli-Sert, Muravyev).',
+      'LOB resilience (the speed at which the book refills after a market order) is the measurable proxy for absorption. High resilience = strong absorption. The Obizhaeva-Wang model formalizes this concept.',
+      'Internalization orders in the Central Risk Book (CRB) are invisible absorption: banks net opposing flows internally before externalizing. 40-60% of flow can be internalized — which you never see on the tape (Nutz-Webster-Zhao).',
     ],
   },
   {
@@ -108,29 +108,29 @@ const TOOL_SECTIONS: ToolSection[] = [
     icon: 'M4 6h16M4 10h16M4 14h16M4 18h16',
     color: TOOL.dom,
     intro:
-      'Le DOM (carnet d\'ordres) montre la profondeur des ordres limites à chaque niveau de prix. La recherche révèle des dynamiques complexes de révision des prix et des patterns exploitables.',
+      'The DOM (order book) shows the depth of limit orders at each price level. Research reveals complex price-revision dynamics and exploitable patterns.',
     insights: [
-      'Les transitions de prix dans le DOM suivent des chaînes de Markov avec 9 états (de "Very Aggressive Sell" à "Very Aggressive Buy"). L\'inertie des prix (auto-transition) est maximale à l\'ouverture et à la clôture, minimale en milieu de journée (Luwang et al.).',
-      'Les large-caps ont une inertie de prix 2-3x supérieure aux small-caps dans le DOM. Pour le trading crypto, cela implique que BTC/ETH auront des niveaux DOM plus "sticky" que les altcoins (Luwang et al.).',
-      'L\'asymétrie bid/ask est réelle et mesurable : les vendeurs commencent leur repositionnement de fin de journée AVANT les acheteurs (phase "Pre-Close" sur l\'ask vs pas sur le bid). Surveillez le côté ask du DOM en fin de session (Luwang et al.).',
-      'Le contenu informationnel du DOM diminue avec le temps : la valeur prédictive des données du carnet d\'ordres a baissé progressivement, probablement à cause de la compétition algo croissante (Jonuzaj-Sancetta-Taranenko).',
-      'L\'adverse selection sur le DOM peut être détectée : quand l\'OFI (déséquilibre du flow) augmente d\'un écart-type, le rendement du jour suivant augmente de ~1% sur les options. Le DOM prédit donc aussi les returns futurs (Muravyev).',
-      'La volatilité du flow d\'ordres (et non le flow lui-même) est le driver principal des spreads. Une volatilité du flow qui augmente = spreads qui s\'élargissent = moins de liquidité visible dans le DOM (Doshi et al.).',
+      'Price transitions in the DOM follow Markov chains with 9 states (from "Very Aggressive Sell" to "Very Aggressive Buy"). Price inertia (self-transition) peaks at the open and the close, and bottoms out mid-session (Luwang et al.).',
+      'Large-caps have 2-3x higher price inertia than small-caps in the DOM. For crypto trading, this implies BTC/ETH will have stickier DOM levels than altcoins (Luwang et al.).',
+      'Bid/ask asymmetry is real and measurable: sellers begin their end-of-day repositioning BEFORE buyers (a "Pre-Close" phase on the ask but not on the bid). Watch the ask side of the DOM late in the session (Luwang et al.).',
+      'The DOM\'s informational content decays over time: the predictive value of order-book data has fallen progressively, likely due to growing algo competition (Jonuzaj-Sancetta-Taranenko).',
+      'Adverse selection on the DOM can be detected: when OFI (flow imbalance) rises by one standard deviation, the next-day return increases by ~1% on options. The DOM therefore predicts future returns too (Muravyev).',
+      'Order flow volatility (not the flow itself) is the primary driver of spreads. Rising flow volatility = widening spreads = less visible liquidity in the DOM (Doshi et al.).',
     ],
   },
   {
-    tool: 'Heatmap de Liquidité',
+    tool: 'Liquidity Heatmap',
     icon: 'M4 4h16v16H4z',
     color: TOOL.heatmap,
     intro:
-      'La heatmap visualise la densité des ordres limites dans le temps et le prix. Les modèles académiques fournissent le cadre théorique pour interpréter ce que vous voyez.',
+      'The heatmap visualizes the density of limit orders across time and price. Academic models provide the theoretical framework for interpreting what you see.',
     insights: [
-      'L\'intensité des ordres suit un processus de Hawkes à baseline variable dans le temps : la densité des ordres augmente exponentiellement à l\'approche de la clôture (effet Samuelson). La heatmap "s\'allume" naturellement en fin de session — ne confondez pas avec un signal (Chatziandreou-Karbach).',
-      'Les zones denses de la heatmap correspondent aux distributions stationnaires de Markov : les prix "neutres" et "mild" dominent (>70% de la masse stationnaire). Les zones vides (prix agressifs) ont un temps de récurrence 5-10x plus long (Luwang et al.).',
-      'Le market impact se propage dans la heatmap avec un kernel exponentiel décroissant : G(τ) = G₀·e^{-τ/τ₀}. Quand un gros trade "troue" la heatmap, la liquidité se reconstitue avec cette dynamique. τ₀ ≈ 5-15 min pour les futures (Bouchaud, Coxon, de Witt).',
-      'La concavité de l\'impact (δ ≈ 0.5) signifie que les "murs" de liquidité dans la heatmap ne sont pas linéairement proportionnels à leur capacité d\'absorption. Un mur de 1000 lots n\'absorbe pas 10x un mur de 100 — il absorbe ~3x seulement (square-root law).',
-      'Les clusters de liquidité dans la heatmap reflètent le "spoofing naturel" : seuls 1-3% du volume quotidien est réellement visible dans le LOB à un instant t (Bouchaud-Bonart, Coxon). Les murs apparents peuvent disparaître en millisecondes.',
-      'Approche ML pour la heatmap : les modèles de deep learning (ConvLSTM, transformers) sur les snapshots LOB prédisent les mouvements de prix à très court terme. L\'architecture CNN de de Witt (2026) atteint 2.13 bps de slippage vs 5.23 bps pour VWAP — la structure spatiale de la heatmap contient de l\'information exploitable.',
+      'Order intensity follows a Hawkes process with a time-varying baseline: order density rises exponentially as the close approaches (Samuelson effect). The heatmap naturally lights up late in the session — don\'t mistake it for a signal (Chatziandreou-Karbach).',
+      'Dense zones in the heatmap correspond to stationary Markov distributions: neutral and mild prices dominate (>70% of the stationary mass). Empty zones (aggressive prices) have a recurrence time 5-10x longer (Luwang et al.).',
+      'Market impact propagates through the heatmap with a decaying exponential kernel: G(τ) = G₀·e^{-τ/τ₀}. When a large trade punches a hole in the heatmap, liquidity rebuilds with this dynamic. τ₀ ≈ 5-15 min for futures (Bouchaud, Coxon, de Witt).',
+      'Impact concavity (δ ≈ 0.5) means the liquidity walls in the heatmap are not linearly proportional to their absorption capacity. A 1000-lot wall does not absorb 10x a 100-lot wall — it absorbs only ~3x (square-root law).',
+      'Liquidity clusters in the heatmap reflect natural spoofing: only 1-3% of daily volume is actually visible in the LOB at any instant t (Bouchaud-Bonart, Coxon). Apparent walls can vanish in milliseconds.',
+      'ML approach to the heatmap: deep-learning models (ConvLSTM, transformers) on LOB snapshots predict very short-term price moves. De Witt\'s CNN architecture (2026) reaches 2.13 bps of slippage vs 5.23 bps for VWAP — the spatial structure of the heatmap contains exploitable information.',
     ],
   },
 ];
@@ -148,15 +148,15 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'Anantha & Jain (2024)',
     year: '2024',
     oneLiner:
-      'Utilise des processus de Hawkes bivariés pour prédire la distribution du déséquilibre buy/sell.',
+      'Uses bivariate Hawkes processes to predict the distribution of buy/sell imbalance.',
     findings: [
       {
-        title: 'Cross-excitation buy↔sell',
-        body: 'Les trades buy passés affectent les trades sell futurs (et vice versa). Le kernel "Sum of Exponentials" donne les meilleures prévisions. Implication : votre CVD capture déjà cette dynamique — les divergences CVD/prix signalent un changement de régime d\'excitation croisée.',
+        title: 'Buy↔sell cross-excitation',
+        body: 'Past buy trades affect future sell trades (and vice versa). The Sum of Exponentials kernel gives the best forecasts. Implication: your CVD already captures this dynamic — CVD/price divergences signal a shift in the cross-excitation regime.',
       },
       {
-        title: 'OFI en temps réel',
-        body: 'L\'OFI peut être mis à jour tick par tick sans algorithme de classification (grâce aux IDs d\'ordres). L\'OFI normalisé = (Sells - Buys) / (Sells + Buys) sur une fenêtre glissante — c\'est exactement votre CVD normalisé.',
+        title: 'Real-time OFI',
+        body: 'OFI can be updated tick by tick without a classification algorithm (thanks to order IDs). Normalized OFI = (Sells - Buys) / (Sells + Buys) over a rolling window — which is exactly your normalized CVD.',
       },
     ],
   },
@@ -168,19 +168,19 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'Luwang, Mukhia et al. (2026)',
     year: '2026',
     oneLiner:
-      'Modélise les transitions de prix limites comme chaînes de Markov sur NASDAQ-100.',
+      'Models limit-price transitions as Markov chains on the NASDAQ-100.',
     findings: [
       {
-        title: '9 états de prix',
-        body: 'Les changements de prix limites sont catégorisés de "Very Aggressive Sell" (>-5%) à "Very Aggressive Buy" (>+5%). La distribution stationnaire montre que ~70%+ des révisions sont neutres ou légères. Implication : les niveaux extrêmes dans votre DOM sont rares mais informatifs.',
+        title: '9 price states',
+        body: 'Limit-price changes are categorized from "Very Aggressive Sell" (>-5%) to "Very Aggressive Buy" (>+5%). The stationary distribution shows that ~70%+ of revisions are neutral or mild. Implication: extreme levels in your DOM are rare but informative.',
       },
       {
         title: 'Capitalization gradient',
-        body: 'Large-caps : forte inertie, transitions prévisibles. Small-caps : dynamiques, spreads larges. Appliquez cette logique : BTC ≈ large-cap (DOM sticky), altcoins ≈ small-cap (DOM volatile).',
+        body: 'Large-caps: strong inertia, predictable transitions. Small-caps: dynamic, wide spreads. Apply this logic: BTC ≈ large-cap (sticky DOM), altcoins ≈ small-cap (volatile DOM).',
       },
       {
-        title: 'Asymétrie bid/ask à la clôture',
-        body: 'Le côté ask entre en phase "Pre-Close" AVANT le bid. Les vendeurs repositionnent leurs ordres limites plus tôt que les acheteurs en fin de session.',
+        title: 'Bid/ask asymmetry at the close',
+        body: 'The ask side enters its "Pre-Close" phase BEFORE the bid. Sellers reposition their limit orders earlier than buyers late in the session.',
       },
     ],
   },
@@ -192,19 +192,19 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'Veldman (2024) & Coxon (2023)',
     year: '2023-24',
     oneLiner:
-      'Calibrent le modèle de propagateur discret (DPM) sur données réelles de futures et actions.',
+      'Calibrate the discrete propagator model (DPM) on real futures and equities data.',
     findings: [
       {
-        title: 'Impact decay en 2 phases',
-        body: 'L\'impact décroît en 2 temps : rapide (secondes) puis lent (minutes). Sur votre heatmap, un "trou" de liquidité se remplit d\'abord vite puis lentement. La demi-vie du decay exponentiel ≈ 5-15 min sur futures.',
+        title: 'Two-phase impact decay',
+        body: 'Impact decays in two stages: fast (seconds) then slow (minutes). On your heatmap, a liquidity hole fills quickly at first, then slowly. The half-life of the exponential decay ≈ 5-15 min on futures.',
       },
       {
-        title: 'Intraday λ variable',
-        body: 'Le coefficient d\'impact λ varie intraday — plus élevé à midi (illiquide), plus bas open/close. Vos zones denses de heatmap aux heures liquides = meilleure absorption. Économie de coût : 20-80% vs TWAP en exploitant ces patterns.',
+        title: 'Variable intraday λ',
+        body: 'The impact coefficient λ varies intraday — higher at midday (illiquid), lower at open/close. Your dense heatmap zones during liquid hours = better absorption. Cost savings: 20-80% vs TWAP by exploiting these patterns.',
       },
       {
         title: 'Square-root law',
-        body: 'Impact ∝ √(volume/ADV). Implication directe pour la heatmap : un mur de 1000 lots n\'est pas 10x plus fort qu\'un mur de 100 lots — il est ~3.2x. Les "icebergs" sont donc plus dangereux que les murs visibles.',
+        body: 'Impact ∝ √(volume/ADV). Direct implication for the heatmap: a 1000-lot wall is not 10x stronger than a 100-lot wall — it is ~3.2x. Icebergs are therefore more dangerous than visible walls.',
       },
     ],
   },
@@ -216,15 +216,15 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'Cucuringu, Li & Zhang (2025)',
     year: '2025',
     oneLiner:
-      'ML models (XGBoost, LSTM) prédisent le volume intraday avec commonality cross-stock.',
+      'ML models (XGBoost, LSTM) predict intraday volume using cross-stock commonality.',
     findings: [
       {
         title: 'Commonality factor',
-        body: 'Le volume d\'un stock est prévisible en partie grâce au volume des AUTRES stocks (facteur commun). Pour le crypto : le volume de BTC prédit celui des altcoins. Intégrez un "market volume index" dans votre volume profile.',
+        body: 'A stock\'s volume is partly predictable from the volume of OTHER stocks (a common factor). For crypto: BTC\'s volume predicts that of altcoins. Build a market volume index into your volume profile.',
       },
       {
-        title: 'VWAP optimal',
-        body: 'Avec des prévisions précises du volume intraday, la stratégie VWAP optimale réduit le slippage significativement. Votre volume profile fournit exactement cette donnée — utilisez-le pour anticiper les zones de forte participation.',
+        title: 'Optimal VWAP',
+        body: 'With accurate intraday volume forecasts, the optimal VWAP strategy reduces slippage significantly. Your volume profile provides exactly this data — use it to anticipate high-participation zones.',
       },
     ],
   },
@@ -236,15 +236,15 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'de Witt & Pakkanen (2026)',
     year: '2026',
     oneLiner:
-      'PPO-CNN atteint 2.13 bps de slippage vs 5.23 bps VWAP sur $21B de volume.',
+      'PPO-CNN reaches 2.13 bps of slippage vs 5.23 bps VWAP over $21B of volume.',
     findings: [
       {
-        title: 'CNN sur market state',
-        body: 'L\'architecture CNN capture la structure spatiale des données de marché (prix, volumes, volatilité, imbalance). L\'état du DOM et de la heatmap contient de l\'information exploitable par deep learning. Implication : votre heatmap n\'est pas juste visuelle — elle encode un avantage quantifiable.',
+        title: 'CNN over market state',
+        body: 'The CNN architecture captures the spatial structure of market data (price, volumes, volatility, imbalance). The state of the DOM and heatmap holds information that deep learning can exploit. Implication: your heatmap is not merely visual — it encodes a quantifiable edge.',
       },
       {
-        title: 'Régimes de marché',
-        body: 'Les spécialistes par régime (liquidité × volatilité) améliorent de 8-10% dans leurs niches. Adaptez votre lecture des outils au régime courant : un CVD divergent en basse volatilité ≠ le même signal en haute volatilité.',
+        title: 'Market regimes',
+        body: 'Regime specialists (liquidity × volatility) improve by 8-10% within their niches. Adapt your reading of the tools to the current regime: a divergent CVD in low volatility ≠ the same signal in high volatility.',
       },
     ],
   },
@@ -256,15 +256,15 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'Jonuzaj, Sancetta & Taranenko (2024)',
     year: '2024',
     oneLiner:
-      'L\'information du trade flow est la plus persistante ; la prédictibilité disparaît en ~10ms.',
+      'Trade-flow information is the most persistent; predictability vanishes in ~10ms.',
     findings: [
       {
         title: 'Trade flow > Book flow',
-        body: 'Le flux de trades (tape, CVD) contient plus d\'information persistante que les données du carnet d\'ordres (DOM). Implication : priorisez votre CVD et tape reading sur la lecture pure du DOM pour les décisions directionnelles.',
+        body: 'Trade flow (tape, CVD) carries more persistent information than order-book data (DOM). Implication: prioritize your CVD and tape reading over pure DOM reading for directional decisions.',
       },
       {
-        title: 'Valeur décroissante du flow',
-        body: 'Au fil du temps, la valeur prédictive du flow a diminué (efficience croissante). Combinez plusieurs signaux (CVD + heatmap + volume profile) plutôt que de compter sur un seul.',
+        title: 'Decaying flow value',
+        body: 'Over time, the predictive value of flow has declined (rising efficiency). Combine several signals (CVD + heatmap + volume profile) rather than relying on a single one.',
       },
     ],
   },
@@ -276,15 +276,15 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'Muravyev (2012) & Doshi, Pederzoli, Sert (2025)',
     year: '2012-25',
     oneLiner:
-      'Le déséquilibre du flow d\'ordres prédit les rendements des options ; la volatilité du flow drive les spreads.',
+      'Order flow imbalance predicts option returns; flow volatility drives spreads.',
     findings: [
       {
-        title: 'Flow → Returns prédictifs',
-        body: '+1 σ d\'imbalance = +1% de rendement le jour suivant sur options. L\'absorption visible sur le futures prédit aussi les mouvements options. Cross-market signal : CVD futures + spreads options = combo puissant.',
+        title: 'Flow → Predictive returns',
+        body: '+1 σ of imbalance = +1% next-day return on options. Absorption visible on the futures also predicts option moves. Cross-market signal: futures CVD + options spreads = a powerful combo.',
       },
       {
-        title: 'Volatilité du flow > Flow',
-        body: 'Ce n\'est pas le niveau du flow mais sa VOLATILITÉ qui drive les spreads. Un CVD erratique (haute vol du flow) = spreads larges = conditions dangereuses. Surveillez la stabilité de votre CVD, pas juste sa direction.',
+        title: 'Flow volatility > Flow',
+        body: 'It is not the level of flow but its VOLATILITY that drives spreads. An erratic CVD (high flow volatility) = wide spreads = dangerous conditions. Watch the stability of your CVD, not just its direction.',
       },
     ],
   },
@@ -296,15 +296,15 @@ const KEY_PAPERS: PaperCard[] = [
     authors: 'Chen-Horst-Tran (2023) & Tiwari (2025)',
     year: '2023-25',
     oneLiner:
-      'L\'endogénéité du flow (vos trades déclenchent des réactions) coûte 12-24% de plus qu\'attendu.',
+      'Flow endogeneity (your trades trigger reactions) costs 12-24% more than expected.',
     findings: [
       {
         title: 'Child orders & feedback',
-        body: 'Chaque trade génère ρ child orders en moyenne (ρ = 0.3-0.7). Quand vous voyez un spike CVD, une partie est "organique" et une partie est réaction en chaîne. Le flow n\'est jamais 100% informatif — il y a toujours une composante mécanique.',
+        body: 'Each trade generates ρ child orders on average (ρ = 0.3-0.7). When you see a CVD spike, part of it is organic and part is a chain reaction. Flow is never 100% informative — there is always a mechanical component.',
       },
       {
-        title: 'Coût de la détectabilité',
-        body: 'Les patterns TWAP/VWAP sont détectables par FFT. Les algos HFT exploitent ces patterns. Un CVD trop "régulier" (constant) = signature d\'exécution algorithmique que les prédateurs ciblent.',
+        title: 'The cost of detectability',
+        body: 'TWAP/VWAP patterns are detectable by FFT. HFT algos exploit these patterns. An overly regular (constant) CVD = a signature of algorithmic execution that predators target.',
       },
     ],
   },
@@ -317,33 +317,33 @@ const KEY_PAPERS: PaperCard[] = [
 const FRAMEWORK_STEPS = [
   {
     step: '1',
-    label: 'Contexte macro',
-    desc: 'Identifiez le régime (vol haute/basse, liquidité) via le volume profile intraday et la volatilité du flow.',
+    label: 'Macro context',
+    desc: 'Identify the regime (high/low vol, liquidity) via the intraday volume profile and flow volatility.',
   },
   {
     step: '2',
-    label: 'Lecture de la heatmap',
-    desc: 'Repérez les clusters de liquidité (murs). Rappelez-vous : seuls 1-3% du volume quotidien est visible. Les murs suivent la square-root law.',
+    label: 'Reading the heatmap',
+    desc: 'Spot the liquidity clusters (walls). Remember: only 1-3% of daily volume is visible. Walls follow the square-root law.',
   },
   {
     step: '3',
-    label: 'Signal CVD',
-    desc: 'Cherchez les divergences CVD/prix. Un CVD montant + prix plat = absorption. Un CVD divergent en basse vol = signal fort (car moins de bruit Hawkes).',
+    label: 'CVD signal',
+    desc: 'Look for CVD/price divergences. Rising CVD + flat price = absorption. A divergent CVD in low vol = a strong signal (less Hawkes noise).',
   },
   {
     step: '4',
-    label: 'Confirmation DOM',
-    desc: 'Vérifiez l\'asymétrie bid/ask. L\'inertie du DOM donne la conviction : forte inertie = continuation probable. Surveillez l\'ask en pré-clôture.',
+    label: 'DOM confirmation',
+    desc: 'Check the bid/ask asymmetry. DOM inertia gives conviction: strong inertia = likely continuation. Watch the ask into the pre-close.',
   },
   {
     step: '5',
     label: 'Timing via Volume Profile',
-    desc: 'Exécutez dans les zones de fort volume (open, close) pour minimiser le slippage. Évitez les heures creuses où λ est élevé.',
+    desc: 'Execute in high-volume zones (open, close) to minimize slippage. Avoid the quiet hours where λ is high.',
   },
   {
     step: '6',
-    label: 'Gestion du risque',
-    desc: 'Surveillez la volatilité du flow (pas juste le CVD). Un flow erratique = conditions dangereuses, réduisez la taille. L\'information se dissipe en <10ms — ne hesitez pas.',
+    label: 'Risk management',
+    desc: 'Monitor flow volatility (not just CVD). Erratic flow = dangerous conditions, cut your size. Information dissipates in <10ms — don\'t hesitate.',
   },
 ];
 
@@ -402,12 +402,8 @@ function SectionTitle({ kicker, children }: { kicker?: string; children: ReactNo
         </p>
       )}
       <h2
+        className="font-display text-[clamp(22px,3vw,30px)]"
         style={{
-          fontFamily: MONO,
-          fontWeight: 500,
-          fontSize: 'clamp(22px, 3vw, 30px)',
-          letterSpacing: '-0.03em',
-          textTransform: 'uppercase',
           color: 'var(--text-primary)',
           WebkitFontSmoothing: 'subpixel-antialiased',
         }}
@@ -439,32 +435,28 @@ export default function PdfResearchPage() {
           Academy · Order flow research
         </p>
         <h1
+          className="font-display text-[clamp(34px,5vw,56px)]"
           style={{
-            fontFamily: MONO,
-            fontWeight: 500,
-            fontSize: 'clamp(34px, 5vw, 56px)',
-            letterSpacing: '-0.04em',
-            textTransform: 'uppercase',
             color: 'var(--text-primary)',
             WebkitFontSmoothing: 'subpixel-antialiased',
           }}
         >
-          Research Library
+          Research <span className="font-display-accent">Library</span>
         </h1>
         <p
           className="max-w-3xl text-base leading-relaxed"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Synthèse de <strong>17 publications académiques</strong> (2012–2026)
-          sur l&apos;order flow, la microstructure des marchés et l&apos;exécution optimale
-          — filtrées et appliquées à tes 5 outils :{' '}
+          A synthesis of <strong>17 academic papers</strong> (2012–2026)
+          on order flow, market microstructure and optimal execution
+          — filtered and applied to your 5 tools:{' '}
           <strong>CVD, Volume Profile, Absorption, DOM, Heatmap</strong>.
         </p>
         <p
           className="text-sm italic"
           style={{ color: 'var(--text-muted)' }}
         >
-          Sources : Tiwari (2025), Chen-Horst-Tran (2023), Nutz-Webster-Zhao
+          Sources: Tiwari (2025), Chen-Horst-Tran (2023), Nutz-Webster-Zhao
           (2025), Anantha-Jain (2024), Chatziandreou-Karbach (2025),
           Wang (2025), Cucuringu-Li-Zhang (2025), Luwang et al. (2026),
           de Witt-Pakkanen (2026), Coxon (2023), Schlie (2025), Ayyar (2025),
@@ -473,15 +465,15 @@ export default function PdfResearchPage() {
         </p>
       </header>
 
-      {/* ── Chiffres clés (teaser visible) ── */}
+      {/* ── Key numbers (visible teaser) ── */}
       <section className="space-y-6">
-        <SectionTitle kicker="· Aperçu">Chiffres clés à retenir</SectionTitle>
+        <SectionTitle kicker="· Overview">Key numbers to remember</SectionTitle>
         <div className="acad-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { stat: '17', label: 'Papers académiques analysés', src: '2012–2026' },
-            { stat: '5', label: 'Outils couverts en détail', src: 'CVD, VP, Absorption, DOM, Heatmap' },
-            { stat: '36', label: 'Idées d\'implémentation', src: '6 par outil' },
-            { stat: '5', label: 'Schémas ATAS avec Entry/Target/Stop', src: 'MNQ 300T' },
+            { stat: '17', label: 'Academic papers analyzed', src: '2012–2026' },
+            { stat: '5', label: 'Tools covered in depth', src: 'CVD, VP, Absorption, DOM, Heatmap' },
+            { stat: '36', label: 'Implementation ideas', src: '6 per tool' },
+            { stat: '5', label: 'ATAS charts with Entry/Target/Stop', src: 'MNQ 300T' },
           ].map((item, i) => (
             <div
               key={i}
@@ -502,7 +494,7 @@ export default function PdfResearchPage() {
     <div className="space-y-16">
       {/* ── Tool-by-tool insights ── */}
       <section className="acad-stagger space-y-10">
-        <SectionTitle kicker="· 5 outils">Insights par outil</SectionTitle>
+        <SectionTitle kicker="· 5 tools">Insights by tool</SectionTitle>
 
         {TOOL_SECTIONS.map((ts) => (
           <div
@@ -556,7 +548,7 @@ export default function PdfResearchPage() {
 
       {/* ── Key papers with applied findings ────────────── */}
       <section className="space-y-8">
-        <SectionTitle kicker="· 8 publications">Papers clés — Findings appliqués</SectionTitle>
+        <SectionTitle kicker="· 8 papers">Key papers — Applied findings</SectionTitle>
 
         <div className="acad-stagger grid gap-6 md:grid-cols-2">
           {KEY_PAPERS.map((p) => (
@@ -627,14 +619,14 @@ export default function PdfResearchPage() {
 
       {/* ── Practical framework ────────────────────────── */}
       <section className="space-y-6">
-        <SectionTitle kicker="· Workflow">Framework pratique — Comment combiner les 5 outils</SectionTitle>
+        <SectionTitle kicker="· Workflow">Practical framework — How to combine the 5 tools</SectionTitle>
         <p
           className="max-w-3xl text-sm"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Basé sur les findings des 17 papers, voici un workflow séquentiel
-          pour utiliser CVD + Volume Profile + Absorption + DOM + Heatmap
-          ensemble.
+          Based on the findings from the 17 papers, here is a sequential workflow
+          for using CVD + Volume Profile + Absorption + DOM + Heatmap
+          together.
         </p>
 
         <div className="acad-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -680,20 +672,20 @@ export default function PdfResearchPage() {
 
       {/* ── Formulas reference ─────────────────────────── */}
       <section className="space-y-6">
-        <SectionTitle kicker="· Référence">Formules essentielles</SectionTitle>
+        <SectionTitle kicker="· Reference">Essential formulas</SectionTitle>
 
         <div className="acad-stagger space-y-4">
           {[
             {
-              name: 'Order Flow Imbalance (CVD normalisé)',
+              name: 'Order Flow Imbalance (normalized CVD)',
               formula:
-                'OFI(T, h) = (N_sell − N_buy) / (N_sell + N_buy)  sur la fenêtre [T−h, T]',
+                'OFI(T, h) = (N_sell − N_buy) / (N_sell + N_buy)  over the window [T−h, T]',
               source: 'Anantha & Jain (2024)',
             },
             {
-              name: 'Intensité Hawkes (self-exciting flow)',
+              name: 'Hawkes intensity (self-exciting flow)',
               formula:
-                'λ(t) = μ + ∫₀ᵗ α·e^{−β(t−s)} dN(s)   avec ρ = α/(β−α)',
+                'λ(t) = μ + ∫₀ᵗ α·e^{−β(t−s)} dN(s)   with ρ = α/(β−α)',
               source: 'Chen-Horst-Tran, Tiwari',
             },
             {
@@ -703,20 +695,20 @@ export default function PdfResearchPage() {
               source: 'Bouchaud, de Witt, Coxon',
             },
             {
-              name: 'Square-root law (impact instantané)',
-              formula: 'ΔP = σ · (Q/V)^δ   avec δ ≈ 0.4–0.7',
+              name: 'Square-root law (instantaneous impact)',
+              formula: 'ΔP = σ · (Q/V)^δ   with δ ≈ 0.4–0.7',
               source: 'Almgren, Coxon, Veldman',
             },
             {
               name: 'Implementation Shortfall',
               formula:
-                'IS = side · (Σ pᵢ·|qᵢ|/Q₀ − p₀)  = VWAP exécuté − prix d\'arrivée',
+                'IS = side · (Σ pᵢ·|qᵢ|/Q₀ − p₀)  = executed VWAP − arrival price',
               source: 'Perold, de Witt',
             },
             {
-              name: 'Probabilité de transition DOM (Markov)',
+              name: 'DOM transition probability (Markov)',
               formula:
-                'P(X_{n+1} = Sⱼ | Xₙ = Sᵢ) = pᵢⱼ   avec Σⱼ pᵢⱼ = 1',
+                'P(X_{n+1} = Sⱼ | Xₙ = Sᵢ) = pᵢⱼ   with Σⱼ pᵢⱼ = 1',
               source: 'Luwang et al.',
             },
           ].map((f) => (
@@ -761,7 +753,7 @@ export default function PdfResearchPage() {
           color: 'var(--text-muted)',
         }}
       >
-        17 papers analysés — Dernière mise à jour : Mars 2026
+        17 papers analyzed — Last updated: March 2026
       </footer>
     </div>
   );
@@ -782,12 +774,12 @@ export default function PdfResearchPage() {
         }
         .academy-bg::before {
           width: 48vw; height: 48vw; top: -14%; left: -12%;
-          background: radial-gradient(circle, rgba(52,211,153,0.08), transparent 70%);
+          background: radial-gradient(circle, rgb(var(--primary-rgb) / 0.08), transparent 70%);
           animation: acadGlowA 22s ease-in-out infinite alternate;
         }
         .academy-bg::after {
           width: 44vw; height: 44vw; bottom: -16%; right: -12%;
-          background: radial-gradient(circle, rgba(214,193,150,0.07), transparent 70%);
+          background: radial-gradient(circle, rgb(var(--accent-rgb) / 0.07), transparent 70%);
           animation: acadGlowB 28s ease-in-out infinite alternate;
         }
         @keyframes acadGlowA { from { transform: translate(0,0); } to { transform: translate(7vw, 5vw); } }

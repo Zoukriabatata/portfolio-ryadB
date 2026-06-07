@@ -341,6 +341,14 @@ impl FootprintEngine {
             .unwrap_or(self.default_tick_size);
         let rounded = round_to_tick(tick.price, tick_size);
 
+        // Clone the symbol string once, outside the timeframe loop.
+        // Each BTreeMap key still needs an owned String, so we clone
+        // `symbol` (not `tick.symbol`) on every iteration — but that
+        // is at most N clones of the pre-allocated `symbol` value,
+        // versus the previous 2×N clones from `tick.symbol.clone()`
+        // inside the loop (one for the key, one for FootprintBar::new).
+        let symbol = tick.symbol.clone();
+
         for &tf in &self.timeframes {
             let bucket = tf.bucket_key(tick.timestamp_ns, tick.seq);
             // bucket_ts_ns is what the UI plots on the X-axis. For
@@ -348,14 +356,14 @@ impl FootprintEngine {
             // the bucket id is meaningless as a time, so we anchor
             // on the FIRST tick's timestamp in the bar (taken from
             // `tick.timestamp_ns` at insertion below via or_insert_with).
-            let key = (tick.symbol.clone(), tf, bucket);
+            let key = (symbol.clone(), tf, bucket);
             let bar = state.bars.entry(key).or_insert_with(|| {
                 let bucket_ts_ns = if tf.is_tick_based() {
                     tick.timestamp_ns
                 } else {
                     bucket * 1_000_000_000
                 };
-                FootprintBar::new(tick.symbol.clone(), tf, bucket_ts_ns, tick.price)
+                FootprintBar::new(symbol.clone(), tf, bucket_ts_ns, tick.price)
             });
             bar.apply_tick(tick, rounded);
             // Best-effort fan-out — we don't care if no one is

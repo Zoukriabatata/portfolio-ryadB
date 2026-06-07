@@ -155,6 +155,13 @@ pub struct JournalDb {
 }
 
 impl JournalDb {
+    /// Acquire the connection lock, recovering gracefully from lock poisoning.
+    /// A poisoned lock (caused by a panic inside a previous lock holder) is
+    /// recovered by taking the inner value — SQLite connections tolerate this.
+    fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     pub fn open(path: PathBuf) -> SqlResult<Self> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).ok();
@@ -178,7 +185,7 @@ impl JournalDb {
     }
 
     fn migrate(&self) -> SqlResult<()> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.execute(
             "CREATE TABLE IF NOT EXISTS schema_version (\
                 version INTEGER PRIMARY KEY)",
@@ -312,7 +319,7 @@ impl JournalDb {
             t.created_at = now.clone();
         }
         t.updated_at = now;
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
 
         // First try INSERT. If the unique index trips, fall through to
         // UPDATE keyed on (external_source, external_id) so the user's
@@ -375,7 +382,7 @@ impl JournalDb {
     /// Latest entry_time across all trades imported from the given source.
     /// Used to do incremental syncs (only fetch fills newer than this).
     pub fn last_external_entry_time(&self, source: &str) -> SqlResult<Option<String>> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.query_row(
             "SELECT MAX(entry_time) FROM trades WHERE external_source=?1",
             params![source],
@@ -389,7 +396,7 @@ impl JournalDb {
     /// the sync-status command to show "X trades synced from Rithmic"
     /// in the UI without paginating the full list.
     pub fn count_external_trades(&self, source: &str) -> SqlResult<i64> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.query_row(
             "SELECT COUNT(*) FROM trades WHERE external_source=?1",
             params![source],
@@ -408,7 +415,7 @@ impl JournalDb {
             s.created_at = now.clone();
         }
         s.updated_at = now;
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.execute(
             "INSERT INTO playbook_setups (\
                 id, name, description, criteria, image_url, color, \
@@ -443,12 +450,12 @@ impl JournalDb {
     }
 
     pub fn delete_playbook_setup(&self, id: &str) -> SqlResult<usize> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.execute("DELETE FROM playbook_setups WHERE id=?1", params![id])
     }
 
     pub fn list_playbook_setups(&self) -> SqlResult<Vec<PlaybookSetup>> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = conn.prepare("SELECT * FROM playbook_setups ORDER BY name ASC")?;
         let rows = stmt.query_map([], row_to_playbook)?;
         rows.collect()
@@ -465,7 +472,7 @@ impl JournalDb {
             n.created_at = now.clone();
         }
         n.updated_at = now;
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         // Upsert keyed on `date`: editing the same day overwrites instead
         // of stacking notes — mirrors the website's behaviour where a
         // day has at most one note.
@@ -503,7 +510,7 @@ impl JournalDb {
     }
 
     pub fn delete_daily_note(&self, id: &str) -> SqlResult<usize> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.execute("DELETE FROM daily_notes WHERE id=?1", params![id])
     }
 
@@ -511,7 +518,7 @@ impl JournalDb {
     pub fn list_daily_notes_month(&self, month: &str) -> SqlResult<Vec<DailyNote>> {
         let from = format!("{}-01", month);
         let to = format!("{}-31", month);
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = conn.prepare(
             "SELECT * FROM daily_notes \
              WHERE date >= ?1 AND date <= ?2 \
@@ -528,7 +535,7 @@ impl JournalDb {
     pub fn calendar_month(&self, month: &str) -> SqlResult<(Vec<CalendarDay>, CalendarMonthStats)> {
         let from = format!("{}-01T00:00:00Z", month);
         let to = format!("{}-31T23:59:59Z", month);
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
 
         let mut stmt = conn.prepare(
             "SELECT substr(entry_time, 1, 10) AS d, \
@@ -571,7 +578,7 @@ impl JournalDb {
     pub fn trades_on_day(&self, date: &str) -> SqlResult<Vec<Trade>> {
         let from = format!("{}T00:00:00Z", date);
         let to = format!("{}T23:59:59Z", date);
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = conn.prepare(
             "SELECT * FROM trades \
              WHERE entry_time >= ?1 AND entry_time <= ?2 \
@@ -590,7 +597,7 @@ impl JournalDb {
             t.created_at = now.clone();
         }
         t.updated_at = now;
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.execute(
             "INSERT INTO trades (\
                 id, symbol, side, entry_price, exit_price, quantity, pnl, \
@@ -614,7 +621,7 @@ impl JournalDb {
     pub fn update_trade(&self, t: Trade) -> SqlResult<Trade> {
         let mut updated = t.clone();
         updated.updated_at = chrono_now();
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.execute(
             "UPDATE trades SET \
                 symbol=?2, side=?3, entry_price=?4, exit_price=?5, quantity=?6, pnl=?7, \
@@ -649,7 +656,7 @@ impl JournalDb {
     }
 
     pub fn delete_trade(&self, id: &str) -> SqlResult<usize> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.execute("DELETE FROM trades WHERE id=?1", params![id])
     }
 
@@ -657,7 +664,7 @@ impl JournalDb {
         if ids.is_empty() {
             return Ok(0);
         }
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         let placeholders = (1..=ids.len())
             .map(|i| format!("?{i}"))
             .collect::<Vec<_>>()
@@ -669,7 +676,7 @@ impl JournalDb {
     }
 
     pub fn get_trade(&self, id: &str) -> SqlResult<Option<Trade>> {
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.query_row(
             "SELECT * FROM trades WHERE id=?1",
             params![id],
@@ -687,7 +694,7 @@ impl JournalDb {
              ORDER BY entry_time DESC \
              LIMIT {limit} OFFSET {offset}"
         );
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         let mut stmt = conn.prepare(&sql)?;
         let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), row_to_trade)?;
         rows.collect()
@@ -697,7 +704,7 @@ impl JournalDb {
     pub fn count_trades(&self, filter: &TradeFilter) -> SqlResult<i64> {
         let (where_sql, params) = build_filter_sql(filter);
         let sql = format!("SELECT COUNT(*) FROM trades {where_sql}");
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         conn.query_row(&sql, rusqlite::params_from_iter(params.iter()), |r| {
             r.get(0)
         })
@@ -706,7 +713,7 @@ impl JournalDb {
     /// Aggregate stats over the filtered set (ignoring limit/offset).
     pub fn stats(&self, filter: &TradeFilter) -> SqlResult<TradeStats> {
         let (where_sql, params) = build_filter_sql(filter);
-        let conn = self.inner.lock().unwrap();
+        let conn = self.conn();
         let sql = format!(
             "SELECT \
                 COUNT(*)                                                             AS n, \

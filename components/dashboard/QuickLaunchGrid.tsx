@@ -96,12 +96,12 @@ export function QuickLaunchGrid({ className }: QuickLaunchGridProps) {
       icon={<ZapIcon size={14} />}
       className={className}
     >
-      <div className="grid grid-cols-3 gap-2">
+      <div className="stagger-in grid grid-cols-3 gap-2">
         {TOOLS.map((tool) => (
           <Link
             key={tool.href}
             href={tool.href}
-            className="group relative flex flex-col items-start gap-1.5 px-2.5 py-3 rounded-lg border transition-colors duration-150 hover:border-[var(--border-glow)] hover:shadow-[0_0_0_1px_color-mix(in_oklab,var(--primary)_18%,transparent)]"
+            className="card-lift group relative flex flex-col items-start gap-1.5 px-2.5 py-3 rounded-lg border transition-colors duration-150 hover:border-[var(--border-glow)] hover:shadow-[0_0_0_1px_color-mix(in_oklab,var(--primary)_18%,transparent)]"
             style={{
               background: "var(--surface-elevated)",
               borderColor: "var(--border)",

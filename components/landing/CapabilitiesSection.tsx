@@ -164,16 +164,15 @@ export default function CapabilitiesSection() {
             data-animate-delay="1"
             className="leading-none"
             style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontWeight: 400,
+              fontSize: 'clamp(36px, 4.5vw, 56px)',
+              letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontWeight: 500,
-              fontSize: 'clamp(36px, 4.5vw, 60px)',
-              letterSpacing: '-0.04em',
-              textTransform: 'uppercase',
-              WebkitFontSmoothing: 'subpixel-antialiased',
             }}
           >
-            Native Windows. Rust on the hot path.
+            Native Windows.{' '}
+            <span style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--primary)' }}>Rust on the hot path.</span>
           </h2>
           <p
             data-animate="up"

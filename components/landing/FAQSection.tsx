@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 const FAQS = [
   {
-    question: 'What is OrderflowV2?',
+    question: 'What is Senzoukria?',
     answer:
       'A Windows desktop for native footprint charts — delta, imbalance, absorption, CVD — wired into your existing NinjaTrader feed via a NinjaScript bridge. Built for futures traders on Apex / Rithmic, with a crypto path for users without a broker.',
   },
@@ -16,7 +16,7 @@ const FAQS = [
   {
     question: 'Does the bridge work on Apex evaluations?',
     answer:
-      'Yes. The NinjaScript indicator runs inside any NinjaTrader instance — eval, PA, live. It only reads the tick stream and forwards it to OrderflowV2 over loopback (127.0.0.1). No order routing, no broker credentials touched.',
+      'Yes. The NinjaScript indicator runs inside any NinjaTrader instance — eval, PA, live. It only reads the tick stream and forwards it to Senzoukria over loopback (127.0.0.1). No order routing, no broker credentials touched.',
   },
   {
     question: 'Latency vs cloud platforms?',
@@ -31,12 +31,12 @@ const FAQS = [
   {
     question: 'How does it compare to ATAS, Bookmap or Sierra Chart?',
     answer:
-      'ATAS, Bookmap and Sierra Chart sit at $50–$150/month and lock you into their data layer. OrderflowV2 ships the orderflow primitives 95% of retail traders actually use — footprint, delta, imbalance, CVD, heatmap — over the NinjaTrader feed you already own. $29/month, native Windows, no broker re-onboarding.',
+      'ATAS, Bookmap and Sierra Chart sit at $50–$150/month and lock you into their data layer. Senzoukria ships the orderflow primitives 95% of retail traders actually use — footprint, delta, imbalance, CVD, heatmap — over the NinjaTrader feed you already own. $29/month, native Windows, no broker re-onboarding.',
   },
   {
     question: 'How do I connect my data feed?',
     answer:
-      'Three options. (1) NinjaTrader Bridge: install our NinjaScript file in NT, OrderflowV2 reads your live feed locally — no extra credentials, perfect for Apex accounts. (2) Rithmic direct: sign in with your R | Protocol login inside the app, no NT needed. (3) Crypto: Binance, Bybit and Deribit work out of the box, no account required for market data.',
+      'Three options. (1) NinjaTrader Bridge: install our NinjaScript file in NT, Senzoukria reads your live feed locally — no extra credentials, perfect for Apex accounts. (2) Rithmic direct: sign in with your R | Protocol login inside the app, no NT needed. (3) Crypto: Binance, Bybit and Deribit work out of the box, no account required for market data.',
   },
   {
     question: 'Do I need NinjaTrader installed?',
@@ -112,16 +112,14 @@ export default function FAQSection() {
             data-animate-delay="1"
             className="leading-none"
             style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontWeight: 400,
+              fontSize: 'clamp(36px, 4.5vw, 56px)',
+              letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontWeight: 500,
-              fontSize: 'clamp(36px, 4.5vw, 60px)',
-              letterSpacing: '-0.04em',
-              textTransform: 'uppercase',
-              WebkitFontSmoothing: 'subpixel-antialiased',
             }}
           >
-            Questions, answered
+            Questions, <span style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--primary)' }}>answered</span>
           </h2>
           <p
             data-animate="up"

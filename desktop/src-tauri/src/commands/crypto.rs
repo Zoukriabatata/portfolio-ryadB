@@ -73,7 +73,7 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 ///
 /// `app` is the Tauri AppHandle the framework injects on every
 /// command; passed through to the per-adapter connect helpers so
-/// the M6b-1 tick emitter can `app.emit("crypto-tick-update", ...)`
+/// the M6b-1 tick emitter can emit `crypto-tick-batch` events
 /// without holding a global handle.
 #[tauri::command]
 pub async fn crypto_connect(

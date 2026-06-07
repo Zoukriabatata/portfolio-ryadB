@@ -1,6 +1,7 @@
-// Source : desktop/src-tauri/src/commands/crypto_tick_events.rs:22
-// Event "crypto-tick-update", payload TickWire (camelCase via
-// `#[serde(rename_all = "camelCase")]` ligne 25) :
+// Source : desktop/src-tauri/src/commands/crypto_tick_events.rs
+// Event "crypto-tick-batch", payload Vec<TickWire> (coalesced 16 ms window).
+// Rust side serialises with rename_all = camelCase + lowercase "buy"/"sell".
+// Each element :
 //   {
 //     symbol: string,
 //     price: number,
@@ -8,23 +9,24 @@
 //     side: "buy" | "sell",
 //     timestampNs: number          // u64 ns since UNIX epoch
 //   }
-// Cadence : pass-through (1 tick venue = 1 emit Tauri ; drop sur lag du
-// listener via tokio::sync::broadcast). Pas de EMIT_INTERVAL — flux direct.
+// Cadence : up to 1 IPC event per 16 ms (≈ 60 FPS). Drops on lag via
+// tokio::sync::broadcast. The array can be empty on quiet markets but
+// the flush only fires when non-empty (no-op skipped in Rust).
 //
-// Side mapping (côté Rust déjà résolu, cf. crypto_tick_events.rs:49) :
-//   "buy"  = agresseur acheteur (a frappé l'ask)  → Trade.side = "bid"  → couleur --bid (vert)
-//   "sell" = agresseur vendeur  (a frappé le bid) → Trade.side = "ask"  → couleur --ask (rouge)
-// Inverser uniquement si visuellement faux runtime (couleurs vs direction prix).
+// Side mapping (resolved Rust-side, cf. crypto_tick_events.rs) :
+//   "buy"  = aggressor buyer  (hit the ask) → Trade.side = "bid"  → colour --bid (green)
+//   "sell" = aggressor seller (hit the bid) → Trade.side = "ask"  → colour --ask (red)
+// Flip only if visually wrong at runtime (colours vs price direction).
 //
-// Précision : timestampNs > Number.MAX_SAFE_INTEGER (cf. CLAUDE.md §5.D).
-// floor(/1e6) → ms : sub-µs au niveau ms, OK pour bucket 100 ms.
+// Precision : timestampNs > Number.MAX_SAFE_INTEGER (cf. CLAUDE.md §5.D).
+// floor(/1e6) → ms : sub-µs loss acceptable for 100 ms bucket.
 
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Trade } from "../core";
 
-const TICK_EVENT = "crypto-tick-update";
+const TICK_BATCH_EVENT = "crypto-tick-batch";
 
-interface TickPayload {
+interface TickWire {
   symbol: string;
   price: number;
   quantity: number;
@@ -32,9 +34,9 @@ interface TickPayload {
   timestampNs: number;
 }
 
-function isPayloadValid(p: unknown): p is TickPayload {
+function isTickWire(p: unknown): p is TickWire {
   if (!p || typeof p !== "object") return false;
-  const o = p as Partial<TickPayload>;
+  const o = p as Partial<TickWire>;
   return (
     typeof o.timestampNs === "number" &&
     Number.isFinite(o.timestampNs) &&
@@ -44,10 +46,10 @@ function isPayloadValid(p: unknown): p is TickPayload {
   );
 }
 
-// Exporté pour test unitaire (le listener Tauri lui-même n'est pas testable
-// hors runtime). parseTradePayload est pur, deterministe.
+// Exported for unit tests (the Tauri listener itself is not testable
+// outside the runtime). parseTradePayload is pure and deterministic.
 export function parseTradePayload(payload: unknown): Trade | null {
-  if (!isPayloadValid(payload)) return null;
+  if (!isTickWire(payload)) return null;
   const exchangeMs = Math.floor(payload.timestampNs / 1_000_000);
   return {
     exchangeMs,
@@ -61,13 +63,23 @@ export class TradesAdapter {
   private unlisten: UnlistenFn | null = null;
 
   async start(callback: (trade: Trade) => void): Promise<void> {
-    this.unlisten = await listen<unknown>(TICK_EVENT, (event) => {
-      const trade = parseTradePayload(event.payload);
-      if (!trade) {
-        console.warn("[TradesAdapter] payload malformé, skip", event.payload);
+    // The backend emits a Vec<TickWire> batch every 16 ms.
+    // We iterate the array and invoke `callback` once per tick so
+    // consumers see the same interface as before — no API change.
+    this.unlisten = await listen<unknown>(TICK_BATCH_EVENT, (event) => {
+      const batch = event.payload;
+      if (!Array.isArray(batch)) {
+        console.warn("[TradesAdapter] payload inattendu (non-tableau), skip", batch);
         return;
       }
-      callback(trade);
+      for (const item of batch) {
+        const trade = parseTradePayload(item);
+        if (!trade) {
+          console.warn("[TradesAdapter] tick malformé dans le batch, skip", item);
+          continue;
+        }
+        callback(trade);
+      }
     });
   }
 

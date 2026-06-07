@@ -76,6 +76,7 @@ import { DrawingPropertiesPanel } from "./DrawingPropertiesPanel";
 import { POSITION_ENTRY_LINE_ID } from "../../lib/sim/useSimPositionOverlay";
 import { computePnl, getContractSpec } from "../../lib/sim/contractSpecs";
 import type { Side as SimSide } from "../../lib/sim/useSimAccountStore";
+import { isAppActive } from "../../lib/usePauseOnBlur";
 
 /** Temporary ghost line id for the "drag from entry to create
  *  SL/TP" interaction. Lives only for the duration of the drag. */
@@ -541,16 +542,6 @@ export const FootprintCanvas = forwardRef<
     const coldStart = prev === 0;
     const shouldAutoFit =
       historyLanded && (coldStart || !userInteracted);
-    if (historyLanded) {
-      // TEMP debug for the "00:00 isn't visible" investigation.
-      // eslint-disable-next-line no-console
-      console.log("[autofit] historyLanded", {
-        prev, next, coldStart, userInteracted, shouldAutoFit,
-        userOverrodeX: interactionRef.current.userOverrodeX,
-        userOverrodeY: interactionRef.current.userOverrodeY,
-        isDragging: interactionRef.current.isDragging,
-      });
-    }
     if (collapsedToEmpty) {
       interactionRef.current = { ...DEFAULT_INTERACTION };
     } else if (shouldAutoFit) {
@@ -600,11 +591,13 @@ export const FootprintCanvas = forwardRef<
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame((t) => {
       rafRef.current = null;
-      // Skip the actual paint when the app isn't focused — saves the
-      // canvas redraw cost (~hundreds of µs) every frame for ~zero
-      // benefit (user can't see the chart). The next event (data,
-      // resize, focus return) will re-call tickRender naturally.
-      if (typeof document !== "undefined" && !document.hasFocus()) return;
+      // Skip the paint ONLY when the app is truly hidden (minimised),
+      // not on mere focus loss — a trader keeps Orderflow visible on a
+      // second monitor while the broker is focused, and the chart must
+      // keep updating. `isAppActive()` centralises this policy
+      // (currently: active === document is visible). The next event
+      // (data, resize, visibility return) re-calls tickRender.
+      if (!isAppActive()) return;
       // 60 FPS cap. Without it, monitors at 120 / 144 / 170 Hz would
       // try to paint at native rate — burning CPU on per-frame work
       // (cells, gauges, text) just to have the OS compositor drop
@@ -617,7 +610,7 @@ export const FootprintCanvas = forwardRef<
         // monitor period away, so the gate will be satisfied).
         rafRef.current = requestAnimationFrame((t2) => {
           rafRef.current = null;
-          if (typeof document !== "undefined" && !document.hasFocus()) return;
+          if (!isAppActive()) return;
           lastRenderTimeRef.current = t2;
           renderCountRef.current += 1;
           rendererRef.current?.render();

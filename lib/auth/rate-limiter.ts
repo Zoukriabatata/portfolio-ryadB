@@ -40,6 +40,14 @@ const isRedisConfigured = !!(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
+if (process.env.NODE_ENV === 'production' && !isRedisConfigured) {
+  console.error(
+    '[Rate Limiter] CRITICAL: UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not configured. ' +
+    'All rate-limiting falls back to in-memory (per-lambda, ineffective on Vercel). ' +
+    'Set these env vars before accepting production traffic.',
+  );
+}
+
 const redis = isRedisConfigured
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -132,16 +140,22 @@ function getUpstashLimiter(limit: number, windowMs: number): Ratelimit {
  *
  * Uses Upstash Redis when configured, falls back to in-memory.
  *
- * @param key      Unique identifier (e.g. `ip:login:1.2.3.4` or `user:api:abc123`)
- * @param limit    Maximum number of requests allowed within the window
- * @param windowMs Window duration in milliseconds
+ * @param key       Unique identifier (e.g. `ip:login:1.2.3.4` or `user:api:abc123`)
+ * @param limit     Maximum number of requests allowed within the window
+ * @param windowMs  Window duration in milliseconds
+ * @param failClosed  When true, Redis errors deny the request instead of falling back to
+ *                    in-memory. Use for auth-sensitive paths (login, register, reset).
  */
 export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number,
+  failClosed = false,
 ): Promise<RateLimitResult> {
   if (!redis) {
+    if (failClosed && process.env.NODE_ENV === 'production') {
+      return { allowed: false, remaining: 0, resetMs: 60_000, limit };
+    }
     return memoryCheckRateLimit(key, limit, windowMs);
   }
 
@@ -156,7 +170,10 @@ export async function checkRateLimit(
       limit: result.limit,
     };
   } catch (error) {
-    console.error('[Rate Limiter] Redis error, falling back to memory:', error);
+    console.error('[Rate Limiter] Redis error:', error);
+    if (failClosed) {
+      return { allowed: false, remaining: 0, resetMs: 60_000, limit };
+    }
     return memoryCheckRateLimit(key, limit, windowMs);
   }
 }

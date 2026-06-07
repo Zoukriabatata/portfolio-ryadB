@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AlertTriangle } from 'lucide-react';
+import Logotype from '@/components/ui/brand/Logotype';
+import { AuthHeading } from '@/components/auth/AuthShell';
 import {
   generateAdvancedFingerprint,
   storeFingerprint,
@@ -26,12 +29,11 @@ function PreviewBanner() {
     <div
       className="mb-5 px-3 py-2 rounded-lg text-xs flex items-start gap-2"
       style={{
-        background: 'rgba(74, 222, 128, 0.08)',
-        border: '1px solid rgba(74, 222, 128, 0.3)',
+        background: 'rgb(var(--primary-rgb) / 0.08)',
+        border: '1px solid rgb(var(--primary-rgb) / 0.3)',
         color: 'var(--primary-light)',
       }}
     >
-      <span>🎁</span>
       <span>
         <strong>Public preview</strong> — full PRO access free until <strong>17 June 2026</strong>.
         No payment required, no card asked.
@@ -148,30 +150,23 @@ export default function RegisterPage() {
     >
       {/* Ambient glow */}
       <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(74,222,128,0.06) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+        style={{ background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.06) 0%, transparent 70%)', filter: 'blur(80px)' }} />
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(74,222,128,0.03) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+        style={{ background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.03) 0%, transparent 70%)', filter: 'blur(80px)' }} />
 
       <div className="w-full max-w-md animate-fadeIn relative z-10">
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))', boxShadow: '0 0 40px rgba(74,222,128,0.25)' }}>
-            <span className="text-xl font-black text-white">S</span>
-          </div>
-          <h1 className="text-3xl font-bold"
-            style={{ background: 'linear-gradient(to right, var(--primary-light), var(--primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            SENZOUKRIA
-          </h1>
-          <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>Create your trading account</p>
+        {/* Brand mark */}
+        <div className="flex justify-center mb-8">
+          <Link href="/" aria-label="Senzoukria">
+            <Logotype fontSize={24} />
+          </Link>
         </div>
 
         <div className="rounded-2xl p-8 animate-slideUp backdrop-blur-sm"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
 
-          <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Get started</h2>
-          <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Free account · No credit card required</p>
+          <AuthHeading eyebrow="· Create account" title="Create your account" subtitle="Free account · no credit card required." />
           {/* Public preview banner — visible only during the launch
               window. Renders client-side so the JIT date check below
               stays SSR-stable (no hydration mismatch from time-sensitive
@@ -180,12 +175,61 @@ export default function RegisterPage() {
           <PreviewBanner />
 
 
+          {/* ── GDPR consent checkboxes — required before ANY sign-up
+              method (Google or email). Placed here so the user sees
+              them before interacting with either button.
+              Both buttons stay disabled until both boxes are ticked. ── */}
+          <div className="space-y-2 mb-5">
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
+              <input
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded cursor-pointer flex-shrink-0"
+                style={{ accentColor: 'var(--primary)' }}
+              />
+              <span>
+                I have read and accept the{' '}
+                <Link
+                  href="/legal/terms"
+                  target="_blank"
+                  className="underline"
+                  style={{ color: 'var(--primary-light)' }}
+                >
+                  Terms of Service
+                </Link>
+                .
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
+              <input
+                type="checkbox"
+                checked={acceptPrivacy}
+                onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded cursor-pointer flex-shrink-0"
+                style={{ accentColor: 'var(--primary)' }}
+              />
+              <span>
+                I have read and accept the{' '}
+                <Link
+                  href="/legal/privacy"
+                  target="_blank"
+                  className="underline"
+                  style={{ color: 'var(--primary-light)' }}
+                >
+                  Privacy Policy
+                </Link>{' '}
+                and consent to the processing of my personal data as described.
+              </span>
+            </label>
+          </div>
+
           {/* ── PRIMARY: Google ── */}
           <button
             type="button"
             onClick={handleGoogleSignUp}
-            disabled={isGoogleLoading}
-            className="w-full py-3 flex items-center justify-center gap-3 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+            disabled={isGoogleLoading || !acceptTerms || !acceptPrivacy}
+            className="w-full py-3 flex items-center justify-center gap-3 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: 'var(--surface-elevated)',
               border: '1px solid var(--border)',
@@ -202,7 +246,7 @@ export default function RegisterPage() {
           </button>
 
           <p className="text-center text-[10px] mt-2 mb-1" style={{ color: 'var(--text-muted)' }}>
-            ✓ One click · No password to remember
+            One click · No password to remember
           </p>
 
           <Divider label="or register with email" />
@@ -286,63 +330,14 @@ export default function RegisterPage() {
                     style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                 </div>
-                {/* GDPR consent checkboxes — required affirmative action. */}
-                <div className="space-y-2 pt-1">
-                  <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
-                    <input
-                      type="checkbox"
-                      checked={acceptTerms}
-                      onChange={(e) => setAcceptTerms(e.target.checked)}
-                      required
-                      className="mt-0.5 h-4 w-4 rounded cursor-pointer"
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    <span>
-                      I have read and accept the{' '}
-                      <Link
-                        href="/legal/terms"
-                        target="_blank"
-                        className="underline"
-                        style={{ color: 'var(--primary-light)' }}
-                      >
-                        Terms of Service
-                      </Link>
-                      .
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
-                    <input
-                      type="checkbox"
-                      checked={acceptPrivacy}
-                      onChange={(e) => setAcceptPrivacy(e.target.checked)}
-                      required
-                      className="mt-0.5 h-4 w-4 rounded cursor-pointer"
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    <span>
-                      I have read and accept the{' '}
-                      <Link
-                        href="/legal/privacy"
-                        target="_blank"
-                        className="underline"
-                        style={{ color: 'var(--primary-light)' }}
-                      >
-                        Privacy Policy
-                      </Link>{' '}
-                      and consent to the processing of my personal data as described.
-                    </span>
-                  </label>
-                </div>
-
                 <button
                   type="submit"
                   disabled={isLoading || success || !acceptTerms || !acceptPrivacy}
-                  className="w-full py-3 font-semibold rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'linear-gradient(to right, var(--primary), var(--primary-dark))', color: '#fff' }}
+                  className="btn-brand w-full py-3 rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white/50" />
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent opacity-60" />
                       Creating…
                     </span>
                   ) : 'Create account'}
@@ -361,17 +356,33 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Footnote — links to legal pages for users who want to review
-            them before signing up. The actual GDPR consent is captured
-            via the two checkboxes inside the email-signup form. */}
-        <div className="mt-5 text-center">
-          <p className="text-xs" style={{ color: 'var(--text-dimmed)' }}>
+        {/* Trading risk disclaimer */}
+        <div
+          className="mt-5 px-3 py-2.5 rounded-md text-[11px] leading-relaxed flex items-start gap-2"
+          style={{
+            background: 'var(--warning-bg)',
+            border: '1px solid rgb(var(--warning-rgb) / 0.2)',
+            color: 'var(--warning)',
+            fontFamily: 'var(--font-jetbrains-mono)',
+          }}
+        >
+          <AlertTriangle size={13} strokeWidth={2} className="flex-shrink-0 mt-0.5" />
+          <span>Trading involves risk of loss. SENZOUKRIA is a visualization tool only — not financial advice.</span>
+        </div>
+
+        {/* Footnote — links to legal pages. GDPR consent captured via checkboxes above. */}
+        <div className="mt-4 text-center">
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-dimmed)' }}>
             See our{' '}
             <Link href="/legal/terms" className="underline" style={{ color: 'var(--text-muted)' }}>Terms of Service</Link>
             ,{' '}
-            <Link href="/legal/privacy" className="underline" style={{ color: 'var(--text-muted)' }}>Privacy Policy</Link>
+            <Link href="/legal/privacy" className="underline" style={{ color: 'var(--text-muted)' }}>Privacy&nbsp;&amp;&nbsp;Cookie&nbsp;Policy</Link>
             {' '}and{' '}
             <Link href="/legal/mentions-legales" className="underline" style={{ color: 'var(--text-muted)' }}>Mentions légales</Link>.
+            <br />
+            <span style={{ fontSize: 10, letterSpacing: '0.1em' }}>
+              Essential cookies only (authentication session).
+            </span>
           </p>
         </div>
       </div>

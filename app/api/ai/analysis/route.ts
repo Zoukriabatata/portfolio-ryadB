@@ -57,7 +57,7 @@ Analysis:
 - Confluence score: ${result.confluence_score}/8
 - Gamma squeeze: ${result.gamma_squeeze ? `YES (strength: ${result.squeeze_strength})` : 'No'}
 - Key levels: support ${result.key_levels.support.join(', ') || 'none'}, resistance ${result.key_levels.resistance.join(', ') || 'none'}, gamma flip ${result.key_levels.gamma_flip}
-- Setup: ${result.setup.entry} | target ${result.setup.target} | invalidation ${result.setup.invalidation}`;
+- Zone pivot: ${result.setup.zone_pivot} | Zone résistance: ${result.setup.zone_resistance} | Zone invalidation: ${result.setup.zone_invalidation}`;
 
   // Try Claude first (dev only, if key set)
   if (anthropic) {
@@ -109,7 +109,7 @@ export interface EngineAnalysisResult {
   dealer_state:      string;
   confluence_score:  number;   // –8 to +8
   regime:            string;
-  setup:             { entry: string; target: string; invalidation: string };
+  setup:             { zone_pivot: string; zone_resistance: string; zone_invalidation: string; disclaimer: string };
   // LLM layer (optional — absent when Ollama offline)
   llm_explanation:   string | null;
   // Provenance
@@ -190,17 +190,17 @@ function runJsEngine(body: Record<string, unknown>): EngineAnalysisResult {
     Math.abs(distFlip) < 0.01      ? 'BREAKOUT_WATCH'         :
     'RANGE_MARKET';
 
-  // ── Trade setup ───────────────────────────────────────────────────────────
-  const biasDir = bias === 'LONG' ? 'haussière' : bias === 'SHORT' ? 'baissière' : 'neutre';
+  // ── Trade setup (libellés descriptifs — pas de prescriptions directionnelles) ─
   const setup = {
-    entry:        bias === 'NEUTRAL'
-                    ? 'Attendre confirmation de direction'
-                    : `Entrée ${biasDir} sur pullback vers ${flip.toFixed(0)}`,
-    target:       bias === 'LONG'  ? `Résistance ${callWall.toFixed(0)}` :
-                  bias === 'SHORT' ? `Support ${putWall.toFixed(0)}`     : 'N/A',
-    invalidation: flip > 0
-                    ? `Clôture ${bias === 'SHORT' ? 'au-dessus du' : 'sous le'} flip ${flip.toFixed(0)}`
-                    : 'Flip level indéfini',
+    zone_pivot:       bias === 'NEUTRAL'
+                        ? 'Zone de bascule non définie — attendre confirmation orderflow'
+                        : `Zone de bascule observée à ${flip.toFixed(0)}`,
+    zone_resistance:  bias === 'LONG'  ? `Résistance institutionnelle ${callWall.toFixed(0)}` :
+                      bias === 'SHORT' ? `Support institutionnel ${putWall.toFixed(0)}`        : 'N/A',
+    zone_invalidation: flip > 0
+                        ? `Clôture sous/sur le flip ${flip.toFixed(0)} invaliderait le scénario dominant`
+                        : 'Flip level indéfini',
+    disclaimer:       'Analyse descriptive à titre informatif — pas un conseil en investissement',
   };
 
   // ── Engine explanation (concise, deterministic) ───────────────────────────

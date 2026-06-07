@@ -20,8 +20,9 @@ model User {
   avatar            String?
 
   // Email verification
-  emailVerified     DateTime?
-  verificationToken String?
+  emailVerified          DateTime?
+  verificationToken      String?
+  verificationTokenExpiry DateTime?
 
   // Password reset
   resetToken        String?

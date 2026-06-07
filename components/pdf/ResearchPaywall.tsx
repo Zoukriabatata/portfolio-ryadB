@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ReactNode, useState, useEffect } from 'react';
 
 const MONO = 'var(--font-jetbrains-mono)';
-// Texte sombre posé sur un fond --accent (teal) — meilleur contraste que le blanc.
+// Dark text on an --accent (teal) background — better contrast than white.
 const ON_ACCENT = '#04161a';
 
 /* ------------------------------------------------------------------ */
@@ -13,20 +13,20 @@ const ON_ACCENT = '#04161a';
 /* ------------------------------------------------------------------ */
 
 const PACK_FEATURES = [
-  '17 papers académiques analysés et synthétisés',
-  'Insights filtrés pour CVD, Volume Profile, Absorption, DOM, Heatmap',
-  'Schémas footprint style ATAS avec Entry / Target / Stop',
-  'Matrice de timeframes idéaux par outil et style de trading',
-  '36 idées d\'implémentation concrètes',
-  'Formules essentielles (Hawkes, Propagator, OFI, Square-root law)',
-  'Framework pratique en 6 étapes pour combiner les outils',
-  'Mises à jour incluses à vie',
+  '17 academic papers analyzed and synthesized',
+  'Insights filtered for CVD, Volume Profile, Absorption, DOM, Heatmap',
+  'ATAS-style footprint charts with Entry / Target / Stop',
+  'Matrix of ideal timeframes by tool and trading style',
+  '36 concrete implementation ideas',
+  'Essential formulas (Hawkes, Propagator, OFI, Square-root law)',
+  'A practical 6-step framework to combine the tools',
+  'Lifetime updates included',
 ];
 
 const PREVIEW_QUOTES = [
-  { text: 'L\'OFI prédit linéairement les variations de prix à haute fréquence avec un R² significatif.', src: 'Cont et al., Coxon, Veldman' },
-  { text: 'Les flux d\'ordres buy/sell exhibent un "self-excitement" (processus de Hawkes) — un gros achat déclenche des achats enfants.', src: 'Tiwari, Chen-Horst-Tran' },
-  { text: 'Seuls 1-3% du volume quotidien sont visibles dans le LOB à un instant t.', src: 'Bouchaud-Bonart, Coxon' },
+  { text: 'OFI linearly predicts high-frequency price changes with a significant R².', src: 'Cont et al., Coxon, Veldman' },
+  { text: 'Buy/sell order flow exhibits self-excitement (Hawkes processes) — a large buy triggers child buys.', src: 'Tiwari, Chen-Horst-Tran' },
+  { text: 'Only 1-3% of daily volume is visible in the LOB at any instant t.', src: 'Bouchaud-Bonart, Coxon' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -118,7 +118,7 @@ function AntiDownloadShield({ userEmail }: { userEmail: string }) {
             display: none !important;
           }
           body::after {
-            content: 'Impression non autorisée — Research Pack Senzoukria';
+            content: 'Printing not allowed — Senzoukria Research Pack';
             display: block;
             text-align: center;
             font-size: 24px;
@@ -197,12 +197,12 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
       });
       const data = await res.json();
       if (!res.ok) {
-        setPurchaseError(data.error || 'Erreur de paiement');
+        setPurchaseError(data.error || 'Payment error');
         return;
       }
       window.location.href = data.url;
     } catch {
-      setPurchaseError('Erreur réseau. Réessayez.');
+      setPurchaseError('Network error. Please try again.');
     } finally {
       setPurchasing(false);
     }
@@ -223,7 +223,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
               <circle cx="12" cy="12" r="3" />
             </svg>
             <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Consultation uniquement — Contenu protégé et lié à votre compte ({userEmail})
+              View only — Content is protected and tied to your account ({userEmail})
             </span>
           </div>
           {children}
@@ -266,11 +266,11 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <path d="M2 12l10 5 10-5" />
                 </svg>
               </div>
-              <h3 style={{ fontFamily: MONO, fontWeight: 500, fontSize: 22, letterSpacing: '-0.02em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
+              <h3 className="font-display text-[26px]" style={{ color: 'var(--text-primary)' }}>
                 Research Pack
               </h3>
               <p className="mt-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Accès complet à la bibliothèque de recherche orderflow
+                Full access to the order flow research library
               </p>
             </div>
 
@@ -281,7 +281,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                 <span className="text-[11px] uppercase" style={{ fontFamily: MONO, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>one-time</span>
               </div>
               <p className="mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                Paiement unique — consultation en ligne permanente
+                One-time payment — permanent online access
               </p>
               <div className="mt-3 flex items-center justify-center gap-2 rounded-[var(--radius-md)] px-3 py-2"
                 style={{ background: 'color-mix(in srgb, var(--accent) 9%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)' }}>
@@ -289,7 +289,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
                 <span className="text-[11px] font-medium" style={{ color: 'var(--accent)' }}>
-                  Aussi inclus avec l&apos;abonnement SENPRO
+                  Also included with the Pro subscription
                 </span>
               </div>
             </div>
@@ -297,7 +297,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
             {/* Preview quotes */}
             <div className="space-y-3 px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
               <p className="text-[10px] font-bold uppercase" style={{ fontFamily: MONO, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
-                · Aperçu du contenu
+                · Content preview
               </p>
               {PREVIEW_QUOTES.map((q, i) => (
                 <div key={i} className="rounded-[var(--radius-md)] border px-3 py-2.5" style={{ borderColor: 'var(--border)', background: 'var(--background)' }}>
@@ -314,7 +314,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
             {/* Features */}
             <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
               <p className="mb-3 text-[10px] font-bold uppercase" style={{ fontFamily: MONO, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
-                · Inclus dans le pack
+                · Included in the pack
               </p>
               <ul className="space-y-2">
                 {PACK_FEATURES.map((f, i) => (
@@ -336,7 +336,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                  Consultation en ligne uniquement — lié à votre compte, non téléchargeable, non transférable
+                  Online viewing only — tied to your account, not downloadable, not transferable
                 </span>
               </div>
             </div>
@@ -352,13 +352,20 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <button
                     onClick={handlePurchase}
                     disabled={purchasing}
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{ background: 'var(--accent)', color: ON_ACCENT, boxShadow: '0 0 16px color-mix(in srgb, var(--accent) 28%, transparent)' }}
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50"
+                    style={{
+                      color: 'var(--accent)',
+                      background: 'rgb(var(--accent-rgb) / 0.12)',
+                      border: '1px solid rgb(var(--accent-rgb) / 0.30)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 26px rgb(var(--accent-rgb) / 0.14)',
+                    }}
                   >
                     {purchasing ? (
                       <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: ON_ACCENT, borderTopColor: 'transparent' }} />
-                        Redirection vers Stripe...
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+                        Redirecting to Stripe...
                       </>
                     ) : (
                       <>
@@ -366,7 +373,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                           <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
                           <line x1="1" y1="10" x2="23" y2="10" />
                         </svg>
-                        Acheter le Research Pack — $39
+                        Buy the Research Pack — $39
                       </>
                     )}
                   </button>
@@ -374,26 +381,33 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                     <p className="text-center text-xs" style={{ color: 'var(--bear)' }}>{purchaseError}</p>
                   )}
                   <p className="text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Ou souscris à{' '}
+                    Or subscribe to{' '}
                     <Link href="/pricing" className="underline" style={{ color: 'var(--accent)' }}>
-                      SENPRO
+                      Pro
                     </Link>
-                    {' '}pour accéder à tout
+                    {' '}to access everything
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <Link
                     href="/auth/login?callbackUrl=/academy"
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
-                    style={{ background: 'var(--accent)', color: ON_ACCENT, boxShadow: '0 0 16px color-mix(in srgb, var(--accent) 28%, transparent)' }}
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-colors"
+                    style={{
+                      color: 'var(--accent)',
+                      background: 'rgb(var(--accent-rgb) / 0.12)',
+                      border: '1px solid rgb(var(--accent-rgb) / 0.30)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 26px rgb(var(--accent-rgb) / 0.14)',
+                    }}
                   >
-                    Se connecter pour acheter
+                    Sign in to buy
                   </Link>
                   <p className="text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Pas encore de compte ?{' '}
+                    Don&apos;t have an account yet?{' '}
                     <Link href="/auth/register?callbackUrl=/academy" className="underline" style={{ color: 'var(--accent)' }}>
-                      Créer un compte
+                      Create an account
                     </Link>
                   </p>
                 </div>

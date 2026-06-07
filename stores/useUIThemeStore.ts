@@ -397,6 +397,14 @@ export function applyUITheme(themeId: UIThemeId): void {
   root.style.setProperty('--primary-dark-rgb', hexToRgb(c.primaryDark));
   root.style.setProperty('--accent-rgb', hexToRgb(c.accent));
   root.style.setProperty('--accent-light-rgb', hexToRgb(c.accentLight));
+  // Surface/background decomposed — lets glass surfaces (nav drawer, .glass)
+  // tint themselves from the active palette instead of a fixed navy.
+  const surfaceRgb = hexToRgb(c.surface);
+  root.style.setProperty('--background-rgb', hexToRgb(c.background));
+  root.style.setProperty('--surface-rgb', surfaceRgb);
+  root.style.setProperty('--surface-elevated-rgb', hexToRgb(c.surfaceElevated));
+  // Glass token follows the theme surface so "la verrure" matches the brand.
+  root.style.setProperty('--glass-bg', `rgb(${surfaceRgb} / 0.75)`);
 
   // Remove transition class after morph completes to avoid impacting chart perf
   setTimeout(() => root.classList.remove('theme-transition'), 500);

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SENZOUKRIA — Identité visuelle · Concept B (Tuile élément)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#07080f; --surface:#0d0f1b; --surface-2:#12152a;
+    --border:rgba(255,255,255,.09); --border-light:rgba(255,255,255,.13);
+    --lime:#4ade80; --lime-light:#86efac; --lime-dark:#22c55e;
+    --teal:#2dd4bf;
+    --text:#e8eaf6; --dim:#8890b0; --muted:#515878;
+    --mono:'JetBrains Mono',monospace; --grotesk:'Space Grotesk',sans-serif; --serif:'Fraunces',serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--grotesk);
+    -webkit-font-smoothing:antialiased;line-height:1.5;
+    background-image:radial-gradient(900px 500px at 50% -10%, rgba(74,222,128,.05), transparent 70%);}
+  .wrap{max-width:1180px;margin:0 auto;padding:56px 32px 120px}
+  header.page{margin-bottom:56px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--lime);margin-bottom:14px}
+  h1.page{font-family:var(--serif);font-weight:500;font-size:40px;letter-spacing:-.02em;margin-bottom:10px}
+  .sub{color:var(--dim);max-width:640px;font-size:15px}
+  section{margin-top:72px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:28px;border-bottom:1px solid var(--border);padding-bottom:14px}
+  .sec-head h2{font-family:var(--mono);font-weight:500;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--text)}
+  .sec-head .n{font-family:var(--mono);font-size:12px;color:var(--lime)}
+  .sec-head p{color:var(--muted);font-size:13px;margin-left:auto;max-width:420px;text-align:right}
+  .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:900px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:30px 24px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;min-height:180px;position:relative;overflow:hidden}
+  .card .label{position:absolute;top:12px;left:14px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .card .reco{position:absolute;top:10px;right:12px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--bg);background:var(--lime);padding:3px 7px;border-radius:5px;font-weight:700}
+  .caption{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;line-height:1.6}
+  .caption b{color:var(--text);font-weight:500}
+
+  /* ===== ELEMENT TILE ===== */
+  .tile{position:relative;border:1.5px solid var(--border-light);border-radius:14px;
+    background:linear-gradient(160deg, rgba(255,255,255,.025), rgba(255,255,255,0));
+    display:flex;flex-direction:column;padding:10px;font-family:var(--grotesk)}
+  .tile .num{font-family:var(--mono);font-weight:500;color:var(--lime);line-height:1}
+  .tile .sym{font-weight:700;color:var(--text);line-height:.9;letter-spacing:-.04em;margin:auto 0}
+  .tile .nm{font-family:var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);text-align:center}
+  .tile .strip{display:flex;gap:2px;height:6px}
+  .tile .strip i{flex:1;display:flex;gap:1px}
+  .tile .strip i span{flex:1;border-radius:1px}
+  .tile.glow{box-shadow:0 0 0 1px rgba(74,222,128,.08), 0 18px 50px rgba(0,0,0,.6), 0 0 60px rgba(74,222,128,.10)}
+  .tile.glow::after{content:"";position:absolute;inset:0;border-radius:14px;background:radial-gradient(120% 90% at 30% 0%, rgba(74,222,128,.10), transparent 60%);pointer-events:none}
+
+  /* sizes */
+  .t-xl{width:128px;height:128px;border-radius:18px}
+  .t-xl .num{font-size:15px} .t-xl .sym{font-size:64px} .t-xl .nm{font-size:8px}
+  .t-lg{width:104px;height:104px} .t-lg .num{font-size:13px} .t-lg .sym{font-size:52px} .t-lg .nm{font-size:7px}
+  .t-md{width:80px;height:80px;border-radius:11px} .t-md .num{font-size:10px} .t-md .sym{font-size:40px} .t-md .nm{font-size:6px}
+
+  /* ===== LOCKUP ===== */
+  .lockup{display:flex;align-items:center;gap:22px}
+  .wm{display:flex;flex-direction:column;gap:5px}
+  .wm .name{font-weight:600;letter-spacing:-.01em;line-height:1}
+  .wm .desc{font-family:var(--mono);font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+  .wm-grotesk .name{font-family:var(--grotesk);font-size:34px}
+  .wm-mono .name{font-family:var(--mono);font-weight:500;font-size:30px;letter-spacing:-.02em}
+  .wm-serif .name{font-family:var(--serif);font-weight:500;font-size:36px;letter-spacing:-.01em}
+  .wm .name .z{color:var(--lime)}
+
+  /* hero stage */
+  .stage{background:
+      linear-gradient(180deg, rgba(13,15,27,.4), rgba(7,8,15,.4)),
+      radial-gradient(700px 360px at 50% 40%, rgba(74,222,128,.07), transparent 70%);
+    border:1px solid var(--border);border-radius:16px;padding:70px 40px;display:flex;justify-content:center;align-items:center;min-height:300px}
+
+  /* ===== MOTION DEMOS ===== */
+  .charge .tile{position:relative}
+  .ring{position:absolute;inset:-9px;border-radius:50%;pointer-events:none}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ring circle{fill:none;stroke:var(--lime);stroke-width:1.5;stroke-linecap:round;
+    stroke-dasharray:360;stroke-dashoffset:360;animation:draw 3.2s ease-in-out infinite}
+  @keyframes draw{0%{stroke-dashoffset:360;opacity:.2}50%{stroke-dashoffset:0;opacity:.9}100%{stroke-dashoffset:-360;opacity:.2}}
+  .orbit{position:absolute;inset:0;animation:spin 5s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .orbit b{position:absolute;top:-4px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime)}
+  .pulse span{animation:fp 2.4s ease-in-out infinite}
+  @keyframes fp{0%,100%{opacity:.35}50%{opacity:1}}
+  .counter .num{font-variant-numeric:tabular-nums}
+
+  /* petrified / stone variant */
+  .stone .sym{color:#b9bccb;background:linear-gradient(180deg,#cfd2df,#8a8f9e);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .stone{border-color:rgba(255,255,255,.16)}
+  .stone .num{color:#9aa0b5}
+  .swatch-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .sw{width:54px;height:54px;border-radius:8px;border:1px solid var(--border);position:relative}
+  .sw small{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:var(--muted)}
+  footer{margin-top:90px;border-top:1px solid var(--border);padding-top:24px;color:var(--muted);font-family:var(--mono);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="kicker">Identité visuelle · Concept B</div>
+    <h1 class="page">SENZOUKRIA — la tuile élément</h1>
+    <p class="sub">Un mark inspiré d'une case du tableau périodique (la « Kingdom of Science » de Dr. Stone) qui sert aussi de cellule footprint. Distinctif, premium en minimal, exportable, animable. Rendus réels sur le vrai fond <code style="font-family:var(--mono);color:var(--lime)">#07080f</code> et la vraie palette.</p>
+  </header>
+
+  <!-- ============ PRIMARY LOCKUP ============ -->
+  <section>
+    <div class="sec-head"><span class="n">01</span><h2>Lockup principal</h2><p>Le verrou marque par défaut : tuile + wordmark. Ce qu'on voit dans la navbar et le hero.</p></div>
+    <div class="stage">
+      <div class="lockup">
+        <div class="tile t-xl glow">
+          <div class="num">79</div>
+          <div class="sym" style="font-size:60px">Sz</div>
+          <div class="nm">Senzoukria</div>
+          <div class="strip">
+            <i><span style="background:rgba(240,79,79,.5)"></span><span style="background:var(--lime);opacity:.6"></span></i>
+            <i><span style="background:rgba(240,79,79,.35)"></span><span style="background:var(--lime);opacity:.8"></span></i>
+            <i><span style="background:rgba(240,79,79,.6)"></span><span style="background:var(--lime);opacity:.45"></span></i>
+          </div>
+        </div>
+        <div class="wm wm-serif">
+          <div class="name">SENZOU<span class="z">KRIA</span></div>
+          <div class="desc">Orderflow&nbsp;&nbsp;Terminal</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THE MARK — VARIANTS ============ -->
+  <section>
+    <div class="sec-head"><span class="n">02</span><h2>La tuile — 4 variantes</h2><p>Du plus détaillé (science complète) au plus épuré (premium minimal). On garde une seule.</p></div>
+    <div class="grid g4">
+      <div class="card">
+        <span class="label">V1 · complète</span><span class="reco">reco</span>
+        <div class="tile t-lg glow">
+          <div class="num">79</div><div class="sym">Sz</div><div class="nm">Senzoukria</div>
+          <div class="strip"><i><span style="background:rgba(240,79,79,.5)"></span><span style="background:var(--lime);opacity:.6"></span></i><i><span style="background:rgba(240,79,79,.35)"></span><span style="background:var(--lime);opacity:.8"></span></i><i><span style="background:rgba(240,79,79,.6)"></span><span style="background:var(--lime);opacity:.45"></span></i></div>
+        </div>
+        <div class="caption">n° + symbole + nom<br/>+ <b>cellule footprint</b></div>
+      </div>
+      <div class="card">
+        <span class="label">V2 · minimal</span>
+        <div class="tile t-lg glow" style="justify-content:center">
+          <div class="num" style="position:absolute;top:10px;left:12px">79</div>
+          <div class="sym" style="margin:0">Sz</div>
+        </div>
+        <div class="caption">n° + symbole.<br/>Le plus <b>premium</b>, ultra-sobre.</div>
+      </div>
+      <div class="card">
+        <span class="label">V3 · nom</span>
+        <div class="tile t-lg glow" style="justify-content:space-between">
+          <div class="num">79</div><div class="sym" style="margin:6px 0">Sz</div><div class="nm">Senzoukria</div>
+        </div>
+        <div class="caption">n° + symbole + nom.<br/>Sans la cellule footprint.</div>
+      </div>
+      <div class="card">
+        <span class="label">V4 · hybride</span>
+        <div class="tile t-lg glow" style="border-radius:50%;width:104px;align-items:center;justify-content:center">
+          <div class="num" style="position:absolute;top:18px">79</div>
+          <div class="sym" style="margin:0">Sz</div>
+          <div class="orbit" style="animation-duration:6s"><b></b></div>
+        </div>
+        <div class="caption">tuile ronde = atome.<br/>Pont vers le concept A.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WORDMARK TYPE ============ -->
+  <section>
+    <div class="sec-head"><span class="n">03</span><h2>Wordmark — voix typographique</h2><p>Quelle typo pour « SENZOUKRIA ». Editorial = premium, Mono = terminal, Grotesk = moderne neutre.</p></div>
+    <div class="grid g3">
+      <div class="card" style="align-items:flex-start;padding-left:30px">
+        <span class="label">Editorial · Fraunces</span><span class="reco">reco</span>
+        <div class="wm wm-serif"><div class="name">SENZOU<span class="z">KRIA</span></div><div class="desc">Orderflow&nbsp;&nbsp;Terminal</div></div>
+        <div class="caption" style="text-align:left">Haut de gamme, « luxe tech ».<br/>Contraste avec le mono des data.</div>
+      </div>
+      <div class="card" style="align-items:flex-start;padding-left:30px">
+        <span class="label">Terminal · JetBrains Mono</span>
+        <div class="wm wm-mono"><div class="name">SENZOU<span class="z">KRIA</span></div><div class="desc">Orderflow&nbsp;&nbsp;Terminal</div></div>
+        <div class="caption" style="text-align:left">Cohérent avec l'ADN actuel.<br/>Très « trader / terminal ».</div>
+      </div>
+      <div class="card" style="align-items:flex-start;padding-left:30px">
+        <span class="label">Moderne · Space Grotesk</span>
+        <div class="wm wm-grotesk"><div class="name">SENZOU<span class="z">KRIA</span></div><div class="desc">Orderflow&nbsp;&nbsp;Terminal</div></div>
+        <div class="caption" style="text-align:left">Neutre, moderne, lisible.<br/>Le plus « SaaS » safe.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DESCRIPTOR ============ -->
+  <section>
+    <div class="sec-head"><span class="n">04</span><h2>Descripteur / tagline</h2><p>« OrderFlow » est la catégorie sous le nom. Le tagline porte la voix Dr. Stone (science).</p></div>
+    <div class="grid g3">
+      <div class="card"><span class="label">option</span><div class="wm wm-serif" style="align-items:center;text-align:center"><div class="name" style="font-size:26px">SENZOU<span class="z">KRIA</span></div><div class="desc">Orderflow&nbsp;&nbsp;Terminal</div></div></div>
+      <div class="card"><span class="label">option</span><div class="wm wm-serif" style="align-items:center;text-align:center"><div class="name" style="font-size:26px">SENZOU<span class="z">KRIA</span></div><div class="desc">The&nbsp;Science&nbsp;of&nbsp;Orderflow</div></div></div>
+      <div class="card"><span class="label">option</span><div class="wm wm-serif" style="align-items:center;text-align:center"><div class="name" style="font-size:26px">SENZOU<span class="z">KRIA</span></div><div class="desc">Orderflow&nbsp;&nbsp;Intelligence</div></div></div>
+    </div>
+  </section>
+
+  <!-- ============ FAVICON / APP ICON ============ -->
+  <section>
+    <div class="sec-head"><span class="n">05</span><h2>Favicon &amp; app-icon</h2><p>La tuile carrée brille en petit : c'est tout l'intérêt du concept. Lisible jusqu'à 16px.</p></div>
+    <div class="card" style="flex-direction:row;flex-wrap:wrap;gap:34px;justify-content:center;min-height:auto;padding:40px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div class="tile" style="width:64px;height:64px;border-radius:14px;justify-content:center"><div class="num" style="position:absolute;top:7px;left:9px;font-size:8px">79</div><div class="sym" style="font-size:32px;margin:0">Sz</div></div>
+        <div class="caption">app · 64</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div class="tile" style="width:48px;height:48px;border-radius:11px;justify-content:center"><div class="sym" style="font-size:26px;margin:0">Sz</div></div>
+        <div class="caption">48</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div class="tile" style="width:32px;height:32px;border-radius:8px;justify-content:center"><div class="sym" style="font-size:18px;margin:0">Sz</div></div>
+        <div class="caption">32</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div class="tile" style="width:16px;height:16px;border-radius:4px;justify-content:center"><div class="sym" style="font-size:10px;margin:0;font-weight:700">S</div></div>
+        <div class="caption">16</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div class="tile glow" style="width:64px;height:64px;border-radius:16px;justify-content:center;background:var(--lime)"><div class="sym" style="font-size:32px;margin:0;color:#07080f">Sz</div></div>
+        <div class="caption">inversé · lime</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MOTION ============ -->
+  <section>
+    <div class="sec-head"><span class="n">06</span><h2>Motion — la marque vivante</h2><p>4 signatures animées. Subtiles, premium, jamais gadget. (Rejoue en rechargeant la page.)</p></div>
+    <div class="grid g4">
+      <div class="card counter">
+        <span class="label">count-up</span>
+        <div class="tile t-md glow" style="justify-content:center"><div class="num" id="cnt" style="position:absolute;top:9px;left:11px">0</div><div class="sym" style="margin:0">Sz</div></div>
+        <div class="caption">n° atomique qui<br/>s'incrémente à l'entrée</div>
+      </div>
+      <div class="card charge">
+        <span class="label">charge énergie</span>
+        <div class="tile t-md glow" style="justify-content:center">
+          <div class="ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="57"/></svg></div>
+          <div class="sym" style="margin:0">Sz</div>
+        </div>
+        <div class="caption">anneau d'énergie qui<br/>se charge (hover/load)</div>
+      </div>
+      <div class="card">
+        <span class="label">orbite électron</span>
+        <div class="tile t-md glow" style="justify-content:center"><div class="sym" style="margin:0">Sz</div><div class="orbit"><b></b></div></div>
+        <div class="caption">électron en orbite<br/>= atome vivant</div>
+      </div>
+      <div class="card pulse">
+        <span class="label">footprint pulse</span>
+        <div class="tile t-md glow" style="justify-content:space-between">
+          <div class="num">79</div><div class="sym" style="margin:2px 0">Sz</div>
+          <div class="strip"><i><span style="background:rgba(240,79,79,.5)"></span><span style="background:var(--lime)"></span></i><i><span style="background:rgba(240,79,79,.4)"></span><span style="background:var(--lime)"></span></i><i><span style="background:rgba(240,79,79,.6)"></span><span style="background:var(--lime)"></span></i></div>
+        </div>
+        <div class="caption">la cellule footprint<br/>respire (bid/ask)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COLORWAYS ============ -->
+  <section>
+    <div class="sec-head"><span class="n">07</span><h2>Déclinaisons</h2><p>Lime (défaut), mono « pétrifié » (clin d'œil pétrification Dr. Stone), et la palette d'accent.</p></div>
+    <div class="grid g3">
+      <div class="card">
+        <span class="label">défaut · lime</span>
+        <div class="tile t-lg glow" style="justify-content:center"><div class="num" style="position:absolute;top:10px;left:12px">79</div><div class="sym" style="margin:0">Sz</div></div>
+        <div class="caption">accent <b>#4ade80</b></div>
+      </div>
+      <div class="card">
+        <span class="label">pétrifié · stone</span>
+        <div class="tile t-lg stone" style="justify-content:center"><div class="num" style="position:absolute;top:10px;left:12px">79</div><div class="sym" style="margin:0">Sz</div></div>
+        <div class="caption">mono pierre — état<br/>« avant revival »</div>
+      </div>
+      <div class="card">
+        <span class="label">palette accent</span>
+        <div class="swatch-row" style="margin-top:6px">
+          <div class="sw" style="background:#4ade80"><small>lime</small></div>
+          <div class="sw" style="background:#86efac"><small>light</small></div>
+          <div class="sw" style="background:#22c55e"><small>dark</small></div>
+          <div class="sw" style="background:#2dd4bf"><small>teal</small></div>
+          <div class="sw" style="background:#0d0f1b;border-color:var(--border-light)"><small>surface</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    SENZOUKRIA · concept B · planche de validation — pas le rendu final, sert à choisir : variante de tuile, voix typo, descripteur, signature animée.
+  </footer>
+</div>
+
+<script>
+  // count-up demo for the atomic number
+  (function(){
+    var el=document.getElementById('cnt'); if(!el) return;
+    function run(){var t=79,s=performance.now(),d=1400;
+      function f(n){var p=Math.min((n-s)/d,1);var e=1-Math.pow(1-p,3);el.textContent=Math.round(t*e);if(p<1)requestAnimationFrame(f);}
+      requestAnimationFrame(f);}
+    run(); setInterval(run,4200);
+  })();
+</script>
+</body>
+</html>

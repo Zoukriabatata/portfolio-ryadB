@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import Logo from '@/components/ui/Logo';
+import Logotype from '@/components/ui/brand/Logotype';
+import { Menu, X, Zap, Plug, Tag, Download, Users, ChevronRight } from 'lucide-react';
+import { useLenis } from '@/components/landing/LenisContext';
 
 const NAV_LINKS = [
-  { label: 'Features', href: '#features' },
-  { label: 'Brokers', href: '#brokers' },
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'Download', href: '/download' },
-  { label: 'Community', href: '#community' },
+  { label: 'Features', href: '#features', Icon: Zap },
+  { label: 'Brokers', href: '#brokers', Icon: Plug },
+  { label: 'Pricing', href: '/pricing', Icon: Tag },
+  { label: 'Download', href: '/download', Icon: Download },
+  { label: 'Community', href: '#community', Icon: Users },
 ];
 
 export default function LandingNav() {
@@ -18,6 +21,13 @@ export default function LandingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const { data: session } = useSession();
+  const lenis = useLenis();
+  const pathname = usePathname();
+  // Hors de la landing (chrome marketing partagé), les ancres de section
+  // pointent vers la landing : `#features` → `/#features`. Sur la landing,
+  // comportement inchangé (smooth-scroll Lenis).
+  const onLanding = pathname === '/';
+  const linkHref = (href: string) => (onLanding || !href.startsWith('#') ? href : '/' + href);
 
   useEffect(() => {
     const scrollEl = document.querySelector('[data-scroll-root]');
@@ -27,7 +37,6 @@ export default function LandingNav() {
       const st = scrollEl.scrollTop;
       setScrolled(st > 60);
 
-      // Determine active section
       const sections = NAV_LINKS.map(l => l.href.slice(1));
       let current = '';
       for (const id of sections) {
@@ -43,7 +52,6 @@ export default function LandingNav() {
     return () => scrollEl.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Escape key closes mobile nav
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && mobileOpen) setMobileOpen(false);
@@ -53,144 +61,143 @@ export default function LandingNav() {
   }, [mobileOpen]);
 
   const handleLinkClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith('#')) {
+    // Smooth-scroll seulement sur la landing. Hors landing, on laisse le lien
+    // `/#section` naviguer normalement vers la landing.
+    if (href.startsWith('#') && onLanding) {
       e.preventDefault();
       const id = href.slice(1);
       const target = document.getElementById(id);
-      const scrollRoot = document.querySelector('[data-scroll-root]');
-      if (target && scrollRoot) {
-        const offset = target.offsetTop - 80;
-        scrollRoot.scrollTo({ top: offset, behavior: 'smooth' });
+      if (target) {
+        if (lenis) {
+          lenis.scrollTo(target, { offset: -80 });
+        } else {
+          document.querySelector('[data-scroll-root]')?.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
+        }
       }
     }
     setMobileOpen(false);
-  }, []);
+  }, [lenis, onLanding]);
 
   const isActive = (href: string) => activeSection === href.slice(1);
 
   return (
-    <nav
-      className={`
-        fixed top-0 left-0 right-0 z-[100] transition-all duration-300
-        ${scrolled || mobileOpen
-          ? 'bg-black/85 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_4px_24px_rgba(0,0,0,0.5)]'
-          : 'bg-transparent border-b border-transparent'
-        }
-      `}
-    >
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex-shrink-0">
-          <Logo size="md" showText={true} animated={true} />
-        </Link>
+    <nav className="fixed top-0 left-0 right-0 z-[100] flex justify-center px-4 pt-4 pointer-events-none">
+      <div className="pointer-events-auto w-full max-w-5xl">
+        {/* Pill flottante en verre */}
+        <div
+          className="flex items-center h-[54px] pl-[18px] pr-[10px] rounded-[15px] transition-all duration-300"
+          style={{
+            border: '1px solid rgb(var(--primary-rgb) / 0.18)',
+            background: scrolled || mobileOpen
+              ? 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.05), rgba(13,15,27,0.50))'
+              : 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.04), rgba(13,15,27,0.30))',
+            backdropFilter: 'blur(26px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+            boxShadow: '0 16px 44px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 26px rgb(var(--primary-rgb) / 0.05), 0 0 26px rgb(var(--primary-rgb) / 0.07)',
+          }}
+        >
+          {/* Brand */}
+          <Link href="/" className="flex-shrink-0" aria-label="Senzoukria">
+            <Logotype fontSize={20} />
+          </Link>
 
-        {/* Center Links — desktop */}
-        <div className="hidden md:flex items-center gap-8">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              onClick={(e) => handleLinkClick(e, link.href)}
-              className={`
-                relative text-sm font-medium transition-colors duration-200 py-1
-                ${isActive(link.href)
-                  ? ''
-                  : 'text-white/50 hover:text-white/90'
-                }
-              `}
-              style={isActive(link.href) ? { color: 'var(--primary-light)' } : undefined}
+          {/* Liens centrés (desktop) */}
+          <div className="hidden md:flex flex-1 items-center justify-center gap-7">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.label}
+                href={linkHref(link.href)}
+                onClick={(e) => handleLinkClick(e, link.href)}
+                className="text-[13px] font-medium transition-colors duration-200"
+                style={{ color: isActive(link.href) ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3.5 ml-auto md:ml-0">
+            {session ? (
+              <Link href="/live" className="landing-btn-primary text-sm">Dashboard</Link>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="hidden sm:block text-[13px] font-medium transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Sign in
+                </Link>
+                <Link href="/auth/register" className="landing-btn-primary text-sm">
+                  Get free preview
+                </Link>
+              </>
+            )}
+
+            {/* Hamburger (mobile) */}
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-[10px] transition-colors"
+              style={{ border: '1px solid rgb(var(--primary-rgb) / 0.22)', background: 'rgb(var(--primary-rgb) / 0.06)', color: 'var(--primary-light)' }}
+              aria-label="Toggle menu"
             >
-              {link.label}
-              {/* Active indicator dot */}
-              <span
-                className={`
-                  absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full
-                  transition-all duration-300
-                  ${isActive(link.href) ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
-                `}
-                style={{ backgroundColor: 'var(--primary-light)' }}
-              />
-            </a>
-          ))}
+              {mobileOpen ? <X size={17} strokeWidth={2.2} /> : <Menu size={17} strokeWidth={2.2} />}
+            </button>
+          </div>
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-3">
-          {session ? (
-            <Link
-              href="/live"
-              className="landing-btn-primary text-sm"
-            >
-              Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/auth/login"
-                className="text-sm font-medium text-white/50 hover:text-white/90 transition-colors hidden sm:block"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/auth/register"
-                className="landing-btn-primary text-sm"
-              >
-                Get Started
-              </Link>
-            </>
+        {/* Dropdown mobile — panneau verre teinté thème */}
+        <div
+          className={`md:hidden mt-2 rounded-2xl overflow-hidden transition-all duration-300 ease-in-out ${mobileOpen ? 'max-h-[440px] opacity-100' : 'max-h-0 opacity-0'}`}
+          style={{
+            border: `1px solid ${mobileOpen ? 'rgb(var(--primary-rgb) / 0.18)' : 'transparent'}`,
+            background: 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.07), rgba(13,15,27,0.72))',
+            backdropFilter: 'blur(26px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(26px) saturate(170%)',
+            boxShadow: mobileOpen ? '0 22px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.10), 0 0 30px rgb(var(--primary-rgb) / 0.07)' : 'none',
+          }}
+        >
+          <div className="flex flex-col gap-1 p-2.5">
+            {NAV_LINKS.map((link, i) => {
+              const active = isActive(link.href);
+              return (
+                <a
+                  key={link.label}
+                  href={linkHref(link.href)}
+                  onClick={(e) => handleLinkClick(e, link.href)}
+                  className="flex items-center gap-3 py-2.5 px-3 rounded-xl transition-all"
+                  style={{
+                    transitionDelay: mobileOpen ? `${i * 45}ms` : '0ms',
+                    transform: mobileOpen ? 'translateX(0)' : 'translateX(-10px)',
+                    opacity: mobileOpen ? 1 : 0,
+                    background: active ? 'rgb(var(--primary-rgb) / 0.10)' : 'transparent',
+                    color: active ? 'var(--primary-light)' : 'var(--text-secondary)',
+                    fontSize: 15,
+                    fontWeight: 500,
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  <span
+                    className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
+                    style={{ background: 'rgb(var(--primary-rgb) / 0.08)', border: '1px solid rgb(var(--primary-rgb) / 0.15)', color: 'var(--primary)' }}
+                  >
+                    <link.Icon size={16} strokeWidth={2} />
+                  </span>
+                  {link.label}
+                  <ChevronRight size={15} className="ml-auto" style={{ color: 'var(--text-dimmed)' }} />
+                </a>
+              );
+            })}
+          </div>
+
+          {!session && (
+            <div className="flex flex-col gap-2 p-2.5 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <Link href="/auth/register" onClick={() => setMobileOpen(false)} className="landing-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>Get free preview</Link>
+              <Link href="/auth/login" onClick={() => setMobileOpen(false)} className="landing-btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>Sign in</Link>
+            </div>
           )}
-
-          {/* Hamburger — mobile */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden ml-2 w-9 h-9 flex items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
-            aria-label="Toggle menu"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-white/60">
-              {mobileOpen ? (
-                <>
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </>
-              ) : (
-                <>
-                  <line x1="4" y1="7" x2="20" y2="7" />
-                  <line x1="4" y1="12" x2="20" y2="12" />
-                  <line x1="4" y1="17" x2="20" y2="17" />
-                </>
-              )}
-            </svg>
-          </button>
         </div>
-      </div>
-
-      {/* Mobile dropdown */}
-      <div
-        className={`
-          md:hidden border-t border-white/[0.06] bg-black/90 backdrop-blur-2xl px-6 flex flex-col gap-1
-          overflow-hidden transition-all duration-300 ease-in-out
-          ${mobileOpen ? 'max-h-60 py-4 opacity-100' : 'max-h-0 py-0 opacity-0'}
-        `}
-      >
-        {NAV_LINKS.map((link, i) => (
-          <a
-            key={link.label}
-            href={link.href}
-            onClick={(e) => handleLinkClick(e, link.href)}
-            className={`
-              text-sm font-medium transition-all py-2.5 px-3 rounded-lg hover:bg-white/[0.04]
-              ${isActive(link.href) ? '' : 'text-white/60 hover:text-white/90'}
-            `}
-            style={{
-              transitionDelay: mobileOpen ? `${i * 50}ms` : '0ms',
-              transform: mobileOpen ? 'translateX(0)' : 'translateX(-12px)',
-              opacity: mobileOpen ? 1 : 0,
-              ...(isActive(link.href) ? { color: 'var(--primary-light)' } : {}),
-            }}
-          >
-            {link.label}
-          </a>
-        ))}
       </div>
     </nav>
   );

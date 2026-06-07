@@ -56,11 +56,10 @@ export default function CTASection() {
           data-animate="scale"
           className="leading-none"
           style={{
-            fontFamily: 'var(--font-jetbrains-mono)',
-            fontWeight: 500,
-            fontSize: 'clamp(36px, 4.8vw, 64px)',
-            letterSpacing: '-0.04em',
-            textTransform: 'uppercase',
+            fontFamily: 'var(--font-fraunces)',
+            fontWeight: 400,
+            fontSize: 'clamp(36px, 4.8vw, 60px)',
+            letterSpacing: '-0.03em',
             WebkitFontSmoothing: 'subpixel-antialiased',
           }}
         >
@@ -68,7 +67,7 @@ export default function CTASection() {
           <br />
           <span style={{ color: 'var(--text-primary)' }}>delayed cells.</span>
           <br />
-          <span style={{ color: 'var(--primary)' }}>Open the bridge.</span>
+          <span style={{ color: 'var(--primary)', fontWeight: 600, fontStyle: 'italic' }}>Open the bridge.</span>
         </h2>
 
         <p

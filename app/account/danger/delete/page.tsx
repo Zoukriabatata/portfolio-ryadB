@@ -38,7 +38,7 @@ export default async function DeleteAccountPage() {
         <a className="acct-delete-back" href="/account">← Back to account</a>
         <h1>Delete account</h1>
         <p>
-          This permanently erases your OrderflowV2 account and every
+          This permanently erases your Senzoukria account and every
           piece of data attached to it. This action <strong>cannot be undone</strong>.
         </p>
       </header>

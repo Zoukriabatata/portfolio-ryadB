@@ -1,25 +1,29 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { AlertTriangle, Inbox } from 'lucide-react';
 import { usePageActive } from '@/hooks/usePageActive';
 import type { FlowItem } from '@/app/api/options-flow/route';
 import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const TEAL = '#26beaf';
-const BULL = '#34d399';
-const BEAR = '#f87171';
-const WARN = '#fbbf24';
+// Data-semantic colors aligned to the brand palette. Per trading convention
+// (ATAS/Sierra), these stay fixed/vivid across themes — only the neutral text
+// and surfaces are theme-tokenized below. Used via `${COLOR}NN` alpha suffixes.
+const TEAL = '#2dd4bf';   // var(--accent)
+const BULL = '#26d97f';   // var(--bull)
+const BEAR = '#f04f4f';   // var(--bear)
+const WARN = '#e8a020';   // var(--warning)
 const PURPLE = '#c084fc';
 
 const SYMBOLS = ['QQQ', 'SPY', 'AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'META'];
 
 const TAG_META: Record<FlowItem['tag'], { label: string; color: string; bg: string }> = {
-  WHALE:   { label: '🐋 Whale',   color: PURPLE,  bg: 'rgba(192,132,252,0.12)' },
-  UNUSUAL: { label: '⚡ Unusual', color: WARN,    bg: 'rgba(251,191,36,0.10)' },
-  BLOCK:   { label: '■ Block',   color: TEAL,    bg: 'rgba(38,190,175,0.10)' },
-  SWEEP:   { label: '→ Sweep',   color: '#60a5fa', bg: 'rgba(96,165,250,0.10)' },
-  FLOW:    { label: '· Flow',    color: 'rgba(148,163,184,0.6)', bg: 'rgba(255,255,255,0.03)' },
+  WHALE:   { label: 'Whale',   color: PURPLE,    bg: 'rgba(192,132,252,0.12)' },
+  UNUSUAL: { label: 'Unusual', color: WARN,      bg: 'rgba(251,191,36,0.10)' },
+  BLOCK:   { label: 'Block',   color: TEAL,      bg: 'rgba(38,190,175,0.10)' },
+  SWEEP:   { label: 'Sweep',   color: '#60a5fa', bg: 'rgba(96,165,250,0.10)' },
+  FLOW:    { label: 'Flow',    color: 'var(--text-secondary)', bg: 'var(--surface)' },
 };
 
 type TypeFilter = 'all' | 'calls' | 'puts';
@@ -54,19 +58,19 @@ function TopUnusualCards({ trades }: { trades: FlowItem[] }) {
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: tag.bg, color: tag.color }}>
                 {tag.label}
               </span>
-              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>#{i + 1}</span>
+              <span className="text-[9px] font-mono" style={{ color: 'var(--text-dimmed)' }}>#{i + 1}</span>
             </div>
             <div className="flex items-baseline gap-2 mb-1">
               <span className="text-[10px] font-black" style={{ color: isCall ? BULL : BEAR }}>{t.type}</span>
-              <span className="text-[14px] font-black font-mono" style={{ color: 'rgba(255,255,255,0.9)' }}>${t.strike}</span>
-              <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>{t.expLabel}</span>
+              <span className="text-[14px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>${t.strike}</span>
+              <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{t.expLabel}</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[12px] font-black font-mono"
                 style={{ color: t.premium >= 1_000_000 ? PURPLE : WARN }}>
                 {fmtPremium(t.premium)}
               </span>
-              <span className="text-[9px] font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <span className="text-[9px] font-mono" style={{ color: 'var(--text-dimmed)' }}>
                 {fmtNum(t.volume)} vol · {t.volOiRatio.toFixed(1)}x
               </span>
             </div>
@@ -79,7 +83,7 @@ function TopUnusualCards({ trades }: { trades: FlowItem[] }) {
 
 // ─── Premium Flow Chart (Call vs Put by Strike) ────────────────────────────────
 function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPremium: number; putPremium: number }[]; spotPrice: number }) {
-  if (data.length === 0) return <div className="flex-1 flex items-center justify-center text-[11px]" style={{ color: 'rgba(255,255,255,0.2)' }}>No data</div>;
+  if (data.length === 0) return <div className="flex-1 flex items-center justify-center text-[11px]" style={{ color: 'var(--text-dimmed)' }}>No data</div>;
 
   const maxPremium = Math.max(...data.map(d => Math.max(d.callPremium, d.putPremium)), 1);
   // Show top 30 strikes by total premium
@@ -87,7 +91,7 @@ function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPre
 
   return (
     <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
-      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'rgba(255,255,255,0.25)' }}>
+      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'var(--text-dimmed)' }}>
         Premium Flow by Strike
       </h3>
       <div className="flex flex-col gap-0.5">
@@ -96,7 +100,7 @@ function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPre
           return (
             <div key={d.strike} className="flex items-center gap-2 h-5">
               <span className="text-[9px] font-mono w-14 text-right shrink-0"
-                style={{ color: isSpot ? TEAL : 'rgba(255,255,255,0.4)', fontWeight: isSpot ? 900 : 400 }}>
+                style={{ color: isSpot ? TEAL : 'var(--text-muted)', fontWeight: isSpot ? 900 : 400 }}>
                 ${d.strike}
               </span>
               {/* Put bar (left, red) */}
@@ -105,7 +109,7 @@ function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPre
                   style={{ width: `${(d.putPremium / maxPremium) * 100}%`, background: `${BEAR}88`, minWidth: d.putPremium > 0 ? 2 : 0 }} />
               </div>
               {/* Divider */}
-              <div className="w-px h-4 shrink-0" style={{ background: isSpot ? TEAL : 'rgba(255,255,255,0.08)' }} />
+              <div className="w-px h-4 shrink-0" style={{ background: isSpot ? TEAL : 'var(--border)' }} />
               {/* Call bar (right, green) */}
               <div className="flex-1">
                 <div className="h-3 rounded-r transition-all"
@@ -129,7 +133,7 @@ function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPre
 
 // ─── Strike × Expiry Heatmap ──────────────────────────────────────────────────
 function StrikeExpiryHeatmap({ data }: { data: { strike: number; expLabel: string; dte: number; callPremium: number; putPremium: number; totalVolume: number }[] }) {
-  if (data.length === 0) return <div className="flex-1 flex items-center justify-center text-[11px]" style={{ color: 'rgba(255,255,255,0.2)' }}>No data</div>;
+  if (data.length === 0) return <div className="flex-1 flex items-center justify-center text-[11px]" style={{ color: 'var(--text-dimmed)' }}>No data</div>;
 
   // Get unique strikes and expiries
   const strikes = [...new Set(data.map(d => d.strike))].sort((a, b) => a - b);
@@ -151,26 +155,26 @@ function StrikeExpiryHeatmap({ data }: { data: { strike: number; expLabel: strin
 
   return (
     <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
-      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'rgba(255,255,255,0.25)' }}>
+      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'var(--text-dimmed)' }}>
         Strike × Expiry Heatmap (Premium Intensity)
       </h3>
       <div className="overflow-auto">
         <table className="border-collapse text-[9px]">
           <thead>
             <tr>
-              <th className="px-2 py-1.5 text-right font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>Strike</th>
+              <th className="px-2 py-1.5 text-right font-mono" style={{ color: 'var(--text-dimmed)' }}>Strike</th>
               {topExpiries.map(exp => (
-                <th key={exp} className="px-2 py-1.5 text-center font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>{exp}</th>
+                <th key={exp} className="px-2 py-1.5 text-center font-mono" style={{ color: 'var(--text-dimmed)' }}>{exp}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {topStrikes.map(strike => (
               <tr key={strike}>
-                <td className="px-2 py-0.5 text-right font-mono font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>${strike}</td>
+                <td className="px-2 py-0.5 text-right font-mono font-bold" style={{ color: 'var(--text-muted)' }}>${strike}</td>
                 {topExpiries.map(exp => {
                   const cell = getCell(strike, exp);
-                  if (!cell) return <td key={exp} className="px-1 py-0.5"><div className="w-full h-5 rounded" style={{ background: 'rgba(255,255,255,0.02)' }} /></td>;
+                  if (!cell) return <td key={exp} className="px-1 py-0.5"><div className="w-full h-5 rounded" style={{ background: 'var(--surface)' }} /></td>;
                   const total = cell.callPremium + cell.putPremium;
                   const intensity = Math.pow(total / maxPrem, 0.5); // sqrt for better distribution
                   const isCallDominant = cell.callPremium > cell.putPremium;
@@ -220,16 +224,16 @@ function StatsRow({ stats, symbol }: { stats: FlowStats; symbol: string }) {
     <div className="flex flex-wrap items-stretch gap-0 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
       {/* Sentiment cell — now multi-factor */}
       <div className="flex flex-col justify-center items-center px-5 py-2.5 border-r" style={{ borderColor: 'var(--border)', minWidth: 100 }}>
-        <span className="text-[8.5px] uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>Sentiment</span>
+        <span className="text-[8.5px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)' }}>Sentiment</span>
         <span className="text-[15px] font-black" style={{ color: sentColor }}>{sentiment}</span>
         <span className="text-[8px] font-mono" style={{ color: `${sentColor}88` }}>{(s * 100).toFixed(0)}%</span>
       </div>
 
       {/* Call/Put bar */}
       <div className="flex flex-col justify-center px-4 py-2.5 border-r flex-1 min-w-[160px]" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex justify-between text-[8.5px] mb-1.5" style={{ color: 'rgba(255,255,255,0.28)' }}>
+        <div className="flex justify-between text-[8.5px] mb-1.5" style={{ color: 'var(--text-dimmed)' }}>
           <span style={{ color: `${BULL}bb` }}>Calls {callPct.toFixed(0)}%</span>
-          <span style={{ color: 'rgba(255,255,255,0.35)' }}>Premium Flow</span>
+          <span style={{ color: 'var(--text-muted)' }}>Premium Flow</span>
           <span style={{ color: `${BEAR}bb` }}>Puts {(100 - callPct).toFixed(0)}%</span>
         </div>
         <div className="h-2.5 rounded overflow-hidden flex">
@@ -243,11 +247,11 @@ function StatsRow({ stats, symbol }: { stats: FlowStats; symbol: string }) {
         { l: 'Call Flow',  v: fmtPremium(stats.totalCallPremium), c: `${BULL}cc` },
         { l: 'Put Flow',   v: fmtPremium(stats.totalPutPremium),  c: `${BEAR}cc` },
         { l: 'Unusual',    v: `${stats.unusualCount}`,             c: WARN },
-        { l: 'Contracts',  v: `${stats.total}`,                    c: 'rgba(255,255,255,0.5)' },
+        { l: 'Contracts',  v: `${stats.total}`,                    c: 'var(--text-muted)' },
         { l: `${symbol}`,  v: stats.spotPrice > 0 ? `$${stats.spotPrice.toFixed(2)}` : '—', c: TEAL },
       ].map(m => (
         <div key={m.l} className="flex flex-col justify-center items-center px-4 py-2.5 border-r" style={{ borderColor: 'var(--border)', minWidth: 72 }}>
-          <span className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.22)' }}>{m.l}</span>
+          <span className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)' }}>{m.l}</span>
           <span className="font-mono text-[13px] font-black" style={{ color: m.c }}>{m.v}</span>
         </div>
       ))}
@@ -263,38 +267,38 @@ function FlowRow({ item, idx }: { item: FlowItem; idx: number }) {
 
   return (
     <tr className="border-b transition-colors hover:brightness-125"
-      style={{ borderColor: 'rgba(255,255,255,0.04)', background: idx % 2 === 0 ? rowColor : 'transparent' }}>
-      <td className="px-3 py-2 text-[10px] font-mono text-center w-8 shrink-0" style={{ color: 'rgba(255,255,255,0.2)' }}>{idx + 1}</td>
+      style={{ borderColor: 'var(--border)', background: idx % 2 === 0 ? rowColor : 'transparent' }}>
+      <td className="px-3 py-2 text-[10px] font-mono text-center w-8 shrink-0" style={{ color: 'var(--text-dimmed)' }}>{idx + 1}</td>
       <td className="px-2 py-2 w-14">
         <span className="text-[10px] font-black px-2 py-0.5 rounded"
           style={isCall ? { background: `${BULL}18`, color: BULL, border: `1px solid ${BULL}28` } : { background: `${BEAR}18`, color: BEAR, border: `1px solid ${BEAR}28` }}>
           {item.type}
         </span>
       </td>
-      <td className="px-2 py-2 font-mono text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.9)' }}>${item.strike.toFixed(0)}</td>
+      <td className="px-2 py-2 font-mono text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>${item.strike.toFixed(0)}</td>
       <td className="px-2 py-2">
         <div className="flex flex-col">
-          <span className="font-mono text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>{item.expLabel}</span>
-          <span className="text-[9px] font-mono" style={{ color: item.dte <= 3 ? BEAR : item.dte <= 7 ? WARN : 'rgba(255,255,255,0.3)' }}>{item.dte}d</span>
+          <span className="font-mono text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{item.expLabel}</span>
+          <span className="text-[9px] font-mono" style={{ color: item.dte <= 3 ? BEAR : item.dte <= 7 ? WARN : 'var(--text-dimmed)' }}>{item.dte}d</span>
         </div>
       </td>
       <td className="px-2 py-2">
-        <span className="font-mono text-[12px] font-black" style={{ color: item.premium >= 1_000_000 ? PURPLE : item.premium >= 500_000 ? WARN : 'rgba(255,255,255,0.85)' }}>
+        <span className="font-mono text-[12px] font-black" style={{ color: item.premium >= 1_000_000 ? PURPLE : item.premium >= 500_000 ? WARN : 'var(--text-primary)' }}>
           {fmtPremium(item.premium)}
         </span>
       </td>
-      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: 'rgba(255,255,255,0.65)' }}>{fmtNum(item.volume)}</td>
-      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>{fmtNum(item.oi)}</td>
+      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{fmtNum(item.volume)}</td>
+      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>{fmtNum(item.oi)}</td>
       <td className="px-2 py-2">
-        <span className="font-mono text-[11px] font-bold" style={{ color: item.volOiRatio >= 2 ? WARN : item.volOiRatio >= 1 ? TEAL : 'rgba(255,255,255,0.4)' }}>
+        <span className="font-mono text-[11px] font-bold" style={{ color: item.volOiRatio >= 2 ? WARN : item.volOiRatio >= 1 ? TEAL : 'var(--text-muted)' }}>
           {item.volOiRatio.toFixed(2)}x
         </span>
       </td>
-      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: item.iv > 50 ? BEAR : item.iv > 30 ? WARN : 'rgba(255,255,255,0.6)' }}>{item.iv.toFixed(1)}%</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.45)' }}>{item.delta.toFixed(2)}</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{(item.gamma * 1000).toFixed(1)}</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.vega.toFixed(2)}</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: item.theta < -0.5 ? `${BEAR}aa` : 'rgba(255,255,255,0.35)' }}>{item.theta.toFixed(2)}</td>
+      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: item.iv > 50 ? BEAR : item.iv > 30 ? WARN : 'var(--text-secondary)' }}>{item.iv.toFixed(1)}%</td>
+      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>{item.delta.toFixed(2)}</td>
+      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>{(item.gamma * 1000).toFixed(1)}</td>
+      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>{item.vega.toFixed(2)}</td>
+      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: item.theta < -0.5 ? `${BEAR}aa` : 'var(--text-muted)' }}>{item.theta.toFixed(2)}</td>
       <td className="px-2 py-2">
         <span className="text-[9px] font-bold px-2 py-0.5 rounded whitespace-nowrap"
           style={{ background: tag.bg, color: tag.color, border: `1px solid ${tag.color}28` }}>
@@ -383,7 +387,7 @@ export default function FlowPageContent() {
 
   const SortTh = ({ label, k, className = '' }: { label: string; k: SortKey; className?: string }) => (
     <th className={`px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold cursor-pointer select-none whitespace-nowrap ${className}`}
-      style={{ color: sortKey === k ? TEAL : 'rgba(255,255,255,0.28)' }} onClick={() => handleSort(k)}>
+      style={{ color: sortKey === k ? TEAL : 'var(--text-dimmed)' }} onClick={() => handleSort(k)}>
       {label} {sortKey === k ? (sortDesc ? '↓' : '↑') : ''}
     </th>
   );
@@ -406,7 +410,7 @@ export default function FlowPageContent() {
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {SYMBOLS.map(s => (
             <button key={s} onClick={() => setSymbol(s)} className="px-2.5 py-1 text-[10px] rounded font-bold transition-all"
-              style={symbol === s ? { background: `${TEAL}20`, color: TEAL } : { color: 'rgba(255,255,255,0.28)' }}>{s}</button>
+              style={symbol === s ? { background: `${TEAL}20`, color: TEAL } : { color: 'var(--text-dimmed)' }}>{s}</button>
           ))}
         </div>
 
@@ -418,7 +422,7 @@ export default function FlowPageContent() {
             <button key={t} onClick={() => setTypeFilter(t)} className="px-3 py-1 rounded text-[10px] font-bold capitalize transition-all"
               style={typeFilter === t
                 ? t === 'calls' ? { background: `${BULL}18`, color: BULL } : t === 'puts' ? { background: `${BEAR}18`, color: BEAR } : { background: `${TEAL}18`, color: TEAL }
-                : { color: 'rgba(255,255,255,0.3)' }
+                : { color: 'var(--text-dimmed)' }
               }>{t === 'all' ? 'All' : t === 'calls' ? '↑ Calls' : '↓ Puts'}</button>
           ))}
         </div>
@@ -428,11 +432,11 @@ export default function FlowPageContent() {
         {/* Tag filter */}
         <div className="flex items-center gap-1">
           {([
-            { v: 'all', l: 'All Trades' }, { v: 'whale', l: '🐋 Whale' }, { v: 'unusual', l: '⚡ Unusual' },
-            { v: 'block', l: '■ Block' }, { v: 'sweep', l: '→ Sweep' },
+            { v: 'all', l: 'All Trades' }, { v: 'whale', l: 'Whale' }, { v: 'unusual', l: 'Unusual' },
+            { v: 'block', l: 'Block' }, { v: 'sweep', l: 'Sweep' },
           ] as { v: TagFilter; l: string }[]).map(t => (
             <button key={t.v} onClick={() => setTagFilter(t.v)} className="px-2.5 py-1 rounded text-[10px] font-bold transition-all"
-              style={tagFilter === t.v ? { background: `${TEAL}18`, color: TEAL, border: `1px solid ${TEAL}28` } : { color: 'rgba(255,255,255,0.3)', border: '1px solid transparent' }}>
+              style={tagFilter === t.v ? { background: `${TEAL}18`, color: TEAL, border: `1px solid ${TEAL}28` } : { color: 'var(--text-dimmed)', border: '1px solid transparent' }}>
               {t.l}
             </button>
           ))}
@@ -442,11 +446,11 @@ export default function FlowPageContent() {
 
         {/* Min Premium */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.25)' }}>Min</span>
+          <span className="text-[9px]" style={{ color: 'var(--text-dimmed)' }}>Min</span>
           <div className="flex items-center gap-0.5">
             {MIN_PREMIUM_OPTIONS.map(o => (
               <button key={o.value} onClick={() => setMinPremium(o.value)} className="px-2 py-0.5 rounded text-[9px] font-mono transition-all"
-                style={minPremium === o.value ? { background: `${TEAL}18`, color: TEAL } : { color: 'rgba(255,255,255,0.25)' }}>{o.label}</button>
+                style={minPremium === o.value ? { background: `${TEAL}18`, color: TEAL } : { color: 'var(--text-dimmed)' }}>{o.label}</button>
             ))}
           </div>
         </div>
@@ -456,17 +460,17 @@ export default function FlowPageContent() {
         {/* View tabs */}
         <div className="flex items-center gap-1">
           {([
-            { v: 'table', l: '📋 Table' }, { v: 'chart', l: '📊 Chart' }, { v: 'heatmap', l: '🗺️ Heatmap' },
+            { v: 'table', l: 'Table' }, { v: 'chart', l: 'Chart' }, { v: 'heatmap', l: 'Heatmap' },
           ] as { v: ViewTab; l: string }[]).map(t => (
             <button key={t.v} onClick={() => setViewTab(t.v)} className="px-2.5 py-1 rounded text-[10px] font-bold transition-all"
-              style={viewTab === t.v ? { background: `${TEAL}18`, color: TEAL } : { color: 'rgba(255,255,255,0.3)' }}>{t.l}</button>
+              style={viewTab === t.v ? { background: `${TEAL}18`, color: TEAL } : { color: 'var(--text-dimmed)' }}>{t.l}</button>
           ))}
         </div>
 
         {/* Right: status + refresh */}
         <div className="ml-auto flex items-center gap-2.5">
           {lastRefresh && (
-            <span className="text-[9px] font-mono hidden md:block" style={{ color: 'rgba(255,255,255,0.2)' }}>
+            <span className="text-[9px] font-mono hidden md:block" style={{ color: 'var(--text-dimmed)' }}>
               {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
@@ -479,7 +483,7 @@ export default function FlowPageContent() {
           </div>
           <button onClick={fetchFlow} disabled={loading}
             className="p-1.5 rounded-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'rgba(255,255,255,0.4)' }}>
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className={loading ? 'animate-spin' : ''}>
               <path d="M4 12C4 7.58 7.58 4 12 4c3.37 0 6.26 2.11 7.42 5" /><path d="M20 12c0 4.42-3.58 8-8 8-3.37 0-6.26-2.11-7.42-5" />
               <polyline points="20 4 20 9 15 9" /><polyline points="4 20 4 15 9 15" />
@@ -496,9 +500,9 @@ export default function FlowPageContent() {
 
       {/* ── Error ── */}
       {error && (
-        <div className="px-4 py-2 text-[10px] shrink-0"
-          style={{ background: 'rgba(248,113,113,0.06)', color: BEAR, borderBottom: '1px solid rgba(248,113,113,0.12)' }}>
-          ⚠ {error}
+        <div className="flex items-center gap-1.5 px-4 py-2 text-[10px] shrink-0"
+          style={{ background: 'var(--bear-bg)', color: 'var(--bear)', borderBottom: '1px solid rgb(var(--bear-rgb) / 0.12)' }}>
+          <AlertTriangle size={12} strokeWidth={2} /> {error}
         </div>
       )}
 
@@ -506,7 +510,7 @@ export default function FlowPageContent() {
       {loading && flows.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <div className="w-7 h-7 border-2 rounded-full animate-spin" style={{ borderColor: `${TEAL}25`, borderTopColor: TEAL }} />
-          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.22)' }}>Fetching {symbol} options flow from CBOE…</p>
+          <p className="text-[11px]" style={{ color: 'var(--text-dimmed)' }}>Fetching {symbol} options flow from CBOE…</p>
         </div>
       )}
 
@@ -515,21 +519,21 @@ export default function FlowPageContent() {
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10" style={{ background: 'var(--background)' }}>
-              <tr className="border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                <th className="px-3 py-2.5 text-[8.5px] uppercase tracking-wider font-semibold text-center w-8" style={{ color: 'rgba(255,255,255,0.2)' }}>#</th>
-                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'rgba(255,255,255,0.28)' }}>Type</th>
-                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'rgba(255,255,255,0.28)' }}>Strike</th>
+              <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+                <th className="px-3 py-2.5 text-[8.5px] uppercase tracking-wider font-semibold text-center w-8" style={{ color: 'var(--text-dimmed)' }}>#</th>
+                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-dimmed)' }}>Type</th>
+                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-dimmed)' }}>Strike</th>
                 <SortTh label="Expiry" k="dte" />
                 <SortTh label="Premium" k="premium" />
                 <SortTh label="Volume" k="volume" />
-                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'rgba(255,255,255,0.28)' }}>OI</th>
+                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-dimmed)' }}>OI</th>
                 <SortTh label="Vol/OI" k="volOiRatio" />
                 <SortTh label="IV" k="iv" />
-                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'rgba(255,255,255,0.28)' }}>Δ</th>
+                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-dimmed)' }}>Δ</th>
                 <SortTh label="Γ" k="gamma" />
                 <SortTh label="V" k="vega" />
                 <SortTh label="Θ" k="theta" />
-                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'rgba(255,255,255,0.28)' }}>Tag</th>
+                <th className="px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-dimmed)' }}>Tag</th>
               </tr>
             </thead>
             <tbody>
@@ -537,7 +541,7 @@ export default function FlowPageContent() {
             </tbody>
           </table>
           <div className="flex items-center justify-between px-4 py-2.5 border-t text-[9px]"
-            style={{ borderColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)' }}>
+            style={{ borderColor: 'var(--border)', color: 'var(--text-dimmed)' }}>
             <span>{sorted.length} contracts displayed · min premium {fmtPremium(minPremium)}</span>
             <span>CBOE delayed data · not financial advice</span>
           </div>
@@ -555,8 +559,8 @@ export default function FlowPageContent() {
       {/* ── Empty ── */}
       {!loading && flows.length === 0 && !error && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <span className="text-4xl opacity-10">📊</span>
-          <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.22)' }}>No flow matching filters for {symbol}</p>
+          <Inbox size={34} strokeWidth={1.25} style={{ color: 'var(--text-dimmed)', opacity: 0.5 }} />
+          <p className="text-[12px]" style={{ color: 'var(--text-dimmed)' }}>No flow matching filters for {symbol}</p>
           <button onClick={fetchFlow} className="px-4 py-2 rounded-lg text-[11px] font-bold"
             style={{ background: `${TEAL}18`, color: TEAL, border: `1px solid ${TEAL}30` }}>Retry</button>
         </div>

@@ -121,9 +121,11 @@ const FeatureCard = memo(function FeatureCard({ f, i }: { f: typeof FEATURES[num
 export default function FeaturesSection() {
   return (
     <section id="features" className="relative px-6 py-20 md:py-28" style={{ zIndex: 2 }}>
-      {/* Semi-transparent backdrop */}
+      {/* Semi-transparent backdrop — démarre transparent en haut pour se
+          fondre dans le bas-de-hero déjà sombre (évite la dalle nette qui
+          cassait la couture hero → Features). */}
       <div className="absolute inset-0" style={{
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.5) 100%)',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.5) 16%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.45) 100%)',
         zIndex: 1,
       }} />
 
@@ -156,16 +158,15 @@ export default function FeaturesSection() {
             data-animate-delay="1"
             className="leading-none"
             style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontWeight: 400,
+              fontSize: 'clamp(36px, 4.5vw, 56px)',
+              letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontWeight: 500,
-              fontSize: 'clamp(36px, 4.5vw, 60px)',
-              letterSpacing: '-0.04em',
-              textTransform: 'uppercase',
-              WebkitFontSmoothing: 'subpixel-antialiased',
             }}
           >
-            Three primitives. Zero wrappers.
+            Three primitives.{' '}
+            <span style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--primary)' }}>Zero wrappers.</span>
           </h2>
           <p
             data-animate="up"

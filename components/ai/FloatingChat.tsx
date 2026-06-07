@@ -8,6 +8,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { renderMessage } from './renderMessage';
+import LogoMark from '@/components/ui/brand/LogoMark';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -31,6 +32,7 @@ export default function FloatingChat() {
   const [loading, setLoading] = useState(false);
   const [unread, setUnread]   = useState(0);
   const [pulse, setPulse]     = useState(true);
+  const [focused, setFocused] = useState(false);
 
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -124,37 +126,32 @@ export default function FloatingChat() {
         <div
           className="fixed bottom-20 right-5 max-sm:right-3 max-sm:bottom-16 z-[200] flex flex-col overflow-hidden"
           style={{
-            width: 'min(90vw, 360px)',
-            height: 500,
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
-            animation: 'slideUp 0.25s cubic-bezier(0.22,1,0.36,1)',
+            width: 'min(92vw, 384px)',
+            height: 'min(72vh, 560px)',
+            background: 'linear-gradient(180deg, rgba(11,13,24,0.90) 0%, rgba(7,8,15,0.93) 100%)',
+            backdropFilter: 'blur(22px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.16)',
+            borderRadius: 20,
+            boxShadow: '0 32px 90px rgba(0,0,0,0.62), 0 0 70px rgb(var(--primary-rgb) / 0.07), inset 0 1px 0 rgba(255,255,255,0.06)',
+            animation: 'slideUp 0.28s cubic-bezier(0.22,1,0.36,1)',
           }}
         >
           {/* Header */}
           <div
-            className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-            style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}
+            className="flex items-center gap-3 px-4 py-3.5 flex-shrink-0"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.07), transparent)' }}
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth={2}>
-                <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
-                <path d="M12 2a10 10 0 0 1 10 10" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+            <div style={{ filter: 'drop-shadow(0 0 8px rgb(var(--primary-rgb) / 0.35))' }}>
+              <LogoMark size={30} animated={false} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold leading-none" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-[12.5px] font-semibold leading-none" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                 OrderFlow AI
               </p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>En ligne · Claude Haiku</span>
+              <div className="flex items-center gap-1.5 mt-[5px]">
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ background: 'var(--primary)', boxShadow: '0 0 6px rgb(var(--primary-rgb) / 0.85)' }} />
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>En ligne · Claude Haiku</span>
               </div>
             </div>
             <button
@@ -173,29 +170,20 @@ export default function FloatingChat() {
           {/* Messages */}
           <div
             className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5"
-            style={{ background: 'var(--background)' }}
+            style={{ background: 'transparent' }}
           >
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                 {m.role === 'assistant' && (
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 self-end mb-0.5"
-                    style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.2)' }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth={2.5}>
-                      <circle cx="12" cy="12" r="3" /><path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
-                    </svg>
-                  </div>
+                  <div className="flex-shrink-0 self-end mb-0.5"><LogoMark size={22} animated={false} /></div>
                 )}
                 <div
-                  className="max-w-[82%] px-3 py-2 text-[12px] leading-relaxed"
+                  className="max-w-[82%] px-3 py-2 text-[12.5px] leading-relaxed"
                   style={{
                     borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                    background: m.role === 'user'
-                      ? 'var(--primary)'
-                      : 'var(--surface-elevated)',
-                    color: m.role === 'user' ? '#000' : 'var(--text-primary)',
-                    border: m.role === 'assistant' ? '1px solid var(--border)' : 'none',
+                    background: m.role === 'user' ? 'rgb(var(--primary-rgb) / 0.13)' : 'rgba(255,255,255,0.035)',
+                    color: m.role === 'user' ? 'var(--primary-light)' : 'var(--text-primary)',
+                    border: m.role === 'user' ? '1px solid rgb(var(--primary-rgb) / 0.30)' : '1px solid rgba(255,255,255,0.07)',
                     fontWeight: m.role === 'user' ? 500 : 400,
                   }}
                 >
@@ -222,24 +210,26 @@ export default function FloatingChat() {
           {messages.length === 1 && (
             <div
               className="px-3 pt-2 pb-1 flex flex-wrap gap-1.5 flex-shrink-0"
-              style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
+              style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: 'transparent' }}
             >
               {SUGGESTIONS.map(q => (
                 <button
                   key={q}
                   onClick={() => send(q)}
-                  className="text-[10px] px-2.5 py-1 rounded-full transition-all duration-100"
+                  className="text-[10.5px] px-3 py-1.5 rounded-full transition-all duration-150"
                   style={{
-                    background: 'var(--surface-elevated)',
+                    background: 'rgba(255,255,255,0.03)',
                     color: 'var(--text-secondary)',
-                    border: '1px solid var(--border)',
+                    border: '1px solid rgba(255,255,255,0.09)',
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.4)';
+                    (e.currentTarget as HTMLElement).style.background = 'rgb(var(--primary-rgb) / 0.10)';
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgb(var(--primary-rgb) / 0.40)';
                     (e.currentTarget as HTMLElement).style.color = 'var(--primary)';
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.09)';
                     (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
                   }}
                 >
@@ -249,51 +239,63 @@ export default function FloatingChat() {
             </div>
           )}
 
-          {/* Input */}
+          {/* Input — composer : point focal du panel */}
           <div
-            className="flex items-end gap-2 px-3 py-2.5 flex-shrink-0"
-            style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
+            className="px-3 py-3 flex-shrink-0"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(0deg, rgb(var(--primary-rgb) / 0.03), transparent)' }}
           >
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={onKey}
-              placeholder="Posez votre question…"
-              rows={1}
-              disabled={loading}
-              className="flex-1 resize-none text-[12px] rounded-xl px-3 py-2 outline-none transition-colors"
+            <div
+              className="flex items-end gap-1.5 rounded-2xl pl-3 pr-1.5 py-1.5 transition-all duration-150"
               style={{
-                background: 'var(--surface-elevated)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-                maxHeight: 80,
-                minHeight: 36,
-              }}
-              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(74,222,128,0.4)'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
-            />
-            <button
-              onClick={() => loading ? abortRef.current?.abort() : send(input)}
-              disabled={!loading && !input.trim()}
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-100 disabled:opacity-30"
-              style={{
-                background: loading ? 'rgba(239,68,68,0.15)' : 'var(--primary)',
-                color: loading ? '#ef4444' : '#000',
-                border: loading ? '1px solid rgba(239,68,68,0.3)' : 'none',
+                background: focused ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.035)',
+                border: `1px solid ${focused ? 'rgb(var(--primary-rgb) / 0.45)' : 'rgba(255,255,255,0.10)'}`,
+                boxShadow: focused ? '0 0 0 3px rgb(var(--primary-rgb) / 0.10)' : 'none',
               }}
             >
-              {loading ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="6" width="12" height="12" rx="2" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-              )}
-            </button>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={onKey}
+                placeholder="Posez votre question…"
+                rows={1}
+                disabled={loading}
+                className="flex-1 resize-none text-[12.5px] bg-transparent outline-none py-1.5"
+                style={{
+                  color: 'var(--text-primary)',
+                  maxHeight: 84,
+                  minHeight: 24,
+                  lineHeight: 1.45,
+                }}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+              />
+              <button
+                onClick={() => loading ? abortRef.current?.abort() : send(input)}
+                disabled={!loading && !input.trim()}
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-150 disabled:opacity-30"
+                style={{
+                  background: loading ? 'rgba(240,79,79,0.14)' : 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
+                  color: loading ? 'var(--error)' : '#06210f',
+                  border: loading ? '1px solid rgba(240,79,79,0.30)' : 'none',
+                  boxShadow: (!loading && input.trim()) ? '0 4px 14px rgb(var(--primary-rgb) / 0.35)' : 'none',
+                }}
+              >
+                {loading ? (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            <p className="mt-2 text-center" style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 8.5, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-dimmed)' }}>
+              Entrée pour envoyer · Maj+Entrée saut de ligne
+            </p>
           </div>
         </div>
       )}
@@ -310,7 +312,7 @@ export default function FloatingChat() {
             : 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
           boxShadow: open
             ? '0 4px 20px rgba(0,0,0,0.3)'
-            : '0 8px 32px rgba(74,222,128,0.35)',
+            : '0 8px 32px rgb(var(--primary-rgb) / 0.35)',
           border: open ? '1px solid var(--border)' : 'none',
           transform: open ? 'scale(1)' : pulse ? 'scale(1.08)' : 'scale(1)',
         }}
@@ -322,7 +324,7 @@ export default function FloatingChat() {
         {!open && pulse && (
           <span
             className="absolute inset-0 rounded-full animate-ping"
-            style={{ background: 'rgba(74,222,128,0.3)' }}
+            style={{ background: 'rgb(var(--primary-rgb) / 0.3)' }}
           />
         )}
         {/* unread badge */}

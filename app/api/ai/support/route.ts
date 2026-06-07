@@ -14,10 +14,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
 import { ollamaChatStream, ollamaIsRunning, DEFAULT_MODEL } from '@/lib/ai/ollama';
 import { geminiChatStream, geminiAvailable } from '@/lib/ai/gemini';
 import { groqChatStream, groqAvailable } from '@/lib/ai/groq';
 import { buildSupportMessages, type ChatMessage } from '@/lib/ai/agents/supportAgent';
+import { rateLimitByUser, tooManyRequests } from '@/lib/auth/rate-limiter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,6 +31,14 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 
 export async function POST(req: NextRequest) {
   // Public endpoint — no auth required (landing page support chat + dashboard)
+
+  // ── Rate-limit par userId si session authentifiée (30 req/min) ──────────────
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    const rl = await rateLimitByUser(session.user.id, 30, 60_000);
+    if (!rl.allowed) return tooManyRequests(rl);
+  }
+  // Note : les requêtes non authentifiées restent soumises au rate-limit IP du middleware.
 
   // ── Input validation ────────────────────────────────────────────────────────
   let body: { message?: string; history?: ChatMessage[] };

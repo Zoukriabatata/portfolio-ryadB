@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "../styles/animations.css";
 @import "../styles/landing-animations.css";
+@import "../styles/brand.css";
 
 /* ============================================================
    ORDERFLOW — TRADYTICS-INSPIRED DESIGN SYSTEM
@@ -12,6 +13,10 @@
   /* Deep navy-black — warmer than pure black, easier on eyes */
   --background: #07080f;
   --surface: #0d0f1b;
+  /* Decomposed for glass surfaces — overwritten per-theme by applyUITheme() */
+  --background-rgb: 7 8 15;
+  --surface-rgb: 13 15 27;
+  --surface-elevated-rgb: 18 21 42;
   --surface-elevated: #12152a;
   --surface-hover: #181b30;
   --surface-active: #1d2138;
@@ -24,6 +29,18 @@
   --text-secondary: #8890b0;
   --text-muted: #515878;
   --text-dimmed: #333650;
+
+  /* === STONE (neutre pétrifié — clin d'œil Dr.Stone) === */
+  --stone: #cfd2df;
+  --stone-dim: #9aa0b5;
+
+  /* === FONTS === */
+  --font-fraunces: 'Fraunces', serif;
+
+  /* === MOTION DE MARQUE === */
+  --brand-spin: 70s;      /* rotation atome de fond */
+  --brand-charge: 3.6s;   /* anneau de charge */
+  --brand-orbit: 6s;      /* électron du logotype/mark */
 
   /* === BORDERS ===
      Ultra-subtle — only 1px of separation, never fights data */
@@ -58,6 +75,7 @@
   --error: #f04f4f;
   --error-bg: rgba(240, 79, 79, 0.08);
   --warning: #e8a020;
+  --warning-rgb: 232 160 32;
   --warning-bg: rgba(232, 160, 32, 0.08);
   --info: #4ade80;
   --info-bg: rgba(74, 222, 128, 0.08);
@@ -68,6 +86,7 @@
   --bull-dim: #1ca55e;
   --bull-bg: rgba(38, 217, 127, 0.08);
   --bear: #f04f4f;
+  --bear-rgb: 240 79 79;
   --bear-dim: #c43d3d;
   --bear-bg: rgba(240, 79, 79, 0.08);
 
@@ -494,8 +513,8 @@ code {
 }
 
 .glass-intense {
-  background: rgba(18, 18, 26, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgb(var(--surface-elevated-rgb) / 0.85);
+  border: 1px solid var(--border-light);
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
 }
@@ -505,6 +524,52 @@ code {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* === DISPLAY (Fraunces) — titres éditoriaux hors data ===
+   Voix "display" de la marque : sert les H1/H2 de page (marketing, auth,
+   account, legal, admin…). La data dense in-app reste en JetBrains Mono. */
+.font-display {
+  font-family: var(--font-fraunces);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.0;
+}
+/* Mot-accent : 2e ligne d'un titre "editorial contraste" (cf. hero). */
+.font-display-accent {
+  font-family: var(--font-fraunces);
+  font-weight: 600;
+  font-style: italic;
+  color: var(--primary);
+  text-shadow: 0 0 30px rgb(var(--primary-rgb) / 0.26);
+}
+
+/* === BOUTONS DE MARQUE (verre, suivent le thème actif) ===
+   Version tokenisée de .landing-btn-* : ne portent que le visuel verre
+   (couleur/fond/bord/blur/ombre) — le padding/radius vient du système de
+   tailles de <Button>. Le ghost neutre garde un frost blanc (cf. réf). */
+.btn-brand, .btn-brand-ghost {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.btn-brand {
+  color: var(--primary-light);
+  background: rgb(var(--primary-rgb) / 0.09);
+  border: 1px solid rgb(var(--primary-rgb) / 0.30);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 8px 26px rgb(var(--primary-rgb) / 0.16);
+}
+.btn-brand:hover {
+  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--primary-rgb) / 0.45);
+}
+.btn-brand-ghost {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+}
+.btn-brand-ghost:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--border-strong);
 }
 
 /* Subtle glow — use sparingly, only on key CTAs or focus states */
@@ -1065,6 +1130,190 @@ a:focus-visible {
 }
 .action-press:active {
   transform: scale(0.9);
+}
+
+/* ============================================================
+   NAV DRAWER (web-app sidebar) — verre teinté de marque
+   ============================================================ */
+
+.nav-drawer {
+  background: linear-gradient(180deg, rgb(var(--surface-rgb) / 0.92) 0%, rgb(var(--background-rgb) / 0.94) 100%);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border-right: 1px solid rgb(var(--primary-rgb) / 0.14);
+  box-shadow: 4px 0 44px rgba(0, 0, 0, 0.62), 0 0 70px rgb(var(--primary-rgb) / 0.05);
+}
+
+.nav-drawer-header {
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgb(var(--primary-rgb) / 0.06), transparent);
+}
+
+.nav-close {
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.nav-close:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+/* Bandeau "Markets live" */
+.nav-live-strip {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.nav-live-label {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* En-tête de section — voix "eyebrow" de marque (mono, tracké). */
+.nav-section {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dimmed);
+  padding: 15px 18px 6px;
+}
+.nav-section::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: rgb(var(--primary-rgb) / 0.45);
+  flex-shrink: 0;
+}
+
+/* Item de nav — pill, icône en tuile, état actif vert. */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 2px 10px;
+  padding: 8px 11px;
+  border-radius: 11px;
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+}
+.nav-item.active {
+  background: rgb(var(--primary-rgb) / 0.10);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px rgb(var(--primary-rgb) / 0.20);
+}
+.nav-item.locked {
+  color: var(--text-dimmed);
+}
+
+.nav-item-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.nav-item:hover .nav-item-icon {
+  color: var(--text-secondary);
+}
+.nav-item.active .nav-item-icon {
+  color: var(--primary);
+  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--primary-rgb) / 0.30);
+  box-shadow: 0 0 12px rgb(var(--primary-rgb) / 0.18);
+}
+.nav-item.locked .nav-item-icon {
+  color: var(--text-dimmed);
+}
+
+.nav-item-label {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.nav-shortcut {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: var(--text-dimmed);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.nav-item.active .nav-shortcut {
+  color: rgb(var(--primary-rgb) / 0.75);
+  background: rgb(var(--primary-rgb) / 0.08);
+  border-color: rgb(var(--primary-rgb) / 0.25);
+}
+
+.nav-lock {
+  color: var(--text-dimmed);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.nav-divider {
+  height: 1px;
+  margin: 6px 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-drawer-footer {
+  border-top: 1px solid var(--border);
+  background: linear-gradient(0deg, rgb(var(--primary-rgb) / 0.03), transparent);
+}
+
+/* ============================================================
+   FLUIDITÉ — micro-interactions partagées (in-app)
+   Vocabulaire "effet addictif" : entrée chorégraphiée + survol vivant.
+   ============================================================ */
+@keyframes stagger-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Applique une entrée staggered aux enfants directs d'un conteneur. */
+.stagger-in > * {
+  animation: stagger-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-in > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger-in > *:nth-child(2) { animation-delay: 0.10s; }
+.stagger-in > *:nth-child(3) { animation-delay: 0.16s; }
+.stagger-in > *:nth-child(4) { animation-delay: 0.22s; }
+.stagger-in > *:nth-child(5) { animation-delay: 0.28s; }
+.stagger-in > *:nth-child(6) { animation-delay: 0.34s; }
+.stagger-in > *:nth-child(n+7) { animation-delay: 0.40s; }
+
+/* Survol "vivant" pour cartes : montée + liseré lime + ombre douce. */
+.card-lift {
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--primary-rgb) / 0.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgb(var(--primary-rgb) / 0.10);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in > * { animation: none; }
+  .card-lift:hover { transform: none; }
 }
 
 /* All animations, micro-interactions, and utility classes are in styles/animations.css */

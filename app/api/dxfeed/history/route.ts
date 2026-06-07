@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireTier } from '@/lib/auth/api-middleware';
+import { rateLimitByUser, tooManyRequests } from '@/lib/auth/rate-limiter';
 import { prisma } from '@/lib/db';
 
 /**
@@ -39,6 +40,10 @@ export async function GET(request: NextRequest) {
       }
     );
   }
+
+  // ✅ RATE LIMIT — 20 req/min par utilisateur
+  const rl = await rateLimitByUser(authResult.user.id, 20, 60_000);
+  if (!rl.allowed) return tooManyRequests(rl);
 
   // ✅ TIER VALIDATION - Futures data requires PRO (unless user has own dxFeed key)
   let userDxFeedToken: string | null = null;

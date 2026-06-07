@@ -8,6 +8,7 @@
 // fetch + page refresh can happen without leaving the page.
 
 import { redirect } from 'next/navigation';
+import { Monitor } from 'lucide-react';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
@@ -78,7 +79,7 @@ export default async function DevicesPage() {
         <div className="devices-empty">
           <div className="devices-empty-title">No license yet</div>
           <div className="devices-empty-sub">
-            Subscribe to OrderflowV2 to install the desktop app and
+            Subscribe to Senzoukria to install the desktop app and
             bind devices to your account.
           </div>
           <a className="devices-cta" href="/pricing">
@@ -115,21 +116,15 @@ export default async function DevicesPage() {
             <div className="devices-empty">
               <div className="devices-empty-title">No active machines</div>
               <div className="devices-empty-sub">
-                Sign in from the OrderflowV2 desktop app to claim a slot.
+                Sign in from the Senzoukria desktop app to claim a slot.
               </div>
             </div>
           ) : (
-            <ul className="devices-list">
+            <ul className="devices-list stagger-in">
               {license.machines.map((m) => (
                 <li key={m.id} className="devices-row">
                   <div className="devices-row-icon" aria-hidden>
-                    {osLabel(m.os) === 'Windows'
-                      ? '🪟'
-                      : osLabel(m.os) === 'macOS'
-                        ? '🍎'
-                        : osLabel(m.os) === 'Linux'
-                          ? '🐧'
-                          : '🖥'}
+                    <Monitor size={20} strokeWidth={1.5} />
                   </div>
                   <div className="devices-row-main">
                     <div className="devices-row-title">

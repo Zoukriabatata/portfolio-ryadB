@@ -86,7 +86,7 @@ async function preFetchForEvent(event: Stripe.Event): Promise<PreFetched> {
     if (periodEnd) out.subscriptionEnd = new Date(periodEnd * 1000);
     out.isInTrial = sub.status === 'trialing';
   } catch (err) {
-    console.warn(`[stripe webhook] could not retrieve sub ${subscriptionId}`, err);
+    console.warn('[stripe webhook]', { event: 'sub_retrieve_failed', subscriptionId, err });
   }
   return out;
 }
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
   try {
     event = constructWebhookEvent(body, signature);
   } catch (err) {
-    console.error('[stripe webhook] signature verification failed', err);
+    console.error('[stripe webhook]', { event: 'signature_verification_failed', err });
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -167,16 +167,17 @@ export async function POST(req: NextRequest) {
         }
         case 'customer.subscription.trial_will_end': {
           // Stripe fires this 3 days before the trial expires. We log
-          // it so an ops job / email worker can pick it up; sending
-          // the actual "trial ending" mail lives in the side-effect
-          // bag (TODO: wire to `post.trialEndEmail`).
-          console.log(
-            `[stripe webhook] trial_will_end event=${event.id} sub=${(event.data.object as Stripe.Subscription).id}`,
-          );
+          // it so an ops job / email worker can pick it up.
+          // TODO(v1.1): send trial-ending reminder email (wire to `post.trialEndEmail`)
+          console.info('[stripe webhook]', {
+            event: 'trial_will_end',
+            eventId: event.id,
+            subscriptionId: (event.data.object as Stripe.Subscription).id,
+          });
           break;
         }
         default:
-          console.log(`[stripe webhook] unhandled type=${event.type} event=${event.id}`);
+          console.info('[stripe webhook]', { event: 'unhandled_type', type: event.type, eventId: event.id });
       }
     }, {
       maxWait: 5000,    // wait up to 5s to acquire a tx slot
@@ -184,10 +185,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     if (isPrismaUniqueViolation(err, 'eventId')) {
-      console.log(`[stripe webhook] idempotent skip event=${event.id} type=${event.type}`);
+      console.info('[stripe webhook]', { event: 'idempotent_skip', eventId: event.id, type: event.type });
       return NextResponse.json({ received: true, idempotent: true });
     }
-    console.error(`[stripe webhook] FAIL ${event.type} event=${event.id}`, err);
+    console.error('[stripe webhook]', { event: 'handler_failed', type: event.type, eventId: event.id, err });
     return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });
   }
 
@@ -195,11 +196,11 @@ export async function POST(req: NextRequest) {
   // A slow Resend/SMTP must never roll back a recorded payment.
   if (post.welcomeEmail) {
     sendProWelcomeEmail(post.welcomeEmail).catch(emailErr => {
-      console.error(`[stripe webhook] welcome email send failed event=${event.id}`, emailErr);
+      console.error('[stripe webhook]', { event: 'welcome_email_failed', eventId: event.id, err: emailErr });
     });
   }
 
-  console.log(`[stripe webhook] OK ${event.type} event=${event.id}`);
+  console.info('[stripe webhook]', { event: 'ok', type: event.type, eventId: event.id });
   return NextResponse.json({ received: true });
 }
 
@@ -216,7 +217,7 @@ async function handleCheckoutComplete(
   const customerId = session.customer as string;
 
   if (!userId) {
-    console.error(`[stripe webhook] missing userId in metadata session=${session.id}`);
+    console.error('[stripe webhook]', { event: 'missing_user_id', sessionId: session.id });
     return;
   }
 
@@ -238,7 +239,7 @@ async function handleCheckoutComplete(
         completedAt:   new Date(),
       },
     });
-    console.log(`[stripe webhook] research-pack purchased userId=${userId}`);
+    console.info('[stripe webhook]', { event: 'research_pack_purchased', userId });
     return;
   }
 
@@ -280,7 +281,7 @@ async function handleCheckoutComplete(
   const promoCodeUsageId = session.metadata?.promoCodeUsageId;
   if (promoCodeUsageId) {
     await confirmPromoCodeUsage(promoCodeUsageId, payment.id, tx);
-    console.log(`[stripe webhook] promo confirmed userId=${userId}`);
+    console.info('[stripe webhook]', { event: 'promo_confirmed', userId, promoCodeUsageId });
   }
 
   // License upsert — idempotent. No-op if already exists (handles race
@@ -296,7 +297,7 @@ async function handleCheckoutComplete(
     update: {},
   });
 
-  console.log(`[stripe webhook] PRO subscribed userId=${userId} sub=${subscriptionId}`);
+  console.info('[stripe webhook]', { event: 'pro_subscribed', userId, subscriptionId });
 
   // Capture data for post-commit welcome email.
   post.welcomeEmail = {
@@ -350,7 +351,7 @@ async function handleSubscriptionUpdate(
   }
 
   if (!user) {
-    console.error(`[stripe webhook] user not found for subscription=${subscription.id}`);
+    console.error('[stripe webhook]', { event: 'user_not_found', subscriptionId: subscription.id });
     return;
   }
 
@@ -375,7 +376,7 @@ async function handleSubscriptionUpdate(
     });
   }
 
-  console.log(`[stripe webhook] subscription updated userId=${user.id} status=${subscription.status}`);
+  console.info('[stripe webhook]', { event: 'subscription_updated', userId: user.id, status: subscription.status });
 }
 
 async function handleSubscriptionCancelled(
@@ -387,7 +388,7 @@ async function handleSubscriptionCancelled(
     select: { id: true },
   });
   if (!user) {
-    console.error(`[stripe webhook] user not found for cancelled subscription=${subscription.id}`);
+    console.error('[stripe webhook]', { event: 'user_not_found_on_cancel', subscriptionId: subscription.id });
     return;
   }
 
@@ -421,7 +422,7 @@ async function handleSubscriptionCancelled(
   // Keeping License + Machines intact allows instant reactivation if the
   // user resubscribes before the JWT validity window expires (~24h).
 
-  console.log(`[stripe webhook] subscription cancelled userId=${user.id} (License + Machines intact)`);
+  console.info('[stripe webhook]', { event: 'subscription_cancelled', userId: user.id, note: 'License + Machines intact' });
 }
 
 async function handlePaymentSucceeded(
@@ -454,7 +455,7 @@ async function handlePaymentSucceeded(
     },
   });
 
-  console.log(`[stripe webhook] payment succeeded userId=${user.id} invoice=${invoice.id}`);
+  console.info('[stripe webhook]', { event: 'payment_succeeded', userId: user.id, invoiceId: invoice.id });
 }
 
 async function handlePaymentFailed(
@@ -486,7 +487,7 @@ async function handlePaymentFailed(
     },
   });
 
-  console.warn(`[stripe webhook] payment FAILED userId=${user.id} invoice=${invoice.id}`);
+  console.warn('[stripe webhook]', { event: 'payment_failed', userId: user.id, invoiceId: invoice.id });
 }
 
 /**
@@ -511,7 +512,7 @@ async function handleChargeRefunded(
 ): Promise<void> {
   const customerId = charge.customer as string | null;
   if (!customerId) {
-    console.warn(`[stripe webhook] charge.refunded with no customer charge=${charge.id}`);
+    console.warn('[stripe webhook]', { event: 'refund_no_customer', chargeId: charge.id });
     return;
   }
 
@@ -520,7 +521,7 @@ async function handleChargeRefunded(
     select: { id: true, email: true, subscriptionTier: true, subscriptionId: true },
   });
   if (!user) {
-    console.warn(`[stripe webhook] charge.refunded user not found customer=${customerId} charge=${charge.id}`);
+    console.warn('[stripe webhook]', { event: 'refund_user_not_found', customerId, chargeId: charge.id });
     return;
   }
 
@@ -539,10 +540,13 @@ async function handleChargeRefunded(
   // Full refund vs partial: only full refunds demote the tier.
   const isFullRefund = charge.amount_refunded >= charge.amount;
   if (!isFullRefund) {
-    console.log(
-      `[stripe webhook] partial refund userId=${user.id} ` +
-      `refunded=${charge.amount_refunded}/${charge.amount} — keeping tier`,
-    );
+    console.info('[stripe webhook]', {
+      event: 'partial_refund',
+      userId: user.id,
+      amountRefunded: charge.amount_refunded,
+      amountTotal: charge.amount,
+      note: 'keeping tier',
+    });
     return;
   }
 
@@ -556,9 +560,7 @@ async function handleChargeRefunded(
     },
   });
 
-  console.warn(
-    `[stripe webhook] FULL refund — userId=${user.id} demoted to FREE charge=${charge.id}`,
-  );
+  console.warn('[stripe webhook]', { event: 'full_refund_demoted', userId: user.id, chargeId: charge.id });
 }
 
 /**
@@ -581,7 +583,7 @@ async function handleDisputeCreated(
       const ch = await stripe.charges.retrieve(chargeId);
       return ch.customer as string | null;
     } catch (e) {
-      console.error(`[stripe webhook] dispute.created retrieve charge failed`, e);
+      console.error('[stripe webhook]', { event: 'dispute_charge_retrieve_failed', chargeId, err: e });
       return null;
     }
   })();
@@ -606,10 +608,14 @@ async function handleDisputeCreated(
 
   // ADMIN ALERT — escalate so we know we're being charged back. In a
   // mature setup this would page someone via PagerDuty / Slack webhook.
-  console.error(
-    `[stripe webhook] 🚨 CHARGEBACK opened userId=${user.id} email=${user.email} ` +
-    `charge=${chargeId} amount=${dispute.amount} reason=${dispute.reason}`,
-  );
+  console.error('[stripe webhook]', {
+    event: 'chargeback_opened',
+    userId: user.id,
+    email: user.email,
+    chargeId,
+    amount: dispute.amount,
+    reason: dispute.reason,
+  });
 }
 
 /**
@@ -622,8 +628,5 @@ async function handleDisputeClosed(
   _tx: Prisma.TransactionClient,
 ): Promise<void> {
   const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge.id;
-  console.warn(
-    `[stripe webhook] dispute.closed status=${dispute.status} ` +
-    `charge=${chargeId} amount=${dispute.amount}`,
-  );
+  console.warn('[stripe webhook]', { event: 'dispute_closed', status: dispute.status, chargeId, amount: dispute.amount });
 }

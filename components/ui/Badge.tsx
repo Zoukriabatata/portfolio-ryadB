@@ -19,7 +19,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   error: 'bg-[var(--error-bg)] text-[var(--error)] border-[var(--error)]',
   info: 'bg-[var(--info-bg)] text-[var(--info)] border-[var(--info)]',
   neutral: 'bg-[var(--surface-elevated)] text-[var(--text-secondary)] border-[var(--border)]',
-  premium: 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-400 border-amber-500/40',
+  premium: 'bg-[rgb(var(--primary-rgb)/0.12)] text-[var(--primary-light)] border-[rgb(var(--primary-rgb)/0.4)]',
 };
 
 const pulseColors: Record<BadgeVariant, string> = {
@@ -28,7 +28,7 @@ const pulseColors: Record<BadgeVariant, string> = {
   error: 'rgba(239, 68, 68, 0.4)',
   info: 'rgba(59, 130, 246, 0.4)',
   neutral: 'rgba(148, 163, 184, 0.3)',
-  premium: 'rgba(245, 158, 11, 0.4)',
+  premium: 'rgb(var(--primary-rgb) / 0.4)',
 };
 
 export default function Badge({

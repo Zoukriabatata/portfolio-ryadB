@@ -13,56 +13,34 @@ import { syncFootprintWithUITheme } from '@/stores/useFootprintSettingsStore';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import type { TranslationKey } from '@/lib/i18n/translations';
 import {
-  Activity,
-  Grid3x3,
   Layers,
-  Zap,
   Compass,
-  Newspaper,
   History,
-  Store,
-  User,
-  Home,
   Palette,
   Check,
   Menu,
   X,
   Wifi,
   WifiOff,
-  TrendingUp,
-  BrainCircuit,
   ClipboardList,
-  FileText,
-  Wallet,
   type LucideIcon,
 } from 'lucide-react';
+import {
+  DashboardIcon,
+  LiveIcon,
+  FootprintIcon,
+  GexIcon,
+  VolatilityIcon,
+  FlowIcon,
+  TradingIcon,
+  JournalIcon,
+  NewsIcon,
+  AiIcon,
+  AcademyIcon,
+  DataFeedsIcon,
+  AccountIcon,
+} from '@/components/ui/nav-icons';
 
-// Custom Candlestick icon (not available in Lucide)
-const CandlestickIcon: LucideIcon = Object.assign(
-  ({ size = 24, strokeWidth = 1.5, className, ...props }: any) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" className={className} {...props}>
-      <line x1="9" y1="3" x2="9" y2="21" />
-      <rect x="6" y="7" width="6" height="8" rx="1" fill="currentColor" opacity="0.2" />
-      <line x1="17" y1="5" x2="17" y2="19" />
-      <rect x="14" y="9" width="6" height="5" rx="1" fill="currentColor" opacity="0.2" />
-    </svg>
-  ),
-  { displayName: 'CandlestickIcon' }
-) as unknown as LucideIcon;
-
-// Custom NotebookPen icon (journal)
-const NotebookPenIcon: LucideIcon = Object.assign(
-  ({ size = 24, strokeWidth = 1.5, className, ...props }: any) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
-      <path d="M6 4h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
-      <line x1="8" y1="9" x2="14" y2="9" />
-      <line x1="8" y1="13" x2="12" y2="13" />
-      <path d="M16 3v4" />
-      <path d="M19 14l-3 3-1.5-1.5" />
-    </svg>
-  ),
-  { displayName: 'NotebookPenIcon' }
-) as unknown as LucideIcon;
 import ChartErrorBoundary from '@/components/ui/ChartErrorBoundary';
 import FeatureTour from '@/components/ui/FeatureTour';
 import { PageActiveProvider } from '@/hooks/usePageActive';
@@ -77,6 +55,10 @@ import { hydrateStores } from '@/lib/hydrate-stores';
 
 const CHART_ROUTES = ['/live', '/footprint', '/gex', '/volatility', '/flow'] as const;
 type ChartRoute = typeof CHART_ROUTES[number];
+
+// Routes marketing publiques : on y masque la topbar applicative ; la page
+// rend son propre chrome de marque via <MarketingShell> (LandingNav/Footer).
+const MARKETING_ROUTES = ['/pricing', '/download', '/contact', '/upgrade', '/legal'];
 
 function ChartLoadingFallback({ label }: { label: string }) {
   return (
@@ -170,8 +152,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Charts',
     items: [
-      { href: '/live', labelKey: 'nav.live', Icon: CandlestickIcon, shortcut: '1' },
-      { href: '/footprint', labelKey: 'nav.footprint', Icon: Grid3x3, shortcut: '2', requiresUltra: true },
+      { href: '/live', labelKey: 'nav.live', Icon: LiveIcon, shortcut: '1' },
+      { href: '/footprint', labelKey: 'nav.footprint', Icon: FootprintIcon, shortcut: '2', requiresUltra: true },
       // /heatmap retired: the page is futures-DOM material we deliver
       // via the desktop app; keeping a web stub was confusing users.
     ],
@@ -179,27 +161,27 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Analytics',
     items: [
-      { href: '/gex',        labelKey: 'nav.gex',        Icon: Zap,         shortcut: '4', requiresUltra: true },
-      { href: '/volatility', labelKey: 'nav.volatility', Icon: Activity,    shortcut: '5', requiresUltra: true },
+      { href: '/gex',        labelKey: 'nav.gex',        Icon: GexIcon,         shortcut: '4', requiresUltra: true },
+      { href: '/volatility', labelKey: 'nav.volatility', Icon: VolatilityIcon,    shortcut: '5', requiresUltra: true },
       // /bias (GVS Bias) retired alongside /replay — the underlying
       // futures-flavoured page wasn't earning its keep in the nav.
-      { href: '/flow',       labelKey: 'nav.flow',       Icon: TrendingUp,  shortcut: '' },
+      { href: '/flow',       labelKey: 'nav.flow',       Icon: FlowIcon,  shortcut: '' },
     ],
   },
   {
     label: 'Tools',
     items: [
-      { href: '/trading', labelKey: 'nav.trading', Icon: Wallet,         shortcut: '' },
+      { href: '/trading', labelKey: 'nav.trading', Icon: TradingIcon,         shortcut: '' },
       // /replay retired (see above).
-      { href: '/journal', labelKey: 'nav.journal', Icon: NotebookPenIcon, shortcut: '8', requiresUltra: true },
-      { href: '/news',    labelKey: 'nav.news',    Icon: Newspaper,       shortcut: '7', requiresUltra: true },
-      { href: '/ai',      labelKey: 'nav.ai',      Icon: BrainCircuit,   shortcut: '' },
+      { href: '/journal', labelKey: 'nav.journal', Icon: JournalIcon, shortcut: '8', requiresUltra: true },
+      { href: '/news',    labelKey: 'nav.news',    Icon: NewsIcon,       shortcut: '7', requiresUltra: true },
+      { href: '/ai',      labelKey: 'nav.ai',      Icon: AiIcon,   shortcut: '' },
     ],
   },
   {
     label: 'Research',
     items: [
-      { href: '/academy', labelKey: 'nav.academy', Icon: FileText, shortcut: '' },
+      { href: '/academy', labelKey: 'nav.academy', Icon: AcademyIcon, shortcut: '' },
     ],
   },
 ];
@@ -208,7 +190,7 @@ const NAV_GROUPS: NavGroup[] = [
 // Includes boutique (Data Feeds) even though it's displayed on the right side
 const ALL_NAV_ITEMS = [
   ...NAV_GROUPS.flatMap(g => g.items),
-  { href: '/boutique', labelKey: 'nav.dataFeeds' as const, Icon: Store, shortcut: '0' },
+  { href: '/boutique', labelKey: 'nav.dataFeeds' as const, Icon: DataFeedsIcon, shortcut: '0' },
 ];
 
 
@@ -233,7 +215,7 @@ function NavUserAvatar() {
     );
   }
 
-  return <User size={14} strokeWidth={1.5} className="text-[var(--text-muted)]" />;
+  return <AccountIcon size={14} strokeWidth={1.5} className="text-[var(--text-muted)]" />;
 }
 
 export function DashboardClientLayout({
@@ -244,6 +226,10 @@ export function DashboardClientLayout({
   const pathname = usePathname();
   const router = useRouter();
   const isLandingPage = pathname === '/';
+  const isMarketingRoute = MARKETING_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
+  // Le chrome applicatif (topbar, drawer, tab-bar, raccourcis) est masqué sur
+  // la landing ET sur les pages marketing publiques.
+  const hideAppChrome = isLandingPage || isMarketingRoute;
   const { activeTheme, setTheme } = useUIThemeStore();
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -256,7 +242,7 @@ export function DashboardClientLayout({
 
   // Swipe right from left edge to open menu, swipe left to close
   useEffect(() => {
-    if (isLandingPage) return;
+    if (hideAppChrome) return;
     let touchStartX = 0;
     let touchStartY = 0;
     const onTouchStart = (e: TouchEvent) => {
@@ -282,7 +268,7 @@ export function DashboardClientLayout({
       document.removeEventListener('touchstart', onTouchStart);
       document.removeEventListener('touchend', onTouchEnd);
     };
-  }, [isLandingPage, showMobileMenu]);
+  }, [hideAppChrome, showMobileMenu]);
 
   // Lazy-hydrate non-critical persisted stores after first paint
   useEffect(() => {
@@ -384,7 +370,7 @@ export function DashboardClientLayout({
   // KEYBOARD SHORTCUTS — Alt+1 to Alt+0
   // ============================================================
   useEffect(() => {
-    if (isLandingPage) return;
+    if (hideAppChrome) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -400,7 +386,7 @@ export function DashboardClientLayout({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLandingPage, router]);
+  }, [hideAppChrome, router]);
 
   // Close drawer on Escape key
   useEffect(() => {
@@ -421,13 +407,13 @@ export function DashboardClientLayout({
       )}
 
       {/* Offline Banner */}
-      {isOffline && !isLandingPage && (
+      {isOffline && !hideAppChrome && (
         <div
           className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium"
           style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
-            color: '#f87171',
+            background: 'var(--bear-bg)',
+            borderBottom: '1px solid rgb(var(--bear-rgb) / 0.2)',
+            color: 'var(--bear)',
           }}
         >
           <WifiOff size={13} strokeWidth={1.5} />
@@ -438,10 +424,10 @@ export function DashboardClientLayout({
       {/* ============================================================
           TOPBAR NAVIGATION (hidden on landing page)
           ============================================================ */}
-      {!isLandingPage && (
+      {!hideAppChrome && (
       <nav
-        className="flex-shrink-0 border-b border-[var(--border)] relative z-50"
-        style={{ height: 'var(--nav-height)', background: 'var(--background)', contain: 'layout style' }}
+        className="flex-shrink-0 relative z-50"
+        style={{ height: 'var(--nav-height)', background: 'var(--surface)', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.12)', contain: 'layout style' }}
         role="navigation"
         aria-label="Main navigation"
       >
@@ -497,7 +483,7 @@ export function DashboardClientLayout({
               }`}
               title="Data Feeds (Alt+0)"
             >
-              <Store size={13} strokeWidth={1.5} />
+              <DataFeedsIcon size={13} strokeWidth={1.5} />
               <span className="hidden md:inline">{t('nav.dataFeeds')}</span>
             </Link>
 
@@ -517,7 +503,7 @@ export function DashboardClientLayout({
                   <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
                   <div className="absolute right-0 top-full mt-1 w-48 z-50 rounded-lg border
                                   border-[var(--border)] shadow-xl overflow-hidden"
-                    style={{ background: 'var(--surface)' }}>
+                    style={{ background: 'rgb(var(--surface-rgb) / 0.85)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)' }}>
                     <div className="px-3 py-2 border-b border-[var(--border)]">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
                         Theme
@@ -571,7 +557,7 @@ export function DashboardClientLayout({
       )}
 
       {/* Mobile Navigation Drawer */}
-      {!isLandingPage && showMobileMenu && (
+      {!hideAppChrome && showMobileMenu && (
         <>
           {/* Backdrop — tap to close */}
           <div
@@ -582,25 +568,18 @@ export function DashboardClientLayout({
           />
           {/* Drawer — closes when mouse leaves */}
           <div
-            className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-[280px] z-[60] flex flex-col"
-            style={{
-              background: 'var(--surface)',
-              borderRight: '1px solid var(--border-light)',
-              boxShadow: '4px 0 32px rgba(0,0,0,0.6)',
-              animation: 'slideInLeft 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
-            }}
+            className="nav-drawer fixed top-0 left-0 bottom-0 w-[85vw] max-w-[280px] z-[60] flex flex-col"
+            style={{ animation: 'slideInLeft 0.22s cubic-bezier(0.22, 1, 0.36, 1)' }}
             onMouseLeave={() => { if (window.innerWidth >= 768) setShowMobileMenu(false); }}
             role="menu"
             aria-label="Mobile navigation"
           >
             {/* Drawer Header */}
-            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
-              style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="nav-drawer-header flex items-center justify-between px-4 py-3 flex-shrink-0">
               <Logo size="sm" showText animated={false} />
               <button
                 onClick={() => setShowMobileMenu(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
-                style={{ color: 'var(--text-muted)' }}
+                className="nav-close w-8 h-8 flex items-center justify-center rounded-lg"
                 aria-label="Close menu"
               >
                 <X size={16} />
@@ -608,15 +587,12 @@ export function DashboardClientLayout({
             </div>
 
             {/* Live status strip */}
-            <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0"
-              style={{ borderBottom: '1px solid var(--border)', background: 'var(--background)' }}>
+            <div className="nav-live-strip flex items-center gap-2 px-4 py-2.5 flex-shrink-0">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--bull)', animation: 'ping 2s cubic-bezier(0,0,0.2,1) infinite' }} />
-                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: 'var(--bull)' }} />
+                <span className="absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--primary)', animation: 'ping 2s cubic-bezier(0,0,0.2,1) infinite' }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: 'var(--primary)', boxShadow: '0 0 6px rgb(var(--primary-rgb) / 0.8)' }} />
               </span>
-              <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-                Markets live
-              </span>
+              <span className="nav-live-label">Markets live</span>
             </div>
 
             {/* Nav groups */}
@@ -625,58 +601,39 @@ export function DashboardClientLayout({
               <Link
                 href="/dashboard"
                 onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-colors duration-100 mb-1"
-                style={{
-                  background: isNavActive('/dashboard') ? 'var(--surface-elevated)' : 'transparent',
-                  color: isNavActive('/dashboard') ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  borderLeft: isNavActive('/dashboard') ? '2px solid var(--primary)' : '2px solid transparent',
-                }}
+                className={`nav-item${isNavActive('/dashboard') ? ' active' : ''}`}
               >
-                <Home size={15} strokeWidth={1.5} style={{ color: isNavActive('/dashboard') ? 'var(--primary)' : 'inherit', flexShrink: 0 }} />
-                <span className="text-[12px] font-medium">Dashboard</span>
+                <span className="nav-item-icon"><DashboardIcon size={15} strokeWidth={1.75} /></span>
+                <span className="nav-item-label">Dashboard</span>
               </Link>
-              <div style={{ height: 1, background: 'var(--border)', margin: '4px 12px 4px' }} />
+
+              <div className="nav-divider" />
 
               {NAV_GROUPS.map((group) => (
                 <div key={group.label} className="mb-1">
-                  <div className="text-[9px] font-bold uppercase tracking-widest px-4 pt-3 pb-1"
-                    style={{ color: 'var(--text-dimmed)' }}>
-                    {group.label}
-                  </div>
+                  <div className="nav-section">{group.label}</div>
                   {group.items.map((item) => {
                     const active = isNavActive(item.href);
+                    const locked = Boolean(isFreeUser && item.requiresUltra);
                     const IconComp = item.Icon;
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
                         onClick={() => setShowMobileMenu(false)}
-                        className="flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-colors duration-100"
-                        style={{
-                          background: active ? 'var(--surface-elevated)' : 'transparent',
-                          color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-                          borderLeft: active ? '2px solid var(--primary)' : '2px solid transparent',
-                        }}
+                        className={`nav-item${active ? ' active' : ''}${locked ? ' locked' : ''}`}
                         role="menuitem"
                         aria-current={active ? 'page' : undefined}
                       >
-                        <IconComp size={15} strokeWidth={1.5}
-                          style={{ color: active ? 'var(--primary)' : isFreeUser && item.requiresUltra ? 'var(--text-dimmed)' : 'inherit', flexShrink: 0 }} />
-                        <span className="text-[12px] font-medium flex-1"
-                          style={{ color: isFreeUser && item.requiresUltra && !active ? 'var(--text-dimmed)' : undefined }}>
-                          {t(item.labelKey)}
-                        </span>
-                        {isFreeUser && item.requiresUltra ? (
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                            style={{ color: 'var(--text-dimmed)', opacity: 0.5, flexShrink: 0 }}>
+                        <span className="nav-item-icon"><IconComp size={15} strokeWidth={1.75} /></span>
+                        <span className="nav-item-label">{t(item.labelKey)}</span>
+                        {locked ? (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="nav-lock">
                             <rect x="3" y="11" width="18" height="11" rx="2" />
                             <path d="M7 11V7a5 5 0 0110 0v4" />
                           </svg>
                         ) : item.shortcut ? (
-                          <span className="text-[9px] font-mono px-1 py-0.5 rounded"
-                            style={{ color: 'var(--text-dimmed)', background: 'var(--background)' }}>
-                            Alt+{item.shortcut}
-                          </span>
+                          <span className="nav-shortcut">Alt+{item.shortcut}</span>
                         ) : null}
                       </Link>
                     );
@@ -686,27 +643,24 @@ export function DashboardClientLayout({
             </div>
 
             {/* Bottom section */}
-            <div className="flex-shrink-0 p-2" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="nav-drawer-footer flex-shrink-0 p-2">
               <Link
                 href="/boutique"
                 onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
+                className={`nav-item${isNavActive('/boutique') ? ' active' : ''}`}
               >
-                <Store size={14} strokeWidth={1.5} style={{ flexShrink: 0 }} />
-                <span className="text-[12px] font-medium">{t('nav.dataFeeds')}</span>
+                <span className="nav-item-icon"><DataFeedsIcon size={15} strokeWidth={1.75} /></span>
+                <span className="nav-item-label">{t('nav.dataFeeds')}</span>
               </Link>
               <Link
                 href="/account"
                 onClick={() => setShowMobileMenu(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
+                className={`nav-item${isNavActive('/account') ? ' active' : ''}`}
               >
-                <span className="w-5 h-5 flex items-center justify-center overflow-hidden rounded-full flex-shrink-0"
-                  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                <span className="nav-item-icon" style={{ overflow: 'hidden' }}>
                   <NavUserAvatar />
                 </span>
-                <span className="text-[12px] font-medium">{t('nav.account')}</span>
+                <span className="nav-item-label">{t('nav.account')}</span>
               </Link>
             </div>
           </div>
@@ -754,11 +708,13 @@ export function DashboardClientLayout({
           MOBILE BOTTOM TAB BAR — Quick navigation without hamburger
           Visible on mobile only (< 768px), hidden on desktop
           ============================================================ */}
-      {!isLandingPage && (
+      {!hideAppChrome && (
         <nav
           className="flex-shrink-0 md:hidden border-t safe-area-bottom"
           style={{
-            background: 'var(--surface)',
+            background: 'rgb(var(--surface-rgb) / 0.82)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             borderColor: 'var(--border)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
@@ -766,10 +722,10 @@ export function DashboardClientLayout({
         >
           <div className="flex items-stretch justify-around h-12">
             {([
-              { href: '/live', icon: CandlestickIcon, label: 'Live' },
-              { href: '/footprint', icon: Grid3x3, label: 'Footprint' },
-              { href: '/gex', icon: Zap, label: 'GEX' },
-              { href: '/volatility', icon: Activity, label: 'Vol' },
+              { href: '/live', icon: LiveIcon, label: 'Live' },
+              { href: '/footprint', icon: FootprintIcon, label: 'Footprint' },
+              { href: '/gex', icon: GexIcon, label: 'GEX' },
+              { href: '/volatility', icon: VolatilityIcon, label: 'Vol' },
             ] as const).map((tab) => {
               const active = isNavActive(tab.href);
               const TabIcon = tab.icon;
@@ -780,7 +736,9 @@ export function DashboardClientLayout({
                   className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
                   style={{ color: active ? 'var(--primary)' : 'var(--text-dimmed)' }}
                 >
-                  <TabIcon size={18} strokeWidth={active ? 2 : 1.5} />
+                  <span style={{ filter: active ? 'drop-shadow(0 0 8px rgb(var(--primary-rgb) / 0.5))' : undefined, lineHeight: 0 }}>
+                    <TabIcon size={18} strokeWidth={active ? 2 : 1.5} />
+                  </span>
                   <span className="text-[9px] font-medium leading-none">{tab.label}</span>
                 </Link>
               );
@@ -799,7 +757,7 @@ export function DashboardClientLayout({
       )}
 
       {/* Feature Tour — shows once for new users */}
-      {!isLandingPage && <FeatureTour />}
+      {!hideAppChrome && <FeatureTour />}
     </div>
   );
 }

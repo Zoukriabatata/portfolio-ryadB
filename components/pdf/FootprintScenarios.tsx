@@ -49,12 +49,12 @@ const SCENARIOS: Scenario[] = [
     timeframe: '5min footprint + 1min DOM',
     confluence: ['Absorption', 'CVD', 'Volume Profile', 'Heatmap'],
     description:
-      'Gros volume vendeur absorbé par des ordres limites passifs au bid. Le prix ne descend pas malgré la pression. Le CVD diverge (descend puis se stabilise). La heatmap montre un mur bid qui tient.',
+      'Heavy selling volume absorbed by passive limit orders at the bid. Price won\'t drop despite the pressure. CVD diverges (falls then stabilizes). The heatmap shows a bid wall that holds.',
     setup:
-      'Le prix touche un niveau de fort volume (POC ou VAL du profil). La heatmap montre une zone dense au bid. Le CVD cesse de baisser malgré des market sells agressifs.',
-    entry: 'Quand le delta footprint passe positif sur la bougie APRÈS l\'absorption (confirmation). Entrée au-dessus du high de la bougie d\'absorption.',
-    target: 'POC de la session ou VAH du profil (premier niveau de résistance volume). Typiquement 1:2 ou 1:3 R:R.',
-    stop: 'Sous le low de la zone d\'absorption (là où les passifs tenaient). Si le mur cède, le setup est invalidé.',
+      'Price tags a high-volume level (session POC or profile VAL). The heatmap shows a dense zone at the bid. CVD stops falling despite aggressive market sells.',
+    entry: 'When footprint delta flips positive on the candle AFTER the absorption (confirmation). Enter above the high of the absorption candle.',
+    target: 'Session POC or profile VAH (first volume resistance level). Typically 1:2 or 1:3 R:R.',
+    stop: 'Below the low of the absorption zone (where passive buyers were holding). If the wall gives way, the setup is invalidated.',
     rows: [
       { price: '45,250', bidVol: 120, askVol: 340, delta: -220, highlight: 'target' },
       { price: '45,245', bidVol: 180, askVol: 280, delta: -100 },
@@ -66,16 +66,16 @@ const SCENARIOS: Scenario[] = [
       { price: '45,215', bidVol: 980, askVol: 350, delta: 630, highlight: 'stop' },
     ],
     annotations: [
-      'Les lignes 45,220-45,225 montrent l\'absorption : bid vol >> ask vol malgré la pression vendeuse.',
-      'Le delta cumulé sur ces niveaux est fortement positif = les passifs achètent massivement.',
-      'Impact concave (√V law) : 1580+1240 = 2820 lots absorbés mais prix bouge de seulement 2 ticks.',
-      'Hawkes decay : l\'impact de cette absorption se dissipe en ~10 min — agir dans cette fenêtre.',
+      'Rows 45,220-45,225 show the absorption: bid vol >> ask vol despite the selling pressure.',
+      'Cumulative delta across these levels is strongly positive = passive buyers stepping in heavily.',
+      'Concave impact (√V law): 1580+1240 = 2820 lots absorbed but price moves only 2 ticks.',
+      'Hawkes decay: the impact of this absorption dissipates in ~10 min — act within that window.',
     ],
     sources: [
-      { paper: 'Coxon (2023)', page: 'Ch.5 p.36-44', figure: 'Fig 5.6', insight: 'Optimal execution avec λ intraday variable — les zones d\'absorption correspondent aux creux de λ (haute liquidité).' },
-      { paper: 'Veldman (2024)', page: 'Ch.4 p.27-33', figure: 'Fig 4.2', insight: 'Two-stage impact decay : rapide (secondes) puis lent (minutes). Le "trou" dans la heatmap après absorption se remplit en 2 phases.' },
-      { paper: 'Chen-Horst-Tran (2023)', page: 'Section 2, p.4-6', insight: 'Le ratio ρ = 0.3-0.7 signifie que 30-70% du volume visible est des "child orders" déclenchés par l\'absorption — le vrai volume passif est encore plus important.' },
-      { paper: 'Nutz-Webster-Zhao (2025)', page: 'Section 3, p.8-12', insight: 'Internalization : 40-60% du flow est netté en interne (CRB). L\'absorption visible sur le tape sous-estime le vrai intérêt institutionnel.' },
+      { paper: 'Coxon (2023)', page: 'Ch.5 p.36-44', figure: 'Fig 5.6', insight: 'Optimal execution with a time-varying intraday λ — absorption zones line up with the troughs of λ (high liquidity).' },
+      { paper: 'Veldman (2024)', page: 'Ch.4 p.27-33', figure: 'Fig 4.2', insight: 'Two-stage impact decay: fast (seconds) then slow (minutes). The "hole" in the heatmap after absorption fills back in 2 phases.' },
+      { paper: 'Chen-Horst-Tran (2023)', page: 'Section 2, p.4-6', insight: 'The ratio ρ = 0.3-0.7 means 30-70% of visible volume is "child orders" triggered by the absorption — the true passive volume is even larger.' },
+      { paper: 'Nutz-Webster-Zhao (2025)', page: 'Section 3, p.8-12', insight: 'Internalization: 40-60% of the flow is netted internally (CRB). The absorption visible on the tape underestimates the true institutional interest.' },
     ],
   },
   {
@@ -85,12 +85,12 @@ const SCENARIOS: Scenario[] = [
     timeframe: '3min footprint + 15s DOM',
     confluence: ['CVD', 'DOM', 'Absorption', 'TWAP detection'],
     description:
-      'Le footprint montre un déséquilibre massif côté ask (sellers agressifs) tandis que le CVD plonge. Le DOM montre des ordres ask qui se "stackent" (s\'empilent) sans être consommés. La heatmap montre les murs ask qui descendent progressivement.',
+      'The footprint shows a massive imbalance on the ask side (aggressive sellers) while CVD plunges. The DOM shows ask orders stacking up without being consumed. The heatmap shows ask walls stepping down progressively.',
     setup:
-      'Après un rally, le prix atteint le VAH du profil. Le CVD commence à diverger (prix monte, CVD plat/baisse). Le footprint montre des imbalances sell de 300%+ sur plusieurs niveaux.',
-    entry: 'Sous le low de la bougie qui montre 3+ niveaux consécutifs d\'imbalance sell. Confirmation par CVD négatif croissant.',
-    target: 'POC de la session en cours. Si momentum fort, étendre au VAL. Le decay d\'impact (τ₀ ≈ 10min) donne le timing.',
-    stop: 'Au-dessus du high de la zone d\'imbalance. Invalidation si le CVD repasse positif.',
+      'After a rally, price reaches the profile VAH. CVD starts to diverge (price up, CVD flat/down). The footprint shows 300%+ sell imbalances across several levels.',
+    entry: 'Below the low of the candle that shows 3+ consecutive sell-imbalance levels. Confirmed by a growing negative CVD.',
+    target: 'Current session POC. If momentum is strong, extend to the VAL. The impact decay (τ₀ ≈ 10min) sets the timing.',
+    stop: 'Above the high of the imbalance zone. Invalidation if CVD flips back positive.',
     rows: [
       { price: '45,280', bidVol: 150, askVol: 120, delta: 30, highlight: 'stop' },
       { price: '45,275', bidVol: 90, askVol: 680, delta: -590, highlight: 'imbalance' },
@@ -102,16 +102,16 @@ const SCENARIOS: Scenario[] = [
       { price: '45,240', bidVol: 300, askVol: 250, delta: 50, highlight: 'target' },
     ],
     annotations: [
-      'Niveaux 45,265-45,275 : ask vol 7-10x le bid vol = imbalance sell massive.',
-      'Le delta cumulé est -2070 sur 3 niveaux — pression vendeuse extrême.',
-      'Le CVD sur la session montre une divergence : prix au même niveau qu\'il y a 20min mais CVD -3000.',
-      'Cross-excitation Hawkes : ces sells agressifs vont déclencher d\'autres sells (ρ ≈ 0.5) — cascade probable.',
+      'Levels 45,265-45,275: ask vol 7-10x the bid vol = massive sell imbalance.',
+      'Cumulative delta is -2070 across 3 levels — extreme selling pressure.',
+      'Session CVD shows a divergence: price at the same level as 20min ago but CVD at -3000.',
+      'Hawkes cross-excitation: these aggressive sells will trigger more sells (ρ ≈ 0.5) — a cascade is likely.',
     ],
     sources: [
-      { paper: 'Anantha & Jain (2024)', page: 'Section 4, p.7-9', insight: 'Le kernel Hawkes bivarié montre que les sells agressifs ont une excitation croisée plus forte que les buys. Les cascades baissières sont statistiquement plus violentes.' },
-      { paper: 'Luwang et al. (2026)', page: 'Section 4.3, Table 4', insight: 'États S1-S3 (aggressive sell) : temps de récurrence moyen 15-30 transitions. Quand ça arrive, c\'est rare mais impactful.' },
-      { paper: 'Jonuzaj et al. (2024)', page: 'Section 5, p.12-15', insight: 'L\'information du trade flow persiste plus longtemps que celle du book. Le signal d\'imbalance sell du footprint est plus fiable que le DOM seul.' },
-      { paper: 'Doshi et al. (2025)', page: 'Section 4, p.18-22', insight: 'La volatilité du flow (pas le flow lui-même) prédit l\'élargissement des spreads. Un spike de sell imbalance = vol du flow élevée = spreads vont s\'élargir.' },
+      { paper: 'Anantha & Jain (2024)', page: 'Section 4, p.7-9', insight: 'The bivariate Hawkes kernel shows that aggressive sells have stronger cross-excitation than buys. Bearish cascades are statistically more violent.' },
+      { paper: 'Luwang et al. (2026)', page: 'Section 4.3, Table 4', insight: 'States S1-S3 (aggressive sell): mean recurrence time of 15-30 transitions. When it happens, it is rare but impactful.' },
+      { paper: 'Jonuzaj et al. (2024)', page: 'Section 5, p.12-15', insight: 'Trade-flow information persists longer than book information. The footprint\'s sell-imbalance signal is more reliable than the DOM alone.' },
+      { paper: 'Doshi et al. (2025)', page: 'Section 4, p.18-22', insight: 'Flow volatility (not the flow itself) predicts spread widening. A sell-imbalance spike = high flow volatility = spreads are about to widen.' },
     ],
   },
   {
@@ -121,12 +121,12 @@ const SCENARIOS: Scenario[] = [
     timeframe: '15min footprint + 5min CVD',
     confluence: ['CVD', 'Volume Profile', 'Heatmap', 'TWAP/VWAP'],
     description:
-      'Le prix fait des lower lows mais le CVD fait des higher lows. Quelqu\'un accumule discrètement (probablement via TWAP/iceberg). La heatmap montre que les murs ask sont consommés sans que le prix ne monte — les buys sont absorbés par des sellers qui reculent progressivement.',
+      'Price prints lower lows but CVD prints higher lows. Someone is accumulating quietly (probably via TWAP/iceberg). The heatmap shows ask walls being consumed without price rising — buys are absorbed by sellers who keep stepping back.',
     setup:
-      'Sur 15min : le prix descend lentement en "staircase" tandis que le CVD reste flat ou monte. Le volume profile montre un POC qui se forme au bas du range. La heatmap montre les murs ask qui se déplacent vers le haut.',
-    entry: 'Break du range haut + CVD qui accélère. Confirmation : le footprint 5min montre un flip de delta (négatif → positif). Entrée au retest du breakout.',
-    target: 'Extension 1.5x-2x de la hauteur du range d\'accumulation. Le VWAP de la session comme niveau intermédiaire.',
-    stop: 'Sous le POC de la zone d\'accumulation. Si le prix retourne sous le POC = l\'accumulation a échoué.',
+      'On 15min: price grinds down in a staircase while CVD stays flat or rises. The volume profile shows a POC forming at the bottom of the range. The heatmap shows ask walls moving higher.',
+    entry: 'Break of the range high + CVD accelerating. Confirmation: the 5min footprint shows a delta flip (negative → positive). Enter on the retest of the breakout.',
+    target: '1.5x-2x extension of the height of the accumulation range. The session VWAP as an intermediate level.',
+    stop: 'Below the POC of the accumulation zone. If price returns under the POC = the accumulation has failed.',
     rows: [
       { price: '45,200', bidVol: 450, askVol: 380, delta: 70, highlight: 'target' },
       { price: '45,195', bidVol: 520, askVol: 410, delta: 110 },
@@ -138,16 +138,16 @@ const SCENARIOS: Scenario[] = [
       { price: '45,165', bidVol: 520, askVol: 540, delta: -20, highlight: 'stop' },
     ],
     annotations: [
-      'Delta quasi-neutre sur chaque niveau (±30) malgré du volume élevé = accumulation TWAP/iceberg.',
-      'Le POC se forme en bas (45,180) = "acceptance" du prix — le marché trouve un fair value.',
-      'CVD session : +2400 malgré des prix en baisse = divergence bullish classique.',
-      'Chen-Horst-Tran : les patterns TWAP sont détectables par FFT. Ce flow "trop régulier" est un institutionnel.',
+      'Near-neutral delta on each level (±30) despite high volume = TWAP/iceberg accumulation.',
+      'The POC forms at the bottom (45,180) = price "acceptance" — the market finds a fair value.',
+      'Session CVD: +2400 despite falling prices = a classic bullish divergence.',
+      'Chen-Horst-Tran: TWAP patterns are detectable via FFT. This "too regular" flow is an institutional.',
     ],
     sources: [
-      { paper: 'Chen-Horst-Tran (2023)', page: 'Section 1, p.3', insight: 'Les patterns TWAP/VWAP laissent une signature détectable par FFT (blips constants dans le volume). Un CVD qui monte régulièrement sur une descente de prix = TWAP buy.' },
-      { paper: 'Cucuringu et al. (2025)', page: 'Section 4, p.12-18', figure: 'Fig 3-5', insight: 'La commonality du volume (facteur cross-stock) aide à distinguer le volume "naturel" du volume d\'exécution algorithmique. Volume anormal sur un seul instrument = probable institutional execution.' },
-      { paper: 'de Witt & Pakkanen (2026)', page: 'Section 2.1.2, p.4-5', figure: 'Fig 2', insight: 'Le propagator kernel montre que l\'accumulation TWAP crée un impact transient faible mais permanent cumulatif. La divergence CVD mesure exactement ce permanent impact caché.' },
-      { paper: 'Tiwari (2025)', page: 'Section 3, p.8-12', insight: 'Le Hawkes-LQ controller décompose la stratégie en baseline + trend-following + dynamic. Le flow TWAP correspond au "baseline" — les spikes CVD au "dynamic" component.' },
+      { paper: 'Chen-Horst-Tran (2023)', page: 'Section 1, p.3', insight: 'TWAP/VWAP patterns leave a signature detectable via FFT (constant blips in the volume). A CVD rising steadily on a price decline = a TWAP buy.' },
+      { paper: 'Cucuringu et al. (2025)', page: 'Section 4, p.12-18', figure: 'Fig 3-5', insight: 'Volume commonality (a cross-stock factor) helps distinguish "natural" volume from algorithmic execution volume. Abnormal volume on a single instrument = probable institutional execution.' },
+      { paper: 'de Witt & Pakkanen (2026)', page: 'Section 2.1.2, p.4-5', figure: 'Fig 2', insight: 'The propagator kernel shows that TWAP accumulation creates a weak transient impact but a cumulative permanent one. The CVD divergence measures exactly that hidden permanent impact.' },
+      { paper: 'Tiwari (2025)', page: 'Section 3, p.8-12', insight: 'The Hawkes-LQ controller decomposes the strategy into baseline + trend-following + dynamic. TWAP flow maps to the "baseline" — CVD spikes to the "dynamic" component.' },
     ],
   },
   {
@@ -157,12 +157,12 @@ const SCENARIOS: Scenario[] = [
     timeframe: '1min footprint + tick DOM',
     confluence: ['DOM', 'Heatmap', 'CVD', 'Absorption'],
     description:
-      'Un mur bid massif apparaît dans le DOM/heatmap, attirant les longs. Mais le mur est retiré (spoof) dès que le prix s\'en approche. Le CVD montre que les vrais market buys ne suivent pas. Le footprint montre que l\'activité bid est passive (non agressive).',
+      'A massive bid wall appears in the DOM/heatmap, luring longs in. But the wall is pulled (spoof) as soon as price approaches it. CVD shows that real market buys don\'t follow. The footprint shows that the bid activity is passive (not aggressive).',
     setup:
-      'Mur bid de 2000+ lots visible sur 2-3 niveaux. La heatmap s\'allume en vert dense. MAIS : le CVD ne monte pas proportionnellement et les deltas footprint restent faibles/négatifs sur les bougies montantes.',
-    entry: 'Quand le mur disparaît (pull) + footprint montre un delta flip négatif. Short au market avec le momentum.',
-    target: 'Niveau de volume profile le plus proche en dessous (POC ou VAL). Le decay de l\'impact du pull = fenêtre d\'opportunité de ~5 min.',
-    stop: 'Au-dessus du prix où le mur était positionné. Si le mur revient et le CVD confirme = invalidation.',
+      'A bid wall of 2000+ lots visible across 2-3 levels. The heatmap lights up dense green. BUT: CVD doesn\'t rise proportionally and footprint deltas stay weak/negative on the up candles.',
+    entry: 'When the wall disappears (pull) + the footprint shows a negative delta flip. Short at market with the momentum.',
+    target: 'Nearest volume profile level below (POC or VAL). The decay of the pull\'s impact = an opportunity window of ~5 min.',
+    stop: 'Above the price where the wall was sitting. If the wall comes back and CVD confirms = invalidation.',
     rows: [
       { price: '45,270', bidVol: 60, askVol: 180, delta: -120, highlight: 'stop' },
       { price: '45,265', bidVol: 150, askVol: 350, delta: -200, highlight: 'entry' },
@@ -173,16 +173,16 @@ const SCENARIOS: Scenario[] = [
       { price: '45,240', bidVol: 170, askVol: 150, delta: 20, highlight: 'target' },
     ],
     annotations: [
-      'Le mur bid (2000 lots) était visible sur heatmap mais le footprint ne montrait PAS de gros deltas positifs.',
-      'Rappel Bouchaud-Bonart : seuls 1-3% du volume quotidien sont dans le LOB. Un mur = 0.1% du daily — il peut disparaître en ms.',
-      'Le CVD pendant la "montée" vers le mur était plat = pas de vrais market buys, juste du repositionnement passif.',
-      'Après le pull du mur : cascade Hawkes baissière. ρ ≈ 0.5 → chaque sell déclenche 0.5 child sells.',
+      'The bid wall (2000 lots) was visible on the heatmap but the footprint did NOT show large positive deltas.',
+      'Bouchaud-Bonart reminder: only 1-3% of daily volume sits in the LOB. A wall = 0.1% of the daily — it can vanish in ms.',
+      'CVD during the "climb" toward the wall was flat = no real market buys, just passive repositioning.',
+      'After the wall is pulled: a bearish Hawkes cascade. ρ ≈ 0.5 → each sell triggers 0.5 child sells.',
     ],
     sources: [
-      { paper: 'Coxon (2023)', page: 'Ch.1 p.8-9', figure: 'Fig 1.1', insight: 'Le LOB schéma montre que le volume visible est une fraction du volume réel. Les "murs" sont souvent des ordres qui seront retirés avant exécution.' },
-      { paper: 'Prenzel (2023)', page: 'Ch.2-3', insight: 'La simulation statistique du LOB montre que les ordres limites ont un taux d\'annulation de 60-90%. La majorité des ordres visibles dans le DOM ne seront JAMAIS exécutés.' },
-      { paper: 'Luwang et al. (2026)', page: 'Section 4.1, Tables 5-7', insight: 'La matrice de transition Markov montre que les états "aggressive" ont la plus faible probabilité d\'auto-transition. Un faux mur crée un état artificiel qui ne se maintient pas.' },
-      { paper: 'Muravyev (2012)', page: 'Section 3, p.8-12', insight: 'L\'inventory risk des market makers est le driver principal. Quand un market maker spoof, il gère son inventaire — le vrai signal est dans le flow, pas dans le book.' },
+      { paper: 'Coxon (2023)', page: 'Ch.1 p.8-9', figure: 'Fig 1.1', insight: 'The LOB schematic shows that visible volume is a fraction of real volume. "Walls" are often orders that will be pulled before execution.' },
+      { paper: 'Prenzel (2023)', page: 'Ch.2-3', insight: 'Statistical LOB simulation shows that limit orders have a 60-90% cancellation rate. Most orders visible in the DOM will NEVER be executed.' },
+      { paper: 'Luwang et al. (2026)', page: 'Section 4.1, Tables 5-7', insight: 'The Markov transition matrix shows that "aggressive" states have the lowest self-transition probability. A fake wall creates an artificial state that does not hold.' },
+      { paper: 'Muravyev (2012)', page: 'Section 3, p.8-12', insight: 'Market makers\' inventory risk is the main driver. When a market maker spoofs, they are managing their inventory — the real signal is in the flow, not in the book.' },
     ],
   },
   {
@@ -192,12 +192,12 @@ const SCENARIOS: Scenario[] = [
     timeframe: '5min footprint + session VWAP',
     confluence: ['TWAP/VWAP', 'Volume Profile', 'CVD', 'Absorption'],
     description:
-      'Le prix passe sous le VWAP de session puis le reprend avec du delta positif massif. Les institutions qui avaient accumulé sous le VWAP profitent du breakout. Le volume profile montre un POC au niveau du VWAP = fair value accepté.',
+      'Price slips below the session VWAP then reclaims it with massive positive delta. Institutions that had accumulated below the VWAP ride the breakout. The volume profile shows a POC at the VWAP level = accepted fair value.',
     setup:
-      'Prix sous le VWAP depuis 30+ min. Le CVD descend lentement (flow vendeur modéré — pas de panique). Le volume s\'accumule au VWAP (POC qui se forme). La heatmap montre de la liquidité qui se construit au-dessus du VWAP.',
-    entry: 'Bougie 5min qui CLOSE au-dessus du VWAP avec un delta >2x la moyenne. Le footprint montre un flip bid/ask (les bids deviennent agressifs).',
-    target: 'VAH du profil ou high de session. Le VWAP agit comme support après le reclaim.',
-    stop: 'Sous le VWAP - 1 ATR. Un re-rejet du VWAP invalide le setup.',
+      'Price below the VWAP for 30+ min. CVD drifts down slowly (moderate selling flow — no panic). Volume builds at the VWAP (a POC forming). The heatmap shows liquidity building above the VWAP.',
+    entry: 'A 5min candle that CLOSES above the VWAP with a delta >2x the average. The footprint shows a bid/ask flip (bids turn aggressive).',
+    target: 'Profile VAH or session high. The VWAP acts as support after the reclaim.',
+    stop: 'Below the VWAP - 1 ATR. A re-rejection of the VWAP invalidates the setup.',
     rows: [
       { price: '45,260', bidVol: 280, askVol: 200, delta: 80, highlight: 'target' },
       { price: '45,255', bidVol: 520, askVol: 310, delta: 210, highlight: 'entry' },
@@ -208,16 +208,16 @@ const SCENARIOS: Scenario[] = [
       { price: '45,230', bidVol: 290, askVol: 380, delta: -90, highlight: 'stop' },
     ],
     annotations: [
-      'Le POC (890 lots) se forme exactement au VWAP (45,250) = le marché accepte ce prix comme fair value.',
-      'Au-dessus du VWAP : bid vol > ask vol (delta positif) = les acheteurs sont agressifs.',
-      'En dessous : ask vol > bid vol (delta négatif) = les vendeurs controlaient. Le VWAP est le "pivot" exact.',
-      'Veldman : l\'exécution optimale front-loads quand λ est bas (heures liquides). Le reclaim VWAP pendant les heures de volume = signal fort.',
+      'The POC (890 lots) forms exactly at the VWAP (45,250) = the market accepts this price as fair value.',
+      'Above the VWAP: bid vol > ask vol (positive delta) = buyers are aggressive.',
+      'Below it: ask vol > bid vol (negative delta) = sellers were in control. The VWAP is the exact pivot.',
+      'Veldman: optimal execution front-loads when λ is low (liquid hours). A VWAP reclaim during high-volume hours = a strong signal.',
     ],
     sources: [
-      { paper: 'Cucuringu et al. (2025)', page: 'Section 5, p.18-22', insight: 'Le VWAP optimisé par ML réduit le slippage significativement. Le VWAP comme niveau de référence est validé par la recherche — c\'est le benchmark d\'exécution institutionnel par excellence.' },
-      { paper: 'Veldman (2024)', page: 'Ch.5 p.34-38', insight: 'L\'exécution optimale avec alpha signal (short-term alpha) autour du VWAP. Le reclaim VWAP est un alpha signal que les algos institutionnels intègrent.' },
-      { paper: 'de Witt & Pakkanen (2026)', page: 'Section 2.1.1, p.4', insight: 'L\'Implementation Shortfall est mesuré vs le prix d\'arrivée. Le VWAP reclaim aligne votre trade avec la minimisation du IS — vous tradez dans le sens de la réduction du coût.' },
-      { paper: 'Schlie (2025)', page: 'Ch.2-3', insight: 'Les patterns intraday de prix montrent que le VWAP est un attracteur statistique significatif. Le prix "mean-reverts" vers le VWAP avec une demi-vie mesurable.' },
+      { paper: 'Cucuringu et al. (2025)', page: 'Section 5, p.18-22', insight: 'ML-optimized VWAP reduces slippage significantly. The VWAP as a reference level is validated by the research — it is the institutional execution benchmark par excellence.' },
+      { paper: 'Veldman (2024)', page: 'Ch.5 p.34-38', insight: 'Optimal execution with an alpha signal (short-term alpha) around the VWAP. The VWAP reclaim is an alpha signal that institutional algos build in.' },
+      { paper: 'de Witt & Pakkanen (2026)', page: 'Section 2.1.1, p.4', insight: 'Implementation Shortfall is measured vs the arrival price. The VWAP reclaim aligns your trade with IS minimization — you trade in the direction of cost reduction.' },
+      { paper: 'Schlie (2025)', page: 'Ch.2-3', insight: 'Intraday price patterns show that the VWAP is a significant statistical attractor. Price mean-reverts toward the VWAP with a measurable half-life.' },
     ],
   },
 ];
@@ -328,7 +328,7 @@ export default function FootprintScenarios() {
           Footprint Scenarios — Entry / Target / Stop
         </h2>
         <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          5 setups réels avec footprint schématisé, confluences, et sources académiques exactes (paper + page + figure).
+          5 real setups with a schematic footprint, confluences, and exact academic sources (paper + page + figure).
         </p>
       </div>
 

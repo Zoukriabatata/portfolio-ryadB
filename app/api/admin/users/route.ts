@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
 import { apiRateLimit, tooManyRequests } from '@/lib/auth/rate-limiter';
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 
 // GET - Liste tous les utilisateurs
 export async function GET(request: NextRequest) {
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: `Accès SENultra activé pour ${email}`,
+        message: `Accès PRO activé pour ${email}`,
         user: {
           email: updatedUser.email,
           tier: updatedUser.subscriptionTier,
