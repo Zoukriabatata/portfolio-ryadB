@@ -40,10 +40,13 @@ const VARIANT_METAL: Record<CertificateVariant, string> = {
   DISCIPLINE: '214,193,150', // champagne gold
 };
 
+// Brand hero accents as literal RGB triplets — Certificate is exported via
+// html2canvas, which doesn't resolve CSS var()/modern rgb() syntax reliably,
+// so brand tokens are inlined as literals here (bull / bear / accent-teal).
 const VARIANT_HERO: Record<CertificateVariant, string> = {
-  PASSED:     '52,211,153',  // emerald
-  FAILED:     '244,113,113', // soft red
-  DISCIPLINE: '167,139,250', // violet
+  PASSED:     '38,217,127',  // --bull
+  FAILED:     '240,79,79',   // --bear
+  DISCIPLINE: '45,212,191',  // --accent (teal) — replaces parasite violet
 };
 
 const VARIANT_THEME: Record<CertificateVariant, {
@@ -160,8 +163,8 @@ const Certificate = forwardRef<HTMLDivElement, CertificateProps>(({ data }, ref)
             <div
               style={{
                 width: '46px', height: '46px', borderRadius: '11px',
-                background: 'linear-gradient(135deg, #16a34a, #4ade80)',
-                boxShadow: '0 0 22px rgba(74,222,128,0.4), inset 0 0 12px rgba(0,0,0,0.25)',
+                background: 'linear-gradient(135deg, rgb(26,151,89), rgb(38,217,127))',
+                boxShadow: '0 0 22px rgba(38,217,127,0.4), inset 0 0 12px rgba(0,0,0,0.25)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 lineHeight: 1, flexShrink: 0,
               }}

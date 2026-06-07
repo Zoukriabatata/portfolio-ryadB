@@ -100,7 +100,7 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
           <tbody>
             {visible.map(t => {
               const isLong = t.side === 'buy';
-              const pnlColor = t.pnl >= 0 ? '#10b981' : '#ef4444';
+              const pnlColor = t.pnl >= 0 ? 'var(--bull)' : 'var(--bear)';
               return (
                 <tr
                   key={t.id}
@@ -112,8 +112,8 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
                     <span
                       className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider"
                       style={{
-                        background: isLong ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-                        color:      isLong ? '#10b981' : '#ef4444',
+                        background: isLong ? 'rgb(var(--bull-rgb) / 0.12)' : 'rgb(var(--bear-rgb) / 0.12)',
+                        color:      isLong ? 'var(--bull)' : 'var(--bear)',
                       }}
                     >
                       {isLong ? 'LONG' : 'SHORT'}

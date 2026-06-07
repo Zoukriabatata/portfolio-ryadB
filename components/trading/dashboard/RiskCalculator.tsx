@@ -67,9 +67,9 @@ export default function RiskCalculator() {
   }, [anchor, riskPct, riskUsd, contracts, slDist, balance]);
 
   const statusColor = {
-    safe:    '#10b981',
-    warning: '#fbbf24',
-    danger:  '#ef4444',
+    safe:    'var(--bull)',
+    warning: 'var(--warning)',
+    danger:  'var(--bear)',
   }[computed.status];
 
   return (

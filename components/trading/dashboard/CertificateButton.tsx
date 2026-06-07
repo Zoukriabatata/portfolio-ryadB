@@ -213,14 +213,14 @@ export default function CertificateButton({
           className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
           style={{
             background:
-              variant === 'FAILED'     ? 'linear-gradient(135deg, #b91c1c, #ef4444)' :
-              variant === 'DISCIPLINE' ? 'linear-gradient(135deg, #6d28d9, #a78bfa)' :
-                                         'linear-gradient(135deg, #16a34a, #4ade80)',
-            color:      '#fff',
+              variant === 'FAILED'     ? 'linear-gradient(135deg, rgb(var(--bear-rgb) / 0.85), var(--bear))' :
+              variant === 'DISCIPLINE' ? 'linear-gradient(135deg, rgb(var(--accent-rgb) / 0.85), var(--accent))' :
+                                         'linear-gradient(135deg, rgb(var(--bull-rgb) / 0.85), var(--bull))',
+            color:      'var(--text-primary)',
             boxShadow:
-              variant === 'FAILED'     ? '0 0 12px rgba(239,68,68,0.35)' :
-              variant === 'DISCIPLINE' ? '0 0 12px rgba(168,139,250,0.35)' :
-                                         '0 0 12px rgba(74,222,128,0.35)',
+              variant === 'FAILED'     ? '0 0 12px rgb(var(--bear-rgb) / 0.35)' :
+              variant === 'DISCIPLINE' ? '0 0 12px rgb(var(--accent-rgb) / 0.35)' :
+                                         '0 0 12px rgb(var(--bull-rgb) / 0.35)',
           }}
         >
           {isExporting ? (

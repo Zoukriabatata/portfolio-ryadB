@@ -16,8 +16,10 @@ import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
 type ViewMode = 'smile' | 'surface3D' | 'termStructure';
 
-// ─── Teal accent (tradytics-style) ───
-const TEAL = '#26beaf';
+// ─── Accent (teal — brand structure token) ───
+const ACCENT = 'var(--accent)';
+const accentAlpha = (a: number) => `rgb(var(--accent-rgb) / ${a})`;
+const warnAlpha = (a: number) => `rgb(var(--warning-rgb) / ${a})`;
 
 export default function VolatilityPageContent() {
   const {
@@ -150,7 +152,7 @@ export default function VolatilityPageContent() {
           {/* Icon */}
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-black"
-            style={{ background: `${TEAL}22`, border: `1px solid ${TEAL}55`, color: TEAL }}
+            style={{ background: accentAlpha(0.13), border: `1px solid ${accentAlpha(0.33)}`, color: ACCENT }}
           >
             IV
           </div>
@@ -169,7 +171,7 @@ export default function VolatilityPageContent() {
                     ? 'text-[var(--text-primary)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
-                style={symbol === s ? { background: `${TEAL}22`, color: TEAL } : {}}
+                style={symbol === s ? { background: accentAlpha(0.13), color: ACCENT } : {}}
               >
                 {s}
               </button>
@@ -182,13 +184,13 @@ export default function VolatilityPageContent() {
           <div
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] border"
             style={isLive
-              ? { background: `${TEAL}12`, color: TEAL, borderColor: `${TEAL}30` }
-              : { background: 'rgba(255,200,0,0.08)', color: 'rgba(255,200,0,0.8)', borderColor: 'rgba(255,200,0,0.2)' }
+              ? { background: accentAlpha(0.07), color: ACCENT, borderColor: accentAlpha(0.19) }
+              : { background: warnAlpha(0.08), color: warnAlpha(0.8), borderColor: warnAlpha(0.2) }
             }
           >
             <span
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: isLive ? TEAL : 'rgba(255,200,0,0.8)', animation: isLive ? 'pulse 2s infinite' : 'none' }}
+              style={{ background: isLive ? ACCENT : warnAlpha(0.8), animation: isLive ? 'pulse 2s infinite' : 'none' }}
             />
             {isLive ? 'CBOE · delayed ~15min' : isLoading ? 'Loading…' : 'Error'}
           </div>
@@ -214,7 +216,7 @@ export default function VolatilityPageContent() {
         <MetricCell
           label="Spot"
           value={spot > 0 ? `$${spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
-          color={TEAL}
+          color={ACCENT}
           live
         />
         <MetricCell
@@ -225,23 +227,23 @@ export default function VolatilityPageContent() {
         <MetricCell
           label="Call IV"
           value={atmCallIV ? `${atmCallIV.toFixed(1)}%` : '—'}
-          color="#34d399"
+          color="var(--bull)"
         />
         <MetricCell
           label="Put IV"
           value={atmPutIV ? `${atmPutIV.toFixed(1)}%` : '—'}
-          color="#f87171"
+          color="var(--bear)"
         />
         <MetricCell
           label="P/C Skew"
           value={skewRatio ? skewRatio.toFixed(2) : '—'}
-          color={skewRatio ? (skewRatio > 1.05 ? '#f87171' : skewRatio < 0.95 ? '#34d399' : 'var(--text-primary)') : 'var(--text-muted)'}
+          color={skewRatio ? (skewRatio > 1.05 ? 'var(--bear)' : skewRatio < 0.95 ? 'var(--bull)' : 'var(--text-primary)') : 'var(--text-muted)'}
           sub={skewRatio ? (skewRatio > 1.05 ? 'Put premium' : skewRatio < 0.95 ? 'Call premium' : 'Neutral') : undefined}
         />
         <MetricCell
           label={dte ? `DTE · ${dte}d` : 'DTE'}
           value={maxPutSkew ? `+${maxPutSkew}%` : '—'}
-          color="rgba(255,200,60,0.9)"
+          color={warnAlpha(0.9)}
           sub="max put spread"
         />
       </div>
@@ -258,7 +260,7 @@ export default function VolatilityPageContent() {
               onClick={() => setSelectedExpiration(exp)}
               className="px-2.5 py-1 text-[10px] rounded-lg whitespace-nowrap transition-all duration-150 font-medium"
               style={selectedExpiration === exp
-                ? { background: `${TEAL}20`, color: TEAL, border: `1px solid ${TEAL}40` }
+                ? { background: accentAlpha(0.13), color: ACCENT, border: `1px solid ${accentAlpha(0.25)}` }
                 : { background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
               }
             >
@@ -277,7 +279,7 @@ export default function VolatilityPageContent() {
               onClick={() => setViewMode(key)}
               className="px-2.5 py-1 text-[10px] rounded transition-all duration-150"
               style={viewMode === key
-                ? { background: `${TEAL}20`, color: TEAL }
+                ? { background: accentAlpha(0.13), color: ACCENT }
                 : { color: 'var(--text-muted)' }
               }
             >
@@ -362,16 +364,16 @@ export default function VolatilityPageContent() {
                     className="transition-colors hover:bg-[var(--surface-hover)]"
                     style={{
                       borderTop: '1px solid var(--border)',
-                      background: isATM ? `${TEAL}0d` : undefined,
+                      background: isATM ? accentAlpha(0.05) : undefined,
                     }}
                   >
                     {/* Strike */}
-                    <td className="py-1.5 px-3 font-mono font-medium" style={{ color: isATM ? TEAL : 'var(--text-primary)' }}>
+                    <td className="py-1.5 px-3 font-mono font-medium" style={{ color: isATM ? ACCENT : 'var(--text-primary)' }}>
                       ${row.strike.toLocaleString()}
                       {isATM && (
                         <span
                           className="ml-1.5 text-[8px] px-1.5 py-0.5 rounded font-sans font-semibold"
-                          style={{ background: `${TEAL}22`, color: TEAL }}
+                          style={{ background: accentAlpha(0.13), color: ACCENT }}
                         >
                           ATM
                         </span>
@@ -382,7 +384,7 @@ export default function VolatilityPageContent() {
                       {row.moneyness.toFixed(3)}
                     </td>
                     {/* Call IV */}
-                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: '#34d399' }}>
+                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: 'var(--bull)' }}>
                       {row.callIV ? `${(row.callIV * 100).toFixed(1)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     {/* Call bar */}
@@ -390,12 +392,12 @@ export default function VolatilityPageContent() {
                       <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${((row.callIV || 0) / maxIV) * 100}%`, background: '#34d399', opacity: 0.55 }}
+                          style={{ width: `${((row.callIV || 0) / maxIV) * 100}%`, background: 'var(--bull)', opacity: 0.55 }}
                         />
                       </div>
                     </td>
                     {/* Put IV */}
-                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: '#f87171' }}>
+                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: 'var(--bear)' }}>
                       {row.putIV ? `${(row.putIV * 100).toFixed(1)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     {/* Put bar */}
@@ -403,7 +405,7 @@ export default function VolatilityPageContent() {
                       <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${((row.putIV || 0) / maxIV) * 100}%`, background: '#f87171', opacity: 0.55 }}
+                          style={{ width: `${((row.putIV || 0) / maxIV) * 100}%`, background: 'var(--bear)', opacity: 0.55 }}
                         />
                       </div>
                     </td>
@@ -411,7 +413,7 @@ export default function VolatilityPageContent() {
                     <td
                       className="py-1.5 px-3 font-mono text-right"
                       style={{
-                        color: sp !== null ? (sp > 0 ? '#f87171' : '#34d399') : 'var(--text-muted)',
+                        color: sp !== null ? (sp > 0 ? 'var(--bear)' : 'var(--bull)') : 'var(--text-muted)',
                         opacity: 0.85,
                       }}
                     >
@@ -442,7 +444,7 @@ function MetricCell({
   return (
     <div className="px-4 py-2.5 border-r border-[var(--border)] last:border-r-0 flex flex-col gap-0.5">
       <div className="flex items-center gap-1">
-        {live && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: TEAL }} />}
+        {live && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: ACCENT }} />}
         <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)]">{label}</span>
       </div>
       <span className="font-mono font-bold text-sm leading-tight" style={{ color }}>{value}</span>

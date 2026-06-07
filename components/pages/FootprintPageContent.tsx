@@ -22,7 +22,7 @@ function TradeToggle({ active, onToggle }: { active: boolean; onToggle: () => vo
       className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-150"
       style={{
         border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
-        backgroundColor: active ? 'rgba(16,185,129,0.10)' : 'transparent',
+        backgroundColor: active ? 'rgb(var(--primary-rgb) / 0.10)' : 'transparent',
         color: active ? 'var(--primary)' : 'var(--text-secondary)',
       }}
       title={active ? 'Hide trade bar' : 'Show trade bar'}
@@ -65,8 +65,8 @@ export default function FootprintPageContent() {
             text: 'var(--text-primary)',
             textSecondary: 'var(--text-secondary)',
             textMuted: 'var(--text-muted)',
-            success: '#22c55e',
-            error: '#ef4444',
+            success: 'var(--bull)',
+            error: 'var(--bear)',
             background: 'var(--background)',
           }}
         />

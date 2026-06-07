@@ -40,11 +40,11 @@ function TradeRow({ trade, avgSize, tickSize }: TradeRowProps) {
   const isBuy = trade.side === 'buy';
   const isLarge = avgSize > 0 && trade.size >= avgSize * LARGE_TRADE_MULTIPLIER;
 
-  const color = isBuy ? '#22c55e' : '#ef4444';
+  const color = isBuy ? 'var(--bull)' : 'var(--bear)';
   const bgColor = isLarge
     ? isBuy
-      ? 'rgba(34,197,94,0.12)'
-      : 'rgba(239,68,68,0.12)'
+      ? 'rgb(var(--bull-rgb) / 0.12)'
+      : 'rgb(var(--bear-rgb) / 0.12)'
     : 'transparent';
 
   return (
@@ -117,10 +117,10 @@ export function LiveTape({ trades, tickSize = 0.25, autoScroll = true }: LiveTap
     };
   }, [trades]);
 
-  const deltaColor = cumulativeDelta >= 0 ? '#22c55e' : '#ef4444';
+  const deltaColor = cumulativeDelta >= 0 ? 'var(--bull)' : 'var(--bear)';
 
   return (
-    <div className="flex flex-col h-full" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+    <div className="flex flex-col h-full" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
       {/* Header */}
       <div
         className="flex items-center justify-between px-2 py-1 text-[10px] font-medium shrink-0"

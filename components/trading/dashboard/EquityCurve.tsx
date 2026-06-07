@@ -67,8 +67,8 @@ export default function EquityCurve() {
     return { path: lineD, areaPath: areaD, min: lo, max: hi, isProfitable: profitable };
   }, [points]);
 
-  const lineColor = isProfitable ? '#10b981' : '#ef4444';
-  const areaFill  = isProfitable ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+  const lineColor = isProfitable ? 'var(--bull)' : 'var(--bear)';
+  const areaFill  = isProfitable ? 'rgb(var(--bull-rgb) / 0.15)' : 'rgb(var(--bear-rgb) / 0.15)';
 
   return (
     <div

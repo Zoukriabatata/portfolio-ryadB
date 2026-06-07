@@ -103,9 +103,9 @@ function Action({
   title?:   string;
 }) {
   const styles = {
-    default: { bg: 'var(--surface-elevated)', color: 'var(--text-primary)', border: 'var(--border)' },
-    warning: { bg: 'rgba(251,191,36,0.12)',   color: '#fbbf24',              border: 'rgba(251,191,36,0.35)' },
-    danger:  { bg: 'rgba(239,68,68,0.10)',    color: '#ef4444',              border: 'rgba(239,68,68,0.30)' },
+    default: { bg: 'var(--surface-elevated)',     color: 'var(--text-primary)', border: 'var(--border)' },
+    warning: { bg: 'rgb(var(--warning-rgb) / 0.12)', color: 'var(--warning)',   border: 'rgb(var(--warning-rgb) / 0.35)' },
+    danger:  { bg: 'rgb(var(--bear-rgb) / 0.10)',    color: 'var(--bear)',      border: 'rgb(var(--bear-rgb) / 0.30)' },
   }[color];
 
   return (

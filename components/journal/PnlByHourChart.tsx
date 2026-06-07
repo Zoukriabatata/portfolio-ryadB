@@ -23,13 +23,13 @@ export default function PnlByHourChart({ data }: PnlByHourChartProps) {
       <div className="overflow-x-auto">
         <svg width={svgWidth} height={svgHeight} className="w-full">
           {/* Zero line */}
-          <line x1="0" y1={midY} x2={svgWidth} y2={midY} stroke="rgba(128,128,128,0.2)" strokeWidth="1" />
+          <line x1="0" y1={midY} x2={svgWidth} y2={midY} stroke="var(--border)" strokeWidth="1" />
 
           {data.map((d, i) => {
             const barH = (Math.abs(d.pnl) / maxAbsPnl) * maxBarH;
             const x = 20 + i * (barWidth + gap);
             const y = d.pnl >= 0 ? midY - barH : midY;
-            const color = d.pnl >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+            const color = d.pnl >= 0 ? 'var(--bull)' : 'var(--bear)';
 
             return (
               <g key={d.hour}>

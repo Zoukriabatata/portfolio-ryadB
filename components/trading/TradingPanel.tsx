@@ -99,7 +99,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
           <div
             className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold"
             style={{
-              backgroundColor: brokerInfo?.color || '#525252',
+              backgroundColor: brokerInfo?.color || 'var(--surface-elevated)',
               color: '#000',
             }}
           >
@@ -113,7 +113,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             </span>
             <span
               className="text-xs font-medium"
-              style={{ color: brokerInfo?.color || '#a1a1aa' }}
+              style={{ color: brokerInfo?.color || 'var(--text-secondary)' }}
             >
               {brokerInfo?.name || 'Select Broker'}
             </span>
@@ -238,15 +238,15 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
         disabled={isPlacingOrder !== null}
         className="relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
         style={{
-          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+          background: 'linear-gradient(135deg, var(--bear) 0%, rgb(var(--bear-rgb) / 0.8) 100%)',
           boxShadow: isPlacingOrder === 'sell'
-            ? '0 0 20px rgba(239, 68, 68, 0.5)'
-            : '0 4px 12px rgba(239, 68, 68, 0.3)',
+            ? '0 0 20px rgb(var(--bear-rgb) / 0.5)'
+            : '0 4px 12px rgb(var(--bear-rgb) / 0.3)',
         }}
       >
         <div className="flex flex-col items-center">
           <span className="text-[10px] opacity-80" style={{ color: 'var(--bear)' }}>SELL</span>
-          <span style={{ color: '#fff' }}>{currentPrice.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>{currentPrice.toFixed(2)}</span>
         </div>
         {isPlacingOrder === 'sell' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
@@ -305,15 +305,15 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
         disabled={isPlacingOrder !== null}
         className="relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
         style={{
-          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+          background: 'linear-gradient(135deg, var(--bull) 0%, rgb(var(--bull-rgb) / 0.8) 100%)',
           boxShadow: isPlacingOrder === 'buy'
-            ? '0 0 20px rgba(34, 197, 94, 0.5)'
-            : '0 4px 12px rgba(34, 197, 94, 0.3)',
+            ? '0 0 20px rgb(var(--bull-rgb) / 0.5)'
+            : '0 4px 12px rgb(var(--bull-rgb) / 0.3)',
         }}
       >
         <div className="flex flex-col items-center">
           <span className="text-[10px] opacity-80" style={{ color: 'var(--bull)' }}>BUY</span>
-          <span style={{ color: '#fff' }}>{currentPrice.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>{currentPrice.toFixed(2)}</span>
         </div>
         {isPlacingOrder === 'buy' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">

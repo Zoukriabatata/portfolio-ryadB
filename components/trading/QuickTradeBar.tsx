@@ -413,7 +413,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
       {needsStop && (
         <div className="flex items-center rounded overflow-hidden shrink-0"
           style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
-          <span className="px-1 text-[9px] font-medium" style={{ color: '#f59e0b' }}>STP</span>
+          <span className="px-1 text-[9px] font-medium" style={{ color: 'var(--warning)' }}>STP</span>
           <input type="number" value={stopPrice}
             onChange={e => setStopPrice(e.target.value)}
             step={tick}
@@ -464,9 +464,9 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           className="h-5 px-1.5 rounded text-[9px] font-semibold tracking-wide transition-colors"
           title="Bracket order (TP + SL)"
           style={{
-            backgroundColor: bracketEnabled ? 'rgba(168,85,247,0.15)' : 'transparent',
-            color: bracketEnabled ? '#a855f7' : colors.textMuted,
-            border: `1px solid ${bracketEnabled ? '#a855f740' : colors.border}`,
+            backgroundColor: bracketEnabled ? 'rgb(var(--accent-rgb) / 0.15)' : 'transparent',
+            color: bracketEnabled ? 'var(--accent)' : colors.textMuted,
+            border: `1px solid ${bracketEnabled ? 'rgb(var(--accent-rgb) / 0.25)' : colors.border}`,
           }}
         >
           BKT
@@ -478,15 +478,15 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
                 onClick={() => setRrPreset(rr)}
                 className="h-5 px-1 rounded text-[9px] font-medium transition-colors"
                 style={{
-                  backgroundColor: rrPreset === rr ? 'rgba(251,191,36,0.15)' : 'transparent',
-                  color: rrPreset === rr ? '#fbbf24' : colors.textMuted,
+                  backgroundColor: rrPreset === rr ? 'rgb(var(--warning-rgb) / 0.15)' : 'transparent',
+                  color: rrPreset === rr ? 'var(--warning)' : colors.textMuted,
                 }}>
                 {rr}
               </button>
             ))}
             <div className="flex items-center rounded overflow-hidden shrink-0"
               style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
-              <span className="px-1 text-[8px] font-bold" style={{ color: '#ef4444' }}>SL</span>
+              <span className="px-1 text-[8px] font-bold" style={{ color: 'var(--bear)' }}>SL</span>
               <input type="number" value={slOffset}
                 onChange={e => setSlOffset(e.target.value)}
                 step={tick}
@@ -496,7 +496,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             </div>
             <div className="flex items-center rounded overflow-hidden shrink-0"
               style={{ border: `1px solid ${colors.border}`, backgroundColor: colors.surface }}>
-              <span className="px-1 text-[8px] font-bold" style={{ color: '#22c55e' }}>TP</span>
+              <span className="px-1 text-[8px] font-bold" style={{ color: 'var(--bull)' }}>TP</span>
               <input type="number" value={tpOffset}
                 onChange={e => { setTpOffset(e.target.value); setRrPreset('off'); }}
                 step={tick}
@@ -516,16 +516,16 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
                 <div className="flex items-center gap-1 shrink-0 text-[9px] tabular-nums px-1.5 py-0.5 rounded"
                   style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: `1px solid ${colors.border}` }}>
                   {tpUsd !== null && (
-                    <span style={{ color: '#22c55e' }}>+${tpUsd.toFixed(0)}</span>
+                    <span style={{ color: 'var(--bull)' }}>+${tpUsd.toFixed(0)}</span>
                   )}
                   {tpUsd !== null && slUsd !== null && (
                     <span style={{ color: colors.textMuted, opacity: 0.5 }}>·</span>
                   )}
                   {slUsd !== null && (
-                    <span style={{ color: '#ef4444' }}>-${slUsd.toFixed(0)}</span>
+                    <span style={{ color: 'var(--bear)' }}>-${slUsd.toFixed(0)}</span>
                   )}
                   {tpUsd !== null && slUsd !== null && slUsd > 0 && (
-                    <span className="font-bold opacity-70" style={{ color: tpUsd / slUsd >= 1 ? '#fbbf24' : colors.textMuted }}>
+                    <span className="font-bold opacity-70" style={{ color: tpUsd / slUsd >= 1 ? 'var(--warning)' : colors.textMuted }}>
                       {(tpUsd / slUsd).toFixed(1)}R
                     </span>
                   )}
@@ -544,18 +544,18 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           <div className="flex items-center gap-1.5 shrink-0 text-[10px] tabular-nums">
             <span className="px-1.5 py-px rounded text-[9px] font-bold tracking-wide"
               style={{
-                backgroundColor: currentPosition.side === 'buy' ? 'rgba(16,185,129,0.18)' : 'rgba(239,68,68,0.18)',
-                color: currentPosition.side === 'buy' ? '#10b981' : '#ef4444',
+                backgroundColor: currentPosition.side === 'buy' ? 'rgb(var(--bull-rgb) / 0.18)' : 'rgb(var(--bear-rgb) / 0.18)',
+                color: currentPosition.side === 'buy' ? 'var(--bull)' : 'var(--bear)',
               }}>
               {currentPosition.side === 'buy' ? 'LONG' : 'SHORT'} {currentPosition.quantity}
             </span>
             <span className="text-[9px]" style={{ color: colors.textMuted }}>
               @ {currentPosition.entryPrice.toFixed(decimals)}
             </span>
-            <span className="font-bold text-[10px]" style={{ color: currentPosition.pnl >= 0 ? '#10b981' : '#ef4444' }}>
+            <span className="font-bold text-[10px]" style={{ color: currentPosition.pnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
               {currentPosition.pnl >= 0 ? '+' : ''}{currentPosition.pnl.toFixed(2)}
             </span>
-            <span className="text-[9px] font-medium" style={{ color: currentPosition.pnl >= 0 ? '#10b98199' : '#ef444499' }}>
+            <span className="text-[9px] font-medium" style={{ color: currentPosition.pnl >= 0 ? 'rgb(var(--bull-rgb) / 0.6)' : 'rgb(var(--bear-rgb) / 0.6)' }}>
               ({currentPosition.pnlPercent >= 0 ? '+' : ''}{currentPosition.pnlPercent.toFixed(2)}%)
             </span>
           </div>
@@ -571,14 +571,14 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
               <>
                 <button onClick={handleFlatten} title="Flatten (X)"
                   className="w-5 h-5 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
-                  style={{ color: '#a78bfa' }}>
+                  style={{ color: 'var(--accent)' }}>
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" />
                   </svg>
                 </button>
                 <button onClick={handleReverse} title="Reverse (F)"
                   className="w-5 h-5 rounded flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
-                  style={{ color: '#fbbf24' }}>
+                  style={{ color: 'var(--warning)' }}>
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="2,6 6,2 10,6" /><line x1="6" y1="2" x2="6" y2="11" />
                     <polyline points="6,10 10,14 14,10" /><line x1="10" y1="5" x2="10" y2="14" />
@@ -620,9 +620,9 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           title={lockedReason ?? (accountState === 'PASSED' ? 'Challenge passed' : 'Account locked')}
           className="px-2 h-6 rounded text-[10px] font-bold tracking-wider flex items-center gap-1.5 shrink-0 transition-colors hover:brightness-110"
           style={{
-            background: accountState === 'PASSED' ? 'rgba(168,85,247,0.18)' : 'rgba(239,68,68,0.18)',
-            color:      accountState === 'PASSED' ? '#a78bfa' : '#ef4444',
-            border:     `1px solid ${accountState === 'PASSED' ? 'rgba(168,85,247,0.4)' : 'rgba(239,68,68,0.4)'}`,
+            background: accountState === 'PASSED' ? 'rgb(var(--accent-rgb) / 0.18)' : 'rgb(var(--bear-rgb) / 0.18)',
+            color:      accountState === 'PASSED' ? 'var(--accent)' : 'var(--bear)',
+            border:     `1px solid ${accountState === 'PASSED' ? 'rgb(var(--accent-rgb) / 0.4)' : 'rgb(var(--bear-rgb) / 0.4)'}`,
           }}
         >
           {accountState === 'PASSED' ? '🏆 PASSED' : '🔒 LOCKED'}
@@ -640,10 +640,10 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           title={accountBlocked ? lockedReason ?? 'Account locked' : 'Sell at market (S)'}
           className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:brightness-100"
           style={{
-            backgroundColor: lastAction?.side === 'sell' ? '#b91c1c' : '#ef4444',
+            backgroundColor: lastAction?.side === 'sell' ? 'color-mix(in srgb, var(--bear) 78%, #000)' : 'var(--bear)',
             color: '#fff',
             boxShadow: lastAction?.side === 'sell'
-              ? '0 0 12px rgba(239,68,68,0.7), inset 0 0 6px rgba(0,0,0,0.3)'
+              ? '0 0 12px rgb(var(--bear-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
               : '0 1px 2px rgba(0,0,0,0.2)',
             transform: lastAction?.side === 'sell' ? 'scale(0.95)' : 'scale(1)',
           }}
@@ -657,10 +657,10 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
           title={accountBlocked ? lockedReason ?? 'Account locked' : 'Buy at market (B)'}
           className="relative h-6 px-3 rounded font-bold text-[10px] tracking-wider transition-all duration-100 active:scale-90 hover:brightness-110 flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:brightness-100"
           style={{
-            backgroundColor: lastAction?.side === 'buy' ? '#047857' : '#10b981',
+            backgroundColor: lastAction?.side === 'buy' ? 'color-mix(in srgb, var(--bull) 70%, #000)' : 'var(--bull)',
             color: '#fff',
             boxShadow: lastAction?.side === 'buy'
-              ? '0 0 12px rgba(16,185,129,0.7), inset 0 0 6px rgba(0,0,0,0.3)'
+              ? '0 0 12px rgb(var(--bull-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
               : '0 1px 2px rgba(0,0,0,0.2)',
             transform: lastAction?.side === 'buy' ? 'scale(0.95)' : 'scale(1)',
           }}

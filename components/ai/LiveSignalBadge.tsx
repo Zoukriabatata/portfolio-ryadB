@@ -5,16 +5,16 @@ import { useLiveAgent } from '@/hooks/useLiveAgent';
 // ── Bias color helpers ────────────────────────────────────────────────────────
 
 const BIAS_STYLES = {
-  LONG:    { dot: 'bg-emerald-500', text: 'text-emerald-400', label: 'LONG' },
-  SHORT:   { dot: 'bg-red-500',     text: 'text-red-400',     label: 'SHORT' },
-  NEUTRAL: { dot: 'bg-yellow-500',  text: 'text-yellow-400',  label: 'NEUT' },
+  LONG:    { dot: 'bg-[var(--bull)]',    text: 'text-[var(--bull)]',    label: 'LONG' },
+  SHORT:   { dot: 'bg-[var(--bear)]',    text: 'text-[var(--bear)]',    label: 'SHORT' },
+  NEUTRAL: { dot: 'bg-[var(--warning)]', text: 'text-[var(--warning)]', label: 'NEUT' },
 } as const;
 
 const STATUS_DOT: Record<string, string> = {
-  live:         'bg-violet-500',
-  connecting:   'bg-yellow-500 animate-pulse',
-  reconnecting: 'bg-yellow-500 animate-pulse',
-  offline:      'bg-red-600',
+  live:         'bg-[var(--accent)]',
+  connecting:   'bg-[var(--warning)] animate-pulse',
+  reconnecting: 'bg-[var(--warning)] animate-pulse',
+  offline:      'bg-[var(--bear)]',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────

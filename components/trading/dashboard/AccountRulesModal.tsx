@@ -234,7 +234,7 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
           <button
             onClick={handleResetAndApply}
             className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:brightness-110"
-            style={{ background: 'rgba(239,68,68,0.10)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.30)' }}
+            style={{ background: 'rgb(var(--bear-rgb) / 0.10)', color: 'var(--bear)', border: '1px solid rgb(var(--bear-rgb) / 0.30)' }}
             title="Apply rules AND reset day baseline + drawdown peak"
           >
             Reset & Apply
@@ -271,7 +271,7 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       <div
         className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
         style={{
-          background: '#fff',
+          background: 'var(--text-primary)',
           left:       checked ? '20px' : '2px',
           boxShadow:  '0 1px 2px rgba(0,0,0,0.3)',
         }}

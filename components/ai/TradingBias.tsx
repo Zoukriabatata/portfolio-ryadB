@@ -51,22 +51,22 @@ interface TradingBiasProps {
 }
 
 const BIAS_CONFIG = {
-  BULLISH: { label: 'BULLISH', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', icon: '↑' },
-  BEARISH: { label: 'BEARISH', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',  icon: '↓' },
-  NEUTRAL: { label: 'NEUTRAL', color: '#eab308', bg: 'rgba(234,179,8,0.1)',  icon: '→' },
+  BULLISH: { label: 'BULLISH', color: 'var(--bull)',    bg: 'rgb(var(--bull-rgb) / 0.1)',    icon: '↑' },
+  BEARISH: { label: 'BEARISH', color: 'var(--bear)',    bg: 'rgb(var(--bear-rgb) / 0.1)',    icon: '↓' },
+  NEUTRAL: { label: 'NEUTRAL', color: 'var(--warning)', bg: 'rgb(var(--warning-rgb) / 0.1)', icon: '→' },
 };
 
 export default function TradingBias({ defaultData = {}, colors = {}, className = '' }: TradingBiasProps) {
   const {
-    background         = '#0d0d0d',
-    surface            = '#1a1a1a',
-    textPrimary        = '#e2e8f0',
-    textSecondary      = '#64748b',
-    textMuted          = '#475569',
-    currentPriceColor  = '#3b82f6',
-    gridColor          = '#1e293b',
-    deltaPositive      = '#22c55e',
-    deltaNegative      = '#ef4444',
+    background         = 'var(--background)',
+    surface            = 'var(--surface)',
+    textPrimary        = 'var(--text-primary)',
+    textSecondary      = 'var(--text-secondary)',
+    textMuted          = 'var(--text-muted)',
+    currentPriceColor  = 'var(--primary)',
+    gridColor          = 'var(--border)',
+    deltaPositive      = 'var(--bull)',
+    deltaNegative      = 'var(--bear)',
   } = colors;
 
   const [form, setForm] = useState<Partial<MarketData>>({
@@ -241,7 +241,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
         {/* ── Result Panel ───────────────────────────────────────────────── */}
         <div className="flex-1 p-4 overflow-y-auto" style={{ backgroundColor: background }}>
           {error && (
-            <div className="mb-3 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: deltaNegative, border: '1px solid rgba(239,68,68,0.2)' }}>
+            <div className="mb-3 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgb(var(--bear-rgb) / 0.1)', color: deltaNegative, border: '1px solid rgb(var(--bear-rgb) / 0.2)' }}>
               ⚠️ {error}
             </div>
           )}
@@ -327,7 +327,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
               {(result.keyLevels.support.length > 0 || result.keyLevels.resistance.length > 0) && (
                 <div className="grid grid-cols-2 gap-2">
                   {result.keyLevels.support.length > 0 && (
-                    <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                    <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgb(var(--bull-rgb) / 0.05)', border: '1px solid rgb(var(--bull-rgb) / 0.2)' }}>
                       <p className="text-[10px] font-semibold mb-1" style={{ color: deltaPositive }}>SUPPORT</p>
                       {result.keyLevels.support.map((lvl, i) => (
                         <p key={i} className="text-sm font-mono" style={{ color: textPrimary }}>${lvl.toLocaleString()}</p>
@@ -335,7 +335,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
                     </div>
                   )}
                   {result.keyLevels.resistance.length > 0 && (
-                    <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgb(var(--bear-rgb) / 0.05)', border: '1px solid rgb(var(--bear-rgb) / 0.2)' }}>
                       <p className="text-[10px] font-semibold mb-1" style={{ color: deltaNegative }}>RÉSISTANCE</p>
                       {result.keyLevels.resistance.map((lvl, i) => (
                         <p key={i} className="text-sm font-mono" style={{ color: textPrimary }}>${lvl.toLocaleString()}</p>
@@ -347,7 +347,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
 
               {/* Action */}
               {result.action && (
-                <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
+                <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.08)', border: '1px solid rgb(var(--primary-rgb) / 0.2)' }}>
                   <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: currentPriceColor }}>
                     Approche suggérée
                   </p>

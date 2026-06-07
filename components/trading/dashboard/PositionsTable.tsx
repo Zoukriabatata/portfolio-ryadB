@@ -89,7 +89,7 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
           <tbody>
             {positions.map((p, i) => {
               const isLong = p.side === 'buy';
-              const pnlColor = p.pnl >= 0 ? '#10b981' : '#ef4444';
+              const pnlColor = p.pnl >= 0 ? 'var(--bull)' : 'var(--bear)';
               return (
                 <tr
                   key={`${p.symbol}-${i}`}
@@ -103,8 +103,8 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
                     <span
                       className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider"
                       style={{
-                        background: isLong ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                        color:      isLong ? '#10b981' : '#ef4444',
+                        background: isLong ? 'rgb(var(--bull-rgb) / 0.15)' : 'rgb(var(--bear-rgb) / 0.15)',
+                        color:      isLong ? 'var(--bull)' : 'var(--bear)',
                       }}
                     >
                       {isLong ? 'LONG' : 'SHORT'}
@@ -167,7 +167,7 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
                           onClick={() => openEditor(p.symbol, p.trailingStop?.distance)}
                           title={`Trail distance: ${p.trailingStop.distance.toFixed(2)} · current stop ${p.trailingStop.currentStop.toFixed(2)}`}
                           className="px-1.5 py-0.5 rounded text-[10px] font-semibold tabular-nums transition-colors hover:brightness-110"
-                          style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}
+                          style={{ background: 'rgb(var(--warning-rgb) / 0.12)', color: 'var(--warning)', border: '1px solid rgb(var(--warning-rgb) / 0.3)' }}
                         >
                           ⬆ {p.trailingStop.currentStop.toFixed(2)}
                         </button>
@@ -196,9 +196,9 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
                       onClick={() => closePosition(p.symbol)}
                       className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide transition-colors hover:brightness-110"
                       style={{
-                        background: 'rgba(168,85,247,0.15)',
-                        color:      '#a78bfa',
-                        border:     '1px solid rgba(168,85,247,0.3)',
+                        background: 'rgb(var(--primary-rgb) / 0.15)',
+                        color:      'var(--primary)',
+                        border:     '1px solid rgb(var(--primary-rgb) / 0.3)',
                       }}
                     >
                       Close

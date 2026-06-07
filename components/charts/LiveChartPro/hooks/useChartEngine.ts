@@ -3,6 +3,7 @@ import { CanvasChartEngine } from '@/lib/rendering/CanvasChartEngine';
 import { usePreferencesStore } from '@/stores/usePreferencesStore';
 import { useUIThemeStore } from '@/stores/useUIThemeStore';
 import { hexToRgba } from '@/lib/utils/colorUtils';
+import { themeColor } from '@/lib/ui/themeColors';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs, CustomColors, EffectiveColors } from './types';
 
@@ -20,16 +21,16 @@ function getThemeFromCSS() {
     gridLines: get('--chart-grid', '#1a1a1a'),
     text: get('--text-secondary', '#888888'),
     textMuted: get('--text-muted', '#555555'),
-    candleUp: get('--candle-up', get('--bull', '#22c55e')),
-    candleDown: get('--candle-down', get('--bear', '#ef4444')),
-    wickUp: get('--wick-up', get('--candle-up', '#22c55e')),
-    wickDown: get('--wick-down', get('--candle-down', '#ef4444')),
-    volumeUp: `${get('--candle-up', get('--bull', '#22c55e'))}66`,
-    volumeDown: `${get('--candle-down', get('--bear', '#ef4444'))}66`,
+    candleUp: get('--candle-up', get('--bull', '#26d97f')),
+    candleDown: get('--candle-down', get('--bear', '#f04f4f')),
+    wickUp: get('--wick-up', get('--candle-up', '#26d97f')),
+    wickDown: get('--wick-down', get('--candle-down', '#f04f4f')),
+    volumeUp: `${get('--candle-up', get('--bull', '#26d97f'))}66`,
+    volumeDown: `${get('--candle-down', get('--bear', '#f04f4f'))}66`,
     crosshair: get('--text-muted', '#6b7280'),
     crosshairLabel: '#ffffff',
     crosshairLabelBg: get('--surface-elevated', '#374151'),
-    priceLineColor: get('--accent', '#3b82f6'),
+    priceLineColor: get('--accent', '#2dd4bf'),
   };
 }
 
@@ -82,11 +83,11 @@ export function useChartEngine({ refs, theme, customColors, symbol }: UseChartEn
 
     let color: string;
     if (clampedPosition >= 66) {
-      color = '#22c55e';
+      color = themeColor('--bull');
     } else if (clampedPosition >= 33) {
-      color = '#eab308';
+      color = themeColor('--warning');
     } else {
-      color = '#ef4444';
+      color = themeColor('--bear');
     }
 
     refs.pricePositionBar.current.style.height = `${clampedPosition}%`;

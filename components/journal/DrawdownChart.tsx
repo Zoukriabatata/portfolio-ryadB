@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { scaleLinear, drawGrid, generateYTicks, formatCurrency } from '@/lib/journal/chartUtils';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 
 interface DrawdownChartProps {
   data: { date: string; drawdown: number; drawdownPct: number }[];
@@ -41,7 +42,7 @@ export default function DrawdownChart({ data, height = 160 }: DrawdownChartProps
     drawGrid(ctx, width, height, PADDING, yTicks, scaleY);
 
     // Y axis labels
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#888';
+    ctx.fillStyle = themeColor('--text-muted');
     ctx.font = '10px JetBrains Mono, monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
@@ -50,7 +51,7 @@ export default function DrawdownChart({ data, height = 160 }: DrawdownChartProps
     }
 
     // Zero line
-    ctx.strokeStyle = 'rgba(128, 128, 128, 0.3)';
+    ctx.strokeStyle = themeAlpha('--text-muted', 0.3);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(PADDING.left, scaleY(0));
@@ -67,8 +68,8 @@ export default function DrawdownChart({ data, height = 160 }: DrawdownChartProps
     ctx.closePath();
 
     const grad = ctx.createLinearGradient(0, scaleY(0), 0, height - PADDING.bottom);
-    grad.addColorStop(0, 'rgba(239, 68, 68, 0.05)');
-    grad.addColorStop(1, 'rgba(239, 68, 68, 0.3)');
+    grad.addColorStop(0, themeAlpha('--bear', 0.05));
+    grad.addColorStop(1, themeAlpha('--bear', 0.3));
     ctx.fillStyle = grad;
     ctx.fill();
 
@@ -80,7 +81,7 @@ export default function DrawdownChart({ data, height = 160 }: DrawdownChartProps
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = 'rgb(239, 68, 68)';
+    ctx.strokeStyle = themeColor('--bear');
     ctx.lineWidth = 1.5;
     ctx.stroke();
 

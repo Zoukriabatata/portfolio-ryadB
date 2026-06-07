@@ -307,7 +307,7 @@ export default function GEXPageContent() {
               return (
                 <button key={g} onClick={() => setSelectedGreek(g)}
                   title={`${m.fullName} (${i + 1})`}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${selectedGreek === g ? 'text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${selectedGreek === g ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
                   style={selectedGreek === g ? { background: m.color } : undefined}>
                   {m.label}
                 </button>

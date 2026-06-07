@@ -82,8 +82,8 @@ export default function PerformanceBySymbol({ range }: Props) {
                     className="absolute top-0 h-full transition-all duration-500"
                     style={{
                       width:       `${pctWidth}%`,
-                      background:  isProfit ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)',
-                      borderLeft:  `2px solid ${isProfit ? '#10b981' : '#ef4444'}`,
+                      background:  isProfit ? 'rgb(var(--bull-rgb) / 0.4)' : 'rgb(var(--bear-rgb) / 0.4)',
+                      borderLeft:  `2px solid ${isProfit ? 'var(--bull)' : 'var(--bear)'}`,
                       left: 0,
                     }}
                   />
@@ -93,7 +93,7 @@ export default function PerformanceBySymbol({ range }: Props) {
                     </span>
                   </div>
                 </div>
-                <span className="w-20 text-right tabular-nums font-bold" style={{ color: isProfit ? '#10b981' : '#ef4444' }}>
+                <span className="w-20 text-right tabular-nums font-bold" style={{ color: isProfit ? 'var(--bull)' : 'var(--bear)' }}>
                   {isProfit ? '+' : ''}${s.netPnl.toFixed(2)}
                 </span>
               </div>

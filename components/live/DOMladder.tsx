@@ -37,14 +37,14 @@ function LevelRow({ level, maxSize, side, isBest, tickSize }: LevelRowProps) {
   const barPct = maxSize > 0 ? (level.size / maxSize) * BAR_MAX_PCT : 0;
   const isBid = side === 'bid';
 
-  const barColor = isBid ? 'rgba(34,197,94,0.18)' : 'rgba(239,68,68,0.18)';
+  const barColor = isBid ? 'rgb(var(--bull-rgb) / 0.18)' : 'rgb(var(--bear-rgb) / 0.18)';
   const bestBg = isBest
     ? isBid
-      ? 'rgba(34,197,94,0.08)'
-      : 'rgba(239,68,68,0.08)'
+      ? 'rgb(var(--bull-rgb) / 0.08)'
+      : 'rgb(var(--bear-rgb) / 0.08)'
     : 'transparent';
   const priceColor = isBest
-    ? isBid ? '#22c55e' : '#ef4444'
+    ? isBid ? 'var(--bull)' : 'var(--bear)'
     : 'var(--text-primary)';
 
   return (
@@ -52,7 +52,7 @@ function LevelRow({ level, maxSize, side, isBest, tickSize }: LevelRowProps) {
       className="relative flex items-center h-[22px] text-[11px] tabular-nums overflow-hidden cursor-default select-none"
       style={{
         backgroundColor: bestBg,
-        borderLeft: isBest ? `2px solid ${isBid ? '#22c55e' : '#ef4444'}` : '2px solid transparent',
+        borderLeft: isBest ? `2px solid ${isBid ? 'var(--bull)' : 'var(--bear)'}` : '2px solid transparent',
       }}
     >
       {/* Volume bar — grows from the side opposite the price */}
@@ -72,13 +72,13 @@ function LevelRow({ level, maxSize, side, isBest, tickSize }: LevelRowProps) {
             <span className="flex-1 text-right" style={{ color: priceColor }}>
               {formatPrice(level.price, tickSize)}
             </span>
-            <span className="w-14 text-right" style={{ color: '#22c55e' }}>
+            <span className="w-14 text-right" style={{ color: 'var(--bull)' }}>
               {formatSize(level.size)}
             </span>
           </>
         ) : (
           <>
-            <span className="w-14 text-left" style={{ color: '#ef4444' }}>
+            <span className="w-14 text-left" style={{ color: 'var(--bear)' }}>
               {formatSize(level.size)}
             </span>
             <span className="flex-1 text-left" style={{ color: priceColor }}>
@@ -124,7 +124,7 @@ export function DOMladder({ dom, quote, tickSize = 0.25, depth = 15 }: DOMladder
   }
 
   return (
-    <div className="flex flex-col h-full text-xs" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+    <div className="flex flex-col h-full text-xs" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
       {/* Header */}
       <div
         className="flex items-center justify-between px-2 py-1 text-[10px] font-medium shrink-0"
@@ -149,9 +149,9 @@ export function DOMladder({ dom, quote, tickSize = 0.25, depth = 15 }: DOMladder
         className="flex px-2 py-0.5 text-[10px] shrink-0"
         style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}
       >
-        <span className="w-14 text-left" style={{ color: '#ef444480' }}>Size</span>
+        <span className="w-14 text-left" style={{ color: 'rgb(var(--bear-rgb) / 0.5)' }}>Size</span>
         <span className="flex-1 text-center">Price</span>
-        <span className="w-14 text-right" style={{ color: '#22c55e80' }}>Size</span>
+        <span className="w-14 text-right" style={{ color: 'rgb(var(--bull-rgb) / 0.5)' }}>Size</span>
       </div>
 
       {/* Ask levels — top half, best ask at the bottom */}

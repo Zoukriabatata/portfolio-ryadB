@@ -90,7 +90,7 @@ export default function TrackScoreCard({ analytics, entries, loading }: TrackSco
                   <div className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(100, pct)}%`,
-                      background: pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444',
+                      background: pct >= 70 ? 'var(--bull)' : pct >= 40 ? 'var(--warning)' : 'var(--bear)',
                     }} />
                 </div>
                 <span className="text-[9px] font-mono w-8 text-right" style={{ color: 'var(--text-secondary)' }}>

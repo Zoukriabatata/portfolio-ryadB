@@ -42,12 +42,12 @@ const SUGGESTED_QUESTIONS = [
 
 export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELCOME, className = '' }: SupportChatProps) {
   const {
-    background      = '#0d0d0d',
-    surface         = '#1a1a1a',
-    textPrimary     = '#e2e8f0',
-    textSecondary   = '#64748b',
-    currentPriceColor = '#3b82f6',
-    gridColor       = '#1e293b',
+    background      = 'var(--background)',
+    surface         = 'var(--surface)',
+    textPrimary     = 'var(--text-primary)',
+    textSecondary   = 'var(--text-secondary)',
+    currentPriceColor = 'var(--primary)',
+    gridColor       = 'var(--border)',
   } = colors;
 
   const [messages,  setMessages]  = useState<Message[]>([
@@ -187,7 +187,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
           className="flex items-center gap-2 px-4 py-3 border-b"
           style={{ borderColor: gridColor, backgroundColor: background }}
         >
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-[var(--bull)] animate-pulse" />
           <span className="text-sm font-semibold" style={{ color: textPrimary }}>
             Assistant Trading
           </span>
@@ -271,7 +271,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
             <button
               onClick={stopGeneration}
               className="p-2 rounded-lg transition-colors"
-              style={{ backgroundColor: '#ef4444', color: '#fff' }}
+              style={{ backgroundColor: 'var(--bear)', color: '#fff' }}
               title="Arrêter"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

@@ -81,7 +81,7 @@ function ConfidenceArc({ value, color }: { value: number; color: string }) {
       />
       {/* Value */}
       <text x={cx} y={cy - 4} textAnchor="middle"
-        style={{ fontSize: 16, fontWeight: 800, fill: color, fontFamily: 'monospace' }}>
+        style={{ fontSize: 16, fontWeight: 800, fill: color, fontFamily: 'var(--font-jetbrains-mono)' }}>
         {pct}
       </text>
       <text x={cx} y={cy + 10} textAnchor="middle"

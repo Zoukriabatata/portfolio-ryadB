@@ -38,7 +38,7 @@ export default function TradeDetailPanel({ trade, onClose, onEdit }: TradeDetail
           <span
             className="text-xs font-bold px-2 py-0.5 rounded"
             style={{
-              background: trade.side === 'LONG' ? 'var(--bull-bg, rgba(34,197,94,0.15))' : 'var(--bear-bg, rgba(239,68,68,0.15))',
+              background: trade.side === 'LONG' ? 'var(--bull-bg, rgb(var(--bull-rgb) / 0.15))' : 'var(--bear-bg, rgb(var(--bear-rgb) / 0.15))',
               color: trade.side === 'LONG' ? 'var(--bull)' : 'var(--bear)',
             }}
           >

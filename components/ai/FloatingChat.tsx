@@ -331,7 +331,7 @@ export default function FloatingChat() {
         {!open && unread > 0 && (
           <span
             className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
-            style={{ background: '#ef4444', color: '#fff' }}
+            style={{ background: 'var(--bear)', color: '#fff' }}
           >
             {unread}
           </span>

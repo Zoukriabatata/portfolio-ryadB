@@ -166,9 +166,9 @@ function Metric({
 }) {
   const colorMap = {
     default: 'var(--text-primary)',
-    success: '#10b981',
-    error:   '#ef4444',
-    warning: '#fbbf24',
+    success: 'var(--bull)',
+    error:   'var(--bear)',
+    warning: 'var(--warning)',
   };
 
   return (

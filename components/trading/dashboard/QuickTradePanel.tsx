@@ -220,10 +220,11 @@ export default function QuickTradePanel() {
           title={blocked ? lockedReason ?? 'Account locked' : 'Sell at market'}
           className="h-11 rounded-lg font-bold text-[13px] tracking-wider transition-all duration-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           style={{
-            background: flashSide === 'sell' ? '#b91c1c' : '#ef4444',
-            color: '#fff',
+            background: 'var(--bear)',
+            color: 'var(--text-primary)',
+            filter: flashSide === 'sell' ? 'brightness(0.8)' : 'none',
             boxShadow: flashSide === 'sell'
-              ? '0 0 14px rgba(239,68,68,0.7), inset 0 0 6px rgba(0,0,0,0.3)'
+              ? '0 0 14px rgb(var(--bear-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
               : '0 1px 3px rgba(0,0,0,0.2)',
             transform: flashSide === 'sell' ? 'scale(0.97)' : 'scale(1)',
           }}
@@ -241,10 +242,11 @@ export default function QuickTradePanel() {
           title={blocked ? lockedReason ?? 'Account locked' : 'Buy at market'}
           className="h-11 rounded-lg font-bold text-[13px] tracking-wider transition-all duration-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           style={{
-            background: flashSide === 'buy' ? '#047857' : '#10b981',
-            color: '#fff',
+            background: 'var(--bull)',
+            color: 'var(--text-primary)',
+            filter: flashSide === 'buy' ? 'brightness(0.8)' : 'none',
             boxShadow: flashSide === 'buy'
-              ? '0 0 14px rgba(16,185,129,0.7), inset 0 0 6px rgba(0,0,0,0.3)'
+              ? '0 0 14px rgb(var(--bull-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
               : '0 1px 3px rgba(0,0,0,0.2)',
             transform: flashSide === 'buy' ? 'scale(0.97)' : 'scale(1)',
           }}

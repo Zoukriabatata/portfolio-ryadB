@@ -282,13 +282,13 @@ export default function LivePageContent() {
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <rect x="0" y="0" width="4" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="5" y="0" width="5" height="1.5" rx="0.5" fill="#22c55e" />
+            <rect x="5" y="0" width="5" height="1.5" rx="0.5" fill="var(--bull)" />
             <rect x="0" y="2.5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="7" y="2.5" width="3" height="1.5" rx="0.5" fill="#22c55e" />
+            <rect x="7" y="2.5" width="3" height="1.5" rx="0.5" fill="var(--bull)" />
             <rect x="0" y="5" width="7" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="8" y="5" width="2" height="1.5" rx="0.5" fill="#ef4444" />
+            <rect x="8" y="5" width="2" height="1.5" rx="0.5" fill="var(--bear)" />
             <rect x="0" y="7.5" width="5" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="6" y="7.5" width="4" height="1.5" rx="0.5" fill="#ef4444" />
+            <rect x="6" y="7.5" width="4" height="1.5" rx="0.5" fill="var(--bear)" />
           </svg>
           DOM
         </button>

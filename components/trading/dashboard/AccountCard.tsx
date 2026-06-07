@@ -105,9 +105,9 @@ function Stat({
 }) {
   const colorMap = {
     default: 'var(--text-primary)',
-    success: '#10b981',
-    error:   '#ef4444',
-    warning: '#fbbf24',
+    success: 'var(--bull)',
+    error:   'var(--bear)',
+    warning: 'var(--warning)',
     primary: 'var(--text-primary)',
     muted:   'var(--text-muted)',
   };

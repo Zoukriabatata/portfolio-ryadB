@@ -12,10 +12,10 @@ import {
 import CertificateButton from './CertificateButton';
 
 const STATE_STYLES: Record<AccountState, { label: string; bg: string; color: string; pulse: boolean }> = {
-  ACTIVE:  { label: 'ACTIVE',  bg: 'rgba(16,185,129,0.18)', color: '#10b981', pulse: false },
-  WARNING: { label: 'WARNING', bg: 'rgba(251,191,36,0.18)', color: '#fbbf24', pulse: true  },
-  LOCKED:  { label: 'LOCKED',  bg: 'rgba(239,68,68,0.18)',  color: '#ef4444', pulse: true  },
-  PASSED:  { label: 'PASSED',  bg: 'rgba(168,85,247,0.18)', color: '#a78bfa', pulse: false },
+  ACTIVE:  { label: 'ACTIVE',  bg: 'rgb(var(--bull-rgb) / 0.18)',    color: 'var(--bull)',    pulse: false },
+  WARNING: { label: 'WARNING', bg: 'rgb(var(--warning-rgb) / 0.18)', color: 'var(--warning)', pulse: true  },
+  LOCKED:  { label: 'LOCKED',  bg: 'rgb(var(--bear-rgb) / 0.18)',    color: 'var(--bear)',    pulse: true  },
+  PASSED:  { label: 'PASSED',  bg: 'rgb(var(--accent-rgb) / 0.18)',  color: 'var(--accent)',  pulse: false },
 };
 
 interface AccountRulesCardProps {
@@ -142,14 +142,14 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
         <div
           className="px-3 py-2.5 rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3"
           style={{
-            background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(74,222,128,0.12))',
-            border: '1px solid rgba(168,85,247,0.35)',
+            background: 'linear-gradient(135deg, rgb(var(--accent-rgb) / 0.12), rgb(var(--bull-rgb) / 0.12))',
+            border: '1px solid rgb(var(--accent-rgb) / 0.35)',
           }}
         >
           <div className="flex items-start gap-2">
             <span className="text-lg">🏆</span>
             <div>
-              <div className="text-[12px] font-bold" style={{ color: '#a78bfa' }}>
+              <div className="text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
                 Challenge passed!
               </div>
               <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
@@ -166,14 +166,14 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
         <div
           className="px-3 py-2.5 rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3"
           style={{
-            background: 'rgba(239,68,68,0.10)',
-            border:     '1px solid rgba(239,68,68,0.35)',
+            background: 'rgb(var(--bear-rgb) / 0.10)',
+            border:     '1px solid rgb(var(--bear-rgb) / 0.35)',
           }}
         >
           <div className="flex items-start gap-2">
             <span className="text-lg">📜</span>
             <div>
-              <div className="text-[12px] font-bold" style={{ color: '#fca5a5' }}>
+              <div className="text-[12px] font-bold" style={{ color: 'var(--bear)' }}>
                 Combine concluded
               </div>
               <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
@@ -194,14 +194,14 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
         <div
           className="px-3 py-2.5 rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3"
           style={{
-            background: 'rgba(168,139,250,0.10)',
-            border:     '1px solid rgba(168,139,250,0.35)',
+            background: 'rgb(var(--accent-rgb) / 0.10)',
+            border:     '1px solid rgb(var(--accent-rgb) / 0.35)',
           }}
         >
           <div className="flex items-start gap-2">
             <span className="text-lg">🎖️</span>
             <div>
-              <div className="text-[12px] font-bold" style={{ color: '#a78bfa' }}>
+              <div className="text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
                 Discipline maintained
               </div>
               <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
@@ -265,9 +265,9 @@ function RuleBar({
   // Color logic: by default red bar = bad (loss/dd consumed)
   // Inverted (profit target): green bar = good
   const colorMap = {
-    safe:    inverted ? '#10b981' : 'var(--text-muted)',
-    warning: '#fbbf24',
-    danger:  '#ef4444',
+    safe:    inverted ? 'var(--bull)' : 'var(--text-muted)',
+    warning: 'var(--warning)',
+    danger:  'var(--bear)',
   };
   const fillColor = colorMap[status];
 

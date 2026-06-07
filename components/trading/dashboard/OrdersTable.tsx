@@ -63,8 +63,8 @@ export default function OrdersTable({ symbolFilter = null }: OrdersTableProps) {
                     <span
                       className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider"
                       style={{
-                        background: isLong ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                        color:      isLong ? '#10b981' : '#ef4444',
+                        background: isLong ? 'rgb(var(--bull-rgb) / 0.15)' : 'rgb(var(--bear-rgb) / 0.15)',
+                        color:      isLong ? 'var(--bull)' : 'var(--bear)',
                       }}
                     >
                       {isLong ? 'BUY' : 'SELL'}
@@ -77,7 +77,7 @@ export default function OrdersTable({ symbolFilter = null }: OrdersTableProps) {
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color: o.price ? 'var(--text-primary)' : 'var(--text-dimmed)' }}>
                     {o.price ? `$${o.price.toFixed(2)}` : '—'}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums" style={{ color: o.stopPrice ? '#fbbf24' : 'var(--text-dimmed)' }}>
+                  <td className="px-3 py-2 text-right tabular-nums" style={{ color: o.stopPrice ? 'var(--warning)' : 'var(--text-dimmed)' }}>
                     {o.stopPrice ? `$${o.stopPrice.toFixed(2)}` : '—'}
                   </td>
                   <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
@@ -88,9 +88,9 @@ export default function OrdersTable({ symbolFilter = null }: OrdersTableProps) {
                       onClick={() => cancelOrder(o.id)}
                       className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide transition-colors hover:brightness-110"
                       style={{
-                        background: 'rgba(239,68,68,0.15)',
-                        color:      '#ef4444',
-                        border:     '1px solid rgba(239,68,68,0.3)',
+                        background: 'rgb(var(--bear-rgb) / 0.15)',
+                        color:      'var(--bear)',
+                        border:     '1px solid rgb(var(--bear-rgb) / 0.3)',
                       }}
                     >
                       Cancel
