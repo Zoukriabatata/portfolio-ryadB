@@ -90,7 +90,7 @@ export default function Modal({
         tabIndex={-1}
         className={`
           relative w-full ${sizeStyles[size]}
-          bg-[var(--surface-elevated)] border border-[var(--border-light)]
+          glass-intense
           rounded-[var(--radius-xl,16px)] shadow-xl
           animate-modal-content outline-none
           flex flex-col max-h-[85vh]

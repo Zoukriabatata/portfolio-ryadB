@@ -2,19 +2,19 @@ import Link from 'next/link';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4 relative overflow-hidden">
       {/* Ambient gradient orbs */}
       <div
         className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full pointer-events-none"
         style={{
-          background: 'radial-gradient(circle, rgba(74,222,128,0.07) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.07) 0%, transparent 70%)',
           filter: 'blur(80px)',
         }}
       />
       <div
         className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full pointer-events-none"
         style={{
-          background: 'radial-gradient(circle, rgba(74,222,128,0.04) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.04) 0%, transparent 70%)',
           filter: 'blur(80px)',
         }}
       />
@@ -37,16 +37,16 @@ export default function NotFound() {
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
             style={{ filter: 'blur(40px)', opacity: 0.3 }}
           >
-            <span className="text-[160px] sm:text-[200px] font-black leading-none tracking-tighter" style={{ color: '#4ade80' }}>
+            <span className="text-[160px] sm:text-[200px] font-black leading-none tracking-tighter" style={{ color: 'var(--primary)' }}>
               404
             </span>
           </div>
         </div>
 
-        <h2 className="text-xl font-semibold text-white/90 mb-3">
+        <h2 className="font-display text-2xl text-[var(--text-primary)] mb-3">
           Page not found
         </h2>
-        <p className="text-sm text-white/40 mb-10 leading-relaxed max-w-sm mx-auto">
+        <p className="text-sm text-[var(--text-muted)] mb-10 leading-relaxed max-w-sm mx-auto">
           This page doesn&apos;t exist or has been moved. Here are some places you might want to go:
         </p>
 
@@ -61,8 +61,8 @@ export default function NotFound() {
             <Link
               key={item.href}
               href={item.href}
-              className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300"
-              style={{ background: 'rgba(255,255,255,0.02)' }}
+              className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] hover:border-[var(--border-light)] transition-all duration-300"
+              style={{ background: 'var(--surface)' }}
             >
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
@@ -72,7 +72,7 @@ export default function NotFound() {
                   <path d={item.icon} />
                 </svg>
               </div>
-              <span className="text-[11px] font-medium text-white/50 group-hover:text-white/80 transition-colors">
+              <span className="text-[11px] font-medium text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors">
                 {item.label}
               </span>
             </Link>
@@ -83,7 +83,7 @@ export default function NotFound() {
         <div className="flex items-center justify-center gap-3">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/70 hover:text-white text-sm font-medium transition-all duration-200 border border-white/[0.08] hover:border-white/[0.15]"
+            className="btn-brand-ghost inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:-translate-y-0.5"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
@@ -93,12 +93,7 @@ export default function NotFound() {
           </Link>
           <Link
             href="/live"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border"
-            style={{
-              background: 'rgba(74,222,128,0.1)',
-              borderColor: 'rgba(74,222,128,0.25)',
-              color: '#86efac',
-            }}
+            className="btn-brand inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:-translate-y-0.5"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
