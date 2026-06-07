@@ -406,6 +406,9 @@ export function applyUITheme(themeId: UIThemeId): void {
   // Glass token follows the theme surface so "la verrure" matches the brand.
   root.style.setProperty('--glass-bg', `rgb(${surfaceRgb} / 0.75)`);
 
+  // Let canvas/JS code (lib/ui/themeColors) pick up the new palette.
+  import('@/lib/ui/themeColors').then((mod) => mod.refreshThemeColors()).catch(() => {});
+
   // Remove transition class after morph completes to avoid impacting chart perf
   setTimeout(() => root.classList.remove('theme-transition'), 500);
 }
