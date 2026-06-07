@@ -266,7 +266,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <path d="M2 12l10 5 10-5" />
                 </svg>
               </div>
-              <h3 style={{ fontFamily: MONO, fontWeight: 500, fontSize: 22, letterSpacing: '-0.02em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
+              <h3 className="font-display text-[26px]" style={{ color: 'var(--text-primary)' }}>
                 Research Pack
               </h3>
               <p className="mt-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -289,7 +289,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
                 <span className="text-[11px] font-medium" style={{ color: 'var(--accent)' }}>
-                  Aussi inclus avec l&apos;abonnement SENPRO
+                  Aussi inclus avec l&apos;abonnement Pro
                 </span>
               </div>
             </div>
@@ -352,12 +352,19 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <button
                     onClick={handlePurchase}
                     disabled={purchasing}
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{ background: 'var(--accent)', color: ON_ACCENT, boxShadow: '0 0 16px color-mix(in srgb, var(--accent) 28%, transparent)' }}
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50"
+                    style={{
+                      color: 'var(--accent)',
+                      background: 'rgb(var(--accent-rgb) / 0.12)',
+                      border: '1px solid rgb(var(--accent-rgb) / 0.30)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 26px rgb(var(--accent-rgb) / 0.14)',
+                    }}
                   >
                     {purchasing ? (
                       <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: ON_ACCENT, borderTopColor: 'transparent' }} />
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
                         Redirection vers Stripe...
                       </>
                     ) : (
@@ -376,7 +383,7 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                   <p className="text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
                     Ou souscris à{' '}
                     <Link href="/pricing" className="underline" style={{ color: 'var(--accent)' }}>
-                      SENPRO
+                      Pro
                     </Link>
                     {' '}pour accéder à tout
                   </p>
@@ -385,8 +392,15 @@ export default function ResearchPaywall({ preview, children }: ResearchPaywallPr
                 <div className="space-y-3">
                   <Link
                     href="/auth/login?callbackUrl=/academy"
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
-                    style={{ background: 'var(--accent)', color: ON_ACCENT, boxShadow: '0 0 16px color-mix(in srgb, var(--accent) 28%, transparent)' }}
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-colors"
+                    style={{
+                      color: 'var(--accent)',
+                      background: 'rgb(var(--accent-rgb) / 0.12)',
+                      border: '1px solid rgb(var(--accent-rgb) / 0.30)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 26px rgb(var(--accent-rgb) / 0.14)',
+                    }}
                   >
                     Se connecter pour acheter
                   </Link>

@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-// ─── OrderflowV2 — Data Feeds ("boutique") ─────────────────────────────
+// ─── Senzoukria — Data Feeds ("boutique") ─────────────────────────────
 // Refonte 2026-06 : l'offre s'est resserrée aux 3 voies réelles de
 // connexion. On ne propose plus dxFeed / Databento / IB / CQG / AMP /
 // Tradovate ni les prop firms. La page reste un hub FONCTIONNEL (la
@@ -40,7 +40,7 @@ const CONNECTION_FAQ = [
   {
     question: 'How does the NinjaTrader Bridge work?',
     answer:
-      'You already run NinjaTrader. Drop our NinjaScript file in, F5 compile, attach the indicator — OrderflowV2 reads the same tick feed NT shows you, locally over loopback (127.0.0.1). No order routing, no broker credentials touched. The 5-step walkthrough lives on the download page.',
+      'You already run NinjaTrader. Drop our NinjaScript file in, F5 compile, attach the indicator — Senzoukria reads the same tick feed NT shows you, locally over loopback (127.0.0.1). No order routing, no broker credentials touched. The 5-step walkthrough lives on the download page.',
   },
   {
     question: 'Is Rithmic direct included?',
@@ -104,20 +104,19 @@ export default function BoutiquePage() {
             · Data Feeds
           </div>
           <h1
-            className="leading-none animate-slideUp"
+            className="font-display leading-none animate-slideUp text-[clamp(36px,5vw,60px)]"
             style={{
-              fontFamily: MONO, fontWeight: 500, fontSize: 'clamp(36px, 5vw, 60px)',
-              letterSpacing: '-0.04em', textTransform: 'uppercase', color: 'var(--text-primary)',
+              color: 'var(--text-primary)',
               WebkitFontSmoothing: 'subpixel-antialiased', animationDelay: '100ms', animationFillMode: 'both',
             }}
           >
-            Plug in<br />your feed.
+            Plug in<br />your <span className="font-display-accent">feed.</span>
           </h1>
           <p
             className="mt-5 dash-text-sm md:dash-text-base max-w-md mx-auto animate-slideUp"
             style={{ color: 'var(--text-secondary)', animationDelay: '180ms', animationFillMode: 'both' }}
           >
-            Three ways to stream live market data into OrderflowV2 — crypto in one click,
+            Three ways to stream live market data into Senzoukria — crypto in one click,
             futures through the bridge you already run, or Rithmic direct.
           </p>
 
@@ -202,9 +201,11 @@ export default function BoutiquePage() {
           href="/download"
           className="group block rounded-2xl p-6 sm:p-8 mb-16 relative overflow-hidden transition-all duration-300 hover:translate-y-[-2px] animate-slideUp"
           style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--primary)',
-            boxShadow: '0 0 40px rgba(74,222,128,0.08)',
+            background: 'rgb(var(--primary-rgb) / 0.07)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.25)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: '0 0 40px rgb(var(--primary-rgb) / 0.08)',
             animationFillMode: 'both',
           }}
         >
@@ -217,7 +218,7 @@ export default function BoutiquePage() {
               <div className="flex items-center gap-2 mb-2">
                 <span
                   className="px-2 py-0.5 rounded-full"
-                  style={{ fontFamily: MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.15)', color: 'var(--primary)', border: '1px solid rgba(74,222,128,0.35)' }}
+                  style={{ fontFamily: MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', background: 'rgb(var(--primary-rgb) / 0.15)', color: 'var(--primary)', border: '1px solid rgb(var(--primary-rgb) / 0.35)' }}
                 >
                   Recommended
                 </span>
@@ -229,14 +230,14 @@ export default function BoutiquePage() {
                 NinjaTrader Bridge
               </h3>
               <p className="dash-text-sm mt-2 leading-relaxed max-w-xl" style={{ color: 'var(--text-secondary)' }}>
-                Drop our NinjaScript file into NinjaTrader, hit F5, attach the indicator — OrderflowV2 reads
+                Drop our NinjaScript file into NinjaTrader, hit F5, attach the indicator — Senzoukria reads
                 the same tick feed NT shows you, locally over loopback. Sub-5ms, no extra credentials, no order
                 routing touched. The setup is a desktop step, not a browser connect.
               </p>
             </div>
             <div
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl shrink-0 self-start md:self-center transition-all duration-200 group-hover:gap-3"
-              style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', background: 'linear-gradient(135deg, var(--primary-light), var(--primary))', color: '#06140b' }}
+              className="btn-brand inline-flex items-center gap-2 px-5 py-3 rounded-xl shrink-0 self-start md:self-center transition-all duration-200 group-hover:gap-3"
+              style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
             >
               Get the bridge
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
@@ -293,7 +294,7 @@ export default function BoutiquePage() {
           ))}
 
           <p className="mt-8 text-center dash-text-sm" style={{ color: 'var(--text-muted)' }}>
-            New to OrderflowV2?{' '}
+            New to Senzoukria?{' '}
             <Link href="/download" className="underline underline-offset-2 transition-colors hover:text-[var(--primary-light)]" style={{ color: 'rgb(var(--primary-light-rgb) / 0.75)' }}>
               Install the desktop
             </Link>{' '}·{' '}

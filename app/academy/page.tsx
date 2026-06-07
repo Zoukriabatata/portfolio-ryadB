@@ -402,12 +402,8 @@ function SectionTitle({ kicker, children }: { kicker?: string; children: ReactNo
         </p>
       )}
       <h2
+        className="font-display text-[clamp(22px,3vw,30px)]"
         style={{
-          fontFamily: MONO,
-          fontWeight: 500,
-          fontSize: 'clamp(22px, 3vw, 30px)',
-          letterSpacing: '-0.03em',
-          textTransform: 'uppercase',
           color: 'var(--text-primary)',
           WebkitFontSmoothing: 'subpixel-antialiased',
         }}
@@ -439,17 +435,13 @@ export default function PdfResearchPage() {
           Academy · Order flow research
         </p>
         <h1
+          className="font-display text-[clamp(34px,5vw,56px)]"
           style={{
-            fontFamily: MONO,
-            fontWeight: 500,
-            fontSize: 'clamp(34px, 5vw, 56px)',
-            letterSpacing: '-0.04em',
-            textTransform: 'uppercase',
             color: 'var(--text-primary)',
             WebkitFontSmoothing: 'subpixel-antialiased',
           }}
         >
-          Research Library
+          Research <span className="font-display-accent">Library</span>
         </h1>
         <p
           className="max-w-3xl text-base leading-relaxed"
