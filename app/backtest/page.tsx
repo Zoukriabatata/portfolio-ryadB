@@ -424,7 +424,7 @@ function BacktestTab(props: BacktestTabProps) {
       {/* Results */}
       {results && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="stagger-in grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <MetricCard label="P&L Net" value={`$${results.netProfit.toFixed(0)}`}
               color={results.netProfit >= 0 ? 'green' : 'red'} />
             <MetricCard label="Win Rate" value={`${(results.winRate * 100).toFixed(1)}%`}
@@ -611,7 +611,7 @@ function StatisticsTab({ allTimeStats, selectedSession, selectedStats, sessions,
 
       {stats && stats.totalTrades > 0 ? (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="stagger-in grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard label="P&L Total" value={`${stats.totalPnl >= 0 ? '+' : ''}${stats.totalPnl.toFixed(2)} $`}
               color={stats.totalPnl >= 0 ? 'green' : 'red'} icon={DollarSign} />
             <StatCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`}

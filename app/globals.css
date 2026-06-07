@@ -1281,4 +1281,39 @@ a:focus-visible {
   background: linear-gradient(0deg, rgb(var(--primary-rgb) / 0.03), transparent);
 }
 
+/* ============================================================
+   FLUIDITÉ — micro-interactions partagées (in-app)
+   Vocabulaire "effet addictif" : entrée chorégraphiée + survol vivant.
+   ============================================================ */
+@keyframes stagger-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Applique une entrée staggered aux enfants directs d'un conteneur. */
+.stagger-in > * {
+  animation: stagger-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-in > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger-in > *:nth-child(2) { animation-delay: 0.10s; }
+.stagger-in > *:nth-child(3) { animation-delay: 0.16s; }
+.stagger-in > *:nth-child(4) { animation-delay: 0.22s; }
+.stagger-in > *:nth-child(5) { animation-delay: 0.28s; }
+.stagger-in > *:nth-child(6) { animation-delay: 0.34s; }
+.stagger-in > *:nth-child(n+7) { animation-delay: 0.40s; }
+
+/* Survol "vivant" pour cartes : montée + liseré lime + ombre douce. */
+.card-lift {
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--primary-rgb) / 0.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgb(var(--primary-rgb) / 0.10);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in > * { animation: none; }
+  .card-lift:hover { transform: none; }
+}
+
 /* All animations, micro-interactions, and utility classes are in styles/animations.css */

@@ -202,7 +202,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div className="animate-fadeIn">
+        <div className="stagger-in">
         <>
         {/* Quick Activate */}
         <div className="glass mb-8 p-6 rounded-xl">
