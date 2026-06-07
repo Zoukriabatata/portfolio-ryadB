@@ -542,6 +542,34 @@ code {
   text-shadow: 0 0 30px rgb(var(--primary-rgb) / 0.26);
 }
 
+/* === BOUTONS DE MARQUE (verre, suivent le thème actif) ===
+   Version tokenisée de .landing-btn-* : ne portent que le visuel verre
+   (couleur/fond/bord/blur/ombre) — le padding/radius vient du système de
+   tailles de <Button>. Le ghost neutre garde un frost blanc (cf. réf). */
+.btn-brand, .btn-brand-ghost {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.btn-brand {
+  color: var(--primary-light);
+  background: rgb(var(--primary-rgb) / 0.09);
+  border: 1px solid rgb(var(--primary-rgb) / 0.30);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 8px 26px rgb(var(--primary-rgb) / 0.16);
+}
+.btn-brand:hover {
+  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--primary-rgb) / 0.45);
+}
+.btn-brand-ghost {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+}
+.btn-brand-ghost:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--border-strong);
+}
+
 /* Subtle glow — use sparingly, only on key CTAs or focus states */
 .glow-primary {
   box-shadow: 0 0 16px var(--primary-glow);

@@ -2,7 +2,7 @@
 
 import { forwardRef, ButtonHTMLAttributes } from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'soft';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'soft' | 'brand' | 'brandGhost';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,7 +15,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:-translate-y-0.5 text-white shadow-sm hover:shadow-md hover:shadow-[var(--primary-glow)]',
+    'bg-[var(--primary)] hover:bg-[var(--primary-light)] hover:-translate-y-0.5 text-[#06140b] shadow-sm hover:shadow-md hover:shadow-[var(--primary-glow)]',
+  // Marque : verre teinté lime + glow (CTA de référence). Le visuel vient
+  // des classes .btn-brand* (globals.css) ; ici on ajoute lift + graisse.
+  brand: 'btn-brand font-semibold hover:-translate-y-0.5',
+  brandGhost: 'btn-brand-ghost hover:-translate-y-0.5',
   secondary:
     'bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-light)] hover:-translate-y-0.5',
   ghost:
