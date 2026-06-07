@@ -8,6 +8,7 @@
 // fetch + page refresh can happen without leaving the page.
 
 import { redirect } from 'next/navigation';
+import { Monitor } from 'lucide-react';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { prisma } from '@/lib/db';
@@ -123,13 +124,7 @@ export default async function DevicesPage() {
               {license.machines.map((m) => (
                 <li key={m.id} className="devices-row">
                   <div className="devices-row-icon" aria-hidden>
-                    {osLabel(m.os) === 'Windows'
-                      ? '🪟'
-                      : osLabel(m.os) === 'macOS'
-                        ? '🍎'
-                        : osLabel(m.os) === 'Linux'
-                          ? '🐧'
-                          : '🖥'}
+                    <Monitor size={20} strokeWidth={1.5} />
                   </div>
                   <div className="devices-row-main">
                     <div className="devices-row-title">
