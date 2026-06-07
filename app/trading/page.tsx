@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { useAccountRulesStore } from '@/stores/useAccountRulesStore';
+import ModuleHeader        from '@/components/layouts/ModuleHeader';
 import AccountCard         from '@/components/trading/dashboard/AccountCard';
 import AccountRulesCard    from '@/components/trading/dashboard/AccountRulesCard';
 import AccountRulesModal   from '@/components/trading/dashboard/AccountRulesModal';
@@ -69,36 +70,32 @@ export default function TradingPage() {
   return (
     <div className="min-h-screen p-4 md:p-6 space-y-4 animate-fadeIn" style={{ background: 'var(--background)' }}>
       {/* ─── Header ───────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Trading Dashboard</h1>
-          <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {broker === 'demo' ? (
-              <>Demo account · paper trading · ${balance.toLocaleString()} simulated capital</>
-            ) : (
-              <>Live account · {broker.toUpperCase()}</>
+      <ModuleHeader
+        eyebrow="· Trading"
+        title="Trading"
+        accent="Dashboard"
+        subtitle={broker === 'demo'
+          ? <>Demo account · paper trading · ${balance.toLocaleString()} simulated capital</>
+          : <>Live account · {broker.toUpperCase()}</>}
+        actions={
+          <>
+            {broker === 'demo' && (
+              <button
+                onClick={() => setShowDemoPanel(true)}
+                className="btn-brand-ghost px-3 py-1.5 rounded-lg text-[12px] font-medium"
+              >
+                Account Settings
+              </button>
             )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {broker === 'demo' && (
-            <button
-              onClick={() => setShowDemoPanel(true)}
-              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:brightness-110"
-              style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            <a
+              href="/live"
+              className="btn-brand px-3 py-1.5 rounded-lg text-[12px] font-medium inline-flex items-center gap-1"
             >
-              Account Settings
-            </button>
-          )}
-          <a
-            href="/live"
-            className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors hover:brightness-110"
-            style={{ background: 'var(--primary)', color: 'var(--text-primary)' }}
-          >
-            Open Chart →
-          </a>
-        </div>
-      </div>
+              Open Chart →
+            </a>
+          </>
+        }
+      />
 
       {/* ─── Quick actions ────────────────────── */}
       <QuickActions onReset={handleResetAccount} onHotkeys={() => setShowHotkeysModal(true)} />

@@ -23,7 +23,7 @@ export default function JournalHeader({ onNewTrade }: JournalHeaderProps) {
     <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
       <div className="flex items-center gap-6">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Trading Journal</h1>
+          <h1 className="font-display text-xl text-[var(--text-primary)]">Trading Journal</h1>
         </div>
         <Tabs
           tabs={JOURNAL_TABS}
@@ -34,8 +34,7 @@ export default function JournalHeader({ onNewTrade }: JournalHeaderProps) {
       </div>
       <button
         onClick={onNewTrade}
-        className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
-        style={{ background: 'var(--primary)', color: 'var(--background)' }}
+        className="btn-brand px-4 py-2 rounded-lg text-sm font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
       >
         + New Trade
       </button>
