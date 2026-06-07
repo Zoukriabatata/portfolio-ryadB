@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Logotype from '@/components/ui/brand/Logotype';
 import { Menu, X, Zap, Plug, Tag, Download, Users, ChevronRight } from 'lucide-react';
+import { useLenis } from '@/components/landing/LenisContext';
 
 const NAV_LINKS = [
   { label: 'Features', href: '#features', Icon: Zap },
@@ -19,6 +21,13 @@ export default function LandingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const { data: session } = useSession();
+  const lenis = useLenis();
+  const pathname = usePathname();
+  // Hors de la landing (chrome marketing partagé), les ancres de section
+  // pointent vers la landing : `#features` → `/#features`. Sur la landing,
+  // comportement inchangé (smooth-scroll Lenis).
+  const onLanding = pathname === '/';
+  const linkHref = (href: string) => (onLanding || !href.startsWith('#') ? href : '/' + href);
 
   useEffect(() => {
     const scrollEl = document.querySelector('[data-scroll-root]');
@@ -52,18 +61,22 @@ export default function LandingNav() {
   }, [mobileOpen]);
 
   const handleLinkClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith('#')) {
+    // Smooth-scroll seulement sur la landing. Hors landing, on laisse le lien
+    // `/#section` naviguer normalement vers la landing.
+    if (href.startsWith('#') && onLanding) {
       e.preventDefault();
       const id = href.slice(1);
       const target = document.getElementById(id);
-      const scrollRoot = document.querySelector('[data-scroll-root]');
-      if (target && scrollRoot) {
-        const offset = target.offsetTop - 80;
-        scrollRoot.scrollTo({ top: offset, behavior: 'smooth' });
+      if (target) {
+        if (lenis) {
+          lenis.scrollTo(target, { offset: -80 });
+        } else {
+          document.querySelector('[data-scroll-root]')?.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
+        }
       }
     }
     setMobileOpen(false);
-  }, []);
+  }, [lenis, onLanding]);
 
   const isActive = (href: string) => activeSection === href.slice(1);
 
@@ -93,7 +106,7 @@ export default function LandingNav() {
             {NAV_LINKS.map((link) => (
               <a
                 key={link.label}
-                href={link.href}
+                href={linkHref(link.href)}
                 onClick={(e) => handleLinkClick(e, link.href)}
                 className="text-[13px] font-medium transition-colors duration-200"
                 style={{ color: isActive(link.href) ? 'var(--text-primary)' : 'var(--text-secondary)' }}
@@ -151,7 +164,7 @@ export default function LandingNav() {
               return (
                 <a
                   key={link.label}
-                  href={link.href}
+                  href={linkHref(link.href)}
                   onClick={(e) => handleLinkClick(e, link.href)}
                   className="flex items-center gap-3 py-2.5 px-3 rounded-xl transition-all"
                   style={{

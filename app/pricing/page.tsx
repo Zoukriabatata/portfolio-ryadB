@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import MarketingShell from '@/components/marketing/MarketingShell';
 
 // ─── OrderflowV2 Pro single-plan pricing page ──────────────────────────
 // Refonte 1.2.G — single $29/month plan with 14-day free trial.
@@ -178,22 +179,6 @@ function PricingContent() {
 
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="text-center mb-12 relative z-10 max-w-2xl">
-        <Link
-          href="/"
-          className="inline-block px-3 py-1 rounded-full mb-7 transition-colors duration-200 hover:border-[rgb(var(--primary-rgb)/0.35)]"
-          style={{
-            fontFamily: mono,
-            fontSize: 10,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            background: 'var(--surface-elevated)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border)',
-          }}
-        >
-          ← Back to home
-        </Link>
-
         <div
           className="mb-4 animate-slideUp"
           style={{
@@ -485,12 +470,14 @@ function PricingContent() {
 
 export default function PricingPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--primary)]" role="status" />
-      </div>
-    }>
-      <PricingContent />
-    </Suspense>
+    <MarketingShell>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--primary)]" role="status" />
+        </div>
+      }>
+        <PricingContent />
+      </Suspense>
+    </MarketingShell>
   );
 }
