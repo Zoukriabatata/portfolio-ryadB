@@ -111,7 +111,7 @@ const EXAMPLES: ChartExample[] = [
     type: 'long',
     timeframe: '300 Tick',
     instrument: 'MNQ (Micro Nasdaq)',
-    confluences: ['Absorption au bid', 'CVD divergence bullish', 'VAL support', 'Volume Profile POC target'],
+    confluences: ['Bid absorption', 'Bullish CVD divergence', 'VAL support', 'Volume Profile POC target'],
     vwapPrice: 25668,
     vpocPrice: 25670,
     vahPrice: 25673,
@@ -159,17 +159,17 @@ const EXAMPLES: ChartExample[] = [
       { value: -200 }, { value: -50 }, { value: 120 }, { value: 280 },
     ],
     annotations: [
-      { label: 'Absorption', text: 'Bid vol >> Ask vol sur 25658-25660. Les passifs achètent massivement (45×6, 38×9, 42×10). Square-root law : 2800 lots → seulement 2 ticks de mouvement.', color: C.absorption },
-      { label: 'CVD Divergence', text: 'Prix fait lower low (25658) mais CVD fait higher low (-480 vs -620). Divergence bullish = accumulation cachée. Le flow Hawkes se retourne.', color: C.bull },
-      { label: 'Imbalance Sell', text: 'Candles 3-4 : ask vol 3-4× bid vol (30×7, 25×14). C\'est la pression vendeuse qui sera absorbée. Le delta négatif extrême précède l\'absorption.', color: C.imbalance },
-      { label: 'Entry Signal', text: 'Candle 9 : premier close au-dessus du point d\'absorption + CVD qui repasse en positif. Delta flip confirmed. Entry au break de 25665.', color: C.entry },
+      { label: 'Absorption', text: 'Bid vol >> Ask vol on 25658-25660. Passive buyers step in heavily (45×6, 38×9, 42×10). Square-root law: 2800 lots → only 2 ticks of movement.', color: C.absorption },
+      { label: 'CVD Divergence', text: 'Price prints a lower low (25658) but CVD prints a higher low (-480 vs -620). Bullish divergence = hidden accumulation. The Hawkes flow reverses.', color: C.bull },
+      { label: 'Imbalance Sell', text: 'Candles 3-4: ask vol 3-4× bid vol (30×7, 25×14). This is the selling pressure that will get absorbed. The extreme negative delta precedes the absorption.', color: C.imbalance },
+      { label: 'Entry Signal', text: 'Candle 9: first close above the absorption point + CVD flipping back positive. Delta flip confirmed. Entry on the break of 25665.', color: C.entry },
     ],
     narrative: [
-      '1. Le prix descend depuis VAH (25673) vers VAL (25660) avec des imbalances sell (candles rouge avec ask >> bid).',
-      '2. Au niveau VAL, les bids passifs apparaissent : 42×10, 45×6, 38×9 — c\'est l\'absorption. Le volume est énorme mais le prix bouge à peine.',
-      '3. Le CVD touche -620 puis commence à remonter malgré un prix qui fait encore un lower low → divergence bullish.',
-      '4. Candle 7-8 : le delta flip (négatif → positif). Les buyers agressifs prennent le relais. Entry sur la candle 9 qui break 25665.',
-      '5. Target : vPOC à 25670 (le volume profile montre le gros cluster là). Stop sous le bas de l\'absorption (25657).',
+      '1. Price drops from VAH (25673) toward VAL (25660) with sell imbalances (red candles with ask >> bid).',
+      '2. At the VAL level, passive bids appear: 42×10, 45×6, 38×9 — this is absorption. Volume is huge but price barely moves.',
+      '3. CVD reaches -620 then starts climbing back even as price prints another lower low → bullish divergence.',
+      '4. Candle 7-8: the delta flips (negative → positive). Aggressive buyers take over. Entry on candle 9 that breaks 25665.',
+      '5. Target: vPOC at 25670 (the volume profile shows the large cluster there). Stop below the bottom of the absorption (25657).',
     ],
   },
   {
@@ -221,17 +221,17 @@ const EXAMPLES: ChartExample[] = [
       { value: -480 }, { value: -680 },
     ],
     annotations: [
-      { label: 'Imbalance Sell', text: 'Candles 5-7 : ask vol 3-5× bid vol sur 3 niveaux consécutifs (45×12, 38×8, 42×15). Selling cascade Hawkes — chaque sell trigger 0.5 child sells.', color: C.imbalance },
-      { label: 'VWAP Rejection', text: 'Le prix touche VAH (25672-73), rejette, et repasse sous le VWAP (25668). La pente du VWAP est plate → pas de biais directionnel des institutions.', color: C.vwap },
-      { label: 'CVD Breakdown', text: 'CVD passe de +520 à -680. Pas de divergence ici — le CVD CONFIRME la vente. Quand CVD et prix descendent ensemble = trend, pas un piège.', color: C.bear },
-      { label: 'Entry Signal', text: 'Candle 6 : close sous 25670 avec imbalance sell sur 3 niveaux. Le CVD croise zéro. Short entry à 25670, target vPOC 25665 → VAL 25662.', color: C.entry },
+      { label: 'Imbalance Sell', text: 'Candles 5-7: ask vol 3-5× bid vol across 3 consecutive levels (45×12, 38×8, 42×15). Hawkes selling cascade — each sell triggers 0.5 child sells.', color: C.imbalance },
+      { label: 'VWAP Rejection', text: 'Price tags VAH (25672-73), rejects, and drops back below the VWAP (25668). The VWAP slope is flat → no directional bias from institutions.', color: C.vwap },
+      { label: 'CVD Breakdown', text: 'CVD goes from +520 to -680. No divergence here — CVD CONFIRMS the selling. When CVD and price fall together = trend, not a trap.', color: C.bear },
+      { label: 'Entry Signal', text: 'Candle 6: close below 25670 with sell imbalance across 3 levels. CVD crosses zero. Short entry at 25670, target vPOC 25665 → VAL 25662.', color: C.entry },
     ],
     narrative: [
-      '1. Le prix monte progressivement de 25664 vers VAH à 25672. Le CVD monte aussi — move légitime.',
-      '2. Au VAH (25672-73), EXPLOSION de sells : ask vol de 28, 35, 45, 38, 42 vs bid vol de 3-12. Imbalance sell 3-5×.',
-      '3. Le VWAP (25668) est cassé à la baisse. Le CVD croise zéro et accélère en négatif — confirmation.',
-      '4. Entry short sur la candle 6 (close 25670 après le rejet). Le footprint montre que les sellers contrôlent chaque niveau.',
-      '5. Target : vPOC à 25665 (prise partielle) puis VAL à 25660 (full target). Stop au-dessus du VAH à 25674.',
+      '1. Price grinds up from 25664 toward VAH at 25672. CVD rises too — a legitimate move.',
+      '2. At VAH (25672-73), an EXPLOSION of sells: ask vol of 28, 35, 45, 38, 42 vs bid vol of 3-12. Sell imbalance 3-5×.',
+      '3. The VWAP (25668) is broken to the downside. CVD crosses zero and accelerates negative — confirmation.',
+      '4. Short entry on candle 6 (close 25670 after the rejection). The footprint shows sellers controlling every level.',
+      '5. Target: vPOC at 25665 (partial) then VAL at 25660 (full target). Stop above the VAH at 25674.',
     ],
   },
 ];
@@ -504,10 +504,10 @@ export default function AtasChartExamples() {
     <section className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-          Exemples de Charts — Style ATAS
+          Chart Examples — ATAS Style
         </h2>
         <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Schémas interactifs reproduisant un footprint ATAS avec Volume Profile, CVD, niveaux vPOC/VAH/VAL, et annotations Entry/Target/Stop.
+          Interactive schematics reproducing an ATAS footprint with Volume Profile, CVD, vPOC/VAH/VAL levels, and Entry/Target/Stop annotations.
         </p>
       </div>
 
@@ -565,10 +565,10 @@ export default function AtasChartExamples() {
         {/* Legend */}
         <div className="flex flex-wrap gap-4 border-t px-5 py-3" style={{ borderColor: 'var(--border)' }}>
           {[
-            { color: C.bull, label: 'Bid dominant (achat passif)' },
-            { color: C.bear, label: 'Ask dominant (vente agressive)' },
-            { color: C.absorption, label: 'Zone d\'absorption' },
-            { color: C.imbalance, label: 'Zone d\'imbalance' },
+            { color: C.bull, label: 'Bid dominant (passive buying)' },
+            { color: C.bear, label: 'Ask dominant (aggressive selling)' },
+            { color: C.absorption, label: 'Absorption zone' },
+            { color: C.imbalance, label: 'Imbalance zone' },
             { color: C.vpoc, label: 'vPOC' },
             { color: C.vah, label: 'VAH / VAL' },
             { color: C.vwap, label: 'VWAP' },
@@ -583,7 +583,7 @@ export default function AtasChartExamples() {
         {/* Annotations */}
         <div className="space-y-3 border-t px-5 py-4" style={{ borderColor: 'var(--border)' }}>
           <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-            Lecture du chart
+            Reading the chart
           </p>
           {active.annotations.map((a, i) => (
             <div key={i} className="flex items-start gap-3">
@@ -601,7 +601,7 @@ export default function AtasChartExamples() {
         {/* Narrative */}
         <div className="border-t px-5 py-4" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
           <p className="mb-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-            Narration step-by-step
+            Step-by-step narration
           </p>
           <div className="space-y-2">
             {active.narrative.map((step, i) => (
@@ -628,7 +628,7 @@ export default function AtasChartExamples() {
 
         {/* R:R */}
         <div className="border-t px-5 py-3 text-center" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
-          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Risk/Reward : </span>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Risk/Reward: </span>
           <span className="font-mono text-sm font-bold" style={{ color: 'var(--accent)' }}>
             1 : {((Math.abs(active.targetPrice - active.entryPrice)) / Math.abs(active.stopPrice - active.entryPrice)).toFixed(1)}
           </span>
