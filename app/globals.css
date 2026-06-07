@@ -75,6 +75,7 @@
   --error: #f04f4f;
   --error-bg: rgba(240, 79, 79, 0.08);
   --warning: #e8a020;
+  --warning-rgb: 232 160 32;
   --warning-bg: rgba(232, 160, 32, 0.08);
   --info: #4ade80;
   --info-bg: rgba(74, 222, 128, 0.08);

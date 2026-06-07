@@ -24,6 +24,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { AlertTriangle } from 'lucide-react';
 
 import { DashboardAtmosphere } from '@/components/dashboard/DashboardAtmosphere';
 import { AnimatedChars } from '@/components/ui/AnimatedChars';
@@ -146,22 +147,19 @@ function BrandPanel() {
         <h1
           className="mt-5 leading-none"
           style={{
-            fontFamily: 'var(--font-jetbrains-mono)',
-            fontWeight: 500,
+            fontFamily: 'var(--font-fraunces)',
             fontSize: 'clamp(44px, 5.8vw, 80px)',
-            color: 'var(--text-primary)',
             letterSpacing: '-0.04em',
-            textTransform: 'uppercase',
-            // Crispness pass — drop text-shadow (bleeds glyph edges
-            // and reads as pixelation), force subpixel-AA which is
-            // sharper on dark Windows Chrome at headline sizes.
-            WebkitFontSmoothing: 'subpixel-antialiased',
-            MozOsxFontSmoothing: 'auto',
+            lineHeight: 0.95,
           }}
         >
-          <AnimatedChars text="Welcome" baseDelay={220} charDelay={36} />
+          <span style={{ fontWeight: 400, color: 'var(--text-primary)' }}>
+            <AnimatedChars text="Welcome" baseDelay={220} charDelay={36} />
+          </span>
           <br />
-          <AnimatedChars text="back" baseDelay={520} charDelay={36} />
+          <span style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--primary)', textShadow: '0 0 30px rgb(var(--primary-rgb) / 0.26)' }}>
+            <AnimatedChars text="back" baseDelay={520} charDelay={36} />
+          </span>
         </h1>
         <p
           className="mt-6 max-w-md"
@@ -376,18 +374,21 @@ function LoginForm() {
               style={{ animation: 'fadeInUp 0.7s cubic-bezier(.2,.7,.2,1) 180ms forwards', opacity: 0 }}
             >
               <h1
-                className="leading-none uppercase"
+                className="leading-none"
                 style={{
-                  fontFamily: 'var(--font-jetbrains-mono)',
-                  fontWeight: 500,
+                  fontFamily: 'var(--font-fraunces)',
                   fontSize: 40,
-                  color: 'var(--text-primary)',
                   letterSpacing: '-0.04em',
+                  lineHeight: 0.95,
                 }}
               >
-                <AnimatedChars text="Welcome" baseDelay={220} charDelay={32} />
+                <span style={{ fontWeight: 400, color: 'var(--text-primary)' }}>
+                  <AnimatedChars text="Welcome" baseDelay={220} charDelay={32} />
+                </span>
                 <br />
-                <AnimatedChars text="back" baseDelay={500} charDelay={32} />
+                <span style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--primary)', textShadow: '0 0 30px rgb(var(--primary-rgb) / 0.26)' }}>
+                  <AnimatedChars text="back" baseDelay={500} charDelay={32} />
+                </span>
               </h1>
               <p
                 className="mt-3"
@@ -650,15 +651,16 @@ function LoginForm() {
             >
               {/* Trading risk disclaimer */}
               <div
-                className="px-3 py-2.5 rounded-md text-[11px] leading-relaxed"
+                className="px-3 py-2.5 rounded-md text-[11px] leading-relaxed flex items-start gap-2"
                 style={{
-                  background: 'rgba(245,158,11,0.06)',
-                  border: '1px solid rgba(245,158,11,0.2)',
-                  color: 'rgba(245,158,11,0.75)',
+                  background: 'var(--warning-bg)',
+                  border: '1px solid rgb(var(--warning-rgb) / 0.2)',
+                  color: 'var(--warning)',
                   fontFamily: 'var(--font-jetbrains-mono)',
                 }}
               >
-                ⚠ Trading involves risk of loss. SENZOUKRIA is a visualization tool only — not financial advice.
+                <AlertTriangle size={13} strokeWidth={2} className="flex-shrink-0 mt-0.5" />
+                <span>Trading involves risk of loss. SENZOUKRIA is a visualization tool only — not financial advice.</span>
               </div>
 
               {/* Implied consent notice (returning users) */}
