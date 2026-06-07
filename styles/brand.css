@@ -42,11 +42,9 @@
 /* sortie à la fermeture */
 @keyframes brand-drop-out { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-140%); opacity: 0; } }
 
-/* scroll-snap léger sur les sections de la landing (effet "1 page" doux) */
-[data-scroll-root] > section { scroll-snap-align: start; }
-@media (prefers-reduced-motion: reduce) {
-  [data-scroll-root] { scroll-snap-type: none !important; }
-}
+/* Scroll-snap retiré : la landing utilise désormais un scroll à inertie
+   (Lenis, cf. LandingClientShell) → glisse libre, pas d'accroche "1 page"
+   qui couperait le momentum. */
 
 @media (prefers-reduced-motion: reduce) {
   .brand-anim,
