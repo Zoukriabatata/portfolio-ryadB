@@ -11,6 +11,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { themeColor } from '@/lib/ui/themeColors';
 import { HybridRenderer, type RenderData } from '@/lib/heatmap-webgl/HybridRenderer';
 import { getIBConnectionManager } from '@/lib/ib/ConnectionManager';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
@@ -27,11 +28,11 @@ interface IBLiquidityViewProps {
 }
 
 const STATUS_COLORS: Record<GatewayConnectionStatus, string> = {
-  disconnected: '#71717a',
-  authenticating: '#eab308',
-  connecting_ib: '#eab308',
-  connected: '#22c55e',
-  error: '#ef4444',
+  disconnected: 'var(--text-muted)',
+  authenticating: 'var(--warning)',
+  connecting_ib: 'var(--warning)',
+  connected: 'var(--bull)',
+  error: 'var(--bear)',
 };
 
 const STATUS_LABELS: Record<GatewayConnectionStatus, string> = {
@@ -65,8 +66,10 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
   const passiveOrderSettings = settings.displayFeatures?.passiveOrders;
   const tradeFlowSettings = settings.tradeFlow ?? {};
 
-  const bestBidColor = settings.bestBidColor ?? '#22c55e';
-  const bestAskColor = settings.bestAskColor ?? '#ef4444';
+  // Resolve theme fallbacks lazily inside the render loop (client-only) to
+  // avoid SSR returning #000000 from themeColor().
+  const bestBidColor = settings.bestBidColor ?? null;
+  const bestAskColor = settings.bestAskColor ?? null;
 
   const contract = CME_CONTRACTS[ibSymbol];
 
@@ -115,12 +118,12 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
         renderData.contrast = contrast;
         renderData.upperCutoff = upperCutoffPercent / 100;
 
-        // Apply colors
+        // Apply colors (theme fallbacks resolved here — client-only, theme-aware)
         renderData.colors = {
-          bidColor: bestBidColor,
-          askColor: bestAskColor,
-          buyColor: tradeFlowSettings.buyColor ?? '#00ff88',
-          sellColor: tradeFlowSettings.sellColor ?? '#ff4444',
+          bidColor: bestBidColor ?? themeColor('--bull'),
+          askColor: bestAskColor ?? themeColor('--bear'),
+          buyColor: tradeFlowSettings.buyColor ?? themeColor('--bull'),
+          sellColor: tradeFlowSettings.sellColor ?? themeColor('--bear'),
           gridColor: 'rgba(255, 255, 255, 0.05)',
         };
 
@@ -185,8 +188,8 @@ export function IBLiquidityView({ height = 600, ibSymbol, onSymbolChange }: IBLi
   return (
     <div
       ref={containerRef}
-      className="relative w-full bg-[#0a0a0a] overflow-hidden"
-      style={{ height }}
+      className="relative w-full overflow-hidden"
+      style={{ height, backgroundColor: 'var(--background)' }}
     >
       {/* WebGL Canvas */}
       <div

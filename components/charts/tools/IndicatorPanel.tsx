@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useIndicatorStore } from '@/stores/useIndicatorStore';
 import type { IndicatorType } from '@/types/charts';
 import { InlineColorSwatch } from '@/components/tools/InlineColorSwatch';
+import { themeColor } from '@/lib/ui/themeColors';
 
 const AVAILABLE_INDICATORS: { type: IndicatorType; label: string; defaultParams: Record<string, number>; description: string }[] = [
   { type: 'VWAP', label: 'VWAP', defaultParams: {}, description: 'Volume Weighted Average Price' },
@@ -39,7 +40,15 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
       enabled: true,
       params: { ...config.defaultParams },
       style: {
-        color: type === 'VWAP' ? '#f59e0b' : type === 'TWAP' ? '#3b82f6' : type === 'EMA' ? '#22d3ee' : '#a78bfa',
+        // Brand tokens: VWAP=warning (amber), others use accent/primary
+        // (parasite blue/cyan/violet collapsed onto the neutral palette).
+        color: type === 'VWAP'
+          ? themeColor('--warning')
+          : type === 'TWAP'
+            ? themeColor('--accent')
+            : type === 'EMA'
+              ? themeColor('--primary')
+              : themeColor('--accent'),
         lineWidth: 2,
       },
       paneId: 'main',
@@ -47,7 +56,14 @@ export default function IndicatorPanel({ isOpen, onClose }: IndicatorPanelProps)
   };
 
   const getRandomColor = () => {
-    const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+    const colors = [
+      themeColor('--accent'),
+      themeColor('--bull'),
+      themeColor('--warning'),
+      themeColor('--primary'),
+      themeColor('--bear'),
+      themeColor('--accent-light'),
+    ];
     return colors[Math.floor(Math.random() * colors.length)];
   };
 
