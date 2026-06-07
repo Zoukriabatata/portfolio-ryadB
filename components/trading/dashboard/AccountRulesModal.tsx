@@ -220,7 +220,7 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
               <strong style={{ color: 'var(--text-primary)' }}>Reset &amp; Apply</strong> — starts
               a fresh combine at the preset's nominal balance. Wipes positions, orders,
               trade history and resets the balance to ${
-                preset !== 'custom' ? PRESET_DEFAULTS[preset].starting.toLocaleString() : startingBalance.toLocaleString()
+                preset !== 'custom' ? PRESET_DEFAULTS[preset].starting.toLocaleString('en-US') : startingBalance.toLocaleString('en-US')
               }.
             </div>
             <div className="pt-1" style={{ color: 'var(--text-dimmed)' }}>

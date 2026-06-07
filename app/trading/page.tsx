@@ -99,7 +99,7 @@ export default function TradingPage() {
         title="Trading"
         accent="Dashboard"
         subtitle={broker === 'demo'
-          ? <>Demo account · paper trading · ${balance.toLocaleString()} simulated capital</>
+          ? <>Demo account · paper trading · ${balance.toLocaleString('en-US')} simulated capital</>
           : <>Live account · {broker.toUpperCase()}</>}
         actions={
           <>

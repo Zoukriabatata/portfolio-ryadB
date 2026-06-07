@@ -220,7 +220,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                 <div className="flex items-center justify-between">
                   <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Account Balance</span>
                   <span className="text-sm font-bold" style={{ color: 'var(--bull)' }}>
-                    {connection.balance.toLocaleString()} {connection.currency}
+                    {connection.balance.toLocaleString('en-US')} {connection.currency}
                   </span>
                 </div>
               </div>

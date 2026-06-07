@@ -80,7 +80,7 @@ export default function RiskCalculator() {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Risk Calculator</h3>
         <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          ${balance.toLocaleString()} acct
+          ${balance.toLocaleString('en-US')} acct
         </span>
       </div>
 
