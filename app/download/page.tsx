@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
-import Link from 'next/link';
 import { getLatestRelease, type ReleaseInfo } from '@/lib/github/releases';
 import { AnimatedChars } from '@/components/ui/AnimatedChars';
+import MarketingShell from '@/components/marketing/MarketingShell';
 
 export const metadata: Metadata = {
-  title: 'Download OrderflowV2 — Free preview until June 17',
+  title: 'Download Senzoukria — Free preview until June 17',
   description:
-    'Download OrderflowV2 desktop : footprint charts with broker-side daily volume, delta, imbalance and absorption detection. NinjaTrader Bridge for Apex / Rithmic, Rithmic direct, or crypto. Windows. Free preview until 17 June 2026.',
+    'Download Senzoukria desktop: footprint charts with broker-side daily volume, delta, imbalance and absorption detection. NinjaTrader Bridge for Apex / Rithmic, Rithmic direct, or crypto. Windows. Free preview until 17 June 2026.',
   keywords: [
     'orderflow software download',
     'footprint chart download',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: '/download' },
   openGraph: {
-    title: 'Download OrderflowV2 — Free preview until June 17',
+    title: 'Download Senzoukria — Free preview until June 17',
     description:
       'Footprint charts + NinjaTrader Bridge for futures traders. Free preview until 17/06/2026.',
     url: '/download',
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Download OrderflowV2 — Free preview',
+    title: 'Download Senzoukria — Free preview',
     description:
       'Footprint + NinjaTrader Bridge. Free until 17/06/2026.',
   },
@@ -94,6 +94,7 @@ export default async function DownloadPage() {
   const release = await getLatestRelease();
 
   return (
+    <MarketingShell>
     <div
       className="min-h-screen px-6 py-16 relative overflow-hidden"
       style={{ background: 'var(--background)' }}
@@ -104,7 +105,7 @@ export default async function DownloadPage() {
         className="absolute top-0 right-0 w-[640px] h-[640px] rounded-full pointer-events-none"
         style={{
           background:
-            'radial-gradient(circle in oklab, rgba(74,222,128,0.10), transparent 70%)',
+            'radial-gradient(circle in oklab, rgb(var(--primary-rgb) / 0.10), transparent 70%)',
           filter: 'blur(80px)',
         }}
       />
@@ -112,37 +113,25 @@ export default async function DownloadPage() {
       <div className="max-w-4xl mx-auto relative z-10">
 
         {/* ── HEADER ─────────────────────────────────────────────────── */}
-        <div style={enter(60)}>
-          <Link
-            href="/"
-            className="inline-block hover:text-[var(--primary)] transition-colors"
-            style={{ ...MONO_KICKER }}
-          >
-            ← Back to home
-          </Link>
-        </div>
-
-        <div className="mt-14" style={enter(140)}>
+        <div style={enter(140)}>
           <span style={{ ...MONO_KICKER, color: 'var(--text-dimmed)' }}>
             · Download
           </span>
         </div>
 
         <h1
-          className="mt-5 leading-none"
+          className="font-display mt-5 leading-none"
           style={{
-            fontFamily: 'var(--font-jetbrains-mono)',
-            fontWeight: 500,
             fontSize: 'clamp(44px, 6vw, 88px)',
             color: 'var(--text-primary)',
-            letterSpacing: '-0.04em',
-            textTransform: 'uppercase',
             WebkitFontSmoothing: 'subpixel-antialiased',
           }}
         >
-          <AnimatedChars text="Orderflow" baseDelay={220} charDelay={32} />
+          <AnimatedChars text="Senzoukria" baseDelay={220} charDelay={32} />
           <br />
-          <AnimatedChars text="for desktop" baseDelay={520} charDelay={32} />
+          <span className="font-display-accent">
+            <AnimatedChars text="for desktop" baseDelay={520} charDelay={32} />
+          </span>
         </h1>
 
         <p
@@ -191,47 +180,47 @@ export default async function DownloadPage() {
               className="mt-12 rounded-xl p-5"
               style={{
                 ...enter(1080),
-                background: 'color-mix(in oklab, #fbbf24 5%, transparent)',
-                border: '1px solid color-mix(in oklab, #fbbf24 30%, transparent)',
+                background: 'rgb(var(--warning-rgb) / 0.05)',
+                border: '1px solid rgb(var(--warning-rgb) / 0.30)',
               }}
             >
-              <div style={{ ...MONO_LABEL, color: '#fbbf24' }}>
+              <div style={{ ...MONO_LABEL, color: 'var(--warning)' }}>
                 · Heads-up
               </div>
               <p
                 className="mt-3 text-sm leading-relaxed"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                Windows va afficher un écran de protection. C&apos;est normal —
-                OrderflowV2 est édité par un studio indépendant et le certificat
-                de signature Windows (≈300 €/an) arrive dans la prochaine release.
+                Windows will show a protection screen. That&apos;s expected —
+                Senzoukria is published by an independent studio and the Windows
+                code-signing certificate (≈€300/yr) ships in the next release.
               </p>
               <p
                 className="mt-3 text-sm"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                Pour installer : <CodeChip>Informations complémentaires</CodeChip>{' '}
-                → <CodeChip>Exécuter quand même</CodeChip>. C&apos;est tout.
+                To install: <CodeChip>More info</CodeChip>{' '}
+                → <CodeChip>Run anyway</CodeChip>. That&apos;s it.
               </p>
             </section>
 
             {/* ── STEP 01 ─────────────────────────────────────────────── */}
             <Step
               index="01"
-              title="Install OrderflowV2 on Windows"
+              title="Install Senzoukria on Windows"
               delay={1180}
             >
               <Ol>
                 <li>
-                  Télécharge le fichier <CodeChip>.msi</CodeChip> ci-dessus.
+                  Download the <CodeChip>.msi</CodeChip> file above.
                 </li>
-                <li>Double-clique pour lancer l&apos;installeur.</li>
+                <li>Double-click to launch the installer.</li>
                 <li>
-                  Si l&apos;écran <em>Windows protected your PC</em> apparaît :
-                  {' '}<strong style={{ color: 'var(--text-primary)' }}>Informations complémentaires</strong>
-                  {' '}→ <strong style={{ color: 'var(--text-primary)' }}>Exécuter quand même</strong>.
+                  If the <em>Windows protected your PC</em> screen appears:
+                  {' '}<strong style={{ color: 'var(--text-primary)' }}>More info</strong>
+                  {' '}→ <strong style={{ color: 'var(--text-primary)' }}>Run anyway</strong>.
                 </li>
-                <li>Sign in avec ton compte OrderflowV2.</li>
+                <li>Sign in with your Senzoukria account.</li>
               </Ol>
             </Step>
 
@@ -247,22 +236,16 @@ export default async function DownloadPage() {
                 className="text-sm mb-5 leading-relaxed"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                Si tu trades les futures via NinjaTrader (Apex, Rithmic),
-                cette étape connecte OrderflowV2 à ton flux NT en local —
-                pas besoin de re-saisir les credentials Rithmic, NT s&apos;occupe
-                de tout.
+                If you trade futures through NinjaTrader (Apex, Rithmic), this
+                step connects Senzoukria to your local NT feed — no need to
+                re-enter your Rithmic credentials, NT handles everything.
               </p>
 
               <a
                 href="/OrderflowBridge.cs"
                 download="OrderflowBridge.cs"
-                className="inline-flex w-full items-center justify-center gap-2 py-3 rounded-md text-center mb-6 transition-all duration-200 active:scale-[0.99] hover:opacity-95"
-                style={{
-                  ...MONO_BTN,
-                  background: 'var(--primary)',
-                  color: '#0a0a0a',
-                  fontWeight: 700,
-                }}
+                className="btn-brand inline-flex w-full items-center justify-center gap-2 py-3 rounded-md text-center mb-6 transition-all duration-200 active:scale-[0.99]"
+                style={MONO_BTN}
               >
                 <span aria-hidden>↓</span>
                 Download OrderflowBridge.cs
@@ -270,15 +253,15 @@ export default async function DownloadPage() {
 
               <Ol>
                 <li>
-                  Copie le fichier <CodeChip>OrderflowBridge.cs</CodeChip> dans{' '}
+                  Copy <CodeChip>OrderflowBridge.cs</CodeChip> into{' '}
                   <CodeChip>Documents\NinjaTrader 8\bin\Custom\Indicators\</CodeChip>
                 </li>
                 <li>
-                  Dans NinjaTrader : <strong style={{ color: 'var(--text-primary)' }}>Tools → NinjaScript Editor → F5</strong>
-                  {' '}(compile, doit afficher 0 erreur)
+                  In NinjaTrader: <strong style={{ color: 'var(--text-primary)' }}>Tools → NinjaScript Editor → F5</strong>
+                  {' '}(compile, must report 0 errors)
                 </li>
                 <li>
-                  Ouvre un chart avec ces paramètres exacts :
+                  Open a chart with these exact settings:
                   <div className="mt-3 rounded-md p-3" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
                     <ConfigRow k="Bars Period Type" v="Tick" />
                     <ConfigRow k="Bars Period Value" v="100" warn />
@@ -287,17 +270,17 @@ export default async function DownloadPage() {
                   </div>
                 </li>
                 <li>
-                  Applique l&apos;indicateur <strong style={{ color: 'var(--text-primary)' }}>OrderflowBridge</strong> sur le chart
+                  Apply the <strong style={{ color: 'var(--text-primary)' }}>OrderflowBridge</strong> indicator to the chart
                   {' '}(Indicators → New → OrderflowBridge → Apply).
                 </li>
                 <li>
-                  L&apos;Output window doit afficher :{' '}
+                  The Output window should show:{' '}
                   <CodeChip>OrderflowBridge: listening on 127.0.0.1:7272</CodeChip>
                 </li>
                 <li>
-                  Dans OrderflowV2 → bascule sur{' '}
+                  In Senzoukria → switch to{' '}
                   <strong style={{ color: 'var(--text-primary)' }}>NinjaTrader Bridge</strong>
-                  {' '}— les données apparaissent en quelques secondes.
+                  {' '}— data appears within a few seconds.
                 </li>
               </Ol>
 
@@ -323,22 +306,9 @@ export default async function DownloadPage() {
           </>
         )}
 
-        {/* ── FOOTER LINKS ────────────────────────────────────────────── */}
-        <div
-          className="mt-16 pt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3"
-          style={{
-            ...enter(1480),
-            borderTop: '1px solid var(--border)',
-          }}
-        >
-          <FootLink href="/account">Already a customer? Sign in</FootLink>
-          <FootSep />
-          <FootLink href="/auth/register">Create an account</FootLink>
-          <FootSep />
-          <FootLink href="/pricing">See pricing</FootLink>
-        </div>
       </div>
     </div>
+    </MarketingShell>
   );
 }
 
@@ -405,7 +375,7 @@ function ConfigRow({ k, v, warn, last }: { k: string; v: string; warn?: boolean;
         style={{
           ...MONO_DATA,
           fontSize: 12,
-          color: warn ? '#fbbf24' : 'var(--text-primary)',
+          color: warn ? 'var(--warning)' : 'var(--text-primary)',
           fontWeight: warn ? 600 : 400,
         }}
       >
@@ -478,21 +448,6 @@ function Step({
   );
 }
 
-function FootLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="hover:text-[var(--primary)] transition-colors"
-      style={{ ...MONO_KICKER, color: 'var(--text-muted)' }}
-    >
-      {children}
-    </Link>
-  );
-}
-function FootSep() {
-  return <span style={{ color: 'var(--border)' }}>·</span>;
-}
-
 // ─── DownloadCard ──────────────────────────────────────────────────────────
 const META: Record<OSKind, { name: string; ext: string }> = {
   windows: { name: 'Windows', ext: '.MSI' },
@@ -562,13 +517,8 @@ function DownloadCard({
         <>
           <a
             href={release.downloadUrl}
-            className="inline-flex w-full items-center justify-center gap-2 py-2.5 rounded-md mt-6 transition-all duration-200 active:scale-[0.99] hover:opacity-95"
-            style={{
-              ...MONO_BTN,
-              background: 'var(--primary)',
-              color: '#0a0a0a',
-              fontWeight: 700,
-            }}
+            className="btn-brand inline-flex w-full items-center justify-center gap-2 py-2.5 rounded-md mt-6 transition-all duration-200 active:scale-[0.99]"
+            style={MONO_BTN}
           >
             <span aria-hidden>↓</span>
             Download

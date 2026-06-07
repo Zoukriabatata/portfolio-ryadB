@@ -7,14 +7,14 @@
 // → better Google ranking). The session + preview-window check both
 // hydrate client-side anyway.
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MarketingShell from '@/components/marketing/MarketingShell';
 
-// ─── OrderflowV2 Pro single-plan pricing page ──────────────────────────
+// ─── Senzoukria Pro single-plan pricing page ──────────────────────────
 // Refonte 1.2.G — single $29/month plan with 14-day free trial.
 // Promo codes, multi-tier comparison, and manual payment proofs were
 // removed in this iteration; they will return in dedicated PRs if needed.
@@ -76,6 +76,45 @@ function PricingContent() {
   const [inPreview, setInPreview] = useState(false);
   useEffect(() => {
     setInPreview(Date.now() < PREVIEW_END_MS);
+  }, []);
+
+  // Count-up on the headline price when the card scrolls into view.
+  // SSR renders the final value (PRICE_USD) — the animation only runs
+  // client-side after hydration, so no hydration mismatch and a graceful
+  // fallback if IntersectionObserver is unavailable.
+  const priceRef = useRef<HTMLSpanElement | null>(null);
+  const [displayPrice, setDisplayPrice] = useState(PRICE_USD);
+  useEffect(() => {
+    const el = priceRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const reduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+
+    let raf = 0;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        observer.disconnect();
+        const start = performance.now();
+        const duration = 700;
+        const tick = (now: number) => {
+          const t = Math.min(1, (now - start) / duration);
+          const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+          setDisplayPrice(Math.round(eased * PRICE_USD));
+          if (t < 1) raf = requestAnimationFrame(tick);
+        };
+        setDisplayPrice(0);
+        raf = requestAnimationFrame(tick);
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   const isAuthenticated = !!session?.user;
@@ -153,12 +192,12 @@ function PricingContent() {
       {/* Ambient glows */}
       <div
         className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(74,222,128,0.08) 0%, transparent 70%)', filter: 'blur(80px)' }}
+        style={{ background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.08) 0%, transparent 70%)', filter: 'blur(80px)' }}
         aria-hidden="true"
       />
       <div
         className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(168,139,250,0.05) 0%, transparent 70%)', filter: 'blur(80px)' }}
+        style={{ background: 'radial-gradient(circle, rgb(var(--accent-rgb) / 0.05) 0%, transparent 70%)', filter: 'blur(80px)' }}
         aria-hidden="true"
       />
       {/* Terminal grid texture */}
@@ -195,20 +234,16 @@ function PricingContent() {
         </div>
 
         <h1
-          className="leading-none animate-slideUp"
+          className="font-display leading-none animate-slideUp"
           style={{
             color: 'var(--text-primary)',
-            fontFamily: mono,
-            fontWeight: 500,
             fontSize: 'clamp(38px, 5.2vw, 64px)',
-            letterSpacing: '-0.04em',
-            textTransform: 'uppercase',
             WebkitFontSmoothing: 'subpixel-antialiased',
             animationDelay: '100ms',
             animationFillMode: 'both',
           }}
         >
-          One plan.<br />Everything unlocked.
+          One plan.<br /><span className="font-display-accent">Everything unlocked.</span>
         </h1>
 
         <p
@@ -223,9 +258,11 @@ function PricingContent() {
       <div
         className="w-full max-w-lg rounded-2xl p-8 md:p-10 relative z-10 animate-slideUp"
         style={{
-          background:    'var(--surface)',
-          border:        '1px solid var(--primary)',
-          boxShadow:     '0 20px 60px rgba(0,0,0,0.35), 0 0 50px rgba(74,222,128,0.10)',
+          background:     'rgb(var(--primary-rgb) / 0.07)',
+          border:         '1px solid rgb(var(--primary-rgb) / 0.25)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          boxShadow:      '0 20px 60px rgba(0,0,0,0.35), 0 0 50px rgb(var(--primary-rgb) / 0.10)',
           animationDelay: '260ms',
           animationFillMode: 'both',
         }}
@@ -252,7 +289,7 @@ function PricingContent() {
               className="mb-1.5"
               style={{ fontFamily: mono, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)' }}
             >
-              OrderflowV2
+              Senzoukria
             </div>
             <h2
               style={{ fontFamily: mono, fontWeight: 600, fontSize: 30, letterSpacing: '-0.03em', textTransform: 'uppercase', color: 'var(--text-primary)' }}
@@ -268,9 +305,9 @@ function PricingContent() {
               fontWeight: 600,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              background: 'rgba(74,222,128,0.15)',
+              background: 'rgb(var(--primary-rgb) / 0.15)',
               color: 'var(--primary)',
-              border: '1px solid rgba(74,222,128,0.35)',
+              border: '1px solid rgb(var(--primary-rgb) / 0.35)',
             }}
           >
             {inPreview ? 'Free until 17/06' : `${TRIAL_DAYS}-day free trial`}
@@ -280,10 +317,11 @@ function PricingContent() {
         {/* Price */}
         <div className="flex items-baseline gap-2">
           <span
+            ref={priceRef}
             className="tabular-nums"
             style={{ fontFamily: mono, fontWeight: 600, fontSize: 60, letterSpacing: '-0.04em', lineHeight: 1, color: 'var(--text-primary)' }}
           >
-            ${PRICE_USD}
+            ${displayPrice}
           </span>
           <span style={{ fontFamily: mono, fontSize: 13, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
             USD / month
@@ -306,23 +344,18 @@ function PricingContent() {
         <button
           onClick={handleSubscribe}
           disabled={loading}
-          className="w-full py-4 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+          className="btn-brand w-full py-4 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
           style={{
             fontFamily: mono,
             fontSize: 13,
             fontWeight: 600,
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
-            background: 'linear-gradient(135deg, var(--primary-light), var(--primary))',
-            color:      '#06140b',
-            boxShadow:  '0 0 30px rgb(var(--primary-rgb) / 0.25)',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 50px rgb(var(--primary-rgb) / 0.45)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgb(var(--primary-rgb) / 0.25)'; }}
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="animate-spin rounded-full h-4 w-4 border-t-2" style={{ borderColor: 'rgba(6,20,11,0.5)' }} />
+              <span className="animate-spin rounded-full h-4 w-4 border-t-2" style={{ borderColor: 'currentColor' }} />
               Redirecting to Stripe…
             </span>
           ) : (
@@ -331,7 +364,7 @@ function PricingContent() {
         </button>
 
         {cancelled && (
-          <p className="mt-3 text-center" style={{ fontFamily: mono, fontSize: 12, color: '#fbbf24' }}>
+          <p className="mt-3 text-center" style={{ fontFamily: mono, fontSize: 12, color: 'var(--warning)' }}>
             Checkout cancelled. You can try again anytime.
           </p>
         )}
@@ -382,7 +415,7 @@ function PricingContent() {
       >
         <span style={{ color: 'var(--text-dimmed)' }}>ATAS · Bookmap · Sierra Chart </span>
         $50–150/mo, locked data layer.{' '}
-        <span style={{ color: 'var(--primary-light)' }}>OrderflowV2</span> $29/mo, native Windows, on the NinjaTrader feed you already own.
+        <span style={{ color: 'var(--primary-light)' }}>Senzoukria</span> $29/mo, native Windows, on the NinjaTrader feed you already own.
       </p>
 
       {/* ── Trust strip ──────────────────────────────────────────── */}
@@ -418,7 +451,7 @@ function PricingContent() {
               className={`rounded-lg px-4 -mx-4 transition-all duration-300 ${
                 isOpen
                   ? 'bg-white/[0.02] border border-[rgb(var(--primary-rgb)_/_0.15)] shadow-[0_0_15px_rgb(var(--primary-rgb)_/_0.05)]'
-                  : 'border border-transparent border-b-white/[0.06]'
+                  : 'border border-transparent border-b-[var(--border)]'
               }`}
             >
               <button
