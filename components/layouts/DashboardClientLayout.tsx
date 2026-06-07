@@ -411,9 +411,9 @@ export function DashboardClientLayout({
         <div
           className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium"
           style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
-            color: '#f87171',
+            background: 'var(--bear-bg)',
+            borderBottom: '1px solid rgb(var(--bear-rgb) / 0.2)',
+            color: 'var(--bear)',
           }}
         >
           <WifiOff size={13} strokeWidth={1.5} />
@@ -426,8 +426,8 @@ export function DashboardClientLayout({
           ============================================================ */}
       {!hideAppChrome && (
       <nav
-        className="flex-shrink-0 border-b border-[var(--border)] relative z-50"
-        style={{ height: 'var(--nav-height)', background: 'var(--background)', contain: 'layout style' }}
+        className="flex-shrink-0 relative z-50"
+        style={{ height: 'var(--nav-height)', background: 'var(--surface)', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.12)', contain: 'layout style' }}
         role="navigation"
         aria-label="Main navigation"
       >
