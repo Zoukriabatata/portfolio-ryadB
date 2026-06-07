@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 
 import { useScrollAnimations } from '@/hooks/useScrollAnimations';
+import { LenisContext } from '@/components/landing/LenisContext';
 
 // Browser-only — decorative/interactive, no impact on LCP
 const ScrollProgress = dynamic(() => import('@/components/landing/ScrollProgress'), { ssr: false });
@@ -14,38 +17,72 @@ const FloatingChat = dynamic(() => import('@/components/ai/FloatingChat'), { ssr
 /**
  * Landing shell — Editorial Terminal pass.
  *
- * Composition :
- *   • StellarCore behind the hero — a pure-CSS replacement for the
- *     legacy BlackHole canvas. Same brand signature (burning
- *     singularity + accretion disk + starfield) but runs entirely
- *     on the GPU compositor, so the homepage no longer pays a
- *     25-30 % CPU tax on mid-range laptops.
- *
- * Inside the app (dashboard, account, routes) the `DashboardAtmosphere`
- * runs instead — keeps the editorial typography readable. Two
- * surfaces, two atmospheres, one brand voice.
+ * Momentum scroll : the landing scrolls inside `[data-scroll-root]` (the
+ * body is overflow:hidden). Lenis drives the wrapper's real `scrollTop`
+ * with inertia (the "keeps gliding" feel, à la deepcharts), so the
+ * existing scroll listeners (ScrollProgress/ScrollSpy/BackToTop/LandingNav)
+ * and the IntersectionObserver animations keep working untouched. Native
+ * `scroll-behavior:smooth` and scroll-snap are removed — both fight Lenis.
+ * Disabled under prefers-reduced-motion (native scroll instead).
  */
 export default function LandingClientShell({ children }: { children: React.ReactNode }) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [lenis, setLenis] = useState<Lenis | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
   useScrollAnimations(mounted ? '[data-scroll-root]' : undefined);
 
+  useEffect(() => {
+    if (!mounted) return;
+    const wrapper = wrapperRef.current;
+    const content = contentRef.current;
+    if (!wrapper || !content) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const instance = new Lenis({
+      wrapper,
+      content,
+      lerp: 0.09,           // continuous glide; tune 0.08–0.12 for "weight"
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      syncTouch: false,     // mobile keeps its native momentum
+    });
+    setLenis(instance);
+
+    let raf = 0;
+    const loop = (time: number) => {
+      instance.raf(time);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      instance.destroy();
+      setLenis(null);
+    };
+  }, [mounted]);
+
   return (
-    <div
-      ref={scrollContainerRef}
-      data-scroll-root
-      className="h-full w-full overflow-auto relative"
-      style={{ scrollBehavior: 'smooth', backgroundColor: 'var(--background)', scrollSnapType: 'y proximity', scrollPaddingTop: 80 }}
-    >
-      <ScrollProgress />
-      <ScrollSpy />
+    <LenisContext.Provider value={lenis}>
+      <div
+        ref={wrapperRef}
+        data-scroll-root
+        className="h-full w-full overflow-auto relative"
+        style={{ backgroundColor: 'var(--background)', scrollPaddingTop: 80 }}
+      >
+        <ScrollProgress />
+        <ScrollSpy />
 
-      {children}
+        <div ref={contentRef}>
+          {children}
+        </div>
 
-      <BackToTop />
-      <FloatingChat />
-    </div>
+        <BackToTop />
+        <FloatingChat />
+      </div>
+    </LenisContext.Provider>
   );
 }

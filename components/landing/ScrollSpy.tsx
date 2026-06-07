@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useLenis } from '@/components/landing/LenisContext';
 
 const SECTIONS = [
   { id: 'hero', label: 'Hero' },
@@ -17,6 +18,7 @@ export default function ScrollSpy() {
   const [activeId, setActiveId] = useState('hero');
   const [visible, setVisible] = useState(false);
   const rafRef = useRef(0);
+  const lenis = useLenis();
 
   useEffect(() => {
     const scrollEl = document.querySelector('[data-scroll-root]');
@@ -51,9 +53,11 @@ export default function ScrollSpy() {
 
   const scrollTo = (id: string) => {
     const target = document.getElementById(id);
-    const scrollRoot = document.querySelector('[data-scroll-root]');
-    if (target && scrollRoot) {
-      scrollRoot.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
+    if (!target) return;
+    if (lenis) {
+      lenis.scrollTo(target, { offset: -80 });
+    } else {
+      document.querySelector('[data-scroll-root]')?.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
     }
   };
 

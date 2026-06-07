@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLenis } from '@/components/landing/LenisContext';
 
 export default function BackToTop() {
   const [visible, setVisible] = useState(false);
+  const lenis = useLenis();
 
   useEffect(() => {
     const scrollEl = document.querySelector('[data-scroll-root]');
@@ -18,8 +20,11 @@ export default function BackToTop() {
   }, []);
 
   const scrollToTop = () => {
-    const scrollEl = document.querySelector('[data-scroll-root]');
-    scrollEl?.scrollTo({ top: 0, behavior: 'smooth' });
+    if (lenis) {
+      lenis.scrollTo(0);
+    } else {
+      document.querySelector('[data-scroll-root]')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (

@@ -8,6 +8,7 @@ import HeroBackground from './HeroBackground';
 import HeroFootprint from './HeroFootprint';
 import PreviewBanner from './PreviewBanner';
 import { playOrderFilled, prefetchOrderFilled } from '@/lib/sound/orderFill';
+import { useLenis } from '@/components/landing/LenisContext';
 
 const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value: string; label: string; delay: number }) {
   const [visible, setVisible] = useState(false);
@@ -102,6 +103,7 @@ const AnimatedStat = memo(function AnimatedStat({ value, label, delay }: { value
 export default function HeroSection() {
   const { data: session } = useSession();
   const [filled, setFilled] = useState(false);
+  const lenis = useLenis();
 
   // Clic = "remplir un ordre démo" : voix + flash, puis on dévoile sur
   // place les CTA de conversion (Get free preview / Download). Le fill
@@ -114,18 +116,23 @@ export default function HeroSection() {
   // Lien discret "Explore" sous les CTA — scroll fluide vers Features
   // (même pattern que ScrollSpy) pour qui veut explorer avant de convertir.
   const scrollToFeatures = useCallback(() => {
+    const target = document.getElementById('features');
+    if (!(target instanceof HTMLElement)) return;
     const reduced =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (lenis && !reduced) {
+      lenis.scrollTo(target, { offset: -80 });
+      return;
+    }
     const behavior: ScrollBehavior = reduced ? 'auto' : 'smooth';
     const root = document.querySelector('[data-scroll-root]');
-    const target = document.getElementById('features');
-    if (root && target instanceof HTMLElement) {
+    if (root) {
       root.scrollTo({ top: target.offsetTop - 80, behavior });
     } else {
-      target?.scrollIntoView({ behavior });
+      target.scrollIntoView({ behavior });
     }
-  }, []);
+  }, [lenis]);
 
   return (
     <section id="hero" className="relative min-h-dvh flex items-center justify-center px-6 overflow-hidden">
