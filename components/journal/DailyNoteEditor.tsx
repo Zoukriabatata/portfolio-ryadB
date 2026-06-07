@@ -94,7 +94,7 @@ export default function DailyNoteEditor({ date, existingNote, onSave, onCancel }
                 onChange={(e) => setMood(parseInt(e.target.value))}
                 className="flex-1 accent-[var(--primary)]"
               />
-              <span className="text-sm font-bold font-mono text-[var(--text-primary)] w-6 text-right">{mood}</span>
+              <span className="text-sm font-bold font-[var(--font-jetbrains-mono)] text-[var(--text-primary)] w-6 text-right">{mood}</span>
             </div>
           </div>
           <div>

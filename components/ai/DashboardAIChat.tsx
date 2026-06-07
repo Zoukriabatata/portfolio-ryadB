@@ -159,7 +159,7 @@ export default function DashboardAIChat() {
             className="inline-block w-1.5 h-1.5 rounded-full"
             style={{
               background: 'var(--primary)',
-              boxShadow: '0 0 8px rgba(74, 222, 128, 0.55)',
+              boxShadow: '0 0 8px rgb(var(--primary-rgb) / 0.55)',
               animation: 'ai-live-pulse 1.6s ease-in-out infinite',
             }}
           />
@@ -248,14 +248,14 @@ export default function DashboardAIChat() {
                   'max-w-[86%] px-3 py-2 rounded-[10px]',
                   'dash-text-sm leading-relaxed',
                   isUser
-                    ? 'text-black'
+                    ? ''
                     : 'border border-[var(--border)]',
                 )}
                 style={{
                   background: isUser
                     ? 'var(--primary)'
                     : 'var(--surface-elevated)',
-                  color: isUser ? '#0a0a0a' : 'var(--text-primary)',
+                  color: isUser ? 'var(--background)' : 'var(--text-primary)',
                   fontWeight: isUser ? 500 : 400,
                 }}
               >
@@ -384,10 +384,10 @@ export default function DashboardAIChat() {
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]',
               !input.trim() || loading
                 ? 'bg-[var(--surface)]'
-                : 'bg-[var(--primary)] text-black hover:scale-[1.04]',
+                : 'bg-[var(--primary)] hover:scale-[1.04]',
             )}
             style={{
-              color: !input.trim() || loading ? 'var(--text-muted)' : '#0a0a0a',
+              color: !input.trim() || loading ? 'var(--text-muted)' : 'var(--background)',
             }}
           >
             <ArrowUp size={16} strokeWidth={2.5} />

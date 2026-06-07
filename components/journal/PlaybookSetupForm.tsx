@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import type { PlaybookSetup } from '@/types/journal';
 
@@ -104,9 +105,10 @@ export default function PlaybookSetupForm({ open, onClose, editSetup, onSave }: 
                 <span className="text-xs text-[var(--text-primary)] flex-1">{rule}</span>
                 <button
                   onClick={() => removeRule(i)}
-                  className="text-xs text-[var(--text-dimmed)] hover:text-[var(--error)] transition-colors shrink-0"
+                  className="text-[var(--text-dimmed)] hover:text-[var(--error)] transition-colors shrink-0 inline-flex"
+                  aria-label="Remove rule"
                 >
-                  ×
+                  <X size={14} strokeWidth={1.5} />
                 </button>
               </div>
             ))}

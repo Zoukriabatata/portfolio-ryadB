@@ -21,7 +21,7 @@ export default function PerformanceBySymbol({ data }: PerformanceBySymbolProps) 
 
           return (
             <div key={d.symbol} className="flex items-center gap-3">
-              <span className="w-10 text-xs font-mono font-bold text-[var(--text-primary)] shrink-0">{d.symbol}</span>
+              <span className="w-10 text-xs font-[var(--font-jetbrains-mono)] font-bold text-[var(--text-primary)] shrink-0">{d.symbol}</span>
               <div className="flex-1 h-5 bg-[var(--surface-elevated)] rounded-full overflow-hidden relative">
                 <div
                   className="h-full rounded-full transition-all duration-500"
@@ -33,7 +33,7 @@ export default function PerformanceBySymbol({ data }: PerformanceBySymbolProps) 
                 />
               </div>
               <span
-                className="w-16 text-right text-xs font-mono font-bold shrink-0"
+                className="w-16 text-right text-xs font-[var(--font-jetbrains-mono)] font-bold shrink-0"
                 style={{ color: isPositive ? 'var(--bull)' : 'var(--bear)' }}
               >
                 {formatCurrency(d.pnl)}

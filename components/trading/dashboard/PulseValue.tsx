@@ -45,8 +45,8 @@ export default function PulseValue({ value, display, color, style, className }: 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const flashBg =
-    flash === 'up'   ? 'rgba(16,185,129,0.22)' :
-    flash === 'down' ? 'rgba(239,68,68,0.22)'  :
+    flash === 'up'   ? 'rgb(var(--bull-rgb) / 0.22)' :
+    flash === 'down' ? 'rgb(var(--bear-rgb) / 0.22)' :
     'transparent';
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { X, Info } from 'lucide-react';
 
 interface Hotkey {
   keys:     string[];
@@ -71,17 +72,19 @@ export default function HotkeysModal({ isOpen, onClose }: HotkeysModalProps) {
     >
       <div
         ref={panelRef}
-        className="w-full max-w-xl rounded-xl overflow-hidden flex flex-col max-h-[90vh]"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+        className="panel-glass w-full max-w-xl rounded-xl overflow-hidden flex flex-col max-h-[90vh]"
+        style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Keyboard Shortcuts</h2>
+            <h2 className="font-display text-[17px]" style={{ color: 'var(--text-primary)' }}>Keyboard Shortcuts</h2>
             <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
               for /live trading
             </span>
           </div>
-          <button onClick={onClose} className="text-xl leading-none px-2 hover:opacity-70" style={{ color: 'var(--text-muted)' }}>×</button>
+          <button onClick={onClose} className="px-2 hover:opacity-70 flex items-center" style={{ color: 'var(--text-muted)' }} aria-label="Close">
+            <X size={18} strokeWidth={1.5} />
+          </button>
         </div>
 
         <div className="overflow-y-auto px-5 py-4 flex flex-col gap-5">
@@ -124,10 +127,11 @@ export default function HotkeysModal({ isOpen, onClose }: HotkeysModalProps) {
           ))}
 
           <div
-            className="text-[11px] p-2.5 rounded mt-2"
+            className="text-[11px] p-2.5 rounded mt-2 flex items-start gap-1.5"
             style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
           >
-            ℹ Shortcuts only fire when no input field is focused. Click anywhere on the chart first if a key isn't responding.
+            <Info size={13} strokeWidth={1.5} className="mt-px shrink-0" />
+            <span>Shortcuts only fire when no input field is focused. Click anywhere on the chart first if a key isn&apos;t responding.</span>
           </div>
         </div>
       </div>

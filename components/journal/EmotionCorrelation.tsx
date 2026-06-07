@@ -34,7 +34,7 @@ export default function EmotionCorrelation({ data }: EmotionCorrelationProps) {
             </div>
             <div className="flex-1 flex items-center gap-3">
               <span
-                className="text-xs font-mono font-bold w-16 text-right"
+                className="text-xs font-[var(--font-jetbrains-mono)] font-bold w-16 text-right"
                 style={{ color: d.pnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}
               >
                 {formatCurrency(d.pnl)}

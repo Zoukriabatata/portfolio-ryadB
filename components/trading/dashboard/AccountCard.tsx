@@ -64,13 +64,7 @@ export default function AccountCard() {
   }, [closedTrades]);
 
   return (
-    <div
-      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-4 rounded-xl"
-      style={{
-        background: 'var(--surface)',
-        border:     '1px solid var(--border)',
-      }}
-    >
+    <div className="panel-glass panel-glass-hero grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-4 rounded-xl">
       <Stat label="Account Balance"  numeric={balance}    value={fmt(balance)}    color="primary" pulse />
       <Stat label="Equity"           numeric={equity}     value={fmt(equity)}     color={unrealized >= 0 ? 'success' : 'error'} sub={unrealized !== 0 ? `${unrealized >= 0 ? '+' : ''}${fmt(unrealized, false)} unrealized` : 'no open positions'} pulse />
       <Stat label="Day P&L"          numeric={dayPnl}     value={`${dayPnl >= 0 ? '+' : ''}${fmt(dayPnl, false)}`}     color={dayPnl >= 0 ? 'success' : 'error'} pulse />
@@ -114,7 +108,7 @@ function Stat({
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}>
         {label}
       </span>
       {pulse && typeof numeric === 'number' ? (
@@ -122,10 +116,10 @@ function Stat({
           value={numeric}
           display={value}
           color={colorMap[color]}
-          className="text-lg font-bold tabular-nums leading-tight"
+          className="font-display text-[19px] tabular-nums leading-tight"
         />
       ) : (
-        <span className="text-lg font-bold tabular-nums leading-tight" style={{ color: colorMap[color] }}>
+        <span className="font-display text-[19px] tabular-nums leading-tight" style={{ color: colorMap[color] }}>
           {value}
         </span>
       )}

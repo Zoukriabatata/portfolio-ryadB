@@ -8,6 +8,7 @@ import { GEXHistoryBuffer } from '@/lib/calculations/gexHistory';
 import type { MultiGreekData, MultiGreekSummary, GreekType } from '@/types/options';
 import { GREEK_META } from '@/types/options';
 import { RefreshIcon } from '@/components/ui/Icons';
+import { ChevronDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLiveSpot } from '@/lib/useLiveSpot';
 import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 
@@ -50,19 +51,27 @@ const ETF_SYMBOLS = ['SPY', 'QQQ', 'IWM', 'DIA'];
 const STOCK_SYMBOLS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'META'];
 
 const MONO = 'var(--font-jetbrains-mono)';
-const ON_PRIMARY = '#06140b'; // dark text on lime, per site convention
+
+// Brand-token accent per Greek (overrides off-brand GREEK_META.color: violet/blue/amber).
+// gex = primary (lime, active), others = neutral structure tokens.
+const GREEK_BRAND_COLOR: Record<GreekType, string> = {
+  gex: 'var(--primary)',
+  vex: 'var(--accent)',
+  cex: 'var(--warning)',
+  dex: 'var(--accent)',
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function MetricRow({ label, value, sub, bull }: {
-  label: string; value: string; sub?: string; bull?: boolean;
+  label: string; value: React.ReactNode; sub?: string; bull?: boolean;
 }) {
   const color = bull === undefined ? 'var(--text-primary)' : bull ? 'var(--bull)' : 'var(--bear)';
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-[var(--border)]/40 last:border-0">
       <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
       <div className="text-right">
-        <span className="text-[12px] font-mono font-semibold tabular-nums" style={{ color }}>{value}</span>
+        <span className="text-[12px] font-semibold tabular-nums inline-flex items-center justify-end gap-0.5" style={{ fontFamily: MONO, color }}>{value}</span>
         {sub && <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{sub}</span>}
       </div>
     </div>
@@ -250,7 +259,7 @@ export default function GEXPageContent() {
     <div className="h-full flex flex-col overflow-hidden bg-[var(--background)] animate-fadeIn">
 
       {/* ═══ HEADER ══════════════════════════════════════════════════════════ */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
+      <div className="panel-glass flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] shrink-0">
 
         {/* Left: Symbol + Greek */}
         <div className="flex items-center gap-3">
@@ -264,9 +273,7 @@ export default function GEXPageContent() {
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: biasColor || 'var(--text-muted)' }} />
               {symbol}
-              <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform ${symbolOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              <ChevronDown size={14} strokeWidth={1.5} className={`text-[var(--text-muted)] transition-transform ${symbolOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {symbolOpen && (
@@ -308,7 +315,7 @@ export default function GEXPageContent() {
                 <button key={g} onClick={() => setSelectedGreek(g)}
                   title={`${m.fullName} (${i + 1})`}
                   className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${selectedGreek === g ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
-                  style={selectedGreek === g ? { background: m.color } : undefined}>
+                  style={selectedGreek === g ? { background: GREEK_BRAND_COLOR[g] } : undefined}>
                   {m.label}
                 </button>
               );
@@ -322,7 +329,7 @@ export default function GEXPageContent() {
                 <span className="absolute inset-0 rounded-full animate-ping" style={{ backgroundColor: biasColor, opacity: 0.6 }} />
                 <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={{ backgroundColor: biasColor }} />
               </span>
-              <span className="text-[13px] font-mono font-bold tabular-nums" style={{ color: biasColor }}>
+              <span className="text-[13px] font-bold tabular-nums" style={{ fontFamily: MONO, color: biasColor }}>
                 ${effectiveSpot.toFixed(2)}
               </span>
             </div>
@@ -356,7 +363,7 @@ export default function GEXPageContent() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ── LEFT PANEL (bias + levels) ──────────────────────────────────── */}
-        <div className="w-64 shrink-0 border-r border-[var(--border)] flex flex-col overflow-y-auto" style={{ background: 'var(--surface)' }}>
+        <div className="panel-glass panel-glass-hero w-64 shrink-0 border-r border-[var(--border)] flex flex-col overflow-y-auto">
           <div className="p-4 flex flex-col gap-0">
 
             {/* BIAS */}
@@ -364,7 +371,7 @@ export default function GEXPageContent() {
               <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest mb-2" style={{ fontFamily: MONO }}>· Market Bias</p>
               {bias ? (
                 <>
-                  <p className="text-2xl font-black tracking-tight transition-colors duration-300" style={{ color: biasColor, fontFamily: MONO }}>{bias}</p>
+                  <p className="font-display text-2xl tracking-tight transition-colors duration-300" style={{ color: biasColor }}>{bias}</p>
                   <p className="text-[9px] text-[var(--text-muted)] mt-1">
                     {bias === 'BULLISH' ? '2+ bullish signals' : bias === 'BEARISH' ? '2+ bearish signals' : 'Mixed signals'}
                   </p>
@@ -394,7 +401,7 @@ export default function GEXPageContent() {
                 />
                 <MetricRow
                   label="Spot vs ZeroΓ"
-                  value={`${spotPrice > zeroGamma ? '▲' : '▼'} $${zeroGamma.toFixed(0)}`}
+                  value={<>{spotPrice > zeroGamma ? <ArrowUp size={11} strokeWidth={2} /> : <ArrowDown size={11} strokeWidth={2} />}${zeroGamma.toFixed(0)}</>}
                   bull={spotPrice > zeroGamma}
                 />
 
@@ -402,7 +409,7 @@ export default function GEXPageContent() {
                 <div className="mt-4 mb-2">
                   <div className="flex justify-between text-[9px] text-[var(--text-muted)] mb-1">
                     <span className="text-[var(--bear)] font-bold">${putWall > 0 ? putWall.toFixed(0) : '—'}</span>
-                    <span className="text-[var(--text-secondary)] font-mono text-[10px]">${effectiveSpot > 0 ? effectiveSpot.toFixed(1) : '—'}</span>
+                    <span className="text-[var(--text-secondary)] text-[10px]" style={{ fontFamily: MONO }}>${effectiveSpot > 0 ? effectiveSpot.toFixed(1) : '—'}</span>
                     <span className="text-[var(--bull)] font-bold">${callWall > 0 ? callWall.toFixed(0) : '—'}</span>
                   </div>
                   <div className="relative h-2 rounded-full overflow-hidden bg-[var(--background)]">
@@ -479,7 +486,7 @@ export default function GEXPageContent() {
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* Chart toolbar */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
+          <div className="panel-glass flex items-center justify-between px-4 py-2 border-b border-[var(--border)] shrink-0">
             <div className="flex items-center gap-1 p-0.5 rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }}>
               {(['bars', 'cumulative', 'heatmap2D', 'heatmap3D'] as const).map(m => (
                 <button key={m} onClick={() => setViewMode(m)}
@@ -500,8 +507,8 @@ export default function GEXPageContent() {
                 ))}
               </div>
 
-              <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                <span style={{ color: greekMeta.color }}>{greekMeta.symbol}</span> {greekMeta.label}
+              <span className="text-[10px] text-[var(--text-muted)]" style={{ fontFamily: MONO }}>
+                <span style={{ color: GREEK_BRAND_COLOR[selectedGreek] }}>{greekMeta.symbol}</span> {greekMeta.label}
               </span>
             </div>
           </div>

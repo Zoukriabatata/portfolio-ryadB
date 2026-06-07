@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState, memo } from 'react';
 import { useOrderbookStore } from '@/stores/useOrderbookStore';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 
 interface TradingDOMProps {
   height?: number;
@@ -12,39 +13,46 @@ interface TradingDOMProps {
   onTrade?: (side: 'buy' | 'sell', price: number, quantity: number) => void;
 }
 
-const COLORS = {
-  background: '#08080c',
-  backgroundAlt: '#0c0c12',
-  backgroundHover: '#14141f',
-  border: '#1a1a2e',
-  text: '#8b8b9a',
-  textBright: '#e5e7eb',
+/**
+ * Resolve the canvas palette from brand tokens at draw time (never at module
+ * scope — themeColor() returns #000 during SSR). Called inside the draw
+ * callback so it always reads the active theme.
+ */
+function resolveColors() {
+  return {
+    background: themeColor('--background'),
+    backgroundAlt: themeAlpha('--surface', 0.5),
+    backgroundHover: themeAlpha('--surface-elevated', 0.6),
+    border: themeColor('--border'),
+    text: themeColor('--text-muted'),
+    textBright: themeColor('--text-primary'),
 
-  // Bid/Ask
-  bidBar: 'rgba(16, 185, 129, 0.25)',
-  bidBarHover: 'rgba(16, 185, 129, 0.4)',
-  bidText: '#10b981',
-  bidTextBright: '#34d399',
+    // Bid/Ask
+    bidBar: themeAlpha('--bull', 0.25),
+    bidBarHover: themeAlpha('--bull', 0.4),
+    bidText: themeColor('--bull'),
+    bidTextBright: themeColor('--bull'),
 
-  askBar: 'rgba(239, 68, 68, 0.25)',
-  askBarHover: 'rgba(239, 68, 68, 0.4)',
-  askText: '#ef4444',
-  askTextBright: '#f87171',
+    askBar: themeAlpha('--bear', 0.25),
+    askBarHover: themeAlpha('--bear', 0.4),
+    askText: themeColor('--bear'),
+    askTextBright: themeColor('--bear'),
 
-  // Current price
-  currentPrice: '#fbbf24',
-  currentPriceBg: 'rgba(251, 191, 36, 0.15)',
+    // Current price
+    currentPrice: themeColor('--warning'),
+    currentPriceBg: themeAlpha('--warning', 0.15),
 
-  // Trading
-  buyButton: '#10b981',
-  sellButton: '#ef4444',
-  stopLoss: '#f59e0b',
-  takeProfit: '#3b82f6',
+    // Trading
+    buyButton: themeColor('--bull'),
+    sellButton: themeColor('--bear'),
+    stopLoss: themeColor('--warning'),
+    takeProfit: themeColor('--accent'),
 
-  // Whale
-  whale: '#a855f7',
-  whaleBg: 'rgba(168, 85, 247, 0.2)',
-};
+    // Whale (large order) — neutral structure accent
+    whale: themeColor('--accent'),
+    whaleBg: themeAlpha('--accent', 0.2),
+  };
+}
 
 const ROW_HEIGHT = 24;
 const HEADER_HEIGHT = 80;
@@ -111,8 +119,11 @@ export default memo(function TradingDOM({
 
     const canvasHeight = height - HEADER_HEIGHT - FOOTER_HEIGHT;
 
+    // Resolve brand palette at draw time (theme-aware, SSR-safe)
+    const c = resolveColors();
+
     // Background
-    ctx.fillStyle = COLORS.background;
+    ctx.fillStyle = c.background;
     ctx.fillRect(0, 0, width, canvasHeight);
 
     // Get sorted bid/ask levels
@@ -151,52 +162,52 @@ export default memo(function TradingDOM({
 
       // Row background
       if (index % 2 === 1) {
-        ctx.fillStyle = COLORS.backgroundAlt;
+        ctx.fillStyle = c.backgroundAlt;
         ctx.fillRect(0, y, width, ROW_HEIGHT);
       }
 
       if (isHovered) {
-        ctx.fillStyle = COLORS.backgroundHover;
+        ctx.fillStyle = c.backgroundHover;
         ctx.fillRect(0, y, width, ROW_HEIGHT);
       }
 
       if (isWhale) {
-        ctx.fillStyle = COLORS.whaleBg;
+        ctx.fillStyle = c.whaleBg;
         ctx.fillRect(0, y, width, ROW_HEIGHT);
       }
 
       // Volume bar (from right)
-      ctx.fillStyle = isHovered ? COLORS.askBarHover : COLORS.askBar;
+      ctx.fillStyle = isHovered ? c.askBarHover : c.askBar;
       ctx.fillRect(width - barWidth - 5, y + 3, barWidth, ROW_HEIGHT - 6);
 
       // Quantity
-      ctx.fillStyle = isWhale ? COLORS.whale : COLORS.askText;
+      ctx.fillStyle = isWhale ? c.whale : c.askText;
       ctx.font = isWhale ? 'bold 11px monospace' : '11px monospace';
       ctx.textAlign = 'right';
       ctx.fillText(formatQty(qty), colQty - 5, y + ROW_HEIGHT / 2 + 4);
 
       // Price
-      ctx.fillStyle = isWhale ? COLORS.whale : (isHovered ? COLORS.askTextBright : COLORS.askText);
+      ctx.fillStyle = isWhale ? c.whale : (isHovered ? c.askTextBright : c.askText);
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(price.toFixed(2), colQty + colPrice / 2, y + ROW_HEIGHT / 2 + 4);
 
       // Stop loss / Take profit indicators
       if (price === stopLoss) {
-        ctx.fillStyle = COLORS.stopLoss;
-        ctx.fillText('SL ⬤', width - 25, y + ROW_HEIGHT / 2 + 4);
+        ctx.fillStyle = c.stopLoss;
+        ctx.fillText('SL', width - 25, y + ROW_HEIGHT / 2 + 4);
       }
       if (price === takeProfit) {
-        ctx.fillStyle = COLORS.takeProfit;
-        ctx.fillText('TP ⬤', width - 25, y + ROW_HEIGHT / 2 + 4);
+        ctx.fillStyle = c.takeProfit;
+        ctx.fillText('TP', width - 25, y + ROW_HEIGHT / 2 + 4);
       }
     });
 
     // Draw mid price row
-    ctx.fillStyle = COLORS.currentPriceBg;
+    ctx.fillStyle = c.currentPriceBg;
     ctx.fillRect(0, midY - ROW_HEIGHT / 2, width, ROW_HEIGHT);
 
-    ctx.strokeStyle = COLORS.currentPrice;
+    ctx.strokeStyle = c.currentPrice;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, midY - ROW_HEIGHT / 2);
@@ -206,14 +217,14 @@ export default memo(function TradingDOM({
     ctx.stroke();
 
     // Mid price text
-    ctx.fillStyle = COLORS.currentPrice;
+    ctx.fillStyle = c.currentPrice;
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(`$${midPrice.toFixed(2)}`, width / 2, midY + 5);
 
     // Spread label
     ctx.font = '9px system-ui';
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = c.text;
     ctx.fillText(`Spread: $${spread.toFixed(2)}`, width / 2, midY - 8);
 
     // Draw bids (below mid)
@@ -226,49 +237,49 @@ export default memo(function TradingDOM({
 
       // Row background
       if (index % 2 === 1) {
-        ctx.fillStyle = COLORS.backgroundAlt;
+        ctx.fillStyle = c.backgroundAlt;
         ctx.fillRect(0, y, width, ROW_HEIGHT);
       }
 
       if (isHovered) {
-        ctx.fillStyle = COLORS.backgroundHover;
+        ctx.fillStyle = c.backgroundHover;
         ctx.fillRect(0, y, width, ROW_HEIGHT);
       }
 
       if (isWhale) {
-        ctx.fillStyle = COLORS.whaleBg;
+        ctx.fillStyle = c.whaleBg;
         ctx.fillRect(0, y, width, ROW_HEIGHT);
       }
 
       // Volume bar (from right)
-      ctx.fillStyle = isHovered ? COLORS.bidBarHover : COLORS.bidBar;
+      ctx.fillStyle = isHovered ? c.bidBarHover : c.bidBar;
       ctx.fillRect(width - barWidth - 5, y + 3, barWidth, ROW_HEIGHT - 6);
 
       // Quantity
-      ctx.fillStyle = isWhale ? COLORS.whale : COLORS.bidText;
+      ctx.fillStyle = isWhale ? c.whale : c.bidText;
       ctx.font = isWhale ? 'bold 11px monospace' : '11px monospace';
       ctx.textAlign = 'right';
       ctx.fillText(formatQty(qty), colQty - 5, y + ROW_HEIGHT / 2 + 4);
 
       // Price
-      ctx.fillStyle = isWhale ? COLORS.whale : (isHovered ? COLORS.bidTextBright : COLORS.bidText);
+      ctx.fillStyle = isWhale ? c.whale : (isHovered ? c.bidTextBright : c.bidText);
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(price.toFixed(2), colQty + colPrice / 2, y + ROW_HEIGHT / 2 + 4);
 
       // Stop loss / Take profit indicators
       if (price === stopLoss) {
-        ctx.fillStyle = COLORS.stopLoss;
-        ctx.fillText('SL ⬤', width - 25, y + ROW_HEIGHT / 2 + 4);
+        ctx.fillStyle = c.stopLoss;
+        ctx.fillText('SL', width - 25, y + ROW_HEIGHT / 2 + 4);
       }
       if (price === takeProfit) {
-        ctx.fillStyle = COLORS.takeProfit;
-        ctx.fillText('TP ⬤', width - 25, y + ROW_HEIGHT / 2 + 4);
+        ctx.fillStyle = c.takeProfit;
+        ctx.fillText('TP', width - 25, y + ROW_HEIGHT / 2 + 4);
       }
     });
 
     // Draw grid lines
-    ctx.strokeStyle = COLORS.border;
+    ctx.strokeStyle = c.border;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(colQty, 0);
@@ -335,23 +346,24 @@ export default memo(function TradingDOM({
   return (
     <div
       className="flex flex-col"
-      style={{ width, height, background: COLORS.background }}
+      style={{ width, height, background: 'var(--background)', fontFamily: 'var(--font-jetbrains-mono)' }}
     >
       {/* Header */}
-      <div className="border-b border-zinc-800" style={{ height: HEADER_HEIGHT, background: '#0c0c12' }}>
+      <div className="panel-glass border-b" style={{ height: HEADER_HEIGHT, borderColor: 'var(--border)' }}>
         <div className="px-3 py-2">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-bold text-white">Trading DOM</span>
-            <span className="text-xs text-zinc-500">{symbol}</span>
+            <span className="font-display text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Trading DOM</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{symbol}</span>
           </div>
 
           {/* Quantity input */}
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] text-zinc-500 uppercase">Qty:</span>
-            <div className="flex items-center bg-zinc-900 rounded border border-zinc-700">
+            <span className="text-[10px] uppercase" style={{ color: 'var(--text-muted)' }}>Qty:</span>
+            <div className="flex items-center rounded border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
               <button
                 onClick={() => setQuantity(Math.max(0.01, quantity - 0.1))}
-                className="px-2 py-0.5 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                className="px-2 py-0.5 transition-colors hover:bg-[var(--surface-elevated)]"
+                style={{ color: 'var(--text-secondary)' }}
               >
                 -
               </button>
@@ -359,13 +371,15 @@ export default memo(function TradingDOM({
                 type="number"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                className="w-16 bg-transparent text-center text-white text-sm font-mono border-none focus:outline-none"
+                className="w-16 bg-transparent text-center text-sm border-none focus:outline-none tabular-nums"
+                style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-jetbrains-mono)' }}
                 step={0.1}
                 min={0.01}
               />
               <button
                 onClick={() => setQuantity(quantity + 0.1)}
-                className="px-2 py-0.5 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                className="px-2 py-0.5 transition-colors hover:bg-[var(--surface-elevated)]"
+                style={{ color: 'var(--text-secondary)' }}
               >
                 +
               </button>
@@ -375,11 +389,11 @@ export default memo(function TradingDOM({
                 <button
                   key={q}
                   onClick={() => setQuantity(q)}
-                  className={`px-1.5 py-0.5 text-[10px] rounded ${
-                    quantity === q
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-zinc-800 text-zinc-500 hover:text-white'
-                  }`}
+                  className="px-1.5 py-0.5 text-[10px] rounded transition-colors"
+                  style={{
+                    backgroundColor: quantity === q ? 'var(--primary)' : 'var(--surface-elevated)',
+                    color: quantity === q ? '#fff' : 'var(--text-muted)',
+                  }}
                 >
                   {q}
                 </button>
@@ -388,7 +402,7 @@ export default memo(function TradingDOM({
           </div>
 
           {/* Column headers */}
-          <div className="flex items-center text-[9px] text-zinc-500 uppercase px-1">
+          <div className="flex items-center text-[9px] uppercase px-1" style={{ color: 'var(--text-muted)' }}>
             <span className="w-16 text-right">Size</span>
             <span className="w-20 text-center">Price</span>
             <span className="flex-1"></span>
@@ -406,23 +420,23 @@ export default memo(function TradingDOM({
       />
 
       {/* Footer - Trading Controls */}
-      <div className="border-t border-zinc-800" style={{ height: FOOTER_HEIGHT, background: '#0c0c12' }}>
+      <div className="panel-glass border-t" style={{ height: FOOTER_HEIGHT, borderColor: 'var(--border)' }}>
         <div className="px-3 py-2">
           {/* Imbalance indicator */}
           <div className="mb-2">
-            <div className="flex justify-between text-[9px] text-zinc-500 mb-1">
+            <div className="flex justify-between text-[9px] mb-1" style={{ color: 'var(--text-muted)' }}>
               <span>Sell Pressure</span>
               <span>{(bidAskImbalance * 100).toFixed(0)}%</span>
               <span>Buy Pressure</span>
             </div>
-            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden flex">
+            <div className="h-1.5 rounded-full overflow-hidden flex" style={{ backgroundColor: 'var(--surface-elevated)' }}>
               <div
-                className="h-full bg-gradient-to-r from-red-600 to-red-500 transition-all"
-                style={{ width: `${50 - bidAskImbalance * 50}%` }}
+                className="h-full transition-all"
+                style={{ width: `${50 - bidAskImbalance * 50}%`, background: 'linear-gradient(to right, rgb(var(--bear-rgb) / 0.85), var(--bear))' }}
               />
               <div
-                className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all"
-                style={{ width: `${50 + bidAskImbalance * 50}%` }}
+                className="h-full transition-all"
+                style={{ width: `${50 + bidAskImbalance * 50}%`, background: 'linear-gradient(to right, var(--bull), rgb(var(--bull-rgb) / 0.85))' }}
               />
             </div>
           </div>
@@ -431,8 +445,8 @@ export default memo(function TradingDOM({
           <div className="flex gap-2">
             <button
               onClick={handleSell}
-              className="flex-1 py-2.5 rounded font-bold text-sm text-white transition-all hover:brightness-110 active:scale-[0.98]"
-              style={{ background: `linear-gradient(135deg, ${COLORS.sellButton}, #dc2626)` }}
+              className="flex-1 py-2.5 rounded font-bold text-sm transition-all hover:brightness-110 active:scale-[0.98]"
+              style={{ background: 'linear-gradient(135deg, var(--bear), color-mix(in srgb, var(--bear) 78%, #000))', color: '#fff' }}
             >
               SELL
               <span className="block text-[10px] font-normal opacity-80">
@@ -441,8 +455,8 @@ export default memo(function TradingDOM({
             </button>
             <button
               onClick={handleBuy}
-              className="flex-1 py-2.5 rounded font-bold text-sm text-white transition-all hover:brightness-110 active:scale-[0.98]"
-              style={{ background: `linear-gradient(135deg, #059669, ${COLORS.buyButton})` }}
+              className="flex-1 py-2.5 rounded font-bold text-sm transition-all hover:brightness-110 active:scale-[0.98]"
+              style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--bull) 78%, #000), var(--bull))', color: '#fff' }}
             >
               BUY
               <span className="block text-[10px] font-normal opacity-80">
@@ -453,13 +467,13 @@ export default memo(function TradingDOM({
 
           {/* Quick actions */}
           <div className="flex gap-1 mt-2">
-            <button className="flex-1 py-1 text-[10px] bg-zinc-800 text-zinc-400 hover:text-white rounded">
+            <button className="flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
               Flatten
             </button>
-            <button className="flex-1 py-1 text-[10px] bg-zinc-800 text-zinc-400 hover:text-white rounded">
+            <button className="flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
               Cancel All
             </button>
-            <button className="flex-1 py-1 text-[10px] bg-zinc-800 text-zinc-400 hover:text-white rounded">
+            <button className="flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
               Reverse
             </button>
           </div>

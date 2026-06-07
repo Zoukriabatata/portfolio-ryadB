@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { Volume2, VolumeX, Info, Minus, Plus } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
 import { useTradingStore } from '@/stores/useTradingStore';
@@ -114,20 +115,17 @@ export default function QuickTradePanel() {
   }, [activeBroker, isConnected, blocked, accountState, lockedReason, sym, contractQuantity, livePrice, placeOrder]);
 
   return (
-    <div
-      className="rounded-xl p-4 flex flex-col gap-3"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Quick Trade</h3>
+          <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Quick Trade</h3>
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             title={soundEnabled ? 'Mute trade sounds' : 'Unmute trade sounds'}
-            className="text-[12px] px-1.5 py-0.5 rounded transition-colors hover:bg-[var(--surface-elevated)]"
+            className="px-1.5 py-0.5 rounded transition-colors hover:bg-[var(--surface-elevated)] flex items-center"
             style={{ color: soundEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}
           >
-            {soundEnabled ? '🔊' : '🔇'}
+            {soundEnabled ? <Volume2 size={14} strokeWidth={1.5} /> : <VolumeX size={14} strokeWidth={1.5} />}
           </button>
         </div>
         {livePrice > 0 && (
@@ -159,7 +157,7 @@ export default function QuickTradePanel() {
               onClick={() => { setSymbolInput(s); setTradingSymbol(s.toLowerCase()); }}
               className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors"
               style={{
-                background: sym === s ? 'rgba(74,222,128,0.10)' : 'var(--surface-elevated)',
+                background: sym === s ? 'rgb(var(--primary-rgb) / 0.10)' : 'var(--surface-elevated)',
                 color:      sym === s ? 'var(--primary)' : 'var(--text-muted)',
                 border:     `1px solid ${sym === s ? 'var(--primary)' : 'var(--border)'}`,
               }}
@@ -177,9 +175,10 @@ export default function QuickTradePanel() {
           style={{ border: '1px solid var(--border)', background: 'var(--surface-elevated)' }}>
           <button
             onClick={() => setContractQuantity(Math.max(1, contractQuantity - 1))}
-            className="w-7 h-7 text-[12px]"
+            className="w-7 h-7 flex items-center justify-center"
             style={{ color: 'var(--text-muted)' }}
-          >−</button>
+            aria-label="Decrease quantity"
+          ><Minus size={12} strokeWidth={1.5} /></button>
           <input
             type="number"
             min={1}
@@ -190,9 +189,10 @@ export default function QuickTradePanel() {
           />
           <button
             onClick={() => setContractQuantity(contractQuantity + 1)}
-            className="w-7 h-7 text-[12px]"
+            className="w-7 h-7 flex items-center justify-center"
             style={{ color: 'var(--text-muted)' }}
-          >+</button>
+            aria-label="Increase quantity"
+          ><Plus size={12} strokeWidth={1.5} /></button>
         </div>
         <div className="flex items-center gap-1">
           {QTY_PRESETS.map(q => (
@@ -261,8 +261,9 @@ export default function QuickTradePanel() {
       </div>
 
       {!livePrice && (
-        <p className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>
-          ⓘ No live price feed for this symbol — open <a href="/live" className="underline">/live</a> first to subscribe.
+        <p className="text-[10px] flex items-start gap-1" style={{ color: 'var(--text-dimmed)' }}>
+          <Info size={12} strokeWidth={1.5} className="mt-px shrink-0" />
+          <span>No live price feed for this symbol — open <a href="/live" className="underline">/live</a> first to subscribe.</span>
         </p>
       )}
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
 
@@ -72,13 +73,17 @@ export default function RiskCalculator() {
     danger:  'var(--bear)',
   }[computed.status];
 
+  // RGB triplet for the matching status — used to derive translucent borders.
+  const statusRgb = {
+    safe:    '--bull-rgb',
+    warning: '--warning-rgb',
+    danger:  '--bear-rgb',
+  }[computed.status];
+
   return (
-    <div
-      className="rounded-xl p-4 flex flex-col gap-3"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Risk Calculator</h3>
+        <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Risk Calculator</h3>
         <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           ${balance.toLocaleString('en-US')} acct
         </span>
@@ -166,7 +171,7 @@ export default function RiskCalculator() {
             onClick={() => { setAnchor('pct'); setRiskPct(p); }}
             className="px-2 py-0.5 rounded text-[10px] font-semibold transition-colors"
             style={{
-              background: anchor === 'pct' && riskPct === p ? 'rgba(74,222,128,0.10)' : 'var(--surface-elevated)',
+              background: anchor === 'pct' && riskPct === p ? 'rgb(var(--primary-rgb) / 0.10)' : 'var(--surface-elevated)',
               color:      anchor === 'pct' && riskPct === p ? 'var(--primary)' : 'var(--text-muted)',
               border:     `1px solid ${anchor === 'pct' && riskPct === p ? 'var(--primary)' : 'var(--border)'}`,
             }}
@@ -181,12 +186,12 @@ export default function RiskCalculator() {
         <div
           className="text-[11px] px-2.5 py-1.5 rounded flex items-start gap-1.5"
           style={{
-            background: computed.status === 'danger' ? 'rgba(239,68,68,0.08)' : 'rgba(251,191,36,0.08)',
+            background: computed.status === 'danger' ? 'rgb(var(--bear-rgb) / 0.08)' : 'rgb(var(--warning-rgb) / 0.08)',
             color:      statusColor,
-            border:     `1px solid ${statusColor}40`,
+            border:     `1px solid rgb(var(${statusRgb}) / 0.25)`,
           }}
         >
-          <span className="mt-px">⚠</span>
+          <AlertTriangle size={14} strokeWidth={1.5} className="mt-px shrink-0" />
           <span>
             {computed.status === 'danger'
               ? `Risking ${computed.pct.toFixed(1)}% per trade is high — pros stay under 1-2%.`
@@ -211,7 +216,7 @@ function AnchorBlock({
       onClick={onActivate}
       className="rounded-lg p-2 cursor-pointer transition-all flex flex-col items-center gap-0.5"
       style={{
-        background: active ? 'rgba(74,222,128,0.05)' : 'var(--surface-elevated)',
+        background: active ? 'rgb(var(--primary-rgb) / 0.05)' : 'var(--surface-elevated)',
         border:     `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
       }}
     >

@@ -505,7 +505,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
       lastZoomToastRef.current = now;
       // Lazy-import sonner to avoid pulling it into the chart bundle path
       import('sonner').then(({ toast }) => {
-        toast('🔒 Zoom locked while in position — close to free up the chart', {
+        toast('Zoom locked while in position — close to free up the chart', {
           duration: 1500,
         });
       });

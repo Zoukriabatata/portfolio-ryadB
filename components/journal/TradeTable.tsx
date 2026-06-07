@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import { useJournalStore } from '@/stores/useJournalStore';
 import type { JournalEntry } from '@/types/journal';
 
@@ -88,8 +89,10 @@ export default function TradeTable({
                   <span className="inline-flex items-center gap-1">
                     {col.label}
                     {tradeTableSort.column === col.key && (
-                      <span className="text-[var(--primary)]">
-                        {tradeTableSort.direction === 'asc' ? '↑' : '↓'}
+                      <span className="text-[var(--primary)] inline-flex">
+                        {tradeTableSort.direction === 'asc'
+                          ? <ArrowUp size={14} strokeWidth={1.5} />
+                          : <ArrowDown size={14} strokeWidth={1.5} />}
                       </span>
                     )}
                   </span>
@@ -157,7 +160,7 @@ export default function TradeTable({
                 </td>
 
                 {/* Symbol */}
-                <td className="px-4 py-3 text-sm font-mono font-bold text-[var(--text-primary)]">
+                <td className="px-4 py-3 text-sm font-[var(--font-jetbrains-mono)] font-bold text-[var(--text-primary)]">
                   {entry.symbol}
                 </td>
 
@@ -175,12 +178,12 @@ export default function TradeTable({
                 </td>
 
                 {/* Entry Price */}
-                <td className="px-4 py-3 text-sm text-right font-mono text-[var(--text-primary)]">
+                <td className="px-4 py-3 text-sm text-right font-[var(--font-jetbrains-mono)] text-[var(--text-primary)]">
                   {entry.entryPrice}
                 </td>
 
                 {/* Exit Price */}
-                <td className="px-4 py-3 text-sm text-right font-mono text-[var(--text-muted)]">
+                <td className="px-4 py-3 text-sm text-right font-[var(--font-jetbrains-mono)] text-[var(--text-muted)]">
                   {entry.exitPrice ?? '-'}
                 </td>
 
@@ -191,7 +194,7 @@ export default function TradeTable({
 
                 {/* P&L */}
                 <td
-                  className="px-4 py-3 text-sm text-right font-bold font-mono"
+                  className="px-4 py-3 text-sm text-right font-bold font-[var(--font-jetbrains-mono)]"
                   style={{ color: (entry.pnl || 0) >= 0 ? 'var(--bull)' : 'var(--bear)' }}
                 >
                   {formatPnl(entry.pnl)}

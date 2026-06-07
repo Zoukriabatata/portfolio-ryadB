@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
+import { Trophy, Settings, ScrollText, Award } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
 import { useTradingStore } from '@/stores/useTradingStore';
@@ -62,7 +63,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
   const prevStateRef = useRef<AccountState>(rules.accountState);
   useEffect(() => {
     if (prevStateRef.current !== 'PASSED' && rules.accountState === 'PASSED') {
-      toast.success('🏆 Challenge passed! Download your certificate below.', {
+      toast.success('Challenge passed! Download your certificate below.', {
         duration: 6000,
       });
     }
@@ -81,12 +82,9 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
 
   if (!rules.enabled) {
     return (
-      <div
-        className="rounded-xl p-4 flex flex-col gap-3"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
+      <div className="panel-glass rounded-xl p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Account Rules</h3>
+          <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Account Rules</h3>
           <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Off</span>
         </div>
         <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
@@ -105,14 +103,11 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
   }
 
   return (
-    <div
-      className="rounded-xl p-4 flex flex-col gap-3"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4 flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Account Rules</h3>
+          <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Account Rules</h3>
           <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
             {rules.preset === 'custom' ? 'Custom' : rules.preset.replace('_', ' ').toUpperCase()}
           </span>
@@ -127,11 +122,11 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
           {onConfigure && (
             <button
               onClick={onConfigure}
-              className="text-[10px] px-1.5 py-0.5 rounded hover:bg-[var(--surface-hover)]"
+              className="px-1.5 py-0.5 rounded hover:bg-[var(--surface-hover)] flex items-center"
               style={{ color: 'var(--text-muted)' }}
               title="Configure rules"
             >
-              ⚙
+              <Settings size={14} strokeWidth={1.5} />
             </button>
           )}
         </div>
@@ -147,7 +142,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
           }}
         >
           <div className="flex items-start gap-2">
-            <span className="text-lg">🏆</span>
+            <Trophy size={18} strokeWidth={1.5} style={{ color: 'var(--accent)' }} className="shrink-0" />
             <div>
               <div className="text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
                 Challenge passed!
@@ -171,7 +166,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
           }}
         >
           <div className="flex items-start gap-2">
-            <span className="text-lg">📜</span>
+            <ScrollText size={18} strokeWidth={1.5} style={{ color: 'var(--bear)' }} className="shrink-0" />
             <div>
               <div className="text-[12px] font-bold" style={{ color: 'var(--bear)' }}>
                 Combine concluded
@@ -199,7 +194,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
           }}
         >
           <div className="flex items-start gap-2">
-            <span className="text-lg">🎖️</span>
+            <Award size={18} strokeWidth={1.5} style={{ color: 'var(--accent)' }} className="shrink-0" />
             <div>
               <div className="text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
                 Discipline maintained

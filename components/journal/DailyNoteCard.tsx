@@ -26,7 +26,7 @@ export default function DailyNoteCard({ note, onEdit, onDelete }: DailyNoteCardP
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-[var(--text-primary)]">{dateFormatted}</span>
           {note.mood && (
-            <span className="text-xs font-bold font-mono" style={{ color: MOOD_COLORS[note.mood] || 'var(--text-muted)' }}>
+            <span className="text-xs font-bold font-[var(--font-jetbrains-mono)]" style={{ color: MOOD_COLORS[note.mood] || 'var(--text-muted)' }}>
               Mood: {note.mood}/10
             </span>
           )}
@@ -39,7 +39,7 @@ export default function DailyNoteCard({ note, onEdit, onDelete }: DailyNoteCardP
         <div className="flex items-center gap-3">
           {tradeCount > 0 && (
             <span className="text-xs text-[var(--text-muted)]">
-              {tradeCount} trade{tradeCount > 1 ? 's' : ''} — <span style={{ color: tradePnl >= 0 ? 'var(--bull)' : 'var(--bear)' }} className="font-mono font-bold">{formatCurrency(tradePnl)}</span>
+              {tradeCount} trade{tradeCount > 1 ? 's' : ''} — <span style={{ color: tradePnl >= 0 ? 'var(--bull)' : 'var(--bear)' }} className="font-[var(--font-jetbrains-mono)] font-bold">{formatCurrency(tradePnl)}</span>
             </span>
           )}
           <button onClick={() => onEdit(note)} className="text-xs text-[var(--text-dimmed)] hover:text-[var(--primary)] transition-colors">

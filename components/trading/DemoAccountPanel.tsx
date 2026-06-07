@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useTradingStore, BROKER_INFO, type BrokerType } from '@/stores/useTradingStore';
+import { X } from 'lucide-react';
+import { useTradingStore } from '@/stores/useTradingStore';
 
 interface DemoAccountPanelProps {
   isOpen: boolean;
@@ -109,8 +110,7 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
     <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
       <div
         ref={panelRef}
-        className="w-[380px] rounded-xl overflow-hidden shadow-2xl"
-        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+        className="panel-glass w-[380px] rounded-xl overflow-hidden shadow-2xl"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -119,14 +119,12 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
               D
             </div>
             <div>
-              <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Demo Account</h3>
+              <h3 className="font-display text-[16px]" style={{ color: 'var(--text-primary)' }}>Demo Account</h3>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Paper Trading Simulator</p>
             </div>
           </div>
           <button onClick={onClose} className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: 'var(--text-muted)' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={14} strokeWidth={1.5} />
           </button>
         </div>
 

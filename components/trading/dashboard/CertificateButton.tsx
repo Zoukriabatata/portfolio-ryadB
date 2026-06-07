@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { Trophy, ScrollText, Award, Mail } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
@@ -195,7 +196,7 @@ export default function CertificateButton({
     // but we DO want to confirm success.
     sendByEmail(true).then(ok => {
       if (ok) {
-        toast.success(`📧 Certificate also emailed to ${session.user!.email}`, { duration: 3500 });
+        toast.success(`Certificate also emailed to ${session.user!.email}`, { duration: 3500 });
       } else {
         // Reset flag so user can manually retry from the Email button
         window.localStorage.removeItem(flagKey);
@@ -229,7 +230,14 @@ export default function CertificateButton({
               Generating…
             </>
           ) : (
-            <>{variant === 'FAILED' ? '📜' : variant === 'DISCIPLINE' ? '🎖️' : '🏆'} Download</>
+            <>
+              {variant === 'FAILED'
+                ? <ScrollText size={14} strokeWidth={1.5} />
+                : variant === 'DISCIPLINE'
+                  ? <Award size={14} strokeWidth={1.5} />
+                  : <Trophy size={14} strokeWidth={1.5} />}
+              Download
+            </>
           )}
         </button>
         {session?.user?.email && (
@@ -247,7 +255,7 @@ export default function CertificateButton({
             {isEmailing ? (
               <span className="inline-block animate-spin rounded-full h-3 w-3 border-t-2 border-current opacity-60" />
             ) : (
-              <>📧</>
+              <Mail size={14} strokeWidth={1.5} />
             )}
             <span className="hidden sm:inline text-[11px]">Email</span>
           </button>

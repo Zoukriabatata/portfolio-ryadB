@@ -3,6 +3,12 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useEquityOptionsStore } from '@/stores/useEquityOptionsStore';
 import { formatGEX } from '@/lib/calculations/gex';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+const MONO = 'var(--font-jetbrains-mono)';
+// Canvas ctx.font can't resolve CSS var() — use the literal family name.
+const CANVAS_MONO = 'JetBrains Mono, Consolas, monospace';
 
 const CHART_PADDING = { top: 30, right: 100, bottom: 50, left: 80 } as const;
 
@@ -69,11 +75,11 @@ export default function GEXChart({
     canvas.height = height;
 
     // Clear canvas
-    ctx.fillStyle = '#0a0a0a';
+    ctx.fillStyle = themeColor('--background');
     ctx.fillRect(0, 0, width, height);
 
     if (gexData.length === 0) {
-      ctx.fillStyle = '#6b7280';
+      ctx.fillStyle = themeColor('--text-muted');
       ctx.font = '14px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText('No GEX data available', width / 2, height / 2);
@@ -93,7 +99,7 @@ export default function GEXChart({
     const visibleData = gexData.filter(d => d.strike >= visibleMin && d.strike <= visibleMax);
 
     if (visibleData.length === 0) {
-      ctx.fillStyle = '#6b7280';
+      ctx.fillStyle = themeColor('--text-muted');
       ctx.font = '14px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText('Zoom out to see data', width / 2, height / 2);
@@ -125,7 +131,7 @@ export default function GEXChart({
     };
 
     // Draw grid lines
-    ctx.strokeStyle = '#1f2937';
+    ctx.strokeStyle = themeColor('--border');
     ctx.lineWidth = 1;
     const gridSteps = 10;
     const priceStep = visibleRange / gridSteps;
@@ -139,7 +145,7 @@ export default function GEXChart({
     }
 
     // Draw center line
-    ctx.strokeStyle = '#4b5563';
+    ctx.strokeStyle = themeColor('--text-dimmed');
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(centerX, padding.top);
@@ -149,7 +155,7 @@ export default function GEXChart({
     // Draw zero gamma level line
     if (gexSummary?.zeroGammaLevel && gexSummary.zeroGammaLevel >= visibleMin && gexSummary.zeroGammaLevel <= visibleMax) {
       const yPos = priceToY(gexSummary.zeroGammaLevel);
-      ctx.strokeStyle = '#eab308';
+      ctx.strokeStyle = themeColor('--warning');
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 5]);
       ctx.beginPath();
@@ -158,7 +164,7 @@ export default function GEXChart({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = '#eab308';
+      ctx.fillStyle = themeColor('--warning');
       ctx.font = 'bold 11px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(`Zero Gamma: $${gexSummary.zeroGammaLevel.toFixed(0)}`, width - padding.right + 5, yPos + 4);
@@ -167,7 +173,7 @@ export default function GEXChart({
     // Draw spot price line
     if (underlyingPrice > 0 && underlyingPrice >= visibleMin && underlyingPrice <= visibleMax) {
       const yPos = priceToY(underlyingPrice);
-      ctx.strokeStyle = '#3b82f6';
+      ctx.strokeStyle = themeColor('--accent');
       ctx.lineWidth = 2;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -176,7 +182,7 @@ export default function GEXChart({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = '#3b82f6';
+      ctx.fillStyle = themeColor('--accent');
       ctx.font = 'bold 11px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(`Spot: $${underlyingPrice.toFixed(2)}`, width - padding.right + 5, yPos - 8);
@@ -192,8 +198,8 @@ export default function GEXChart({
         const x = data.callGEX >= 0 ? centerX : centerX - barWidth;
 
         const gradient = ctx.createLinearGradient(x, 0, x + barWidth, 0);
-        gradient.addColorStop(0, 'rgba(34, 197, 94, 0.9)');
-        gradient.addColorStop(1, 'rgba(34, 197, 94, 0.5)');
+        gradient.addColorStop(0, themeAlpha('--bull', 0.9));
+        gradient.addColorStop(1, themeAlpha('--bull', 0.5));
         ctx.fillStyle = gradient;
         ctx.fillRect(x, y - barHeight / 2, barWidth, barHeight / 2 - 1);
       }
@@ -204,8 +210,8 @@ export default function GEXChart({
         const x = data.putGEX >= 0 ? centerX : centerX - barWidth;
 
         const gradient = ctx.createLinearGradient(x, 0, x + barWidth, 0);
-        gradient.addColorStop(0, 'rgba(239, 68, 68, 0.5)');
-        gradient.addColorStop(1, 'rgba(239, 68, 68, 0.9)');
+        gradient.addColorStop(0, themeAlpha('--bear', 0.5));
+        gradient.addColorStop(1, themeAlpha('--bear', 0.9));
         ctx.fillStyle = gradient;
         ctx.fillRect(x, y, barWidth, barHeight / 2 - 1);
       }
@@ -213,7 +219,7 @@ export default function GEXChart({
       // Net GEX line marker
       if (data.netGEX !== 0) {
         const netX = centerX + (data.netGEX / maxAbsGEX) * (chartWidth / 2);
-        ctx.strokeStyle = data.netGEX >= 0 ? '#22c55e' : '#ef4444';
+        ctx.strokeStyle = data.netGEX >= 0 ? themeColor('--bull') : themeColor('--bear');
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(netX, y - barHeight / 2);
@@ -223,8 +229,8 @@ export default function GEXChart({
 
       // Strike price label
       if (showLabels) {
-        ctx.fillStyle = '#e5e7eb';
-        ctx.font = 'bold 11px monospace';
+        ctx.fillStyle = themeColor('--text-primary');
+        ctx.font = `bold 11px ${CANVAS_MONO}`;
         ctx.textAlign = 'right';
 
         if (showTickPrices && underlyingPrice > 0) {
@@ -238,7 +244,7 @@ export default function GEXChart({
     });
 
     // Draw X-axis labels (GEX values)
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = themeColor('--text-secondary');
     ctx.font = '10px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText(`-${formatGEX(maxAbsGEX)}`, padding.left + 30, height - 15);
@@ -250,8 +256,8 @@ export default function GEXChart({
     for (let i = 0; i <= 5; i++) {
       const price = visibleMin + (visibleRange / 5) * i;
       const y = priceToY(price);
-      ctx.fillStyle = '#6b7280';
-      ctx.font = '10px monospace';
+      ctx.fillStyle = themeColor('--text-muted');
+      ctx.font = `10px ${CANVAS_MONO}`;
 
       if (showTickPrices && underlyingPrice > 0) {
         const ticksFromSpot = Math.round((price - underlyingPrice) / tickSize);
@@ -266,18 +272,18 @@ export default function GEXChart({
     ctx.font = '11px system-ui';
     ctx.textAlign = 'left';
 
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.8)';
+    ctx.fillStyle = themeAlpha('--bull', 0.8);
     ctx.fillRect(padding.left, height - 35, 12, 12);
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = themeColor('--text-secondary');
     ctx.fillText('Call GEX', padding.left + 16, height - 25);
 
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+    ctx.fillStyle = themeAlpha('--bear', 0.8);
     ctx.fillRect(padding.left + 80, height - 35, 12, 12);
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = themeColor('--text-secondary');
     ctx.fillText('Put GEX', padding.left + 96, height - 25);
 
     // Zoom level indicator
-    ctx.fillStyle = '#6b7280';
+    ctx.fillStyle = themeColor('--text-muted');
     ctx.font = '10px system-ui';
     ctx.textAlign = 'right';
     ctx.fillText(`Zoom: ${zoomLevel.toFixed(1)}x`, width - padding.right, padding.top - 10);
@@ -348,31 +354,39 @@ export default function GEXChart({
       <div className="absolute top-2 right-2 z-10 flex gap-2">
         <button
           onClick={() => setShowTickPrices(!showTickPrices)}
-          className={`px-2 h-8 text-xs rounded transition-colors ${
-            showTickPrices
-              ? 'bg-blue-600 text-white'
-              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'
-          }`}
+          className="px-2 h-8 text-xs rounded-lg transition-colors press-fb"
+          style={{
+            fontFamily: MONO,
+            background: showTickPrices ? 'rgb(var(--primary-rgb) / 0.18)' : 'var(--surface-elevated)',
+            border: `1px solid ${showTickPrices ? 'rgb(var(--primary-rgb) / 0.4)' : 'var(--border)'}`,
+            color: showTickPrices ? 'var(--primary)' : 'var(--text-muted)',
+          }}
         >
           Ticks
         </button>
         <button
           onClick={() => setZoomLevel(prev => Math.min(10, prev + 0.5))}
-          className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded flex items-center justify-center text-lg"
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors press-fb"
+          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          aria-label="Zoom in"
         >
-          +
+          <ZoomIn size={16} strokeWidth={1.5} />
         </button>
         <button
           onClick={() => setZoomLevel(prev => Math.max(1, prev - 0.5))}
-          className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded flex items-center justify-center text-lg"
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors press-fb"
+          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          aria-label="Zoom out"
         >
-          -
+          <ZoomOut size={16} strokeWidth={1.5} />
         </button>
         <button
           onClick={resetZoom}
-          className="px-2 h-8 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs rounded"
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors press-fb"
+          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          aria-label="Reset zoom"
         >
-          Reset
+          <RotateCcw size={15} strokeWidth={1.5} />
         </button>
       </div>
 

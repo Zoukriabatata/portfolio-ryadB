@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useUIThemeStore, UI_THEMES } from '@/stores/useUIThemeStore';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 
 interface SkewPoint {
   strike: number;
@@ -22,6 +23,8 @@ function useSmileColors() {
   const activeTheme = useUIThemeStore((s) => s.activeTheme);
   const theme = UI_THEMES.find(t => t.id === activeTheme) || UI_THEMES[0];
   const c = theme.colors;
+  // activeTheme (read above) re-runs this hook on theme switch, so the brand
+  // tokens below are re-resolved via themeColor() with the active palette.
   return {
     bg: c.chartBg,
     gridLine: `${c.chartGrid}28`,
@@ -29,12 +32,12 @@ function useSmileColors() {
     text: c.textMuted,
     textMid: c.textSecondary,
     textBright: c.textPrimary,
-    callIV: '#34d399',          // emerald green — calls
-    putIV: '#f87171',           // rose red — puts
-    atm: '#26beaf',             // teal — ATM / tradytics accent
-    spot: '#26beaf',
+    callIV: themeColor('--bull'),     // brand bull — calls
+    putIV: themeColor('--bear'),      // brand bear — puts
+    atm: themeColor('--accent'),      // brand teal — ATM / structure accent
+    spot: themeColor('--accent'),
     crosshair: `${c.textPrimary}22`,
-    panelSep: 'rgba(255,255,255,0.07)',
+    panelSep: themeAlpha('--text-primary', 0.07),
   };
 }
 
@@ -272,7 +275,7 @@ export default function IVSmileChart({
     ctx.restore(); // end main clip
 
     // ─── Y AXIS LABELS (outside clip) ───
-    ctx.font = '9.5px "SF Mono", Menlo, monospace';
+    ctx.font = '9.5px "JetBrains Mono", monospace';
     for (let i = 0; i <= 5; i++) {
       const iv = (ivMax * i) / 5;
       const y = PAD.top + (1 - i / 5) * mainH;
@@ -313,13 +316,17 @@ export default function IVSmileChart({
       ctx.fillText(lt, sx, PAD.top + 9.5);
     }
 
-    // ─── ATM label ───
+    // ─── ATM marker (down-triangle, drawn as path — no Unicode glyph) ───
     if (atmStrikeInView) {
       const ax = toX(atmStrikeInView.strike);
-      ctx.font = 'bold 8px system-ui';
-      ctx.textAlign = 'center';
+      const my = PAD.top + mainH + 3;
       ctx.fillStyle = `${C.atm}cc`;
-      ctx.fillText('▼', ax, PAD.top + mainH + 8);
+      ctx.beginPath();
+      ctx.moveTo(ax - 4, my);
+      ctx.lineTo(ax + 4, my);
+      ctx.lineTo(ax, my + 5);
+      ctx.closePath();
+      ctx.fill();
     }
 
     // ─── SPREAD PANEL ───
@@ -373,7 +380,7 @@ export default function IVSmileChart({
     ctx.fillText('SKEW SPREAD  (put IV − call IV)', PAD.left + 2, spreadTop + 11);
 
     // Spread Y labels
-    ctx.font = '8px "SF Mono", Menlo, monospace';
+    ctx.font = '8px "JetBrains Mono", monospace';
     ctx.textAlign = 'right';
     ctx.fillStyle = `${C.putIV}99`;
     ctx.fillText(`+${(spreadAbsMax * 100).toFixed(1)}%`, PAD.left - 5, spreadTop + 10);
@@ -388,7 +395,7 @@ export default function IVSmileChart({
       if (hoveredPoint.callIV && hoveredPoint.callIV > 0) {
         const cy = toY(hoveredPoint.callIV);
         const lt = `${(hoveredPoint.callIV * 100).toFixed(1)}%`;
-        ctx.font = 'bold 8.5px "SF Mono", Menlo, monospace';
+        ctx.font = 'bold 8.5px "JetBrains Mono", monospace';
         const tw = ctx.measureText(lt).width + 8;
         ctx.fillStyle = C.callIV;
         ctx.beginPath(); ctx.roundRect(PAD.left - tw - 4, cy - 8, tw, 16, 3); ctx.fill();
@@ -398,7 +405,7 @@ export default function IVSmileChart({
       if (hoveredPoint.putIV && hoveredPoint.putIV > 0) {
         const py = toY(hoveredPoint.putIV);
         const lt = `${(hoveredPoint.putIV * 100).toFixed(1)}%`;
-        ctx.font = 'bold 8.5px "SF Mono", Menlo, monospace';
+        ctx.font = 'bold 8.5px "JetBrains Mono", monospace';
         const tw = ctx.measureText(lt).width + 8;
         ctx.fillStyle = C.putIV;
         ctx.beginPath(); ctx.roundRect(PAD.left - tw - 4, py - 8, tw, 16, 3); ctx.fill();
@@ -407,11 +414,11 @@ export default function IVSmileChart({
       }
       // X label below spread panel
       const lt = `$${hoveredPoint.strike.toFixed(0)}`;
-      ctx.font = 'bold 9px "SF Mono"';
+      ctx.font = 'bold 9px "JetBrains Mono", monospace';
       const tw = ctx.measureText(lt).width + 10;
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = C.textBright;
       ctx.beginPath(); ctx.roundRect(hx - tw / 2, spreadTop + SPREAD_H + 2, tw, 14, 3); ctx.fill();
-      ctx.fillStyle = '#000'; ctx.textAlign = 'center';
+      ctx.fillStyle = C.bg; ctx.textAlign = 'center';
       ctx.fillText(lt, hx, spreadTop + SPREAD_H + 13);
     }
 
@@ -435,12 +442,12 @@ export default function IVSmileChart({
 
     // Zoom hint
     if (xZoom) {
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = `${C.text}b0`;
       ctx.font = '8px system-ui';
       ctx.textAlign = 'right';
       ctx.fillText('scroll=zoom · drag=pan · dbl-click=reset', PAD.left + cw, 30);
     } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillStyle = `${C.text}80`;
       ctx.font = '8px system-ui';
       ctx.textAlign = 'right';
       ctx.fillText('scroll=zoom · drag=pan', PAD.left + cw, 30);
@@ -579,11 +586,12 @@ export default function IVSmileChart({
               </span>
               {spotPrice > 0 && (
                 <span
-                  className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                  className="text-[9px] px-1.5 py-0.5 rounded"
                   style={{
-                    background: 'rgba(255,255,255,0.06)',
+                    background: 'var(--surface-elevated)',
                     color: C.text,
                     border: `1px solid ${C.crosshair}`,
+                    fontFamily: 'var(--font-jetbrains-mono)',
                   }}
                 >
                   {hoveredPoint.strike > spotPrice ? '+' : ''}
@@ -643,8 +651,8 @@ export default function IVSmileChart({
       {xZoom && (
         <button
           onClick={handleDoubleClick}
-          className="absolute bottom-16 right-4 px-2.5 py-1 text-[10px] rounded-lg transition-all hover:scale-105 active:scale-95"
-          style={{ background: 'rgba(38,190,175,0.15)', border: '1px solid rgba(38,190,175,0.35)', color: '#26beaf' }}
+          className="press-fb absolute bottom-16 right-4 px-2.5 py-1 text-[10px] rounded-lg transition-all hover:scale-105"
+          style={{ background: 'rgb(var(--accent-rgb) / 0.15)', border: '1px solid rgb(var(--accent-rgb) / 0.35)', color: 'var(--accent)' }}
         >
           Reset zoom
         </button>

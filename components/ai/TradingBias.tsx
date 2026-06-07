@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
 import type { MarketData, OptionsExpiration } from '@/lib/ai/agents/analysisAgent';
 
 const EXPIRATIONS: { value: OptionsExpiration; label: string }[] = [
@@ -51,9 +52,9 @@ interface TradingBiasProps {
 }
 
 const BIAS_CONFIG = {
-  BULLISH: { label: 'BULLISH', color: 'var(--bull)',    bg: 'rgb(var(--bull-rgb) / 0.1)',    icon: '↑' },
-  BEARISH: { label: 'BEARISH', color: 'var(--bear)',    bg: 'rgb(var(--bear-rgb) / 0.1)',    icon: '↓' },
-  NEUTRAL: { label: 'NEUTRAL', color: 'var(--warning)', bg: 'rgb(var(--warning-rgb) / 0.1)', icon: '→' },
+  BULLISH: { label: 'BULLISH', color: 'var(--bull)',    bg: 'rgb(var(--bull-rgb) / 0.1)',    Icon: TrendingUp   },
+  BEARISH: { label: 'BEARISH', color: 'var(--bear)',    bg: 'rgb(var(--bear-rgb) / 0.1)',    Icon: TrendingDown },
+  NEUTRAL: { label: 'NEUTRAL', color: 'var(--warning)', bg: 'rgb(var(--warning-rgb) / 0.1)', Icon: Minus        },
 };
 
 export default function TradingBias({ defaultData = {}, colors = {}, className = '' }: TradingBiasProps) {
@@ -196,7 +197,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
                   className="py-1 rounded text-xs font-bold transition-all"
                   style={{
                     background: form.expiration === exp.value ? currentPriceColor : surface,
-                    color:      form.expiration === exp.value ? '#fff' : textSecondary,
+                    color:      form.expiration === exp.value ? 'var(--background)' : textSecondary,
                     border:     `1px solid ${form.expiration === exp.value ? currentPriceColor : gridColor}`,
                   }}
                 >
@@ -222,7 +223,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
             onClick={runAnalysis}
             disabled={isLoading}
             className="mt-2 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
-            style={{ backgroundColor: currentPriceColor, color: '#fff' }}
+            style={{ backgroundColor: currentPriceColor, color: 'var(--background)' }}
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -241,8 +242,9 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
         {/* ── Result Panel ───────────────────────────────────────────────── */}
         <div className="flex-1 p-4 overflow-y-auto" style={{ backgroundColor: background }}>
           {error && (
-            <div className="mb-3 p-3 rounded-lg text-sm" style={{ backgroundColor: 'rgb(var(--bear-rgb) / 0.1)', color: deltaNegative, border: '1px solid rgb(var(--bear-rgb) / 0.2)' }}>
-              ⚠️ {error}
+            <div className="mb-3 p-3 rounded-lg text-sm flex items-start gap-2" style={{ backgroundColor: 'rgb(var(--bear-rgb) / 0.1)', color: deltaNegative, border: '1px solid rgb(var(--bear-rgb) / 0.2)' }}>
+              <AlertTriangle size={14} strokeWidth={1.5} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -276,7 +278,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
               >
                 <div>
                   <div className="text-2xl font-bold flex items-center gap-2" style={{ color: biasConfig.color }}>
-                    <span>{biasConfig.icon}</span>
+                    <biasConfig.Icon size={22} strokeWidth={1.5} />
                     <span>{biasConfig.label}</span>
                   </div>
                   <div className="text-xs mt-1" style={{ color: textSecondary }}>
@@ -364,7 +366,7 @@ export default function TradingBias({ defaultData = {}, colors = {}, className =
                   <div className="space-y-1">
                     {result.riskFactors.map((risk, i) => (
                       <div key={i} className="flex gap-2 text-sm items-start">
-                        <span style={{ color: deltaNegative, marginTop: 2 }}>⚠</span>
+                        <AlertTriangle size={13} strokeWidth={1.5} style={{ color: deltaNegative, marginTop: 3 }} className="flex-shrink-0" />
                         <span style={{ color: textSecondary }}>{risk}</span>
                       </div>
                     ))}

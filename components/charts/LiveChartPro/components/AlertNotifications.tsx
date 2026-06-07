@@ -1,3 +1,5 @@
+import { Bell } from 'lucide-react';
+
 interface AlertNotification {
   id: string;
   alert: {
@@ -33,7 +35,7 @@ export default function AlertNotifications({ notifications, onDismiss, theme }: 
             animation: 'alertIn 0.3s ease-out',
           }}
         >
-          <span style={{ fontSize: 14 }}>🔔</span>
+          <Bell size={14} strokeWidth={1.5} style={{ color: 'var(--warning)' }} />
           <div className="flex-1 min-w-0">
             <div className="font-medium truncate" style={{ color: 'var(--warning)' }}>
               {notif.alert.symbol.toUpperCase()} @ ${notif.alert.price.toFixed(2)}

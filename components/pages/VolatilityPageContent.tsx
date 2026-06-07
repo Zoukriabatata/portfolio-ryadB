@@ -145,18 +145,18 @@ export default function VolatilityPageContent() {
       {/* ══════════════════════════════════════════════════════
           TOP BAR: logo · symbols · LIVE · refresh
       ══════════════════════════════════════════════════════ */}
-      <div className="flex items-center justify-between gap-4 px-4 py-2 border-b border-[var(--border)] shrink-0">
+      <div className="panel-glass flex items-center justify-between gap-4 px-4 py-2 shrink-0">
 
         {/* Left: icon + symbol pills */}
         <div className="flex items-center gap-3">
           {/* Icon */}
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-black"
-            style={{ background: accentAlpha(0.13), border: `1px solid ${accentAlpha(0.33)}`, color: ACCENT }}
+            style={{ background: accentAlpha(0.13), border: `1px solid ${accentAlpha(0.33)}`, color: ACCENT, fontFamily: 'var(--font-jetbrains-mono)' }}
           >
             IV
           </div>
-          <span className="text-[11px] font-semibold text-[var(--text-secondary)] hidden sm:block whitespace-nowrap">
+          <span className="font-display text-[13px] text-[var(--text-secondary)] hidden sm:block whitespace-nowrap">
             Volatility Skew
           </span>
 
@@ -195,7 +195,7 @@ export default function VolatilityPageContent() {
             {isLive ? 'CBOE · delayed ~15min' : isLoading ? 'Loading…' : 'Error'}
           </div>
           {lastUpdate && (
-            <span className="text-[9px] text-[var(--text-muted)] hidden md:block font-mono">
+            <span className="text-[9px] text-[var(--text-muted)] hidden md:block" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
               {lastUpdate.toLocaleTimeString()}
             </span>
           )}
@@ -212,7 +212,7 @@ export default function VolatilityPageContent() {
       {/* ══════════════════════════════════════════════════════
           METRICS STRIP: 6 key stats
       ══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-6 border-b border-[var(--border)] shrink-0">
+      <div className="panel-glass panel-glass-hero grid grid-cols-6 shrink-0">
         <MetricCell
           label="Spot"
           value={spot > 0 ? `$${spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
@@ -251,8 +251,8 @@ export default function VolatilityPageContent() {
       {/* ══════════════════════════════════════════════════════
           CONTROLS: expiry tabs + view toggle
       ══════════════════════════════════════════════════════ */}
-      <div className="flex items-center gap-3 px-4 py-1.5 border-b border-[var(--border)] shrink-0 overflow-x-auto">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)] shrink-0">Expiry</span>
+      <div className="panel-glass flex items-center gap-3 px-4 py-1.5 shrink-0 overflow-x-auto">
+        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)] shrink-0" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>Expiry</span>
         <div className="flex items-center gap-1 flex-1">
           {expirations.slice(0, 9).map(exp => (
             <button
@@ -368,7 +368,7 @@ export default function VolatilityPageContent() {
                     }}
                   >
                     {/* Strike */}
-                    <td className="py-1.5 px-3 font-mono font-medium" style={{ color: isATM ? ACCENT : 'var(--text-primary)' }}>
+                    <td className="py-1.5 px-3 font-medium tabular-nums" style={{ color: isATM ? ACCENT : 'var(--text-primary)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       ${row.strike.toLocaleString()}
                       {isATM && (
                         <span
@@ -380,11 +380,11 @@ export default function VolatilityPageContent() {
                       )}
                     </td>
                     {/* Moneyness */}
-                    <td className="py-1.5 px-3 font-mono text-center" style={{ color: 'var(--text-muted)' }}>
+                    <td className="py-1.5 px-3 text-center tabular-nums" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       {row.moneyness.toFixed(3)}
                     </td>
                     {/* Call IV */}
-                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: 'var(--bull)' }}>
+                    <td className="py-1.5 px-3 text-right font-semibold tabular-nums" style={{ color: 'var(--bull)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       {row.callIV ? `${(row.callIV * 100).toFixed(1)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     {/* Call bar */}
@@ -397,7 +397,7 @@ export default function VolatilityPageContent() {
                       </div>
                     </td>
                     {/* Put IV */}
-                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: 'var(--bear)' }}>
+                    <td className="py-1.5 px-3 text-right font-semibold tabular-nums" style={{ color: 'var(--bear)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       {row.putIV ? `${(row.putIV * 100).toFixed(1)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     {/* Put bar */}
@@ -411,10 +411,11 @@ export default function VolatilityPageContent() {
                     </td>
                     {/* Skew spread */}
                     <td
-                      className="py-1.5 px-3 font-mono text-right"
+                      className="py-1.5 px-3 text-right tabular-nums"
                       style={{
                         color: sp !== null ? (sp > 0 ? 'var(--bear)' : 'var(--bull)') : 'var(--text-muted)',
                         opacity: 0.85,
+                        fontFamily: 'var(--font-jetbrains-mono)',
                       }}
                     >
                       {sp !== null ? `${sp > 0 ? '+' : ''}${sp.toFixed(1)}%` : '—'}
@@ -445,9 +446,9 @@ function MetricCell({
     <div className="px-4 py-2.5 border-r border-[var(--border)] last:border-r-0 flex flex-col gap-0.5">
       <div className="flex items-center gap-1">
         {live && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: ACCENT }} />}
-        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)]">{label}</span>
+        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>{label}</span>
       </div>
-      <span className="font-mono font-bold text-sm leading-tight" style={{ color }}>{value}</span>
+      <span className="font-bold text-sm leading-tight tabular-nums" style={{ color, fontFamily: 'var(--font-jetbrains-mono)' }}>{value}</span>
       {sub && <span className="text-[8.5px] text-[var(--text-muted)] leading-none">{sub}</span>}
     </div>
   );
@@ -457,7 +458,7 @@ function Th({ children, left }: { children?: React.ReactNode; left?: boolean }) 
   return (
     <th
       className={`py-1.5 px-3 text-[9px] font-medium uppercase tracking-wider ${left ? 'text-left' : 'text-right'}`}
-      style={{ color: 'var(--text-muted)' }}
+      style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}
     >
       {children}
     </th>

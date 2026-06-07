@@ -3,7 +3,7 @@
 import {
   TrendingUp, TrendingDown, Minus,
   Zap, WifiOff, RefreshCw, Activity,
-  Target, AlertTriangle, ArrowRight, Radio,
+  Target, AlertTriangle, ArrowRight, Radio, Cpu,
 } from 'lucide-react';
 import { useLiveAgent, type AgentSignal, type AgentSource } from '@/hooks/useLiveAgent';
 import { LiveFeed } from '@/components/ai/LiveFeed';
@@ -177,6 +177,7 @@ function SourceBadge({ source }: { source: AgentSource }) {
   if (!source) return null;
   const isPython = source === 'python_agent';
   const color = isPython ? 'var(--primary)' : AI_ACCENT;
+  const Icon = isPython ? Cpu : Zap;
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide"
       style={{
@@ -184,7 +185,8 @@ function SourceBadge({ source }: { source: AgentSource }) {
         border:     `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
         color,
       }}>
-      {isPython ? '🐍 Python' : '⚡ JS Sim'}
+      <Icon size={9} strokeWidth={1.5} />
+      {isPython ? 'Python' : 'JS Sim'}
     </span>
   );
 }
@@ -210,8 +212,8 @@ export function LiveAgentPanel() {
     <div className="h-full flex flex-col" style={{ background: 'var(--background)' }}>
 
       {/* ── Header bar ────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-5 h-10 border-b"
-        style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      <div className="panel-glass flex-shrink-0 flex items-center gap-3 px-5 h-10 border-b"
+        style={{ borderColor: 'var(--border)' }}>
 
         {/* Status */}
         <div className="flex items-center gap-1.5">
@@ -268,7 +270,7 @@ export function LiveAgentPanel() {
           <ConfidenceArc value={conf} color={bStyle.color} />
           <div className="flex items-center gap-1.5">
             <BiasIcon size={18} color={bStyle.color} />
-            <span className="text-xl font-black tracking-tight"
+            <span className="font-display text-xl font-black tracking-tight"
               style={{ color: bStyle.color, textShadow: `0 0 16px ${bStyle.glow}` }}>
               {bStyle.label}
             </span>

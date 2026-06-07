@@ -483,7 +483,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       ctx.lineTo(chartWidth, y);
       ctx.stroke();
 
-      const label = `🔔 ${alert.price.toFixed(2)}`;
+      const label = alert.price.toFixed(2);
       ctx.setLineDash([]);
       ctx.font = '10px monospace';
       const textWidth = ctx.measureText(label).width;

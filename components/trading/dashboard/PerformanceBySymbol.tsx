@@ -52,12 +52,9 @@ export default function PerformanceBySymbol({ range }: Props) {
   );
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>P&L by Symbol</h3>
+        <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>P&L by Symbol</h3>
         <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           {stats.length} symbols
         </span>

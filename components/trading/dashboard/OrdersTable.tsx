@@ -112,9 +112,9 @@ function formatTime(ms: number): string {
 
 function Card({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="panel-glass rounded-xl overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+        <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>{title}</h3>
         {badge && (
           <span
             className="px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums"

@@ -23,12 +23,9 @@ export default function PerformanceMetrics({ range }: PerformanceMetricsProps) {
   const stats = useMemo(() => computeStats(trades), [trades]);
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Performance</h3>
+        <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Performance</h3>
         <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           {trades.length} trades
         </span>
@@ -173,7 +170,7 @@ function Metric({
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}>{label}</span>
       <span
         className="tabular-nums leading-tight"
         style={{

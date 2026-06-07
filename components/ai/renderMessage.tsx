@@ -17,7 +17,7 @@ export function renderMessage(text: string, isUser: boolean) {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              color: isUser ? '#000' : 'var(--primary)',
+              color: isUser ? 'var(--background)' : 'var(--primary)',
               textDecoration: 'underline',
               fontWeight: 600,
               wordBreak: 'break-all',

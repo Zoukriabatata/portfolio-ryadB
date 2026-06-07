@@ -10,6 +10,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useTradingStore, BROKER_INFO, type BrokerType, type OrderSide } from '@/stores/useTradingStore';
 
 interface TradingPanelProps {
@@ -100,7 +101,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold"
             style={{
               backgroundColor: brokerInfo?.color || 'var(--surface-elevated)',
-              color: '#000',
+              color: 'var(--background)',
             }}
           >
             {brokerInfo?.logo || '?'}
@@ -120,18 +121,12 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
           </div>
 
           {/* Arrow */}
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+          <ChevronDown
+            size={12}
+            strokeWidth={1.5}
             className={`transition-transform ${showBrokerSelector ? 'rotate-180' : ''}`}
             style={{ color: 'var(--text-dimmed)' }}
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+          />
 
           {/* Connection indicator */}
           <div
@@ -150,15 +145,10 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
         {/* Broker Dropdown */}
         {showBrokerSelector && (
           <div
-            className="absolute top-full left-0 mt-2 w-72 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
-            style={{
-              backgroundColor: 'var(--surface-elevated)',
-              border: '1px solid var(--border-light)',
-              backdropFilter: 'blur(12px)',
-            }}
+            className="panel-glass absolute top-full left-0 mt-2 w-72 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
           >
             <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Select Broker</h3>
+              <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Select Broker</h3>
               <p className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Connect to trade</p>
             </div>
 
@@ -175,7 +165,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                     <div className="flex items-center gap-3">
                       <div
                         className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
-                        style={{ backgroundColor: info.color, color: '#000' }}
+                        style={{ backgroundColor: info.color, color: 'var(--background)' }}
                       >
                         {info.logo}
                       </div>
@@ -194,7 +184,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                         Disconnect
                       </button>
                     ) : conn.connecting ? (
-                      <div className="px-3 py-1.5 rounded-lg text-[10px] font-medium" style={{ backgroundColor: 'var(--warning-bg, rgba(234,179,8,0.2))', color: 'var(--warning)' }}>
+                      <div className="px-3 py-1.5 rounded-lg text-[10px] font-medium" style={{ backgroundColor: 'rgb(var(--warning-rgb) / 0.2)', color: 'var(--warning)' }}>
                         Connecting...
                       </div>
                     ) : (

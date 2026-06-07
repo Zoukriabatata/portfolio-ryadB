@@ -71,16 +71,13 @@ export default function EquityCurve() {
   const areaFill  = isProfitable ? 'rgb(var(--bull-rgb) / 0.15)' : 'rgb(var(--bear-rgb) / 0.15)';
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4">
       <div className="flex items-end justify-between mb-3">
         <div>
-          <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}>
             Equity Curve
           </div>
-          <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+          <div className="font-display text-[28px] tabular-nums" style={{ color: 'var(--text-primary)' }}>
             ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>

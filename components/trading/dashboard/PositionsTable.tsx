@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useCallback } from 'react';
+import { Check, X, ArrowUp } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
 import { useTradingStore } from '@/stores/useTradingStore';
@@ -148,17 +149,19 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
                         />
                         <button
                           onClick={() => applyTrail(p.symbol)}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors"
-                          style={{ background: 'rgba(74,222,128,0.15)', color: 'var(--primary)', border: '1px solid rgba(74,222,128,0.3)' }}
+                          className="px-1.5 py-0.5 rounded transition-colors flex items-center"
+                          style={{ background: 'rgb(var(--primary-rgb) / 0.15)', color: 'var(--primary)', border: '1px solid rgb(var(--primary-rgb) / 0.3)' }}
+                          aria-label="Apply trailing stop"
                         >
-                          ✓
+                          <Check size={12} strokeWidth={1.5} />
                         </button>
                         <button
                           onClick={closeEditor}
-                          className="px-1.5 py-0.5 rounded text-[10px] transition-colors"
+                          className="px-1.5 py-0.5 rounded transition-colors flex items-center"
                           style={{ color: 'var(--text-muted)' }}
+                          aria-label="Cancel"
                         >
-                          ✕
+                          <X size={12} strokeWidth={1.5} />
                         </button>
                       </div>
                     ) : p.trailingStop ? (
@@ -166,18 +169,19 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
                         <button
                           onClick={() => openEditor(p.symbol, p.trailingStop?.distance)}
                           title={`Trail distance: ${p.trailingStop.distance.toFixed(2)} · current stop ${p.trailingStop.currentStop.toFixed(2)}`}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold tabular-nums transition-colors hover:brightness-110"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold tabular-nums transition-colors hover:brightness-110 inline-flex items-center gap-1"
                           style={{ background: 'rgb(var(--warning-rgb) / 0.12)', color: 'var(--warning)', border: '1px solid rgb(var(--warning-rgb) / 0.3)' }}
                         >
-                          ⬆ {p.trailingStop.currentStop.toFixed(2)}
+                          <ArrowUp size={10} strokeWidth={1.5} /> {p.trailingStop.currentStop.toFixed(2)}
                         </button>
                         <button
                           onClick={() => clearTrail(p.symbol)}
                           title="Clear trailing stop"
-                          className="text-[10px] px-1 transition-colors"
+                          className="px-1 transition-colors flex items-center"
                           style={{ color: 'var(--text-muted)' }}
+                          aria-label="Clear trailing stop"
                         >
-                          ✕
+                          <X size={12} strokeWidth={1.5} />
                         </button>
                       </div>
                     ) : (
@@ -242,15 +246,12 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl overflow-hidden">
       <div
         className="flex items-center gap-2 px-4 py-2.5 border-b"
         style={{ borderColor: 'var(--border)' }}
       >
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+        <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>{title}</h3>
         {badge && (
           <span
             className="px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums"

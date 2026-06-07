@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
+import { Pause, Play, RotateCcw, Zap, Waves, Clock } from 'lucide-react';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
 
@@ -30,14 +31,14 @@ const COLORS = {
 
   // Trade colors
   buy: 'var(--bull)',
-  buyBg: 'var(--bull-bg)',
-  buyLarge: 'var(--bull-light, var(--bull))',
-  buyLargeBg: 'var(--bull-bg-strong, rgba(34, 197, 94, 0.35))',
+  buyBg: 'rgb(var(--bull-rgb) / 0.10)',
+  buyLarge: 'var(--bull)',
+  buyLargeBg: 'rgb(var(--bull-rgb) / 0.35)',
 
   sell: 'var(--bear)',
-  sellBg: 'var(--bear-bg)',
-  sellLarge: 'var(--bear-light, var(--bear))',
-  sellLargeBg: 'var(--bear-bg-strong, rgba(239, 68, 68, 0.35))',
+  sellBg: 'rgb(var(--bear-rgb) / 0.10)',
+  sellLarge: 'var(--bear)',
+  sellLargeBg: 'rgb(var(--bear-rgb) / 0.35)',
 
   // Special
   aggressive: 'var(--warning)',
@@ -128,29 +129,31 @@ export default memo(function TimeSales({
     <div
       ref={containerRef}
       className="flex flex-col"
-      style={{ width, height, background: COLORS.background }}
+      style={{ width, height, background: COLORS.background, fontFamily: 'var(--font-jetbrains-mono)' }}
     >
       {/* Header */}
-      <div className="px-2 py-1.5 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      <div className="panel-glass px-2 py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Time & Sales</span>
+          <span className="font-display text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Time &amp; Sales</span>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsPaused(!isPaused)}
-              className="px-1.5 py-0.5 text-[10px] rounded transition-colors"
+              className="px-1.5 py-0.5 rounded transition-colors flex items-center justify-center"
               style={{
-                background: isPaused ? 'var(--warning-bg)' : 'var(--surface-elevated)',
+                background: isPaused ? 'rgb(var(--warning-rgb) / 0.15)' : 'var(--surface-elevated)',
                 color: isPaused ? 'var(--warning)' : 'var(--text-muted)',
               }}
+              title={isPaused ? 'Resume' : 'Pause'}
             >
-              {isPaused ? '▶' : '⏸'}
+              {isPaused ? <Play size={11} strokeWidth={1.5} /> : <Pause size={11} strokeWidth={1.5} />}
             </button>
             <button
               onClick={resetStats}
-              className="px-1.5 py-0.5 text-[10px] rounded transition-colors"
+              className="px-1.5 py-0.5 rounded transition-colors flex items-center justify-center"
               style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
+              title="Reset stats"
             >
-              ↻
+              <RotateCcw size={11} strokeWidth={1.5} />
             </button>
           </div>
         </div>
@@ -213,29 +216,29 @@ export default memo(function TimeSales({
                 animation: idx === 0 ? 'fadeIn 0.2s ease-out' : undefined,
               }}
             >
-              <span className="w-16 text-[10px] font-mono" style={{ color: 'var(--text-dimmed)' }}>
+              <span className="w-16 text-[10px] tabular-nums" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                 {formatTime(trade.time)}
               </span>
               <span
-                className="w-16 text-[11px] font-mono font-medium text-right"
-                style={{ color: textColor }}
+                className="w-16 text-[11px] font-medium text-right tabular-nums"
+                style={{ color: textColor, fontFamily: 'var(--font-jetbrains-mono)' }}
               >
                 {trade.price.toFixed(2)}
               </span>
               <span
-                className={`w-14 text-[11px] font-mono text-right ${
+                className={`w-14 text-[11px] text-right tabular-nums ${
                   trade.isLarge ? 'font-bold' : ''
                 }`}
-                style={{ color: textColor }}
+                style={{ color: textColor, fontFamily: 'var(--font-jetbrains-mono)' }}
               >
                 {formatSize(trade.size)}
               </span>
               <div className="flex-1 flex items-center justify-end gap-1">
                 {trade.isAggressive && (
-                  <span className="text-[8px]" style={{ color: 'var(--warning)' }}>⚡</span>
+                  <Zap size={9} strokeWidth={1.5} style={{ color: 'var(--warning)' }} />
                 )}
                 {trade.isLarge && (
-                  <span className="text-[8px]" style={{ color: 'var(--accent, #c084fc)' }}>🐋</span>
+                  <Waves size={9} strokeWidth={1.5} style={{ color: 'var(--accent)' }} />
                 )}
                 <span
                   className="text-[10px] font-medium"
@@ -250,17 +253,14 @@ export default memo(function TimeSales({
 
         {filteredTrades.length === 0 && (
           <div className="flex flex-col items-center justify-center h-20 gap-1.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-dimmed)" strokeWidth="1.5" strokeLinecap="round" opacity="0.4">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
+            <Clock size={18} strokeWidth={1.5} style={{ color: 'var(--text-dimmed)', opacity: 0.4 }} />
             <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Waiting for trades...</span>
           </div>
         )}
       </div>
 
       {/* Delta bar at bottom */}
-      <div className="px-2 py-1.5 border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      <div className="panel-glass px-2 py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="h-2 rounded-full overflow-hidden flex" style={{ background: 'var(--surface-elevated)' }}>
           <div
             className="h-full transition-all duration-300"

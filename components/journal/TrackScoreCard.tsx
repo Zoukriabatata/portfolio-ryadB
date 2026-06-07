@@ -93,7 +93,7 @@ export default function TrackScoreCard({ analytics, entries, loading }: TrackSco
                       background: pct >= 70 ? 'var(--bull)' : pct >= 40 ? 'var(--warning)' : 'var(--bear)',
                     }} />
                 </div>
-                <span className="text-[9px] font-mono w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
+                <span className="text-[9px] font-[var(--font-jetbrains-mono)] w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
                   {value}/{max}
                 </span>
               </div>

@@ -72,7 +72,7 @@ function StatItem({ label, value, color }: { label: string; value: string; color
   return (
     <div className="p-2 rounded-lg bg-[var(--surface-elevated)]">
       <p className="text-[10px] text-[var(--text-dimmed)]">{label}</p>
-      <p className="text-sm font-bold font-mono" style={{ color: color || 'var(--text-primary)' }}>{value}</p>
+      <p className="text-sm font-bold font-[var(--font-jetbrains-mono)]" style={{ color: color || 'var(--text-primary)' }}>{value}</p>
     </div>
   );
 }

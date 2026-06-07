@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowRight } from 'lucide-react';
 import type { JournalEntry } from '@/types/journal';
 import { formatCurrency } from '@/lib/journal/chartUtils';
 
@@ -30,7 +31,7 @@ export default function CalendarDaySummary({ date, trades, onClose }: CalendarDa
         </div>
         <div className="flex items-center gap-3">
           <span
-            className="text-lg font-bold font-mono"
+            className="text-lg font-bold font-[var(--font-jetbrains-mono)]"
             style={{ color: totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}
           >
             {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl)}
@@ -45,7 +46,7 @@ export default function CalendarDaySummary({ date, trades, onClose }: CalendarDa
       <div className="space-y-2">
         {trades.map((trade) => (
           <div key={trade.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--surface-elevated)]">
-            <span className="text-xs font-mono font-bold text-[var(--text-primary)] w-8">{trade.symbol}</span>
+            <span className="text-xs font-[var(--font-jetbrains-mono)] font-bold text-[var(--text-primary)] w-8">{trade.symbol}</span>
             <span
               className="text-[10px] font-bold px-1.5 py-0.5 rounded"
               style={{
@@ -55,12 +56,12 @@ export default function CalendarDaySummary({ date, trades, onClose }: CalendarDa
             >
               {trade.side}
             </span>
-            <span className="text-xs text-[var(--text-muted)] font-mono">{trade.entryPrice}</span>
-            <span className="text-xs text-[var(--text-dimmed)]">→</span>
-            <span className="text-xs text-[var(--text-muted)] font-mono">{trade.exitPrice ?? '—'}</span>
+            <span className="text-xs text-[var(--text-muted)] font-[var(--font-jetbrains-mono)]">{trade.entryPrice}</span>
+            <ArrowRight size={12} strokeWidth={1.5} className="text-[var(--text-dimmed)] shrink-0" />
+            <span className="text-xs text-[var(--text-muted)] font-[var(--font-jetbrains-mono)]">{trade.exitPrice ?? '—'}</span>
             <span className="flex-1" />
             <span
-              className="text-xs font-bold font-mono"
+              className="text-xs font-bold font-[var(--font-jetbrains-mono)]"
               style={{ color: (trade.pnl || 0) >= 0 ? 'var(--bull)' : 'var(--bear)' }}
             >
               {trade.pnl !== null ? `${trade.pnl >= 0 ? '+' : ''}${formatCurrency(trade.pnl)}` : '—'}

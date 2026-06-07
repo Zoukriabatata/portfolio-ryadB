@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
 import { useAccountRulesStore } from '@/stores/useAccountRulesStore';
@@ -113,9 +114,10 @@ export default function TradingPage() {
             )}
             <a
               href="/live"
-              className="btn-brand px-3 py-1.5 rounded-lg text-[12px] font-medium inline-flex items-center gap-1"
+              className="btn-brand px-3 py-1.5 rounded-lg text-[12px] font-medium inline-flex items-center gap-1.5"
             >
-              Open Chart →
+              Open Chart
+              <ArrowRight size={14} strokeWidth={1.5} />
             </a>
           </>
         }

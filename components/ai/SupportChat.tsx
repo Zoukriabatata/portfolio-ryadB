@@ -129,7 +129,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
         const updated = [...prev];
         updated[updated.length - 1] = {
           role: 'assistant',
-          content: `⚠️ ${errorText}`,
+          content: errorText,
         };
         return updated;
       });
@@ -156,16 +156,16 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
     <button
       onClick={() => setIsOpen(o => !o)}
       className="fixed bottom-6 right-6 max-sm:right-3 max-sm:bottom-16 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-105"
-      style={{ backgroundColor: currentPriceColor }}
+      style={{ backgroundColor: currentPriceColor, color: 'var(--background)' }}
       title="Assistant IA"
     >
       {isOpen ? (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       ) : (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       )}
@@ -204,7 +204,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
                 className="max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed"
                 style={{
                   backgroundColor: msg.role === 'user' ? currentPriceColor : surface,
-                  color:           msg.role === 'user' ? '#fff' : textPrimary,
+                  color:           msg.role === 'user' ? 'var(--background)' : textPrimary,
                   border:          msg.role === 'assistant' ? `1px solid ${gridColor}` : 'none',
                 }}
               >
@@ -271,7 +271,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
             <button
               onClick={stopGeneration}
               className="p-2 rounded-lg transition-colors"
-              style={{ backgroundColor: 'var(--bear)', color: '#fff' }}
+              style={{ backgroundColor: 'var(--bear)', color: 'var(--background)' }}
               title="Arrêter"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -283,7 +283,7 @@ export default function SupportChat({ colors = {}, welcomeMessage = DEFAULT_WELC
               onClick={() => sendMessage(input)}
               disabled={!input.trim()}
               className="p-2 rounded-lg transition-colors disabled:opacity-40"
-              style={{ backgroundColor: currentPriceColor, color: '#fff' }}
+              style={{ backgroundColor: currentPriceColor, color: 'var(--background)' }}
               title="Envoyer (Enter)"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

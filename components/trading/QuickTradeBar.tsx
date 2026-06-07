@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { Trophy, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTradingStore, BROKER_INFO, type OrderType } from '@/stores/useTradingStore';
 import { useFuturesStore } from '@/stores/useFuturesStore';
@@ -514,7 +515,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
               if (slUsd === null && tpUsd === null) return null;
               return (
                 <div className="flex items-center gap-1 shrink-0 text-[9px] tabular-nums px-1.5 py-0.5 rounded"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: `1px solid ${colors.border}` }}>
+                  style={{ backgroundColor: 'var(--surface)', border: `1px solid ${colors.border}` }}>
                   {tpUsd !== null && (
                     <span style={{ color: 'var(--bull)' }}>+${tpUsd.toFixed(0)}</span>
                   )}
@@ -625,7 +626,9 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             border:     `1px solid ${accountState === 'PASSED' ? 'rgb(var(--accent-rgb) / 0.4)' : 'rgb(var(--bear-rgb) / 0.4)'}`,
           }}
         >
-          {accountState === 'PASSED' ? '🏆 PASSED' : '🔒 LOCKED'}
+          {accountState === 'PASSED'
+            ? <><Trophy size={12} strokeWidth={1.5} /> PASSED</>
+            : <><Lock size={12} strokeWidth={1.5} /> LOCKED</>}
           <span className="hidden md:inline opacity-70 font-medium normal-case tracking-normal">
             · view rules
           </span>

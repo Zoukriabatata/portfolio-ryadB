@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { AlertTriangle, Inbox } from 'lucide-react';
+import { AlertTriangle, Inbox, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { usePageActive } from '@/hooks/usePageActive';
 import type { FlowItem } from '@/app/api/options-flow/route';
 import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
@@ -115,7 +115,7 @@ function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPre
 
   return (
     <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
-      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'var(--text-dimmed)' }}>
+      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>
         Premium Flow by Strike
       </h3>
       <div className="flex flex-col gap-0.5">
@@ -180,7 +180,7 @@ function StrikeExpiryHeatmap({ data }: { data: { strike: number; expLabel: strin
 
   return (
     <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
-      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'var(--text-dimmed)' }}>
+      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>
         Strike × Expiry Heatmap (Premium Intensity)
       </h3>
       <div className="overflow-auto">
@@ -247,17 +247,17 @@ function StatsRow({ stats, symbol }: { stats: FlowStats; symbol: string }) {
   const sentColor = s > 0.15 ? c.bull : s < -0.15 ? c.bear : c.warn;
 
   return (
-    <div className="flex flex-wrap items-stretch gap-0 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+    <div className="panel-glass panel-glass-hero flex flex-wrap items-stretch gap-0 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
       {/* Sentiment cell — now multi-factor */}
       <div className="flex flex-col justify-center items-center px-5 py-2.5 border-r" style={{ borderColor: 'var(--border)', minWidth: 100 }}>
-        <span className="text-[8.5px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)' }}>Sentiment</span>
-        <span className="text-[15px] font-black" style={{ color: sentColor }}>{sentiment}</span>
-        <span className="text-[8px] font-mono" style={{ color: `${sentColor}88` }}>{(s * 100).toFixed(0)}%</span>
+        <span className="text-[8.5px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>Sentiment</span>
+        <span className="font-display text-[15px] font-black" style={{ color: sentColor }}>{sentiment}</span>
+        <span className="text-[8px]" style={{ color: `${sentColor}88`, fontFamily: 'var(--font-jetbrains-mono)' }}>{(s * 100).toFixed(0)}%</span>
       </div>
 
       {/* Call/Put bar */}
       <div className="flex flex-col justify-center px-4 py-2.5 border-r flex-1 min-w-[160px]" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex justify-between text-[8.5px] mb-1.5" style={{ color: 'var(--text-dimmed)' }}>
+        <div className="flex justify-between text-[8.5px] mb-1.5" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>
           <span style={{ color: `${c.bull}bb` }}>Calls {callPct.toFixed(0)}%</span>
           <span style={{ color: 'var(--text-muted)' }}>Premium Flow</span>
           <span style={{ color: `${c.bear}bb` }}>Puts {(100 - callPct).toFixed(0)}%</span>
@@ -277,8 +277,8 @@ function StatsRow({ stats, symbol }: { stats: FlowStats; symbol: string }) {
         { l: `${symbol}`,  v: stats.spotPrice > 0 ? `$${stats.spotPrice.toFixed(2)}` : '—', c: c.teal },
       ].map(m => (
         <div key={m.l} className="flex flex-col justify-center items-center px-4 py-2.5 border-r" style={{ borderColor: 'var(--border)', minWidth: 72 }}>
-          <span className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)' }}>{m.l}</span>
-          <span className="font-mono text-[13px] font-black" style={{ color: m.c }}>{m.v}</span>
+          <span className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>{m.l}</span>
+          <span className="text-[13px] font-black" style={{ color: m.c, fontFamily: 'var(--font-jetbrains-mono)' }}>{m.v}</span>
         </div>
       ))}
     </div>
@@ -415,8 +415,11 @@ export default function FlowPageContent() {
 
   const SortTh = ({ label, k, className = '' }: { label: string; k: SortKey; className?: string }) => (
     <th className={`px-2 py-2.5 text-left text-[8.5px] uppercase tracking-wider font-semibold cursor-pointer select-none whitespace-nowrap ${className}`}
-      style={{ color: sortKey === k ? c.teal : 'var(--text-dimmed)' }} onClick={() => handleSort(k)}>
-      {label} {sortKey === k ? (sortDesc ? '↓' : '↑') : ''}
+      style={{ color: sortKey === k ? c.teal : 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }} onClick={() => handleSort(k)}>
+      <span className="inline-flex items-center gap-0.5">
+        {label}
+        {sortKey === k && (sortDesc ? <ArrowDown size={10} strokeWidth={1.5} /> : <ArrowUp size={10} strokeWidth={1.5} />)}
+      </span>
     </th>
   );
 
@@ -433,7 +436,7 @@ export default function FlowPageContent() {
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--background)' }}>
 
       {/* ── Header ── */}
-      <header className="flex flex-wrap items-center gap-2 px-4 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+      <header className="panel-glass flex flex-wrap items-center gap-2 px-4 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
         {/* Symbol */}
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {SYMBOLS.map(s => (
@@ -447,11 +450,15 @@ export default function FlowPageContent() {
         {/* Type */}
         <div className="flex items-center gap-1">
           {(['all', 'calls', 'puts'] as TypeFilter[]).map(t => (
-            <button key={t} onClick={() => setTypeFilter(t)} className="px-3 py-1 rounded text-[10px] font-bold capitalize transition-all"
+            <button key={t} onClick={() => setTypeFilter(t)} className="px-3 py-1 rounded text-[10px] font-bold capitalize transition-all inline-flex items-center gap-1"
               style={typeFilter === t
                 ? t === 'calls' ? { background: `${c.bull}18`, color: c.bull } : t === 'puts' ? { background: `${c.bear}18`, color: c.bear } : { background: `${c.teal}18`, color: c.teal }
                 : { color: 'var(--text-dimmed)' }
-              }>{t === 'all' ? 'All' : t === 'calls' ? '↑ Calls' : '↓ Puts'}</button>
+              }>
+              {t === 'calls' && <ArrowUp size={12} strokeWidth={1.5} />}
+              {t === 'puts' && <ArrowDown size={12} strokeWidth={1.5} />}
+              {t === 'all' ? 'All' : t === 'calls' ? 'Calls' : 'Puts'}
+            </button>
           ))}
         </div>
 
@@ -512,10 +519,7 @@ export default function FlowPageContent() {
           <button onClick={fetchFlow} disabled={loading}
             className="p-1.5 rounded-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className={loading ? 'animate-spin' : ''}>
-              <path d="M4 12C4 7.58 7.58 4 12 4c3.37 0 6.26 2.11 7.42 5" /><path d="M20 12c0 4.42-3.58 8-8 8-3.37 0-6.26-2.11-7.42-5" />
-              <polyline points="20 4 20 9 15 9" /><polyline points="4 20 4 15 9 15" />
-            </svg>
+            <RefreshCw size={13} strokeWidth={1.5} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </header>

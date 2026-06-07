@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 
 interface OptionData {
   strike: number;
@@ -19,18 +20,6 @@ interface VolatilitySmileProps {
   expiration: string;
   height?: number;
 }
-
-const COLORS = {
-  bg: '#0a0a0a',
-  grid: '#1a1a1a',
-  text: '#888888',
-  textBright: '#ffffff',
-  callIV: '#22c55e',
-  putIV: '#ef4444',
-  combined: '#3b82f6',
-  atm: '#fbbf24',
-  spot: '#a855f7',
-};
 
 export default function VolatilitySmile({
   symbol,
@@ -76,6 +65,18 @@ export default function VolatilitySmile({
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     ctx.scale(dpr, dpr);
+
+    // Theme-aware palette (resolved at draw-time → SSR-safe, theme-reactive)
+    const COLORS = {
+      bg: themeColor('--background'),
+      grid: themeAlpha('--border', 0.6),
+      text: themeColor('--text-muted'),
+      textBright: themeColor('--text-primary'),
+      callIV: themeColor('--bull'),
+      putIV: themeColor('--bear'),
+      atm: themeColor('--warning'),
+      spot: themeColor('--accent'),
+    };
 
     // Clear
     ctx.fillStyle = COLORS.bg;
@@ -123,7 +124,7 @@ export default function VolatilitySmile({
 
     // Horizontal grid (IV levels)
     const ivStep = (maxIV - minIV) / 5;
-    ctx.font = '10px monospace';
+    ctx.font = '10px "JetBrains Mono", monospace';
     ctx.fillStyle = COLORS.text;
 
     for (let i = 0; i <= 5; i++) {
@@ -295,23 +296,25 @@ export default function VolatilitySmile({
     <div ref={containerRef} className="relative w-full" style={{ height }}>
       {/* Controls */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-        <label className="flex items-center gap-1 text-xs text-zinc-400 cursor-pointer">
+        <label className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
           <input
             type="checkbox"
             checked={showCalls}
             onChange={(e) => setShowCalls(e.target.checked)}
-            className="w-3 h-3 accent-green-500"
+            className="w-3 h-3"
+            style={{ accentColor: 'var(--bull)' }}
           />
-          <span className="text-green-400">Calls</span>
+          <span style={{ color: 'var(--bull)' }}>Calls</span>
         </label>
-        <label className="flex items-center gap-1 text-xs text-zinc-400 cursor-pointer">
+        <label className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
           <input
             type="checkbox"
             checked={showPuts}
             onChange={(e) => setShowPuts(e.target.checked)}
-            className="w-3 h-3 accent-red-500"
+            className="w-3 h-3"
+            style={{ accentColor: 'var(--bear)' }}
           />
-          <span className="text-red-400">Puts</span>
+          <span style={{ color: 'var(--bear)' }}>Puts</span>
         </label>
       </div>
 
@@ -324,19 +327,19 @@ export default function VolatilitySmile({
 
       {/* Tooltip */}
       {hoveredPoint && (
-        <div className="absolute top-12 right-2 bg-zinc-900/95 border border-zinc-700 rounded-lg p-3 text-xs z-10">
-          <div className="font-bold text-white mb-2">
+        <div className="panel-glass absolute top-12 right-2 rounded-lg p-3 text-xs z-10">
+          <div className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
             Strike: ${hoveredPoint.strike.toFixed(2)}
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-zinc-400">IV:</span>
-            <span className={hoveredPoint.type === 'call' ? 'text-green-400' : 'text-red-400'}>
+            <span style={{ color: 'var(--text-muted)' }}>IV:</span>
+            <span style={{ color: hoveredPoint.type === 'call' ? 'var(--bull)' : 'var(--bear)', fontFamily: 'var(--font-jetbrains-mono)' }}>
               {(hoveredPoint.iv * 100).toFixed(2)}%
             </span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-zinc-400">Type:</span>
-            <span className={hoveredPoint.type === 'call' ? 'text-green-400' : 'text-red-400'}>
+            <span style={{ color: 'var(--text-muted)' }}>Type:</span>
+            <span style={{ color: hoveredPoint.type === 'call' ? 'var(--bull)' : 'var(--bear)' }}>
               {hoveredPoint.type.toUpperCase()}
             </span>
           </div>

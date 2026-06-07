@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Radio, Activity, MessageSquare, ScanEye } from 'lucide-react';
+import {
+  Radio, Activity, MessageSquare, ScanEye,
+  TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown, CircleDot,
+  Zap, AlertTriangle,
+} from 'lucide-react';
 import VisionPanel from '@/components/ai/VisionPanel';
 import type { MarketData, OptionsExpiration } from '@/lib/ai/agents/analysisAgent';
 import { LiveAgentPanel } from '@/components/ai/LiveAgentPanel';
@@ -42,6 +46,13 @@ interface ChatMessage {
 }
 
 const MONO = 'var(--font-jetbrains-mono)';
+
+// Bias glyph → lucide icon (remplace les ↑↓→ de lib/ai/colors.ts dans le chrome).
+const BIAS_ICON_CMP: Record<'LONG' | 'SHORT' | 'NEUTRAL', React.FC<{ size?: number; strokeWidth?: number }>> = {
+  LONG:    TrendingUp,
+  SHORT:   TrendingDown,
+  NEUTRAL: Minus,
+};
 
 const SUGGESTED = [
   "C'est quoi le GEX ?", "Comment lire le skew ?",
@@ -415,7 +426,7 @@ function AnalysisPanel() {
             </div>
 
             <NumInput label="Put/Call Ratio" value={form.putCallRatio} onChange={v => set('putCallRatio', v)} step={0.01}
-              hint={(form.putCallRatio ?? 0) < 0.6 ? '🟢 très bullish' : (form.putCallRatio ?? 0) > 1.2 ? '🔴 très bearish' : '🟡 neutre'} />
+              hint={(form.putCallRatio ?? 0) < 0.6 ? 'très bullish' : (form.putCallRatio ?? 0) > 1.2 ? 'très bearish' : 'neutre'} />
           </div>
         )}
 
@@ -440,7 +451,7 @@ function AnalysisPanel() {
         {error && (
           <div className="p-3 rounded-lg text-xs flex gap-2 items-start"
             style={{ background: 'var(--bear-bg)', border: '1px solid color-mix(in srgb, var(--bear) 25%, transparent)', color: 'color-mix(in srgb, var(--bear) 55%, white)' }}>
-            <span className="flex-shrink-0 mt-0.5">⚠</span>
+            <AlertTriangle size={13} strokeWidth={1.5} className="flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold mb-1">Erreur</p>
               <p className="opacity-80">{error}</p>
@@ -457,26 +468,27 @@ function AnalysisPanel() {
             style={{ animation: 'fadeSlideUp .4s ease' }}>
 
             {/* Bias hero */}
-            <div className="relative overflow-hidden rounded-xl p-4"
+            <div className="panel-glass-hero relative overflow-hidden rounded-xl p-4"
               style={{ background: bc.glow, border: `1px solid ${bc.border}` }}>
               <div className="absolute inset-0 opacity-20"
                 style={{ background: `radial-gradient(ellipse at 50% 0%, ${bc.color}, transparent 70%)` }} />
               <div className="relative flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-black tracking-tight flex items-center gap-2"
+                  <div className="font-display text-3xl font-black tracking-tight flex items-center gap-2"
                     style={{ color: bc.color, textShadow: `0 0 20px ${bc.glow}` }}>
-                    <span>{bc.icon}</span><span>{bc.label}</span>
+                    {(() => { const BiasIcon = BIAS_ICON_CMP[result.bias]; return <BiasIcon size={30} strokeWidth={1.5} />; })()}
+                    <span>{bc.label}</span>
                   </div>
                   <div className="text-xs mt-1 font-medium" style={{ color: 'var(--text-muted)' }}>
                     {result.meta?.symbol} · ${result.meta?.price?.toLocaleString()}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-black tabular-nums" style={{ color: bc.color }}>
+                  <div className="font-display text-2xl font-black tabular-nums" style={{ color: bc.color }}>
                     {Math.round(result.confidence * 100)}%
                   </div>
                   <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>confiance</div>
-                  <div className="w-20 h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'rgba(0,0,0,.3)' }}>
+                  <div className="w-20 h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'rgb(var(--background-rgb) / 0.4)' }}>
                     <div className="h-full rounded-full"
                       style={{ width: `${result.confidence * 100}%`, background: bc.color,
                                transition: 'width 1s cubic-bezier(.34,1.56,.64,1)',
@@ -490,8 +502,8 @@ function AnalysisPanel() {
             {result.gamma_squeeze && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
                 style={{ background: 'var(--bear-bg)', border: '1px solid color-mix(in srgb, var(--bear) 30%, transparent)' }}>
-                <span className="text-[10px] font-black animate-pulse" style={{ color: 'var(--bear)' }}>
-                  ⚡ GAMMA SQUEEZE
+                <span className="text-[10px] font-black animate-pulse inline-flex items-center gap-1" style={{ color: 'var(--bear)' }}>
+                  <Zap size={11} strokeWidth={1.5} /> GAMMA SQUEEZE
                 </span>
                 <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
                   <div className="h-full rounded-full"
@@ -560,7 +572,7 @@ function AnalysisPanel() {
                 <div className="grid grid-cols-3 gap-1.5">
                   {result.key_levels.support.length > 0 && (
                     <div className="p-2 rounded-lg" style={{ background: `color-mix(in srgb, ${LEVEL_COLOR.support} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${LEVEL_COLOR.support} 20%, transparent)` }}>
-                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: LEVEL_COLOR.support }}>▲ Support</div>
+                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1 inline-flex items-center gap-1" style={{ color: LEVEL_COLOR.support }}><ArrowUp size={9} strokeWidth={1.5} /> Support</div>
                       {result.key_levels.support.map((l, i) => (
                         <div key={i} className="text-xs font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                           ${l.toLocaleString()}
@@ -570,7 +582,7 @@ function AnalysisPanel() {
                   )}
                   {result.key_levels.gamma_flip > 0 && (
                     <div className="p-2 rounded-lg" style={{ background: `color-mix(in srgb, ${LEVEL_COLOR.flip} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${LEVEL_COLOR.flip} 20%, transparent)` }}>
-                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: LEVEL_COLOR.flip }}>⊙ Flip</div>
+                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1 inline-flex items-center gap-1" style={{ color: LEVEL_COLOR.flip }}><CircleDot size={9} strokeWidth={1.5} /> Flip</div>
                       <div className="text-xs font-mono font-semibold tabular-nums" style={{ color: LEVEL_COLOR.flip }}>
                         ${result.key_levels.gamma_flip.toLocaleString()}
                       </div>
@@ -578,7 +590,7 @@ function AnalysisPanel() {
                   )}
                   {result.key_levels.resistance.length > 0 && (
                     <div className="p-2 rounded-lg" style={{ background: `color-mix(in srgb, ${LEVEL_COLOR.resistance} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${LEVEL_COLOR.resistance} 20%, transparent)` }}>
-                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: LEVEL_COLOR.resistance }}>▼ Résistance</div>
+                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1 inline-flex items-center gap-1" style={{ color: LEVEL_COLOR.resistance }}><ArrowDown size={9} strokeWidth={1.5} /> Résistance</div>
                       {result.key_levels.resistance.map((l, i) => (
                         <div key={i} className="text-xs font-mono font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                           ${l.toLocaleString()}
@@ -723,7 +735,7 @@ function AnalysisPanel() {
 
 function ChatPanel() {
   const [messages,  setMessages]  = useState<ChatMessage[]>([
-    { role: 'assistant', content: 'Bonjour 👋 Je suis votre assistant trading. Posez-moi vos questions sur le GEX, le skew, l\'option flow, ou comment utiliser la plateforme.' },
+    { role: 'assistant', content: 'Bonjour. Je suis votre assistant trading. Posez-moi vos questions sur le GEX, le skew, l\'option flow, ou comment utiliser la plateforme.' },
   ]);
   const [input,     setInput]     = useState('');
   const [loading,   setLoading]   = useState(false);
@@ -770,7 +782,7 @@ function ChatPanel() {
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
       const msg = e instanceof Error ? e.message : 'Erreur';
-      setMessages(p => { const u = [...p]; u[u.length - 1] = { role: 'assistant', content: `⚠️ ${msg}\n\n\`ollama serve\` puis \`ollama pull mistral\`` }; return u; });
+      setMessages(p => { const u = [...p]; u[u.length - 1] = { role: 'assistant', content: `${msg}\n\n\`ollama serve\` puis \`ollama pull mistral\`` }; return u; });
     } finally {
       setLoading(false);
       abortRef.current = null;
@@ -869,7 +881,7 @@ function ChatPanel() {
           {loading ? (
             <button onClick={() => { abortRef.current?.abort(); setLoading(false); }}
               className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-              style={{ background: 'var(--bear)', color: 'white' }} title="Arrêter">
+              style={{ background: 'var(--bear)', color: 'var(--text-primary)' }} title="Arrêter">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="6" width="12" height="12" rx="2"/>
               </svg>
@@ -928,8 +940,8 @@ export default function AIAgentsPage() {
     <div className="flex flex-col h-full" style={{ background: 'var(--background)' }}>
 
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 h-11 flex items-center px-4 gap-3 border-b"
-        style={{ borderColor: 'var(--border)', background: 'var(--background)' }}>
+      <div className="panel-glass flex-shrink-0 h-11 flex items-center px-4 gap-3 border-b"
+        style={{ borderColor: 'var(--border)' }}>
 
         {/* Left: icon + title + engine badge */}
         <div className="flex items-center gap-2.5 min-w-0">

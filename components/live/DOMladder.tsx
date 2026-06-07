@@ -133,7 +133,7 @@ export function DOMladder({ dom, quote, tickSize = 0.25, depth = 15 }: DOMladder
           color: 'var(--text-muted)',
         }}
       >
-        <span>DOM</span>
+        <span className="font-display">DOM</span>
         {spread !== null && (
           <span>
             Spread:{' '}

@@ -82,7 +82,7 @@ export default function TradesTab() {
         <div className="flex items-center gap-2">
           <span className="text-xs text-[var(--text-muted)]">Total P&L</span>
           <span
-            className="text-sm font-bold font-mono"
+            className="text-sm font-bold font-[var(--font-jetbrains-mono)]"
             style={{ color: stats.totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}
           >
             {formatPnl(stats.totalPnl)}

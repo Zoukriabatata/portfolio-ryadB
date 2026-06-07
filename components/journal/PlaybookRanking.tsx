@@ -25,7 +25,7 @@ export default function PlaybookRanking({ setups }: PlaybookRankingProps) {
         <p className="text-xs text-[var(--text-muted)] mb-1">Best Setup</p>
         <p className="text-sm font-semibold text-[var(--text-primary)]">{best.name}</p>
         <div className="flex items-center gap-3 mt-2">
-          <span className="text-lg font-bold font-mono text-[var(--bull)]">{formatCurrency(best.stats.totalPnl)}</span>
+          <span className="text-lg font-bold font-[var(--font-jetbrains-mono)] text-[var(--bull)]">{formatCurrency(best.stats.totalPnl)}</span>
           <span className="text-xs text-[var(--text-muted)]">{best.stats.winRate}% WR</span>
           <span className="text-xs text-[var(--text-dimmed)]">{best.stats.tradeCount} trades</span>
         </div>
@@ -34,7 +34,7 @@ export default function PlaybookRanking({ setups }: PlaybookRankingProps) {
         <p className="text-xs text-[var(--text-muted)] mb-1">Worst Setup</p>
         <p className="text-sm font-semibold text-[var(--text-primary)]">{worst.name}</p>
         <div className="flex items-center gap-3 mt-2">
-          <span className="text-lg font-bold font-mono text-[var(--bear)]">{formatCurrency(worst.stats.totalPnl)}</span>
+          <span className="text-lg font-bold font-[var(--font-jetbrains-mono)] text-[var(--bear)]">{formatCurrency(worst.stats.totalPnl)}</span>
           <span className="text-xs text-[var(--text-muted)]">{worst.stats.winRate}% WR</span>
           <span className="text-xs text-[var(--text-dimmed)]">{worst.stats.tradeCount} trades</span>
         </div>
