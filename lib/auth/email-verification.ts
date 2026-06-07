@@ -489,7 +489,7 @@ export async function sendProWelcomeEmail(opts: {
   const content = `
     <h2 style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #e2e8f0;">Welcome to Pro, ${displayName}!</h2>
     <p style="margin: 0 0 24px; font-size: 15px; color: #94a3b8; line-height: 1.6;">
-      Your OrderflowV2 Pro license has been activated. Use your account email to log in to the desktop app.
+      Your Senzoukria Pro license has been activated. Use your account email to log in to the desktop app.
     </p>
     ${trialBanner}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
@@ -505,11 +505,11 @@ export async function sendProWelcomeEmail(opts: {
     </p>
   `;
 
-  const text = `Welcome to OrderflowV2 Pro, ${displayName}!\n\nYour license is active. Use your account email to log in to the desktop app.\n${opts.isInTrial && nextBilling ? `Free 14-day trial — first charge ${amountStr} on ${nextBilling}.\n` : ''}\nDownload: ${baseUrl}/download\nManage billing: ${baseUrl}/account`;
+  const text = `Welcome to Senzoukria Pro, ${displayName}!\n\nYour license is active. Use your account email to log in to the desktop app.\n${opts.isInTrial && nextBilling ? `Free 14-day trial — first charge ${amountStr} on ${nextBilling}.\n` : ''}\nDownload: ${baseUrl}/download\nManage billing: ${baseUrl}/account`;
 
   return sendEmail({
     to:      opts.email,
-    subject: 'Welcome to OrderflowV2 Pro · Download your app',
+    subject: 'Welcome to Senzoukria Pro · Download your app',
     content,
     text,
   });

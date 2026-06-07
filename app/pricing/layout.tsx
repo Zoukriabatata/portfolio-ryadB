@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Pricing — OrderflowV2 PRO $29/month (free preview until 17 June)',
+  title: 'Pricing — Senzoukria PRO $29/month (free preview until 17 June)',
   description:
-    'OrderflowV2 PRO — $29/month. Footprint charts, liquidity heatmap, GEX dashboard, trading journal, multi-broker (Rithmic, NinjaTrader Bridge, dxFeed, Binance). Free public preview until 17 June 2026 — no credit card required.',
+    'Senzoukria PRO — $29/month. Footprint charts, liquidity heatmap, GEX dashboard, trading journal, multi-broker (Rithmic, NinjaTrader Bridge, dxFeed, Binance). Free public preview until 17 June 2026 — no credit card required.',
   keywords: [
     'orderflow pricing',
     'footprint chart software price',
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: '/pricing' },
   openGraph: {
-    title: 'OrderflowV2 PRO — $29/month · Free until 17 June 2026',
+    title: 'Senzoukria PRO — $29/month · Free until 17 June 2026',
     description:
       'Footprint, heatmap, GEX, journal, multi-broker. Public preview free until 17/06/2026, no card required.',
     url: '/pricing',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'OrderflowV2 PRO — $29/mo',
+    title: 'Senzoukria PRO — $29/mo',
     description: 'Free preview until 17/06/2026, no card required.',
   },
 };
@@ -42,7 +42,7 @@ const SITE_URL =
 const pricingJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Product',
-  name: 'OrderflowV2 PRO',
+  name: 'Senzoukria PRO',
   description:
     'Professional orderflow desktop platform — footprint charts, liquidity heatmap, GEX dashboard, multi-broker connectors, trading journal.',
   brand: { '@type': 'Brand', name: 'Senzoukria' },

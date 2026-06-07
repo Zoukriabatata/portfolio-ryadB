@@ -17,7 +17,7 @@ const organizationSchema = {
 const softwareApplicationSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'OrderflowV2',
+  name: 'Senzoukria',
   applicationCategory: 'FinanceApplication',
   operatingSystem: 'Windows',
   description:
@@ -38,10 +38,10 @@ const faqPageSchema = {
   mainEntity: [
     {
       '@type': 'Question',
-      name: 'What is OrderflowV2?',
+      name: 'What is Senzoukria?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'OrderflowV2 (by Senzoukria) is a Windows desktop platform for native footprint charts — delta, imbalance, absorption detection — with the same daily volume NinjaTrader shows you on its Market Analyzer. Built for futures traders on Apex / Rithmic, with a crypto fallback for users without a broker.',
+        text: 'Senzoukria is a Windows desktop platform for native footprint charts — delta, imbalance, absorption detection — with the same daily volume NinjaTrader shows you on its Market Analyzer. Built for futures traders on Apex / Rithmic, with a crypto fallback for users without a broker.',
       },
     },
     {
@@ -57,7 +57,7 @@ const faqPageSchema = {
       name: 'How does it compare to ATAS, Bookmap or Sierra Chart?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'ATAS, Bookmap and Sierra Chart cost $50-$150/month. OrderflowV2 ships the orderflow features 95% of retail traders actually use (footprint, delta, imbalance) with a NinjaTrader bridge so you keep your existing Apex / Rithmic feed. $29/month after the preview.',
+        text: 'ATAS, Bookmap and Sierra Chart cost $50-$150/month. Senzoukria ships the orderflow features 95% of retail traders actually use (footprint, delta, imbalance) with a NinjaTrader bridge so you keep your existing Apex / Rithmic feed. $29/month after the preview.',
       },
     },
     {
@@ -65,7 +65,7 @@ const faqPageSchema = {
       name: 'How do I connect my data feed?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Three options. NinjaTrader Bridge: install our NinjaScript file in NT, OrderflowV2 reads your live feed locally — perfect for Apex accounts. Rithmic direct: sign in with R | Protocol credentials inside the app. Crypto: Binance, Bybit and Deribit work out of the box, no account required.',
+        text: 'Three options. NinjaTrader Bridge: install our NinjaScript file in NT, Senzoukria reads your live feed locally — perfect for Apex accounts. Rithmic direct: sign in with R | Protocol credentials inside the app. Crypto: Binance, Bybit and Deribit work out of the box, no account required.',
       },
     },
     {

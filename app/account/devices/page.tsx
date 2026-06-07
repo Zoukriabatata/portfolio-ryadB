@@ -79,7 +79,7 @@ export default async function DevicesPage() {
         <div className="devices-empty">
           <div className="devices-empty-title">No license yet</div>
           <div className="devices-empty-sub">
-            Subscribe to OrderflowV2 to install the desktop app and
+            Subscribe to Senzoukria to install the desktop app and
             bind devices to your account.
           </div>
           <a className="devices-cta" href="/pricing">
@@ -116,7 +116,7 @@ export default async function DevicesPage() {
             <div className="devices-empty">
               <div className="devices-empty-title">No active machines</div>
               <div className="devices-empty-sub">
-                Sign in from the OrderflowV2 desktop app to claim a slot.
+                Sign in from the Senzoukria desktop app to claim a slot.
               </div>
             </div>
           ) : (

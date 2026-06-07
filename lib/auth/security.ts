@@ -170,7 +170,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierConfig> = {
   },
   PRO: {
     name: 'PRO',
-    displayName: 'SENPRO',
+    displayName: 'PRO',
     price: 50,
     yearlyPrice: 480, // 2 months free
     maxDevices: 2,

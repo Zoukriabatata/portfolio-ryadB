@@ -583,7 +583,7 @@ function AccountContent() {
             <span className="px-2 py-0.5 rounded-full"
               style={{ ...(tierStyles[session.user.tier as keyof typeof tierStyles] || tierStyles.FREE),
                 fontFamily: MONO, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              {session.user.tier === 'PRO' ? 'SENPRO' : 'FREE'}
+              {session.user.tier === 'PRO' ? 'PRO' : 'FREE'}
             </span>
           </div>
           <button
@@ -758,7 +758,7 @@ function AccountContent() {
                     <div>
                       <span className="inline-block px-3 py-1 rounded-full text-sm font-medium"
                         style={tierStyles[session.user.tier as keyof typeof tierStyles] || tierStyles.FREE}>
-                        {session.user.tier === 'PRO' ? 'SENPRO' : 'Free Plan'}
+                        {session.user.tier === 'PRO' ? 'PRO' : 'Free Plan'}
                       </span>
                       {session.user.tier === 'PRO' && (
                         <span className="text-xs ml-3" style={{ color: 'var(--text-muted)' }}>$29/mo</span>

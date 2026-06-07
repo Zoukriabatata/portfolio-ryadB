@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: `Accès SENultra activé pour ${email}`,
+        message: `Accès PRO activé pour ${email}`,
         user: {
           email: updatedUser.email,
           tier: updatedUser.subscriptionTier,

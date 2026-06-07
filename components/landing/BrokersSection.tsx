@@ -6,7 +6,7 @@ const BROKERS = [
     initial: 'NT',
     color: '#ff6d00',
     features: ['Futures', 'Apex · Rithmic', 'Recommended'],
-    desc: 'You already run NinjaTrader. Drop our NinjaScript file, F5 compile, attach the indicator — OrderflowV2 reads the same tick feed NT shows you, locally, no extra creds.',
+    desc: 'You already run NinjaTrader. Drop our NinjaScript file, F5 compile, attach the indicator — Senzoukria reads the same tick feed NT shows you, locally, no extra creds.',
     highlighted: true,
   },
   {
