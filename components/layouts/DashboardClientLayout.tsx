@@ -503,7 +503,7 @@ export function DashboardClientLayout({
                   <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
                   <div className="absolute right-0 top-full mt-1 w-48 z-50 rounded-lg border
                                   border-[var(--border)] shadow-xl overflow-hidden"
-                    style={{ background: 'var(--surface)' }}>
+                    style={{ background: 'rgb(var(--surface-rgb) / 0.85)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)' }}>
                     <div className="px-3 py-2 border-b border-[var(--border)]">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
                         Theme
@@ -712,7 +712,9 @@ export function DashboardClientLayout({
         <nav
           className="flex-shrink-0 md:hidden border-t safe-area-bottom"
           style={{
-            background: 'var(--surface)',
+            background: 'rgb(var(--surface-rgb) / 0.82)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             borderColor: 'var(--border)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
@@ -734,7 +736,9 @@ export function DashboardClientLayout({
                   className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
                   style={{ color: active ? 'var(--primary)' : 'var(--text-dimmed)' }}
                 >
-                  <TabIcon size={18} strokeWidth={active ? 2 : 1.5} />
+                  <span style={{ filter: active ? 'drop-shadow(0 0 8px rgb(var(--primary-rgb) / 0.5))' : undefined, lineHeight: 0 }}>
+                    <TabIcon size={18} strokeWidth={active ? 2 : 1.5} />
+                  </span>
                   <span className="text-[9px] font-medium leading-none">{tab.label}</span>
                 </Link>
               );
