@@ -167,7 +167,7 @@ export default function BoutiquePage() {
                 />
               </div>
               <div
-                className="rounded-2xl p-6 flex flex-col justify-center animate-slideUp"
+                className="card-lift rounded-2xl p-6 flex flex-col justify-center animate-slideUp"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', animationDelay: '80ms', animationFillMode: 'both' }}
               >
                 <p className="dash-text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
