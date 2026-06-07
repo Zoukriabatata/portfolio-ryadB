@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { throttledFetch } from '@/lib/api/throttledFetch';
 
 interface User {
@@ -175,19 +176,22 @@ export default function AdminPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <Link href="/" className="text-sm mb-2 inline-block" style={{ color: 'var(--text-dimmed)', transition: 'color 0.2s' }} onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')} onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dimmed)')}>
-              ← Retour
+            <Link href="/" className="text-sm mb-3 inline-flex items-center gap-1" style={{ color: 'var(--text-dimmed)', transition: 'color 0.2s' }} onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')} onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dimmed)')}>
+              <ArrowLeft size={14} /> Retour
             </Link>
-            <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+              Senzoukria
+            </div>
+            <h1 className="font-display text-4xl mt-1" style={{ color: 'var(--text-primary)' }}>
               Admin <span style={{ color: 'var(--primary-light)' }}>Panel</span>
             </h1>
-            <p className="mt-1" style={{ color: 'var(--text-muted)' }}>Gestion des accès SENultra</p>
+            <p className="mt-2" style={{ color: 'var(--text-muted)' }}>Gestion des accès PRO</p>
           </div>
 
           <div className="text-right text-sm" style={{ color: 'var(--text-dimmed)' }}>
             <div>Total utilisateurs: {users.length}</div>
             <div style={{ color: 'var(--primary-light)' }}>
-              Ultra actifs: {users.filter(u => u.subscriptionTier === 'PRO' && !isExpired(u.subscriptionEnd)).length}
+              PRO actifs: {users.filter(u => u.subscriptionTier === 'PRO' && !isExpired(u.subscriptionEnd)).length}
             </div>
           </div>
         </div>
@@ -201,7 +205,7 @@ export default function AdminPage() {
         <div className="animate-fadeIn">
         <>
         {/* Quick Activate */}
-        <div className="mb-8 p-6 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="glass mb-8 p-6 rounded-xl">
           <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Activation rapide</h2>
 
           <div className="flex gap-4 items-end">
@@ -234,16 +238,15 @@ export default function AdminPage() {
             <button
               onClick={handleQuickActivate}
               disabled={!searchEmail || actionLoading === 'quick'}
-              className="px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              style={{ background: 'var(--primary)', color: 'var(--text-primary)' }}
+              className="btn-brand px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
-              {actionLoading === 'quick' ? 'Activation...' : 'Activer SENultra'}
+              {actionLoading === 'quick' ? 'Activation...' : 'Activer PRO'}
             </button>
           </div>
         </div>
 
         {/* Users Table */}
-        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="glass rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>

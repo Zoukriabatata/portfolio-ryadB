@@ -1,7 +1,22 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, Suspense } from 'react';
+import type { ComponentType } from 'react';
 import { useSearchParams } from 'next/navigation';
+import {
+  Microscope,
+  BarChart3,
+  TrendingUp,
+  FileText,
+  Settings,
+  Play,
+  Loader2,
+  Plus,
+  Target,
+  DollarSign,
+  AlertTriangle,
+  type LucideProps,
+} from 'lucide-react';
 import {
   useBacktestStore,
   EMOTIONAL_STATES,
@@ -136,11 +151,11 @@ function BacktestPageContent() {
     setShowNewSession(false);
   };
 
-  const tabs: { id: TabType; label: string; icon: string }[] = [
-    { id: 'backtest', label: 'Backtest', icon: '🔬' },
-    { id: 'sessions', label: 'Sessions', icon: '📊' },
-    { id: 'statistics', label: 'Statistiques', icon: '📈' },
-    { id: 'journal', label: 'Journal', icon: '📝' },
+  const tabs: { id: TabType; label: string; icon: ComponentType<LucideProps> }[] = [
+    { id: 'backtest', label: 'Backtest', icon: Microscope },
+    { id: 'sessions', label: 'Sessions', icon: BarChart3 },
+    { id: 'statistics', label: 'Statistiques', icon: TrendingUp },
+    { id: 'journal', label: 'Journal', icon: FileText },
   ];
 
   return (
@@ -153,10 +168,13 @@ function BacktestPageContent() {
               <BacktestIcon size={22} color="var(--text-primary)" />
             </div>
             <div>
-              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                Senzoukria
+              </div>
+              <h1 className="font-display text-2xl mt-0.5" style={{ color: 'var(--text-primary)' }}>
                 Backtest & Journal
               </h1>
-              <p className="text-xs" style={{ color: 'var(--text-dimmed)' }}>Simulez et analysez vos trades</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-dimmed)' }}>Simulez et analysez vos trades</p>
             </div>
           </div>
         </div>
@@ -164,20 +182,23 @@ function BacktestPageContent() {
 
       {/* Tabs */}
       <div className="flex gap-2 pb-3" style={{ borderBottom: '1px solid var(--border)' }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={activeTab === tab.id
-              ? { background: 'var(--primary-glow)', color: 'var(--primary-light)', border: '1px solid var(--primary-dark)' }
-              : { color: 'var(--text-muted)', border: '1px solid transparent' }
-            }
-          >
-            <span className="mr-2">{tab.icon}</span>
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map(tab => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2"
+              style={activeTab === tab.id
+                ? { background: 'var(--primary-glow)', color: 'var(--primary-light)', border: '1px solid var(--primary-dark)' }
+                : { color: 'var(--text-muted)', border: '1px solid transparent' }
+              }
+            >
+              <TabIcon size={15} />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Content */}
@@ -336,7 +357,7 @@ function BacktestTab(props: BacktestTabProps) {
       {/* Config */}
       <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-          <span>⚙️</span> Configuration
+          <Settings size={15} /> Configuration
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
@@ -375,17 +396,16 @@ function BacktestTab(props: BacktestTabProps) {
         <button
           onClick={onRun}
           disabled={status === 'running'}
-          className="mt-4 px-6 py-2 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
-          style={{ background: 'var(--primary)', color: 'var(--text-primary)' }}
+          className="btn-brand mt-4 px-6 py-2 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
         >
           {status === 'running' ? (
             <>
-              <span className="animate-spin">⏳</span>
+              <Loader2 size={16} className="animate-spin" />
               <span>Running... {Math.round(progress)}%</span>
             </>
           ) : (
             <>
-              <span>▶</span>
+              <Play size={16} />
               <span>Lancer le Backtest</span>
             </>
           )}
@@ -428,7 +448,7 @@ function BacktestTab(props: BacktestTabProps) {
       {status === 'idle' && !results && (
         <div className="flex-1 flex items-center justify-center py-20">
           <div className="text-center">
-            <span className="text-5xl mb-4 block">🔬</span>
+            <Microscope size={48} className="mx-auto mb-4" style={{ color: 'var(--text-dimmed)' }} />
             <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Configurez votre Backtest</h3>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sélectionnez une stratégie et lancez la simulation</p>
           </div>
@@ -460,7 +480,7 @@ function SessionsTab({ sessions, onCreateSession, onSelectSession, onEndSession,
         className="w-full py-4 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2"
         style={{ borderColor: 'var(--border-light)', color: 'var(--text-muted)' }}
       >
-        <span className="text-2xl">+</span>
+        <Plus size={20} />
         <span>Nouvelle Session de Trading</span>
       </button>
 
@@ -494,7 +514,7 @@ function SessionsTab({ sessions, onCreateSession, onSelectSession, onEndSession,
 
       {sessions.length === 0 && (
         <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-          <span className="text-4xl mb-4 block">📊</span>
+          <BarChart3 size={40} className="mx-auto mb-4" style={{ color: 'var(--text-dimmed)' }} />
           <p>Aucune session de trading</p>
         </div>
       )}
@@ -570,13 +590,13 @@ function StatisticsTab({ allTimeStats, selectedSession, selectedStats, sessions,
       <div className="flex items-center gap-4">
         <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           <button onClick={() => setViewMode('all')}
-            className="px-4 py-2 text-sm"
-            style={viewMode === 'all' ? { background: 'var(--primary)', color: 'var(--text-primary)' } : { background: 'var(--surface)', color: 'var(--text-muted)' }}>
+            className="px-4 py-2 text-sm transition-colors"
+            style={viewMode === 'all' ? { background: 'var(--primary-glow)', color: 'var(--primary-light)' } : { background: 'var(--surface)', color: 'var(--text-muted)' }}>
             Toutes Sessions
           </button>
           <button onClick={() => setViewMode('session')}
-            className="px-4 py-2 text-sm"
-            style={viewMode === 'session' ? { background: 'var(--primary)', color: 'var(--text-primary)' } : { background: 'var(--surface)', color: 'var(--text-muted)' }}>
+            className="px-4 py-2 text-sm transition-colors"
+            style={viewMode === 'session' ? { background: 'var(--primary-glow)', color: 'var(--primary-light)' } : { background: 'var(--surface)', color: 'var(--text-muted)' }}>
             Par Session
           </button>
         </div>
@@ -593,17 +613,17 @@ function StatisticsTab({ allTimeStats, selectedSession, selectedStats, sessions,
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard label="P&L Total" value={`${stats.totalPnl >= 0 ? '+' : ''}${stats.totalPnl.toFixed(2)} $`}
-              color={stats.totalPnl >= 0 ? 'green' : 'red'} icon="💰" />
+              color={stats.totalPnl >= 0 ? 'green' : 'red'} icon={DollarSign} />
             <StatCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`}
-              color={stats.winRate >= 50 ? 'green' : 'yellow'} icon="🎯" />
+              color={stats.winRate >= 50 ? 'green' : 'yellow'} icon={Target} />
             <StatCard label="Profit Factor" value={stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)}
-              color={stats.profitFactor >= 1.5 ? 'green' : 'yellow'} icon="📊" />
-            <StatCard label="Trades" value={stats.totalTrades.toString()} color="blue" icon="📈" />
+              color={stats.profitFactor >= 1.5 ? 'green' : 'yellow'} icon={BarChart3} />
+            <StatCard label="Trades" value={stats.totalTrades.toString()} color="blue" icon={TrendingUp} />
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="p-4 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <h4 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>📈 Performance</h4>
+              <h4 className="font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><TrendingUp size={16} /> Performance</h4>
               <div className="space-y-2 text-sm">
                 <StatRow label="Gains" value={stats.winningTrades.toString()} />
                 <StatRow label="Pertes" value={stats.losingTrades.toString()} />
@@ -613,7 +633,7 @@ function StatisticsTab({ allTimeStats, selectedSession, selectedStats, sessions,
               </div>
             </div>
             <div className="p-4 rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <h4 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>⚠️ Risque</h4>
+              <h4 className="font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><AlertTriangle size={16} style={{ color: 'var(--warning)' }} /> Risque</h4>
               <div className="space-y-2 text-sm">
                 <StatRow label="Max Drawdown" value={`-${stats.maxDrawdown.toFixed(2)} $`} color="red" />
                 <StatRow label="Sharpe Ratio" value={stats.sharpeRatio.toFixed(2)} />
@@ -626,7 +646,7 @@ function StatisticsTab({ allTimeStats, selectedSession, selectedStats, sessions,
         </>
       ) : (
         <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-          <span className="text-4xl mb-4 block">📊</span>
+          <BarChart3 size={40} className="mx-auto mb-4" style={{ color: 'var(--text-dimmed)' }} />
           <p>Pas encore de statistiques</p>
         </div>
       )}
@@ -648,7 +668,7 @@ function JournalTab({ entries, onAddEntry, onDeleteEntry }: JournalTabProps) {
       <button onClick={onAddEntry}
         className="w-full py-4 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2"
         style={{ borderColor: 'var(--border-light)', color: 'var(--text-muted)' }}>
-        <span className="text-2xl">+</span>
+        <Plus size={20} />
         <span>Nouvelle Entrée Journal</span>
       </button>
 
@@ -694,7 +714,7 @@ function JournalTab({ entries, onAddEntry, onDeleteEntry }: JournalTabProps) {
         </div>
       ) : (
         <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-          <span className="text-4xl mb-4 block">📝</span>
+          <FileText size={40} className="mx-auto mb-4" style={{ color: 'var(--text-dimmed)' }} />
           <p>Aucune entrée dans le journal</p>
         </div>
       )}
@@ -720,7 +740,7 @@ function MetricCard({ label, value, color }: { label: string; value: string; col
   );
 }
 
-function StatCard({ label, value, color, icon }: { label: string; value: string; color: 'green' | 'red' | 'yellow' | 'blue'; icon: string }) {
+function StatCard({ label, value, color, icon: Icon }: { label: string; value: string; color: 'green' | 'red' | 'yellow' | 'blue'; icon: ComponentType<LucideProps> }) {
   const colorMap = {
     green: { color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success)' },
     red: { color: 'var(--error)', bg: 'var(--error-bg)', border: 'var(--error)' },
@@ -731,7 +751,7 @@ function StatCard({ label, value, color, icon }: { label: string; value: string;
   return (
     <div className="p-4 rounded-xl" style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
       <div className="flex items-center gap-2 mb-2">
-        <span>{icon}</span>
+        <Icon size={15} />
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
       </div>
       <p className="text-2xl font-bold font-mono">{value}</p>
@@ -794,8 +814,8 @@ function NewSessionModal({ onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="rounded-2xl p-6 w-full max-w-md" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <h3 className="text-xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>Nouvelle Session</h3>
+      <div className="glass-intense rounded-2xl p-6 w-full max-w-md">
+        <h3 className="font-display text-2xl mb-6" style={{ color: 'var(--text-primary)' }}>Nouvelle Session</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Nom</label>
@@ -825,9 +845,9 @@ function NewSessionModal({ onClose, onCreate }: {
           </div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg" style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>Annuler</button>
+          <button onClick={onClose} className="btn-brand-ghost flex-1 py-2 rounded-lg">Annuler</button>
           <button onClick={() => onCreate({ name: name || 'Session', symbol, timeframe, balance })}
-            className="flex-1 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--text-primary)' }}>Créer</button>
+            className="btn-brand flex-1 py-2 rounded-lg">Créer</button>
         </div>
       </div>
     </div>
@@ -847,8 +867,8 @@ function NewJournalModal({ onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-8" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="rounded-2xl p-6 w-full max-w-lg my-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <h3 className="text-xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>Nouvelle Entrée</h3>
+      <div className="glass-intense rounded-2xl p-6 w-full max-w-lg my-auto">
+        <h3 className="font-display text-2xl mb-6" style={{ color: 'var(--text-primary)' }}>Nouvelle Entrée</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Titre</label>
@@ -904,11 +924,11 @@ function NewJournalModal({ onClose, onCreate }: {
           </div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg" style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>Annuler</button>
+          <button onClick={onClose} className="btn-brand-ghost flex-1 py-2 rounded-lg">Annuler</button>
           <button onClick={() => onCreate({
             date: Date.now(), title: title || 'Sans titre', content, emotionalState, marketCondition,
             mood, trades: [], tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
-          })} className="flex-1 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--text-primary)' }}>Enregistrer</button>
+          })} className="btn-brand flex-1 py-2 rounded-lg">Enregistrer</button>
         </div>
       </div>
     </div>
