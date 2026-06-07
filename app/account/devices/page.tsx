@@ -120,7 +120,7 @@ export default async function DevicesPage() {
               </div>
             </div>
           ) : (
-            <ul className="devices-list">
+            <ul className="devices-list stagger-in">
               {license.machines.map((m) => (
                 <li key={m.id} className="devices-row">
                   <div className="devices-row-icon" aria-hidden>

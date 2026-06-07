@@ -147,6 +147,19 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+.devices-row:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--primary-rgb) / 0.25);
+}
+@media (prefers-reduced-motion: reduce) {
+  .devices-row {
+    transition: border-color 0.18s ease;
+  }
+  .devices-row:hover {
+    transform: none;
+  }
 }
 .devices-row-icon {
   width: 44px;

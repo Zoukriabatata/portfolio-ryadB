@@ -733,7 +733,7 @@ function MetricCard({ label, value, color }: { label: string; value: string; col
   };
   const c = colorMap[color];
   return (
-    <div className="p-4 rounded-xl" style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
+    <div className="card-lift p-4 rounded-xl" style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
       <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
       <p className="text-xl font-bold font-mono">{value}</p>
     </div>
@@ -749,7 +749,7 @@ function StatCard({ label, value, color, icon: Icon }: { label: string; value: s
   };
   const c = colorMap[color];
   return (
-    <div className="p-4 rounded-xl" style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
+    <div className="card-lift p-4 rounded-xl" style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
       <div className="flex items-center gap-2 mb-2">
         <Icon size={15} />
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>

@@ -120,6 +120,7 @@ export function DashboardCard({
   return (
     <section
       className={cn(
+        "card-lift",
         "flex flex-col min-h-0 transition-colors duration-150",
         "hover:border-[color-mix(in_oklab,var(--primary)_18%,var(--border))]",
         VARIANT_CLASS[variant],
