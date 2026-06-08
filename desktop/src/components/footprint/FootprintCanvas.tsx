@@ -48,8 +48,12 @@ import {
   setHover,
   startDrag,
   updateDrag,
+  goLive,
+  resetScale,
+  isLiveMode,
   type InteractionState,
 } from "../../lib/footprint/interactions";
+import { ChartLiveBanner } from "./ChartLiveBanner";
 import { useToolDrawingsStore } from "../../stores/useToolDrawingsStore";
 import { useFootprintSettingsStore } from "../../stores/useFootprintSettingsStore";
 import { useSimAccountStore } from "../../lib/sim/useSimAccountStore";
@@ -266,6 +270,7 @@ export const FootprintCanvas = forwardRef<
     clientY: number;
     initial: string;
   }>(null);
+  const [isLive, setIsLive] = useState(true);
   function setSelectedDrawingId(id: string | null) {
     if (selectedDrawingIdRef.current === id) return;
     selectedDrawingIdRef.current = id;
@@ -647,6 +652,8 @@ export const FootprintCanvas = forwardRef<
     if (newScrollX !== s.scrollX) {
       interactionRef.current = { ...s, scrollX: newScrollX };
     }
+    const nextIsLive = isLiveMode(interactionRef.current);
+    setIsLive((prev) => (prev !== nextIsLive ? nextIsLive : prev));
     tickRender();
   }
 
@@ -2033,6 +2040,22 @@ export const FootprintCanvas = forwardRef<
         </header>
         <div ref={containerRef} className="fp-canvas-container">
           <canvas ref={canvasRef} className="fp-canvas" />
+          <ChartLiveBanner
+            isLive={isLive}
+            onGoLive={() => {
+              interactionRef.current = goLive(interactionRef.current);
+              setIsLive(true);
+              tickRender();
+            }}
+            onResetScale={() => {
+              interactionRef.current = resetScale(
+                interactionRef.current,
+                DEFAULT_INTERACTION.cellWidth,
+                DEFAULT_INTERACTION.rowHeight,
+              );
+              tickRender();
+            }}
+          />
           <FpsCounter countRef={renderCountRef} />
         </div>
       </div>
