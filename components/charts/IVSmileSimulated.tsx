@@ -347,6 +347,20 @@ export default function IVSmileSimulated({
         onMouseLeave={() => setHoveredPoint(null)}
       />
 
+      {/* Synthetic-data disclosure: this smile is modelled, not live market IV.
+          Bottom-right avoids the canvas title (top-left) and legend (top-right). */}
+      <div
+        className="panel-glass absolute bottom-8 right-2 z-20 px-2 py-1 pointer-events-none"
+        style={{ borderRadius: 6 }}
+      >
+        <span
+          className="text-[9px] font-semibold uppercase tracking-[0.18em] tabular-nums"
+          style={{ color: 'var(--warning)', fontFamily: 'var(--font-jetbrains-mono)' }}
+        >
+          Simulated
+        </span>
+      </div>
+
       {/* Tooltip */}
       {hoveredPoint && (
         <div

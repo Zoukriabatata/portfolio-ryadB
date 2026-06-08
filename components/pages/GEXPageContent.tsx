@@ -519,10 +519,6 @@ export default function GEXPageContent() {
                   { id: 'tight', label: 'Tight' },
                 ]}
               />
-
-              <span className="text-[10px] text-[var(--text-muted)]" style={{ fontFamily: MONO }}>
-                <span style={{ color: GREEK_BRAND_COLOR[selectedGreek] }}>{greekMeta.symbol}</span> {greekMeta.label}
-              </span>
             </div>
           </div>
 

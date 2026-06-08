@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type RefObject } from 'react';
 import { AlertTriangle, Inbox, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { usePageActive } from '@/hooks/usePageActive';
 import type { FlowItem } from '@/app/api/options-flow/route';
@@ -34,6 +34,10 @@ function useFlowColors(): FlowColors {
     primary: themeColor('--primary'),
   }), [activeTheme]);
 }
+
+// Canvas can't parse CSS var() in ctx.font — use the literal JetBrains family
+// (loaded via next/font) with monospace fallbacks, per project canvas convention.
+const CANVAS_MONO = 'JetBrains Mono, Consolas, monospace';
 
 const SYMBOLS = ['QQQ', 'SPY', 'AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'META'];
 
@@ -106,53 +110,416 @@ function TopUnusualCards({ trades }: { trades: FlowItem[] }) {
   );
 }
 
-// ─── Premium Flow Chart (Call vs Put by Strike) ────────────────────────────────
-function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPremium: number; putPremium: number }[]; spotPrice: number }) {
-  const c = useFlowColors();
-  if (data.length === 0) return <div className="flex-1 flex items-center justify-center text-[11px]" style={{ color: 'var(--text-dimmed)' }}>No data</div>;
+// ─── Premium Flow Chart (Call vs Put by Strike) — real <canvas> ────────────────
+// Strike-bucketed diverging bars: Put premium grows left, Call premium grows
+// right of a center axis, with a net-flow tick mark and dashed spot line. Ported
+// from the OptionsFlowPanel `NetFlowChart` canvas pattern (zoom / pan / hover) so
+// /flow's Chart view matches the rest of the app's rendering quality. Same source
+// array (`premiumByStrike`) — `net` is derived (callPremium − putPremium), no
+// extra fetch and no change to computation.
 
-  const maxPremium = Math.max(...data.map(d => Math.max(d.callPremium, d.putPremium)), 1);
-  // Show top 30 strikes by total premium
-  const top = [...data].sort((a, b) => (b.callPremium + b.putPremium) - (a.callPremium + a.putPremium)).slice(0, 30).sort((a, b) => a.strike - b.strike);
+type PremStrike = { strike: number; callPremium: number; putPremium: number };
+type PremStrikeNet = PremStrike & { net: number };
+
+const PAD = { left: 64, right: 16, top: 8, bottom: 34 } as const;
+
+// Theme-aware canvas palette (hex strings, so `col.bull + 'aa'` alpha concat is
+// valid). Resolved from active SENZOUKRIA tokens — zero hardcoded hex.
+function canvasClr(): Record<string, string> {
+  return {
+    bull:          themeColor('--bull'),
+    bear:          themeColor('--bear'),
+    border:        themeColor('--border'),
+    textPrimary:   themeColor('--text-primary'),
+    textSecondary: themeColor('--text-secondary'),
+    textMuted:     themeColor('--text-muted'),
+    accent:        themeColor('--accent'),
+  };
+}
+
+function fmtStrike(v: number): string {
+  if (v >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  return v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+function useCanvasSize(
+  canvasRef: RefObject<HTMLCanvasElement | null>,
+  containerRef: RefObject<HTMLDivElement | null>,
+) {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!el || !canvas) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        setSize({ w: width, h: height });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [canvasRef, containerRef]);
+  return size;
+}
+
+function ChartHint({ isZoomed, zoomPct, onReset }: { isZoomed: boolean; zoomPct: string; onReset(): void }) {
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute bottom-0.5 left-0 right-0 flex items-center justify-center gap-2 text-[9px]"
+        style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}
+      >
+        <span>scroll · zoom</span><span>·</span><span>drag · pan</span><span>·</span><span>dbl-click · reset</span>
+      </div>
+      {isZoomed && (
+        <button
+          onClick={onReset}
+          className="press-fb absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] opacity-60 hover:opacity-100 transition-opacity"
+          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontFamily: 'var(--font-jetbrains-mono)' }}
+        >
+          <span style={{ color: 'var(--accent)' }}>{zoomPct}%</span> × reset
+        </button>
+      )}
+    </>
+  );
+}
+
+function PremiumFlowChart({ data, spotPrice }: { data: PremStrike[]; spotPrice: number }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const panRef       = useRef({ startY: 0, startMin: 0, startMax: 0 });
+  // Subscribe to the active theme so the canvas redraws on theme change.
+  const activeTheme = useUIThemeStore((s) => s.activeTheme);
+
+  const [isPanning, setIsPanning] = useState(false);
+  const [mousePos, setMousePos]   = useState({ x: 0, y: 0 });
+  const [hovered, setHovered]     = useState<PremStrikeNet | null>(null);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null);
+
+  // Global mouseup to stop panning even when cursor leaves canvas
+  useEffect(() => {
+    const stop = () => setIsPanning(false);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('touchend', stop);
+    return () => { window.removeEventListener('mouseup', stop); window.removeEventListener('touchend', stop); };
+  }, []);
+
+  const size = useCanvasSize(canvasRef, containerRef);
+
+  // Derive `net` (callPremium − putPremium) — same data, no extra fetch.
+  const sorted = useMemo<PremStrikeNet[]>(
+    () => [...data]
+      .map(d => ({ ...d, net: d.callPremium - d.putPremium }))
+      .sort((a, b) => a.strike - b.strike),
+    [data],
+  );
+
+  const dataMin   = sorted.length ? sorted[0].strike : 0;
+  const dataMax   = sorted.length ? sorted[sorted.length - 1].strike : 1;
+  const dataRange = dataMax - dataMin;
+
+  // Default zoom: ~25 strikes centered on spot — guarantees drag always works
+  const defaultZoom = useMemo((): { min: number; max: number } | null => {
+    if (sorted.length === 0 || spotPrice <= 0 || dataRange <= 0) return null;
+    const step = dataRange / Math.max(1, sorted.length - 1);
+    const half = Math.min(12, Math.ceil(sorted.length / 2)) * step;
+    return {
+      min: Math.max(dataMin, spotPrice - half),
+      max: Math.min(dataMax, spotPrice + half),
+    };
+  }, [sorted.length, spotPrice, dataMin, dataMax, dataRange]);
+
+  useEffect(() => { setZoomRange(defaultZoom); }, [sorted.length]);
+
+  const visible = useMemo(() => {
+    if (!zoomRange) return sorted;
+    return sorted.filter(s => s.strike >= zoomRange.min && s.strike <= zoomRange.max);
+  }, [sorted, zoomRange]);
+
+  const maxAbs = useMemo(() => {
+    let m = 0;
+    for (const s of visible) m = Math.max(m, s.callPremium, s.putPremium);
+    return m || 1;
+  }, [visible]);
+
+  const visMin   = zoomRange?.min ?? dataMin;
+  const visMax   = zoomRange?.max ?? dataMax;
+  const visRange = visMax - visMin;
+  const zoomPct  = dataRange > 0 ? ((visRange / dataRange) * 100).toFixed(0) : '100';
+
+  // Wheel zoom
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || sorted.length < 2 || dataRange <= 0) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoomRange(prev => {
+        const cMin = prev?.min ?? dataMin;
+        const cMax = prev?.max ?? dataMax;
+        const range = cMax - cMin;
+        const rect = canvas.getBoundingClientRect();
+        const chartH = rect.height - PAD.top - PAD.bottom;
+        const norm = (e.clientY - rect.top - PAD.top) / chartH;
+        const cursorStrike = cMin + norm * range;
+        const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+        const newRange = Math.min(dataRange, Math.max(dataRange * 0.1, range * factor));
+        const frac = Math.max(0, Math.min(1, (cursorStrike - cMin) / range));
+        let nMin = cursorStrike - frac * newRange;
+        let nMax = cursorStrike + (1 - frac) * newRange;
+        if (nMin < dataMin) { nMax += dataMin - nMin; nMin = dataMin; }
+        if (nMax > dataMax) { nMin -= nMax - dataMax; nMax = dataMax; }
+        nMin = Math.max(dataMin, nMin);
+        nMax = Math.min(dataMax, nMax);
+        if (nMax - nMin >= dataRange * 0.98) return null;
+        return { min: nMin, max: nMax };
+      });
+    };
+    canvas.addEventListener('wheel', handler, { passive: false });
+    return () => canvas.removeEventListener('wheel', handler);
+  }, [sorted, dataMin, dataMax, dataRange]);
+
+  // Draw
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || size.w === 0) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const { w, h } = size;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    if (visible.length === 0) return;
+
+    const col = canvasClr();
+    const chartW = w - PAD.left - PAD.right;
+    const chartH = h - PAD.top - PAD.bottom;
+    const midX = PAD.left + chartW / 2;
+    const n = visible.length;
+
+    const barH = Math.min(Math.floor(chartH / n) - 1, 20);
+    const gap  = Math.max(1, (chartH - barH * n) / (n + 1));
+    const step = sorted.length > 1 ? (sorted[sorted.length - 1].strike - sorted[0].strike) / (sorted.length - 1) : 1;
+
+    visible.forEach((s, i) => {
+      const cy = PAD.top + gap + i * (barH + gap) + barH / 2;
+      const isH = s === hovered;
+
+      // Row band
+      if (i % 2 === 0) {
+        ctx.fillStyle = themeAlpha('--text-primary', 0.018);
+        ctx.fillRect(PAD.left, cy - barH / 2, chartW, barH);
+      }
+      if (isH) {
+        ctx.fillStyle = themeAlpha('--text-primary', 0.06);
+        ctx.fillRect(PAD.left, cy - barH / 2 - 1, chartW, barH + 2);
+      }
+
+      const isSpot = Math.abs(s.strike - spotPrice) <= step * 0.6;
+
+      // Strike label
+      ctx.font = isH ? `bold 10px ${CANVAS_MONO}` : `10px ${CANVAS_MONO}`;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = isSpot ? col.accent : isH ? col.textPrimary : col.textMuted;
+      ctx.fillText(fmtStrike(s.strike), PAD.left - 6, cy);
+
+      // Call bar (right, gradient)
+      if (s.callPremium > 0) {
+        const bw = (s.callPremium / maxAbs) * (chartW / 2);
+        const grad = ctx.createLinearGradient(midX, 0, midX + bw, 0);
+        grad.addColorStop(0, col.bull + (isH ? 'ee' : 'aa'));
+        grad.addColorStop(1, col.bull + (isH ? '66' : '33'));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(midX + 1, cy - barH / 2, Math.max(bw, 1), barH, Math.min(barH / 2, 4));
+        ctx.fill();
+        if (bw > 40 && isH) {
+          ctx.fillStyle = col.bull;
+          ctx.font = `bold 9px ${CANVAS_MONO}`;
+          ctx.textAlign = 'left';
+          ctx.fillText(`$${fmtNum(s.callPremium)}`, midX + bw + 4, cy);
+        }
+      }
+
+      // Put bar (left, gradient)
+      if (s.putPremium > 0) {
+        const bw = (s.putPremium / maxAbs) * (chartW / 2);
+        const grad = ctx.createLinearGradient(midX - bw, 0, midX, 0);
+        grad.addColorStop(0, col.bear + (isH ? '33' : '22'));
+        grad.addColorStop(1, col.bear + (isH ? 'ee' : 'aa'));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(midX - bw - 1, cy - barH / 2, Math.max(bw, 1), barH, Math.min(barH / 2, 4));
+        ctx.fill();
+        if (bw > 40 && isH) {
+          ctx.fillStyle = col.bear;
+          ctx.font = `bold 9px ${CANVAS_MONO}`;
+          ctx.textAlign = 'right';
+          ctx.fillText(`$${fmtNum(s.putPremium)}`, midX - bw - 4, cy);
+        }
+      }
+
+      // Net tick mark
+      const netW = (Math.abs(s.net) / maxAbs) * (chartW / 2);
+      const tickH = Math.max(2, barH * 0.3);
+      const tickX = s.net >= 0 ? midX + netW : midX - netW - 2;
+      ctx.fillStyle = s.net >= 0 ? col.bull : col.bear;
+      ctx.globalAlpha = isH ? 1 : 0.5;
+      ctx.fillRect(tickX, cy - tickH / 2, 2, tickH);
+      ctx.globalAlpha = 1;
+    });
+
+    // Center line
+    ctx.strokeStyle = col.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(midX, PAD.top);
+    ctx.lineTo(midX, PAD.top + chartH);
+    ctx.stroke();
+
+    // Spot dashed line
+    if (spotPrice > 0 && spotPrice >= visMin && spotPrice <= visMax) {
+      const spotIdx = visible.findIndex(s => Math.abs(s.strike - spotPrice) <= step * 0.6);
+      if (spotIdx >= 0) {
+        const sy = PAD.top + gap + spotIdx * (barH + gap) + barH / 2;
+        ctx.strokeStyle = col.accent;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(PAD.left, sy);
+        ctx.lineTo(PAD.left + chartW, sy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // X-axis
+    const axisY = PAD.top + chartH + 5;
+    ctx.fillStyle = col.textMuted;
+    ctx.font = `9px ${CANVAS_MONO}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`-${fmtNum(maxAbs)}`, PAD.left, axisY);
+    ctx.fillText('0', midX, axisY);
+    ctx.fillText(fmtNum(maxAbs), PAD.left + chartW, axisY);
+
+    // Legend
+    const ly = axisY + 14;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = col.bear;
+    ctx.fillRect(PAD.left, ly, 8, 8);
+    ctx.fillStyle = col.textSecondary;
+    ctx.fillText('Put premium', PAD.left + 11, ly + 7);
+    ctx.fillStyle = col.bull;
+    ctx.fillRect(PAD.left + 90, ly, 8, 8);
+    ctx.fillStyle = col.textSecondary;
+    ctx.fillText('Call premium', PAD.left + 101, ly + 7);
+  }, [visible, maxAbs, spotPrice, size, hovered, sorted, visMin, visMax, activeTheme]);
+
+  // Mouse handlers
+  const hitRow = useCallback((my: number, h: number): PremStrikeNet | null => {
+    const n = visible.length;
+    if (n === 0) return null;
+    const chartH = h - PAD.top - PAD.bottom;
+    const barH = Math.min(Math.floor(chartH / n) - 1, 20);
+    const gap = Math.max(1, (chartH - barH * n) / (n + 1));
+    const idx = Math.floor((my - PAD.top - gap / 2) / (barH + gap));
+    return idx >= 0 && idx < n ? visible[idx] : null;
+  }, [visible]);
+
+  const handleMouseMove = useCallback((e: { clientX: number; clientY: number }) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    setMousePos({ x: mx, y: my });
+
+    if (isPanning) {
+      const chartH = size.h - PAD.top - PAD.bottom;
+      const range = panRef.current.startMax - panRef.current.startMin;
+      const delta = ((e.clientY - panRef.current.startY) / chartH) * range;
+      let nMin = panRef.current.startMin + delta;
+      let nMax = panRef.current.startMax + delta;
+      if (nMin < dataMin) { nMax += dataMin - nMin; nMin = dataMin; }
+      if (nMax > dataMax) { nMin -= nMax - dataMax; nMax = dataMax; }
+      setZoomRange({ min: Math.max(dataMin, nMin), max: Math.min(dataMax, nMax) });
+      return;
+    }
+
+    setHovered(hitRow(my, size.h));
+  }, [isPanning, size, dataMin, dataMax, hitRow]);
+
+  const handleMouseDown = useCallback((e: { button?: number; clientY: number }) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    panRef.current = { startY: e.clientY, startMin: visMin, startMax: visMax };
+    setIsPanning(true);
+  }, [visMin, visMax]);
+
+  if (data.length === 0) {
+    return <div className="flex-1 flex items-center justify-center text-[11px]" style={{ color: 'var(--text-dimmed)' }}>No data</div>;
+  }
+
+  // Clamp tooltip
+  const ttW = 172;
+  const ttH = 78;
+  const ttX = Math.min(mousePos.x + 12, size.w - ttW - 8);
+  const ttY = Math.min(Math.max(mousePos.y - ttH / 2, 4), size.h - ttH - 4);
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto px-4 py-3">
-      <h3 className="text-[10px] uppercase tracking-wider mb-3 font-bold" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>
-        Premium Flow by Strike
-      </h3>
-      <div className="flex flex-col gap-0.5">
-        {top.map(d => {
-          const isSpot = Math.abs(d.strike - spotPrice) < spotPrice * 0.005;
-          return (
-            <div key={d.strike} className="flex items-center gap-2 h-6">
-              <span className="text-[11px] font-mono w-14 text-right shrink-0"
-                style={{ color: isSpot ? c.teal : 'var(--text-muted)', fontWeight: isSpot ? 900 : 400 }}>
-                ${d.strike}
-              </span>
-              {/* Put bar (left, red) */}
-              <div className="flex-1 flex justify-end">
-                <div className="h-3 rounded-l transition-all"
-                  style={{ width: `${(d.putPremium / maxPremium) * 100}%`, background: `${c.bear}88`, minWidth: d.putPremium > 0 ? 2 : 0 }} />
-              </div>
-              {/* Divider */}
-              <div className="w-px h-4 shrink-0" style={{ background: isSpot ? c.teal : 'var(--border)' }} />
-              {/* Call bar (right, green) */}
-              <div className="flex-1">
-                <div className="h-3 rounded-r transition-all"
-                  style={{ width: `${(d.callPremium / maxPremium) * 100}%`, background: `${c.bull}88`, minWidth: d.callPremium > 0 ? 2 : 0 }} />
-              </div>
+    <div ref={containerRef} className="relative w-full h-full min-h-0 flex-1 select-none">
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 touch-none"
+        style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={() => setIsPanning(false)}
+        onMouseLeave={() => { setHovered(null); setIsPanning(false); }}
+        onDoubleClick={() => setZoomRange(defaultZoom)}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          handleMouseDown({ clientY: t.clientY, button: 0 });
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0];
+          handleMouseMove({ clientX: t.clientX, clientY: t.clientY });
+        }}
+        onTouchEnd={() => setIsPanning(false)}
+      />
+      {hovered && !isPanning && (
+        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[11px] shadow-2xl"
+          style={{ left: ttX, top: ttY, minWidth: ttW, fontFamily: 'var(--font-jetbrains-mono)' }}>
+          <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'var(--border)' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Strike</span>
+            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>${fmtStrike(hovered.strike)}</span>
+          </div>
+          <div className="px-3 py-1.5 space-y-0.5">
+            <div className="flex justify-between gap-4">
+              <span style={{ color: 'var(--text-muted)' }}>Call</span>
+              <span style={{ color: 'var(--bull)' }}>${fmtNum(hovered.callPremium)}</span>
             </div>
-          );
-        })}
-      </div>
-      <div className="flex justify-center gap-6 mt-3">
-        <span className="flex items-center gap-1.5 text-[11px]" style={{ color: c.bear }}>
-          <span className="w-2.5 h-2.5 rounded" style={{ background: `${c.bear}88` }} /> Put Premium
-        </span>
-        <span className="flex items-center gap-1.5 text-[11px]" style={{ color: c.bull }}>
-          <span className="w-2.5 h-2.5 rounded" style={{ background: `${c.bull}88` }} /> Call Premium
-        </span>
-      </div>
+            <div className="flex justify-between gap-4">
+              <span style={{ color: 'var(--text-muted)' }}>Put</span>
+              <span style={{ color: 'var(--bear)' }}>${fmtNum(hovered.putPremium)}</span>
+            </div>
+            <div className="flex justify-between gap-4 border-t pt-0.5" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Net</span>
+              <span className="font-bold" style={{ color: hovered.net >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
+                {hovered.net >= 0 ? '+' : ''}${fmtNum(hovered.net)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+      <ChartHint isZoomed={!!zoomRange} zoomPct={zoomPct} onReset={() => setZoomRange(defaultZoom)} />
     </div>
   );
 }

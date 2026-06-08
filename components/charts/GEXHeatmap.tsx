@@ -554,6 +554,22 @@ export default function GEXHeatmap({
         style={{ display: mode === '3D' ? 'block' : 'none' }}
       />
 
+      {/* Synthetic-time disclosure: strike/GEX are live, but the time axis is a
+          modelled variation (see timeSeriesData) — flag it so it isn't read as
+          history. Bottom-left avoids the canvas title (top-left), the 3D preset
+          buttons (top-right) and both legends (right side / bottom-center). */}
+      <div
+        className="panel-glass absolute bottom-2 left-2 z-20 px-2 py-1 pointer-events-none"
+        style={{ borderRadius: 6 }}
+      >
+        <span
+          className="text-[9px] font-semibold uppercase tracking-[0.18em] tabular-nums"
+          style={{ color: 'var(--warning)', fontFamily: MONO }}
+        >
+          Simulated Time
+        </span>
+      </div>
+
       {/* 3D hover tooltip */}
       {mode === '3D' && tooltip3D && (
         <div

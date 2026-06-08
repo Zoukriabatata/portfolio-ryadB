@@ -60,7 +60,8 @@ export default function IVSurface3D({
   const [dimensions, setDimensions] = useState({ width: 800, height });
   const [tooltip, setTooltip] = useState<{ x: number; y: number; strike: number; expiry: number; iv: number } | null>(null);
 
-  const data = useMemo(() => (surfaceData && surfaceData.length > 0) ? surfaceData : generateSurfaceData(spotPrice || 450), [surfaceData, spotPrice]);
+  const hasLiveData = !!(surfaceData && surfaceData.length > 0);
+  const data = useMemo(() => hasLiveData ? surfaceData! : generateSurfaceData(spotPrice || 450), [hasLiveData, surfaceData, spotPrice]);
 
   // Precompute unique strikes and expirations
   const { strikes, expirations } = useMemo(() => {
@@ -397,6 +398,21 @@ export default function IVSurface3D({
         ref={overlayCanvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none"
       />
+
+      {/* Synthetic-data disclosure: shown only when no live IV surface is supplied. */}
+      {!hasLiveData && (
+        <div
+          className="panel-glass absolute top-2 right-2 z-20 px-2 py-1 pointer-events-none"
+          style={{ borderRadius: 6 }}
+        >
+          <span
+            className="text-[9px] font-semibold uppercase tracking-[0.18em] tabular-nums"
+            style={{ color: 'var(--warning)', fontFamily: 'var(--font-jetbrains-mono)' }}
+          >
+            Simulated
+          </span>
+        </div>
+      )}
       {/* Hover tooltip */}
       {tooltip && (
         <div

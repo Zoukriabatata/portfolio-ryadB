@@ -348,14 +348,11 @@ export default function GEXDashboard({
     ctx.fillStyle = themeColors.callGEX + '99';
     ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, h - 14);
 
-    // Title
-    ctx.fillStyle = themeColors.textBright;
-    ctx.font = 'bold 14px system-ui';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${symbol}`, PADDING.left, 24);
+    // Subtitle (symbol/greek shown once in the page toolbar — not redrawn here)
     ctx.fillStyle = themeColors.textMid;
     ctx.font = '11px system-ui';
-    ctx.fillText('Gamma Exposure by Strike', PADDING.left + ctx.measureText(`${symbol}`).width + 8, 24);
+    ctx.textAlign = 'left';
+    ctx.fillText('Gamma Exposure by Strike', PADDING.left, 24);
 
     if (summary) {
       const regimeColor = summary.regime === 'positive' ? themeColors.callGEX : themeColors.putGEX;
@@ -587,14 +584,27 @@ export default function GEXDashboard({
         </div>
       )}
 
-      {/* Bottom hint bar */}
-      <div className="pointer-events-none absolute bottom-1 left-0 right-0 flex items-center justify-center gap-3"
-        style={{ color: 'var(--text-dimmed)', fontSize: 10 }}>
-        <span>scroll · zoom</span>
-        <span>·</span>
-        <span>drag · pan</span>
-        <span>·</span>
-        <span>dbl-click · reset</span>
+      {/* Interaction hints — collapsed to a hover affordance (no permanent strip) */}
+      <div className="group absolute bottom-2 left-2 z-10">
+        <button
+          type="button"
+          aria-label="Chart interaction hints"
+          className="panel-glass flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold leading-none opacity-50 transition-opacity hover:opacity-100"
+          style={{ fontFamily: MONO, color: 'var(--text-muted)' }}
+        >
+          ?
+        </button>
+        <div
+          className="panel-glass pointer-events-none absolute bottom-7 left-0 flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          style={{ color: 'var(--text-dimmed)', fontSize: 10 }}
+          role="tooltip"
+        >
+          <span>scroll · zoom</span>
+          <span>·</span>
+          <span>drag · pan</span>
+          <span>·</span>
+          <span>dbl-click · reset</span>
+        </div>
       </div>
 
       {/* Floating zoom indicator + reset button */}

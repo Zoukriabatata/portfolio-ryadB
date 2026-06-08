@@ -52,9 +52,6 @@ export default function FootprintPageContent() {
     <ChartPageShell
       symbol={tradingSymbol}
       onSymbolChange={setTradingSymbol}
-      toolbarLeft={
-        <TradeToggle active={showTradeBar} onToggle={() => setShowTradeBar(!showTradeBar)} />
-      }
       tradeBarVisible={showTradeBar}
       tradeBarSlot={
         <QuickTradeBar
@@ -74,7 +71,15 @@ export default function FootprintPageContent() {
     >
       <ChartErrorBoundary fallbackTitle="Footprint Error">
         <div className="h-full">
-          <FootprintChartPro className="h-full" onSymbolChange={setTradingSymbol} />
+          {/* Trade-bar toggle is injected into the chart's own header so the page
+              renders a single consolidated toolbar instead of two stacked bars. */}
+          <FootprintChartPro
+            className="h-full"
+            onSymbolChange={setTradingSymbol}
+            headerExtras={
+              <TradeToggle active={showTradeBar} onToggle={() => setShowTradeBar(!showTradeBar)} />
+            }
+          />
         </div>
       </ChartErrorBoundary>
     </ChartPageShell>

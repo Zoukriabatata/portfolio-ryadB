@@ -120,6 +120,9 @@ import Segment from '@/components/ui/Segment';
 interface FootprintChartProProps {
   className?: string;
   onSymbolChange?: (symbol: string) => void;
+  /** Extra controls injected into the chart header (e.g. trade-bar toggle) so
+   *  the page shell doesn't need a second stacked toolbar row. */
+  headerExtras?: React.ReactNode;
 }
 
 // Symbols - Crypto + CME Futures (flat list for lookups)
@@ -463,7 +466,7 @@ function FootprintZoomControls({ onZoomIn, onZoomOut, onResetView, colors }: {
   );
 }
 
-const FootprintChartPro = React.memo(function FootprintChartPro({ className, onSymbolChange }: FootprintChartProProps) {
+const FootprintChartPro = React.memo(function FootprintChartPro({ className, onSymbolChange, headerExtras }: FootprintChartProProps) {
   const isActive = usePageActive();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -3146,6 +3149,13 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
         {/* Group 3: Controls */}
         <div className="flex items-center gap-1.5 pl-2.5 ml-auto">
+          {/* Page-level extras (e.g. trade-bar toggle) merged into this single header */}
+          {headerExtras && (
+            <div className="flex items-center gap-1.5 pr-1.5 mr-0.5" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
+              {headerExtras}
+            </div>
+          )}
+
           {/* Magnet Toggle */}
           <FootprintMagnetToggle colors={settings.colors} />
 
@@ -3297,6 +3307,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           <div
             ref={containerRef}
             className="flex-1 relative overflow-hidden"
+            title="Drag: Pan · Scroll: Zoom · Double-click: Reset · Del: Remove tool"
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -3696,24 +3707,18 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
       {/* Footer */}
       <div
-        className="panel-glass flex items-center justify-between px-3 py-0.5 text-[11px] border-t flex-shrink-0"
+        className="panel-glass flex items-center justify-end gap-3 px-3 py-0.5 text-[11px] border-t flex-shrink-0"
         style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor, color: settings.colors.textMuted }}
       >
-        <span>
-          {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : 'CME'} • {symbol.toUpperCase()} • Footprint {aggregationMode === 'tick' ? `${tickBarSize}T` : TIMEFRAME_LABELS[timeframe]} • Tick {SYMBOL_EXCHANGE[symbol] === 'binance' ? '$' : ''}{tickSize}
-        </span>
-        <span className="flex items-center gap-3">
-          {/* Zoom level indicator */}
-          {layoutEngineRef.current && (
-            <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{
-              backgroundColor: settings.colors.gridColor,
-              color: settings.colors.textPrimary
-            }}>
-              Y-Zoom: {layoutEngineRef.current.getZoomY().toFixed(1)}x • {layoutEngineRef.current.getZoomLevelDescription()}
-            </span>
-          )}
-          <span>Drag: Pan | Scroll: Zoom | Double-click: Reset | Del: Remove tool</span>
-        </span>
+        {/* Zoom level indicator (unique to footer — not shown in the header) */}
+        {layoutEngineRef.current && (
+          <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{
+            backgroundColor: settings.colors.gridColor,
+            color: settings.colors.textPrimary
+          }}>
+            Y-Zoom: {layoutEngineRef.current.getZoomY().toFixed(1)}x • {layoutEngineRef.current.getZoomLevelDescription()}
+          </span>
+        )}
         <span
           className="flex items-center gap-1.5"
           style={{
