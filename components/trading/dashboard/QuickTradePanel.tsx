@@ -216,7 +216,7 @@ export default function QuickTradePanel() {
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => handleTrade('sell')}
-          disabled={blocked || !isConnected}
+          disabled={blocked || !isConnected || !livePrice}
           title={blocked ? lockedReason ?? 'Account locked' : 'Sell at market'}
           className="h-11 rounded-lg font-bold text-[13px] tracking-wider transition-all duration-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           style={{
@@ -238,7 +238,7 @@ export default function QuickTradePanel() {
         </button>
         <button
           onClick={() => handleTrade('buy')}
-          disabled={blocked || !isConnected}
+          disabled={blocked || !isConnected || !livePrice}
           title={blocked ? lockedReason ?? 'Account locked' : 'Buy at market'}
           className="h-11 rounded-lg font-bold text-[13px] tracking-wider transition-all duration-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           style={{
