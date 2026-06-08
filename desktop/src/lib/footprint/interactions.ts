@@ -57,6 +57,13 @@ export type InteractionState = {
    *  frame's value (which would compound). */
   dragStartCellWidth: number;
   dragStartRowHeight: number;
+  /** Vertical auto-centering mode.
+   *  'last-price' — re-centres on the current price when it drifts
+   *  past 20 % of visible height from centre. Suspended when
+   *  userOverrodeY is true. Reset by resetScale().
+   *  'none' — axis Y fully manual; userOverrodeY is always treated
+   *  as true. */
+  verticalMode: "last-price" | "none";
 };
 
 export const DEFAULT_INTERACTION: InteractionState = {
@@ -88,14 +95,15 @@ export const DEFAULT_INTERACTION: InteractionState = {
   userOverrodeX: false,
   dragStartCellWidth: 140,
   dragStartRowHeight: 20,
+  verticalMode: "last-price",
 };
 
-// Wider zoom envelope — user wants to zoom in much further (per-cell detail
-// at high prices like BTC) and dezoom much further (overview of dozens of bars).
-export const MIN_CELL_WIDTH = 12;
-export const MAX_CELL_WIDTH = 600;
-export const MIN_ROW_HEIGHT = 3;
-export const MAX_ROW_HEIGHT = 120;
+// Wide zoom envelope — dezoom enough to show many bars overview, zoom in
+// enough to read micro-structure on BTC / high-price instruments.
+export const MIN_CELL_WIDTH = 3;
+export const MAX_CELL_WIDTH = 1200;
+export const MIN_ROW_HEIGHT = 1;
+export const MAX_ROW_HEIGHT = 300;
 // Per-notch baseline zoom step. The actual factor scales continuously
 // with `deltaY` magnitude so trackpads + smooth-scroll mice glide.
 // Tightened from 1.15 → 1.08 so each notch is ~7 % rather than ~13 %
@@ -399,4 +407,32 @@ export function clampScrollY(
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
+}
+
+// ─── Navigation helpers ────────────────────────────────────────────────────
+
+/** Snap to the latest bar without touching zoom. */
+export function goLive(state: InteractionState): InteractionState {
+  return { ...state, scrollX: 0, userOverrodeX: false };
+}
+
+/** Reset horizontal + vertical zoom to defaults.
+ *  Also restores last-price auto-centering. */
+export function resetScale(
+  state: InteractionState,
+  defaultCellWidth: number,
+  defaultRowHeight: number,
+): InteractionState {
+  return {
+    ...state,
+    cellWidth: defaultCellWidth,
+    rowHeight: defaultRowHeight,
+    userOverrodeY: false,
+    verticalMode: "last-price",
+  };
+}
+
+/** True when the user has not manually panned X (auto-follow active). */
+export function isLiveMode(state: InteractionState): boolean {
+  return !state.userOverrodeX;
 }

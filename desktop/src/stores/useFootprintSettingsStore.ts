@@ -49,6 +49,9 @@ export type FootprintSettings = {
   showStackedImbalances: boolean;
   showNakedPOCs: boolean;
   showUnfinishedAuctions: boolean;
+  /** Absorption: heavy aggressive volume at a level that price failed to
+   *  push beyond (volume-at-extreme rule, see orderflow-calc). */
+  showAbsorption: boolean;
   /** ATAS-style ratio threshold for a level to count as imbalanced. */
   imbalanceRatio: number;
   /** Minimum consecutive imbalanced levels to mark a stacked streak. */
@@ -74,6 +77,22 @@ export type FootprintSettings = {
    *  visible without scanning the panel rows. */
   showBarDelta: boolean;
 
+  // Delta profile panel (vertical histogram of net delta per price level).
+  showDeltaProfile: boolean;
+  // CVD oscillator panel.
+  showCvd: boolean;
+  cvdMode: "line" | "candles";
+  cvdPanelHeight: number;
+  // Per-cell imbalance coloring (bid/ask text color + bold when imbalanced).
+  // Rate in % (200 = 2×), volume filter, min absolute difference, ignore zero.
+  imbalanceCellRate: number;
+  imbalanceCellVolumeFilter: number;
+  imbalanceCellMinDiff: number;
+  imbalanceCellIgnoreZero: boolean;
+  // DOM panel (bid/ask volume bars, left side of chart).
+  showDom: boolean;
+  domProportion: number;
+
   // Chart colours — every visible primitive (background, grid,
   // candle parts, bid/ask) is user-pickable via the settings modal.
   // Hex strings (#rrggbb) so the <input type="color"> native picker
@@ -97,6 +116,12 @@ export type FootprintSettings = {
   crosshairOpacity: number;
   crosshairStyle: "solid" | "dashed" | "dotted";
   crosshairWidth: number;
+
+  // Smart Scaling — vertical tick aggregation.
+  /** 'auto' uses getEffectiveAggregation(); a number fixes the grouping. */
+  tickGrouping: "auto" | 1 | 2 | 5 | 10;
+  /** Minimum row height in px before aggregation kicks in (auto mode). */
+  smartScaleMinRowPx: number;
 };
 
 export type CrosshairLineStyle = "solid" | "dashed" | "dotted";
@@ -117,8 +142,19 @@ const DEFAULTS: FootprintSettings = {
   showStackedImbalances: false,
   showNakedPOCs: false,
   showUnfinishedAuctions: false,
+  showAbsorption: false,
   imbalanceRatio: 3.0,
   imbalanceMinConsecutive: 3,
+  showDeltaProfile: false,
+  showCvd: false,
+  cvdMode: "candles" as const,
+  cvdPanelHeight: 80,
+  imbalanceCellRate: 200,
+  imbalanceCellVolumeFilter: 20,
+  imbalanceCellMinDiff: 10,
+  imbalanceCellIgnoreZero: false,
+  showDom: false,
+  domProportion: 100,
   showTradeBubbles: true,
   showVAH: true,
   showVAL: true,
@@ -144,6 +180,8 @@ const DEFAULTS: FootprintSettings = {
   crosshairOpacity: 0.45,
   crosshairStyle: "dashed",
   crosshairWidth: 1,
+  tickGrouping: "auto",
+  smartScaleMinRowPx: 8,
 };
 
 type Actions = {
