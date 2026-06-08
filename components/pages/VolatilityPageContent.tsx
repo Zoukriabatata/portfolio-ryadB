@@ -13,6 +13,8 @@ import { useEquityOptionsStore } from '@/stores/useEquityOptionsStore';
 import type { EquitySymbol } from '@/types/options';
 import { RefreshIcon } from '@/components/ui/Icons';
 import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 type ViewMode = 'smile' | 'surface3D' | 'termStructure';
 
@@ -161,22 +163,12 @@ export default function VolatilityPageContent() {
           </span>
 
           {/* Symbol pills */}
-          <div className="flex items-center gap-0.5 bg-[var(--surface)] rounded-lg p-0.5 border border-[var(--border)]">
-            {(['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL'] as EquitySymbol[]).map(s => (
-              <button
-                key={s}
-                onClick={() => { reset(); setSymbol(s); }}
-                className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all duration-150 ${
-                  symbol === s
-                    ? 'text-[var(--text-primary)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                }`}
-                style={symbol === s ? { background: accentAlpha(0.13), color: ACCENT } : {}}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <Segment<EquitySymbol>
+            size="sm"
+            value={symbol}
+            onChange={(s) => { reset(); setSymbol(s); }}
+            options={(['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL'] as EquitySymbol[]).map(s => ({ id: s, label: s }))}
+          />
         </div>
 
         {/* Right: status + time + refresh */}
@@ -195,7 +187,7 @@ export default function VolatilityPageContent() {
             {isLive ? 'CBOE · delayed ~15min' : isLoading ? 'Loading…' : 'Error'}
           </div>
           {lastUpdate && (
-            <span className="text-[9px] text-[var(--text-muted)] hidden md:block" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
+            <span className="text-[11px] text-[var(--text-muted)] hidden md:block" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
               {lastUpdate.toLocaleTimeString()}
             </span>
           )}
@@ -258,7 +250,7 @@ export default function VolatilityPageContent() {
             <button
               key={exp}
               onClick={() => setSelectedExpiration(exp)}
-              className="px-2.5 py-1 text-[10px] rounded-lg whitespace-nowrap transition-all duration-150 font-medium"
+              className="px-2.5 py-1 text-[11px] rounded-lg whitespace-nowrap transition-all duration-150 font-medium"
               style={selectedExpiration === exp
                 ? { background: accentAlpha(0.13), color: ACCENT, border: `1px solid ${accentAlpha(0.25)}` }
                 : { background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
@@ -268,25 +260,17 @@ export default function VolatilityPageContent() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-0.5 bg-[var(--surface)] rounded-lg p-0.5 border border-[var(--border)] shrink-0">
-          {([
-            { key: 'smile' as const, label: 'IV Skew' },
-            { key: 'surface3D' as const, label: '3D Surface' },
-            { key: 'termStructure' as const, label: 'Term Structure' },
-          ]).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setViewMode(key)}
-              className="px-2.5 py-1 text-[10px] rounded transition-all duration-150"
-              style={viewMode === key
-                ? { background: accentAlpha(0.13), color: ACCENT }
-                : { color: 'var(--text-muted)' }
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segment<ViewMode>
+          className="shrink-0"
+          size="sm"
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { id: 'smile', label: 'IV Skew' },
+            { id: 'surface3D', label: '3D Surface' },
+            { id: 'termStructure', label: 'Term Structure' },
+          ]}
+        />
       </div>
 
       {/* ══════════════════════════════════════════════════════
@@ -305,7 +289,7 @@ export default function VolatilityPageContent() {
             action={
               <button
                 onClick={loadLiveData}
-                className="px-4 py-2 bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
+                className="press-fb px-4 py-2 bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
               >
                 Retry
               </button>
@@ -313,7 +297,9 @@ export default function VolatilityPageContent() {
           />
         ) : skewData.length === 0 ? (
           <EmptyState icon="chart" title="No data" description="Select an expiration above" />
-        ) : viewMode === 'smile' ? (
+        ) : (
+          <div key={viewMode} className="animate-fadeIn w-full h-full">
+        {viewMode === 'smile' ? (
           <IVSmileChart
             data={skewData}
             spotPrice={spot}
@@ -334,6 +320,8 @@ export default function VolatilityPageContent() {
             data={liveTermStructure}
             height={420}
           />
+        )}
+          </div>
         )}
       </div>
 
@@ -442,14 +430,15 @@ function MetricCell({
   sub?: string;
   live?: boolean;
 }) {
+  const flash = useValueFlash(value);
   return (
     <div className="px-4 py-2.5 border-r border-[var(--border)] last:border-r-0 flex flex-col gap-0.5">
       <div className="flex items-center gap-1">
         {live && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: ACCENT }} />}
         <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>{label}</span>
       </div>
-      <span className="font-bold text-sm leading-tight tabular-nums" style={{ color, fontFamily: 'var(--font-jetbrains-mono)' }}>{value}</span>
-      {sub && <span className="text-[8.5px] text-[var(--text-muted)] leading-none">{sub}</span>}
+      <span className={`font-bold text-sm leading-tight tabular-nums ${flash ? 'value-flash' : ''}`} style={{ color, fontFamily: 'var(--font-jetbrains-mono)' }}>{value}</span>
+      {sub && <span className="text-[11px] text-[var(--text-muted)] leading-tight">{sub}</span>}
     </div>
   );
 }

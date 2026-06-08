@@ -113,7 +113,7 @@ function Action({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+      className="press-fb px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
       style={{ background: styles.bg, color: styles.color, border: `1px solid ${styles.border}` }}
     >
       {label}

@@ -377,7 +377,7 @@ export default function DashboardAIChat() {
             disabled={!input.trim() || loading}
             aria-label="Send message"
             className={cn(
-              'shrink-0 w-9 h-9 rounded-md',
+              'press-fb shrink-0 w-9 h-9 rounded-md',
               'grid place-items-center',
               'transition-all duration-150',
               'disabled:opacity-30 disabled:cursor-not-allowed',

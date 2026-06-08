@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { throttledFetch } from '@/lib/api/throttledFetch';
 import type { PlaybookSetup, JournalEntry } from '@/types/journal';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 import { formatCurrency } from '@/lib/journal/chartUtils';
 
 interface PlaybookSetupDetailProps {
@@ -32,6 +33,8 @@ export default function PlaybookSetupDetail({ setup, onClose, onEdit }: Playbook
 
   const formatPf = (pf: number) => pf >= 999 ? '∞' : pf.toFixed(2);
 
+  const pnlFlash = useValueFlash(setup.stats.totalPnl);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
       style={{ zIndex: 'var(--z-modal, 400)' }}
@@ -47,7 +50,7 @@ export default function PlaybookSetupDetail({ setup, onClose, onEdit }: Playbook
             {setup.description && <p className="text-xs text-[var(--text-muted)] mt-0.5">{setup.description}</p>}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => onEdit(setup)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--surface)] transition-colors">
+            <button onClick={() => onEdit(setup)} className="press-fb px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--surface)] transition-colors">
               Edit
             </button>
             <button onClick={onClose} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors">
@@ -60,29 +63,29 @@ export default function PlaybookSetupDetail({ setup, onClose, onEdit }: Playbook
           {/* Stats */}
           <div className="grid grid-cols-5 gap-3">
             <div className="p-3 rounded-lg bg-[var(--surface)] text-center">
-              <p className="text-[10px] text-[var(--text-dimmed)]">Win Rate</p>
+              <p className="text-[11px] text-[var(--text-dimmed)]">Win Rate</p>
               <p className="text-lg font-bold font-[var(--font-jetbrains-mono)]" style={{ color: setup.stats.winRate >= 50 ? 'var(--bull)' : 'var(--bear)' }}>
                 {setup.stats.winRate}%
               </p>
             </div>
             <div className="p-3 rounded-lg bg-[var(--surface)] text-center">
-              <p className="text-[10px] text-[var(--text-dimmed)]">Total P&L</p>
-              <p className="text-lg font-bold font-[var(--font-jetbrains-mono)]" style={{ color: setup.stats.totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
+              <p className="text-[11px] text-[var(--text-dimmed)]">Total P&L</p>
+              <p className={`text-lg font-bold font-[var(--font-jetbrains-mono)] ${pnlFlash ? 'value-flash' : ''}`} style={{ color: setup.stats.totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                 {formatCurrency(setup.stats.totalPnl)}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-[var(--surface)] text-center">
-              <p className="text-[10px] text-[var(--text-dimmed)]">Avg P&L</p>
+              <p className="text-[11px] text-[var(--text-dimmed)]">Avg P&L</p>
               <p className="text-lg font-bold font-[var(--font-jetbrains-mono)]" style={{ color: setup.stats.avgPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                 {formatCurrency(setup.stats.avgPnl)}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-[var(--surface)] text-center">
-              <p className="text-[10px] text-[var(--text-dimmed)]">Profit Factor</p>
+              <p className="text-[11px] text-[var(--text-dimmed)]">Profit Factor</p>
               <p className="text-lg font-bold font-[var(--font-jetbrains-mono)] text-[var(--text-primary)]">{formatPf(setup.stats.profitFactor)}</p>
             </div>
             <div className="p-3 rounded-lg bg-[var(--surface)] text-center">
-              <p className="text-[10px] text-[var(--text-dimmed)]">Trades</p>
+              <p className="text-[11px] text-[var(--text-dimmed)]">Trades</p>
               <p className="text-lg font-bold font-[var(--font-jetbrains-mono)] text-[var(--text-primary)]">{setup.stats.tradeCount}</p>
             </div>
           </div>
@@ -118,7 +121,7 @@ export default function PlaybookSetupDetail({ setup, onClose, onEdit }: Playbook
                     </span>
                     <span className="text-xs font-[var(--font-jetbrains-mono)] font-bold text-[var(--text-primary)]">{trade.symbol}</span>
                     <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                      className="text-[11px] font-bold px-1.5 py-0.5 rounded"
                       style={{
                         background: trade.side === 'LONG' ? 'var(--bull-bg, rgb(var(--bull-rgb) / 0.15))' : 'var(--bear-bg, rgb(var(--bear-rgb) / 0.15))',
                         color: trade.side === 'LONG' ? 'var(--bull)' : 'var(--bear)',

@@ -126,7 +126,7 @@ export default function PositionsTable({ symbolFilter = null }: PositionsTablePr
                   <td className="px-3 py-2 text-right tabular-nums font-medium" style={{ color: pnlColor }}>
                     {p.pnlPercent >= 0 ? '+' : ''}{p.pnlPercent.toFixed(2)}%
                   </td>
-                  <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  <td className="px-3 py-2 text-right text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {formatDuration(Date.now() - p.openedAt)}
                   </td>
                   <td className="px-3 py-2 text-center">

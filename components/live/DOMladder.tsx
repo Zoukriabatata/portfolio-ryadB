@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type { DOMSnapshot, DOMLevel, Quote } from '@/stores/useLiveStore';
+import { useDirectionalFlash } from '@/lib/ui/useValueFlash';
 
 interface DOMladderProps {
   dom: DOMSnapshot | null;
@@ -36,6 +37,8 @@ interface LevelRowProps {
 function LevelRow({ level, maxSize, side, isBest, tickSize }: LevelRowProps) {
   const barPct = maxSize > 0 ? (level.size / maxSize) * BAR_MAX_PCT : 0;
   const isBid = side === 'bid';
+  // Brief bg flash when this level's resting size changes (P8 directional motion)
+  const flashCls = useDirectionalFlash(level.size);
 
   const barColor = isBid ? 'rgb(var(--bull-rgb) / 0.18)' : 'rgb(var(--bear-rgb) / 0.18)';
   const bestBg = isBest
@@ -49,7 +52,7 @@ function LevelRow({ level, maxSize, side, isBest, tickSize }: LevelRowProps) {
 
   return (
     <div
-      className="relative flex items-center h-[22px] text-[11px] tabular-nums overflow-hidden cursor-default select-none"
+      className={`relative flex items-center h-[26px] text-[11px] tabular-nums overflow-hidden cursor-default select-none ${flashCls}`}
       style={{
         backgroundColor: bestBg,
         borderLeft: isBest ? `2px solid ${isBid ? 'var(--bull)' : 'var(--bear)'}` : '2px solid transparent',

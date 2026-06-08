@@ -486,7 +486,7 @@ export default function CumulativeGEXChart({
         >
           <div className="px-3.5 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
             <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Strike ${hoveredData.strike.toFixed(0)}</span>
-            <span className="text-[9px]" style={{ fontFamily: MONO, color: hoveredData.raw >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
+            <span className="text-[11px] tabular-nums" style={{ fontFamily: MONO, color: hoveredData.raw >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
               {hoveredData.raw >= 0 ? '+' : ''}{formatVal(hoveredData.raw)}
             </span>
           </div>

@@ -9,6 +9,8 @@ import {
 import VisionPanel from '@/components/ai/VisionPanel';
 import type { MarketData, OptionsExpiration } from '@/lib/ai/agents/analysisAgent';
 import { LiveAgentPanel } from '@/components/ai/LiveAgentPanel';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 import {
   BIAS_CFG, regimeColor, ON_PRIMARY, LEVEL_COLOR, SETUP_COLOR,
   AI_ACCENT, AI_BULL, AI_BEAR, AI_WARNING, AI_NEUTRAL,
@@ -229,6 +231,7 @@ function AnalysisPanel() {
   };
 
   const bc = result ? BIAS_CFG[result.bias] : null;
+  const confFlash = useValueFlash(result ? Math.round(result.confidence * 100) : 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -244,7 +247,7 @@ function AnalysisPanel() {
             </p>
           </div>
           <button onClick={analyse} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all disabled:opacity-60"
+            className="press-fb flex items-center gap-2 px-4 py-2 rounded-lg transition-all disabled:opacity-60"
             style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
                      background: loading ? 'var(--surface)' : 'var(--primary)',
                      color: loading ? 'var(--text-muted)' : ON_PRIMARY, boxShadow: loading ? 'none' : '0 0 16px var(--primary-glow)' }}>
@@ -334,23 +337,21 @@ function AnalysisPanel() {
         </div>
 
         {/* Tabs */}
-        <div className="flex rounded-lg p-0.5" style={{ background: 'var(--surface)' }}>
-          {(['gex', 'flow', 'context'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className="flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all"
-              style={{
-                background: tab === t ? 'var(--surface-elevated)' : 'transparent',
-                color: tab === t ? 'var(--text-primary)' : 'var(--text-muted)',
-                boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
-              }}>
-              {t === 'gex' ? 'GEX' : t === 'flow' ? 'Volatilité / Flow' : 'Contexte'}
-            </button>
-          ))}
-        </div>
+        <Segment<'gex' | 'flow' | 'context'>
+          className="w-full"
+          size="sm"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: 'gex',     label: 'GEX' },
+            { id: 'flow',    label: 'Volatilité / Flow' },
+            { id: 'context', label: 'Contexte' },
+          ]}
+        />
       </div>
 
       {/* Form body */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4 custom-scrollbar">
+      <div key={tab} className="flex-1 overflow-y-auto px-5 pb-4 space-y-4 custom-scrollbar animate-fadeIn">
         {tab === 'gex' && (
           <div className="space-y-3">
             <SectionLabel>Prix sous-jacent</SectionLabel>
@@ -484,7 +485,7 @@ function AnalysisPanel() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-display text-2xl font-black tabular-nums" style={{ color: bc.color }}>
+                  <div className={`font-display text-2xl font-black tabular-nums ${confFlash ? 'value-flash' : ''}`} style={{ color: bc.color }}>
                     {Math.round(result.confidence * 100)}%
                   </div>
                   <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>confiance</div>
@@ -510,7 +511,7 @@ function AnalysisPanel() {
                     style={{ width: `${Math.round((result.squeeze_strength ?? 0) * 100)}%`, background: 'var(--bear)',
                              transition: 'width 0.5s ease' }} />
                 </div>
-                <span className="text-[10px] font-bold font-mono tabular-nums" style={{ color: 'var(--bear)' }}>
+                <span className="text-[11px] font-bold font-mono tabular-nums" style={{ color: 'var(--bear)' }}>
                   {Math.round((result.squeeze_strength ?? 0) * 100)}%
                 </span>
               </div>
@@ -888,7 +889,7 @@ function ChatPanel() {
             </button>
           ) : (
             <button onClick={() => send(input)} disabled={!input.trim()}
-              className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
+              className="press-fb flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
               style={{ background: input.trim() ? 'var(--primary)' : 'var(--border)',
                        color: input.trim() ? ON_PRIMARY : 'var(--text-muted)', boxShadow: input.trim() ? '0 0 10px var(--primary-glow)' : 'none' }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -963,35 +964,26 @@ export default function AIAgentsPage() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Right: tab buttons */}
-        <div className="flex items-center gap-0.5">
-          {TABS.map(tab => {
-            const active  = activeTab === tab.id;
+        {/* Right: tab buttons — unified Segment control */}
+        <Segment<TabId>
+          size="sm"
+          value={activeTab}
+          onChange={setActiveTab}
+          options={TABS.map(tab => {
             const IconCmp = TAB_ICONS[tab.id];
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-md
-                            transition-all duration-150 ${
-                  active
-                    ? 'bg-[var(--surface)] text-[var(--text-primary)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]/60'
-                }`}
-                style={{ fontFamily: MONO, fontSize: 11, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}
-              >
-                <IconCmp size={12} />
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className="sm:hidden">{tab.shortLabel}</span>
-                {/* Active indicator dot */}
-                {active && (
-                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2
-                                   w-1 h-1 rounded-full bg-[var(--primary)]" />
-                )}
-              </button>
-            );
+            return {
+              id: tab.id,
+              label: (
+                <span className="flex items-center gap-1.5 uppercase tracking-[0.06em]"
+                  style={{ fontFamily: MONO }}>
+                  <IconCmp size={12} />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.shortLabel}</span>
+                </span>
+              ),
+            };
           })}
-        </div>
+        />
       </div>
 
       {/* ── Tab content ───────────────────────────────────────────────────── */}

@@ -82,7 +82,7 @@ export default function CalendarGrid({ days, selectedDate, onSelectDate }: Calen
                   >
                     {formatCurrency(dayData.pnl)}
                   </p>
-                  <p className="text-[10px] text-[var(--text-dimmed)]">
+                  <p className="text-[11px] text-[var(--text-dimmed)]">
                     {dayData.tradeCount} trade{dayData.tradeCount > 1 ? 's' : ''}
                   </p>
                 </div>

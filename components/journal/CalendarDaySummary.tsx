@@ -2,6 +2,7 @@
 
 import { ArrowRight } from 'lucide-react';
 import type { JournalEntry } from '@/types/journal';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 import { formatCurrency } from '@/lib/journal/chartUtils';
 
 interface CalendarDaySummaryProps {
@@ -14,6 +15,7 @@ export default function CalendarDaySummary({ date, trades, onClose }: CalendarDa
   const totalPnl = trades.reduce((s, t) => s + (t.pnl || 0), 0);
   const wins = trades.filter(t => (t.pnl || 0) > 0).length;
   const losses = trades.filter(t => (t.pnl || 0) < 0).length;
+  const pnlFlash = useValueFlash(totalPnl);
 
   const dateFormatted = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
@@ -31,7 +33,7 @@ export default function CalendarDaySummary({ date, trades, onClose }: CalendarDa
         </div>
         <div className="flex items-center gap-3">
           <span
-            className="text-lg font-bold font-[var(--font-jetbrains-mono)]"
+            className={`text-lg font-bold font-[var(--font-jetbrains-mono)] ${pnlFlash ? 'value-flash' : ''}`}
             style={{ color: totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}
           >
             {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl)}
@@ -48,7 +50,7 @@ export default function CalendarDaySummary({ date, trades, onClose }: CalendarDa
           <div key={trade.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--surface-elevated)]">
             <span className="text-xs font-[var(--font-jetbrains-mono)] font-bold text-[var(--text-primary)] w-8">{trade.symbol}</span>
             <span
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+              className="text-[11px] font-bold px-1.5 py-0.5 rounded"
               style={{
                 background: trade.side === 'LONG' ? 'var(--bull-bg, rgb(var(--bull-rgb) / 0.15))' : 'var(--bear-bg, rgb(var(--bear-rgb) / 0.15))',
                 color: trade.side === 'LONG' ? 'var(--bull)' : 'var(--bear)',
@@ -66,7 +68,7 @@ export default function CalendarDaySummary({ date, trades, onClose }: CalendarDa
             >
               {trade.pnl !== null ? `${trade.pnl >= 0 ? '+' : ''}${formatCurrency(trade.pnl)}` : '—'}
             </span>
-            {trade.setup && <span className="text-[10px] text-[var(--text-dimmed)]">{trade.setup}</span>}
+            {trade.setup && <span className="text-[11px] text-[var(--text-dimmed)]">{trade.setup}</span>}
           </div>
         ))}
       </div>

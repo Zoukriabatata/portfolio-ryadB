@@ -10,6 +10,8 @@ import {
 } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 // Canvas can't parse CSS var() in ctx.font — use the literal JetBrains family
 // (loaded via next/font) with monospace fallbacks, per project canvas convention.
@@ -455,7 +457,7 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
         onTouchEnd={() => setIsPanning(false)}
       />
       {hovered && !isPanning && (
-        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] shadow-2xl"
+        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[11px] shadow-2xl"
           style={{ left: ttX, top: ttY, minWidth: ttW, fontFamily: 'var(--font-jetbrains-mono)' }}>
           <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'var(--border)' }}>
             <span style={{ color: 'var(--text-secondary)' }}>Strike</span>
@@ -771,7 +773,7 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
         onTouchEnd={() => setIsPanning(false)}
       />
       {hovered && !isPanning && (
-        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] shadow-2xl"
+        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[11px] shadow-2xl"
           style={{ left: ttX, top: ttY, minWidth: ttW, fontFamily: 'var(--font-jetbrains-mono)' }}>
           <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'var(--border)' }}>
             <span style={{ color: 'var(--text-muted)' }}>Strike</span>
@@ -830,7 +832,7 @@ function TopContractsTable({ data }: { data: TopContract[] }) {
 
   return (
     <div className="w-full h-full overflow-auto">
-      <table className="w-full text-[10px] border-collapse" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
+      <table className="w-full text-[11px] border-collapse" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
         <thead>
           <tr>
             {cols.map(col => (
@@ -897,7 +899,7 @@ function TopContractsTable({ data }: { data: TopContract[] }) {
                 </td>
                 <td className="px-1.5 py-0.5 text-right">
                   <span
-                    className={unusual ? 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px]' : ''}
+                    className={unusual ? 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px]' : ''}
                     style={{
                       color:      unusual ? 'var(--warning)' : 'var(--text-muted)',
                       background: unusual ? 'rgb(var(--warning-rgb) / 0.15)' : undefined,
@@ -1093,7 +1095,7 @@ function GEXExpiryChart({ data }: { data: GEXExpiry[] }) {
         onMouseLeave={() => setHovered(null)}
       />
       {hovered && (
-        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] shadow-2xl"
+        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[11px] shadow-2xl"
           style={{ left: ttX, top: ttY, minWidth: ttW, fontFamily: 'var(--font-jetbrains-mono)' }}>
           <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'var(--border)' }}>
             <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{hovered.label}</span>
@@ -1138,6 +1140,9 @@ export default function OptionsFlowPanel({
   const displayPrice = (liveSpot?.price ?? 0) > 0 ? liveSpot!.price : spotPrice;
   const isLive = (liveSpot?.price ?? 0) > 0;
 
+  // Motion P8 — flash the headline live spot price when it ticks.
+  const priceFlash = useValueFlash(displayPrice);
+
   // Compute age of last live update for staleness indicator
   const secAgo = liveSpot?.ts ? Math.floor((Date.now() - liveSpot.ts) / 1000) : null;
 
@@ -1157,11 +1162,11 @@ export default function OptionsFlowPanel({
             {isLive && (
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bull)' }} />
             )}
-            <span style={{ color: isLive ? 'var(--bull)' : 'var(--text-muted)' }}>
+            <span className={priceFlash ? 'value-flash' : ''} style={{ color: isLive ? 'var(--bull)' : 'var(--text-muted)' }}>
               ${fmtPrice(displayPrice)}
             </span>
             {secAgo !== null && (
-              <span className="text-[9px] font-normal" style={{ color: 'var(--text-dimmed)' }}>
+              <span className="text-[11px] font-normal" style={{ color: 'var(--text-dimmed)' }}>
                 {secAgo < 5 ? 'live' : `${secAgo}s`}
               </span>
             )}
@@ -1170,25 +1175,17 @@ export default function OptionsFlowPanel({
       </div>
 
       {/* Tabs */}
-      <div className="panel-glass flex gap-px px-2 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all"
-            style={{
-              background: activeTab === tab.key ? 'rgb(var(--accent-rgb) / 0.16)' : 'transparent',
-              color:      activeTab === tab.key ? 'var(--accent)' : 'var(--text-muted)',
-              fontWeight: activeTab === tab.key ? 600 : 400,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="panel-glass flex px-2 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+        <Segment
+          options={TABS.map(tab => ({ id: tab.key, label: tab.label }))}
+          value={activeTab}
+          onChange={setActiveTab}
+          size="sm"
+        />
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-hidden p-1">
+      <div key={activeTab} className="flex-1 min-h-0 overflow-hidden p-1 animate-fadeIn">
         {activeTab === 'flow'      && <NetFlowChart data={netFlowByStrike} spotPrice={spotPrice} />}
         {activeTab === 'oi'        && <OIChart data={oiByStrike} spotPrice={spotPrice} />}
         {activeTab === 'contracts' && <TopContractsTable data={topContracts} />}

@@ -408,7 +408,7 @@ export default function IVSurface3D({
             padding: '6px 10px',
           }}
         >
-          <div className="text-[10px] space-y-0.5" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
+          <div className="text-[11px] space-y-0.5" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
             <div style={{ color: 'var(--text-muted)' }}>
               Strike: <span style={{ color: 'var(--primary)' }}>${tooltip.strike.toFixed(0)}</span>
             </div>

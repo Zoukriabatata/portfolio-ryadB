@@ -182,7 +182,7 @@ function Metric({
         {value}
       </span>
       {sub && (
-        <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-dimmed)' }}>{sub}</span>
+        <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-dimmed)' }}>{sub}</span>
       )}
     </div>
   );

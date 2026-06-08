@@ -8,6 +8,7 @@ import { useTradingStore, BROKER_INFO, type OrderType } from '@/stores/useTradin
 import { useFuturesStore } from '@/stores/useFuturesStore';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { useAccountRulesStore } from '@/stores/useAccountRulesStore';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 import DemoAccountPanel from './DemoAccountPanel';
 
 /** Poll /api/spot-price every 5s; returns 0 while loading or on error */
@@ -106,6 +107,8 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
 
   // Priority: live WebSocket price > futures mark price > spot API
   const currentPrice = marketPrice || markPrice || spotPrice || 0;
+  // Headline last-price flash on change (P8 motion)
+  const priceFlash = useValueFlash(currentPrice);
 
   // Auto-connect to demo if no broker is active
   useEffect(() => {
@@ -606,7 +609,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
         <>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[9px] uppercase tracking-wider" style={{ color: colors.textMuted }}>Last</span>
-            <span className="text-[11px] font-bold tabular-nums" style={{ color: colors.text }}>
+            <span className={`text-[11px] font-bold tabular-nums ${priceFlash ? 'value-flash' : ''}`} style={{ color: colors.text }}>
               {currentPrice.toFixed(decimals)}
             </span>
           </div>
@@ -647,7 +650,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             color: '#fff',
             boxShadow: lastAction?.side === 'sell'
               ? '0 0 12px rgb(var(--bear-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
-              : '0 1px 2px rgba(0,0,0,0.2)',
+              : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.2)',
             transform: lastAction?.side === 'sell' ? 'scale(0.95)' : 'scale(1)',
           }}
         >
@@ -664,7 +667,7 @@ export default function QuickTradeBar({ symbol, colors }: QuickTradeBarProps) {
             color: '#fff',
             boxShadow: lastAction?.side === 'buy'
               ? '0 0 12px rgb(var(--bull-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
-              : '0 1px 2px rgba(0,0,0,0.2)',
+              : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.2)',
             transform: lastAction?.side === 'buy' ? 'scale(0.95)' : 'scale(1)',
           }}
         >

@@ -566,7 +566,7 @@ export default function GEXHeatmap({
             padding: '6px 10px',
           }}
         >
-          <div className="text-[10px] space-y-0.5" style={{ fontFamily: MONO }}>
+          <div className="text-[11px] space-y-0.5 tabular-nums" style={{ fontFamily: MONO }}>
             <div style={{ color: 'var(--text-muted)' }}>
               Strike: <span style={{ color: themeColors.spotColor }}>${tooltip3D.strike.toFixed(0)}</span>
             </div>

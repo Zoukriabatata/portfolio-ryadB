@@ -80,7 +80,7 @@ export default function OrdersTable({ symbolFilter = null }: OrdersTableProps) {
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color: o.stopPrice ? 'var(--warning)' : 'var(--text-dimmed)' }}>
                     {o.stopPrice ? `$${o.stopPrice.toFixed(2)}` : '—'}
                   </td>
-                  <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  <td className="px-3 py-2 text-right text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {formatTime(o.createdAt)}
                   </td>
                   <td className="px-3 py-2 text-center">

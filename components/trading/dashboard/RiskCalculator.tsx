@@ -122,7 +122,7 @@ export default function RiskCalculator() {
             className="w-full bg-transparent text-center text-[14px] font-bold tabular-nums focus:outline-none"
             style={{ color: statusColor }}
           />
-          <span className="text-[9px]" style={{ color: 'var(--text-dimmed)' }}>% of account</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-dimmed)' }}>% of account</span>
         </AnchorBlock>
 
         {/* Risk $ */}
@@ -140,7 +140,7 @@ export default function RiskCalculator() {
             className="w-full bg-transparent text-center text-[14px] font-bold tabular-nums focus:outline-none"
             style={{ color: statusColor }}
           />
-          <span className="text-[9px]" style={{ color: 'var(--text-dimmed)' }}>$ at risk</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-dimmed)' }}>$ at risk</span>
         </AnchorBlock>
 
         {/* Contracts */}
@@ -158,7 +158,7 @@ export default function RiskCalculator() {
             className="w-full bg-transparent text-center text-[14px] font-bold tabular-nums focus:outline-none"
             style={{ color: 'var(--text-primary)' }}
           />
-          <span className="text-[9px]" style={{ color: 'var(--text-dimmed)' }}>position size</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-dimmed)' }}>position size</span>
         </AnchorBlock>
       </div>
 
@@ -169,7 +169,7 @@ export default function RiskCalculator() {
           <button
             key={p}
             onClick={() => { setAnchor('pct'); setRiskPct(p); }}
-            className="px-2 py-0.5 rounded text-[10px] font-semibold transition-colors"
+            className="press-fb px-2 py-0.5 rounded text-[11px] font-semibold transition-colors"
             style={{
               background: anchor === 'pct' && riskPct === p ? 'rgb(var(--primary-rgb) / 0.10)' : 'var(--surface-elevated)',
               color:      anchor === 'pct' && riskPct === p ? 'var(--primary)' : 'var(--text-muted)',
@@ -220,7 +220,7 @@ function AnchorBlock({
         border:     `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
       }}
     >
-      <span className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
         {label}
       </span>
       {children}

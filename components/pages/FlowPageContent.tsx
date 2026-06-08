@@ -7,6 +7,8 @@ import type { FlowItem } from '@/app/api/options-flow/route';
 import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
 import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 import { useUIThemeStore } from '@/stores/useUIThemeStore';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 // Data-semantic colors resolved from the active SENZOUKRIA palette (theme-aware,
@@ -78,22 +80,22 @@ function TopUnusualCards({ trades }: { trades: FlowItem[] }) {
           <div key={t.id} className="flex-shrink-0 rounded-lg px-3 py-2 min-w-[180px]"
             style={{ background: isCall ? `${c.bull}08` : `${c.bear}08`, border: `1px solid ${isCall ? c.bull : c.bear}20` }}>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: tag.bg, color: tag.color }}>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: tag.bg, color: tag.color }}>
                 {tag.label}
               </span>
-              <span className="text-[9px] font-mono" style={{ color: 'var(--text-dimmed)' }}>#{i + 1}</span>
+              <span className="text-[11px] font-mono" style={{ color: 'var(--text-dimmed)' }}>#{i + 1}</span>
             </div>
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-[10px] font-black" style={{ color: isCall ? c.bull : c.bear }}>{t.type}</span>
+              <span className="text-[11px] font-black" style={{ color: isCall ? c.bull : c.bear }}>{t.type}</span>
               <span className="text-[14px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>${t.strike}</span>
-              <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{t.expLabel}</span>
+              <span className="text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>{t.expLabel}</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[12px] font-black font-mono"
                 style={{ color: t.premium >= 1_000_000 ? c.primary : c.warn }}>
                 {fmtPremium(t.premium)}
               </span>
-              <span className="text-[9px] font-mono" style={{ color: 'var(--text-dimmed)' }}>
+              <span className="text-[11px] font-mono" style={{ color: 'var(--text-dimmed)' }}>
                 {fmtNum(t.volume)} vol · {t.volOiRatio.toFixed(1)}x
               </span>
             </div>
@@ -122,8 +124,8 @@ function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPre
         {top.map(d => {
           const isSpot = Math.abs(d.strike - spotPrice) < spotPrice * 0.005;
           return (
-            <div key={d.strike} className="flex items-center gap-2 h-5">
-              <span className="text-[9px] font-mono w-14 text-right shrink-0"
+            <div key={d.strike} className="flex items-center gap-2 h-6">
+              <span className="text-[11px] font-mono w-14 text-right shrink-0"
                 style={{ color: isSpot ? c.teal : 'var(--text-muted)', fontWeight: isSpot ? 900 : 400 }}>
                 ${d.strike}
               </span>
@@ -144,10 +146,10 @@ function PremiumFlowChart({ data, spotPrice }: { data: { strike: number; callPre
         })}
       </div>
       <div className="flex justify-center gap-6 mt-3">
-        <span className="flex items-center gap-1.5 text-[9px]" style={{ color: c.bear }}>
+        <span className="flex items-center gap-1.5 text-[11px]" style={{ color: c.bear }}>
           <span className="w-2.5 h-2.5 rounded" style={{ background: `${c.bear}88` }} /> Put Premium
         </span>
-        <span className="flex items-center gap-1.5 text-[9px]" style={{ color: c.bull }}>
+        <span className="flex items-center gap-1.5 text-[11px]" style={{ color: c.bull }}>
           <span className="w-2.5 h-2.5 rounded" style={{ background: `${c.bull}88` }} /> Call Premium
         </span>
       </div>
@@ -184,7 +186,7 @@ function StrikeExpiryHeatmap({ data }: { data: { strike: number; expLabel: strin
         Strike × Expiry Heatmap (Premium Intensity)
       </h3>
       <div className="overflow-auto">
-        <table className="border-collapse text-[9px]">
+        <table className="border-collapse text-[11px]">
           <thead>
             <tr>
               <th className="px-2 py-1.5 text-right font-mono" style={{ color: 'var(--text-dimmed)' }}>Strike</th>
@@ -199,14 +201,14 @@ function StrikeExpiryHeatmap({ data }: { data: { strike: number; expLabel: strin
                 <td className="px-2 py-0.5 text-right font-mono font-bold" style={{ color: 'var(--text-muted)' }}>${strike}</td>
                 {topExpiries.map(exp => {
                   const cell = getCell(strike, exp);
-                  if (!cell) return <td key={exp} className="px-1 py-0.5"><div className="w-full h-5 rounded" style={{ background: 'var(--surface)' }} /></td>;
+                  if (!cell) return <td key={exp} className="px-1 py-0.5"><div className="w-full h-6 rounded" style={{ background: 'var(--surface)' }} /></td>;
                   const total = cell.callPremium + cell.putPremium;
                   const intensity = Math.pow(total / maxPrem, 0.5); // sqrt for better distribution
                   const isCallDominant = cell.callPremium > cell.putPremium;
                   const baseColor = isCallDominant ? c.bull : c.bear;
                   return (
                     <td key={exp} className="px-1 py-0.5">
-                      <div className="h-5 rounded flex items-center justify-center" title={`$${strike} ${exp}: ${fmtPremium(total)}`}
+                      <div className="h-6 rounded flex items-center justify-center" title={`$${strike} ${exp}: ${fmtPremium(total)}`}
                         style={{ background: `${baseColor}${Math.round(intensity * 200 + 10).toString(16).padStart(2, '0')}`, minWidth: 48 }}>
                         {total > maxPrem * 0.05 && (
                           <span className="font-mono font-bold" style={{ color: `${baseColor}`, fontSize: 8 }}>
@@ -246,13 +248,17 @@ function StatsRow({ stats, symbol }: { stats: FlowStats; symbol: string }) {
   const sentiment = s > 0.15 ? 'Bullish' : s < -0.15 ? 'Bearish' : 'Neutral';
   const sentColor = s > 0.15 ? c.bull : s < -0.15 ? c.bear : c.warn;
 
+  // Motion P8 — flash the two headline readouts when they change.
+  const sentFlash = useValueFlash(sentiment);
+  const spotFlash = useValueFlash(stats.spotPrice);
+
   return (
     <div className="panel-glass panel-glass-hero flex flex-wrap items-stretch gap-0 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
       {/* Sentiment cell — now multi-factor */}
       <div className="flex flex-col justify-center items-center px-5 py-2.5 border-r" style={{ borderColor: 'var(--border)', minWidth: 100 }}>
         <span className="text-[8.5px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>Sentiment</span>
-        <span className="font-display text-[15px] font-black" style={{ color: sentColor }}>{sentiment}</span>
-        <span className="text-[8px]" style={{ color: `${sentColor}88`, fontFamily: 'var(--font-jetbrains-mono)' }}>{(s * 100).toFixed(0)}%</span>
+        <span className={`font-display text-[15px] font-black ${sentFlash ? 'value-flash' : ''}`} style={{ color: sentColor }}>{sentiment}</span>
+        <span className="text-[11px]" style={{ color: `${sentColor}88`, fontFamily: 'var(--font-jetbrains-mono)' }}>{(s * 100).toFixed(0)}%</span>
       </div>
 
       {/* Call/Put bar */}
@@ -270,15 +276,15 @@ function StatsRow({ stats, symbol }: { stats: FlowStats; symbol: string }) {
 
       {/* Metric cells */}
       {[
-        { l: 'Call Flow',  v: fmtPremium(stats.totalCallPremium), c: `${c.bull}cc` },
-        { l: 'Put Flow',   v: fmtPremium(stats.totalPutPremium),  c: `${c.bear}cc` },
-        { l: 'Unusual',    v: `${stats.unusualCount}`,             c: c.warn },
-        { l: 'Contracts',  v: `${stats.total}`,                    c: 'var(--text-muted)' },
-        { l: `${symbol}`,  v: stats.spotPrice > 0 ? `$${stats.spotPrice.toFixed(2)}` : '—', c: c.teal },
+        { l: 'Call Flow',  v: fmtPremium(stats.totalCallPremium), c: `${c.bull}cc`, flash: false },
+        { l: 'Put Flow',   v: fmtPremium(stats.totalPutPremium),  c: `${c.bear}cc`, flash: false },
+        { l: 'Unusual',    v: `${stats.unusualCount}`,             c: c.warn,        flash: false },
+        { l: 'Contracts',  v: `${stats.total}`,                    c: 'var(--text-muted)', flash: false },
+        { l: `${symbol}`,  v: stats.spotPrice > 0 ? `$${stats.spotPrice.toFixed(2)}` : '—', c: c.teal, flash: spotFlash },
       ].map(m => (
         <div key={m.l} className="flex flex-col justify-center items-center px-4 py-2.5 border-r" style={{ borderColor: 'var(--border)', minWidth: 72 }}>
           <span className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>{m.l}</span>
-          <span className="text-[13px] font-black" style={{ color: m.c, fontFamily: 'var(--font-jetbrains-mono)' }}>{m.v}</span>
+          <span className={`text-[13px] font-black ${m.flash ? 'value-flash' : ''}`} style={{ color: m.c, fontFamily: 'var(--font-jetbrains-mono)' }}>{m.v}</span>
         </div>
       ))}
     </div>
@@ -295,7 +301,7 @@ function FlowRow({ item, idx }: { item: FlowItem; idx: number }) {
   return (
     <tr className="border-b transition-colors hover:brightness-125"
       style={{ borderColor: 'var(--border)', background: idx % 2 === 0 ? rowColor : 'transparent' }}>
-      <td className="px-3 py-2 text-[10px] font-mono text-center w-8 shrink-0" style={{ color: 'var(--text-dimmed)' }}>{idx + 1}</td>
+      <td className="px-3 py-2 text-[11px] font-mono text-center w-8 shrink-0" style={{ color: 'var(--text-dimmed)' }}>{idx + 1}</td>
       <td className="px-2 py-2 w-14">
         <span className="text-[10px] font-black px-2 py-0.5 rounded"
           style={isCall ? { background: `${c.bull}18`, color: c.bull, border: `1px solid ${c.bull}28` } : { background: `${c.bear}18`, color: c.bear, border: `1px solid ${c.bear}28` }}>
@@ -306,7 +312,7 @@ function FlowRow({ item, idx }: { item: FlowItem; idx: number }) {
       <td className="px-2 py-2">
         <div className="flex flex-col">
           <span className="font-mono text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{item.expLabel}</span>
-          <span className="text-[9px] font-mono" style={{ color: item.dte <= 3 ? c.bear : item.dte <= 7 ? c.warn : 'var(--text-dimmed)' }}>{item.dte}d</span>
+          <span className="text-[11px] font-mono" style={{ color: item.dte <= 3 ? c.bear : item.dte <= 7 ? c.warn : 'var(--text-dimmed)' }}>{item.dte}d</span>
         </div>
       </td>
       <td className="px-2 py-2">
@@ -322,12 +328,12 @@ function FlowRow({ item, idx }: { item: FlowItem; idx: number }) {
         </span>
       </td>
       <td className="px-2 py-2 font-mono text-[11px]" style={{ color: item.iv > 50 ? c.bear : item.iv > 30 ? c.warn : 'var(--text-secondary)' }}>{item.iv.toFixed(1)}%</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>{item.delta.toFixed(2)}</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>{(item.gamma * 1000).toFixed(1)}</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: 'var(--text-muted)' }}>{item.vega.toFixed(2)}</td>
-      <td className="px-2 py-2 font-mono text-[10px]" style={{ color: item.theta < -0.5 ? `${c.bear}aa` : 'var(--text-muted)' }}>{item.theta.toFixed(2)}</td>
+      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>{item.delta.toFixed(2)}</td>
+      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>{(item.gamma * 1000).toFixed(1)}</td>
+      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>{item.vega.toFixed(2)}</td>
+      <td className="px-2 py-2 font-mono text-[11px]" style={{ color: item.theta < -0.5 ? `${c.bear}aa` : 'var(--text-muted)' }}>{item.theta.toFixed(2)}</td>
       <td className="px-2 py-2">
-        <span className="text-[9px] font-bold px-2 py-0.5 rounded whitespace-nowrap"
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap"
           style={{ background: tag.bg, color: tag.color, border: `1px solid ${tag.color}28` }}>
           {tag.label}
         </span>
@@ -432,18 +438,26 @@ export default function FlowPageContent() {
     { label: '$500K', value: 500_000 },
   ];
 
+  // Unified <Segment> option lists (mutually-exclusive selectors). Same state +
+  // handlers as before — only the markup is the shared control. Min-premium uses
+  // string ids since Segment is keyed on string; we map back to the numeric value.
+  const SYMBOL_OPTIONS  = SYMBOLS.map(s => ({ id: s, label: s }));
+  const TAG_OPTIONS: { id: TagFilter; label: string }[] = [
+    { id: 'all', label: 'All Trades' }, { id: 'whale', label: 'Whale' }, { id: 'unusual', label: 'Unusual' },
+    { id: 'block', label: 'Block' }, { id: 'sweep', label: 'Sweep' },
+  ];
+  const MIN_PREMIUM_SEG = MIN_PREMIUM_OPTIONS.map(o => ({ id: String(o.value), label: o.label }));
+  const VIEW_OPTIONS: { id: ViewTab; label: string }[] = [
+    { id: 'table', label: 'Table' }, { id: 'chart', label: 'Chart' }, { id: 'heatmap', label: 'Heatmap' },
+  ];
+
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--background)' }}>
 
       {/* ── Header ── */}
       <header className="panel-glass flex flex-wrap items-center gap-2 px-4 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
         {/* Symbol */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {SYMBOLS.map(s => (
-            <button key={s} onClick={() => setSymbol(s)} className="px-2.5 py-1 text-[10px] rounded font-bold transition-all"
-              style={symbol === s ? { background: `${c.teal}20`, color: c.teal } : { color: 'var(--text-dimmed)' }}>{s}</button>
-          ))}
-        </div>
+        <Segment options={SYMBOL_OPTIONS} value={symbol} onChange={setSymbol} size="sm" />
 
         <div className="w-px h-5 shrink-0" style={{ background: 'var(--border)' }} />
 
@@ -465,51 +479,29 @@ export default function FlowPageContent() {
         <div className="w-px h-5 shrink-0" style={{ background: 'var(--border)' }} />
 
         {/* Tag filter */}
-        <div className="flex items-center gap-1">
-          {([
-            { v: 'all', l: 'All Trades' }, { v: 'whale', l: 'Whale' }, { v: 'unusual', l: 'Unusual' },
-            { v: 'block', l: 'Block' }, { v: 'sweep', l: 'Sweep' },
-          ] as { v: TagFilter; l: string }[]).map(t => (
-            <button key={t.v} onClick={() => setTagFilter(t.v)} className="px-2.5 py-1 rounded text-[10px] font-bold transition-all"
-              style={tagFilter === t.v ? { background: `${c.teal}18`, color: c.teal, border: `1px solid ${c.teal}28` } : { color: 'var(--text-dimmed)', border: '1px solid transparent' }}>
-              {t.l}
-            </button>
-          ))}
-        </div>
+        <Segment options={TAG_OPTIONS} value={tagFilter} onChange={setTagFilter} size="sm" />
 
         <div className="w-px h-5 shrink-0" style={{ background: 'var(--border)' }} />
 
         {/* Min Premium */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px]" style={{ color: 'var(--text-dimmed)' }}>Min</span>
-          <div className="flex items-center gap-0.5">
-            {MIN_PREMIUM_OPTIONS.map(o => (
-              <button key={o.value} onClick={() => setMinPremium(o.value)} className="px-2 py-0.5 rounded text-[9px] font-mono transition-all"
-                style={minPremium === o.value ? { background: `${c.teal}18`, color: c.teal } : { color: 'var(--text-dimmed)' }}>{o.label}</button>
-            ))}
-          </div>
+          <span className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>Min</span>
+          <Segment options={MIN_PREMIUM_SEG} value={String(minPremium)} onChange={(v) => setMinPremium(Number(v))} size="sm" />
         </div>
 
         <div className="w-px h-5 shrink-0" style={{ background: 'var(--border)' }} />
 
         {/* View tabs */}
-        <div className="flex items-center gap-1">
-          {([
-            { v: 'table', l: 'Table' }, { v: 'chart', l: 'Chart' }, { v: 'heatmap', l: 'Heatmap' },
-          ] as { v: ViewTab; l: string }[]).map(t => (
-            <button key={t.v} onClick={() => setViewTab(t.v)} className="px-2.5 py-1 rounded text-[10px] font-bold transition-all"
-              style={viewTab === t.v ? { background: `${c.teal}18`, color: c.teal } : { color: 'var(--text-dimmed)' }}>{t.l}</button>
-          ))}
-        </div>
+        <Segment options={VIEW_OPTIONS} value={viewTab} onChange={setViewTab} size="sm" />
 
         {/* Right: status + refresh */}
         <div className="ml-auto flex items-center gap-2.5">
           {lastRefresh && (
-            <span className="text-[9px] font-mono hidden md:block" style={{ color: 'var(--text-dimmed)' }}>
+            <span className="text-[11px] font-mono hidden md:block" style={{ color: 'var(--text-dimmed)' }}>
               {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px]"
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px]"
             style={flows.length > 0
               ? { background: `${c.teal}0e`, color: c.teal, border: `1px solid ${c.teal}22` }
               : { background: themeAlpha('--warning', 0.06), color: c.warn, border: `1px solid ${themeAlpha('--warning', 0.16)}` }}>
@@ -517,7 +509,7 @@ export default function FlowPageContent() {
             CBOE · Delayed
           </div>
           <button onClick={fetchFlow} disabled={loading}
-            className="p-1.5 rounded-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
+            className="press-fb p-1.5 rounded-lg transition-all hover:scale-105 disabled:opacity-40"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             <RefreshCw size={13} strokeWidth={1.5} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -548,7 +540,7 @@ export default function FlowPageContent() {
 
       {/* ── Content by tab ── */}
       {flows.length > 0 && viewTab === 'table' && (
-        <div className="flex-1 min-h-0 overflow-auto">
+        <div key={viewTab} className="flex-1 min-h-0 overflow-auto animate-fadeIn">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10" style={{ background: 'var(--background)' }}>
               <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
@@ -572,7 +564,7 @@ export default function FlowPageContent() {
               {sorted.map((item, i) => <FlowRow key={item.id} item={item} idx={i} />)}
             </tbody>
           </table>
-          <div className="flex items-center justify-between px-4 py-2.5 border-t text-[9px]"
+          <div className="flex items-center justify-between px-4 py-2.5 border-t text-[11px]"
             style={{ borderColor: 'var(--border)', color: 'var(--text-dimmed)' }}>
             <span>{sorted.length} contracts displayed · min premium {fmtPremium(minPremium)}</span>
             <span>CBOE delayed data · not financial advice</span>
@@ -581,11 +573,15 @@ export default function FlowPageContent() {
       )}
 
       {flows.length > 0 && viewTab === 'chart' && (
-        <PremiumFlowChart data={premiumByStrike} spotPrice={stats?.spotPrice ?? 0} />
+        <div key={viewTab} className="flex-1 min-h-0 flex flex-col animate-fadeIn">
+          <PremiumFlowChart data={premiumByStrike} spotPrice={stats?.spotPrice ?? 0} />
+        </div>
       )}
 
       {flows.length > 0 && viewTab === 'heatmap' && (
-        <StrikeExpiryHeatmap data={strikeExpiry} />
+        <div key={viewTab} className="flex-1 min-h-0 flex flex-col animate-fadeIn">
+          <StrikeExpiryHeatmap data={strikeExpiry} />
+        </div>
       )}
 
       {/* ── Empty ── */}
@@ -593,7 +589,7 @@ export default function FlowPageContent() {
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <Inbox size={34} strokeWidth={1.25} style={{ color: 'var(--text-dimmed)', opacity: 0.5 }} />
           <p className="text-[12px]" style={{ color: 'var(--text-dimmed)' }}>No flow matching filters for {symbol}</p>
-          <button onClick={fetchFlow} className="px-4 py-2 rounded-lg text-[11px] font-bold"
+          <button onClick={fetchFlow} className="press-fb px-4 py-2 rounded-lg text-[11px] font-bold"
             style={{ background: `${c.teal}18`, color: c.teal, border: `1px solid ${c.teal}30` }}>Retry</button>
         </div>
       )}

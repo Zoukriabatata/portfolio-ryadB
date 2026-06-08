@@ -586,7 +586,7 @@ export default function IVSmileChart({
               </span>
               {spotPrice > 0 && (
                 <span
-                  className="text-[9px] px-1.5 py-0.5 rounded"
+                  className="text-[11px] px-1.5 py-0.5 rounded"
                   style={{
                     background: 'var(--surface-elevated)',
                     color: C.text,
@@ -639,7 +639,7 @@ export default function IVSmileChart({
             )}
             <div className="flex items-center justify-between mt-1">
               <span style={{ color: C.text }}>Moneyness</span>
-              <span className="font-mono text-[10px]" style={{ color: C.textMid }}>
+              <span className="font-mono text-[11px]" style={{ color: C.textMid }}>
                 {hoveredPoint.moneyness.toFixed(3)}
               </span>
             </div>

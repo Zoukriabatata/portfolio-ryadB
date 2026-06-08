@@ -126,10 +126,10 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
                   <td className="px-3 py-2 text-right tabular-nums font-bold" style={{ color: pnlColor }}>
                     {t.pnl >= 0 ? '+' : ''}${Math.abs(t.pnl).toFixed(2)}
                   </td>
-                  <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  <td className="px-3 py-2 text-right text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {formatDuration(t.exitTime - t.entryTime)}
                   </td>
-                  <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  <td className="px-3 py-2 text-right text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {formatRelative(t.exitTime)}
                   </td>
                 </tr>

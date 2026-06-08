@@ -124,7 +124,7 @@ function Stat({
         </span>
       )}
       {sub && (
-        <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-dimmed)' }}>
+        <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-dimmed)' }}>
           {sub}
         </span>
       )}

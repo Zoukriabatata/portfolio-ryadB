@@ -3,6 +3,7 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import type { Trade } from '@/stores/useLiveStore';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 interface LiveTapeProps {
   trades: Trade[];
@@ -50,7 +51,7 @@ function TradeRow({ trade, avgSize, tickSize }: TradeRowProps) {
 
   return (
     <div
-      className="flex items-center px-2 h-[19px] text-[11px] tabular-nums shrink-0 gap-2"
+      className="flex items-center px-2 h-[24px] text-[11px] tabular-nums shrink-0 gap-2"
       style={{
         backgroundColor: bgColor,
         borderLeft: isLarge ? `2px solid ${color}` : '2px solid transparent',
@@ -116,6 +117,7 @@ export function LiveTape({ trades, tickSize = 0.25, autoScroll = true }: LiveTap
   }, [trades]);
 
   const deltaColor = cumulativeDelta >= 0 ? 'var(--bull)' : 'var(--bear)';
+  const deltaFlash = useValueFlash(cumulativeDelta);
 
   return (
     <div className="flex flex-col h-full" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
@@ -127,7 +129,7 @@ export function LiveTape({ trades, tickSize = 0.25, autoScroll = true }: LiveTap
         <span className="font-display">Time &amp; Sales</span>
         <span>
           Δ{' '}
-          <span className="font-bold" style={{ color: deltaColor }}>
+          <span className={`font-bold ${deltaFlash ? 'value-flash' : ''}`} style={{ color: deltaColor }}>
             {cumulativeDelta >= 0 ? '+' : ''}
             {cumulativeDelta.toLocaleString()}
           </span>

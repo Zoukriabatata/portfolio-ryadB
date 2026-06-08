@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { Pause, Play, RotateCcw, Zap, Waves, Clock } from 'lucide-react';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { bybitWS } from '@/lib/websocket/BybitWS';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 interface TradeEntry {
   id: string;
@@ -125,6 +127,11 @@ export default memo(function TimeSales({
     setStats({ buyVol: 0, sellVol: 0, trades: 0 });
   };
 
+  // Buy-side share of delta (headline value — flashes on change). P8 motion.
+  const totalVol = stats.buyVol + stats.sellVol;
+  const buyPct = totalVol > 0 ? Math.round((stats.buyVol / totalVol) * 100) : 50;
+  const deltaFlash = useValueFlash(buyPct);
+
   return (
     <div
       ref={containerRef}
@@ -159,23 +166,17 @@ export default memo(function TimeSales({
         </div>
 
         {/* Filter buttons */}
-        <div className="flex gap-1">
-          {(['all', 'large', 'buys', 'sells'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className="px-1.5 py-0.5 text-[10px] rounded capitalize transition-colors"
-              style={{
-                background: filter === f
-                  ? f === 'buys' ? 'var(--bull)' : f === 'sells' ? 'var(--bear)' : 'var(--primary)'
-                  : 'var(--surface-elevated)',
-                color: filter === f ? 'var(--primary-foreground, #fff)' : 'var(--text-dimmed)',
-              }}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+        <Segment
+          options={[
+            { id: 'all', label: 'All' },
+            { id: 'large', label: 'Large' },
+            { id: 'buys', label: 'Buys' },
+            { id: 'sells', label: 'Sells' },
+          ]}
+          value={filter}
+          onChange={setFilter}
+          size="sm"
+        />
       </div>
 
       {/* Stats bar */}
@@ -216,7 +217,7 @@ export default memo(function TimeSales({
                 animation: idx === 0 ? 'fadeIn 0.2s ease-out' : undefined,
               }}
             >
-              <span className="w-16 text-[10px] tabular-nums" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>
+              <span className="w-16 text-[11px] tabular-nums" style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                 {formatTime(trade.time)}
               </span>
               <span
@@ -241,7 +242,7 @@ export default memo(function TimeSales({
                   <Waves size={9} strokeWidth={1.5} style={{ color: 'var(--accent)' }} />
                 )}
                 <span
-                  className="text-[10px] font-medium"
+                  className="text-[11px] font-medium"
                   style={{ color: textColor }}
                 >
                   {isBuy ? 'BUY' : 'SELL'}
@@ -282,7 +283,7 @@ export default memo(function TimeSales({
           />
         </div>
         <div className="flex justify-between mt-1 text-[9px]">
-          <span style={{ color: 'var(--bull)' }}>
+          <span className={deltaFlash ? 'value-flash' : ''} style={{ color: 'var(--bull)' }}>
             {stats.buyVol + stats.sellVol > 0
               ? ((stats.buyVol / (stats.buyVol + stats.sellVol)) * 100).toFixed(0)
               : 50}%

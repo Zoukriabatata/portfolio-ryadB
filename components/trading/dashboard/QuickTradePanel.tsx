@@ -8,6 +8,7 @@ import { useTradingStore } from '@/stores/useTradingStore';
 import { useMarketStore } from '@/stores/useMarketStore';
 import { useAccountRulesStore } from '@/stores/useAccountRulesStore';
 import { useAccountPrefsStore } from '@/stores/useAccountPrefsStore';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 const POPULAR_SYMBOLS = [
   'BTCUSDT', 'ETHUSDT', 'SOLUSDT',
@@ -64,6 +65,7 @@ export default function QuickTradePanel() {
   const isConnected = activeBroker && connections[activeBroker]?.connected;
   const sym         = (symbolInput || tradingSymbol).trim().toUpperCase();
   const livePrice   = marketPrice && marketPrice > 0 ? marketPrice : 0;
+  const priceFlash  = useValueFlash(livePrice);
 
   const handleTrade = useCallback((side: 'buy' | 'sell') => {
     if (!activeBroker) {
@@ -129,9 +131,9 @@ export default function QuickTradePanel() {
           </button>
         </div>
         {livePrice > 0 && (
-          <span className="text-[11px] tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
-            {livePrice.toFixed(2)}
-            <span className="ml-1.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>last</span>
+          <span className="text-[12px] tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
+            <span className={priceFlash ? 'value-flash' : ''}>{livePrice.toFixed(2)}</span>
+            <span className="ml-1.5 text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>last</span>
           </span>
         )}
       </div>
@@ -155,7 +157,7 @@ export default function QuickTradePanel() {
             <button
               key={s}
               onClick={() => { setSymbolInput(s); setTradingSymbol(s.toLowerCase()); }}
-              className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors"
+              className="press-fb px-2 py-0.5 rounded text-[11px] font-medium transition-colors"
               style={{
                 background: sym === s ? 'rgb(var(--primary-rgb) / 0.10)' : 'var(--surface-elevated)',
                 color:      sym === s ? 'var(--primary)' : 'var(--text-muted)',
@@ -225,7 +227,7 @@ export default function QuickTradePanel() {
             filter: flashSide === 'sell' ? 'brightness(0.8)' : 'none',
             boxShadow: flashSide === 'sell'
               ? '0 0 14px rgb(var(--bear-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
-              : '0 1px 3px rgba(0,0,0,0.2)',
+              : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.2)',
             transform: flashSide === 'sell' ? 'scale(0.97)' : 'scale(1)',
           }}
         >
@@ -247,7 +249,7 @@ export default function QuickTradePanel() {
             filter: flashSide === 'buy' ? 'brightness(0.8)' : 'none',
             boxShadow: flashSide === 'buy'
               ? '0 0 14px rgb(var(--bull-rgb) / 0.7), inset 0 0 6px rgba(0,0,0,0.3)'
-              : '0 1px 3px rgba(0,0,0,0.2)',
+              : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.2)',
             transform: flashSide === 'buy' ? 'scale(0.97)' : 'scale(1)',
           }}
         >

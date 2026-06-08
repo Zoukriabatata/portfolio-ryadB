@@ -11,6 +11,8 @@ import { RefreshIcon } from '@/components/ui/Icons';
 import { ChevronDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLiveSpot } from '@/lib/useLiveSpot';
 import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 const GEXDashboard = dynamic(() => import('@/components/charts/GEXDashboard'), { ssr: false });
 const GEXHeatmap = dynamic(() => import('@/components/charts/GEXHeatmap'), { ssr: false });
@@ -63,15 +65,15 @@ const GREEK_BRAND_COLOR: Record<GreekType, string> = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function MetricRow({ label, value, sub, bull }: {
-  label: string; value: React.ReactNode; sub?: string; bull?: boolean;
+function MetricRow({ label, value, sub, bull, flash }: {
+  label: string; value: React.ReactNode; sub?: string; bull?: boolean; flash?: boolean;
 }) {
   const color = bull === undefined ? 'var(--text-primary)' : bull ? 'var(--bull)' : 'var(--bear)';
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-[var(--border)]/40 last:border-0">
       <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
       <div className="text-right">
-        <span className="text-[12px] font-semibold tabular-nums inline-flex items-center justify-end gap-0.5" style={{ fontFamily: MONO, color }}>{value}</span>
+        <span className={`text-[12px] font-semibold tabular-nums inline-flex items-center justify-end gap-0.5 ${flash ? 'value-flash' : ''}`} style={{ fontFamily: MONO, color }}>{value}</span>
         {sub && <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{sub}</span>}
       </div>
     </div>
@@ -255,6 +257,11 @@ export default function GEXPageContent() {
   const zeroGamma = s?.zeroGammaLevel ?? 0;
   const greekMeta = GREEK_META[selectedGreek];
 
+  // ─── Motion: flash headline live numbers on change (P8) ──────────────────────
+  const netGexFlash = useValueFlash(s?.netGEX ?? 0);
+  const spotFlash = useValueFlash(effectiveSpot);
+  const biasFlash = useValueFlash(bias);
+
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[var(--background)] animate-fadeIn">
 
@@ -329,7 +336,7 @@ export default function GEXPageContent() {
                 <span className="absolute inset-0 rounded-full animate-ping" style={{ backgroundColor: biasColor, opacity: 0.6 }} />
                 <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={{ backgroundColor: biasColor }} />
               </span>
-              <span className="text-[13px] font-bold tabular-nums" style={{ fontFamily: MONO, color: biasColor }}>
+              <span className={`text-[13px] font-bold tabular-nums ${spotFlash ? 'value-flash' : ''}`} style={{ fontFamily: MONO, color: biasColor }}>
                 ${effectiveSpot.toFixed(2)}
               </span>
             </div>
@@ -371,8 +378,8 @@ export default function GEXPageContent() {
               <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-widest mb-2" style={{ fontFamily: MONO }}>· Market Bias</p>
               {bias ? (
                 <>
-                  <p className="font-display text-2xl tracking-tight transition-colors duration-300" style={{ color: biasColor }}>{bias}</p>
-                  <p className="text-[9px] text-[var(--text-muted)] mt-1">
+                  <p className={`font-display text-2xl tracking-tight transition-colors duration-300 ${biasFlash ? 'value-flash' : ''}`} style={{ color: biasColor }}>{bias}</p>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
                     {bias === 'BULLISH' ? '2+ bullish signals' : bias === 'BEARISH' ? '2+ bearish signals' : 'Mixed signals'}
                   </p>
                 </>
@@ -392,6 +399,7 @@ export default function GEXPageContent() {
                   value={`${s.netGEX >= 0 ? '+' : ''}${fmtBig(s.netGEX)}`}
                   sub={s.regime === 'positive' ? 'dealers long' : 'dealers short'}
                   bull={s.netGEX > 0}
+                  flash={netGexFlash}
                 />
                 <MetricRow
                   label="Flow Ratio"
@@ -407,19 +415,19 @@ export default function GEXPageContent() {
 
                 {/* WALLS BAR */}
                 <div className="mt-4 mb-2">
-                  <div className="flex justify-between text-[9px] text-[var(--text-muted)] mb-1">
-                    <span className="text-[var(--bear)] font-bold">${putWall > 0 ? putWall.toFixed(0) : '—'}</span>
-                    <span className="text-[var(--text-secondary)] text-[10px]" style={{ fontFamily: MONO }}>${effectiveSpot > 0 ? effectiveSpot.toFixed(1) : '—'}</span>
-                    <span className="text-[var(--bull)] font-bold">${callWall > 0 ? callWall.toFixed(0) : '—'}</span>
+                  <div className="flex justify-between text-[11px] text-[var(--text-muted)] mb-1.5">
+                    <span className="text-[var(--bear)] font-bold tabular-nums">${putWall > 0 ? putWall.toFixed(0) : '—'}</span>
+                    <span className="text-[var(--text-secondary)] tabular-nums" style={{ fontFamily: MONO }}>${effectiveSpot > 0 ? effectiveSpot.toFixed(1) : '—'}</span>
+                    <span className="text-[var(--bull)] font-bold tabular-nums">${callWall > 0 ? callWall.toFixed(0) : '—'}</span>
                   </div>
                   <div className="relative h-2 rounded-full overflow-hidden bg-[var(--background)]">
                     <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${wallBarPct}%`, background: 'linear-gradient(90deg, var(--bear), var(--warning), var(--bull))' }} />
                     <div className="absolute top-0 bottom-0 w-px bg-white/70" style={{ left: `${wallBarPct}%`, transform: 'translateX(-50%)' }} />
                   </div>
-                  <div className="flex justify-between text-[9px] mt-1 text-[var(--text-muted)]">
-                    <span className="text-[var(--bear)]">{putWall > 0 && spotPrice > 0 ? pct(putWall, spotPrice) : ''}</span>
-                    <span>Put → Spot → Call</span>
-                    <span className="text-[var(--bull)]">{callWall > 0 && spotPrice > 0 ? `+${pct(callWall, spotPrice).replace('-', '')}` : ''}</span>
+                  <div className="flex justify-between text-[11px] mt-1.5 text-[var(--text-muted)]">
+                    <span className="text-[var(--bear)] tabular-nums">{putWall > 0 && spotPrice > 0 ? pct(putWall, spotPrice) : ''}</span>
+                    <span className="text-[10px]">Put → Spot → Call</span>
+                    <span className="text-[var(--bull)] tabular-nums">{callWall > 0 && spotPrice > 0 ? `+${pct(callWall, spotPrice).replace('-', '')}` : ''}</span>
                   </div>
                 </div>
 
@@ -487,25 +495,30 @@ export default function GEXPageContent() {
 
           {/* Chart toolbar */}
           <div className="panel-glass flex items-center justify-between px-4 py-2 border-b border-[var(--border)] shrink-0">
-            <div className="flex items-center gap-1 p-0.5 rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }}>
-              {(['bars', 'cumulative', 'heatmap2D', 'heatmap3D'] as const).map(m => (
-                <button key={m} onClick={() => setViewMode(m)}
-                  className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${viewMode === m ? 'bg-[var(--primary-dark)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}>
-                  {m === 'bars' ? 'Bars' : m === 'cumulative' ? 'Cumulative' : m === 'heatmap2D' ? '2D Heat' : '3D'}
-                </button>
-              ))}
-            </div>
+            <Segment<ViewMode>
+              size="sm"
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                { id: 'bars', label: 'Bars' },
+                { id: 'cumulative', label: 'Cumulative' },
+                { id: 'heatmap2D', label: '2D Heat' },
+                { id: 'heatmap3D', label: '3D' },
+              ]}
+            />
 
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-[var(--text-muted)]">Zoom</span>
-              <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }}>
-                {(['full', 'atm', 'tight'] as const).map(z => (
-                  <button key={z} onClick={() => setZoom(z)}
-                    className={`px-2 py-1 text-[11px] rounded-md transition-colors ${zoom === z ? 'bg-[var(--primary-dark)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}>
-                    {z === 'full' ? 'Full' : z === 'atm' ? 'ATM' : 'Tight'}
-                  </button>
-                ))}
-              </div>
+              <Segment<'full' | 'atm' | 'tight'>
+                size="sm"
+                value={zoom}
+                onChange={setZoom}
+                options={[
+                  { id: 'full', label: 'Full' },
+                  { id: 'atm', label: 'ATM' },
+                  { id: 'tight', label: 'Tight' },
+                ]}
+              />
 
               <span className="text-[10px] text-[var(--text-muted)]" style={{ fontFamily: MONO }}>
                 <span style={{ color: GREEK_BRAND_COLOR[selectedGreek] }}>{greekMeta.symbol}</span> {greekMeta.label}
@@ -523,12 +536,16 @@ export default function GEXPageContent() {
               />
             ) : adaptedLegacyData.length === 0 ? (
               <EmptyState icon="chart" title="No data" description="Select an expiration" />
-            ) : viewMode === 'bars' ? (
-              <GEXDashboard symbol={`${symbol} ${greekMeta.label}`} spotPrice={effectiveSpot} gexData={zoomedData} summary={adaptedLegacySummary} height="auto" />
-            ) : viewMode === 'cumulative' ? (
-              <CumulativeGEXChart data={multiGreekData} spotPrice={effectiveSpot} symbol={symbol} selectedGreek={selectedGreek} zeroGammaLevel={s?.zeroGammaLevel || effectiveSpot} callWall={s?.callWall || effectiveSpot} putWall={s?.putWall || effectiveSpot} height="auto" />
             ) : (
-              <GEXHeatmap gexData={zoomedData} spotPrice={effectiveSpot} symbol={`${symbol} ${greekMeta.label}`} mode={viewMode === 'heatmap2D' ? '2D' : '3D'} dataType="netGEX" height={500} />
+              <div key={viewMode} className="w-full h-full animate-fadeIn">
+                {viewMode === 'bars' ? (
+                  <GEXDashboard symbol={`${symbol} ${greekMeta.label}`} spotPrice={effectiveSpot} gexData={zoomedData} summary={adaptedLegacySummary} height="auto" />
+                ) : viewMode === 'cumulative' ? (
+                  <CumulativeGEXChart data={multiGreekData} spotPrice={effectiveSpot} symbol={symbol} selectedGreek={selectedGreek} zeroGammaLevel={s?.zeroGammaLevel || effectiveSpot} callWall={s?.callWall || effectiveSpot} putWall={s?.putWall || effectiveSpot} height="auto" />
+                ) : (
+                  <GEXHeatmap gexData={zoomedData} spotPrice={effectiveSpot} symbol={`${symbol} ${greekMeta.label}`} mode={viewMode === 'heatmap2D' ? '2D' : '3D'} dataType="netGEX" height={500} />
+                )}
+              </div>
             )}
           </div>
 

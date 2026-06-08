@@ -226,12 +226,12 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
       <button
         onClick={() => handleQuickOrder('sell')}
         disabled={isPlacingOrder !== null}
-        className="relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+        className="press-fb relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
         style={{
           background: 'linear-gradient(135deg, var(--bear) 0%, rgb(var(--bear-rgb) / 0.8) 100%)',
           boxShadow: isPlacingOrder === 'sell'
-            ? '0 0 20px rgb(var(--bear-rgb) / 0.5)'
-            : '0 4px 12px rgb(var(--bear-rgb) / 0.3)',
+            ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 0 20px rgb(var(--bear-rgb) / 0.5)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 12px rgb(var(--bear-rgb) / 0.3)',
         }}
       >
         <div className="flex flex-col items-center">
@@ -247,7 +247,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
 
       {/* Contract Quantity */}
       <div className="flex flex-col items-center gap-1 px-3">
-        <span className="text-[9px] uppercase" style={{ color: 'var(--text-dimmed)' }}>Contracts</span>
+        <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-dimmed)' }}>Contracts</span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setContractQuantity(contractQuantity - 1)}
@@ -277,7 +277,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             <button
               key={qty}
               onClick={() => setContractQuantity(qty)}
-              className="px-1.5 py-0.5 rounded text-[9px] transition-colors"
+              className="press-fb px-2 py-0.5 rounded text-[11px] transition-colors"
               style={{
                 backgroundColor: contractQuantity === qty ? 'var(--primary-glow)' : 'var(--surface-elevated)',
                 color: contractQuantity === qty ? 'var(--primary)' : 'var(--text-dimmed)',
@@ -293,12 +293,12 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
       <button
         onClick={() => handleQuickOrder('buy')}
         disabled={isPlacingOrder !== null}
-        className="relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+        className="press-fb relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
         style={{
           background: 'linear-gradient(135deg, var(--bull) 0%, rgb(var(--bull-rgb) / 0.8) 100%)',
           boxShadow: isPlacingOrder === 'buy'
-            ? '0 0 20px rgb(var(--bull-rgb) / 0.5)'
-            : '0 4px 12px rgb(var(--bull-rgb) / 0.3)',
+            ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 0 20px rgb(var(--bull-rgb) / 0.5)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 12px rgb(var(--bull-rgb) / 0.3)',
         }}
       >
         <div className="flex flex-col items-center">

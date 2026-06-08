@@ -273,7 +273,7 @@ export default function FloatingChat() {
               <button
                 onClick={() => loading ? abortRef.current?.abort() : send(input)}
                 disabled={!loading && !input.trim()}
-                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-150 disabled:opacity-30"
+                className="press-fb w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-150 disabled:opacity-30"
                 style={{
                   background: loading ? 'rgb(var(--bear-rgb) / 0.14)' : 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
                   color: loading ? 'var(--bear)' : 'var(--background)',

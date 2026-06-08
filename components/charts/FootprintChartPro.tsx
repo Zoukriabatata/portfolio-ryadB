@@ -105,6 +105,7 @@ import VerticalToolbar from '@/components/tools/VerticalToolbar';
 import FootprintReplayControls, { type ReplayState } from '@/components/charts/FootprintReplayControls';
 import { AlertCircle, X, Circle, Loader2, ChevronDown } from 'lucide-react';
 import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
+import Segment from '@/components/ui/Segment';
 
 /**
  * FOOTPRINT CHART PRO - Institutional Style
@@ -424,7 +425,7 @@ function FootprintMagnetToggle({ colors }: { colors: { currentPriceColor: string
                 }}
               >
                 <span className="font-medium">{mode.label}</span>
-                <span className="text-[10px]" style={{ color: magnetMode === mode.value ? '#fff' : colors.textMuted }}>
+                <span className="text-[11px]" style={{ color: magnetMode === mode.value ? '#fff' : colors.textMuted }}>
                   {mode.desc}
                 </span>
               </button>
@@ -2976,7 +2977,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           <div className="relative">
             <button
               onClick={() => setShowSymbolSelector(!showSymbolSelector)}
-              className="flex items-center gap-2 text-sm font-bold rounded px-2.5 py-1 border focus:outline-none hover:brightness-110 transition-all"
+              className="press-fb flex items-center gap-2 text-sm font-bold rounded px-2.5 py-1 border focus:outline-none hover:brightness-110 transition-all"
               style={{ backgroundColor: settings.colors.background, borderColor: settings.colors.gridColor, color: settings.colors.textPrimary }}
             >
               <span>{selectedSymbolLabel}</span>
@@ -2990,27 +2991,24 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                 style={{ backgroundColor: settings.colors.surface, border: `1px solid ${settings.colors.gridColor}` }}
               >
                 {/* Asset Category Tabs */}
-                <div className="flex items-center gap-0.5 p-1.5 border-b overflow-x-auto" style={{ borderColor: settings.colors.gridColor }}>
-                  {FOOTPRINT_ASSET_CATEGORIES.map((cat) => {
-                    const IconComponent = cat.Icon;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setAssetCategory(cat.id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ease-out ${assetCategory === cat.id ? 'scale-105 shadow-lg' : 'hover:scale-102 active:scale-95'}`}
-                        style={{
-                          backgroundColor: assetCategory === cat.id ? settings.colors.currentPriceColor : 'transparent',
-                          color: assetCategory === cat.id ? '#fff' : settings.colors.textSecondary,
-                          boxShadow: assetCategory === cat.id ? `0 0 10px ${settings.colors.currentPriceColor}40` : 'none',
-                        }}
-                      >
-                        <span className={`transition-transform duration-200 ${assetCategory === cat.id ? 'scale-110' : ''}`}>
-                          <IconComponent size={16} color={assetCategory === cat.id ? '#fff' : undefined} />
-                        </span>
-                        <span className="font-medium">{cat.label}</span>
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center p-1.5 border-b overflow-x-auto" style={{ borderColor: settings.colors.gridColor }}>
+                  <Segment
+                    options={FOOTPRINT_ASSET_CATEGORIES.map((cat) => {
+                      const IconComponent = cat.Icon;
+                      return {
+                        id: cat.id,
+                        label: (
+                          <span className="flex items-center gap-1.5">
+                            <IconComponent size={16} color={assetCategory === cat.id ? undefined : settings.colors.textSecondary} />
+                            {cat.label}
+                          </span>
+                        ),
+                      };
+                    })}
+                    value={assetCategory}
+                    onChange={setAssetCategory}
+                    size="sm"
+                  />
                 </div>
 
                 {/* Search Input */}
@@ -3037,7 +3035,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                 )}
 
                 {/* Categories */}
-                <div className="overflow-y-auto max-h-64">
+                <div key={assetCategory} className="overflow-y-auto max-h-64 animate-fadeIn">
                   {Object.keys(filteredSymbols).length === 0 && symbolSearchQuery.trim() && (
                     <div className="flex flex-col items-center justify-center py-8 gap-2">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={settings.colors.textMuted} strokeWidth="1.5" opacity="0.4">
@@ -3066,7 +3064,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                             }}
                           >
                             <span>{s.label}</span>
-                            {s.exchange && <span className="text-[10px]" style={{ color: settings.colors.textMuted }}>{s.exchange}</span>}
+                            {s.exchange && <span className="text-[11px]" style={{ color: settings.colors.textMuted }}>{s.exchange}</span>}
                           </button>
                         ))}
                       </div>
@@ -3215,7 +3213,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                 ? 'Using REAL Binance orderbook - Click to switch to simulation'
                 : 'Using SIMULATION - Click to switch to real orderbook'}
             >
-              <span className="text-[10px]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
+              <span className="text-[11px]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
                 {settings.passiveLiquidity.useRealOrderbook ? 'LIVE' : 'SIM'}
               </span>
               <span
@@ -3241,7 +3239,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <polygon points="5,3 19,12 5,21" fill={replayActive ? 'currentColor' : 'none'} />
             </svg>
-            <span className="text-[10px] font-semibold">REPLAY</span>
+            <span className="text-[11px] font-semibold">REPLAY</span>
           </button>
 
           {/* Settings */}
@@ -3373,7 +3371,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                     if (candles.length > 0) candlesRef.current = candles;
                   });
                 }}
-                className="px-2 py-0.5 text-[10px] font-medium rounded transition-colors"
+                className="press-fb px-2.5 py-1 text-[11px] font-medium rounded transition-colors"
                 style={{ color: 'var(--bear)', border: '1px solid rgb(var(--bear-rgb) / 0.4)' }}
               >
                 Retry
@@ -3686,7 +3684,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
             <button
               onClick={settings.resetToDefaults}
-              className="w-full py-2 rounded text-xs"
+              className="press-fb w-full py-2 rounded text-xs"
               style={{ backgroundColor: settings.colors.deltaNegative, color: '#fff' }}
             >
               Reset to Defaults
@@ -3707,7 +3705,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         <span className="flex items-center gap-3">
           {/* Zoom level indicator */}
           {layoutEngineRef.current && (
-            <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{
+            <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{
               backgroundColor: settings.colors.gridColor,
               color: settings.colors.textPrimary
             }}>

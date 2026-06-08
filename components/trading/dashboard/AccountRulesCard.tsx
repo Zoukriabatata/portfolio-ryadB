@@ -93,7 +93,7 @@ export default function AccountRulesCard({ onConfigure }: AccountRulesCardProps)
         </p>
         <button
           onClick={onConfigure}
-          className="self-start px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors hover:brightness-110"
+          className="press-fb self-start px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors hover:brightness-110"
           style={{ background: 'var(--primary)', color: 'var(--text-primary)' }}
         >
           Enable Rules

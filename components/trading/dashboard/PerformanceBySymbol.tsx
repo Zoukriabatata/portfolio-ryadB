@@ -85,7 +85,7 @@ export default function PerformanceBySymbol({ range }: Props) {
                     }}
                   />
                   <div className="absolute inset-0 flex items-center px-2">
-                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                    <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                       {s.trades}t · {s.winRate.toFixed(0)}%
                     </span>
                   </div>

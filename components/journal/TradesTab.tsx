@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 import { throttledFetch } from '@/lib/api/throttledFetch';
 import { useJournal } from '@/hooks/useJournal';
 import { useJournalStore } from '@/stores/useJournalStore';
@@ -75,6 +76,8 @@ export default function TradesTab() {
     return `${sign}$${pnl.toFixed(2)}`;
   };
 
+  const pnlFlash = useValueFlash(stats.totalPnl);
+
   return (
     <div className="p-6 space-y-4">
       {/* Stats Bar */}
@@ -82,7 +85,7 @@ export default function TradesTab() {
         <div className="flex items-center gap-2">
           <span className="text-xs text-[var(--text-muted)]">Total P&L</span>
           <span
-            className="text-sm font-bold font-[var(--font-jetbrains-mono)]"
+            className={`text-sm font-bold font-[var(--font-jetbrains-mono)] ${pnlFlash ? 'value-flash' : ''}`}
             style={{ color: stats.totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}
           >
             {formatPnl(stats.totalPnl)}
@@ -116,13 +119,13 @@ export default function TradesTab() {
         {/* Export */}
         <button
           onClick={handleExport}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-light)] hover:border-[var(--border)] transition-colors"
+          className="press-fb px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-light)] hover:border-[var(--border)] transition-colors"
         >
           Export CSV
         </button>
         <button
           onClick={handleExportPdf}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-light)] hover:border-[var(--border)] transition-colors"
+          className="press-fb px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-light)] hover:border-[var(--border)] transition-colors"
         >
           Export PDF
         </button>
@@ -130,7 +133,7 @@ export default function TradesTab() {
         {/* New Trade */}
         <button
           onClick={() => { setEditTrade(null); setShowForm(true); }}
-          className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
+          className="press-fb px-4 py-1.5 rounded-lg text-xs font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
           style={{ background: 'var(--primary)', color: 'var(--background)' }}
         >
           + New Trade

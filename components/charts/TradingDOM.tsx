@@ -223,7 +223,7 @@ export default memo(function TradingDOM({
     ctx.fillText(`$${midPrice.toFixed(2)}`, width / 2, midY + 5);
 
     // Spread label
-    ctx.font = '9px system-ui';
+    ctx.font = '11px system-ui';
     ctx.fillStyle = c.text;
     ctx.fillText(`Spread: $${spread.toFixed(2)}`, width / 2, midY - 8);
 
@@ -424,7 +424,7 @@ export default memo(function TradingDOM({
         <div className="px-3 py-2">
           {/* Imbalance indicator */}
           <div className="mb-2">
-            <div className="flex justify-between text-[9px] mb-1" style={{ color: 'var(--text-muted)' }}>
+            <div className="flex justify-between text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>
               <span>Sell Pressure</span>
               <span>{(bidAskImbalance * 100).toFixed(0)}%</span>
               <span>Buy Pressure</span>
@@ -446,7 +446,11 @@ export default memo(function TradingDOM({
             <button
               onClick={handleSell}
               className="flex-1 py-2.5 rounded font-bold text-sm transition-all hover:brightness-110 active:scale-[0.98]"
-              style={{ background: 'linear-gradient(135deg, var(--bear), color-mix(in srgb, var(--bear) 78%, #000))', color: '#fff' }}
+              style={{
+                background: 'linear-gradient(135deg, var(--bear), color-mix(in srgb, var(--bear) 78%, #000))',
+                color: '#fff',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.2)',
+              }}
             >
               SELL
               <span className="block text-[10px] font-normal opacity-80">
@@ -456,7 +460,11 @@ export default memo(function TradingDOM({
             <button
               onClick={handleBuy}
               className="flex-1 py-2.5 rounded font-bold text-sm transition-all hover:brightness-110 active:scale-[0.98]"
-              style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--bull) 78%, #000), var(--bull))', color: '#fff' }}
+              style={{
+                background: 'linear-gradient(135deg, color-mix(in srgb, var(--bull) 78%, #000), var(--bull))',
+                color: '#fff',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.2)',
+              }}
             >
               BUY
               <span className="block text-[10px] font-normal opacity-80">
@@ -467,13 +475,13 @@ export default memo(function TradingDOM({
 
           {/* Quick actions */}
           <div className="flex gap-1 mt-2">
-            <button className="flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+            <button className="press-fb flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
               Flatten
             </button>
-            <button className="flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+            <button className="press-fb flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
               Cancel All
             </button>
-            <button className="flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+            <button className="press-fb flex-1 py-1 text-[10px] rounded transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
               Reverse
             </button>
           </div>

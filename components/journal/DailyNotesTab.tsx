@@ -44,7 +44,7 @@ export default function DailyNotesTab() {
         />
         <button
           onClick={handleNewNote}
-          className="px-4 py-2 rounded-lg text-xs font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
+          className="press-fb px-4 py-2 rounded-lg text-xs font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
           style={{ background: 'var(--primary)', color: 'var(--background)' }}
         >
           + New Note

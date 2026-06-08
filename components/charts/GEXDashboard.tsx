@@ -555,7 +555,7 @@ export default function GEXDashboard({
         >
           <div className="px-3.5 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
             <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Strike ${hoveredStrike}</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold"
+            <span className="text-[11px] px-1.5 py-0.5 rounded-md font-bold tabular-nums"
               style={{ fontFamily: MONO, color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)', backgroundColor: level.netGEX >= 0 ? 'rgb(var(--bull-rgb) / 0.1)' : 'rgb(var(--bear-rgb) / 0.1)' }}>
               {level.netGEX >= 0 ? '+' : ''}{formatGEX(level.netGEX)}
             </span>

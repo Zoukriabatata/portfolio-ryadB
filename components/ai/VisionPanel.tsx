@@ -434,7 +434,7 @@ export default function VisionPanel() {
             </button>
           ) : (
             <button onClick={send} disabled={!canSend}
-              className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+              className="press-fb flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
                          transition-all disabled:opacity-30"
               style={{
                 background: canSend ? 'var(--primary)' : 'var(--surface)',
