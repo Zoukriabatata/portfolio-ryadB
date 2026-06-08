@@ -180,6 +180,10 @@ export const FootprintCanvas = forwardRef<
   const renderCountRef = useRef(0);
   const interactionRef = useRef<InteractionState>({ ...DEFAULT_INTERACTION });
   const barsCountRef = useRef<number>(0);
+  // Vertical auto-centering (last-price mode). True while we are actively
+  // animating toward the centered position (between the 20% trigger and the
+  // 2% hysteresis stop).
+  const vertCenteringActiveRef = useRef(false);
 
   // Trade-drawing state. We subscribe field-by-field so an unrelated
   // store update doesn't force a re-render of the whole canvas tree.
@@ -592,6 +596,42 @@ export const FootprintCanvas = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rendererBars, priceDecimals]);
 
+  // Vertical auto-centering (last-price mode). Runs before each render;
+  // returns true when the animation is still in progress so the caller
+  // can schedule the next frame.
+  function applyVerticalCentering(): boolean {
+    const interaction = interactionRef.current;
+    if (
+      interaction.isDragging ||
+      interaction.userOverrodeY ||
+      interaction.verticalMode !== "last-price"
+    ) {
+      vertCenteringActiveRef.current = false;
+      return false;
+    }
+    const metrics = rendererRef.current?.getLastMetrics();
+    const lastPrice = rendererRef.current?.getLastClose() ?? null;
+    if (!lastPrice || !metrics) return false;
+    const priceRange = metrics.visiblePriceMax - metrics.visiblePriceMin;
+    if (priceRange <= 0) return false;
+    const centerPrice = (metrics.visiblePriceMin + metrics.visiblePriceMax) / 2;
+    const drift = Math.abs(lastPrice - centerPrice) / priceRange;
+    // Hysteresis: trigger at >20 % drift, stop below 2 %.
+    if (!vertCenteringActiveRef.current && drift > 0.20) vertCenteringActiveRef.current = true;
+    if (vertCenteringActiveRef.current && drift < 0.02) vertCenteringActiveRef.current = false;
+    if (!vertCenteringActiveRef.current) return false;
+    const pxPerPrice = metrics.footprintAreaHeight / priceRange;
+    const adjustment = (lastPrice - centerPrice) * pxPerPrice;
+    const step = adjustment * 0.12;
+    if (Math.abs(step) < 0.3) {
+      interactionRef.current = { ...interaction, scrollY: interaction.scrollY + adjustment };
+      vertCenteringActiveRef.current = false;
+      return false;
+    }
+    interactionRef.current = { ...interaction, scrollY: interaction.scrollY + step };
+    return true;
+  }
+
   function tickRender() {
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame((t) => {
@@ -618,13 +658,17 @@ export const FootprintCanvas = forwardRef<
           if (!isAppActive()) return;
           lastRenderTimeRef.current = t2;
           renderCountRef.current += 1;
+          const stillAnimating = applyVerticalCentering();
           rendererRef.current?.render();
+          if (stillAnimating) tickRender();
         });
         return;
       }
       lastRenderTimeRef.current = t;
       renderCountRef.current += 1;
+      const stillAnimating = applyVerticalCentering();
       rendererRef.current?.render();
+      if (stillAnimating) tickRender();
     });
   }
 
@@ -2053,6 +2097,7 @@ export const FootprintCanvas = forwardRef<
                 DEFAULT_INTERACTION.cellWidth,
                 DEFAULT_INTERACTION.rowHeight,
               );
+              vertCenteringActiveRef.current = false;
               tickRender();
             }}
           />

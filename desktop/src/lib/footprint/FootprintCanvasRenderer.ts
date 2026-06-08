@@ -77,6 +77,7 @@ export interface FootprintRendererSettings {
   showStackedImbalances: boolean;
   showNakedPOCs: boolean;
   showUnfinishedAuctions: boolean;
+  showAbsorption: boolean;
   // Indicator overlays driven by the IndicatorsButton dropdown.
   showVwapIndicator: boolean;
   showClusterStat: boolean;
@@ -98,6 +99,20 @@ export interface FootprintRendererSettings {
   crosshairOpacity: number;
   crosshairStyle: "solid" | "dashed" | "dotted";
   crosshairWidth: number;
+  // Delta profile panel (vertical histogram of net delta per price level).
+  showDeltaProfile: boolean;
+  // CVD oscillator panel below the footprint.
+  showCvd: boolean;
+  cvdMode: "line" | "candles";
+  cvdPanelHeight: number;
+  // Per-cell imbalance coloring settings.
+  imbalanceCellRate: number;         // ratio expressed as % (200 = 2.0×)
+  imbalanceCellVolumeFilter: number; // minimum total volume per level
+  imbalanceCellMinDiff: number;      // minimum absolute difference bid vs ask
+  imbalanceCellIgnoreZero: boolean;  // skip levels where one side is 0
+  // DOM panel (bid/ask volume bars, left side).
+  showDom: boolean;
+  domProportion: number;             // max bar fills this % of panel half-width
 }
 
 export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
@@ -118,6 +133,7 @@ export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
   showStackedImbalances: false,
   showNakedPOCs: false,
   showUnfinishedAuctions: false,
+  showAbsorption: false,
   showVwapIndicator: false,
   showClusterStat: false,
   showBarDelta: false,
@@ -135,6 +151,16 @@ export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
   crosshairOpacity: 0.45,
   crosshairStyle: "dashed",
   crosshairWidth: 1,
+  showDeltaProfile: false,
+  showCvd: false,
+  cvdMode: "candles",
+  cvdPanelHeight: 80,
+  imbalanceCellRate: 200,
+  imbalanceCellVolumeFilter: 20,
+  imbalanceCellMinDiff: 10,
+  imbalanceCellIgnoreZero: false,
+  showDom: false,
+  domProportion: 100,
 };
 
 export interface RendererOptions {

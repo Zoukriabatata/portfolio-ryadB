@@ -25,7 +25,7 @@ import {
   type RendererBar,
   type RendererPriceLevel,
 } from "./types";
-import { rendererBarsToFootprintCandles } from "./proAdapter";
+import { rendererBarsToFootprintCandles, type ImbalanceConfig } from "./proAdapter";
 import type { FootprintTheme } from "./theme";
 import { SENZOUKRIA_DARK } from "./theme";
 import {
@@ -517,6 +517,9 @@ function settingsToFeatures(
     showStackedImbalances: s.showStackedImbalances,
     showNakedPOC: s.showNakedPOCs,
     showUnfinishedAuctions: s.showUnfinishedAuctions,
+    showAbsorptionEvents: s.showAbsorption,
+    showDeltaProfile: s.showDeltaProfile,
+    showCVDPanel: s.showCvd,
   };
 }
 
@@ -528,9 +531,19 @@ interface ProIndicators {
   stackedImbalances: import("./rendererTypes").StackedImbalance[];
   nakedPOCs: import("./rendererTypes").NakedPOC[];
   unfinishedAuctions: import("./rendererTypes").UnfinishedAuction[];
+  /** Shape expected by FootprintCanvasRenderer.renderAbsorptionEvents. */
+  absorptionEvents: Array<{ price: number; volume: number; side: "bid" | "ask"; timestamp: number }>;
 }
 
 function indicatorsToProShape(r: IndicatorsResult): ProIndicators {
+  // renderAbsorptionEvents fades by wall-clock (30s) and pins to the
+  // right edge — it's a "current absorption" ping list, not a per-bar
+  // marker. So we surface only the newest bar's events and stamp them
+  // "now" so they render. Historical bar-anchored markers = follow-up.
+  let maxBarTs = 0;
+  for (const a of r.absorptionEvents) if (a.barTsNs > maxBarTs) maxBarTs = a.barTsNs;
+  const now = Date.now();
+
   return {
     stackedImbalances: r.stackedImbalances.map((x) => ({
       startPrice: x.startPrice,
@@ -552,6 +565,9 @@ function indicatorsToProShape(r: IndicatorsResult): ProIndicators {
       volume: x.volume,
       tested: x.tested,
     })),
+    absorptionEvents: r.absorptionEvents
+      .filter((x) => x.barTsNs === maxBarTs)
+      .map((x) => ({ price: x.price, volume: x.volume, side: x.side, timestamp: now })),
   };
 }
 
@@ -773,7 +789,7 @@ export class FootprintCanvasRenderer {
     const newLastTime = sorted[newLen - 1]?.timeMs ?? 0;
     const shapeChanged = prevLen !== newLen || prevLastTime !== newLastTime;
     this.bars = sorted;
-    this.candles = rendererBarsToFootprintCandles(sorted);
+    this.candles = rendererBarsToFootprintCandles(sorted, this.getImbalanceConfig());
     this.detectedTickSize = detectTickSize(sorted);
     if (shapeChanged) {
       this.pro.invalidateData();
@@ -785,7 +801,7 @@ export class FootprintCanvasRenderer {
   }
 
   setSettings(s: FootprintRendererSettings): void {
-    const prevShowCluster = this.settings.showClusterStat;
+    const prev = this.settings;
     this.settings = s;
     this.features = settingsToFeatures(this.features, s);
     // Apply user-pickable colours. Bid/Ask text colours mirror the
@@ -818,15 +834,37 @@ export class FootprintCanvasRenderer {
       clusterDeltaNegative: s.candleBodyDown,
     };
     this.pro.markAllDirty();
-    // Cluster stat panel sits between the chart and the time axis.
-    // When it's toggled on, increase the layout footer so the
-    // footprint area shrinks to make room — otherwise the panel
-    // would draw on top of the bottom bars.
-    if (prevShowCluster !== s.showClusterStat) {
-      const footer =
-        this.layoutCfg.timeAxisHeight +
-        (s.showClusterStat ? this.clusterStatPanelHeight() : 0);
-      this.layoutEngine.setConfig({ footerHeight: footer });
+
+    // Reconvert candles when per-cell imbalance params change.
+    const imbalanceChanged =
+      prev.imbalanceCellRate !== s.imbalanceCellRate ||
+      prev.imbalanceCellVolumeFilter !== s.imbalanceCellVolumeFilter ||
+      prev.imbalanceCellMinDiff !== s.imbalanceCellMinDiff ||
+      prev.imbalanceCellIgnoreZero !== s.imbalanceCellIgnoreZero;
+    if (imbalanceChanged && this.bars.length > 0) {
+      this.candles = rendererBarsToFootprintCandles(this.bars, this.getImbalanceConfig());
+      this.pro.invalidateData();
+    }
+
+    // Cluster stat / CVD panel — share the footer height budget.
+    if (
+      prev.showClusterStat !== s.showClusterStat ||
+      prev.showCvd !== s.showCvd ||
+      prev.cvdPanelHeight !== s.cvdPanelHeight
+    ) {
+      this.updateFooterHeight(s);
+      this.pro.invalidateData();
+    }
+
+    // Delta profile — requires layout recalc (panel slot allocation).
+    if (prev.showDeltaProfile !== s.showDeltaProfile) {
+      this.layoutEngine.setConfig({ showDeltaProfile: s.showDeltaProfile });
+      this.pro.invalidateData();
+    }
+
+    // DOM panel — occupies left padding.
+    if (prev.showDom !== s.showDom) {
+      this.updateLeftPadding(s);
       this.pro.invalidateData();
     }
   }
@@ -925,6 +963,101 @@ export class FootprintCanvasRenderer {
     return Math.max(0, rows * cfg.rowHeight);
   }
 
+  private getImbalanceConfig(): ImbalanceConfig {
+    return {
+      ratePct: this.settings.imbalanceCellRate,
+      volumeFilter: this.settings.imbalanceCellVolumeFilter,
+      minDiff: this.settings.imbalanceCellMinDiff,
+      ignoreZero: this.settings.imbalanceCellIgnoreZero,
+    };
+  }
+
+  private updateFooterHeight(s: FootprintRendererSettings): void {
+    const clusterH = s.showClusterStat ? this.clusterStatPanelHeight() : 0;
+    const cvdH = s.showCvd ? s.cvdPanelHeight : 0;
+    const footer = this.layoutCfg.timeAxisHeight + clusterH + cvdH;
+    this.layoutEngine.setConfig({ footerHeight: footer });
+  }
+
+  private static readonly DOM_PANEL_W = 80;
+
+  private updateLeftPadding(s: FootprintRendererSettings): void {
+    const leftPad =
+      this.layoutCfg.paddingLeft +
+      (s.showDom ? FootprintCanvasRenderer.DOM_PANEL_W : 0);
+    this.layoutEngine.setConfig({ leftPadding: leftPad });
+  }
+
+  private renderDomPanel(
+    ctx: CanvasRenderingContext2D,
+    metrics: import("../orderflow/FootprintLayoutEngine").LayoutMetrics,
+    rowH: number,
+  ): void {
+    const lastCandle = this.candles[this.candles.length - 1];
+    if (!lastCandle || lastCandle.levels.size === 0) return;
+
+    const DOM_W = FootprintCanvasRenderer.DOM_PANEL_W;
+    const centerX = DOM_W / 2;
+    const { footprintAreaY, footprintAreaHeight } = metrics;
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(0, footprintAreaY, DOM_W, footprintAreaHeight);
+
+    // Right border
+    ctx.strokeStyle = this.colors.gridColor;
+    ctx.globalAlpha = 0.4;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(DOM_W, footprintAreaY);
+    ctx.lineTo(DOM_W, footprintAreaY + footprintAreaHeight);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Center divider
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(centerX, footprintAreaY);
+    ctx.lineTo(centerX, footprintAreaY + footprintAreaHeight);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Scale: max volume seen across levels
+    let maxVol = 1;
+    lastCandle.levels.forEach(lvl => {
+      if (lvl.bidVolume > maxVol) maxVol = lvl.bidVolume;
+      if (lvl.askVolume > maxVol) maxVol = lvl.askVolume;
+    });
+    const maxBarW = (centerX - 2) * (this.settings.domProportion / 100);
+    const barH = Math.max(2, Math.min(rowH - 1, rowH * 0.65));
+
+    lastCandle.levels.forEach(lvl => {
+      const y = this.layoutEngine.priceToY(lvl.price, metrics);
+      if (y < footprintAreaY || y > footprintAreaY + footprintAreaHeight) return;
+
+      // Bid (aggressive sell) — red, extends LEFT from center
+      const bidW = (lvl.bidVolume / maxVol) * maxBarW;
+      if (bidW > 0.5) {
+        ctx.fillStyle = 'rgba(239,68,68,0.55)';
+        ctx.fillRect(centerX - bidW, y - barH / 2, bidW, barH);
+      }
+      // Ask (aggressive buy) — lime, extends RIGHT from center
+      const askW = (lvl.askVolume / maxVol) * maxBarW;
+      if (askW > 0.5) {
+        ctx.fillStyle = 'rgba(126,211,33,0.55)';
+        ctx.fillRect(centerX, y - barH / 2, askW, barH);
+      }
+    });
+
+    // Label — "DOM" at top-left
+    ctx.font = 'bold 7px "Consolas",monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.textAlign = 'center';
+    ctx.fillText('DOM', centerX, footprintAreaY + 10);
+  }
+
   setIndicators(r: IndicatorsResult): void {
     this.indicators = r;
   }
@@ -963,6 +1096,15 @@ export class FootprintCanvasRenderer {
    *  ongoing zoom/pan animations. */
   getLastMetrics(): import("../orderflow/FootprintLayoutEngine").LayoutMetrics | null {
     return this.lastMetrics;
+  }
+
+  /** Close price of the most recent (rightmost) candle, or null when
+   *  no bars have been loaded yet. Used by the vertical auto-centering
+   *  loop in FootprintCanvas to track where the live price is. */
+  getLastClose(): number | null {
+    return this.candles.length > 0
+      ? this.candles[this.candles.length - 1].close
+      : null;
   }
 
   /** Direct access to the layout engine so React handlers can call
@@ -1158,6 +1300,11 @@ export class FootprintCanvasRenderer {
       ? null
       : this.pro.getProfileCaches(this.candles, metrics);
 
+    // DOM panel — left-fixed, shows current bar bid/ask per level.
+    if (!isInteracting && this.settings.showDom) {
+      this.renderDomPanel(ctx, metrics, rowH);
+    }
+
     // Volume profile overlay — Senzoukria custom palette:
     //   POC = violet, VAH = white, VAL = green, VA bars = green,
     //   outside-VA bars = white (semi-transparent). Green = #7ed321
@@ -1174,6 +1321,18 @@ export class FootprintCanvasRenderer {
         '#7ed321',                                        // VAL green
         this.features.volumeProfileColor || '#7ed321',    // VA bars green
         this.features.volumeProfileOutsideColor || 'rgba(255, 255, 255, 0.65)', // outside white
+      );
+    }
+
+    // Delta profile panel — vertical histogram of cumulative delta per price level.
+    if (
+      !isInteracting &&
+      this.settings.showDeltaProfile &&
+      isFootprintMode &&
+      profileCaches
+    ) {
+      this.pro.renderDeltaProfile(
+        ctx, this.layoutEngine, metrics, this.colors, profileCaches, rowH, this.features,
       );
     }
 
@@ -1225,6 +1384,12 @@ export class FootprintCanvasRenderer {
           ctx, this.layoutEngine, metrics, proInd.unfinishedAuctions, width,
         );
       }
+      if (this.features.showAbsorptionEvents && proInd.absorptionEvents.length > 0) {
+        this.pro.renderAbsorptionEvents(
+          ctx, this.layoutEngine, metrics, proInd.absorptionEvents,
+          metrics.footprintAreaY, metrics.footprintAreaHeight,
+        );
+      }
     }
 
     // Bar-delta label — one number per visible candle, sat just
@@ -1255,6 +1420,21 @@ export class FootprintCanvasRenderer {
         fpWidth,
         PRO_DEFAULT_CLUSTER_STAT_CONFIG,
         (ts) => timeFmt.format(ts * 1000),
+      );
+    }
+
+    // CVD panel — sits above time axis (and above cluster stat when both shown).
+    if (!isInteracting && this.settings.showCvd && metrics.visibleCandles.length > 0) {
+      const clusterH = this.settings.showClusterStat ? this.clusterStatPanelHeight() : 0;
+      const cvdPanelH = this.settings.cvdPanelHeight;
+      const panelY = height - this.layoutCfg.timeAxisHeight - clusterH - cvdPanelH;
+      this.pro.renderCVDPanel(
+        ctx, this.layoutEngine, metrics, this.features, this.colors,
+        width, panelY, cvdPanelH,
+        this.features.showOHLC ? ohlcWidth : 0,
+        fpWidth,
+        undefined,
+        this.settings.cvdMode,
       );
     }
 
@@ -2605,6 +2785,7 @@ export class FootprintCanvasRenderer {
     const totalTicks = Math.max(1, Math.round((metrics.visiblePriceMax - metrics.visiblePriceMin) / tickSize));
     const pixelsPerTick = Math.abs(yAtBot - yAtTop) / totalTicks;
     const effRowH = Math.max(1, pixelsPerTick);
+
     const showText = effRowH >= this.fonts.volumeFontSize + 1;
 
     for (let i = 0; i < visible.length; i++) {
@@ -2744,18 +2925,19 @@ export class FootprintCanvasRenderer {
     const axisY = height - axisH;
     const axisRight = width - this.layoutCfg.priceAxisWidth;
 
-    // Background strip — visibly distinct from the chart area so the
-    // axis is unmistakable. The user couldn't see it earlier with a
-    // 2.5% tint; bumped to a slight grey-on-noir + bright top border.
-    ctx.fillStyle = '#111111';
-    ctx.fillRect(0, axisY, axisRight, axisH);
+    // Background strip — pure noir (#000000), identical to the navbar
+    // + drawing toolbar. Spans the FULL width (including the price-axis
+    // column) so the bottom-right corner where the price axis meets the
+    // time axis is filled too — otherwise it left a bare chart-bg gap.
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, axisY, width, axisH);
 
     // Top border line — clearly delimits the axis from the chart area.
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, axisY + 0.5);
-    ctx.lineTo(axisRight, axisY + 0.5);
+    ctx.lineTo(width, axisY + 0.5);
     ctx.stroke();
 
     const visible = metrics.visibleCandles;

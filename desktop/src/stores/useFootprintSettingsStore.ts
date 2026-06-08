@@ -117,11 +117,6 @@ export type FootprintSettings = {
   crosshairStyle: "solid" | "dashed" | "dotted";
   crosshairWidth: number;
 
-  // Smart Scaling — vertical tick aggregation.
-  /** 'auto' uses getEffectiveAggregation(); a number fixes the grouping. */
-  tickGrouping: "auto" | 1 | 2 | 5 | 10;
-  /** Minimum row height in px before aggregation kicks in (auto mode). */
-  smartScaleMinRowPx: number;
 };
 
 export type CrosshairLineStyle = "solid" | "dashed" | "dotted";
@@ -180,8 +175,6 @@ const DEFAULTS: FootprintSettings = {
   crosshairOpacity: 0.45,
   crosshairStyle: "dashed",
   crosshairWidth: 1,
-  tickGrouping: "auto",
-  smartScaleMinRowPx: 8,
 };
 
 type Actions = {

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { BrokerSettings } from "./BrokerSettings";
+import { useToolbarSlot } from "../lib/ui/ToolbarSlot";
 import {
   FootprintCanvas,
   type FootprintCanvasHandle,
@@ -43,6 +45,7 @@ import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvas
 import { IndicatorsRunner } from "../lib/footprint/indicatorsAsync";
 import { findSymbol } from "../lib/footprint/symbols";
 import { SimTradePanel } from "./sim/SimTradePanel";
+import { QuickTradePanel } from "./sim/QuickTradePanel";
 import { useSimTicker } from "../lib/sim/useSimTicker";
 import { useSimPositionOverlay } from "../lib/sim/useSimPositionOverlay";
 import "./RithmicFootprint.css";
@@ -374,7 +377,11 @@ const EMPTY_STATUS: RithmicStatus = {
   subscriptions: [],
 };
 
-export function RithmicFootprint() {
+export function RithmicFootprint({
+  onSwitchToBridge,
+}: {
+  onSwitchToBridge?: () => void;
+}) {
   const [phase, setPhase] = useState<Phase>({ kind: "checking" });
 
   // Bootstrap: read vault → either route to BrokerSettings or auto-login.
@@ -527,7 +534,7 @@ export function RithmicFootprint() {
   }
 
   // phase.kind === "ready"
-  return <FootprintLive creds={phase.creds} onOpenSettings={onOpenSettings} />;
+  return <FootprintLive onSwitchToBridge={onSwitchToBridge} />;
 }
 
 /** Map a tick-size hint to a sensible display decimals count. */
@@ -542,12 +549,14 @@ function decimalsFromTick(tick: number | undefined): number {
 }
 
 function FootprintLive({
-  creds,
-  onOpenSettings,
+  onSwitchToBridge,
 }: {
-  creds: RedactedCreds;
-  onOpenSettings: () => void;
+  onSwitchToBridge?: () => void;
 }) {
+  // Portal target: the single top bar (AppNavbar) we teleport this
+  // connector's compact control row into. Null on the splash/error
+  // phases where the navbar slot isn't relevant yet.
+  const slotEl = useToolbarSlot();
   const [status, setStatus] = useState<RithmicStatus>(EMPTY_STATUS);
   const [symbol, setSymbol] = useState("MNQM6");
   const [exchange, setExchange] = useState("CME");
@@ -651,6 +660,7 @@ function FootprintLive({
   const showUnfinishedAuctions = useFootprintSettingsStore(
     (s) => s.showUnfinishedAuctions,
   );
+  const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -676,6 +686,22 @@ function FootprintLive({
   );
   const crosshairStyle = useFootprintSettingsStore((s) => s.crosshairStyle);
   const crosshairWidth = useFootprintSettingsStore((s) => s.crosshairWidth);
+  const showDeltaProfile = useFootprintSettingsStore((s) => s.showDeltaProfile);
+  const showCvd = useFootprintSettingsStore((s) => s.showCvd);
+  const cvdMode = useFootprintSettingsStore((s) => s.cvdMode);
+  const cvdPanelHeight = useFootprintSettingsStore((s) => s.cvdPanelHeight);
+  const imbalanceCellRate = useFootprintSettingsStore((s) => s.imbalanceCellRate);
+  const imbalanceCellVolumeFilter = useFootprintSettingsStore(
+    (s) => s.imbalanceCellVolumeFilter,
+  );
+  const imbalanceCellMinDiff = useFootprintSettingsStore(
+    (s) => s.imbalanceCellMinDiff,
+  );
+  const imbalanceCellIgnoreZero = useFootprintSettingsStore(
+    (s) => s.imbalanceCellIgnoreZero,
+  );
+  const showDom = useFootprintSettingsStore((s) => s.showDom);
+  const domProportion = useFootprintSettingsStore((s) => s.domProportion);
 
   // Persisted bars cache — survives changes of route (`/footprint` →
   // `/heatmap` → back) so we don't re-fetch 24h from Apex on every
@@ -707,9 +733,20 @@ function FootprintLive({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -740,9 +777,20 @@ function FootprintLive({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -935,21 +983,6 @@ function FootprintLive({
       setBusy(false);
     }
   }, [symbol, exchange, fullSymbol, timeframe, cacheGetFresh, cacheKeyFor]);
-
-  const handleUnsubscribe = useCallback(async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const next = await invoke<RithmicStatus>("rithmic_unsubscribe", {
-        args: { symbol, exchange },
-      });
-      setStatus(next);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [symbol, exchange]);
 
   // Auto-subscribe: kicks in as soon as we're connected + logged in,
   // and re-syncs whenever the user picks a different symbol. On a
@@ -1161,6 +1194,12 @@ function FootprintLive({
         enableStackedImbalances: showStackedImbalances,
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
+        enableAbsorption: showAbsorption,
+        // Volume-at-extreme rule (see orderflow-calc): a level holding
+        // ≥60% of the bar's aggressive side volume where price stalled.
+        absorptionRatio: 0.6,
+        absorptionMinVolume: 0,
+        absorptionToleranceTicks: 1,
       },
       currentPrice,
     );
@@ -1171,6 +1210,7 @@ function FootprintLive({
     showStackedImbalances,
     showNakedPOCs,
     showUnfinishedAuctions,
+    showAbsorption,
   ]);
 
   // Picker selects a symbol; the catalog entry tells us which CME
@@ -1846,20 +1886,6 @@ function FootprintLive({
   // subscribe (above) — wipes localStorage + in-memory caches then
   // re-fetches every preload TF. Useful when the user wants a fresh
   // pull without disconnecting/reconnecting.
-  const handleForceReloadHistory = useCallback(async () => {
-    cacheClearSymbol(symbol);
-    historyFetchedRef.current.clear();
-    barsCacheRef.current.clear();
-    setBars(new Map());
-    for (const tf of PRELOAD_TFS) {
-      try {
-        await fetchHistoryForTimeframe(tf);
-      } catch (e) {
-        console.warn(`force-reload ${tf} failed:`, e);
-      }
-    }
-  }, [symbol, cacheClearSymbol, fetchHistoryForTimeframe]);
-
   const cycleTimezone = useCallback(() => {
     const idx = TZ_CYCLE.indexOf(timezone);
     const next = TZ_CYCLE[(idx + 1) % TZ_CYCLE.length];
@@ -1887,25 +1913,17 @@ function FootprintLive({
 
   return (
     <div className="rithmic-footprint">
-      <FootprintStatusBar
-        symbol={symbol}
-        exchange={`Rithmic ${exchange}`}
-        timeframe={timeframe}
-        bars={sortedBars}
-        connected={connected}
-        busy={busy}
-        priceDecimals={priceDecimals}
-      />
-
-      <section className="cf-controls">
-        <button
-          type="button"
-          className="cf-symbol-btn"
-          onClick={() => setPickerOpen(true)}
-          disabled={busy}
-        >
-          {symbol} <span className="cf-symbol-caret">▾</span>
-        </button>
+      {slotEl &&
+        createPortal(
+          <div className="of-toolbar">
+            <button
+              type="button"
+              className="cf-symbol-btn"
+              onClick={() => setPickerOpen(true)}
+              disabled={busy}
+            >
+              {symbol} <span className="cf-symbol-caret">▾</span>
+            </button>
         <TimeframePills
           value={timeframe}
           onChange={handleTimeframeChange}
@@ -1969,25 +1987,20 @@ function FootprintLive({
             <style>{`@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }`}</style>
           </span>
         )}
-        <span className="cf-controls-spacer" />
-        {/* Auto-subscribe is on: the data starts streaming as soon as
-            we're connected. The Unsubscribe button is kept as an
-            escape hatch — clicking it will pause the auto-sub for the
-            current symbol until the user picks a different one. */}
-        {isSubscribed && (
-          <button
-            type="button"
-            onClick={() => {
-              autoSubscribedRef.current = "__paused__";
-              void handleUnsubscribe();
-            }}
-            disabled={busy}
-            className="cf-action-btn cf-action-secondary"
-            title="Pause live data for the current symbol"
-          >
-            Pause
-          </button>
-        )}
+        <span className="cf-controls-spacer" data-tauri-drag-region />
+        <FootprintStatusBar
+          inline
+          symbol={symbol}
+          exchange={`Rithmic ${exchange}`}
+          timeframe={timeframe}
+          bars={sortedBars}
+          connected={connected}
+          busy={busy}
+          priceDecimals={priceDecimals}
+        />
+        {/* Auto-subscribe is on; data streams once connected. The
+            Resume button is a quiet recovery path shown only if the
+            auto-sub ever gets paused (e.g. on a symbol switch). */}
         {!isSubscribed && connected && (
           <button
             type="button"
@@ -2002,33 +2015,32 @@ function FootprintLive({
             Resume
           </button>
         )}
-        {isSubscribed && (
+        {onSwitchToBridge && (
           <button
             type="button"
-            onClick={() => void handleForceReloadHistory()}
-            disabled={busy}
-            className="cf-action-btn"
-            title="Wipe cache + force fresh history fetch for all timeframes (test Apex permissions)"
+            onClick={onSwitchToBridge}
+            className="cf-action-btn cf-action-icon"
+            title="Switch to the NinjaTrader Bridge data source (requires NinjaTrader running with the OrderflowBridge indicator on a Tick chart)"
           >
-            Reload history
+            <img
+              src="/ninjatrader.png"
+              alt=""
+              aria-hidden
+              className="cf-nt-icon"
+            />
+            NT Bridge
           </button>
         )}
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="cf-action-btn"
-          title={`${creds.systemName} · ${creds.username}`}
-        >
-          Edit broker
-        </button>
-      </section>
+          </div>,
+          slotEl,
+        )}
 
       {error && <div className="rf-error">{error}</div>}
 
       <section className="rf-footprint">
         <div className="footprint-workspace">
           <FootprintToolbar tools={tools} />
-          <div className="cf-canvas-wrap">
+          <div className="cf-canvas-wrap" style={{ position: "relative" }}>
             <FootprintCanvas
               ref={canvasHandle}
               bars={sortedBars}
@@ -2038,6 +2050,7 @@ function FootprintLive({
               onOpenSettings={() => setSettingsOpen(true)}
               bare
             />
+            <QuickTradePanel symbol={symbol} />
           </div>
           <div
             className={`rf-sim-dock ${simPanelOpen ? "rf-sim-dock-open" : "rf-sim-dock-closed"}`}

@@ -20,8 +20,10 @@
 // during the 700k-tick replay burst.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { useToolbarSlot } from "../lib/ui/ToolbarSlot";
 import {
   FootprintCanvas,
   type FootprintCanvasHandle,
@@ -132,6 +134,9 @@ export function BridgeFootprint({
 }: {
   onSwitchToRithmic: () => void;
 }) {
+  // Portal target: the single top bar (AppNavbar) this connector
+  // teleports its compact control row into.
+  const slotEl = useToolbarSlot();
   // ── Connection / data state ───────────────────────────────
   const [connState, setConnState] = useState<BridgeConnState>({
     kind: "disconnected",
@@ -246,6 +251,7 @@ export function BridgeFootprint({
   const showUnfinishedAuctions = useFootprintSettingsStore(
     (s) => s.showUnfinishedAuctions,
   );
+  const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -271,6 +277,22 @@ export function BridgeFootprint({
   );
   const crosshairStyle = useFootprintSettingsStore((s) => s.crosshairStyle);
   const crosshairWidth = useFootprintSettingsStore((s) => s.crosshairWidth);
+  const showDeltaProfile = useFootprintSettingsStore((s) => s.showDeltaProfile);
+  const showCvd = useFootprintSettingsStore((s) => s.showCvd);
+  const cvdMode = useFootprintSettingsStore((s) => s.cvdMode);
+  const cvdPanelHeight = useFootprintSettingsStore((s) => s.cvdPanelHeight);
+  const imbalanceCellRate = useFootprintSettingsStore((s) => s.imbalanceCellRate);
+  const imbalanceCellVolumeFilter = useFootprintSettingsStore(
+    (s) => s.imbalanceCellVolumeFilter,
+  );
+  const imbalanceCellMinDiff = useFootprintSettingsStore(
+    (s) => s.imbalanceCellMinDiff,
+  );
+  const imbalanceCellIgnoreZero = useFootprintSettingsStore(
+    (s) => s.imbalanceCellIgnoreZero,
+  );
+  const showDom = useFootprintSettingsStore((s) => s.showDom);
+  const domProportion = useFootprintSettingsStore((s) => s.domProportion);
 
   // ── Drawing tools store ────────────────────────────────────
   const activeTool = useToolDrawingsStore((s) => s.activeTool);
@@ -545,9 +567,20 @@ export function BridgeFootprint({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -578,9 +611,20 @@ export function BridgeFootprint({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -653,6 +697,10 @@ export function BridgeFootprint({
         enableStackedImbalances: showStackedImbalances,
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
+        enableAbsorption: showAbsorption,
+        absorptionRatio: 0.6,
+        absorptionMinVolume: 0,
+        absorptionToleranceTicks: 1,
       },
       currentPrice,
     );
@@ -663,6 +711,7 @@ export function BridgeFootprint({
     showStackedImbalances,
     showNakedPOCs,
     showUnfinishedAuctions,
+    showAbsorption,
   ]);
 
   // ── Drawings toolbar ──────────────────────────────────────
@@ -877,37 +926,24 @@ export function BridgeFootprint({
   // ── Render ────────────────────────────────────────────────
   return (
     <div className="rithmic-footprint">
-      <FootprintStatusBar
-        symbol={symbol || "(waiting)"}
-        exchange={
-          contractLabel
-            ? `NinjaTrader Bridge · ${contractLabel.replace(`· ${symbol}`, "").trim()}`
-            : "NinjaTrader Bridge"
-        }
-        timeframe={timeframe}
-        bars={sortedBars}
-        connected={connected}
-        busy={busy}
-        priceDecimals={priceDecimals}
-        brokerDailyVolume={brokerDailyVolume}
-      />
-
       <BridgeStatusBanner state={connState} misconfig={misconfig} />
 
       {error && <div className="rf-error">{error}</div>}
 
-      <section className="cf-controls">
-        <span
-          className="cf-symbol-btn"
-          title={
-            contractLabel
-              ? `${contractLabel} — locked to the NinjaTrader chart`
-              : "Symbol is locked to the NinjaTrader chart"
-          }
-          style={{ cursor: "default", opacity: 0.85 }}
-        >
-          {symbol || "—"}
-        </span>
+      {slotEl &&
+        createPortal(
+          <div className="of-toolbar">
+            <span
+              className="cf-symbol-btn"
+              title={
+                contractLabel
+                  ? `${contractLabel} — locked to the NinjaTrader chart`
+                  : "Symbol is locked to the NinjaTrader chart"
+              }
+              style={{ cursor: "default", opacity: 0.85 }}
+            >
+              {symbol || "—"}
+            </span>
         <TimeframePills
           value={timeframe}
           onChange={handleTimeframeChange}
@@ -979,7 +1015,22 @@ export function BridgeFootprint({
         >
           ⚙
         </button>
-        <span className="cf-controls-spacer" />
+        <span className="cf-controls-spacer" data-tauri-drag-region />
+        <FootprintStatusBar
+          inline
+          symbol={symbol || "(waiting)"}
+          exchange={
+            contractLabel
+              ? `NinjaTrader Bridge · ${contractLabel.replace(`· ${symbol}`, "").trim()}`
+              : "NinjaTrader Bridge"
+          }
+          timeframe={timeframe}
+          bars={sortedBars}
+          connected={connected}
+          busy={busy}
+          priceDecimals={priceDecimals}
+          brokerDailyVolume={brokerDailyVolume}
+        />
         <button
           type="button"
           onClick={onDisconnect}
@@ -988,7 +1039,9 @@ export function BridgeFootprint({
         >
           Switch to Rithmic native
         </button>
-      </section>
+          </div>,
+          slotEl,
+        )}
 
       <section className="rf-footprint">
         <div className="footprint-workspace">

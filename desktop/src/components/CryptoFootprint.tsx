@@ -99,6 +99,7 @@ export function CryptoFootprint({
   const showUnfinishedAuctions = useFootprintSettingsStore(
     (s) => s.showUnfinishedAuctions,
   );
+  const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -124,6 +125,22 @@ export function CryptoFootprint({
   );
   const crosshairStyle = useFootprintSettingsStore((s) => s.crosshairStyle);
   const crosshairWidth = useFootprintSettingsStore((s) => s.crosshairWidth);
+  const showDeltaProfile = useFootprintSettingsStore((s) => s.showDeltaProfile);
+  const showCvd = useFootprintSettingsStore((s) => s.showCvd);
+  const cvdMode = useFootprintSettingsStore((s) => s.cvdMode);
+  const cvdPanelHeight = useFootprintSettingsStore((s) => s.cvdPanelHeight);
+  const imbalanceCellRate = useFootprintSettingsStore((s) => s.imbalanceCellRate);
+  const imbalanceCellVolumeFilter = useFootprintSettingsStore(
+    (s) => s.imbalanceCellVolumeFilter,
+  );
+  const imbalanceCellMinDiff = useFootprintSettingsStore(
+    (s) => s.imbalanceCellMinDiff,
+  );
+  const imbalanceCellIgnoreZero = useFootprintSettingsStore(
+    (s) => s.imbalanceCellIgnoreZero,
+  );
+  const showDom = useFootprintSettingsStore((s) => s.showDom);
+  const domProportion = useFootprintSettingsStore((s) => s.domProportion);
 
   // Map the store shape to the renderer's settings shape. Resolves
   // priceDecimalsMode "auto" → null (renderer falls back to the
@@ -147,9 +164,20 @@ export function CryptoFootprint({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -179,9 +207,20 @@ export function CryptoFootprint({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -424,6 +463,10 @@ export function CryptoFootprint({
         enableStackedImbalances: showStackedImbalances,
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
+        enableAbsorption: showAbsorption,
+        absorptionRatio: 0.6,
+        absorptionMinVolume: 0,
+        absorptionToleranceTicks: 1,
       },
       currentPrice,
     );
@@ -434,6 +477,7 @@ export function CryptoFootprint({
     showStackedImbalances,
     showNakedPOCs,
     showUnfinishedAuctions,
+    showAbsorption,
   ]);
 
   return (
