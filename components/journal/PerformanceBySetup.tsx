@@ -33,7 +33,7 @@ export default function PerformanceBySetup({ data }: PerformanceBySetupProps) {
                 />
               </div>
               <span
-                className="w-16 text-right text-xs font-mono font-bold shrink-0"
+                className="w-16 text-right text-xs font-[var(--font-jetbrains-mono)] font-bold shrink-0"
                 style={{ color: isPositive ? 'var(--bull)' : 'var(--bear)' }}
               >
                 {formatCurrency(d.pnl)}

@@ -81,34 +81,34 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  bug:         { label: 'Bug',          icon: <XCircle size={11} />,     color: '#f87171' },
-  performance: { label: 'Performance',  icon: <Gauge size={11} />,       color: '#60a5fa' },
-  ux:          { label: 'UX',           icon: <Sparkles size={11} />,    color: '#a78bfa' },
-  feature:     { label: 'Feature',      icon: <TrendingUp size={11} />,  color: '#34d399' },
-  security:    { label: 'Sécurité',     icon: <Shield size={11} />,      color: '#fb923c' },
-  reliability: { label: 'Fiabilité',    icon: <CheckCircle2 size={11} />,color: '#f59e0b' },
+  bug:         { label: 'Bug',          icon: <XCircle size={11} />,     color: 'var(--bear)' },
+  performance: { label: 'Performance',  icon: <Gauge size={11} />,       color: 'var(--accent)' },
+  ux:          { label: 'UX',           icon: <Sparkles size={11} />,    color: 'var(--accent)' },
+  feature:     { label: 'Feature',      icon: <TrendingUp size={11} />,  color: 'var(--bull)' },
+  security:    { label: 'Sécurité',     icon: <Shield size={11} />,      color: 'var(--warning)' },
+  reliability: { label: 'Fiabilité',    icon: <CheckCircle2 size={11} />,color: 'var(--warning)' },
 };
 
 const IMPACT_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  critical: { label: 'Critique',  color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
-  high:     { label: 'Élevé',     color: '#fb923c', bg: 'rgba(251,146,60,0.12)' },
-  medium:   { label: 'Moyen',     color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-  low:      { label: 'Faible',    color: '#6b7280', bg: 'rgba(107,114,128,0.10)' },
+  critical: { label: 'Critique',  color: 'var(--bear)',    bg: 'rgb(var(--bear-rgb) / 0.12)' },
+  high:     { label: 'Élevé',     color: 'var(--warning)', bg: 'rgb(var(--warning-rgb) / 0.12)' },
+  medium:   { label: 'Moyen',     color: 'var(--warning)', bg: 'rgb(var(--warning-rgb) / 0.12)' },
+  low:      { label: 'Faible',    color: 'var(--text-muted)', bg: 'rgb(var(--surface-rgb) / 0.6)' },
 };
 
 const EFFORT_CONFIG: Record<string, { label: string; color: string }> = {
-  minutes: { label: '< 30min', color: '#34d399' },
-  hours:   { label: 'Quelques heures', color: '#f59e0b' },
-  days:    { label: 'Plusieurs jours', color: '#f87171' },
+  minutes: { label: '< 30min', color: 'var(--bull)' },
+  hours:   { label: 'Quelques heures', color: 'var(--warning)' },
+  days:    { label: 'Plusieurs jours', color: 'var(--bear)' },
 };
 
 const STORAGE_KEY = 'uf_bilans_v3';
 const MAX_HISTORY = 10;
 
 function scoreColor(s: number) {
-  if (s >= 80) return '#34d399';
-  if (s >= 55) return '#f59e0b';
-  return '#f87171';
+  if (s >= 80) return 'var(--bull)';
+  if (s >= 55) return 'var(--warning)';
+  return 'var(--bear)';
 }
 function scoreLabel(s: number) {
   if (s >= 90) return 'Excellent';
@@ -147,7 +147,7 @@ function ScoreDial({ score }: { score: number }) {
   return (
     <div className="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
       <svg width="112" height="112" viewBox="0 0 112 112">
-        <circle cx="56" cy="56" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+        <circle cx="56" cy="56" r={r} fill="none" stroke="var(--border)" strokeWidth="10" />
         <circle cx="56" cy="56" r={r} fill="none" stroke={color} strokeWidth="10"
           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
           transform="rotate(-90 56 56)"
@@ -155,7 +155,7 @@ function ScoreDial({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="text-2xl font-bold text-white">{score}</span>
+        <span className="font-display text-2xl font-bold text-[var(--text-primary)]">{score}</span>
         <span className="text-[11px] font-medium" style={{ color }}>{scoreLabel(score)}</span>
       </div>
     </div>
@@ -172,21 +172,21 @@ function ActionCard({ action }: { action: AgentAction }) {
   );
 
   return (
-    <div className="rounded-lg border border-white/8 overflow-hidden text-sm" style={{ backgroundColor: '#111' }}>
+    <div className="rounded-lg border border-[var(--border)] overflow-hidden text-sm" style={{ backgroundColor: 'var(--surface-elevated)' }}>
       <button
         className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
         onClick={() => action.detail && setOpen(o => !o)}
       >
         <span className={
-          action.status === 'running' ? 'text-blue-400'
-          : action.status === 'ok'   ? 'text-emerald-400'
-          : 'text-red-400'
+          action.status === 'running' ? 'text-[var(--accent)]'
+          : action.status === 'ok'   ? 'text-[var(--bull)]'
+          : 'text-[var(--bear)]'
         }>{icon}</span>
-        <span className="text-white/50 text-[11px] font-mono w-24 flex-shrink-0">{label}</span>
+        <span className="text-[11px] w-24 flex-shrink-0" style={{ fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-muted)' }}>{label}</span>
         <span className="flex-1 text-white/70 truncate text-xs">{inputLabel}</span>
-        {action.status === 'running' && <Loader2 size={12} className="text-blue-400 animate-spin flex-shrink-0" />}
-        {action.status === 'ok'      && <CheckCircle2 size={12} className="text-emerald-400 flex-shrink-0" />}
-        {action.status === 'fail'    && <XCircle size={12} className="text-red-400 flex-shrink-0" />}
+        {action.status === 'running' && <Loader2 size={12} className="text-[var(--accent)] animate-spin flex-shrink-0" />}
+        {action.status === 'ok'      && <CheckCircle2 size={12} className="text-[var(--bull)] flex-shrink-0" />}
+        {action.status === 'fail'    && <XCircle size={12} className="text-[var(--bear)] flex-shrink-0" />}
         {action.detail && (
           open
             ? <ChevronDown size={12} className="text-white/30 flex-shrink-0" />
@@ -194,7 +194,7 @@ function ActionCard({ action }: { action: AgentAction }) {
         )}
       </button>
       {open && action.detail && (
-        <div className="border-t border-white/8 px-3 py-2 text-xs text-white/50 font-mono whitespace-pre-wrap">
+        <div className="border-t border-[var(--border)] px-3 py-2 text-xs whitespace-pre-wrap" style={{ fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-muted)' }}>
           {action.detail}
         </div>
       )}
@@ -210,29 +210,29 @@ function ImprovementCard({ item, index }: { item: Improvement; index: number }) 
 
   return (
     <div className="rounded-xl border overflow-hidden transition-all"
-      style={{ borderColor: `${impact.color}30`, backgroundColor: impact.bg }}>
+      style={{ borderColor: `color-mix(in srgb, ${impact.color} 19%, transparent)`, backgroundColor: impact.bg }}>
       <button className="w-full text-left p-4" onClick={() => setOpen(o => !o)}>
         <div className="flex items-start gap-3">
           {/* Priority badge */}
           <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 mt-0.5"
-            style={{ backgroundColor: `${impact.color}25`, color: impact.color }}>
+            style={{ backgroundColor: `color-mix(in srgb, ${impact.color} 15%, transparent)`, color: impact.color }}>
             {index + 1}
           </span>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-sm font-semibold text-white">{item.title}</span>
+              <span className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</span>
               {/* Tags */}
               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                style={{ backgroundColor: `${impact.color}20`, color: impact.color }}>
+                style={{ backgroundColor: `color-mix(in srgb, ${impact.color} 13%, transparent)`, color: impact.color }}>
                 {impact.label}
               </span>
               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: cat.color }}>
+                style={{ backgroundColor: 'rgb(var(--surface-rgb) / 0.7)', color: cat.color }}>
                 {cat.icon}<span className="ml-0.5">{cat.label}</span>
               </span>
               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: effort.color }}>
+                style={{ backgroundColor: 'rgb(var(--surface-rgb) / 0.6)', color: effort.color }}>
                 <Clock size={9} />{effort.label}
               </span>
             </div>
@@ -246,11 +246,11 @@ function ImprovementCard({ item, index }: { item: Improvement; index: number }) 
       </button>
 
       {open && (
-        <div className="border-t px-4 py-3 space-y-1.5" style={{ borderColor: `${impact.color}20` }}>
+        <div className="border-t px-4 py-3 space-y-1.5" style={{ borderColor: `color-mix(in srgb, ${impact.color} 13%, transparent)` }}>
           <div className="flex items-center gap-2 text-xs font-medium" style={{ color: impact.color }}>
             <ArrowRight size={11} /> Action à effectuer
           </div>
-          <p className="text-xs text-white/70 leading-relaxed font-mono bg-black/30 rounded-lg p-3 whitespace-pre-wrap">
+          <p className="text-xs leading-relaxed rounded-lg p-3 whitespace-pre-wrap" style={{ fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-secondary)', background: 'rgb(var(--background-rgb) / 0.5)' }}>
             {item.action}
           </p>
         </div>
@@ -272,17 +272,17 @@ function ReportView({ report }: { report: BilanReport }) {
     <div className="space-y-5">
 
       {/* Score + verdict */}
-      <div className="flex items-center gap-6 p-5 rounded-2xl border border-white/8" style={{ backgroundColor: '#111' }}>
+      <div className="panel-glass-hero flex items-center gap-6 p-5 rounded-2xl border border-[var(--border)]" style={{ backgroundColor: 'var(--surface-elevated)' }}>
         <ScoreDial score={report.overall_score} />
         <div className="flex-1 space-y-1.5">
-          <p className="text-white font-semibold text-base">{report.verdict}</p>
+          <p className="text-[var(--text-primary)] font-semibold text-base">{report.verdict}</p>
           <p className="text-white/55 text-sm leading-relaxed">{report.summary}</p>
           {improvements.length > 0 && (
             <div className="flex gap-2 flex-wrap mt-2">
-              {criticals.length > 0 && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgba(248,113,113,0.15)', color: '#f87171' }}>{criticals.length} critique{criticals.length > 1 ? 's' : ''}</span>}
-              {highs.length > 0     && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgba(251,146,60,0.15)', color: '#fb923c' }}>{highs.length} élevé{highs.length > 1 ? 's' : ''}</span>}
-              {mediums.length > 0   && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>{mediums.length} moyen{mediums.length > 1 ? 's' : ''}</span>}
-              {lows.length > 0      && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgba(107,114,128,0.15)', color: '#9ca3af' }}>{lows.length} faible{lows.length > 1 ? 's' : ''}</span>}
+              {criticals.length > 0 && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgb(var(--bear-rgb) / 0.15)', color: 'var(--bear)' }}>{criticals.length} critique{criticals.length > 1 ? 's' : ''}</span>}
+              {highs.length > 0     && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgb(var(--warning-rgb) / 0.15)', color: 'var(--warning)' }}>{highs.length} élevé{highs.length > 1 ? 's' : ''}</span>}
+              {mediums.length > 0   && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgb(var(--warning-rgb) / 0.15)', color: 'var(--warning)' }}>{mediums.length} moyen{mediums.length > 1 ? 's' : ''}</span>}
+              {lows.length > 0      && <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: 'rgb(var(--surface-rgb) / 0.7)', color: 'var(--text-muted)' }}>{lows.length} faible{lows.length > 1 ? 's' : ''}</span>}
             </div>
           )}
         </div>
@@ -290,13 +290,13 @@ function ReportView({ report }: { report: BilanReport }) {
 
       {/* Quick wins */}
       {report.quick_wins && report.quick_wins.length > 0 && (
-        <div className="rounded-xl border border-emerald-500/25 p-4 space-y-2.5" style={{ backgroundColor: 'rgba(52,211,153,0.05)' }}>
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+        <div className="rounded-xl border p-4 space-y-2.5" style={{ borderColor: 'rgb(var(--bull-rgb) / 0.25)', backgroundColor: 'rgb(var(--bull-rgb) / 0.05)' }}>
+          <div className="flex items-center gap-2 font-semibold text-sm" style={{ color: 'var(--bull)' }}>
             <Sparkles size={14} /> Quick Wins — Impact immédiat, effort minimal
           </div>
           {report.quick_wins.map((w, i) => (
-            <div key={i} className="flex gap-2.5 text-xs text-white/70">
-              <span className="text-emerald-400 flex-shrink-0 font-bold">→</span>{w}
+            <div key={i} className="flex gap-2.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <ArrowRight size={13} strokeWidth={1.5} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--bull)' }} />{w}
             </div>
           ))}
         </div>
@@ -306,7 +306,7 @@ function ReportView({ report }: { report: BilanReport }) {
       {sorted.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Lightbulb size={14} className="text-amber-400" />
+            <Lightbulb size={14} style={{ color: 'var(--warning)' }} />
             <h3 className="text-sm font-semibold text-white/70">Améliorations recommandées</h3>
             <span className="text-xs text-white/30">({sorted.length} au total)</span>
           </div>
@@ -318,13 +318,13 @@ function ReportView({ report }: { report: BilanReport }) {
 
       {/* Legacy recommendations fallback */}
       {!improvements.length && report.recommendations && report.recommendations.length > 0 && (
-        <div className="rounded-xl border border-amber-500/20 p-4 space-y-2" style={{ backgroundColor: '#f59e0b08' }}>
-          <div className="flex items-center gap-2 text-amber-400 font-medium text-sm mb-3">
+        <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: 'rgb(var(--warning-rgb) / 0.2)', backgroundColor: 'rgb(var(--warning-rgb) / 0.03)' }}>
+          <div className="flex items-center gap-2 font-medium text-sm mb-3" style={{ color: 'var(--warning)' }}>
             <Lightbulb size={13} /> Recommandations
           </div>
           {report.recommendations.map((r, i) => (
             <div key={i} className="flex gap-3 text-xs text-white/65">
-              <span className="text-amber-400 font-bold flex-shrink-0">{i + 1}.</span>{r}
+              <span className="font-bold flex-shrink-0" style={{ color: 'var(--warning)' }}>{i + 1}.</span>{r}
             </div>
           ))}
         </div>
@@ -332,48 +332,48 @@ function ReportView({ report }: { report: BilanReport }) {
 
       {/* What works / what fails */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-emerald-500/20 p-4 space-y-2" style={{ backgroundColor: '#34d39908' }}>
-          <div className="flex items-center gap-2 text-emerald-400 font-medium text-sm">
+        <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: 'rgb(var(--bull-rgb) / 0.2)', backgroundColor: 'rgb(var(--bull-rgb) / 0.03)' }}>
+          <div className="flex items-center gap-2 font-medium text-sm" style={{ color: 'var(--bull)' }}>
             <ThumbsUp size={13} /> Points forts
           </div>
           {report.what_works.map((w, i) => (
-            <p key={i} className="text-xs text-white/65 flex gap-2">
-              <span className="text-emerald-400 flex-shrink-0">✓</span>{w}
+            <p key={i} className="text-xs flex gap-2" style={{ color: 'var(--text-secondary)' }}>
+              <CheckCircle2 size={13} strokeWidth={1.5} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--bull)' }} />{w}
             </p>
           ))}
         </div>
-        <div className="rounded-xl border border-red-500/20 p-4 space-y-2" style={{ backgroundColor: '#f8717108' }}>
-          <div className="flex items-center gap-2 text-red-400 font-medium text-sm">
+        <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: 'rgb(var(--bear-rgb) / 0.2)', backgroundColor: 'rgb(var(--bear-rgb) / 0.03)' }}>
+          <div className="flex items-center gap-2 font-medium text-sm" style={{ color: 'var(--bear)' }}>
             <ThumbsDown size={13} /> Problèmes
           </div>
           {report.what_fails.length > 0
             ? report.what_fails.map((w, i) => (
-                <p key={i} className="text-xs text-white/65 flex gap-2">
-                  <span className="text-red-400 flex-shrink-0">✗</span>{w}
+                <p key={i} className="text-xs flex gap-2" style={{ color: 'var(--text-secondary)' }}>
+                  <XCircle size={13} strokeWidth={1.5} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--bear)' }} />{w}
                 </p>
               ))
-            : <p className="text-xs text-white/40">Aucun problème majeur détecté.</p>
+            : <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Aucun problème majeur détecté.</p>
           }
         </div>
       </div>
 
       {/* UX Narrative */}
-      <div className="rounded-xl border border-white/8 overflow-hidden" style={{ backgroundColor: '#111' }}>
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8">
-          <Brain size={13} className="text-indigo-400" />
+      <div className="rounded-xl border border-[var(--border)] overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
+          <Brain size={13} style={{ color: 'var(--accent)' }} />
           <span className="text-sm font-medium text-white/70">Expérience utilisateur détaillée</span>
         </div>
         <div className="p-4 space-y-2">
           {lines.map((line, i) => {
             if (line.startsWith('## ') || line.startsWith('### ')) {
-              return <h3 key={i} className="text-white font-semibold text-sm mt-3 first:mt-0">{line.replace(/^#{2,3}\s/, '')}</h3>;
+              return <h3 key={i} className="text-[var(--text-primary)] font-semibold text-sm mt-3 first:mt-0">{line.replace(/^#{2,3}\s/, '')}</h3>;
             }
             if (line.startsWith('- ') || line.startsWith('* ')) {
-              const content = line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+              const content = line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong class="text-[var(--text-primary)]">$1</strong>');
               return <p key={i} className="text-xs text-white/60 pl-3 border-l border-white/10" dangerouslySetInnerHTML={{ __html: `• ${content}` }} />;
             }
             if (!line.trim()) return <div key={i} className="h-1" />;
-            const rendered = line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+            const rendered = line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-[var(--text-primary)]">$1</strong>');
             return <p key={i} className="text-xs text-white/60 leading-relaxed" dangerouslySetInnerHTML={{ __html: rendered }} />;
           })}
         </div>
@@ -495,14 +495,14 @@ export default function UserTesterPage() {
   const elapsed        = isRunning && startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
 
   return (
-    <div className="w-full min-h-screen flex text-white" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="w-full min-h-screen flex" style={{ backgroundColor: 'var(--background)', color: 'var(--text-primary)' }}>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <div className="w-60 flex-shrink-0 border-r border-white/8 flex flex-col" style={{ backgroundColor: '#0d0d0d' }}>
-        <div className="px-4 py-4 border-b border-white/8">
+      <div className="w-60 flex-shrink-0 border-r border-[var(--border)] flex flex-col" style={{ backgroundColor: 'var(--surface)' }}>
+        <div className="px-4 py-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-2 mb-1">
-            <ClipboardList size={15} className="text-indigo-400" />
-            <span className="text-sm font-semibold text-white">Bilans IA</span>
+            <ClipboardList size={15} style={{ color: 'var(--accent)' }} />
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Bilans IA</span>
           </div>
           <p className="text-[10px] text-white/30">Audit autonome de la plateforme</p>
         </div>
@@ -517,7 +517,7 @@ export default function UserTesterPage() {
               className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selected?.id === b.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
             >
               <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-                style={{ backgroundColor: `${scoreColor(b.score)}20`, color: scoreColor(b.score) }}>
+                style={{ backgroundColor: `color-mix(in srgb, ${scoreColor(b.score)} 15%, transparent)`, color: scoreColor(b.score) }}>
                 {b.score}
               </span>
               <div className="flex-1 min-w-0">
@@ -532,7 +532,7 @@ export default function UserTesterPage() {
                   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
                   if (selected?.id === b.id) setSelected(null);
                 }}
-                className="opacity-0 group-hover:opacity-100 text-white/25 hover:text-red-400 transition-all flex-shrink-0"
+                className="opacity-0 group-hover:opacity-100 text-white/25 hover:text-[var(--bear)] transition-all flex-shrink-0"
               >
                 <Trash2 size={11} />
               </button>
@@ -545,9 +545,9 @@ export default function UserTesterPage() {
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-7 py-4 border-b border-white/8 flex-shrink-0">
+        <div className="panel-glass flex items-center justify-between px-7 py-4 border-b border-[var(--border)] flex-shrink-0">
           <div>
-            <h1 className="font-semibold text-white">Audit Utilisateur IA</h1>
+            <h1 className="font-display font-semibold text-[var(--text-primary)]">Audit Utilisateur IA</h1>
             <p className="text-xs text-white/35 mt-0.5">
               {isRunning
                 ? `Audit en cours… ${elapsed}s`
@@ -557,20 +557,20 @@ export default function UserTesterPage() {
           <div className="flex items-center gap-2">
             {selected && (
               <button onClick={() => { setSelected(null); setReport(null); }}
-                className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-white/40 hover:text-white hover:border-white/20 transition-colors">
+                className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-light)] transition-colors">
                 Nouveau bilan
               </button>
             )}
             {isRunning ? (
               <button onClick={stop}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-                style={{ backgroundColor: '#ef444420', color: '#f87171', border: '1px solid #ef444440' }}>
+                style={{ backgroundColor: 'rgb(var(--bear-rgb) / 0.13)', color: 'var(--bear)', border: '1px solid rgb(var(--bear-rgb) / 0.27)' }}>
                 <RefreshCw size={13} className="animate-spin" /> Arrêter
               </button>
             ) : (
               <button onClick={runTest}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105 active:scale-95"
-                style={{ backgroundColor: '#6366f1', color: 'white' }}>
+                style={{ backgroundColor: 'var(--primary)', color: 'var(--background)' }}>
                 <Play size={13} /> Lancer l'Audit
               </button>
             )}
@@ -581,11 +581,11 @@ export default function UserTesterPage() {
 
           {/* Error */}
           {error && (
-            <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-red-500/20" style={{ backgroundColor: '#ef444410' }}>
-              <AlertCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl border" style={{ borderColor: 'rgb(var(--bear-rgb) / 0.2)', backgroundColor: 'rgb(var(--bear-rgb) / 0.06)' }}>
+              <AlertCircle size={14} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--bear)' }} />
               <div>
-                <p className="text-red-300 font-medium text-sm">Erreur</p>
-                <p className="text-red-200/60 text-xs mt-0.5">{error}</p>
+                <p className="font-medium text-sm" style={{ color: 'var(--bear)' }}>Erreur</p>
+                <p className="text-xs mt-0.5" style={{ color: 'rgb(var(--bear-rgb) / 0.7)' }}>{error}</p>
               </div>
             </div>
           )}
@@ -593,8 +593,8 @@ export default function UserTesterPage() {
           {/* Empty state */}
           {!isRunning && displayActions.length === 0 && !displayReport && !error && (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: '#1a1a2e' }}>
-                <Brain size={28} className="text-indigo-400" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgb(var(--accent-rgb) / 0.1)' }}>
+                <Brain size={28} style={{ color: 'var(--accent)' }} />
               </div>
               <div>
                 <p className="text-white/60 font-medium">Audit autonome de la plateforme</p>
@@ -605,7 +605,7 @@ export default function UserTesterPage() {
               </div>
               <button onClick={runTest}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium mt-2 hover:scale-105 active:scale-95 transition-transform"
-                style={{ backgroundColor: '#6366f1', color: 'white' }}>
+                style={{ backgroundColor: 'var(--primary)', color: 'var(--background)' }}>
                 <Play size={14} /> Lancer l'Audit
               </button>
             </div>
@@ -615,14 +615,14 @@ export default function UserTesterPage() {
           {(isRunning || displayActions.length > 0) && !selected && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Terminal size={13} className="text-indigo-400" />
+                <Terminal size={13} style={{ color: 'var(--accent)' }} />
                 <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider">Actions de l'agent</h2>
-                {isRunning && <Loader2 size={13} className="text-indigo-400 animate-spin ml-1" />}
+                {isRunning && <Loader2 size={13} className="animate-spin ml-1" style={{ color: 'var(--accent)' }} />}
               </div>
               {isRunning && thinking && (
-                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-indigo-500/20" style={{ backgroundColor: '#6366f110' }}>
-                  <Brain size={13} className="text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-indigo-200/70 text-xs leading-relaxed">{thinking}</p>
+                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border" style={{ borderColor: 'rgb(var(--accent-rgb) / 0.2)', backgroundColor: 'rgb(var(--accent-rgb) / 0.06)' }}>
+                  <Brain size={13} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--accent)' }} />
+                  <p className="text-xs leading-relaxed" style={{ color: 'rgb(var(--accent-rgb) / 0.8)' }}>{thinking}</p>
                 </div>
               )}
               {displayActions.map((a, i) => <ActionCard key={`${a.id}-${i}`} action={a} />)}
@@ -634,7 +634,7 @@ export default function UserTesterPage() {
           {displayReport && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Star size={13} className="text-amber-400" />
+                <Star size={13} style={{ color: 'var(--warning)' }} />
                 <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider">
                   {selected ? `Bilan du ${fmtDate(selected.date)}` : 'Bilan Final'}
                 </h2>

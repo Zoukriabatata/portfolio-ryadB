@@ -36,13 +36,13 @@ function FeedRow({ entry, isNew }: { entry: FeedEntry; isNew: boolean }) {
       </div>
 
       {/* Time */}
-      <span className="flex-shrink-0 text-[10px] font-mono tabular-nums mt-0.5"
-        style={{ color: 'var(--text-muted)', minWidth: 52 }}>
+      <span className="flex-shrink-0 text-[11px] font-mono tabular-nums mt-0.5"
+        style={{ color: 'var(--text-muted)', minWidth: 56 }}>
         {formatTime(entry.time)}
       </span>
 
       {/* Event type */}
-      <span className="flex-shrink-0 text-[10px] font-bold mt-0.5"
+      <span className="flex-shrink-0 text-[11px] font-bold mt-0.5"
         style={{ color: sevColor, minWidth: 160 }}>
         {entry.event.replace(/_/g, ' ')}
       </span>
@@ -54,7 +54,7 @@ function FeedRow({ entry, isNew }: { entry: FeedEntry; isNew: boolean }) {
       </span>
 
       {/* Description */}
-      <span className="text-[10px] leading-relaxed min-w-0 flex-1"
+      <span className="text-[11px] leading-relaxed min-w-0 flex-1"
         style={{ color: 'var(--text-secondary)' }}>
         {entry.message}
       </span>

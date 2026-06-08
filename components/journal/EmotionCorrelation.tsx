@@ -7,13 +7,13 @@ interface EmotionCorrelationProps {
 }
 
 const EMOTION_COLORS: Record<string, string> = {
-  Calm: '#3b82f6',
-  Confident: '#22c55e',
-  Disciplined: '#10b981',
-  Anxious: '#f59e0b',
-  FOMO: '#ef4444',
-  Revenge: '#dc2626',
-  Greedy: '#f97316',
+  Calm: 'var(--accent)',
+  Confident: 'var(--bull)',
+  Disciplined: 'var(--bull)',
+  Anxious: 'var(--warning)',
+  FOMO: 'var(--bear)',
+  Revenge: 'var(--bear)',
+  Greedy: 'var(--warning)',
 };
 
 export default function EmotionCorrelation({ data }: EmotionCorrelationProps) {
@@ -28,13 +28,13 @@ export default function EmotionCorrelation({ data }: EmotionCorrelationProps) {
             <div className="flex items-center gap-2 w-24 shrink-0">
               <div
                 className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ background: EMOTION_COLORS[d.emotion] || '#888' }}
+                style={{ background: EMOTION_COLORS[d.emotion] || 'var(--text-muted)' }}
               />
               <span className="text-xs text-[var(--text-primary)] truncate">{d.emotion}</span>
             </div>
             <div className="flex-1 flex items-center gap-3">
               <span
-                className="text-xs font-mono font-bold w-16 text-right"
+                className="text-xs font-[var(--font-jetbrains-mono)] font-bold w-16 text-right"
                 style={{ color: d.pnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}
               >
                 {formatCurrency(d.pnl)}
@@ -44,7 +44,7 @@ export default function EmotionCorrelation({ data }: EmotionCorrelationProps) {
                   className="h-full rounded-full"
                   style={{
                     width: `${d.winRate}%`,
-                    background: EMOTION_COLORS[d.emotion] || '#888',
+                    background: EMOTION_COLORS[d.emotion] || 'var(--text-muted)',
                     opacity: 0.7,
                   }}
                 />

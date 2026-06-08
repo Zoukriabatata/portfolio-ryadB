@@ -11,7 +11,7 @@ export default function StreakAnalysis({ streaks }: StreakAnalysisProps) {
       <div className="grid grid-cols-2 gap-3">
         <div className="text-center p-3 rounded-lg bg-[var(--surface-elevated)]">
           <p className="text-xs text-[var(--text-muted)] mb-1">Current</p>
-          <p className="text-xl font-bold font-mono" style={{
+          <p className="text-xl font-bold font-[var(--font-jetbrains-mono)]" style={{
             color: streaks.currentWin > 0 ? 'var(--bull)' : streaks.currentLoss > 0 ? 'var(--bear)' : 'var(--text-dimmed)'
           }}>
             {streaks.currentWin > 0 ? `${streaks.currentWin}W` : streaks.currentLoss > 0 ? `${streaks.currentLoss}L` : '—'}
@@ -19,15 +19,15 @@ export default function StreakAnalysis({ streaks }: StreakAnalysisProps) {
         </div>
         <div className="text-center p-3 rounded-lg bg-[var(--surface-elevated)]">
           <p className="text-xs text-[var(--text-muted)] mb-1">Max Win</p>
-          <p className="text-xl font-bold font-mono text-[var(--bull)]">{streaks.maxWin}W</p>
+          <p className="text-xl font-bold font-[var(--font-jetbrains-mono)] text-[var(--bull)]">{streaks.maxWin}W</p>
         </div>
         <div className="text-center p-3 rounded-lg bg-[var(--surface-elevated)]">
           <p className="text-xs text-[var(--text-muted)] mb-1">Max Loss</p>
-          <p className="text-xl font-bold font-mono text-[var(--bear)]">{streaks.maxLoss}L</p>
+          <p className="text-xl font-bold font-[var(--font-jetbrains-mono)] text-[var(--bear)]">{streaks.maxLoss}L</p>
         </div>
         <div className="text-center p-3 rounded-lg bg-[var(--surface-elevated)]">
           <p className="text-xs text-[var(--text-muted)] mb-1">Avg Win/Avg Loss</p>
-          <p className="text-sm font-mono text-[var(--text-primary)]">
+          <p className="text-sm font-[var(--font-jetbrains-mono)] text-[var(--text-primary)]">
             {streaks.maxWin > 0 && streaks.maxLoss > 0
               ? (streaks.maxWin / streaks.maxLoss).toFixed(1)
               : '—'}

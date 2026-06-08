@@ -89,23 +89,28 @@ export const DEFAULT_CUSTOM_COLORS: CustomColors = {
   priceLineColor: '',
 };
 
+// NOTE: these are static seed values for the user color-picker / saved
+// templates (persisted), not live render colors — the canvas reads the live
+// brand tokens via getThemeFromCSS() in useChartEngine. They must stay literal
+// hex (the picker edits hex and themeColor() resolves to #000000 during SSR),
+// so they're aligned to the brand palette instead of routed through themeColor().
 export const DEFAULT_CROSSHAIR_SETTINGS: CrosshairSettings = {
-  color: '#6b7280',
+  color: '#515878', // --text-muted
   width: 1,
   style: 'dashed',
 };
 
 export const DEFAULT_CANDLE_SETTINGS: CandleSettings = {
-  upColor: '#22c55e',
-  downColor: '#ef4444',
-  wickUp: '#22c55e',
-  wickDown: '#ef4444',
-  borderUp: '#22c55e',
-  borderDown: '#ef4444',
+  upColor: '#26d97f',   // --bull
+  downColor: '#f04f4f', // --bear
+  wickUp: '#26d97f',
+  wickDown: '#f04f4f',
+  borderUp: '#26d97f',
+  borderDown: '#f04f4f',
 };
 
 export const DEFAULT_BACKGROUND_SETTINGS: BackgroundSettings = {
-  color: '#0a0a0a',
+  color: '#07080f', // --background
   showGrid: true,
-  gridColor: '#1a1a1a',
+  gridColor: '#15182a', // neutral grid, near --surface-elevated
 };

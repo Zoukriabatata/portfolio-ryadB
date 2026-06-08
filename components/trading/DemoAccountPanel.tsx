@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useTradingStore, BROKER_INFO, type BrokerType } from '@/stores/useTradingStore';
+import { X } from 'lucide-react';
+import { useTradingStore } from '@/stores/useTradingStore';
 
 interface DemoAccountPanelProps {
   isOpen: boolean;
@@ -109,24 +110,21 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
     <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
       <div
         ref={panelRef}
-        className="w-[380px] rounded-xl overflow-hidden shadow-2xl"
-        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+        className="panel-glass w-[380px] rounded-xl overflow-hidden shadow-2xl"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] font-bold" style={{ backgroundColor: '#7c3aed', color: '#fff' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] font-bold" style={{ backgroundColor: 'var(--accent)', color: 'var(--background)' }}>
               D
             </div>
             <div>
-              <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Demo Account</h3>
+              <h3 className="font-display text-[16px]" style={{ color: 'var(--text-primary)' }}>Demo Account</h3>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Paper Trading Simulator</p>
             </div>
           </div>
           <button onClick={onClose} className="w-6 h-6 rounded flex items-center justify-center hover:bg-white/10 transition-colors" style={{ color: 'var(--text-muted)' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={14} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -134,8 +132,8 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
         <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${demoConnection.connected ? 'bg-green-400' : 'bg-gray-500'}`} />
-              <span className="text-[11px] font-medium" style={{ color: demoConnection.connected ? '#4ade80' : 'var(--text-muted)' }}>
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: demoConnection.connected ? 'var(--bull)' : 'var(--text-dimmed)' }} />
+              <span className="text-[11px] font-medium" style={{ color: demoConnection.connected ? 'var(--bull)' : 'var(--text-muted)' }}>
                 {demoConnection.connected ? 'Connected' : 'Disconnected'}
               </span>
             </div>
@@ -163,7 +161,7 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
               </div>
               <div className="text-center p-1.5 rounded" style={{ backgroundColor: 'var(--background)' }}>
                 <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>P&L</div>
-                <div className="text-[13px] font-bold font-mono" style={{ color: stats.totalPnl >= 0 ? '#4ade80' : '#f87171' }}>
+                <div className="text-[13px] font-bold font-mono" style={{ color: stats.totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                   {stats.totalPnl >= 0 ? '+' : ''}{stats.totalPnl.toFixed(0)}
                 </div>
               </div>
@@ -184,7 +182,7 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
                   className="flex-1 py-1.5 rounded text-[10px] font-mono font-medium transition-colors"
                   style={{
                     backgroundColor: selectedBalance === k ? 'var(--primary)' : 'var(--background)',
-                    color: selectedBalance === k ? '#fff' : 'var(--text-muted)',
+                    color: selectedBalance === k ? 'var(--background)' : 'var(--text-muted)',
                     border: `1px solid ${selectedBalance === k ? 'var(--primary)' : 'var(--border)'}`,
                   }}
                 >
@@ -207,9 +205,9 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
                   onClick={() => setLeverage(l)}
                   className="flex-1 py-1 rounded text-[9px] font-mono transition-colors"
                   style={{
-                    backgroundColor: leverage === l ? '#f59e0b' : 'var(--background)',
-                    color: leverage === l ? '#000' : 'var(--text-muted)',
-                    border: `1px solid ${leverage === l ? '#f59e0b' : 'var(--border)'}`,
+                    backgroundColor: leverage === l ? 'var(--warning)' : 'var(--background)',
+                    color: leverage === l ? 'var(--background)' : 'var(--text-muted)',
+                    border: `1px solid ${leverage === l ? 'var(--warning)' : 'var(--border)'}`,
                   }}
                 >
                   {l}x
@@ -226,31 +224,31 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Win Rate</span>
-                <span className="text-[10px] font-mono font-bold" style={{ color: stats.winRate >= 50 ? '#4ade80' : '#f87171' }}>
+                <span className="text-[10px] font-mono font-bold" style={{ color: stats.winRate >= 50 ? 'var(--bull)' : 'var(--bear)' }}>
                   {stats.winRate.toFixed(1)}%
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Profit Factor</span>
-                <span className="text-[10px] font-mono font-bold" style={{ color: stats.profitFactor >= 1 ? '#4ade80' : '#f87171' }}>
+                <span className="text-[10px] font-mono font-bold" style={{ color: stats.profitFactor >= 1 ? 'var(--bull)' : 'var(--bear)' }}>
                   {stats.profitFactor.toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Avg Win</span>
-                <span className="text-[10px] font-mono" style={{ color: '#4ade80' }}>+${stats.avgWin.toFixed(2)}</span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--bull)' }}>+${stats.avgWin.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Avg Loss</span>
-                <span className="text-[10px] font-mono" style={{ color: '#f87171' }}>-${Math.abs(stats.avgLoss).toFixed(2)}</span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--bear)' }}>-${Math.abs(stats.avgLoss).toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Wins</span>
-                <span className="text-[10px] font-mono" style={{ color: '#4ade80' }}>{stats.wins}</span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--bull)' }}>{stats.wins}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Losses</span>
-                <span className="text-[10px] font-mono" style={{ color: '#f87171' }}>{stats.losses}</span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--bear)' }}>{stats.losses}</span>
               </div>
             </div>
           </div>
@@ -262,7 +260,7 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
             <button
               onClick={handleConnect}
               className="flex-1 py-2 rounded-lg text-[12px] font-semibold transition-all hover:brightness-110"
-              style={{ backgroundColor: '#7c3aed', color: '#fff' }}
+              style={{ backgroundColor: 'var(--primary)', color: 'var(--background)' }}
             >
               Start Demo Trading
             </button>
@@ -278,7 +276,7 @@ export default function DemoAccountPanel({ isOpen, onClose }: DemoAccountPanelPr
               <button
                 onClick={() => disconnect('demo')}
                 className="px-4 py-2 rounded-lg text-[11px] font-medium transition-colors"
-                style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                style={{ backgroundColor: 'rgb(var(--bear-rgb) / 0.1)', color: 'var(--bear)', border: '1px solid rgb(var(--bear-rgb) / 0.2)' }}
               >
                 Disconnect
               </button>

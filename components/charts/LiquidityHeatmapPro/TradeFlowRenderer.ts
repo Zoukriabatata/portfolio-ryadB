@@ -8,6 +8,7 @@
  */
 
 import type { TradeEvent, TradeFlowSettings, PriceRange } from '@/types/heatmap';
+import { themeAlpha } from '@/lib/ui/themeColors';
 
 interface TradeFlowConfig extends TradeFlowSettings {
   minBubbleRadius: number;
@@ -24,10 +25,11 @@ interface TradeBucket {
   totalVolume: number;
 }
 
-const DEFAULT_CONFIG: TradeFlowConfig = {
+// buyColor/sellColor are resolved from theme tokens in the constructor
+// (client-only) — keeping them out of this module-scope default avoids
+// themeAlpha() returning a #000-based rgba during SSR.
+const DEFAULT_CONFIG: Omit<TradeFlowConfig, 'buyColor' | 'sellColor'> = {
   enabled: true,
-  buyColor: 'rgba(34, 197, 94, 0.7)',
-  sellColor: 'rgba(239, 68, 68, 0.7)',
   bubbleShape: 'circle',
   cumulativeMode: true,
   filterThreshold: 0.3,
@@ -55,7 +57,12 @@ export class TradeFlowRenderer {
   private config: TradeFlowConfig;
 
   constructor(settings?: Partial<TradeFlowSettings>) {
-    this.config = { ...DEFAULT_CONFIG, ...settings };
+    this.config = {
+      ...DEFAULT_CONFIG,
+      buyColor: themeAlpha('--bull', 0.7),
+      sellColor: themeAlpha('--bear', 0.7),
+      ...settings,
+    };
   }
 
   updateSettings(settings: Partial<TradeFlowSettings>): void {
@@ -207,22 +214,21 @@ export class TradeFlowRenderer {
     const borderWidth = this.config.bubbleBorderWidth ?? 1.5;
     const finalOpacity = opacity * bubbleOpacity;
 
-    const color = side === 'buy'
-      ? { r: 34, g: 197, b: 94 }   // Green
-      : { r: 239, g: 68, b: 68 };  // Red
+    // bull (buy) / bear (sell) brand tokens — theme-aware, client-only
+    const token = side === 'buy' ? '--bull' : '--bear';
 
     ctx.save();
     ctx.globalAlpha = finalOpacity;
 
     // Simple filled circle
-    ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.45)`;
+    ctx.fillStyle = themeAlpha(token, 0.45);
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
 
     // Border (configurable)
     if (borderWidth > 0) {
-      ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.85)`;
+      ctx.strokeStyle = themeAlpha(token, 0.85);
       ctx.lineWidth = borderWidth;
       ctx.stroke();
     }
@@ -254,16 +260,16 @@ export class TradeFlowRenderer {
     ctx.save();
     ctx.globalAlpha = finalOpacity;
 
-    // Buy portion (green)
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
+    // Buy portion (bull)
+    ctx.fillStyle = themeAlpha('--bull', 0.6);
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + buyAngle);
     ctx.closePath();
     ctx.fill();
 
-    // Sell portion (red)
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
+    // Sell portion (bear)
+    ctx.fillStyle = themeAlpha('--bear', 0.6);
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.arc(x, y, radius, -Math.PI / 2 + buyAngle, -Math.PI / 2 + Math.PI * 2);
@@ -272,7 +278,7 @@ export class TradeFlowRenderer {
 
     // Border
     const dominant = buyVolume > sellVolume;
-    ctx.strokeStyle = dominant ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+    ctx.strokeStyle = dominant ? themeAlpha('--bull', 0.9) : themeAlpha('--bear', 0.9);
     ctx.lineWidth = Math.max(1, radius * 0.1);
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);

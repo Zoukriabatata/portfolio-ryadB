@@ -3,10 +3,11 @@
 import {
   TrendingUp, TrendingDown, Minus,
   Zap, WifiOff, RefreshCw, Activity,
-  Target, AlertTriangle, ArrowRight, Radio,
+  Target, AlertTriangle, ArrowRight, Radio, Cpu,
 } from 'lucide-react';
 import { useLiveAgent, type AgentSignal, type AgentSource } from '@/hooks/useLiveAgent';
 import { LiveFeed } from '@/components/ai/LiveFeed';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 import {
   BIAS_CFG, regimeColor, SEVERITY_COLOR, STATUS_COLOR, MODE_STYLE,
   SETUP_COLOR, LEVEL_COLOR, AI_ACCENT, AI_NEUTRAL,
@@ -33,7 +34,7 @@ function RegimeChip({ label, value }: { label: string; value: string }) {
         {label}
       </span>
       <span
-        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold truncate"
+        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold truncate"
         style={{
           background: `color-mix(in srgb, ${color} 14%, transparent)`,
           border:     `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
@@ -81,7 +82,7 @@ function ConfidenceArc({ value, color }: { value: number; color: string }) {
       />
       {/* Value */}
       <text x={cx} y={cy - 4} textAnchor="middle"
-        style={{ fontSize: 16, fontWeight: 800, fill: color, fontFamily: 'monospace' }}>
+        style={{ fontSize: 16, fontWeight: 800, fill: color, fontFamily: 'var(--font-jetbrains-mono)' }}>
         {pct}
       </text>
       <text x={cx} y={cy + 10} textAnchor="middle"
@@ -103,9 +104,9 @@ function ConfluenceBar({ score }: { score: number }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest">
-        <span style={{ color: 'var(--text-muted)' }}>Confluence</span>
-        <span style={{ color }}>{score > 0 ? '+' : ''}{score.toFixed(1)} — {label}</span>
+      <div className="flex items-center justify-between font-bold uppercase tracking-widest">
+        <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>Confluence</span>
+        <span className="text-[11px] tabular-nums" style={{ color }}>{score > 0 ? '+' : ''}{score.toFixed(1)} — {label}</span>
       </div>
       <div className="relative h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
         <div className="absolute top-0 bottom-0 w-px" style={{ left: '50%', background: 'var(--text-muted)', opacity: 0.4 }} />
@@ -132,7 +133,7 @@ function GammaSqueezeAlert({ strength }: { strength: number }) {
       <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--bear)', transition: 'width 0.5s ease' }} />
       </div>
-      <span className="text-[10px] font-bold font-mono flex-shrink-0" style={{ color: 'var(--bear)' }}>{pct}%</span>
+      <span className="text-[11px] font-bold font-mono flex-shrink-0" style={{ color: 'var(--bear)' }}>{pct}%</span>
     </div>
   );
 }
@@ -146,8 +147,8 @@ function SetupBlock({ setup }: { setup: { entry: string; target: string; invalid
   return (
     <div className="space-y-2">
       {rows.map(({ label, value, color, Icon }) => (
-        <div key={label} className="flex items-start gap-2 text-[10px]">
-          <Icon size={10} color={color} className="flex-shrink-0 mt-0.5" />
+        <div key={label} className="flex items-start gap-2 text-[11px]">
+          <Icon size={11} color={color} className="flex-shrink-0 mt-0.5" />
           <span className="flex-shrink-0 font-bold w-[72px]" style={{ color: 'var(--text-muted)' }}>{label}</span>
           <span className="leading-relaxed" style={{ color }}>{value}</span>
         </div>
@@ -167,7 +168,7 @@ function MiniMetric({ label, value, color }: { label: string; value: number; col
           <div className="h-full rounded-full"
             style={{ width: `${pct}%`, background: color, transition: 'width 0.5s ease' }} />
         </div>
-        <span className="text-[10px] font-bold font-mono" style={{ color }}>{pct}%</span>
+        <span className="text-[11px] font-bold font-mono" style={{ color }}>{pct}%</span>
       </div>
     </div>
   );
@@ -177,6 +178,7 @@ function SourceBadge({ source }: { source: AgentSource }) {
   if (!source) return null;
   const isPython = source === 'python_agent';
   const color = isPython ? 'var(--primary)' : AI_ACCENT;
+  const Icon = isPython ? Cpu : Zap;
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide"
       style={{
@@ -184,7 +186,8 @@ function SourceBadge({ source }: { source: AgentSource }) {
         border:     `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
         color,
       }}>
-      {isPython ? '🐍 Python' : '⚡ JS Sim'}
+      <Icon size={9} strokeWidth={1.5} />
+      {isPython ? 'Python' : 'JS Sim'}
     </span>
   );
 }
@@ -201,6 +204,7 @@ export function LiveAgentPanel() {
   const bStyle = BIAS_CFG[bias];
   const conf   = signal?.confidence ?? 0;
   const BiasIcon = BIAS_ICON[bias];
+  const biasFlash = useValueFlash(bias);
 
   const secAgo = lastUpdate
     ? Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
@@ -210,8 +214,8 @@ export function LiveAgentPanel() {
     <div className="h-full flex flex-col" style={{ background: 'var(--background)' }}>
 
       {/* ── Header bar ────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-5 h-10 border-b"
-        style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+      <div className="panel-glass flex-shrink-0 flex items-center gap-3 px-5 h-10 border-b"
+        style={{ borderColor: 'var(--border)' }}>
 
         {/* Status */}
         <div className="flex items-center gap-1.5">
@@ -252,7 +256,7 @@ export function LiveAgentPanel() {
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-3 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="ml-auto flex items-center gap-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           {history.length > 0 && <span>{history.length} signaux</span>}
           {secAgo !== null && <span>{secAgo < 5 ? 'Maintenant' : `${secAgo}s`}</span>}
           {signal?.tick && <span className="font-mono">tick #{signal.tick}</span>}
@@ -268,7 +272,7 @@ export function LiveAgentPanel() {
           <ConfidenceArc value={conf} color={bStyle.color} />
           <div className="flex items-center gap-1.5">
             <BiasIcon size={18} color={bStyle.color} />
-            <span className="text-xl font-black tracking-tight"
+            <span className={`font-display text-xl font-black tracking-tight ${biasFlash ? 'value-flash' : ''}`}
               style={{ color: bStyle.color, textShadow: `0 0 16px ${bStyle.glow}` }}>
               {bStyle.label}
             </span>
@@ -293,7 +297,7 @@ export function LiveAgentPanel() {
           )}
 
           {signal?.key_levels && (
-            <div className="flex items-center gap-3 mt-3 pt-2 border-t text-[10px]"
+            <div className="flex items-center gap-3 mt-3 pt-2 border-t text-[11px] tabular-nums"
               style={{ borderColor: 'var(--border)' }}>
               {signal.key_levels.support.length > 0 && (
                 <span style={{ color: LEVEL_COLOR.support }}>
@@ -320,7 +324,7 @@ export function LiveAgentPanel() {
                 { label: 'Skew',    value: signal.delta.skew_change },
                 { label: 'vs Flip', value: signal.delta.price_vs_flip },
               ].map(({ label, value }) => (
-                <div key={label} className="flex items-baseline gap-1.5 text-[10px]">
+                <div key={label} className="flex items-baseline gap-1.5 text-[11px]">
                   <span className="font-bold flex-shrink-0" style={{ color: 'var(--text-muted)', minWidth: 44 }}>{label}</span>
                   <span style={{ color: 'var(--text-secondary)' }}>{value}</span>
                 </div>

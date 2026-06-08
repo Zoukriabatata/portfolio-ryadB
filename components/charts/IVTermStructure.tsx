@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 
 interface TermData {
   expiration: number;
@@ -16,16 +17,6 @@ interface IVTermStructureProps {
   data: TermData[];
   height?: number;
 }
-
-const COLORS = {
-  bg: '#0a0a0a',
-  grid: '#1a1a1a',
-  text: '#888888',
-  textBright: '#ffffff',
-  atmIV: '#3b82f6',
-  callIV: '#22c55e',
-  putIV: '#ef4444',
-};
 
 export default function IVTermStructure({
   symbol,
@@ -66,6 +57,17 @@ export default function IVTermStructure({
     canvas.style.height = `${height}px`;
     ctx.scale(dpr, dpr);
 
+    // Theme-aware palette (resolved at draw-time, never at module eval → SSR-safe)
+    const COLORS = {
+      bg: themeColor('--background'),
+      grid: themeAlpha('--border', 0.6),
+      text: themeColor('--text-muted'),
+      textBright: themeColor('--text-primary'),
+      atmIV: themeColor('--accent'),
+      callIV: themeColor('--bull'),
+      putIV: themeColor('--bear'),
+    };
+
     // Clear
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, width, height);
@@ -98,7 +100,7 @@ export default function IVTermStructure({
     // Draw grid
     ctx.strokeStyle = COLORS.grid;
     ctx.lineWidth = 1;
-    ctx.font = '10px monospace';
+    ctx.font = '10px "JetBrains Mono", monospace';
     ctx.fillStyle = COLORS.text;
 
     // Horizontal grid

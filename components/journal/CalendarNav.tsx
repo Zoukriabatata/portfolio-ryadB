@@ -1,6 +1,8 @@
 'use client';
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useJournalStore } from '@/stores/useJournalStore';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 import { formatCurrency } from '@/lib/journal/chartUtils';
 
 interface CalendarNavProps {
@@ -19,6 +21,7 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 export default function CalendarNav({ monthStats }: CalendarNavProps) {
   const { calendarMonth, setCalendarMonth } = useJournalStore();
   const [year, month] = calendarMonth.split('-').map(Number);
+  const pnlFlash = useValueFlash(monthStats.totalPnl);
 
   const prev = () => {
     const d = new Date(year, month - 2, 1);
@@ -37,16 +40,16 @@ export default function CalendarNav({ monthStats }: CalendarNavProps) {
     <div className="flex items-center justify-between">
       {/* Month navigation */}
       <div className="flex items-center gap-3">
-        <button onClick={prev} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+        <button onClick={prev} aria-label="Previous month" className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors">
+          <ChevronLeft size={16} strokeWidth={1.5} />
         </button>
         <h2 className="text-lg font-semibold text-[var(--text-primary)] min-w-[180px] text-center">
           {MONTH_NAMES[month - 1]} {year}
         </h2>
-        <button onClick={next} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+        <button onClick={next} aria-label="Next month" className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors">
+          <ChevronRight size={16} strokeWidth={1.5} />
         </button>
-        <button onClick={today} className="px-2.5 py-1 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors">
+        <button onClick={today} className="press-fb px-2.5 py-1 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors">
           Today
         </button>
       </div>
@@ -55,7 +58,7 @@ export default function CalendarNav({ monthStats }: CalendarNavProps) {
       <div className="flex items-center gap-5">
         <div className="text-right">
           <p className="text-xs text-[var(--text-muted)]">P&L</p>
-          <p className="text-sm font-bold font-mono" style={{ color: monthStats.totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
+          <p className={`text-sm font-bold font-[var(--font-jetbrains-mono)] ${pnlFlash ? 'value-flash' : ''}`} style={{ color: monthStats.totalPnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
             {formatCurrency(monthStats.totalPnl)}
           </p>
         </div>
@@ -69,11 +72,11 @@ export default function CalendarNav({ monthStats }: CalendarNavProps) {
         </div>
         <div className="text-right">
           <p className="text-xs text-[var(--text-muted)]">Best</p>
-          <p className="text-sm font-bold font-mono text-[var(--bull)]">{formatCurrency(monthStats.bestDay)}</p>
+          <p className="text-sm font-bold font-[var(--font-jetbrains-mono)] text-[var(--bull)]">{formatCurrency(monthStats.bestDay)}</p>
         </div>
         <div className="text-right">
           <p className="text-xs text-[var(--text-muted)]">Worst</p>
-          <p className="text-sm font-bold font-mono text-[var(--bear)]">{formatCurrency(monthStats.worstDay)}</p>
+          <p className="text-sm font-bold font-[var(--font-jetbrains-mono)] text-[var(--bear)]">{formatCurrency(monthStats.worstDay)}</p>
         </div>
       </div>
     </div>

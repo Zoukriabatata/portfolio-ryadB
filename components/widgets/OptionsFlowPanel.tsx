@@ -8,6 +8,14 @@ import {
   useMemo,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
+import { ArrowUp, ArrowDown } from 'lucide-react';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
+
+// Canvas can't parse CSS var() in ctx.font — use the literal JetBrains family
+// (loaded via next/font) with monospace fallbacks, per project canvas convention.
+const CANVAS_MONO = 'JetBrains Mono, Consolas, monospace';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,28 +86,21 @@ function fmtPrice(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
 
-function getCSSVar(name: string): string {
-  if (typeof document === 'undefined') return '#888';
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
-}
-
-let _colorsTs = 0;
-let _colors: Record<string, string> = {};
+// Theme-aware canvas palette. Resolved from the active SENZOUKRIA tokens via
+// themeColor() (hex strings, so `col.bull + 'aa'` alpha-suffix concat stays
+// valid). `accent` maps to --accent (teal: neutral / structure — spot lines,
+// net-GEX line), never a hardcoded blue.
 function clr(): Record<string, string> {
-  const now = Date.now();
-  if (now - _colorsTs < 2000 && Object.keys(_colors).length > 0) return _colors;
-  _colorsTs = now;
-  _colors = {
-    bull:          getCSSVar('--bull')           || '#22c55e',
-    bear:          getCSSVar('--bear')           || '#ef4444',
-    surface:       getCSSVar('--surface')        || '#111114',
-    border:        getCSSVar('--border')         || '#222228',
-    textPrimary:   getCSSVar('--text-primary')   || '#e5e5e5',
-    textSecondary: getCSSVar('--text-secondary') || '#a3a3a3',
-    textMuted:     getCSSVar('--text-muted')     || '#555560',
-    accent:        '#3b82f6',
+  return {
+    bull:          themeColor('--bull'),
+    bear:          themeColor('--bear'),
+    surface:       themeColor('--surface'),
+    border:        themeColor('--border'),
+    textPrimary:   themeColor('--text-primary'),
+    textSecondary: themeColor('--text-secondary'),
+    textMuted:     themeColor('--text-muted'),
+    accent:        themeColor('--accent'),
   };
-  return _colors;
 }
 
 const PAD = { left: 64, right: 16, top: 8, bottom: 34 } as const;
@@ -139,17 +140,17 @@ function ChartHint({ isZoomed, zoomPct, onReset }: { isZoomed: boolean; zoomPct:
     <>
       <div
         className="pointer-events-none absolute bottom-0.5 left-0 right-0 flex items-center justify-center gap-2 text-[9px]"
-        style={{ color: 'rgba(255,255,255,0.15)' }}
+        style={{ color: 'var(--text-dimmed)', fontFamily: 'var(--font-jetbrains-mono)' }}
       >
         <span>scroll · zoom</span><span>·</span><span>drag · pan</span><span>·</span><span>dbl-click · reset</span>
       </div>
       {isZoomed && (
         <button
           onClick={onReset}
-          className="absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono opacity-60 hover:opacity-100 transition-opacity"
-          style={{ background: 'var(--surface-elevated,rgba(30,30,40,0.9))', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          className="absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] opacity-60 hover:opacity-100 transition-opacity"
+          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontFamily: 'var(--font-jetbrains-mono)' }}
         >
-          <span style={{ color: '#3b82f6' }}>{zoomPct}%</span> × reset
+          <span style={{ color: 'var(--accent)' }}>{zoomPct}%</span> × reset
         </button>
       )}
     </>
@@ -272,11 +273,11 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
 
       // Row band
       if (i % 2 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.018)';
+        ctx.fillStyle = themeAlpha('--text-primary', 0.018);
         ctx.fillRect(PAD.left, cy - barH / 2, chartW, barH);
       }
       if (isH) {
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillStyle = themeAlpha('--text-primary', 0.06);
         ctx.fillRect(PAD.left, cy - barH / 2 - 1, chartW, barH + 2);
       }
 
@@ -285,7 +286,7 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
       const isSpot = Math.abs(s.strike - spotPrice) <= step * 0.6;
 
       // Strike label
-      ctx.font = isH ? 'bold 10px monospace' : '10px monospace';
+      ctx.font = isH ? `bold 10px ${CANVAS_MONO}` : `10px ${CANVAS_MONO}`;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = isSpot ? col.accent : isH ? col.textPrimary : col.textMuted;
@@ -303,7 +304,7 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
         ctx.fill();
         if (bw > 40 && isH) {
           ctx.fillStyle = col.bull;
-          ctx.font = 'bold 9px monospace';
+          ctx.font = `bold 9px ${CANVAS_MONO}`;
           ctx.textAlign = 'left';
           ctx.fillText(`$${fmtNum(s.callPremium)}`, midX + bw + 4, cy);
         }
@@ -321,7 +322,7 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
         ctx.fill();
         if (bw > 40 && isH) {
           ctx.fillStyle = col.bear;
-          ctx.font = 'bold 9px monospace';
+          ctx.font = `bold 9px ${CANVAS_MONO}`;
           ctx.textAlign = 'right';
           ctx.fillText(`$${fmtNum(s.putPremium)}`, midX - bw - 4, cy);
         }
@@ -367,7 +368,7 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
     // X-axis
     const axisY = PAD.top + chartH + 5;
     ctx.fillStyle = col.textMuted;
-    ctx.font = '9px monospace';
+    ctx.font = `9px ${CANVAS_MONO}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(`-${fmtNum(maxAbs)}`, PAD.left, axisY);
@@ -456,24 +457,24 @@ function NetFlowChart({ data, spotPrice }: { data: NetFlowStrike[]; spotPrice: n
         onTouchEnd={() => setIsPanning(false)}
       />
       {hovered && !isPanning && (
-        <div className="absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] font-mono shadow-2xl"
-          style={{ left: ttX, top: ttY, minWidth: ttW, background: 'rgba(12,12,18,0.97)', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <span style={{ color: 'rgba(255,255,255,0.7)' }}>Strike</span>
-            <span className="font-bold" style={{ color: '#e5e5e5' }}>${fmtPrice(hovered.strike)}</span>
+        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[11px] shadow-2xl"
+          style={{ left: ttX, top: ttY, minWidth: ttW, fontFamily: 'var(--font-jetbrains-mono)' }}>
+          <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'var(--border)' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Strike</span>
+            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>${fmtPrice(hovered.strike)}</span>
           </div>
           <div className="px-3 py-1.5 space-y-0.5">
             <div className="flex justify-between gap-4">
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Call</span>
-              <span style={{ color: '#22c55e' }}>${fmtNum(hovered.callPremium)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Call</span>
+              <span style={{ color: 'var(--bull)' }}>${fmtNum(hovered.callPremium)}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Put</span>
-              <span style={{ color: '#ef4444' }}>${fmtNum(hovered.putPremium)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Put</span>
+              <span style={{ color: 'var(--bear)' }}>${fmtNum(hovered.putPremium)}</span>
             </div>
-            <div className="flex justify-between gap-4 border-t pt-0.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Net</span>
-              <span className="font-bold" style={{ color: hovered.net >= 0 ? '#22c55e' : '#ef4444' }}>
+            <div className="flex justify-between gap-4 border-t pt-0.5" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Net</span>
+              <span className="font-bold" style={{ color: hovered.net >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                 {hovered.net >= 0 ? '+' : ''}${fmtNum(hovered.net)}
               </span>
             </div>
@@ -588,9 +589,9 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
     const col = clr();
     // Header strip
     const headerH = 22;
-    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fillStyle = themeAlpha('--text-primary', 0.03);
     ctx.fillRect(0, 0, w, headerH);
-    ctx.font = 'bold 10px monospace';
+    ctx.font = `bold 10px ${CANVAS_MONO}`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     ctx.fillStyle = col.bull;
@@ -617,18 +618,18 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
       const isWall = callWalls.has(s.strike) || putWalls.has(s.strike);
 
       if (i % 2 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.018)';
+        ctx.fillStyle = themeAlpha('--text-primary', 0.018);
         ctx.fillRect(PAD.left, cy - barH / 2, chartW, barH);
       }
       if (isH) {
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillStyle = themeAlpha('--text-primary', 0.06);
         ctx.fillRect(PAD.left, cy - barH / 2 - 1, chartW, barH + 2);
       }
 
       const step = sorted.length > 1 ? (sorted[sorted.length-1].strike - sorted[0].strike) / (sorted.length-1) : 1;
       const isSpot = Math.abs(s.strike - spotPrice) <= step * 0.6;
 
-      ctx.font = isH ? 'bold 10px monospace' : '10px monospace';
+      ctx.font = isH ? `bold 10px ${CANVAS_MONO}` : `10px ${CANVAS_MONO}`;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = isSpot ? col.accent : isH ? col.textPrimary : col.textMuted;
@@ -654,20 +655,20 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
       ctx.fill();
       ctx.globalAlpha = 1;
 
-      // Wall badges
+      // Wall badges — color + side already encode call/put direction (no glyphs)
       if (callWalls.has(s.strike) && cw > 20) {
         ctx.fillStyle = col.bull;
-        ctx.font = '8px monospace';
+        ctx.font = `bold 8px ${CANVAS_MONO}`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText('▲C', midX + cw + 4, cy);
+        ctx.fillText('C', midX + cw + 4, cy);
       }
       if (putWalls.has(s.strike) && pw > 20) {
         ctx.fillStyle = col.bear;
-        ctx.font = '8px monospace';
+        ctx.font = `bold 8px ${CANVAS_MONO}`;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        ctx.fillText('▼P', midX - pw - 4, cy);
+        ctx.fillText('P', midX - pw - 4, cy);
       }
     });
 
@@ -699,7 +700,7 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
     // X-axis
     const axisY = padTop2 + chartH + 5;
     ctx.fillStyle = col.textMuted;
-    ctx.font = '9px monospace';
+    ctx.font = `9px ${CANVAS_MONO}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(`0`, PAD.left, axisY);
@@ -772,20 +773,20 @@ function OIChart({ data, spotPrice }: { data: OIStrike[]; spotPrice: number }) {
         onTouchEnd={() => setIsPanning(false)}
       />
       {hovered && !isPanning && (
-        <div className="absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] font-mono shadow-2xl"
-          style={{ left: ttX, top: ttY, minWidth: ttW, background: 'rgba(12,12,18,0.97)', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <span style={{ color: 'rgba(255,255,255,0.5)' }}>Strike</span>
-            <span className="font-bold text-white">${fmtPrice(hovered.strike)}</span>
+        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[11px] shadow-2xl"
+          style={{ left: ttX, top: ttY, minWidth: ttW, fontFamily: 'var(--font-jetbrains-mono)' }}>
+          <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'var(--border)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>Strike</span>
+            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>${fmtPrice(hovered.strike)}</span>
           </div>
           <div className="px-3 py-1.5 space-y-0.5">
             <div className="flex justify-between gap-4">
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Call OI</span>
-              <span style={{ color: '#22c55e' }}>{fmtNum(hovered.callOI)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Call OI</span>
+              <span style={{ color: 'var(--bull)' }}>{fmtNum(hovered.callOI)}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Put OI</span>
-              <span style={{ color: '#ef4444' }}>{fmtNum(hovered.putOI)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Put OI</span>
+              <span style={{ color: 'var(--bear)' }}>{fmtNum(hovered.putOI)}</span>
             </div>
           </div>
         </div>
@@ -831,7 +832,7 @@ function TopContractsTable({ data }: { data: TopContract[] }) {
 
   return (
     <div className="w-full h-full overflow-auto">
-      <table className="w-full text-[10px] font-mono border-collapse">
+      <table className="w-full text-[11px] border-collapse" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
         <thead>
           <tr>
             {cols.map(col => (
@@ -847,7 +848,10 @@ function TopContractsTable({ data }: { data: TopContract[] }) {
                   fontWeight: sortKey === col.key ? 700 : 400,
                 }}
               >
-                {col.label}{sortKey === col.key && <span className="ml-0.5 text-[8px]">{sortAsc ? '▲' : '▼'}</span>}
+                <span className="inline-flex items-center gap-0.5">
+                  {col.label}
+                  {sortKey === col.key && (sortAsc ? <ArrowUp size={9} strokeWidth={1.5} /> : <ArrowDown size={9} strokeWidth={1.5} />)}
+                </span>
               </th>
             ))}
           </tr>
@@ -864,15 +868,15 @@ function TopContractsTable({ data }: { data: TopContract[] }) {
                 onMouseLeave={() => setHovered(null)}
                 style={{
                   background: isHovered
-                    ? isCall ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)'
-                    : i % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent',
+                    ? isCall ? 'rgb(var(--bull-rgb) / 0.08)' : 'rgb(var(--bear-rgb) / 0.08)'
+                    : i % 2 === 0 ? 'rgb(var(--text-primary-rgb, 255 255 255) / 0.015)' : 'transparent',
                   transition: 'background 100ms',
                 }}
               >
                 <td className="px-1.5 py-0.5 text-right font-medium" style={{ color: 'var(--text-primary)' }}>
                   {fmtPrice(row.strike)}
                 </td>
-                <td className="px-1.5 py-0.5 font-bold" style={{ color: isCall ? '#22c55e' : '#ef4444' }}>
+                <td className="px-1.5 py-0.5 font-bold" style={{ color: isCall ? 'var(--bull)' : 'var(--bear)' }}>
                   {row.type}
                 </td>
                 <td className="px-1.5 py-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -895,14 +899,14 @@ function TopContractsTable({ data }: { data: TopContract[] }) {
                 </td>
                 <td className="px-1.5 py-0.5 text-right">
                   <span
-                    className={unusual ? 'px-1.5 py-0.5 rounded-md text-[9px]' : ''}
+                    className={unusual ? 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px]' : ''}
                     style={{
-                      color:      unusual ? '#fb923c' : 'var(--text-muted)',
-                      background: unusual ? 'rgba(251,146,60,0.15)' : undefined,
+                      color:      unusual ? 'var(--warning)' : 'var(--text-muted)',
+                      background: unusual ? 'rgb(var(--warning-rgb) / 0.15)' : undefined,
                       fontWeight: unusual ? 700 : 400,
                     }}
                   >
-                    {row.voiRatio.toFixed(1)}{unusual && '↑'}
+                    {row.voiRatio.toFixed(1)}{unusual && <ArrowUp size={9} strokeWidth={1.5} />}
                   </span>
                 </td>
               </tr>
@@ -966,7 +970,7 @@ function GEXExpiryChart({ data }: { data: GEXExpiry[] }) {
       ctx.stroke();
       const val = maxGEX - (maxGEX * 2 * i) / 4;
       ctx.fillStyle = col.textMuted;
-      ctx.font = '9px monospace';
+      ctx.font = `9px ${CANVAS_MONO}`;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(fmtNum(val), pL - 4, y);
@@ -980,7 +984,7 @@ function GEXExpiryChart({ data }: { data: GEXExpiry[] }) {
 
       // Column highlight
       if (isH) {
-        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        ctx.fillStyle = themeAlpha('--text-primary', 0.04);
         ctx.fillRect(pL + groupW * i, pT, groupW, chartH);
       }
 
@@ -1021,7 +1025,7 @@ function GEXExpiryChart({ data }: { data: GEXExpiry[] }) {
     });
 
     // Zero line
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.strokeStyle = themeAlpha('--text-primary', 0.25);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(pL, zeroY);
@@ -1037,7 +1041,7 @@ function GEXExpiryChart({ data }: { data: GEXExpiry[] }) {
       ctx.stroke();
       netPoints.forEach((p, i) => {
         const isH = sorted[i] === hovered;
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = col.textPrimary;
         ctx.beginPath();
         ctx.arc(p.x, p.y, isH ? 6 : 4, 0, Math.PI * 2);
         ctx.fill();
@@ -1050,7 +1054,7 @@ function GEXExpiryChart({ data }: { data: GEXExpiry[] }) {
 
     // Legend
     const ly = pT + chartH + 30;
-    ctx.font = '9px monospace';
+    ctx.font = `9px ${CANVAS_MONO}`;
     ctx.textAlign = 'left';
     ctx.fillStyle = col.bull; ctx.fillRect(pL, ly, 8, 8);
     ctx.fillStyle = col.textSecondary; ctx.fillText('Call', pL + 11, ly + 7);
@@ -1091,24 +1095,24 @@ function GEXExpiryChart({ data }: { data: GEXExpiry[] }) {
         onMouseLeave={() => setHovered(null)}
       />
       {hovered && (
-        <div className="absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[10px] font-mono shadow-2xl"
-          style={{ left: ttX, top: ttY, minWidth: ttW, background: 'rgba(12,12,18,0.97)', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <span className="font-bold text-white">{hovered.label}</span>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>{hovered.daysToExp}d</span>
+        <div className="panel-glass absolute z-50 pointer-events-none rounded-xl overflow-hidden text-[11px] shadow-2xl"
+          style={{ left: ttX, top: ttY, minWidth: ttW, fontFamily: 'var(--font-jetbrains-mono)' }}>
+          <div className="px-3 py-1.5 border-b flex justify-between" style={{ borderColor: 'var(--border)' }}>
+            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{hovered.label}</span>
+            <span style={{ color: 'var(--text-muted)' }}>{hovered.daysToExp}d</span>
           </div>
           <div className="px-3 py-1.5 space-y-0.5">
             <div className="flex justify-between gap-4">
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Call GEX</span>
-              <span style={{ color: '#22c55e' }}>{fmtNum(hovered.callGEX)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Call GEX</span>
+              <span style={{ color: 'var(--bull)' }}>{fmtNum(hovered.callGEX)}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Put GEX</span>
-              <span style={{ color: '#ef4444' }}>{fmtNum(hovered.putGEX)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Put GEX</span>
+              <span style={{ color: 'var(--bear)' }}>{fmtNum(hovered.putGEX)}</span>
             </div>
-            <div className="flex justify-between gap-4 border-t pt-0.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>Net GEX</span>
-              <span className="font-bold" style={{ color: hovered.netGEX >= 0 ? '#22c55e' : '#ef4444' }}>
+            <div className="flex justify-between gap-4 border-t pt-0.5" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Net GEX</span>
+              <span className="font-bold" style={{ color: hovered.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                 {hovered.netGEX >= 0 ? '+' : ''}{fmtNum(hovered.netGEX)}
               </span>
             </div>
@@ -1136,32 +1140,33 @@ export default function OptionsFlowPanel({
   const displayPrice = (liveSpot?.price ?? 0) > 0 ? liveSpot!.price : spotPrice;
   const isLive = (liveSpot?.price ?? 0) > 0;
 
+  // Motion P8 — flash the headline live spot price when it ticks.
+  const priceFlash = useValueFlash(displayPrice);
+
   // Compute age of last live update for staleness indicator
   const secAgo = liveSpot?.ts ? Math.floor((Date.now() - liveSpot.ts) / 1000) : null;
 
   return (
-    <div
-      className="flex flex-col h-full rounded-xl overflow-hidden"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass flex flex-col h-full rounded-xl overflow-hidden">
+
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-1.5 shrink-0"
+      <div className="panel-glass flex items-center justify-between px-3 py-1.5 shrink-0"
         style={{ borderBottom: '1px solid var(--border)' }}>
-        <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: 'var(--text-secondary)' }}>
+        <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-jetbrains-mono)' }}>
           {symbol} Options Flow
         </span>
         <div className="flex items-center gap-2">
           {/* Live spot price badge */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg font-mono text-[11px] font-semibold"
-            style={{ background: isLive ? 'rgba(34,197,94,0.1)' : 'var(--surface-elevated,rgba(255,255,255,0.04))', border: `1px solid ${isLive ? 'rgba(34,197,94,0.25)' : 'var(--border)'}` }}>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold"
+            style={{ background: isLive ? 'rgb(var(--bull-rgb) / 0.1)' : 'var(--surface-elevated)', border: `1px solid ${isLive ? 'rgb(var(--bull-rgb) / 0.25)' : 'var(--border)'}`, fontFamily: 'var(--font-jetbrains-mono)' }}>
             {isLive && (
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#22c55e' }} />
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bull)' }} />
             )}
-            <span style={{ color: isLive ? '#22c55e' : 'var(--text-muted)' }}>
+            <span className={priceFlash ? 'value-flash' : ''} style={{ color: isLive ? 'var(--bull)' : 'var(--text-muted)' }}>
               ${fmtPrice(displayPrice)}
             </span>
             {secAgo !== null && (
-              <span className="text-[9px] font-normal" style={{ color: 'var(--text-dimmed,rgba(255,255,255,0.25))' }}>
+              <span className="text-[11px] font-normal" style={{ color: 'var(--text-dimmed)' }}>
                 {secAgo < 5 ? 'live' : `${secAgo}s`}
               </span>
             )}
@@ -1170,25 +1175,17 @@ export default function OptionsFlowPanel({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-px px-2 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all"
-            style={{
-              background: activeTab === tab.key ? 'var(--primary, #3b82f6)' : 'transparent',
-              color:      activeTab === tab.key ? '#fff' : 'var(--text-muted)',
-              fontWeight: activeTab === tab.key ? 600 : 400,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="panel-glass flex px-2 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+        <Segment
+          options={TABS.map(tab => ({ id: tab.key, label: tab.label }))}
+          value={activeTab}
+          onChange={setActiveTab}
+          size="sm"
+        />
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-hidden p-1">
+      <div key={activeTab} className="flex-1 min-h-0 overflow-hidden p-1 animate-fadeIn">
         {activeTab === 'flow'      && <NetFlowChart data={netFlowByStrike} spotPrice={spotPrice} />}
         {activeTab === 'oi'        && <OIChart data={oiByStrike} spotPrice={spotPrice} />}
         {activeTab === 'contracts' && <TopContractsTable data={topContracts} />}

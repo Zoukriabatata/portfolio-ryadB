@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useCallback, useState, useEffect } from 'react';
+import { Download, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
 import { useTradingStore, type ClosedTrade } from '@/stores/useTradingStore';
@@ -79,7 +80,7 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
           className="ml-auto px-2 py-0.5 rounded text-[10px] font-semibold transition-colors hover:brightness-110 flex items-center gap-1"
           style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
         >
-          ⬇ CSV
+          <Download size={12} strokeWidth={1.5} /> CSV
         </button>
       }
     >
@@ -100,7 +101,7 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
           <tbody>
             {visible.map(t => {
               const isLong = t.side === 'buy';
-              const pnlColor = t.pnl >= 0 ? '#10b981' : '#ef4444';
+              const pnlColor = t.pnl >= 0 ? 'var(--bull)' : 'var(--bear)';
               return (
                 <tr
                   key={t.id}
@@ -112,8 +113,8 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
                     <span
                       className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider"
                       style={{
-                        background: isLong ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-                        color:      isLong ? '#10b981' : '#ef4444',
+                        background: isLong ? 'rgb(var(--bull-rgb) / 0.12)' : 'rgb(var(--bear-rgb) / 0.12)',
+                        color:      isLong ? 'var(--bull)' : 'var(--bear)',
                       }}
                     >
                       {isLong ? 'LONG' : 'SHORT'}
@@ -125,10 +126,10 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
                   <td className="px-3 py-2 text-right tabular-nums font-bold" style={{ color: pnlColor }}>
                     {t.pnl >= 0 ? '+' : ''}${Math.abs(t.pnl).toFixed(2)}
                   </td>
-                  <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  <td className="px-3 py-2 text-right text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {formatDuration(t.exitTime - t.entryTime)}
                   </td>
-                  <td className="px-3 py-2 text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  <td className="px-3 py-2 text-right text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {formatRelative(t.exitTime)}
                   </td>
                 </tr>
@@ -158,14 +159,14 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
             </select>
           </div>
           <div className="flex items-center gap-1">
-            <PageButton onClick={() => setPage(0)}            disabled={page === 0}>«</PageButton>
-            <PageButton onClick={() => setPage(p => p - 1)}   disabled={page === 0}>‹</PageButton>
+            <PageButton onClick={() => setPage(0)}            disabled={page === 0} label="First page"><ChevronsLeft size={14} strokeWidth={1.5} /></PageButton>
+            <PageButton onClick={() => setPage(p => p - 1)}   disabled={page === 0} label="Previous page"><ChevronLeft size={14} strokeWidth={1.5} /></PageButton>
             <span className="px-2 tabular-nums">
               <span style={{ color: 'var(--text-primary)' }}>{page + 1}</span>
               <span> / {pageCount}</span>
             </span>
-            <PageButton onClick={() => setPage(p => p + 1)}   disabled={page >= pageCount - 1}>›</PageButton>
-            <PageButton onClick={() => setPage(pageCount - 1)} disabled={page >= pageCount - 1}>»</PageButton>
+            <PageButton onClick={() => setPage(p => p + 1)}   disabled={page >= pageCount - 1} label="Next page"><ChevronRight size={14} strokeWidth={1.5} /></PageButton>
+            <PageButton onClick={() => setPage(pageCount - 1)} disabled={page >= pageCount - 1} label="Last page"><ChevronsRight size={14} strokeWidth={1.5} /></PageButton>
           </div>
         </div>
       )}
@@ -174,13 +175,14 @@ export default function TradeHistory({ symbolFilter = null }: TradeHistoryProps)
 }
 
 function PageButton({
-  children, onClick, disabled,
-}: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  children, onClick, disabled, label,
+}: { children: React.ReactNode; onClick: () => void; disabled?: boolean; label?: string }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-6 h-6 rounded text-[12px] font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125"
+      aria-label={label}
+      className="w-6 h-6 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 flex items-center justify-center"
       style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
     >
       {children}
@@ -220,9 +222,9 @@ function Card({
   children:  React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="panel-glass rounded-xl overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+        <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>{title}</h3>
         {badge && (
           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums" style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
             {badge}

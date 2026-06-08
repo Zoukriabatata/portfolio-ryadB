@@ -19,6 +19,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { Activity, ArrowDown } from 'lucide-react';
 
 export interface Trade {
   id: string;
@@ -58,8 +59,8 @@ export function TimeSalesPanel({
   aggregateByPrice = false,
   showCumulativeVolume = true,
   largeTradeThreshold = 10,
-  buyColor = '#22c55e',
-  sellColor = '#ef4444',
+  buyColor = 'var(--bull)',
+  sellColor = 'var(--bear)',
   onTradeClick,
 }: TimeSalesPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -183,22 +184,19 @@ export function TimeSalesPanel({
   }, [filteredTrades]);
 
   return (
-    <div className="flex flex-col h-full rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="panel-glass flex flex-col h-full rounded-lg overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-elevated)' }}>
         <div className="flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
-            <path d="M12 2v20M2 12h20" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Time & Sales</span>
+          <Activity size={14} strokeWidth={1.5} style={{ color: 'var(--bull)' }} />
+          <span className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Time & Sales</span>
           <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>({stats.tradeCount}/min)</span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Pause indicator */}
           {isPaused && (
-            <span className="px-1.5 py-0.5 text-[9px] rounded" style={{ backgroundColor: 'var(--warning-bg, rgba(234,179,8,0.2))', color: 'var(--warning)' }}>
+            <span className="px-1.5 py-0.5 text-[9px] rounded" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning)' }}>
               PAUSED
             </span>
           )}
@@ -267,7 +265,7 @@ export function TimeSalesPanel({
               <span style={{ color: 'var(--text-dimmed)' }}>{formatTime(agg.lastTimestamp)}</span>
               <span
                 className="text-right font-semibold"
-                style={{ color: agg.side === 'buy' ? buyColor : agg.side === 'sell' ? sellColor : '#fff' }}
+                style={{ color: agg.side === 'buy' ? buyColor : agg.side === 'sell' ? sellColor : 'var(--text-primary)' }}
               >
                 {formatPrice(agg.price)}
               </span>
@@ -336,9 +334,7 @@ export function TimeSalesPanel({
           className="flex items-center justify-center gap-1 px-2 py-1 border-t text-[10px] transition-colors"
           style={{ backgroundColor: 'var(--surface-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 5v14M5 12l7 7 7-7" />
-          </svg>
+          <ArrowDown size={12} strokeWidth={1.5} />
           Scroll to latest
         </button>
       )}

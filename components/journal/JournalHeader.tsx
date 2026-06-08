@@ -34,7 +34,7 @@ export default function JournalHeader({ onNewTrade }: JournalHeaderProps) {
       </div>
       <button
         onClick={onNewTrade}
-        className="btn-brand px-4 py-2 rounded-lg text-sm font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
+        className="btn-brand press-fb px-4 py-2 rounded-lg text-sm font-medium transition-all hover:-translate-y-0.5 active:scale-[0.97]"
       >
         + New Trade
       </button>

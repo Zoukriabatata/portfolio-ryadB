@@ -27,6 +27,7 @@ import { detectImbalance } from '@/lib/calculations/imbalance';
 import { useHeatmapSettingsStore } from '@/stores/useHeatmapSettingsStore';
 import LiquidityAdvancedSettings from '@/components/settings/LiquidityAdvancedSettings';
 import type { TimeSalesTrade } from '@/components/trading';
+import { themeColor } from '@/lib/ui/themeColors';
 
 export type DataMode = 'simulation' | 'live';
 
@@ -566,9 +567,9 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
                 vwapKeyLevelsCacheRef.current = {
                   levels,
                   settings: {
-                    vwapColor: '#06b6d4',
-                    vwapBand1Color: '#0891b2',
-                    vwapBand2Color: '#0e7490',
+                    vwapColor: themeColor('--accent'),
+                    vwapBand1Color: themeColor('--accent-light'),
+                    vwapBand2Color: themeColor('--accent-light'),
                     opacity: 0.8,
                   },
                 };
@@ -611,15 +612,15 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
               renderData.keyLevels = {
                 levels: allLevels,
                 settings: {
-                  pocColor: '#f59e0b',
-                  vahColor: '#8b5cf6',
-                  valColor: '#8b5cf6',
-                  vwapColor: '#06b6d4',
-                  vwapBand1Color: '#0891b2',
-                  vwapBand2Color: '#0e7490',
-                  sessionHighColor: '#22d3ee',
-                  sessionLowColor: '#fb7185',
-                  roundNumberColor: '#fbbf24',
+                  pocColor: themeColor('--warning'),
+                  vahColor: themeColor('--accent'),
+                  valColor: themeColor('--accent'),
+                  vwapColor: themeColor('--accent'),
+                  vwapBand1Color: themeColor('--accent-light'),
+                  vwapBand2Color: themeColor('--accent-light'),
+                  sessionHighColor: themeColor('--accent'),
+                  sessionLowColor: themeColor('--bear'),
+                  roundNumberColor: themeColor('--warning'),
                   opacity: 0.8,
                 },
               };
@@ -1245,7 +1246,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
     <div
       ref={containerRef}
       className="relative w-full select-none"
-      style={{ height, background: '#050510' }}
+      style={{ height, background: 'var(--background)' }}
     >
       {/* Canvas 2D (visible when not using WebGL) */}
       <canvas
@@ -1304,7 +1305,7 @@ const StaircaseHeatmapInner = React.memo(function StaircaseHeatmap({ height = 60
                   className="w-10 rounded animate-pulse"
                   style={{
                     height: `${80 + Math.sin(i * 0.8) * 40}px`,
-                    background: `linear-gradient(to top, rgba(6,182,212,0.15), rgba(34,197,94,0.2), rgba(245,158,11,0.1))`,
+                    background: `linear-gradient(to top, rgb(var(--accent-rgb) / 0.15), rgb(var(--bull-rgb) / 0.2), rgb(var(--warning-rgb) / 0.1))`,
                     animationDelay: `${i * 80}ms`,
                     animationDuration: '1.5s',
                   }}

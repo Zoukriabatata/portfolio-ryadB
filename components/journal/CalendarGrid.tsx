@@ -77,12 +77,12 @@ export default function CalendarGrid({ days, selectedDate, onSelectDate }: Calen
               {hasTrades && (
                 <div className="mt-1">
                   <p
-                    className="text-xs font-bold font-mono"
+                    className="text-xs font-bold font-[var(--font-jetbrains-mono)]"
                     style={{ color: dayData.pnl >= 0 ? 'var(--bull)' : 'var(--bear)' }}
                   >
                     {formatCurrency(dayData.pnl)}
                   </p>
-                  <p className="text-[10px] text-[var(--text-dimmed)]">
+                  <p className="text-[11px] text-[var(--text-dimmed)]">
                     {dayData.tradeCount} trade{dayData.tradeCount > 1 ? 's' : ''}
                   </p>
                 </div>

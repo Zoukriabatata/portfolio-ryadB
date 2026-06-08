@@ -3,6 +3,27 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { MultiGreekData, GreekType } from '@/types/options';
 import { GREEK_META } from '@/types/options';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
+
+const MONO = 'var(--font-jetbrains-mono)';
+// Canvas ctx.font can't resolve CSS var() — use the literal family name.
+const CANVAS_MONO = 'JetBrains Mono, Consolas, monospace';
+
+/** Theme-aware palette, read inside draw() so it tracks the active theme. */
+function colors() {
+  return {
+    bg: themeColor('--background'),
+    grid: themeColor('--border'),
+    text: themeColor('--text-muted'),
+    textBright: themeColor('--text-primary'),
+    positive: themeColor('--bull'),
+    negative: themeColor('--bear'),
+    spotPrice: themeColor('--accent'),
+    zeroGamma: themeColor('--warning'),
+    callWall: themeColor('--bull'),
+    putWall: themeColor('--bear'),
+  };
+}
 
 interface CumulativeGEXChartProps {
   data: MultiGreekData[];
@@ -14,19 +35,6 @@ interface CumulativeGEXChartProps {
   putWall: number;
   height?: number | 'auto';
 }
-
-const COLORS = {
-  bg: '#0a0a0a',
-  grid: '#1a1a1a',
-  text: '#888888',
-  textBright: '#ffffff',
-  positive: '#22c55e',
-  negative: '#ef4444',
-  spotPrice: '#3b82f6',
-  zeroGamma: '#fbbf24',
-  callWall: '#10b981',
-  putWall: '#f43f5e',
-};
 
 const PADDING = { top: 40, right: 60, bottom: 50, left: 80 };
 
@@ -83,6 +91,7 @@ export default function CumulativeGEXChart({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const C = colors();
     const { width, height: h } = dimensions;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
@@ -91,7 +100,7 @@ export default function CumulativeGEXChart({
     canvas.style.height = `${h}px`;
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = COLORS.bg;
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, width, h);
 
     const cw = width - PADDING.left - PADDING.right;
@@ -121,13 +130,13 @@ export default function CumulativeGEXChart({
     const zeroY = toY(0);
 
     // Grid
-    ctx.strokeStyle = COLORS.grid;
+    ctx.strokeStyle = C.grid;
     ctx.lineWidth = 1;
 
     // Horizontal grid
     const numHLines = 6;
-    ctx.font = '10px monospace';
-    ctx.fillStyle = COLORS.text;
+    ctx.font = `10px ${CANVAS_MONO}`;
+    ctx.fillStyle = C.text;
     for (let i = 0; i <= numHLines; i++) {
       const val = minVal + (i / numHLines) * valRange;
       const y = toY(val);
@@ -156,7 +165,7 @@ export default function CumulativeGEXChart({
     }
 
     // Zero line
-    ctx.strokeStyle = COLORS.zeroGamma;
+    ctx.strokeStyle = C.zeroGamma;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
@@ -174,8 +183,8 @@ export default function CumulativeGEXChart({
     ctx.lineTo(toX(visibleData[visibleData.length - 1].strike), zeroY);
     ctx.closePath();
     const posGrad = ctx.createLinearGradient(0, PADDING.top, 0, zeroY);
-    posGrad.addColorStop(0, 'rgba(34, 197, 94, 0.35)');
-    posGrad.addColorStop(1, 'rgba(34, 197, 94, 0.05)');
+    posGrad.addColorStop(0, themeAlpha('--bull', 0.35));
+    posGrad.addColorStop(1, themeAlpha('--bull', 0.05));
     ctx.fillStyle = posGrad;
     ctx.fill();
 
@@ -187,8 +196,8 @@ export default function CumulativeGEXChart({
     ctx.lineTo(toX(visibleData[visibleData.length - 1].strike), zeroY);
     ctx.closePath();
     const negGrad = ctx.createLinearGradient(0, zeroY, 0, PADDING.top + ch);
-    negGrad.addColorStop(0, 'rgba(239, 68, 68, 0.05)');
-    negGrad.addColorStop(1, 'rgba(239, 68, 68, 0.35)');
+    negGrad.addColorStop(0, themeAlpha('--bear', 0.05));
+    negGrad.addColorStop(1, themeAlpha('--bear', 0.35));
     ctx.fillStyle = negGrad;
     ctx.fill();
 
@@ -198,14 +207,14 @@ export default function CumulativeGEXChart({
     for (let i = 1; i < visibleData.length; i++) {
       ctx.lineTo(toX(visibleData[i].strike), toY(visibleData[i].value));
     }
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = C.textBright;
     ctx.lineWidth = 2;
     ctx.stroke();
 
     // Spot price
     if (spotPrice >= minStrike && spotPrice <= maxStrike) {
       const x = toX(spotPrice);
-      ctx.strokeStyle = COLORS.spotPrice;
+      ctx.strokeStyle = C.spotPrice;
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
@@ -214,7 +223,7 @@ export default function CumulativeGEXChart({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = COLORS.spotPrice;
+      ctx.fillStyle = C.spotPrice;
       ctx.font = 'bold 10px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText(`SPOT $${spotPrice.toFixed(0)}`, x, PADDING.top - 5);
@@ -233,9 +242,9 @@ export default function CumulativeGEXChart({
       ctx.fillText(label, x, PADDING.top + ch + 38);
     };
 
-    drawMarker(zeroGammaLevel, 'Zero \u0393', COLORS.zeroGamma);
-    drawMarker(callWall, 'Call Wall', COLORS.callWall);
-    drawMarker(putWall, 'Put Wall', COLORS.putWall);
+    drawMarker(zeroGammaLevel, 'Zero \u0393', C.zeroGamma);
+    drawMarker(callWall, 'Call Wall', C.callWall);
+    drawMarker(putWall, 'Put Wall', C.putWall);
 
     // Hover crosshair
     if (hoveredIdx !== null && hoveredIdx >= 0 && hoveredIdx < cumulativeData.length) {
@@ -245,7 +254,7 @@ export default function CumulativeGEXChart({
         const y = toY(d.value);
 
         // Full crosshair lines
-        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.strokeStyle = themeAlpha('--text-primary', 0.25);
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -257,8 +266,8 @@ export default function CumulativeGEXChart({
         ctx.setLineDash([]);
 
         // Axis value labels
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = themeAlpha('--text-primary', 0.7);
+        ctx.font = `bold 9px ${CANVAS_MONO}`;
 
         // Y-axis value label
         const yLabel = Math.abs(d.value) >= 1e6 ? `${(d.value / 1e6).toFixed(1)}M`
@@ -272,11 +281,11 @@ export default function CumulativeGEXChart({
         ctx.fillText(`$${d.strike.toFixed(0)}`, x, PADDING.top + ch + 12);
 
         // Data point circle
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = C.textBright;
         ctx.beginPath();
         ctx.arc(x, y, 5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = d.value >= 0 ? COLORS.positive : COLORS.negative;
+        ctx.fillStyle = d.value >= 0 ? C.positive : C.negative;
         ctx.beginPath();
         ctx.arc(x, y, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -285,12 +294,12 @@ export default function CumulativeGEXChart({
 
     // Title
     const meta = GREEK_META[selectedGreek];
-    ctx.fillStyle = COLORS.textBright;
+    ctx.fillStyle = C.textBright;
     ctx.font = 'bold 13px system-ui';
     ctx.textAlign = 'left';
     ctx.fillText(`${symbol} Cumulative ${meta.label} Profile`, PADDING.left, 24);
 
-    ctx.fillStyle = COLORS.text;
+    ctx.fillStyle = C.text;
     ctx.font = '10px system-ui';
     ctx.fillText('Zero crossing = Gamma Flip Level', PADDING.left + 280, 24);
   }, [cumulativeData, dimensions, spotPrice, hoveredIdx, selectedGreek, symbol, zeroGammaLevel, callWall, putWall, zoomRange]);
@@ -472,38 +481,31 @@ export default function CumulativeGEXChart({
       {/* Cursor-following tooltip */}
       {hoveredData && !isPanning && (
         <div
-          className="pointer-events-none absolute rounded-xl text-xs backdrop-blur-xl overflow-hidden shadow-2xl z-10"
-          style={{
-            left: ttX,
-            top: ttY,
-            background: 'rgba(15,15,20,0.95)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            minWidth: tooltipW,
-          }}
+          className="panel-glass pointer-events-none absolute rounded-xl text-xs overflow-hidden shadow-2xl z-10"
+          style={{ left: ttX, top: ttY, minWidth: tooltipW }}
         >
-          <div className="px-3.5 py-2 border-b border-white/10 flex items-center justify-between">
-            <span className="font-bold text-white text-[13px]">Strike ${hoveredData.strike.toFixed(0)}</span>
-            <span className="text-[9px] font-mono" style={{ color: hoveredData.raw >= 0 ? COLORS.positive : COLORS.negative }}>
+          <div className="px-3.5 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+            <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Strike ${hoveredData.strike.toFixed(0)}</span>
+            <span className="text-[11px] tabular-nums" style={{ fontFamily: MONO, color: hoveredData.raw >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
               {hoveredData.raw >= 0 ? '+' : ''}{formatVal(hoveredData.raw)}
             </span>
           </div>
           <div className="px-3.5 py-2.5 space-y-1.5">
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-400">{greekMeta.label}:</span>
-              <span className={`font-mono ${hoveredData.raw >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <span style={{ color: 'var(--text-muted)' }}>{greekMeta.label}:</span>
+              <span style={{ fontFamily: MONO, color: hoveredData.raw >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                 {formatVal(hoveredData.raw)}
               </span>
             </div>
-            <div className="flex justify-between gap-4 border-t border-white/10 pt-1.5">
-              <span className="text-zinc-400">Cumulative:</span>
-              <span className={`font-mono font-bold ${hoveredData.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <div className="flex justify-between gap-4 border-t pt-1.5" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Cumulative:</span>
+              <span className="font-bold" style={{ fontFamily: MONO, color: hoveredData.value >= 0 ? 'var(--bull)' : 'var(--bear)' }}>
                 {formatVal(hoveredData.value)}
               </span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-400">vs Spot:</span>
-              <span className="text-zinc-300 font-mono">
+              <span style={{ color: 'var(--text-muted)' }}>vs Spot:</span>
+              <span style={{ fontFamily: MONO, color: 'var(--text-secondary)' }}>
                 {((hoveredData.strike - spotPrice) / spotPrice * 100).toFixed(1)}%
               </span>
             </div>
@@ -513,7 +515,7 @@ export default function CumulativeGEXChart({
 
       {/* Bottom hint bar */}
       <div className="pointer-events-none absolute bottom-1 left-0 right-0 flex items-center justify-center gap-3"
-        style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>
+        style={{ color: 'var(--text-dimmed)', fontSize: 10 }}>
         <span>scroll · zoom</span>
         <span>·</span>
         <span>drag · pan</span>
@@ -525,14 +527,10 @@ export default function CumulativeGEXChart({
       {isZoomed && (
         <button
           onClick={() => setZoomRange(null)}
-          className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-mono transition-opacity hover:opacity-100 opacity-70"
-          style={{
-            background: 'rgba(20,20,28,0.9)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.5)',
-          }}
+          className="panel-glass absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] transition-opacity hover:opacity-100 opacity-70 press-fb"
+          style={{ fontFamily: MONO, color: 'var(--text-secondary)' }}
         >
-          <span style={{ color: '#3b82f6' }}>{zoomPct}%</span>
+          <span style={{ color: 'var(--accent)' }}>{zoomPct}%</span>
           <span>× reset</span>
         </button>
       )}

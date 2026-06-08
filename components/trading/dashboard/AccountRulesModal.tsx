@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 import {
   useAccountRulesStore,
   PRESET_DEFAULTS,
@@ -150,18 +151,19 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
     >
       <div
         ref={panelRef}
-        className="w-full max-w-lg rounded-xl overflow-hidden flex flex-col max-h-[90vh]"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+        className="panel-glass w-full max-w-lg rounded-xl overflow-hidden flex flex-col max-h-[90vh]"
+        style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Account Rules</h2>
+          <h2 className="font-display text-[17px]" style={{ color: 'var(--text-primary)' }}>Account Rules</h2>
           <button
             onClick={onClose}
-            className="text-xl leading-none px-2 hover:opacity-70"
+            className="px-2 hover:opacity-70 flex items-center"
             style={{ color: 'var(--text-muted)' }}
+            aria-label="Close"
           >
-            ×
+            <X size={18} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -188,7 +190,7 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
                   onClick={() => handlePresetChange(opt.value)}
                   className="text-left p-2.5 rounded-lg transition-all"
                   style={{
-                    background: preset === opt.value ? 'rgba(74,222,128,0.08)' : 'var(--surface-elevated)',
+                    background: preset === opt.value ? 'rgb(var(--primary-rgb) / 0.08)' : 'var(--surface-elevated)',
                     border:     `1px solid ${preset === opt.value ? 'var(--primary)' : 'var(--border)'}`,
                     color:      'var(--text-primary)',
                   }}
@@ -220,7 +222,7 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
               <strong style={{ color: 'var(--text-primary)' }}>Reset &amp; Apply</strong> — starts
               a fresh combine at the preset's nominal balance. Wipes positions, orders,
               trade history and resets the balance to ${
-                preset !== 'custom' ? PRESET_DEFAULTS[preset].starting.toLocaleString() : startingBalance.toLocaleString()
+                preset !== 'custom' ? PRESET_DEFAULTS[preset].starting.toLocaleString('en-US') : startingBalance.toLocaleString('en-US')
               }.
             </div>
             <div className="pt-1" style={{ color: 'var(--text-dimmed)' }}>
@@ -234,7 +236,7 @@ export default function AccountRulesModal({ isOpen, onClose }: AccountRulesModal
           <button
             onClick={handleResetAndApply}
             className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:brightness-110"
-            style={{ background: 'rgba(239,68,68,0.10)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.30)' }}
+            style={{ background: 'rgb(var(--bear-rgb) / 0.10)', color: 'var(--bear)', border: '1px solid rgb(var(--bear-rgb) / 0.30)' }}
             title="Apply rules AND reset day baseline + drawdown peak"
           >
             Reset & Apply
@@ -271,7 +273,7 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       <div
         className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
         style={{
-          background: '#fff',
+          background: 'var(--text-primary)',
           left:       checked ? '20px' : '2px',
           boxShadow:  '0 1px 2px rgba(0,0,0,0.3)',
         }}

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 /**
  * Equity curve sparkline — derived from closed trades chronologically.
@@ -19,6 +20,7 @@ export default function EquityCurve() {
 
   const broker  = activeBroker ?? 'demo';
   const balance = connections[broker]?.balance ?? 0;
+  const balanceFlash = useValueFlash(balance);
 
   // Reconstruct equity curve from current balance backwards through trades
   const points = useMemo(() => {
@@ -67,24 +69,21 @@ export default function EquityCurve() {
     return { path: lineD, areaPath: areaD, min: lo, max: hi, isProfitable: profitable };
   }, [points]);
 
-  const lineColor = isProfitable ? '#10b981' : '#ef4444';
-  const areaFill  = isProfitable ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+  const lineColor = isProfitable ? 'var(--bull)' : 'var(--bear)';
+  const areaFill  = isProfitable ? 'rgb(var(--bull-rgb) / 0.15)' : 'rgb(var(--bear-rgb) / 0.15)';
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4">
       <div className="flex items-end justify-between mb-3">
         <div>
-          <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}>
             Equity Curve
           </div>
-          <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+          <div className={`font-display text-[28px] tabular-nums ${balanceFlash ? 'value-flash' : ''}`} style={{ color: 'var(--text-primary)' }}>
             ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
-        <div className="text-right text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-right text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
           {points.length > 1 ? (
             <>
               <div>High: ${max.toFixed(0)}</div>

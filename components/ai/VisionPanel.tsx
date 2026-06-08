@@ -264,12 +264,12 @@ export default function VisionPanel() {
       onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) attachFile(f); }}>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-4 h-10 border-b"
+      <div className="panel-glass flex-shrink-0 flex items-center gap-2 px-4 h-10 border-b"
         style={{ borderColor: 'var(--border)' }}>
         <ScanEye size={13} style={{ color: 'var(--primary)' }} />
         <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Vision</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded font-mono"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+        <span className="text-[9px] px-1.5 py-0.5 rounded"
+          style={{ fontFamily: MONO, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           {backend === 'claude' ? 'claude · sonnet' : backend === 'ollama' ? 'local · ollama' : 'claude / ollama'}
         </span>
         <div className="flex-1" />
@@ -295,8 +295,8 @@ export default function VisionPanel() {
               <p className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
                 Vision + Chat
               </p>
-              <p className="text-[11px] mt-1 max-w-xs" style={{ color: 'var(--text-muted)' }}>
-                Pose une question · ou clique sur 📎 pour joindre un graphique
+              <p className="text-[11px] mt-1 max-w-xs flex items-center justify-center gap-1 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                Pose une question · ou clique sur <Paperclip size={11} strokeWidth={1.5} className="inline-block" /> pour joindre un graphique
               </p>
             </div>
             <div className="flex flex-col gap-1.5 mt-2">
@@ -388,11 +388,11 @@ export default function VisionPanel() {
             />
             <button onClick={clearAttachment}
               className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(0,0,0,.7)', color: 'white' }}>
+              style={{ background: 'rgba(0,0,0,.7)', color: 'var(--text-primary)' }}>
               <X size={13} />
             </button>
             <div className="absolute bottom-0 left-0 right-0 px-3 py-1.5 text-[9px]"
-              style={{ background: 'linear-gradient(transparent,rgba(0,0,0,.6))', color: 'rgba(255,255,255,.7)' }}>
+              style={{ background: 'linear-gradient(transparent,rgba(0,0,0,.6))', color: 'var(--text-secondary)' }}>
               {attachedFile?.name} · {((attachedFile?.size ?? 0) / 1024).toFixed(0)} KB
             </div>
           </div>
@@ -434,7 +434,7 @@ export default function VisionPanel() {
             </button>
           ) : (
             <button onClick={send} disabled={!canSend}
-              className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+              className="press-fb flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
                          transition-all disabled:opacity-30"
               style={{
                 background: canSend ? 'var(--primary)' : 'var(--surface)',
@@ -447,8 +447,8 @@ export default function VisionPanel() {
           )}
         </div>
 
-        <p className="text-[9px] text-center" style={{ color: 'var(--text-muted)' }}>
-          Entrée → envoyer · Shift+Entrée → ligne · 📎 image · conversation sauvegardée
+        <p className="text-[9px] text-center flex items-center justify-center gap-1 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+          Entrée → envoyer · Shift+Entrée → ligne · <Paperclip size={9} strokeWidth={1.5} className="inline-block" /> image · conversation sauvegardée
         </p>
       </div>
     </div>

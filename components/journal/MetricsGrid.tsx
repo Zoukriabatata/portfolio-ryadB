@@ -12,7 +12,7 @@ function MetricCard({ label, value, color, suffix }: { label: string; value: str
   return (
     <div className="rounded-xl p-4 bg-[var(--surface)] border border-[var(--border)]">
       <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-      <p className="text-lg font-bold font-mono" style={{ color: color || 'var(--text-primary)' }}>
+      <p className="text-lg font-bold font-[var(--font-jetbrains-mono)]" style={{ color: color || 'var(--text-primary)' }}>
         {value}{suffix}
       </p>
     </div>

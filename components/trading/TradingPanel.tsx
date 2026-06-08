@@ -10,6 +10,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useTradingStore, BROKER_INFO, type BrokerType, type OrderSide } from '@/stores/useTradingStore';
 
 interface TradingPanelProps {
@@ -99,8 +100,8 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
           <div
             className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold"
             style={{
-              backgroundColor: brokerInfo?.color || '#525252',
-              color: '#000',
+              backgroundColor: brokerInfo?.color || 'var(--surface-elevated)',
+              color: 'var(--background)',
             }}
           >
             {brokerInfo?.logo || '?'}
@@ -113,25 +114,19 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             </span>
             <span
               className="text-xs font-medium"
-              style={{ color: brokerInfo?.color || '#a1a1aa' }}
+              style={{ color: brokerInfo?.color || 'var(--text-secondary)' }}
             >
               {brokerInfo?.name || 'Select Broker'}
             </span>
           </div>
 
           {/* Arrow */}
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+          <ChevronDown
+            size={12}
+            strokeWidth={1.5}
             className={`transition-transform ${showBrokerSelector ? 'rotate-180' : ''}`}
             style={{ color: 'var(--text-dimmed)' }}
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+          />
 
           {/* Connection indicator */}
           <div
@@ -150,15 +145,10 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
         {/* Broker Dropdown */}
         {showBrokerSelector && (
           <div
-            className="absolute top-full left-0 mt-2 w-72 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
-            style={{
-              backgroundColor: 'var(--surface-elevated)',
-              border: '1px solid var(--border-light)',
-              backdropFilter: 'blur(12px)',
-            }}
+            className="panel-glass absolute top-full left-0 mt-2 w-72 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
           >
             <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Select Broker</h3>
+              <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>Select Broker</h3>
               <p className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Connect to trade</p>
             </div>
 
@@ -175,7 +165,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                     <div className="flex items-center gap-3">
                       <div
                         className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
-                        style={{ backgroundColor: info.color, color: '#000' }}
+                        style={{ backgroundColor: info.color, color: 'var(--background)' }}
                       >
                         {info.logo}
                       </div>
@@ -194,7 +184,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                         Disconnect
                       </button>
                     ) : conn.connecting ? (
-                      <div className="px-3 py-1.5 rounded-lg text-[10px] font-medium" style={{ backgroundColor: 'var(--warning-bg, rgba(234,179,8,0.2))', color: 'var(--warning)' }}>
+                      <div className="px-3 py-1.5 rounded-lg text-[10px] font-medium" style={{ backgroundColor: 'rgb(var(--warning-rgb) / 0.2)', color: 'var(--warning)' }}>
                         Connecting...
                       </div>
                     ) : (
@@ -220,7 +210,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
                 <div className="flex items-center justify-between">
                   <span className="text-[10px]" style={{ color: 'var(--text-dimmed)' }}>Account Balance</span>
                   <span className="text-sm font-bold" style={{ color: 'var(--bull)' }}>
-                    {connection.balance.toLocaleString()} {connection.currency}
+                    {connection.balance.toLocaleString('en-US')} {connection.currency}
                   </span>
                 </div>
               </div>
@@ -236,17 +226,17 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
       <button
         onClick={() => handleQuickOrder('sell')}
         disabled={isPlacingOrder !== null}
-        className="relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+        className="press-fb relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
         style={{
-          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+          background: 'linear-gradient(135deg, var(--bear) 0%, rgb(var(--bear-rgb) / 0.8) 100%)',
           boxShadow: isPlacingOrder === 'sell'
-            ? '0 0 20px rgba(239, 68, 68, 0.5)'
-            : '0 4px 12px rgba(239, 68, 68, 0.3)',
+            ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 0 20px rgb(var(--bear-rgb) / 0.5)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 12px rgb(var(--bear-rgb) / 0.3)',
         }}
       >
         <div className="flex flex-col items-center">
           <span className="text-[10px] opacity-80" style={{ color: 'var(--bear)' }}>SELL</span>
-          <span style={{ color: '#fff' }}>{currentPrice.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>{currentPrice.toFixed(2)}</span>
         </div>
         {isPlacingOrder === 'sell' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
@@ -257,7 +247,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
 
       {/* Contract Quantity */}
       <div className="flex flex-col items-center gap-1 px-3">
-        <span className="text-[9px] uppercase" style={{ color: 'var(--text-dimmed)' }}>Contracts</span>
+        <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-dimmed)' }}>Contracts</span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setContractQuantity(contractQuantity - 1)}
@@ -287,7 +277,7 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
             <button
               key={qty}
               onClick={() => setContractQuantity(qty)}
-              className="px-1.5 py-0.5 rounded text-[9px] transition-colors"
+              className="press-fb px-2 py-0.5 rounded text-[11px] transition-colors"
               style={{
                 backgroundColor: contractQuantity === qty ? 'var(--primary-glow)' : 'var(--surface-elevated)',
                 color: contractQuantity === qty ? 'var(--primary)' : 'var(--text-dimmed)',
@@ -303,17 +293,17 @@ export default function TradingPanel({ symbol, currentPrice, onOrderPlaced }: Tr
       <button
         onClick={() => handleQuickOrder('buy')}
         disabled={isPlacingOrder !== null}
-        className="relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+        className="press-fb relative px-6 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
         style={{
-          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+          background: 'linear-gradient(135deg, var(--bull) 0%, rgb(var(--bull-rgb) / 0.8) 100%)',
           boxShadow: isPlacingOrder === 'buy'
-            ? '0 0 20px rgba(34, 197, 94, 0.5)'
-            : '0 4px 12px rgba(34, 197, 94, 0.3)',
+            ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 0 20px rgb(var(--bull-rgb) / 0.5)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 12px rgb(var(--bull-rgb) / 0.3)',
         }}
       >
         <div className="flex flex-col items-center">
           <span className="text-[10px] opacity-80" style={{ color: 'var(--bull)' }}>BUY</span>
-          <span style={{ color: '#fff' }}>{currentPrice.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-primary)' }}>{currentPrice.toFixed(2)}</span>
         </div>
         {isPlacingOrder === 'buy' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">

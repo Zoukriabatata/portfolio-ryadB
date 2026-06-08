@@ -21,6 +21,7 @@ import { TOOL_TYPE_MAPPING } from '../constants/tools';
 import type { ChartTheme } from '@/lib/themes/ThemeSystem';
 import type { SharedRefs } from './types';
 import { getLastToolbarInteraction } from '@/components/tools/ToolSettingsBar';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 import type { ClusterRenderer } from '@/lib/rendering/ClusterRenderer';
 import type { FootprintCandle } from '@/lib/orderflow/OrderflowEngine';
 
@@ -129,15 +130,18 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
   const CLOSE_R = 3;
   const CLOSE_ICON = 3;
 
+  // Brand-tokenized order badge palette (theme-aware, no hardcoded hex).
+  // line/text use the resolved token; badge (dark fill) and sep (divider)
+  // are derived as low-alpha tints of the same token to keep the badge look.
   const ORDER_COLORS = {
-    LIMIT:  { line: '#5b8def', badge: '#1e2d4a', text: '#7da8f7', sep: '#2a3d5c' },
-    STOP:   { line: '#d97b4a', badge: '#3a2518', text: '#e8965f', sep: '#4d3322' },
-    LONG:   { line: '#4a7a5e', badge: '#162a1e', text: '#6cb585', sep: '#1f3a28' },
-    SHORT:  { line: '#a15555', badge: '#2e1818', text: '#d07070', sep: '#3d2222' },
-    TP:     { line: '#3d8b5a', badge: '#162a1e', text: '#5ec07e', sep: '#1f3a28' },
-    SL:     { line: '#c05050', badge: '#2e1818', text: '#e07070', sep: '#3d2222' },
+    LIMIT:  { line: themeColor('--accent'),  badge: themeAlpha('--accent', 0.18),  text: themeColor('--accent'),  sep: themeAlpha('--accent', 0.35) },
+    STOP:   { line: themeColor('--warning'), badge: themeAlpha('--warning', 0.18), text: themeColor('--warning'), sep: themeAlpha('--warning', 0.35) },
+    LONG:   { line: themeColor('--bull'),    badge: themeAlpha('--bull', 0.18),    text: themeColor('--bull'),    sep: themeAlpha('--bull', 0.35) },
+    SHORT:  { line: themeColor('--bear'),    badge: themeAlpha('--bear', 0.18),    text: themeColor('--bear'),    sep: themeAlpha('--bear', 0.35) },
+    TP:     { line: themeColor('--bull'),    badge: themeAlpha('--bull', 0.18),    text: themeColor('--bull'),    sep: themeAlpha('--bull', 0.35) },
+    SL:     { line: themeColor('--bear'),    badge: themeAlpha('--bear', 0.18),    text: themeColor('--bear'),    sep: themeAlpha('--bear', 0.35) },
     CLOSE_BG: 'rgba(255,255,255,0.06)',
-    CLOSE_BG_HOVER: 'rgba(239,68,68,0.25)',
+    CLOSE_BG_HOVER: themeAlpha('--bear', 0.25),
     CLOSE_X: 'rgba(255,255,255,0.35)',
     CLOSE_X_HOVER: 'rgba(255,255,255,0.85)',
   };
@@ -426,9 +430,9 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       colors: {
         positive: theme.colors.candleUp,
         negative: theme.colors.candleDown,
-        selection: '#2962FF', // Professional blue
+        selection: themeColor('--accent'), // brand teal — selection accent
         handle: '#ffffff',
-        handleBorder: '#2962FF', // Professional blue
+        handleBorder: themeColor('--accent'), // brand teal — selection accent
       },
       currentPrice: refs.currentPrice.current || 0,
       hoveredToolId: refs.interactionController.current.getHoveredToolId(),
@@ -470,7 +474,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       if (y < 0 || y > chartHeight) continue;
 
       ctx.save();
-      ctx.strokeStyle = '#eab308';
+      ctx.strokeStyle = themeColor('--warning');
       ctx.lineWidth = 1;
       ctx.setLineDash([6, 4]);
       ctx.globalAlpha = 0.8;
@@ -479,13 +483,13 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       ctx.lineTo(chartWidth, y);
       ctx.stroke();
 
-      const label = `🔔 ${alert.price.toFixed(2)}`;
+      const label = alert.price.toFixed(2);
       ctx.setLineDash([]);
       ctx.font = '10px monospace';
       const textWidth = ctx.measureText(label).width;
-      ctx.fillStyle = 'rgba(234, 179, 8, 0.15)';
+      ctx.fillStyle = themeAlpha('--warning', 0.15);
       ctx.fillRect(chartWidth - textWidth - 12, y - 8, textWidth + 8, 16);
-      ctx.fillStyle = '#eab308';
+      ctx.fillStyle = themeColor('--warning');
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, chartWidth - 8, y);
@@ -648,7 +652,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
         const currentY = renderContext.priceToY(refs.currentPrice.current);
         const priceDiff = isBuy ? (refs.currentPrice.current - orderPrice) : (orderPrice - refs.currentPrice.current);
         if (Math.abs(y - currentY) > 10) {
-          ctx.fillStyle = priceDiff >= 0 ? 'rgba(16,185,129,0.03)' : 'rgba(239,68,68,0.03)';
+          ctx.fillStyle = priceDiff >= 0 ? themeAlpha('--bull', 0.03) : themeAlpha('--bear', 0.03);
           const zoneTop = Math.min(y, currentY);
           const zoneH = Math.abs(y - currentY);
           ctx.fillRect(0, zoneTop, chartWidth, zoneH);
@@ -829,7 +833,7 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
             ctx.font = 'bold 9px sans-serif';
             const tw = ctx.measureText(labelText).width;
             ctx.globalAlpha = 0.75;
-            ctx.fillStyle = '#0d0f13';
+            ctx.fillStyle = themeColor('--surface');
             ctx.fillRect(lx + 4, ly - 6, tw + 6, 12);
             ctx.globalAlpha = opacity;
             ctx.fillStyle = indicator.style.color;
@@ -850,8 +854,8 @@ export function useDrawingTools({ refs, theme, symbol, clusterRenderer, getFootp
       const snapY = renderContext.priceToY(icState.currentPoint.price);
       if (snapX >= 0 && snapX <= renderContext.width && snapY >= 0 && snapY <= renderContext.height) {
         ctx.save();
-        ctx.strokeStyle = '#f59e0b';
-        ctx.fillStyle = 'rgba(245, 158, 11, 0.25)';
+        ctx.strokeStyle = themeColor('--warning');
+        ctx.fillStyle = themeAlpha('--warning', 0.25);
         ctx.lineWidth = 1.5;
         ctx.globalAlpha = 0.9;
         ctx.beginPath();

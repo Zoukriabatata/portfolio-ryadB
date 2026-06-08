@@ -68,13 +68,13 @@ export default function TrackScoreCard({ analytics, entries, loading }: TrackSco
             <span className="text-2xl font-bold" style={{ color: score.color }}>
               {score.total}
             </span>
-            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>/ 100</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>/ 100</span>
           </div>
         </div>
 
         {/* Metric bars */}
         <div className="flex-1 space-y-1.5 min-w-0">
-          <div className="text-[10px] font-medium mb-1" style={{ color: score.color }}>
+          <div className="text-[11px] font-medium mb-1" style={{ color: score.color }}>
             {score.label}
           </div>
           {METRICS.map(({ key, label, max }) => {
@@ -82,7 +82,7 @@ export default function TrackScoreCard({ analytics, entries, loading }: TrackSco
             const pct = max > 0 ? (value / max) * 100 : 0;
             return (
               <div key={key} className="flex items-center gap-2">
-                <span className="text-[9px] w-20 truncate" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-[11px] w-20 truncate" style={{ color: 'var(--text-muted)' }}>
                   {label}
                 </span>
                 <div className="flex-1 h-1.5 rounded-full overflow-hidden"
@@ -90,10 +90,10 @@ export default function TrackScoreCard({ analytics, entries, loading }: TrackSco
                   <div className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(100, pct)}%`,
-                      background: pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444',
+                      background: pct >= 70 ? 'var(--bull)' : pct >= 40 ? 'var(--warning)' : 'var(--bear)',
                     }} />
                 </div>
-                <span className="text-[9px] font-mono w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
+                <span className="text-[11px] font-[var(--font-jetbrains-mono)] w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
                   {value}/{max}
                 </span>
               </div>

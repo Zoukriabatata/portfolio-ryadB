@@ -60,7 +60,7 @@ export default function PlaybookSetupCard({ setup, onEdit, onDelete, onClick }: 
       {/* Rules preview */}
       {setup.rules.length > 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
-          <p className="text-[10px] text-[var(--text-dimmed)] mb-1">{setup.rules.length} rules</p>
+          <p className="text-[11px] text-[var(--text-dimmed)] mb-1">{setup.rules.length} rules</p>
           <p className="text-xs text-[var(--text-muted)] truncate">{setup.rules[0]}</p>
         </div>
       )}
@@ -71,8 +71,8 @@ export default function PlaybookSetupCard({ setup, onEdit, onDelete, onClick }: 
 function StatItem({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="p-2 rounded-lg bg-[var(--surface-elevated)]">
-      <p className="text-[10px] text-[var(--text-dimmed)]">{label}</p>
-      <p className="text-sm font-bold font-mono" style={{ color: color || 'var(--text-primary)' }}>{value}</p>
+      <p className="text-[11px] text-[var(--text-dimmed)]">{label}</p>
+      <p className="text-sm font-bold font-[var(--font-jetbrains-mono)]" style={{ color: color || 'var(--text-primary)' }}>{value}</p>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import Image from 'next/image';
 
 interface ScreenshotGalleryProps {
@@ -53,8 +54,9 @@ export default function ScreenshotGallery({ urls }: ScreenshotGalleryProps) {
             <button
               onClick={() => setLightboxIndex(null)}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors"
+              aria-label="Close"
             >
-              ×
+              <X size={16} strokeWidth={1.5} />
             </button>
             {urls.length > 1 && (
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">

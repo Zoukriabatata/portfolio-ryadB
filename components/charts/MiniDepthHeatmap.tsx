@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useOrderbookStore } from '@/stores/useOrderbookStore';
+import { themeAlpha } from '@/lib/ui/themeColors';
 
 interface MiniDepthHeatmapProps {
   priceMin: number;
@@ -71,7 +72,7 @@ export default function MiniDepthHeatmap({ priceMin, priceMax, chartHeight, onCl
       const y = ((priceMax - price) / priceRange) * height;
       const intensity = Math.min(1, qty / maxQty);
       const alpha = 0.1 + intensity * 0.7;
-      ctx.fillStyle = `rgba(16, 185, 129, ${alpha})`;
+      ctx.fillStyle = themeAlpha('--bull', alpha);
       ctx.fillRect(0, y - bandHeight / 2, width, bandHeight);
     }
 
@@ -79,7 +80,7 @@ export default function MiniDepthHeatmap({ priceMin, priceMax, chartHeight, onCl
       const y = ((priceMax - price) / priceRange) * height;
       const intensity = Math.min(1, qty / maxQty);
       const alpha = 0.1 + intensity * 0.7;
-      ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
+      ctx.fillStyle = themeAlpha('--bear', alpha);
       ctx.fillRect(0, y - bandHeight / 2, width, bandHeight);
     }
 

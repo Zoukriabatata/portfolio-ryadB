@@ -1,5 +1,6 @@
 'use client';
 
+import { Star } from 'lucide-react';
 import type { JournalEntry } from '@/types/journal';
 import Image from 'next/image';
 
@@ -34,11 +35,11 @@ export default function TradeDetailPanel({ trade, onClose, onEdit }: TradeDetail
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold font-mono text-[var(--text-primary)]">{trade.symbol}</span>
+          <span className="text-lg font-bold font-[var(--font-jetbrains-mono)] text-[var(--text-primary)]">{trade.symbol}</span>
           <span
             className="text-xs font-bold px-2 py-0.5 rounded"
             style={{
-              background: trade.side === 'LONG' ? 'var(--bull-bg, rgba(34,197,94,0.15))' : 'var(--bear-bg, rgba(239,68,68,0.15))',
+              background: trade.side === 'LONG' ? 'var(--bull-bg, rgb(var(--bull-rgb) / 0.15))' : 'var(--bear-bg, rgb(var(--bear-rgb) / 0.15))',
               color: trade.side === 'LONG' ? 'var(--bull)' : 'var(--bear)',
             }}
           >
@@ -69,7 +70,7 @@ export default function TradeDetailPanel({ trade, onClose, onEdit }: TradeDetail
         <div className="text-center py-4 rounded-xl bg-[var(--surface)]">
           <p className="text-xs text-[var(--text-muted)] mb-1">P&L</p>
           <p
-            className="text-3xl font-bold font-mono"
+            className="text-3xl font-bold font-[var(--font-jetbrains-mono)]"
             style={{ color: (trade.pnl || 0) >= 0 ? 'var(--bull)' : 'var(--bear)' }}
           >
             {formatPnl(trade.pnl)}
@@ -87,11 +88,20 @@ export default function TradeDetailPanel({ trade, onClose, onEdit }: TradeDetail
           {trade.setup && <DetailRow label="Setup" value={trade.setup} />}
           {trade.emotions && <DetailRow label="Emotion" value={trade.emotions} />}
           {trade.rating && (
-            <DetailRow
-              label="Rating"
-              value={'★'.repeat(trade.rating) + '☆'.repeat(5 - trade.rating)}
-              valueColor="var(--warning)"
-            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[var(--text-muted)]">Rating</span>
+              <span className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={14}
+                    strokeWidth={1.5}
+                    className="text-[var(--warning)]"
+                    fill={star <= trade.rating! ? 'currentColor' : 'none'}
+                  />
+                ))}
+              </span>
+            </div>
           )}
         </div>
 
@@ -152,7 +162,7 @@ function DetailRow({ label, value, mono, valueColor }: { label: string; value: s
     <div className="flex items-center justify-between">
       <span className="text-xs text-[var(--text-muted)]">{label}</span>
       <span
-        className={`text-sm text-[var(--text-primary)] ${mono ? 'font-mono' : ''}`}
+        className={`text-sm text-[var(--text-primary)] ${mono ? 'font-[var(--font-jetbrains-mono)]' : ''}`}
         style={valueColor ? { color: valueColor } : undefined}
       >
         {value}

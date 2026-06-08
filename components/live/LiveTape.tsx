@@ -1,7 +1,9 @@
 'use client';
 
 import { useRef, useEffect, useMemo } from 'react';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import type { Trade } from '@/stores/useLiveStore';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 interface LiveTapeProps {
   trades: Trade[];
@@ -40,27 +42,24 @@ function TradeRow({ trade, avgSize, tickSize }: TradeRowProps) {
   const isBuy = trade.side === 'buy';
   const isLarge = avgSize > 0 && trade.size >= avgSize * LARGE_TRADE_MULTIPLIER;
 
-  const color = isBuy ? '#22c55e' : '#ef4444';
+  const color = isBuy ? 'var(--bull)' : 'var(--bear)';
   const bgColor = isLarge
     ? isBuy
-      ? 'rgba(34,197,94,0.12)'
-      : 'rgba(239,68,68,0.12)'
+      ? 'rgb(var(--bull-rgb) / 0.12)'
+      : 'rgb(var(--bear-rgb) / 0.12)'
     : 'transparent';
 
   return (
     <div
-      className="flex items-center px-2 h-[19px] text-[11px] tabular-nums shrink-0 gap-2"
+      className="flex items-center px-2 h-[24px] text-[11px] tabular-nums shrink-0 gap-2"
       style={{
         backgroundColor: bgColor,
         borderLeft: isLarge ? `2px solid ${color}` : '2px solid transparent',
       }}
     >
       {/* Side indicator */}
-      <span
-        className="w-2 text-center font-bold"
-        style={{ color, fontSize: 9 }}
-      >
-        {isBuy ? '▲' : '▼'}
+      <span className="w-2 flex items-center justify-center" style={{ color }}>
+        {isBuy ? <ArrowUp size={9} strokeWidth={2} /> : <ArrowDown size={9} strokeWidth={2} />}
       </span>
 
       {/* Price */}
@@ -117,19 +116,20 @@ export function LiveTape({ trades, tickSize = 0.25, autoScroll = true }: LiveTap
     };
   }, [trades]);
 
-  const deltaColor = cumulativeDelta >= 0 ? '#22c55e' : '#ef4444';
+  const deltaColor = cumulativeDelta >= 0 ? 'var(--bull)' : 'var(--bear)';
+  const deltaFlash = useValueFlash(cumulativeDelta);
 
   return (
-    <div className="flex flex-col h-full" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+    <div className="flex flex-col h-full" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
       {/* Header */}
       <div
         className="flex items-center justify-between px-2 py-1 text-[10px] font-medium shrink-0"
         style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}
       >
-        <span>Time & Sales</span>
+        <span className="font-display">Time &amp; Sales</span>
         <span>
           Δ{' '}
-          <span className="font-bold" style={{ color: deltaColor }}>
+          <span className={`font-bold ${deltaFlash ? 'value-flash' : ''}`} style={{ color: deltaColor }}>
             {cumulativeDelta >= 0 ? '+' : ''}
             {cumulativeDelta.toLocaleString()}
           </span>

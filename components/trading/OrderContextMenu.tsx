@@ -8,6 +8,8 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { ArrowUp, ArrowDown, ChevronRight } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useTradingStore, BROKER_INFO } from '@/stores/useTradingStore';
 
 interface OrderContextMenuProps {
@@ -95,25 +97,36 @@ export default function OrderContextMenu({
   };
 
   // Determine which orders to show based on price position
-  const orderOptions = isAbovePrice
+  const orderOptions: {
+    type: 'limit' | 'stop';
+    side: 'buy' | 'sell';
+    label: string;
+    description: string;
+    Icon: LucideIcon;
+    color: string;
+    bgColor: string;
+    iconBg: string;
+  }[] = isAbovePrice
     ? [
         {
           type: 'limit' as const,
           side: 'sell' as const,
           label: 'Limit Sell',
           description: 'Sell when price reaches',
-          icon: '↓',
-          color: '#ef4444',
-          bgColor: 'rgba(239, 68, 68, 0.1)',
+          Icon: ArrowDown,
+          color: 'var(--bear)',
+          bgColor: 'rgb(var(--bear-rgb) / 0.1)',
+          iconBg: 'rgb(var(--bear-rgb) / 0.2)',
         },
         {
           type: 'stop' as const,
           side: 'buy' as const,
           label: 'Stop Buy',
           description: 'Buy if price breaks above',
-          icon: '↑',
-          color: '#22c55e',
-          bgColor: 'rgba(34, 197, 94, 0.1)',
+          Icon: ArrowUp,
+          color: 'var(--bull)',
+          bgColor: 'rgb(var(--bull-rgb) / 0.1)',
+          iconBg: 'rgb(var(--bull-rgb) / 0.2)',
         },
       ]
     : [
@@ -122,18 +135,20 @@ export default function OrderContextMenu({
           side: 'buy' as const,
           label: 'Limit Buy',
           description: 'Buy when price reaches',
-          icon: '↑',
-          color: '#22c55e',
-          bgColor: 'rgba(34, 197, 94, 0.1)',
+          Icon: ArrowUp,
+          color: 'var(--bull)',
+          bgColor: 'rgb(var(--bull-rgb) / 0.1)',
+          iconBg: 'rgb(var(--bull-rgb) / 0.2)',
         },
         {
           type: 'stop' as const,
           side: 'sell' as const,
           label: 'Stop Sell',
           description: 'Sell if price breaks below',
-          icon: '↓',
-          color: '#ef4444',
-          bgColor: 'rgba(239, 68, 68, 0.1)',
+          Icon: ArrowDown,
+          color: 'var(--bear)',
+          bgColor: 'rgb(var(--bear-rgb) / 0.1)',
+          iconBg: 'rgb(var(--bear-rgb) / 0.2)',
         },
       ];
 
@@ -147,11 +162,8 @@ export default function OrderContextMenu({
       }}
     >
       <div
-        className="rounded-xl shadow-2xl overflow-hidden"
+        className="panel-glass rounded-xl overflow-hidden"
         style={{
-          backgroundColor: 'var(--surface-elevated)',
-          border: '1px solid var(--border-light)',
-          backdropFilter: 'blur(16px)',
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)',
           minWidth: 220,
         }}
@@ -163,8 +175,8 @@ export default function OrderContextMenu({
             <span
               className="text-[10px] px-2 py-0.5 rounded"
               style={{
-                backgroundColor: isAbovePrice ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                color: isAbovePrice ? '#22c55e' : '#ef4444',
+                backgroundColor: isAbovePrice ? 'rgb(var(--bull-rgb) / 0.2)' : 'rgb(var(--bear-rgb) / 0.2)',
+                color: isAbovePrice ? 'var(--bull)' : 'var(--bear)',
               }}
             >
               {isAbovePrice ? `+${priceDiffPercent}%` : `-${priceDiffPercent}%`}
@@ -190,28 +202,19 @@ export default function OrderContextMenu({
               }}
             >
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-xl font-bold"
+                className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{
-                  backgroundColor: option.color + '30',
+                  backgroundColor: option.iconBg,
                   color: option.color,
                 }}
               >
-                {option.icon}
+                <option.Icon size={20} strokeWidth={1.5} />
               </div>
               <div className="flex-1 text-left">
                 <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{option.label}</div>
                 <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{option.description}</div>
               </div>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={option.color}
-                strokeWidth="2"
-              >
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <ChevronRight size={16} strokeWidth={1.5} style={{ color: option.color }} />
             </button>
           ))}
         </div>

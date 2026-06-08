@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Star } from 'lucide-react';
 import { throttledFetch } from '@/lib/api/throttledFetch';
 import Modal from '@/components/ui/Modal';
 import { CME_CONTRACTS } from '@/types/ib-protocol';
@@ -264,10 +265,11 @@ export default function TradeFormModal({ open, onClose, editTrade, onSuccess }: 
                 key={star}
                 type="button"
                 onClick={() => update('rating', form.rating === star ? 0 : star)}
-                className="text-xl transition-transform hover:scale-110"
+                className="transition-transform hover:scale-110"
                 style={{ color: star <= form.rating ? 'var(--warning)' : 'var(--text-dimmed)' }}
+                aria-label={`Rate ${star}`}
               >
-                ★
+                <Star size={20} strokeWidth={1.5} fill={star <= form.rating ? 'currentColor' : 'none'} />
               </button>
             ))}
           </div>

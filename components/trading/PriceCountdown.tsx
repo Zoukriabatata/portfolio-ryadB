@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Clock } from 'lucide-react';
 import { usePageActive } from '@/hooks/usePageActive';
 
 interface PriceCountdownProps {
@@ -53,11 +54,11 @@ export default function PriceCountdown({ timeframeSeconds, className = '' }: Pri
     return () => clearInterval(interval);
   }, [timeframeSeconds, isActive]);
 
-  // Get color based on remaining time
+  // Get color based on remaining time (brand tokens — warning as candle nears close)
   const getColor = () => {
-    if (progress > 90) return '#ef4444'; // Red when almost closing
-    if (progress > 75) return '#f59e0b'; // Orange
-    return '#22c55e'; // Green
+    if (progress > 90) return 'var(--bear)';    // closing imminently
+    if (progress > 75) return 'var(--warning)'; // approaching
+    return 'var(--bull)';                       // healthy
   };
 
   return (
@@ -71,7 +72,7 @@ export default function PriceCountdown({ timeframeSeconds, className = '' }: Pri
             cy="18"
             r="15"
             fill="none"
-            stroke="rgba(255,255,255,0.1)"
+            stroke="var(--border)"
             strokeWidth="3"
           />
           {/* Progress circle */}
@@ -91,19 +92,16 @@ export default function PriceCountdown({ timeframeSeconds, className = '' }: Pri
         </svg>
         {/* Center icon */}
         <div
-          className="absolute inset-0 flex items-center justify-center text-[10px] font-bold"
+          className="absolute inset-0 flex items-center justify-center"
           style={{ color: getColor() }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+          <Clock size={12} strokeWidth={1.5} />
         </div>
       </div>
 
       {/* Countdown text */}
       <div className="flex flex-col">
-        <span className="text-[9px] text-zinc-500 uppercase">Next candle</span>
+        <span className="text-[9px] uppercase" style={{ color: 'var(--text-muted)' }}>Next candle</span>
         <span
           className="text-sm font-mono font-bold tabular-nums"
           style={{ color: getColor() }}
@@ -151,27 +149,28 @@ export function PriceCountdownCompact({ timeframeSeconds }: { timeframeSeconds: 
     return () => clearInterval(interval);
   }, [timeframeSeconds, isActive]);
 
-  const getColor = () => {
-    if (progress > 90) return '#ef4444';
-    if (progress > 75) return '#f59e0b';
-    return '#22c55e';
-  };
+  // Brand token triplet driving solid + derived translucent fills.
+  const rgbVar =
+    progress > 90 ? '--bear-rgb' :
+    progress > 75 ? '--warning-rgb' :
+    '--bull-rgb';
+  const solid = `rgb(var(${rgbVar}))`;
 
   return (
     <div
       className="flex items-center gap-1.5 px-2 py-1 rounded-md"
       style={{
-        backgroundColor: `${getColor()}15`,
-        border: `1px solid ${getColor()}30`,
+        backgroundColor: `rgb(var(${rgbVar}) / 0.08)`,
+        border: `1px solid rgb(var(${rgbVar}) / 0.2)`,
       }}
     >
       <div
         className="w-1.5 h-1.5 rounded-full animate-pulse"
-        style={{ backgroundColor: getColor() }}
+        style={{ backgroundColor: solid }}
       />
       <span
         className="text-[11px] font-mono font-bold tabular-nums"
-        style={{ color: getColor() }}
+        style={{ color: solid }}
       >
         {countdown}
       </span>

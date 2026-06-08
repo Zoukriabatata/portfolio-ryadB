@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useUIThemeStore, UI_THEMES } from '@/stores/useUIThemeStore';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
+
+const MONO = 'var(--font-jetbrains-mono)';
+// Canvas ctx.font can't resolve CSS var() — use the literal family name.
+const CANVAS_MONO = 'JetBrains Mono, Consolas, monospace';
 
 interface GEXLevel {
   strike: number;
@@ -176,7 +181,7 @@ export default function GEXHeatmap({
 
     // Y-axis labels
     ctx.fillStyle = themeColors.text;
-    ctx.font = '10px monospace';
+    ctx.font = `10px ${CANVAS_MONO}`;
     ctx.textAlign = 'right';
     const labelStep = Math.ceil(strikes.length / 15);
     for (let i = 0; i < strikes.length; i += labelStep) {
@@ -352,8 +357,8 @@ export default function GEXHeatmap({
       const T = renderer.timeSteps || timeSeriesData.length;
 
       // Strike labels along X axis (y=0 edge, z=0)
-      ctx.font = '9px "Consolas", monospace';
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = `9px ${CANVAS_MONO}`;
+      ctx.fillStyle = themeAlpha('--text-primary', 0.5);
       ctx.textAlign = 'center';
       const strikeStep = Math.max(1, Math.ceil(S / 8));
       for (let i = 0; i < S; i += strikeStep) {
@@ -396,7 +401,7 @@ export default function GEXHeatmap({
 
       // Axis names
       ctx.font = '10px system-ui';
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillStyle = themeAlpha('--text-primary', 0.6);
 
       const strikeName = renderer.projectToScreen(0.5, 0, 0);
       if (strikeName) {
@@ -421,13 +426,18 @@ export default function GEXHeatmap({
       }
     }
 
-    // Color legend (bottom)
+    // Color legend (bottom) \u2014 swatch rects instead of unicode glyphs
     ctx.font = '10px system-ui';
-    ctx.textAlign = 'center';
+    ctx.textAlign = 'left';
+    const legY = height - 18;
     ctx.fillStyle = themeColors.callColor;
-    ctx.fillText('\u25a0 Positive GEX (Calls)', width / 2 - 80, height - 10);
+    ctx.fillRect(width / 2 - 150, legY, 9, 9);
+    ctx.fillStyle = themeColors.text;
+    ctx.fillText('Positive GEX (Calls)', width / 2 - 137, legY + 8);
     ctx.fillStyle = themeColors.putColor;
-    ctx.fillText('\u25a0 Negative GEX (Puts)', width / 2 + 80, height - 10);
+    ctx.fillRect(width / 2 + 12, legY, 9, 9);
+    ctx.fillStyle = themeColors.text;
+    ctx.fillText('Negative GEX (Puts)', width / 2 + 25, legY + 8);
 
     // Camera preset buttons (top right)
     ctx.font = '9px system-ui';
@@ -437,14 +447,14 @@ export default function GEXHeatmap({
     const startY = 14;
     for (let i = 0; i < presets.length; i++) {
       const x = startX + i * (btnW + gap);
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillStyle = themeAlpha('--text-primary', 0.06);
+      ctx.strokeStyle = themeAlpha('--text-primary', 0.15);
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(x, startY, btnW, btnH, 4);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = themeAlpha('--text-primary', 0.5);
       ctx.textAlign = 'center';
       ctx.fillText(presets[i], x + btnW / 2, startY + 13);
     }
@@ -544,28 +554,42 @@ export default function GEXHeatmap({
         style={{ display: mode === '3D' ? 'block' : 'none' }}
       />
 
+      {/* Synthetic-time disclosure: strike/GEX are live, but the time axis is a
+          modelled variation (see timeSeriesData) — flag it so it isn't read as
+          history. Bottom-left avoids the canvas title (top-left), the 3D preset
+          buttons (top-right) and both legends (right side / bottom-center). */}
+      <div
+        className="panel-glass absolute bottom-2 left-2 z-20 px-2 py-1 pointer-events-none"
+        style={{ borderRadius: 6 }}
+      >
+        <span
+          className="text-[9px] font-semibold uppercase tracking-[0.18em] tabular-nums"
+          style={{ color: 'var(--warning)', fontFamily: MONO }}
+        >
+          Simulated Time
+        </span>
+      </div>
+
       {/* 3D hover tooltip */}
       {mode === '3D' && tooltip3D && (
         <div
-          className="absolute z-30 pointer-events-none animate-fadeIn"
+          className="panel-glass absolute z-30 pointer-events-none animate-fadeIn"
           style={{
             left: tooltip3D.x + 14,
             top: tooltip3D.y - 54,
-            background: 'rgba(10,10,20,0.92)',
-            border: `1px solid ${tooltip3D.value >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            borderColor: tooltip3D.value >= 0 ? 'rgb(var(--bull-rgb) / 0.3)' : 'rgb(var(--bear-rgb) / 0.3)',
             borderRadius: 8,
             padding: '6px 10px',
-            backdropFilter: 'blur(8px)',
           }}
         >
-          <div className="text-[10px] font-mono space-y-0.5">
-            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <div className="text-[11px] space-y-0.5 tabular-nums" style={{ fontFamily: MONO }}>
+            <div style={{ color: 'var(--text-muted)' }}>
               Strike: <span style={{ color: themeColors.spotColor }}>${tooltip3D.strike.toFixed(0)}</span>
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
-              Time: <span style={{ color: '#a78bfa' }}>T-{tooltip3D.time}</span>
+            <div style={{ color: 'var(--text-muted)' }}>
+              Time: <span style={{ color: 'var(--accent)' }}>T-{tooltip3D.time}</span>
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <div style={{ color: 'var(--text-muted)' }}>
               {dataType === 'netGEX' ? 'GEX' : 'IV'}:{' '}
               <span style={{ color: tooltip3D.value >= 0 ? themeColors.callColor : themeColors.putColor, fontWeight: 600 }}>
                 {tooltip3D.value >= 0 ? '+' : ''}{formatValue(tooltip3D.value)}

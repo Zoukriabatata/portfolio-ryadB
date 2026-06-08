@@ -13,11 +13,15 @@ import { useEquityOptionsStore } from '@/stores/useEquityOptionsStore';
 import type { EquitySymbol } from '@/types/options';
 import { RefreshIcon } from '@/components/ui/Icons';
 import { useTrackChartVisit } from '@/hooks/dashboard/useTrackChartVisit';
+import Segment from '@/components/ui/Segment';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 type ViewMode = 'smile' | 'surface3D' | 'termStructure';
 
-// ─── Teal accent (tradytics-style) ───
-const TEAL = '#26beaf';
+// ─── Accent (teal — brand structure token) ───
+const ACCENT = 'var(--accent)';
+const accentAlpha = (a: number) => `rgb(var(--accent-rgb) / ${a})`;
+const warnAlpha = (a: number) => `rgb(var(--warning-rgb) / ${a})`;
 
 export default function VolatilityPageContent() {
   const {
@@ -143,38 +147,28 @@ export default function VolatilityPageContent() {
       {/* ══════════════════════════════════════════════════════
           TOP BAR: logo · symbols · LIVE · refresh
       ══════════════════════════════════════════════════════ */}
-      <div className="flex items-center justify-between gap-4 px-4 py-2 border-b border-[var(--border)] shrink-0">
+      <div className="panel-glass flex items-center justify-between gap-4 px-4 py-2 shrink-0">
 
         {/* Left: icon + symbol pills */}
         <div className="flex items-center gap-3">
           {/* Icon */}
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-black"
-            style={{ background: `${TEAL}22`, border: `1px solid ${TEAL}55`, color: TEAL }}
+            style={{ background: accentAlpha(0.13), border: `1px solid ${accentAlpha(0.33)}`, color: ACCENT, fontFamily: 'var(--font-jetbrains-mono)' }}
           >
             IV
           </div>
-          <span className="text-[11px] font-semibold text-[var(--text-secondary)] hidden sm:block whitespace-nowrap">
+          <span className="font-display text-[13px] text-[var(--text-secondary)] hidden sm:block whitespace-nowrap">
             Volatility Skew
           </span>
 
           {/* Symbol pills */}
-          <div className="flex items-center gap-0.5 bg-[var(--surface)] rounded-lg p-0.5 border border-[var(--border)]">
-            {(['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL'] as EquitySymbol[]).map(s => (
-              <button
-                key={s}
-                onClick={() => { reset(); setSymbol(s); }}
-                className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all duration-150 ${
-                  symbol === s
-                    ? 'text-[var(--text-primary)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                }`}
-                style={symbol === s ? { background: `${TEAL}22`, color: TEAL } : {}}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <Segment<EquitySymbol>
+            size="sm"
+            value={symbol}
+            onChange={(s) => { reset(); setSymbol(s); }}
+            options={(['SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL'] as EquitySymbol[]).map(s => ({ id: s, label: s }))}
+          />
         </div>
 
         {/* Right: status + time + refresh */}
@@ -182,18 +176,18 @@ export default function VolatilityPageContent() {
           <div
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] border"
             style={isLive
-              ? { background: `${TEAL}12`, color: TEAL, borderColor: `${TEAL}30` }
-              : { background: 'rgba(255,200,0,0.08)', color: 'rgba(255,200,0,0.8)', borderColor: 'rgba(255,200,0,0.2)' }
+              ? { background: accentAlpha(0.07), color: ACCENT, borderColor: accentAlpha(0.19) }
+              : { background: warnAlpha(0.08), color: warnAlpha(0.8), borderColor: warnAlpha(0.2) }
             }
           >
             <span
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: isLive ? TEAL : 'rgba(255,200,0,0.8)', animation: isLive ? 'pulse 2s infinite' : 'none' }}
+              style={{ background: isLive ? ACCENT : warnAlpha(0.8), animation: isLive ? 'pulse 2s infinite' : 'none' }}
             />
             {isLive ? 'CBOE · delayed ~15min' : isLoading ? 'Loading…' : 'Error'}
           </div>
           {lastUpdate && (
-            <span className="text-[9px] text-[var(--text-muted)] hidden md:block font-mono">
+            <span className="text-[11px] text-[var(--text-muted)] hidden md:block" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
               {lastUpdate.toLocaleTimeString()}
             </span>
           )}
@@ -210,11 +204,11 @@ export default function VolatilityPageContent() {
       {/* ══════════════════════════════════════════════════════
           METRICS STRIP: 6 key stats
       ══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-6 border-b border-[var(--border)] shrink-0">
+      <div className="panel-glass panel-glass-hero grid grid-cols-6 shrink-0">
         <MetricCell
           label="Spot"
           value={spot > 0 ? `$${spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
-          color={TEAL}
+          color={ACCENT}
           live
         />
         <MetricCell
@@ -225,23 +219,23 @@ export default function VolatilityPageContent() {
         <MetricCell
           label="Call IV"
           value={atmCallIV ? `${atmCallIV.toFixed(1)}%` : '—'}
-          color="#34d399"
+          color="var(--bull)"
         />
         <MetricCell
           label="Put IV"
           value={atmPutIV ? `${atmPutIV.toFixed(1)}%` : '—'}
-          color="#f87171"
+          color="var(--bear)"
         />
         <MetricCell
           label="P/C Skew"
           value={skewRatio ? skewRatio.toFixed(2) : '—'}
-          color={skewRatio ? (skewRatio > 1.05 ? '#f87171' : skewRatio < 0.95 ? '#34d399' : 'var(--text-primary)') : 'var(--text-muted)'}
+          color={skewRatio ? (skewRatio > 1.05 ? 'var(--bear)' : skewRatio < 0.95 ? 'var(--bull)' : 'var(--text-primary)') : 'var(--text-muted)'}
           sub={skewRatio ? (skewRatio > 1.05 ? 'Put premium' : skewRatio < 0.95 ? 'Call premium' : 'Neutral') : undefined}
         />
         <MetricCell
           label={dte ? `DTE · ${dte}d` : 'DTE'}
           value={maxPutSkew ? `+${maxPutSkew}%` : '—'}
-          color="rgba(255,200,60,0.9)"
+          color={warnAlpha(0.9)}
           sub="max put spread"
         />
       </div>
@@ -249,16 +243,16 @@ export default function VolatilityPageContent() {
       {/* ══════════════════════════════════════════════════════
           CONTROLS: expiry tabs + view toggle
       ══════════════════════════════════════════════════════ */}
-      <div className="flex items-center gap-3 px-4 py-1.5 border-b border-[var(--border)] shrink-0 overflow-x-auto">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)] shrink-0">Expiry</span>
+      <div className="panel-glass flex items-center gap-3 px-4 py-1.5 shrink-0 overflow-x-auto">
+        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)] shrink-0" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>Expiry</span>
         <div className="flex items-center gap-1 flex-1">
           {expirations.slice(0, 9).map(exp => (
             <button
               key={exp}
               onClick={() => setSelectedExpiration(exp)}
-              className="px-2.5 py-1 text-[10px] rounded-lg whitespace-nowrap transition-all duration-150 font-medium"
+              className="px-2.5 py-1 text-[11px] rounded-lg whitespace-nowrap transition-all duration-150 font-medium"
               style={selectedExpiration === exp
-                ? { background: `${TEAL}20`, color: TEAL, border: `1px solid ${TEAL}40` }
+                ? { background: accentAlpha(0.13), color: ACCENT, border: `1px solid ${accentAlpha(0.25)}` }
                 : { background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
               }
             >
@@ -266,25 +260,17 @@ export default function VolatilityPageContent() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-0.5 bg-[var(--surface)] rounded-lg p-0.5 border border-[var(--border)] shrink-0">
-          {([
-            { key: 'smile' as const, label: 'IV Skew' },
-            { key: 'surface3D' as const, label: '3D Surface' },
-            { key: 'termStructure' as const, label: 'Term Structure' },
-          ]).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setViewMode(key)}
-              className="px-2.5 py-1 text-[10px] rounded transition-all duration-150"
-              style={viewMode === key
-                ? { background: `${TEAL}20`, color: TEAL }
-                : { color: 'var(--text-muted)' }
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segment<ViewMode>
+          className="shrink-0"
+          size="sm"
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { id: 'smile', label: 'IV Skew' },
+            { id: 'surface3D', label: '3D Surface' },
+            { id: 'termStructure', label: 'Term Structure' },
+          ]}
+        />
       </div>
 
       {/* ══════════════════════════════════════════════════════
@@ -303,7 +289,7 @@ export default function VolatilityPageContent() {
             action={
               <button
                 onClick={loadLiveData}
-                className="px-4 py-2 bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
+                className="press-fb px-4 py-2 bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-hover)] text-sm"
               >
                 Retry
               </button>
@@ -311,7 +297,9 @@ export default function VolatilityPageContent() {
           />
         ) : skewData.length === 0 ? (
           <EmptyState icon="chart" title="No data" description="Select an expiration above" />
-        ) : viewMode === 'smile' ? (
+        ) : (
+          <div key={viewMode} className="animate-fadeIn w-full h-full">
+        {viewMode === 'smile' ? (
           <IVSmileChart
             data={skewData}
             spotPrice={spot}
@@ -332,6 +320,8 @@ export default function VolatilityPageContent() {
             data={liveTermStructure}
             height={420}
           />
+        )}
+          </div>
         )}
       </div>
 
@@ -362,27 +352,27 @@ export default function VolatilityPageContent() {
                     className="transition-colors hover:bg-[var(--surface-hover)]"
                     style={{
                       borderTop: '1px solid var(--border)',
-                      background: isATM ? `${TEAL}0d` : undefined,
+                      background: isATM ? accentAlpha(0.05) : undefined,
                     }}
                   >
                     {/* Strike */}
-                    <td className="py-1.5 px-3 font-mono font-medium" style={{ color: isATM ? TEAL : 'var(--text-primary)' }}>
+                    <td className="py-1.5 px-3 font-medium tabular-nums" style={{ color: isATM ? ACCENT : 'var(--text-primary)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       ${row.strike.toLocaleString()}
                       {isATM && (
                         <span
                           className="ml-1.5 text-[8px] px-1.5 py-0.5 rounded font-sans font-semibold"
-                          style={{ background: `${TEAL}22`, color: TEAL }}
+                          style={{ background: accentAlpha(0.13), color: ACCENT }}
                         >
                           ATM
                         </span>
                       )}
                     </td>
                     {/* Moneyness */}
-                    <td className="py-1.5 px-3 font-mono text-center" style={{ color: 'var(--text-muted)' }}>
+                    <td className="py-1.5 px-3 text-center tabular-nums" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       {row.moneyness.toFixed(3)}
                     </td>
                     {/* Call IV */}
-                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: '#34d399' }}>
+                    <td className="py-1.5 px-3 text-right font-semibold tabular-nums" style={{ color: 'var(--bull)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       {row.callIV ? `${(row.callIV * 100).toFixed(1)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     {/* Call bar */}
@@ -390,12 +380,12 @@ export default function VolatilityPageContent() {
                       <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${((row.callIV || 0) / maxIV) * 100}%`, background: '#34d399', opacity: 0.55 }}
+                          style={{ width: `${((row.callIV || 0) / maxIV) * 100}%`, background: 'var(--bull)', opacity: 0.55 }}
                         />
                       </div>
                     </td>
                     {/* Put IV */}
-                    <td className="py-1.5 px-3 font-mono text-right font-semibold" style={{ color: '#f87171' }}>
+                    <td className="py-1.5 px-3 text-right font-semibold tabular-nums" style={{ color: 'var(--bear)', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       {row.putIV ? `${(row.putIV * 100).toFixed(1)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     {/* Put bar */}
@@ -403,16 +393,17 @@ export default function VolatilityPageContent() {
                       <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-elevated)' }}>
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${((row.putIV || 0) / maxIV) * 100}%`, background: '#f87171', opacity: 0.55 }}
+                          style={{ width: `${((row.putIV || 0) / maxIV) * 100}%`, background: 'var(--bear)', opacity: 0.55 }}
                         />
                       </div>
                     </td>
                     {/* Skew spread */}
                     <td
-                      className="py-1.5 px-3 font-mono text-right"
+                      className="py-1.5 px-3 text-right tabular-nums"
                       style={{
-                        color: sp !== null ? (sp > 0 ? '#f87171' : '#34d399') : 'var(--text-muted)',
+                        color: sp !== null ? (sp > 0 ? 'var(--bear)' : 'var(--bull)') : 'var(--text-muted)',
                         opacity: 0.85,
+                        fontFamily: 'var(--font-jetbrains-mono)',
                       }}
                     >
                       {sp !== null ? `${sp > 0 ? '+' : ''}${sp.toFixed(1)}%` : '—'}
@@ -439,14 +430,15 @@ function MetricCell({
   sub?: string;
   live?: boolean;
 }) {
+  const flash = useValueFlash(value);
   return (
     <div className="px-4 py-2.5 border-r border-[var(--border)] last:border-r-0 flex flex-col gap-0.5">
       <div className="flex items-center gap-1">
-        {live && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: TEAL }} />}
-        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)]">{label}</span>
+        {live && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: ACCENT }} />}
+        <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>{label}</span>
       </div>
-      <span className="font-mono font-bold text-sm leading-tight" style={{ color }}>{value}</span>
-      {sub && <span className="text-[8.5px] text-[var(--text-muted)] leading-none">{sub}</span>}
+      <span className={`font-bold text-sm leading-tight tabular-nums ${flash ? 'value-flash' : ''}`} style={{ color, fontFamily: 'var(--font-jetbrains-mono)' }}>{value}</span>
+      {sub && <span className="text-[11px] text-[var(--text-muted)] leading-tight">{sub}</span>}
     </div>
   );
 }
@@ -455,7 +447,7 @@ function Th({ children, left }: { children?: React.ReactNode; left?: boolean }) 
   return (
     <th
       className={`py-1.5 px-3 text-[9px] font-medium uppercase tracking-wider ${left ? 'text-left' : 'text-right'}`}
-      style={{ color: 'var(--text-muted)' }}
+      style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)' }}
     >
       {children}
     </th>

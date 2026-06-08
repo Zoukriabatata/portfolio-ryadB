@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { scaleLinear, drawGrid, generateYTicks, formatCurrency } from '@/lib/journal/chartUtils';
+import { themeColor, themeAlpha, pnlColor } from '@/lib/ui/themeColors';
 
 interface EquityCurveChartProps {
   data: { date: string; cumulativePnl: number }[];
@@ -46,7 +47,7 @@ export default function EquityCurveChart({ data, height = 220 }: EquityCurveChar
     drawGrid(ctx, width, height, PADDING, yTicks, scaleY);
 
     // Y axis labels
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#888';
+    ctx.fillStyle = themeColor('--text-muted');
     ctx.font = '10px JetBrains Mono, monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
@@ -56,7 +57,7 @@ export default function EquityCurveChart({ data, height = 220 }: EquityCurveChar
 
     // Zero line
     const zeroY = scaleY(0);
-    ctx.strokeStyle = 'rgba(128, 128, 128, 0.3)';
+    ctx.strokeStyle = themeAlpha('--text-muted', 0.3);
     ctx.lineWidth = 1;
     ctx.setLineDash([]);
     ctx.beginPath();
@@ -74,10 +75,10 @@ export default function EquityCurveChart({ data, height = 220 }: EquityCurveChar
     ctx.closePath();
 
     const lastValue = data[data.length - 1].cumulativePnl;
-    const gradColor = lastValue >= 0 ? '34, 197, 94' : '239, 68, 68';
+    const gradToken = lastValue >= 0 ? '--bull' : '--bear';
     const grad = ctx.createLinearGradient(0, PADDING.top, 0, height - PADDING.bottom);
-    grad.addColorStop(0, `rgba(${gradColor}, 0.2)`);
-    grad.addColorStop(1, `rgba(${gradColor}, 0.02)`);
+    grad.addColorStop(0, themeAlpha(gradToken, 0.2));
+    grad.addColorStop(1, themeAlpha(gradToken, 0.02));
     ctx.fillStyle = grad;
     ctx.fill();
 
@@ -89,7 +90,7 @@ export default function EquityCurveChart({ data, height = 220 }: EquityCurveChar
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = lastValue >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+    ctx.strokeStyle = pnlColor(lastValue);
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -98,7 +99,7 @@ export default function EquityCurveChart({ data, height = 220 }: EquityCurveChar
     const lastY = scaleY(lastValue);
     ctx.beginPath();
     ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
-    ctx.fillStyle = lastValue >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+    ctx.fillStyle = pnlColor(lastValue);
     ctx.fill();
 
   }, [data, height]);

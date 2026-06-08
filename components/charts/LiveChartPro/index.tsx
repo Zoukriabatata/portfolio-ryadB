@@ -505,7 +505,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
       lastZoomToastRef.current = now;
       // Lazy-import sonner to avoid pulling it into the chart bundle path
       import('sonner').then(({ toast }) => {
-        toast('🔒 Zoom locked while in position — close to free up the chart', {
+        toast('Zoom locked while in position — close to free up the chart', {
           duration: 1500,
         });
       });
@@ -696,8 +696,8 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
 
             {/* Price Position Indicator */}
             <div ref={refs.pricePosition} className="relative w-4 h-6 rounded border overflow-hidden" style={{ backgroundColor: theme.colors.background, borderColor: theme.colors.border }} data-tooltip="Session Range" data-tooltip-pos="top">
-              <div ref={refs.pricePositionBar} className="absolute inset-x-0 bottom-0 w-full transition-all duration-300" style={{ height: '50%', background: 'linear-gradient(to top, #eab30860, #eab30820)' }} />
-              <div className="position-line absolute left-0 right-0 h-0.5 transition-all duration-300" style={{ bottom: '50%', backgroundColor: '#eab308', boxShadow: '0 0 4px #eab308' }} />
+              <div ref={refs.pricePositionBar} className="absolute inset-x-0 bottom-0 w-full transition-all duration-300" style={{ height: '50%', background: 'linear-gradient(to top, rgb(var(--warning-rgb) / 0.38), rgb(var(--warning-rgb) / 0.12))' }} />
+              <div className="position-line absolute left-0 right-0 h-0.5 transition-all duration-300" style={{ bottom: '50%', backgroundColor: 'var(--warning)', boxShadow: '0 0 4px var(--warning)' }} />
             </div>
 
             {/* OHLC Display — live DOM refs, no re-render */}
@@ -719,7 +719,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                 {(symbolData.cmeDataMode === 'ok' || symbolData.cmeDataMode === null) && (
                   <span
                     className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
-                    style={{ color: '#eab308', background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)' }}
+                    style={{ color: 'var(--warning)', background: 'rgb(var(--warning-rgb) / 0.12)', border: '1px solid rgb(var(--warning-rgb) / 0.25)' }}
                     title="Données retardées de 15 minutes — Yahoo Finance"
                   >
                     <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -732,7 +732,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                 {symbolData.cmeDataMode === 'stale' && (
                   <span
                     className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
-                    style={{ color: '#9ca3af', background: 'rgba(156,163,175,0.10)', border: '1px solid rgba(156,163,175,0.25)' }}
+                    style={{ color: 'var(--text-muted)', background: 'color-mix(in srgb, var(--text-muted) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--text-muted) 25%, transparent)' }}
                     title="Données non actualisées — dernière MAJ il y a quelques instants"
                   >
                     <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -745,7 +745,7 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
                 {symbolData.cmeDataMode === 'error' && (
                   <span
                     className="hidden sm:flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
-                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)' }}
+                    style={{ color: 'var(--bear)', background: 'rgb(var(--bear-rgb) / 0.10)', border: '1px solid rgb(var(--bear-rgb) / 0.30)' }}
                     title="Erreur de connexion aux données — nouvelle tentative en cours"
                   >
                     <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -820,14 +820,14 @@ export default function LiveChartPro({ className, onSymbolChange, headerRight }:
 
                     {/* Volume Profile */}
                     <button onClick={() => { setShowVolumeProfile(!showVolumeProfile); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showVolumeProfile ? theme.colors.text : theme.colors.textMuted }}>
-                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showVolumeProfile ? '#1e88e5' : 'transparent', borderColor: '#1e88e5' }} />
+                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showVolumeProfile ? 'var(--accent)' : 'transparent', borderColor: 'var(--accent)' }} />
                       <span className="font-medium">Volume Profile</span>
                       <span className="ml-auto text-[9px] opacity-40">Daily</span>
                     </button>
 
                     {/* Market Profile */}
                     <button onClick={() => { setShowMarketProfile(!showMarketProfile); }} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--surface-hover)] transition-colors" style={{ color: showMarketProfile ? theme.colors.text : theme.colors.textMuted }}>
-                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showMarketProfile ? '#7D2962' : 'transparent', borderColor: '#7D2962' }} />
+                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: showMarketProfile ? 'var(--primary)' : 'transparent', borderColor: 'var(--primary)' }} />
                       <span className="font-medium">Market Profile</span>
                       <span className="ml-auto text-[9px] opacity-40">M15</span>
                     </button>

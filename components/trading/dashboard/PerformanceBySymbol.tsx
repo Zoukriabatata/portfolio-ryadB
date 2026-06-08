@@ -52,12 +52,9 @@ export default function PerformanceBySymbol({ range }: Props) {
   );
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="panel-glass rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>P&L by Symbol</h3>
+        <h3 className="font-display text-[15px]" style={{ color: 'var(--text-primary)' }}>P&L by Symbol</h3>
         <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           {stats.length} symbols
         </span>
@@ -82,18 +79,18 @@ export default function PerformanceBySymbol({ range }: Props) {
                     className="absolute top-0 h-full transition-all duration-500"
                     style={{
                       width:       `${pctWidth}%`,
-                      background:  isProfit ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)',
-                      borderLeft:  `2px solid ${isProfit ? '#10b981' : '#ef4444'}`,
+                      background:  isProfit ? 'rgb(var(--bull-rgb) / 0.4)' : 'rgb(var(--bear-rgb) / 0.4)',
+                      borderLeft:  `2px solid ${isProfit ? 'var(--bull)' : 'var(--bear)'}`,
                       left: 0,
                     }}
                   />
                   <div className="absolute inset-0 flex items-center px-2">
-                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                    <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                       {s.trades}t · {s.winRate.toFixed(0)}%
                     </span>
                   </div>
                 </div>
-                <span className="w-20 text-right tabular-nums font-bold" style={{ color: isProfit ? '#10b981' : '#ef4444' }}>
+                <span className="w-20 text-right tabular-nums font-bold" style={{ color: isProfit ? 'var(--bull)' : 'var(--bear)' }}>
                   {isProfit ? '+' : ''}${s.netPnl.toFixed(2)}
                 </span>
               </div>

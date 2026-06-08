@@ -10,6 +10,7 @@ import {
   type Time,
 } from 'lightweight-charts';
 import { useEquityOptionsStore } from '@/stores/useEquityOptionsStore';
+import { themeColor } from '@/lib/ui/themeColors';
 
 interface VolatilitySkewChartProps {
   className?: string;
@@ -90,37 +91,37 @@ export default function VolatilitySkewChart({
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { color: '#0a0a0a' },
-        textColor: '#d1d5db',
+        background: { color: themeColor('--background') },
+        textColor: themeColor('--text-secondary'),
       },
       grid: {
-        vertLines: { color: '#1f2937' },
-        horzLines: { color: '#1f2937' },
+        vertLines: { color: themeColor('--border') },
+        horzLines: { color: themeColor('--border') },
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: '#6b7280',
+          color: themeColor('--text-muted'),
           width: 1,
           style: 2,
-          labelBackgroundColor: '#374151',
+          labelBackgroundColor: themeColor('--border'),
         },
         horzLine: {
-          color: '#6b7280',
+          color: themeColor('--text-muted'),
           width: 1,
           style: 2,
-          labelBackgroundColor: '#374151',
+          labelBackgroundColor: themeColor('--border'),
         },
       },
       rightPriceScale: {
-        borderColor: '#374151',
+        borderColor: themeColor('--border'),
         scaleMargins: {
           top: 0.1,
           bottom: 0.1,
         },
       },
       timeScale: {
-        borderColor: '#374151',
+        borderColor: themeColor('--border'),
         tickMarkFormatter: (time: number) => {
           // Format strike price
           if (time >= 1000) {
@@ -134,9 +135,9 @@ export default function VolatilitySkewChart({
       },
     });
 
-    // Call IV series (green)
+    // Call IV series (bull)
     const callSeries = chart.addSeries(LineSeries, {
-      color: '#22c55e',
+      color: themeColor('--bull'),
       lineWidth: 2,
       title: 'Call IV',
       priceFormat: {
@@ -145,9 +146,9 @@ export default function VolatilitySkewChart({
       },
     });
 
-    // Put IV series (red)
+    // Put IV series (bear)
     const putSeries = chart.addSeries(LineSeries, {
-      color: '#ef4444',
+      color: themeColor('--bear'),
       lineWidth: 2,
       title: 'Put IV',
       priceFormat: {
@@ -156,9 +157,9 @@ export default function VolatilitySkewChart({
       },
     });
 
-    // ATM line (dashed white)
+    // ATM line (dashed, theme text)
     const spotLine = chart.addSeries(LineSeries, {
-      color: '#ffffff',
+      color: themeColor('--text-primary'),
       lineWidth: 1,
       lineStyle: 2, // Dashed
       title: 'ATM',
@@ -209,16 +210,16 @@ export default function VolatilitySkewChart({
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mt-4 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-green-500" />
-          <span className="text-zinc-400">Call IV</span>
+          <div className="w-4 h-0.5" style={{ backgroundColor: 'var(--bull)' }} />
+          <span style={{ color: 'var(--text-muted)' }}>Call IV</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-red-500" />
-          <span className="text-zinc-400">Put IV</span>
+          <div className="w-4 h-0.5" style={{ backgroundColor: 'var(--bear)' }} />
+          <span style={{ color: 'var(--text-muted)' }}>Put IV</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-white border-dashed" style={{ borderTopWidth: 1 }} />
-          <span className="text-zinc-400">ATM (${underlyingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+          <div className="w-4 h-0.5 border-dashed" style={{ backgroundColor: 'var(--text-primary)', borderTopWidth: 1 }} />
+          <span style={{ color: 'var(--text-muted)' }}>ATM (${underlyingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
         </div>
       </div>
     </div>

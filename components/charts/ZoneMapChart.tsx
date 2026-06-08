@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { ESLevel } from '@/lib/analysis/institutionalBias';
+import { themeColor } from '@/lib/ui/themeColors';
 
 interface ZoneMapChartProps {
   levels: ESLevel[];
@@ -15,18 +16,6 @@ interface HoverInfo {
   y: number;
   level: ESLevel;
 }
-
-const COLORS = {
-  support: '#22c55e',
-  resistance: '#ef4444',
-  pivot: '#eab308',
-  round: '#64748b',
-  spot: '#3b82f6',
-  bg: '#0a0a0a',
-  grid: '#1a1a1a',
-  text: '#888',
-  textDim: '#555',
-};
 
 export function ZoneMapChart({ levels, esSpot, rangeHigh, rangeLow }: ZoneMapChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,6 +73,14 @@ export function ZoneMapChart({ levels, esSpot, rangeHigh, rangeLow }: ZoneMapCha
     ctx.scale(dpr, dpr);
 
     const { w, h } = dims;
+
+    // Theme-aware palette (read client-side to stay SSR-safe & follow active theme)
+    const COLORS = {
+      spot: themeColor('--primary'),
+      bg: themeColor('--background'),
+      grid: themeColor('--border'),
+      textDim: themeColor('--text-dimmed'),
+    };
 
     // Clear
     ctx.fillStyle = COLORS.bg;
@@ -209,7 +206,7 @@ export function ZoneMapChart({ levels, esSpot, rangeHigh, rangeLow }: ZoneMapCha
   }, [dims, levels, priceHigh, priceLow, yToPrice]);
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-[300px] rounded-xl border border-[var(--border)] bg-[#0a0a0a] overflow-hidden">
+    <div ref={containerRef} className="relative w-full h-full min-h-[300px] rounded-xl border border-[var(--border)] bg-[var(--background)] overflow-hidden">
       <canvas
         ref={canvasRef}
         className="w-full h-full"

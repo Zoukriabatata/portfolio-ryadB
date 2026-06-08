@@ -3,11 +3,15 @@
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTradingStore } from '@/stores/useTradingStore';
+import Segment from '@/components/ui/Segment';
 
 interface SymbolFilterProps {
   value:    string | null;            // null = all symbols
   onChange: (sym: string | null) => void;
 }
+
+// Sentinel id for the "All symbols" option (Segment needs a string value).
+const ALL = '__all__';
 
 /**
  * Symbol filter chips — dynamically lists every symbol currently present
@@ -35,39 +39,28 @@ export default function SymbolFilter({ value, onChange }: SymbolFilterProps) {
 
   if (symbols.length <= 1) return null;  // Nothing to filter on
 
-  return (
-    <div
-      className="inline-flex items-center rounded-lg p-0.5 flex-wrap gap-0.5"
-      style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
-    >
-      <Chip label="All" active={value === null} onClick={() => onChange(null)} count={positions.length + orders.filter(o => o.status === 'pending').length + closedTrades.length} />
-      {symbols.map(s => (
-        <Chip
-          key={s}
-          label={s}
-          active={value === s}
-          onClick={() => onChange(s)}
-        />
-      ))}
-    </div>
-  );
-}
+  const allCount = positions.length + orders.filter(o => o.status === 'pending').length + closedTrades.length;
 
-function Chip({ label, active, onClick, count }: { label: string; active: boolean; onClick: () => void; count?: number }) {
+  const options = [
+    {
+      id: ALL,
+      label: (
+        <span className="inline-flex items-center gap-1 tracking-wide">
+          All
+          <span className="text-[10px] opacity-60 tabular-nums">{allCount}</span>
+        </span>
+      ),
+    },
+    ...symbols.map(s => ({ id: s, label: <span className="tracking-wide">{s}</span> })),
+  ];
+
   return (
-    <button
-      onClick={onClick}
-      className="px-2 py-1 rounded-md text-[10px] font-semibold tracking-wide transition-all flex items-center gap-1"
-      style={{
-        background: active ? 'var(--surface)' : 'transparent',
-        color:      active ? 'var(--text-primary)' : 'var(--text-muted)',
-        boxShadow:  active ? '0 1px 2px rgba(0,0,0,0.15)' : 'none',
-      }}
-    >
-      {label}
-      {typeof count === 'number' && (
-        <span className="text-[9px] opacity-60 tabular-nums">{count}</span>
-      )}
-    </button>
+    <Segment
+      options={options}
+      value={value ?? ALL}
+      onChange={(id) => onChange(id === ALL ? null : id)}
+      size="sm"
+      className="flex-wrap"
+    />
   );
 }

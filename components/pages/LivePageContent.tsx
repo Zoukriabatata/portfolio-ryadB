@@ -10,6 +10,7 @@ import ChartPageShell from '@/components/layouts/ChartPageShell';
 import { DOMladder } from '@/components/live/DOMladder';
 import { LiveTape } from '@/components/live/LiveTape';
 import { ConnectionStatusBadge } from '@/components/live/ConnectionStatus';
+import Segment from '@/components/ui/Segment';
 import { useLiveStore } from '@/stores/useLiveStore';
 import { useTradovatePanel } from '@/hooks/useTradovatePanel';
 import { CME_SYMBOLS } from '@/lib/websocket/TradovateWS';
@@ -190,21 +191,15 @@ function TradingPanel({ symbol }: { symbol: string }) {
         className="flex items-center justify-between px-2 py-1.5 shrink-0"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
-        <div className="flex gap-1">
-          {(['dom', 'tape'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="px-2.5 py-0.5 rounded text-[10px] font-medium transition-colors"
-              style={{
-                backgroundColor: activeTab === tab ? 'var(--primary)' : 'transparent',
-                color: activeTab === tab ? '#fff' : 'var(--text-muted)',
-              }}
-            >
-              {tab === 'dom' ? 'DOM' : 'Tape'}
-            </button>
-          ))}
-        </div>
+        <Segment
+          options={[
+            { id: 'dom', label: 'DOM' },
+            { id: 'tape', label: 'Tape' },
+          ]}
+          value={activeTab}
+          onChange={setActiveTab}
+          size="sm"
+        />
         <ConnectionStatusBadge status={status} />
       </div>
 
@@ -234,10 +229,14 @@ function TradingPanel({ symbol }: { symbol: string }) {
               Connect Tradovate →
             </Link>
           </div>
-        ) : activeTab === 'dom' ? (
-          <DOMladder dom={dom} quote={quote} tickSize={tickSize} depth={14} />
         ) : (
-          <LiveTape trades={trades} tickSize={tickSize} />
+          <div key={activeTab} className="h-full animate-fadeIn">
+            {activeTab === 'dom' ? (
+              <DOMladder dom={dom} quote={quote} tickSize={tickSize} depth={14} />
+            ) : (
+              <LiveTape trades={trades} tickSize={tickSize} />
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -282,13 +281,13 @@ export default function LivePageContent() {
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <rect x="0" y="0" width="4" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="5" y="0" width="5" height="1.5" rx="0.5" fill="#22c55e" />
+            <rect x="5" y="0" width="5" height="1.5" rx="0.5" fill="var(--bull)" />
             <rect x="0" y="2.5" width="6" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="7" y="2.5" width="3" height="1.5" rx="0.5" fill="#22c55e" />
+            <rect x="7" y="2.5" width="3" height="1.5" rx="0.5" fill="var(--bull)" />
             <rect x="0" y="5" width="7" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="8" y="5" width="2" height="1.5" rx="0.5" fill="#ef4444" />
+            <rect x="8" y="5" width="2" height="1.5" rx="0.5" fill="var(--bear)" />
             <rect x="0" y="7.5" width="5" height="1.5" rx="0.5" fill="currentColor" opacity={0.5} />
-            <rect x="6" y="7.5" width="4" height="1.5" rx="0.5" fill="#ef4444" />
+            <rect x="6" y="7.5" width="4" height="1.5" rx="0.5" fill="var(--bear)" />
           </svg>
           DOM
         </button>

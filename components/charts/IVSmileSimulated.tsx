@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 
 interface IVSmileProps {
   symbol: string;
@@ -102,8 +103,17 @@ export default function IVSmileSimulated({
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = h - padding.top - padding.bottom;
 
+    // Theme-aware palette (resolved at draw-time → SSR-safe, theme-reactive)
+    const cBg = themeColor('--background');
+    const cGrid = themeAlpha('--border', 0.6);
+    const cText = themeColor('--text-muted');
+    const cBright = themeColor('--text-primary');
+    const cCall = themeColor('--bull');
+    const cPut = themeColor('--bear');
+    const cSpot = themeColor('--accent');
+
     // Clear
-    ctx.fillStyle = '#0a0f0a';
+    ctx.fillStyle = cBg;
     ctx.fillRect(0, 0, width, h);
 
     // Find data ranges
@@ -121,7 +131,7 @@ export default function IVSmileSimulated({
       padding.top + ((maxIV - iv) / (maxIV - minIV)) * chartHeight;
 
     // Grid
-    ctx.strokeStyle = '#1a2a1a';
+    ctx.strokeStyle = cGrid;
     ctx.lineWidth = 1;
 
     // Horizontal grid lines
@@ -133,8 +143,8 @@ export default function IVSmileSimulated({
       ctx.lineTo(width - padding.right, y);
       ctx.stroke();
 
-      ctx.fillStyle = '#4a5a4a';
-      ctx.font = '10px "Consolas", monospace';
+      ctx.fillStyle = cText;
+      ctx.font = '10px "JetBrains Mono", monospace';
       ctx.textAlign = 'right';
       ctx.fillText(`${(iv * 100).toFixed(1)}%`, padding.left - 5, y + 4);
     }
@@ -149,14 +159,14 @@ export default function IVSmileSimulated({
       ctx.lineTo(x, h - padding.bottom);
       ctx.stroke();
 
-      ctx.fillStyle = '#4a5a4a';
+      ctx.fillStyle = cText;
       ctx.textAlign = 'center';
       ctx.fillText(`$${strike.toFixed(0)}`, x, h - padding.bottom + 15);
     }
 
     // Spot price vertical line
     const spotX = scaleX(spotPrice);
-    ctx.strokeStyle = '#3b82f6';
+    ctx.strokeStyle = cSpot;
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
@@ -167,7 +177,7 @@ export default function IVSmileSimulated({
 
     // Draw Put IV curve with animation
     ctx.beginPath();
-    ctx.strokeStyle = '#ef4444';
+    ctx.strokeStyle = cPut;
     ctx.lineWidth = 2;
     data.forEach((point, i) => {
       const x = scaleX(point.strike);
@@ -188,7 +198,7 @@ export default function IVSmileSimulated({
 
     // Draw Call IV curve with animation
     ctx.beginPath();
-    ctx.strokeStyle = '#22c55e';
+    ctx.strokeStyle = cCall;
     ctx.lineWidth = 2;
     data.forEach((point, i) => {
       const x = scaleX(point.strike);
@@ -215,13 +225,13 @@ export default function IVSmileSimulated({
       // Call point
       ctx.beginPath();
       ctx.arc(x, callY, 3, 0, Math.PI * 2);
-      ctx.fillStyle = '#22c55e';
+      ctx.fillStyle = cCall;
       ctx.fill();
 
       // Put point
       ctx.beginPath();
       ctx.arc(x, putY, 3, 0, Math.PI * 2);
-      ctx.fillStyle = '#ef4444';
+      ctx.fillStyle = cPut;
       ctx.fill();
     });
 
@@ -233,44 +243,44 @@ export default function IVSmileSimulated({
 
       ctx.beginPath();
       ctx.arc(x, callY, 6, 0, Math.PI * 2);
-      ctx.strokeStyle = '#22c55e';
+      ctx.strokeStyle = cCall;
       ctx.lineWidth = 2;
       ctx.stroke();
 
       ctx.beginPath();
       ctx.arc(x, putY, 6, 0, Math.PI * 2);
-      ctx.strokeStyle = '#ef4444';
+      ctx.strokeStyle = cPut;
       ctx.stroke();
     }
 
     // Title
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px "Consolas", monospace';
+    ctx.fillStyle = cBright;
+    ctx.font = 'bold 14px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
     ctx.fillText(`${symbol} IV Smile - ${expiration} DTE`, padding.left, 25);
 
     // Legend
     const legendX = width - padding.right + 10;
-    ctx.font = '11px "Consolas", monospace';
+    ctx.font = '11px "JetBrains Mono", monospace';
 
-    ctx.fillStyle = '#22c55e';
+    ctx.fillStyle = cCall;
     ctx.beginPath();
     ctx.arc(legendX + 6, padding.top + 10, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillText('Call IV', legendX + 15, padding.top + 14);
 
-    ctx.fillStyle = '#ef4444';
+    ctx.fillStyle = cPut;
     ctx.beginPath();
     ctx.arc(legendX + 6, padding.top + 30, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillText('Put IV', legendX + 15, padding.top + 34);
 
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = cSpot;
     ctx.fillText('Spot', legendX + 5, padding.top + 54);
 
     // Axis labels
-    ctx.fillStyle = '#6a7a6a';
-    ctx.font = '11px "Consolas", monospace';
+    ctx.fillStyle = cText;
+    ctx.font = '11px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
     ctx.fillText('Strike Price', width / 2, h - 10);
 
@@ -337,28 +347,42 @@ export default function IVSmileSimulated({
         onMouseLeave={() => setHoveredPoint(null)}
       />
 
+      {/* Synthetic-data disclosure: this smile is modelled, not live market IV.
+          Bottom-right avoids the canvas title (top-left) and legend (top-right). */}
+      <div
+        className="panel-glass absolute bottom-8 right-2 z-20 px-2 py-1 pointer-events-none"
+        style={{ borderRadius: 6 }}
+      >
+        <span
+          className="text-[9px] font-semibold uppercase tracking-[0.18em] tabular-nums"
+          style={{ color: 'var(--warning)', fontFamily: 'var(--font-jetbrains-mono)' }}
+        >
+          Simulated
+        </span>
+      </div>
+
       {/* Tooltip */}
       {hoveredPoint && (
         <div
-          className="absolute bg-[#0a0f0a]/95 border border-green-900/40 rounded-lg p-3 text-xs pointer-events-none"
+          className="panel-glass absolute rounded-lg p-3 text-xs pointer-events-none"
           style={{
             left: '50%',
             top: 60,
             transform: 'translateX(-50%)',
           }}
         >
-          <div className="font-bold text-green-100 mb-2">Strike: ${hoveredPoint.strike.toFixed(2)}</div>
+          <div className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Strike: ${hoveredPoint.strike.toFixed(2)}</div>
           <div className="flex justify-between gap-4">
-            <span className="text-green-400/70">Call IV:</span>
-            <span className="text-green-400 font-mono">{(hoveredPoint.callIV * 100).toFixed(2)}%</span>
+            <span style={{ color: 'rgb(var(--bull-rgb) / 0.7)' }}>Call IV:</span>
+            <span style={{ color: 'var(--bull)', fontFamily: 'var(--font-jetbrains-mono)' }}>{(hoveredPoint.callIV * 100).toFixed(2)}%</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-red-400/70">Put IV:</span>
-            <span className="text-red-400 font-mono">{(hoveredPoint.putIV * 100).toFixed(2)}%</span>
+            <span style={{ color: 'rgb(var(--bear-rgb) / 0.7)' }}>Put IV:</span>
+            <span style={{ color: 'var(--bear)', fontFamily: 'var(--font-jetbrains-mono)' }}>{(hoveredPoint.putIV * 100).toFixed(2)}%</span>
           </div>
-          <div className="flex justify-between gap-4 mt-1 pt-1 border-t border-green-900/30">
-            <span className="text-green-500/60">Moneyness:</span>
-            <span className="text-green-300/80 font-mono">{hoveredPoint.moneyness.toFixed(1)}%</span>
+          <div className="flex justify-between gap-4 mt-1 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>Moneyness:</span>
+            <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-jetbrains-mono)' }}>{hoveredPoint.moneyness.toFixed(1)}%</span>
           </div>
         </div>
       )}

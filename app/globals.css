@@ -53,11 +53,11 @@
      #4ade80 is a vivid lime green — crisp on dark backgrounds,
      instantly differentiates from market bull/bear greens.
      Used sparingly: active nav state, CTAs, accent lines only. */
-  --primary: #4ade80;
+  --primary: #7ed321;
   --primary-light: #86efac;
   --primary-dark: #22c55e;
-  --primary-glow: rgba(74, 222, 128, 0.12);
-  --primary-rgb: 74 222 128;
+  --primary-glow: rgba(126, 211, 33, 0.12);
+  --primary-rgb: 126 211 33;
   --primary-light-rgb: 134 239 172;
   --primary-dark-rgb: 34 197 94;
 
@@ -83,6 +83,7 @@
   /* === TRADING COLORS ===
      Kept vivid but toned down backgrounds for a calmer chart feel */
   --bull: #26d97f;
+  --bull-rgb: 38 217 127;
   --bull-dim: #1ca55e;
   --bull-bg: rgba(38, 217, 127, 0.08);
   --bear: #f04f4f;
@@ -548,28 +549,71 @@ code {
    Version tokenisée de .landing-btn-* : ne portent que le visuel verre
    (couleur/fond/bord/blur/ombre) — le padding/radius vient du système de
    tailles de <Button>. Le ghost neutre garde un frost blanc (cf. réf). */
+/* "Charged energy" material — distinct from the matte stone of panels:
+   glossy top highlight + lime under-glow + a light sweep on hover + a spring
+   lift. Glossy controls vs matte panels = the brand's different-material
+   signature. overflow-hidden clips the sweep to the radius; the focus ring is
+   a box-shadow, so it renders outside and is not clipped. */
 .btn-brand, .btn-brand-ghost {
+  position: relative;
+  overflow: hidden;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.24s cubic-bezier(0.34, 1.4, 0.5, 1),
+              box-shadow 0.24s ease, border-color 0.2s ease, background 0.24s ease;
 }
+.btn-brand::after, .btn-brand-ghost::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.13) 50%, transparent 65%);
+  transform: translateX(-140%);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.btn-brand:hover::after, .btn-brand-ghost:hover::after { transform: translateX(140%); }
+
 .btn-brand {
   color: var(--primary-light);
-  background: rgb(var(--primary-rgb) / 0.09);
-  border: 1px solid rgb(var(--primary-rgb) / 0.30);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 8px 26px rgb(var(--primary-rgb) / 0.16);
+  background: linear-gradient(180deg, rgb(var(--primary-rgb) / 0.17) 0%, rgb(var(--primary-rgb) / 0.07) 100%);
+  border: 1px solid rgb(var(--primary-rgb) / 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -8px 16px rgb(var(--primary-rgb) / 0.06),
+    0 6px 20px rgb(var(--primary-rgb) / 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.45);
 }
 .btn-brand:hover {
-  background: rgb(var(--primary-rgb) / 0.14);
-  border-color: rgb(var(--primary-rgb) / 0.45);
+  background: linear-gradient(180deg, rgb(var(--primary-rgb) / 0.24) 0%, rgb(var(--primary-rgb) / 0.11) 100%);
+  border-color: rgb(var(--primary-rgb) / 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 12px 30px rgb(var(--primary-rgb) / 0.3),
+    0 0 0 1px rgb(var(--primary-rgb) / 0.14),
+    0 2px 4px rgba(0, 0, 0, 0.45);
+  transform: translateY(-2px);
 }
+.btn-brand:active { transform: translateY(0) scale(0.97); transition-duration: 0.09s; }
+
 .btn-brand-ghost {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%);
   border: 1px solid var(--border-light);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 .btn-brand-ghost:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 100%);
   border-color: var(--border-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 22px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+.btn-brand-ghost:active { transform: translateY(0) scale(0.97); transition-duration: 0.09s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-brand, .btn-brand-ghost { transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease; }
+  .btn-brand:hover, .btn-brand-ghost:hover,
+  .btn-brand:active, .btn-brand-ghost:active { transform: none; }
+  .btn-brand::after, .btn-brand-ghost::after { display: none; }
 }
 
 /* Subtle glow — use sparingly, only on key CTAs or focus states */
@@ -1021,7 +1065,8 @@ a:focus-visible {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color var(--transition-fast), background-color var(--transition-fast);
+  transition: color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease,
+              transform 0.2s cubic-bezier(0.34, 1.4, 0.5, 1);
 }
 
 @media (pointer: coarse) {
@@ -1032,8 +1077,14 @@ a:focus-visible {
 }
 
 .btn-icon:hover {
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  background: rgb(var(--primary-rgb) / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(var(--primary-rgb) / 0.18);
+  transform: translateY(-1px);
+}
+.btn-icon:active { transform: translateY(0) scale(0.92); transition-duration: 0.08s; }
+@media (prefers-reduced-motion: reduce) {
+  .btn-icon:hover, .btn-icon:active { transform: none; }
 }
 
 /* ============================================================
@@ -1314,6 +1365,46 @@ a:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .stagger-in > * { animation: none; }
   .card-lift:hover { transform: none; }
+}
+
+/* ============================================================
+   DESIGN-SYSTEM IN-APP — espace 4pt, matière panneau, motion
+   (foundations du plan 2026-06-07-inapp-modules-design-overhaul)
+   ============================================================ */
+:root {
+  --space-1: 4px; --space-2: 8px; --space-3: 12px;
+  --space-4: 16px; --space-5: 20px; --space-6: 24px;
+}
+
+/* Matière panneau — le verre de marque pour chrome/cartes/toolbars. */
+.panel-glass {
+  background: rgb(var(--surface-rgb) / 0.78);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--border-light);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 30px rgba(0, 0, 0, 0.28);
+}
+/* Carte héro élevée : under-glow lime « énergie ». */
+.panel-glass-hero {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    0 0 44px rgb(var(--primary-rgb) / 0.07);
+}
+
+/* Motion (vivacité/addictif) — interpolation côté JS via lib/ui/lerp.ts. */
+@keyframes value-flash { 0% { color: var(--primary); } 100% { color: inherit; } }
+.value-flash { animation: value-flash 0.7s ease-out; }
+@keyframes flash-bull-kf { 0% { background: rgb(var(--bull-rgb) / 0.35); } 100% { background: transparent; } }
+@keyframes flash-bear-kf { 0% { background: rgb(var(--bear-rgb) / 0.35); } 100% { background: transparent; } }
+.flash-bull { animation: flash-bull-kf 0.5s ease-out; }
+.flash-bear { animation: flash-bear-kf 0.5s ease-out; }
+.press-fb { transition: transform 0.12s ease; }
+.press-fb:active { transform: scale(0.95); }
+
+@media (prefers-reduced-motion: reduce) {
+  .value-flash, .flash-bull, .flash-bear { animation: none; }
+  .press-fb:active { transform: none; }
 }
 
 /* All animations, micro-interactions, and utility classes are in styles/animations.css */

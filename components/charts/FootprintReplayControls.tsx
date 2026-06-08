@@ -90,7 +90,7 @@ export default function FootprintReplayControls({
         {/* Play/Pause */}
         <button
           onClick={playing ? onPause : onPlay}
-          className="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors border border-amber-500/20"
+          className="press-fb w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors border border-amber-500/20"
           title={playing ? 'Pause' : 'Play'}
         >
           {playing ? (
@@ -137,7 +137,7 @@ export default function FootprintReplayControls({
 
       {/* Timeline slider */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-zinc-500 tabular-nums w-8 text-right">
+        <span className="text-[11px] text-zinc-500 tabular-nums w-8 text-right">
           {currentIndex + 1}
         </span>
         <input
@@ -148,7 +148,7 @@ export default function FootprintReplayControls({
           onChange={handleSeek}
           className="w-32 h-1.5 rounded-full appearance-none cursor-pointer bg-zinc-700 accent-amber-500"
         />
-        <span className="text-[10px] text-zinc-500 tabular-nums w-8">
+        <span className="text-[11px] text-zinc-500 tabular-nums w-8">
           {totalCandles}
         </span>
       </div>
@@ -162,7 +162,7 @@ export default function FootprintReplayControls({
           <button
             key={s}
             onClick={() => onSpeedChange(s)}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors
+            className={`px-1.5 py-0.5 rounded text-[11px] font-semibold transition-colors
               ${speed === s
                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                 : 'text-zinc-500 hover:text-zinc-300'
@@ -177,14 +177,14 @@ export default function FootprintReplayControls({
       <div className="w-px h-6 bg-white/10" />
 
       {/* Time display */}
-      <span className="text-[10px] text-zinc-400 tabular-nums font-mono">
+      <span className="text-[11px] text-zinc-400 tabular-nums font-mono">
         {formatTime(candleTime)}
       </span>
 
       {/* Exit button */}
       <button
         onClick={onExit}
-        className="ml-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 border border-zinc-700 hover:text-white hover:border-zinc-500 hover:bg-white/5 transition-colors"
+        className="press-fb ml-1 px-2 py-1 rounded-md text-[11px] font-medium text-zinc-400 border border-zinc-700 hover:text-white hover:border-zinc-500 hover:bg-white/5 transition-colors"
       >
         Exit
       </button>

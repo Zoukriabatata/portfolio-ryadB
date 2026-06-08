@@ -1,20 +1,21 @@
 'use client';
 
 import { useLiveAgent } from '@/hooks/useLiveAgent';
+import { useValueFlash } from '@/lib/ui/useValueFlash';
 
 // ── Bias color helpers ────────────────────────────────────────────────────────
 
 const BIAS_STYLES = {
-  LONG:    { dot: 'bg-emerald-500', text: 'text-emerald-400', label: 'LONG' },
-  SHORT:   { dot: 'bg-red-500',     text: 'text-red-400',     label: 'SHORT' },
-  NEUTRAL: { dot: 'bg-yellow-500',  text: 'text-yellow-400',  label: 'NEUT' },
+  LONG:    { dot: 'bg-[var(--bull)]',    text: 'text-[var(--bull)]',    label: 'LONG' },
+  SHORT:   { dot: 'bg-[var(--bear)]',    text: 'text-[var(--bear)]',    label: 'SHORT' },
+  NEUTRAL: { dot: 'bg-[var(--warning)]', text: 'text-[var(--warning)]', label: 'NEUT' },
 } as const;
 
 const STATUS_DOT: Record<string, string> = {
-  live:         'bg-violet-500',
-  connecting:   'bg-yellow-500 animate-pulse',
-  reconnecting: 'bg-yellow-500 animate-pulse',
-  offline:      'bg-red-600',
+  live:         'bg-[var(--accent)]',
+  connecting:   'bg-[var(--warning)] animate-pulse',
+  reconnecting: 'bg-[var(--warning)] animate-pulse',
+  offline:      'bg-[var(--bear)]',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -25,13 +26,14 @@ export function LiveSignalBadge() {
   const bias   = signal?.bias ?? 'NEUTRAL';
   const conf   = signal ? Math.round(signal.confidence * 100) : null;
   const style  = BIAS_STYLES[bias];
+  const biasFlash = useValueFlash(bias);
 
   // While not yet live and no signal, show a minimal connecting indicator
   if (!signal && status !== 'live') {
     return (
       <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--surface)]/60 border border-[var(--border)]">
         <div className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] ?? STATUS_DOT.offline}`} />
-        <span className="text-[10px] font-medium text-[var(--text-muted)] hidden md:inline tracking-wide">
+        <span className="text-[11px] font-medium text-[var(--text-muted)] hidden md:inline tracking-wide">
           AI
         </span>
       </div>
@@ -47,13 +49,13 @@ export function LiveSignalBadge() {
       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[status] ?? STATUS_DOT.offline}`} />
 
       {/* Bias label */}
-      <span className={`text-[10px] font-bold tracking-wide ${style.text}`}>
+      <span className={`text-[11px] font-bold tracking-wide ${style.text} ${biasFlash ? 'value-flash' : ''}`}>
         {style.label}
       </span>
 
       {/* Confidence */}
       {conf !== null && (
-        <span className="text-[10px] text-[var(--text-muted)] font-medium hidden md:inline">
+        <span className="text-[11px] text-[var(--text-muted)] font-medium tabular-nums hidden md:inline">
           {conf}%
         </span>
       )}

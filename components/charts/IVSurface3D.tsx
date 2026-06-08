@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
 
 interface IVSurfaceData {
   strike: number;
@@ -59,7 +60,8 @@ export default function IVSurface3D({
   const [dimensions, setDimensions] = useState({ width: 800, height });
   const [tooltip, setTooltip] = useState<{ x: number; y: number; strike: number; expiry: number; iv: number } | null>(null);
 
-  const data = useMemo(() => (surfaceData && surfaceData.length > 0) ? surfaceData : generateSurfaceData(spotPrice || 450), [surfaceData, spotPrice]);
+  const hasLiveData = !!(surfaceData && surfaceData.length > 0);
+  const data = useMemo(() => hasLiveData ? surfaceData! : generateSurfaceData(spotPrice || 450), [hasLiveData, surfaceData, spotPrice]);
 
   // Precompute unique strikes and expirations
   const { strikes, expirations } = useMemo(() => {
@@ -101,14 +103,20 @@ export default function IVSurface3D({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, h);
 
+    // Theme-aware overlay palette (resolved at draw-time \u2192 SSR-safe, theme-reactive)
+    const cBright = themeColor('--text-primary');
+    const cMuted = themeAlpha('--text-primary', 0.45);
+    const cAxis = themeAlpha('--text-primary', 0.5);
+    const cAxisName = themeAlpha('--text-primary', 0.6);
+
     // Title
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = cBright;
     ctx.font = 'bold 13px system-ui';
     ctx.textAlign = 'left';
     ctx.fillText(`${symbol} IV Surface (3D WebGL)`, 16, 24);
 
     // Instructions
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillStyle = cMuted;
     ctx.font = '10px system-ui';
     ctx.fillText('Drag: rotate \u00b7 Scroll: zoom \u00b7 Right-drag: pan \u00b7 1-5: presets', 16, 42);
 
@@ -118,9 +126,9 @@ export default function IVSurface3D({
     const E = expirations.length;
 
     // Strike labels along X (y=0 edge, z=0)
-    ctx.font = '9px "Consolas", monospace';
+    ctx.font = '9px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillStyle = cAxis;
     const strikeStep = Math.max(1, Math.ceil(S / 8));
     for (let i = 0; i < S; i += strikeStep) {
       const nx = i / (S - 1);
@@ -159,7 +167,7 @@ export default function IVSurface3D({
 
     // Axis names
     ctx.font = '10px system-ui';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillStyle = cAxisName;
 
     const strikeLabel = renderer.projectToScreen(0.5, 0, 0);
     if (strikeLabel) {
@@ -188,12 +196,14 @@ export default function IVSurface3D({
     const legendY = 60;
     const legendH = 150;
 
+    // Data heat-ramp (low→high IV). Mirrors the WebGL shader gradient in
+    // IVSurface3DRenderer (out of scope), so kept as raw RGB to stay in sync.
     const rampColors = [
-      [0.1, 0.2, 0.6],    // blue (low)
+      [0.1, 0.2, 0.6],    // low
       [0.05, 0.55, 0.55],
-      [0.13, 0.77, 0.37],  // green
-      [0.95, 0.75, 0.1],   // yellow
-      [0.95, 0.2, 0.15],   // red (high)
+      [0.13, 0.77, 0.37],
+      [0.95, 0.75, 0.1],
+      [0.95, 0.2, 0.15],   // high
     ];
 
     for (let i = 0; i < legendH; i++) {
@@ -210,8 +220,8 @@ export default function IVSurface3D({
       ctx.fillRect(legendX, legendY + i, 16, 2);
     }
 
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '9px "Consolas", monospace';
+    ctx.fillStyle = cAxis;
+    ctx.font = '9px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
     ctx.fillText('High IV', legendX + 20, legendY + 8);
     ctx.fillText('Low IV', legendX + 20, legendY + legendH);
@@ -388,29 +398,41 @@ export default function IVSurface3D({
         ref={overlayCanvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none"
       />
+
+      {/* Synthetic-data disclosure: shown only when no live IV surface is supplied. */}
+      {!hasLiveData && (
+        <div
+          className="panel-glass absolute top-2 right-2 z-20 px-2 py-1 pointer-events-none"
+          style={{ borderRadius: 6 }}
+        >
+          <span
+            className="text-[9px] font-semibold uppercase tracking-[0.18em] tabular-nums"
+            style={{ color: 'var(--warning)', fontFamily: 'var(--font-jetbrains-mono)' }}
+          >
+            Simulated
+          </span>
+        </div>
+      )}
       {/* Hover tooltip */}
       {tooltip && (
         <div
-          className="absolute z-30 pointer-events-none animate-fadeIn"
+          className="panel-glass absolute z-30 pointer-events-none animate-fadeIn"
           style={{
             left: tooltip.x + 12,
             top: tooltip.y - 48,
-            background: 'rgba(10,10,20,0.92)',
-            border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: 8,
             padding: '6px 10px',
-            backdropFilter: 'blur(8px)',
           }}
         >
-          <div className="text-[10px] font-mono space-y-0.5">
-            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <div className="text-[11px] space-y-0.5" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
+            <div style={{ color: 'var(--text-muted)' }}>
               Strike: <span style={{ color: 'var(--primary)' }}>${tooltip.strike.toFixed(0)}</span>
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
-              Expiry: <span style={{ color: '#a78bfa' }}>{tooltip.expiry}d</span>
+            <div style={{ color: 'var(--text-muted)' }}>
+              Expiry: <span style={{ color: 'var(--accent)' }}>{tooltip.expiry}d</span>
             </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)' }}>
-              IV: <span style={{ color: '#f59e0b', fontWeight: 600 }}>{(tooltip.iv * 100).toFixed(1)}%</span>
+            <div style={{ color: 'var(--text-muted)' }}>
+              IV: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{(tooltip.iv * 100).toFixed(1)}%</span>
             </div>
           </div>
         </div>

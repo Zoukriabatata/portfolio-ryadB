@@ -22,7 +22,7 @@ function TradeToggle({ active, onToggle }: { active: boolean; onToggle: () => vo
       className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-150"
       style={{
         border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
-        backgroundColor: active ? 'rgba(16,185,129,0.10)' : 'transparent',
+        backgroundColor: active ? 'rgb(var(--primary-rgb) / 0.10)' : 'transparent',
         color: active ? 'var(--primary)' : 'var(--text-secondary)',
       }}
       title={active ? 'Hide trade bar' : 'Show trade bar'}
@@ -52,9 +52,6 @@ export default function FootprintPageContent() {
     <ChartPageShell
       symbol={tradingSymbol}
       onSymbolChange={setTradingSymbol}
-      toolbarLeft={
-        <TradeToggle active={showTradeBar} onToggle={() => setShowTradeBar(!showTradeBar)} />
-      }
       tradeBarVisible={showTradeBar}
       tradeBarSlot={
         <QuickTradeBar
@@ -65,8 +62,8 @@ export default function FootprintPageContent() {
             text: 'var(--text-primary)',
             textSecondary: 'var(--text-secondary)',
             textMuted: 'var(--text-muted)',
-            success: '#22c55e',
-            error: '#ef4444',
+            success: 'var(--bull)',
+            error: 'var(--bear)',
             background: 'var(--background)',
           }}
         />
@@ -74,7 +71,15 @@ export default function FootprintPageContent() {
     >
       <ChartErrorBoundary fallbackTitle="Footprint Error">
         <div className="h-full">
-          <FootprintChartPro className="h-full" onSymbolChange={setTradingSymbol} />
+          {/* Trade-bar toggle is injected into the chart's own header so the page
+              renders a single consolidated toolbar instead of two stacked bars. */}
+          <FootprintChartPro
+            className="h-full"
+            onSymbolChange={setTradingSymbol}
+            headerExtras={
+              <TradeToggle active={showTradeBar} onToggle={() => setShowTradeBar(!showTradeBar)} />
+            }
+          />
         </div>
       </ChartErrorBoundary>
     </ChartPageShell>

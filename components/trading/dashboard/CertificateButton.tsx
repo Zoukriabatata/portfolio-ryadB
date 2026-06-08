@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { Trophy, ScrollText, Award, Mail } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
@@ -195,7 +196,7 @@ export default function CertificateButton({
     // but we DO want to confirm success.
     sendByEmail(true).then(ok => {
       if (ok) {
-        toast.success(`📧 Certificate also emailed to ${session.user!.email}`, { duration: 3500 });
+        toast.success(`Certificate also emailed to ${session.user!.email}`, { duration: 3500 });
       } else {
         // Reset flag so user can manually retry from the Email button
         window.localStorage.removeItem(flagKey);
@@ -213,14 +214,14 @@ export default function CertificateButton({
           className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
           style={{
             background:
-              variant === 'FAILED'     ? 'linear-gradient(135deg, #b91c1c, #ef4444)' :
-              variant === 'DISCIPLINE' ? 'linear-gradient(135deg, #6d28d9, #a78bfa)' :
-                                         'linear-gradient(135deg, #16a34a, #4ade80)',
-            color:      '#fff',
+              variant === 'FAILED'     ? 'linear-gradient(135deg, rgb(var(--bear-rgb) / 0.85), var(--bear))' :
+              variant === 'DISCIPLINE' ? 'linear-gradient(135deg, rgb(var(--accent-rgb) / 0.85), var(--accent))' :
+                                         'linear-gradient(135deg, rgb(var(--bull-rgb) / 0.85), var(--bull))',
+            color:      'var(--text-primary)',
             boxShadow:
-              variant === 'FAILED'     ? '0 0 12px rgba(239,68,68,0.35)' :
-              variant === 'DISCIPLINE' ? '0 0 12px rgba(168,139,250,0.35)' :
-                                         '0 0 12px rgba(74,222,128,0.35)',
+              variant === 'FAILED'     ? '0 0 12px rgb(var(--bear-rgb) / 0.35)' :
+              variant === 'DISCIPLINE' ? '0 0 12px rgb(var(--accent-rgb) / 0.35)' :
+                                         '0 0 12px rgb(var(--bull-rgb) / 0.35)',
           }}
         >
           {isExporting ? (
@@ -229,7 +230,14 @@ export default function CertificateButton({
               Generating…
             </>
           ) : (
-            <>{variant === 'FAILED' ? '📜' : variant === 'DISCIPLINE' ? '🎖️' : '🏆'} Download</>
+            <>
+              {variant === 'FAILED'
+                ? <ScrollText size={14} strokeWidth={1.5} />
+                : variant === 'DISCIPLINE'
+                  ? <Award size={14} strokeWidth={1.5} />
+                  : <Trophy size={14} strokeWidth={1.5} />}
+              Download
+            </>
           )}
         </button>
         {session?.user?.email && (
@@ -247,7 +255,7 @@ export default function CertificateButton({
             {isEmailing ? (
               <span className="inline-block animate-spin rounded-full h-3 w-3 border-t-2 border-current opacity-60" />
             ) : (
-              <>📧</>
+              <Mail size={14} strokeWidth={1.5} />
             )}
             <span className="hidden sm:inline text-[11px]">Email</span>
           </button>

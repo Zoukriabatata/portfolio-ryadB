@@ -103,6 +103,9 @@ import InlineToolSettings from '@/components/tools/InlineToolSettings';
 import { PriceCountdownCompact } from '@/components/trading/PriceCountdown';
 import VerticalToolbar from '@/components/tools/VerticalToolbar';
 import FootprintReplayControls, { type ReplayState } from '@/components/charts/FootprintReplayControls';
+import { AlertCircle, X, Circle, Loader2, ChevronDown } from 'lucide-react';
+import { themeColor, themeAlpha } from '@/lib/ui/themeColors';
+import Segment from '@/components/ui/Segment';
 
 /**
  * FOOTPRINT CHART PRO - Institutional Style
@@ -117,6 +120,9 @@ import FootprintReplayControls, { type ReplayState } from '@/components/charts/F
 interface FootprintChartProProps {
   className?: string;
   onSymbolChange?: (symbol: string) => void;
+  /** Extra controls injected into the chart header (e.g. trade-bar toggle) so
+   *  the page shell doesn't need a second stacked toolbar row. */
+  headerExtras?: React.ReactNode;
 }
 
 // Symbols - Crypto + CME Futures (flat list for lookups)
@@ -422,7 +428,7 @@ function FootprintMagnetToggle({ colors }: { colors: { currentPriceColor: string
                 }}
               >
                 <span className="font-medium">{mode.label}</span>
-                <span className="text-[10px]" style={{ color: magnetMode === mode.value ? '#fff' : colors.textMuted }}>
+                <span className="text-[11px]" style={{ color: magnetMode === mode.value ? '#fff' : colors.textMuted }}>
                   {mode.desc}
                 </span>
               </button>
@@ -460,7 +466,7 @@ function FootprintZoomControls({ onZoomIn, onZoomOut, onResetView, colors }: {
   );
 }
 
-const FootprintChartPro = React.memo(function FootprintChartPro({ className, onSymbolChange }: FootprintChartProProps) {
+const FootprintChartPro = React.memo(function FootprintChartPro({ className, onSymbolChange, headerExtras }: FootprintChartProProps) {
   const isActive = usePageActive();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1086,13 +1092,13 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       ctx.fillRect(0, 0, width, height);
 
       // Title
-      ctx.fillStyle = '#f59e0b';
+      ctx.fillStyle = themeColor('--warning');
       ctx.font = 'bold 14px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText(`DEBUG MODE - ${symbol}`, width / 2, 30);
       ctx.font = '12px system-ui';
-      ctx.fillStyle = '#22c55e';
-      ctx.fillText(`✓ ${debugTradeCountRef.current} trades received (candle aggregation bypassed)`, width / 2, 50);
+      ctx.fillStyle = themeColor('--bull');
+      ctx.fillText(`${debugTradeCountRef.current} trades received (candle aggregation bypassed)`, width / 2, 50);
 
       // Calculate price range from debug trades
       const prices = debugTrades.map(t => t.price);
@@ -1150,9 +1156,9 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       ctx.fillStyle = colors.textPrimary;
       ctx.fillText('BID (Sell)', chartLeft + 118, height - 20);
 
-      ctx.fillStyle = '#f59e0b';
+      ctx.fillStyle = themeColor('--warning');
       ctx.textAlign = 'center';
-      ctx.fillText('⚠ Candle aggregation not working - showing raw trades', width / 2, height - 5);
+      ctx.fillText('Candle aggregation not working - showing raw trades', width / 2, height - 5);
 
       return;
     }
@@ -1169,20 +1175,20 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         if (status === 'connected') {
           // Connected but no trades yet
           ctx.font = '12px system-ui';
-          ctx.fillStyle = '#f59e0b';  // Orange - waiting
-          ctx.fillText('⏳ Waiting for first trade...', width / 2, height / 2 - 20);
+          ctx.fillStyle = themeColor('--warning');  // waiting
+          ctx.fillText('Waiting for first trade...', width / 2, height / 2 - 20);
           ctx.fillStyle = colors.textMuted;
           ctx.font = '11px system-ui';
           ctx.fillText('dxFeed connected - market may be closed', width / 2, height / 2 + 5);
           ctx.fillText(`Debug trades received: ${debugTradeCountRef.current}`, width / 2, height / 2 + 25);
 
           // Show market hours info
-          ctx.fillStyle = '#6b7280';
+          ctx.fillStyle = colors.textMuted;
           ctx.font = '10px system-ui';
           ctx.fillText('CME Futures: Sun 6pm - Fri 5pm ET (with daily breaks)', width / 2, height / 2 + 50);
         } else if (status === 'connecting') {
           ctx.font = '12px system-ui';
-          ctx.fillStyle = '#22c55e';
+          ctx.fillStyle = themeColor('--bull');
           ctx.fillText('Connecting to dxFeed...', width / 2, height / 2);
         } else {
           ctx.font = '12px system-ui';
@@ -1349,7 +1355,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           }
           if (features.showNakedPOC && cached.nakedPOCs.length > 0) {
             fpRenderer.renderNakedPOCs(
-              ctx, layout, metrics, cached.nakedPOCs, features.nakedPOCColor || '#fbbf24', width,
+              ctx, layout, metrics, cached.nakedPOCs, features.nakedPOCColor || themeColor('--warning'), width,
             );
           }
           if (features.showUnfinishedAuctions && cached.unfinishedAuctions.length > 0) {
@@ -1389,7 +1395,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
     // Volume Profile — overlay style (left-anchored, all session candles, like footprintTEST)
     if (features.showVolumeProfile && candles.length > 0) {
-      fpRenderer.renderVolumeProfileOverlay(ctx, layout, metrics, candles, tickSize, features?.volumeProfilePocColor || '#e2b93b');
+      fpRenderer.renderVolumeProfileOverlay(ctx, layout, metrics, candles, tickSize, features?.volumeProfilePocColor || themeColor('--warning'));
     }
 
     // DOM overlay — footprintTEST style, right-anchored (after candles + VP)
@@ -1590,7 +1596,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
         // Price text - use labelTextColor from settings
         ctx.fillStyle = crosshairSettings.labelTextColor;
-        ctx.font = `bold 10px "Consolas", "Monaco", monospace`;
+        ctx.font = `bold 10px 'JetBrains Mono', "Consolas", monospace`;
         ctx.textAlign = 'right';
         ctx.fillText(`$${price.toFixed(2)}`, width - 4, y + 3);
       }
@@ -1607,7 +1613,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
         // Time text - use labelTextColor from settings + timezone-aware formatting
         ctx.fillStyle = crosshairSettings.labelTextColor;
-        ctx.font = '9px "Consolas", "Monaco", monospace';
+        ctx.font = `9px 'JetBrains Mono', "Consolas", monospace`;
         ctx.textAlign = 'center';
         ctx.fillText(formatTime(time, 'time'), x, timeLabelY + 11);
       }
@@ -1640,12 +1646,12 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       ctx.save();
       // Semi-transparent amber badge top-center
       const badgeText = `REPLAY  ${r.currentIndex + 1} / ${r.allCandles.length}`;
-      ctx.font = 'bold 11px "Consolas", "Monaco", monospace';
+      ctx.font = `bold 11px 'JetBrains Mono', "Consolas", monospace`;
       const badgeW = ctx.measureText(badgeText).width + 24;
       const badgeX = (width - badgeW) / 2;
       const badgeY = 8;
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+      ctx.fillStyle = themeAlpha('--warning', 0.12);
+      ctx.strokeStyle = themeAlpha('--warning', 0.4);
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(badgeX, badgeY, badgeW, 22, 6);
@@ -1653,12 +1659,12 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       ctx.stroke();
       // Pulsing dot
       const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 400);
-      ctx.fillStyle = `rgba(245, 158, 11, ${0.6 + 0.4 * pulse})`;
+      ctx.fillStyle = themeAlpha('--warning', 0.6 + 0.4 * pulse);
       ctx.beginPath();
       ctx.arc(badgeX + 10, badgeY + 11, 3, 0, Math.PI * 2);
       ctx.fill();
       // Text
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.9)';
+      ctx.fillStyle = themeAlpha('--warning', 0.9);
       ctx.textAlign = 'left';
       ctx.fillText(badgeText, badgeX + 18, badgeY + 15);
       ctx.restore();
@@ -1773,7 +1779,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           if (statusDotRef.current) {
             statusDotRef.current.style.backgroundColor =
               s === 'connected'  ? settings.colors.deltaPositive :
-              s === 'connecting' ? '#eab308' :
+              s === 'connecting' ? 'var(--warning)' :
               settings.colors.deltaNegative;
           }
         });
@@ -1846,7 +1852,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
         if (statusDotRef.current) {
           statusDotRef.current.style.backgroundColor =
             s === 'connected' ? settings.colors.deltaPositive :
-            s === 'connecting' ? '#eab308' :
+            s === 'connecting' ? 'var(--warning)' :
             settings.colors.deltaNegative;
         }
       });
@@ -2966,7 +2972,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-2.5 py-1 border-b flex-shrink-0"
+        className="panel-glass flex items-center justify-between px-2.5 py-1 border-b flex-shrink-0"
         style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor }}
       >
         {/* Group 1: Symbol & Price */}
@@ -2974,11 +2980,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           <div className="relative">
             <button
               onClick={() => setShowSymbolSelector(!showSymbolSelector)}
-              className="flex items-center gap-2 text-sm font-bold rounded px-2.5 py-1 border focus:outline-none hover:brightness-110 transition-all"
+              className="press-fb flex items-center gap-2 text-sm font-bold rounded px-2.5 py-1 border focus:outline-none hover:brightness-110 transition-all"
               style={{ backgroundColor: settings.colors.background, borderColor: settings.colors.gridColor, color: settings.colors.textPrimary }}
             >
               <span>{selectedSymbolLabel}</span>
-              <span style={{ color: settings.colors.textMuted }}>▼</span>
+              <ChevronDown size={14} strokeWidth={1.5} style={{ color: settings.colors.textMuted }} />
             </button>
 
             {/* Symbol Selector Modal */}
@@ -2988,27 +2994,24 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                 style={{ backgroundColor: settings.colors.surface, border: `1px solid ${settings.colors.gridColor}` }}
               >
                 {/* Asset Category Tabs */}
-                <div className="flex items-center gap-0.5 p-1.5 border-b overflow-x-auto" style={{ borderColor: settings.colors.gridColor }}>
-                  {FOOTPRINT_ASSET_CATEGORIES.map((cat) => {
-                    const IconComponent = cat.Icon;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setAssetCategory(cat.id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all duration-300 ease-out ${assetCategory === cat.id ? 'scale-105 shadow-lg' : 'hover:scale-102 active:scale-95'}`}
-                        style={{
-                          backgroundColor: assetCategory === cat.id ? settings.colors.currentPriceColor : 'transparent',
-                          color: assetCategory === cat.id ? '#fff' : settings.colors.textSecondary,
-                          boxShadow: assetCategory === cat.id ? `0 0 10px ${settings.colors.currentPriceColor}40` : 'none',
-                        }}
-                      >
-                        <span className={`transition-transform duration-200 ${assetCategory === cat.id ? 'scale-110' : ''}`}>
-                          <IconComponent size={16} color={assetCategory === cat.id ? '#fff' : undefined} />
-                        </span>
-                        <span className="font-medium">{cat.label}</span>
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center p-1.5 border-b overflow-x-auto" style={{ borderColor: settings.colors.gridColor }}>
+                  <Segment
+                    options={FOOTPRINT_ASSET_CATEGORIES.map((cat) => {
+                      const IconComponent = cat.Icon;
+                      return {
+                        id: cat.id,
+                        label: (
+                          <span className="flex items-center gap-1.5">
+                            <IconComponent size={16} color={assetCategory === cat.id ? undefined : settings.colors.textSecondary} />
+                            {cat.label}
+                          </span>
+                        ),
+                      };
+                    })}
+                    value={assetCategory}
+                    onChange={setAssetCategory}
+                    size="sm"
+                  />
                 </div>
 
                 {/* Search Input */}
@@ -3035,7 +3038,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                 )}
 
                 {/* Categories */}
-                <div className="overflow-y-auto max-h-64">
+                <div key={assetCategory} className="overflow-y-auto max-h-64 animate-fadeIn">
                   {Object.keys(filteredSymbols).length === 0 && symbolSearchQuery.trim() && (
                     <div className="flex flex-col items-center justify-center py-8 gap-2">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={settings.colors.textMuted} strokeWidth="1.5" opacity="0.4">
@@ -3064,7 +3067,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                             }}
                           >
                             <span>{s.label}</span>
-                            {s.exchange && <span className="text-[10px]" style={{ color: settings.colors.textMuted }}>{s.exchange}</span>}
+                            {s.exchange && <span className="text-[11px]" style={{ color: settings.colors.textMuted }}>{s.exchange}</span>}
                           </button>
                         ))}
                       </div>
@@ -3084,14 +3087,14 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           <span
             className="text-xs px-2 py-0.5 rounded font-medium"
             style={{
-              backgroundColor: SYMBOL_EXCHANGE[symbol] === 'binance' ? 'rgba(247, 147, 26, 0.2)' : 'rgba(59, 130, 246, 0.2)',
-              color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : '#3b82f6',
+              backgroundColor: SYMBOL_EXCHANGE[symbol] === 'binance' ? 'rgba(247, 147, 26, 0.2)' : 'rgb(var(--accent-rgb) / 0.2)',
+              color: SYMBOL_EXCHANGE[symbol] === 'binance' ? '#f7931a' : 'var(--accent)',
             }}
           >
             {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : getCMEAdapterLabel()}
           </span>
 
-          <span ref={priceRef} className="text-lg font-mono font-bold" style={{ color: settings.colors.textPrimary }}>
+          <span ref={priceRef} className="text-lg font-bold tabular-nums" style={{ color: settings.colors.textPrimary, fontFamily: 'var(--font-jetbrains-mono)' }}>
             {SYMBOL_EXCHANGE[symbol] === 'cme' ? '' : '$'}0.00
           </span>
           <span className="text-xs" style={{ color: settings.colors.textMuted }}>
@@ -3146,6 +3149,13 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
         {/* Group 3: Controls */}
         <div className="flex items-center gap-1.5 pl-2.5 ml-auto">
+          {/* Page-level extras (e.g. trade-bar toggle) merged into this single header */}
+          {headerExtras && (
+            <div className="flex items-center gap-1.5 pr-1.5 mr-0.5" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
+              {headerExtras}
+            </div>
+          )}
+
           {/* Magnet Toggle */}
           <FootprintMagnetToggle colors={settings.colors} />
 
@@ -3200,26 +3210,26 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
               className="px-2 py-1 rounded text-xs border flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
               style={{
                 backgroundColor: settings.passiveLiquidity.useRealOrderbook
-                  ? 'rgba(34, 197, 94, 0.2)'
+                  ? 'rgb(var(--bull-rgb) / 0.2)'
                   : settings.colors.background,
                 borderColor: settings.passiveLiquidity.useRealOrderbook
-                  ? '#22c55e'
+                  ? 'var(--bull)'
                   : settings.colors.gridColor,
                 color: settings.passiveLiquidity.useRealOrderbook
-                  ? '#22c55e'
+                  ? 'var(--bull)'
                   : settings.colors.textSecondary,
               }}
               title={settings.passiveLiquidity.useRealOrderbook
                 ? 'Using REAL Binance orderbook - Click to switch to simulation'
                 : 'Using SIMULATION - Click to switch to real orderbook'}
             >
-              <span className="text-[10px] font-mono">
+              <span className="text-[11px]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
                 {settings.passiveLiquidity.useRealOrderbook ? 'LIVE' : 'SIM'}
               </span>
               <span
                 className="w-2 h-2 rounded-full"
                 style={{
-                  backgroundColor: settings.passiveLiquidity.useRealOrderbook ? '#22c55e' : '#6b7280',
+                  backgroundColor: settings.passiveLiquidity.useRealOrderbook ? 'var(--bull)' : 'var(--text-dimmed)',
                 }}
               />
             </button>
@@ -3230,16 +3240,16 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
             onClick={() => replayActive ? handleReplayExit() : handleReplayEnter()}
             className="px-2 py-1 rounded text-xs border flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
-              backgroundColor: replayActive ? 'rgba(245, 158, 11, 0.2)' : settings.colors.background,
-              borderColor: replayActive ? 'rgba(245, 158, 11, 0.4)' : settings.colors.gridColor,
-              color: replayActive ? '#f59e0b' : settings.colors.textSecondary,
+              backgroundColor: replayActive ? 'rgb(var(--warning-rgb) / 0.2)' : settings.colors.background,
+              borderColor: replayActive ? 'rgb(var(--warning-rgb) / 0.4)' : settings.colors.gridColor,
+              color: replayActive ? 'var(--warning)' : settings.colors.textSecondary,
             }}
             title="Replay Mode (Shift+R)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <polygon points="5,3 19,12 5,21" fill={replayActive ? 'currentColor' : 'none'} />
             </svg>
-            <span className="text-[10px] font-semibold">REPLAY</span>
+            <span className="text-[11px] font-semibold">REPLAY</span>
           </button>
 
           {/* Settings */}
@@ -3297,6 +3307,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           <div
             ref={containerRef}
             className="flex-1 relative overflow-hidden"
+            title="Drag: Pan · Scroll: Zoom · Double-click: Reset · Del: Remove tool"
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -3358,13 +3369,12 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
           {/* Error Banner */}
           {loadError && !isLoading && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 rounded-lg border border-red-500/30 bg-red-950/90 backdrop-blur-sm shadow-lg">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="text-xs text-red-300">{loadError}</span>
+            <div
+              className="panel-glass absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 rounded-lg shadow-lg"
+              style={{ border: '1px solid rgb(var(--bear-rgb) / 0.3)', backgroundColor: 'rgb(var(--bear-rgb) / 0.12)' }}
+            >
+              <AlertCircle size={16} strokeWidth={1.5} style={{ color: 'var(--bear)' }} />
+              <span className="text-xs" style={{ color: 'var(--bear)' }}>{loadError}</span>
               <button
                 onClick={() => {
                   setLoadError(null);
@@ -3372,18 +3382,17 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                     if (candles.length > 0) candlesRef.current = candles;
                   });
                 }}
-                className="px-2 py-0.5 text-[10px] font-medium text-red-300 border border-red-500/40 rounded hover:bg-red-500/20 transition-colors"
+                className="press-fb px-2.5 py-1 text-[11px] font-medium rounded transition-colors"
+                style={{ color: 'var(--bear)', border: '1px solid rgb(var(--bear-rgb) / 0.4)' }}
               >
                 Retry
               </button>
               <button
                 onClick={() => setLoadError(null)}
-                className="text-red-500 hover:text-red-300 transition-colors"
+                className="transition-colors"
+                style={{ color: 'var(--bear)' }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={12} strokeWidth={1.5} />
               </button>
             </div>
           )}
@@ -3686,7 +3695,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
             <button
               onClick={settings.resetToDefaults}
-              className="w-full py-2 rounded text-xs"
+              className="press-fb w-full py-2 rounded text-xs"
               style={{ backgroundColor: settings.colors.deltaNegative, color: '#fff' }}
             >
               Reset to Defaults
@@ -3698,36 +3707,37 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
       {/* Footer */}
       <div
-        className="flex items-center justify-between px-3 py-0.5 text-[11px] border-t flex-shrink-0"
+        className="panel-glass flex items-center justify-end gap-3 px-3 py-0.5 text-[11px] border-t flex-shrink-0"
         style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor, color: settings.colors.textMuted }}
       >
-        <span>
-          {SYMBOL_EXCHANGE[symbol] === 'binance' ? 'Binance' : 'CME'} • {symbol.toUpperCase()} • Footprint {aggregationMode === 'tick' ? `${tickBarSize}T` : TIMEFRAME_LABELS[timeframe]} • Tick {SYMBOL_EXCHANGE[symbol] === 'binance' ? '$' : ''}{tickSize}
-        </span>
-        <span className="flex items-center gap-3">
-          {/* Zoom level indicator */}
-          {layoutEngineRef.current && (
-            <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{
-              backgroundColor: settings.colors.gridColor,
-              color: settings.colors.textPrimary
-            }}>
-              Y-Zoom: {layoutEngineRef.current.getZoomY().toFixed(1)}x • {layoutEngineRef.current.getZoomLevelDescription()}
-            </span>
-          )}
-          <span>Drag: Pan | Scroll: Zoom | Double-click: Reset | Del: Remove tool</span>
-        </span>
-        <span style={{
-          color: status === 'connected'
-            ? settings.colors.deltaPositive
-            : status === 'connecting'
-              ? '#eab308'
-              : settings.colors.textMuted
-        }}>
+        {/* Zoom level indicator (unique to footer — not shown in the header) */}
+        {layoutEngineRef.current && (
+          <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{
+            backgroundColor: settings.colors.gridColor,
+            color: settings.colors.textPrimary
+          }}>
+            Y-Zoom: {layoutEngineRef.current.getZoomY().toFixed(1)}x • {layoutEngineRef.current.getZoomLevelDescription()}
+          </span>
+        )}
+        <span
+          className="flex items-center gap-1.5"
+          style={{
+            color: status === 'connected'
+              ? settings.colors.deltaPositive
+              : status === 'connecting'
+                ? 'var(--warning)'
+                : settings.colors.textMuted
+          }}
+        >
+          {status === 'connecting'
+            ? <Loader2 size={11} strokeWidth={1.5} className="animate-spin" />
+            : <Circle size={9} strokeWidth={1.5} fill={status === 'connected' ? 'currentColor' : 'none'} />
+          }
           {status === 'connected'
-            ? `● Live${SYMBOL_EXCHANGE[symbol] === 'cme' ? ' (CME)' : ''}`
+            ? `Live${SYMBOL_EXCHANGE[symbol] === 'cme' ? ' (CME)' : ''}`
             : status === 'connecting'
-              ? '◐ Connecting...'
-              : '○ Offline'
+              ? 'Connecting...'
+              : 'Offline'
           }
         </span>
       </div>

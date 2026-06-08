@@ -16,7 +16,7 @@ interface Msg {
   loading?: boolean;
 }
 
-const WELCOME = "Bonjour ! Je suis l'assistant OrderFlow. Posez-moi vos questions sur la plateforme, le trading, ou rejoignez notre communauté Discord 👋";
+const WELCOME = "Bonjour ! Je suis l'assistant OrderFlow. Posez-moi vos questions sur la plateforme, le trading, ou rejoignez notre communauté Discord.";
 
 const SUGGESTIONS = [
   'C\'est quoi le GEX ?',
@@ -107,7 +107,7 @@ export default function FloatingChat() {
       if ((err as Error).name === 'AbortError') return;
       setMessages(prev => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: 'assistant', content: '⚠️ Erreur de connexion. Réessaie.' };
+        copy[copy.length - 1] = { role: 'assistant', content: 'Erreur de connexion. Réessaie.' };
         return copy;
       });
     } finally {
@@ -128,7 +128,7 @@ export default function FloatingChat() {
           style={{
             width: 'min(92vw, 384px)',
             height: 'min(72vh, 560px)',
-            background: 'linear-gradient(180deg, rgba(11,13,24,0.90) 0%, rgba(7,8,15,0.93) 100%)',
+            background: 'linear-gradient(180deg, rgb(var(--surface-rgb) / 0.90) 0%, rgb(var(--background-rgb) / 0.93) 100%)',
             backdropFilter: 'blur(22px) saturate(150%)',
             WebkitBackdropFilter: 'blur(22px) saturate(150%)',
             border: '1px solid rgb(var(--primary-rgb) / 0.16)',
@@ -140,7 +140,7 @@ export default function FloatingChat() {
           {/* Header */}
           <div
             className="flex items-center gap-3 px-4 py-3.5 flex-shrink-0"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.07), transparent)' }}
+            style={{ borderBottom: '1px solid var(--border)', background: 'linear-gradient(180deg, rgb(var(--primary-rgb) / 0.07), transparent)' }}
           >
             <div style={{ filter: 'drop-shadow(0 0 8px rgb(var(--primary-rgb) / 0.35))' }}>
               <LogoMark size={30} animated={false} />
@@ -181,9 +181,9 @@ export default function FloatingChat() {
                   className="max-w-[82%] px-3 py-2 text-[12.5px] leading-relaxed"
                   style={{
                     borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                    background: m.role === 'user' ? 'rgb(var(--primary-rgb) / 0.13)' : 'rgba(255,255,255,0.035)',
+                    background: m.role === 'user' ? 'rgb(var(--primary-rgb) / 0.13)' : 'var(--surface-elevated)',
                     color: m.role === 'user' ? 'var(--primary-light)' : 'var(--text-primary)',
-                    border: m.role === 'user' ? '1px solid rgb(var(--primary-rgb) / 0.30)' : '1px solid rgba(255,255,255,0.07)',
+                    border: m.role === 'user' ? '1px solid rgb(var(--primary-rgb) / 0.30)' : '1px solid var(--border)',
                     fontWeight: m.role === 'user' ? 500 : 400,
                   }}
                 >
@@ -210,7 +210,7 @@ export default function FloatingChat() {
           {messages.length === 1 && (
             <div
               className="px-3 pt-2 pb-1 flex flex-wrap gap-1.5 flex-shrink-0"
-              style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: 'transparent' }}
+              style={{ borderTop: '1px solid var(--border)', background: 'transparent' }}
             >
               {SUGGESTIONS.map(q => (
                 <button
@@ -218,9 +218,9 @@ export default function FloatingChat() {
                   onClick={() => send(q)}
                   className="text-[10.5px] px-3 py-1.5 rounded-full transition-all duration-150"
                   style={{
-                    background: 'rgba(255,255,255,0.03)',
+                    background: 'var(--surface-elevated)',
                     color: 'var(--text-secondary)',
-                    border: '1px solid rgba(255,255,255,0.09)',
+                    border: '1px solid var(--border)',
                   }}
                   onMouseEnter={e => {
                     (e.currentTarget as HTMLElement).style.background = 'rgb(var(--primary-rgb) / 0.10)';
@@ -228,8 +228,8 @@ export default function FloatingChat() {
                     (e.currentTarget as HTMLElement).style.color = 'var(--primary)';
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.09)';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--surface-elevated)';
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
                     (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
                   }}
                 >
@@ -242,13 +242,13 @@ export default function FloatingChat() {
           {/* Input — composer : point focal du panel */}
           <div
             className="px-3 py-3 flex-shrink-0"
-            style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(0deg, rgb(var(--primary-rgb) / 0.03), transparent)' }}
+            style={{ borderTop: '1px solid var(--border)', background: 'linear-gradient(0deg, rgb(var(--primary-rgb) / 0.03), transparent)' }}
           >
             <div
               className="flex items-end gap-1.5 rounded-2xl pl-3 pr-1.5 py-1.5 transition-all duration-150"
               style={{
-                background: focused ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.035)',
-                border: `1px solid ${focused ? 'rgb(var(--primary-rgb) / 0.45)' : 'rgba(255,255,255,0.10)'}`,
+                background: focused ? 'var(--surface)' : 'var(--surface-elevated)',
+                border: `1px solid ${focused ? 'rgb(var(--primary-rgb) / 0.45)' : 'var(--border)'}`,
                 boxShadow: focused ? '0 0 0 3px rgb(var(--primary-rgb) / 0.10)' : 'none',
               }}
             >
@@ -273,11 +273,11 @@ export default function FloatingChat() {
               <button
                 onClick={() => loading ? abortRef.current?.abort() : send(input)}
                 disabled={!loading && !input.trim()}
-                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-150 disabled:opacity-30"
+                className="press-fb w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-150 disabled:opacity-30"
                 style={{
-                  background: loading ? 'rgba(240,79,79,0.14)' : 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
-                  color: loading ? 'var(--error)' : '#06210f',
-                  border: loading ? '1px solid rgba(240,79,79,0.30)' : 'none',
+                  background: loading ? 'rgb(var(--bear-rgb) / 0.14)' : 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
+                  color: loading ? 'var(--bear)' : 'var(--background)',
+                  border: loading ? '1px solid rgb(var(--bear-rgb) / 0.30)' : 'none',
                   boxShadow: (!loading && input.trim()) ? '0 4px 14px rgb(var(--primary-rgb) / 0.35)' : 'none',
                 }}
               >
@@ -331,18 +331,18 @@ export default function FloatingChat() {
         {!open && unread > 0 && (
           <span
             className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
-            style={{ background: '#ef4444', color: '#fff' }}
+            style={{ background: 'var(--bear)', color: 'var(--background)' }}
           >
             {unread}
           </span>
         )}
         {open ? (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke={open ? 'var(--text-primary)' : '#000'} strokeWidth={2.5}>
+            stroke={open ? 'var(--text-primary)' : 'var(--background)'} strokeWidth={2.5}>
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         ) : (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth={2}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--background)" strokeWidth={2}>
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         )}

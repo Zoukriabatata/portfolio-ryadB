@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useUIThemeStore, UI_THEMES } from '@/stores/useUIThemeStore';
+import { themeColor } from '@/lib/ui/themeColors';
+
+const MONO = 'var(--font-jetbrains-mono)';
+// Canvas ctx.font can't resolve CSS var() — use the literal family name.
+const CANVAS_MONO = 'JetBrains Mono, Consolas, monospace';
 
 interface GEXLevel {
   strike: number;
@@ -49,7 +54,7 @@ function useGEXColors() {
     putGEX: c.candleDown,
     callWall: c.candleUp,
     putWall: c.candleDown,
-    zeroGamma: '#fbbf24',
+    zeroGamma: themeColor('--warning'),
     spotPrice: c.primary,
     hvl: c.accent,
     gridLine: `${c.chartGrid}40`,
@@ -158,7 +163,7 @@ export default function GEXDashboard({
     // Grid lines + strike labels
     ctx.strokeStyle = themeColors.gridLine;
     ctx.lineWidth = 0.5;
-    ctx.font = '10px monospace';
+    ctx.font = `10px ${CANVAS_MONO}`;
     ctx.fillStyle = themeColors.text;
 
     for (let i = 0; i <= numGridLines; i++) {
@@ -176,7 +181,7 @@ export default function GEXDashboard({
     }
 
     // X-axis GEX value labels
-    ctx.font = '9px monospace';
+    ctx.font = `9px ${CANVAS_MONO}`;
     ctx.fillStyle = themeColors.text;
     ctx.textAlign = 'center';
     const xSteps = 4;
@@ -226,7 +231,7 @@ export default function GEXDashboard({
 
         if (barWidth > 35) {
           ctx.fillStyle = isHovered ? themeColors.textBright : themeColors.textMid;
-          ctx.font = `${isHovered ? 'bold ' : ''}10px monospace`;
+          ctx.font = `${isHovered ? 'bold ' : ''}10px ${CANVAS_MONO}`;
           ctx.textAlign = 'left';
           ctx.fillText(formatGEX(level.callGEX), bx + barWidth + 6, y + 3.5);
         }
@@ -256,7 +261,7 @@ export default function GEXDashboard({
 
         if (barWidth > 35) {
           ctx.fillStyle = isHovered ? themeColors.textBright : themeColors.textMid;
-          ctx.font = `${isHovered ? 'bold ' : ''}10px monospace`;
+          ctx.font = `${isHovered ? 'bold ' : ''}10px ${CANVAS_MONO}`;
           ctx.textAlign = 'right';
           ctx.fillText(formatGEX(level.putGEX), bx - 6, y + 3.5);
         }
@@ -343,14 +348,11 @@ export default function GEXDashboard({
     ctx.fillStyle = themeColors.callGEX + '99';
     ctx.fillText('Call GEX (Positive) \u2192', PADDING.left + 3 * chartWidth / 4, h - 14);
 
-    // Title
-    ctx.fillStyle = themeColors.textBright;
-    ctx.font = 'bold 14px system-ui';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${symbol}`, PADDING.left, 24);
+    // Subtitle (symbol/greek shown once in the page toolbar — not redrawn here)
     ctx.fillStyle = themeColors.textMid;
     ctx.font = '11px system-ui';
-    ctx.fillText('Gamma Exposure by Strike', PADDING.left + ctx.measureText(`${symbol}`).width + 8, 24);
+    ctx.textAlign = 'left';
+    ctx.fillText('Gamma Exposure by Strike', PADDING.left, 24);
 
     if (summary) {
       const regimeColor = summary.regime === 'positive' ? themeColors.callGEX : themeColors.putGEX;
@@ -550,8 +552,8 @@ export default function GEXDashboard({
         >
           <div className="px-3.5 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
             <span className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Strike ${hoveredStrike}</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold font-mono"
-              style={{ color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)', backgroundColor: level.netGEX >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)' }}>
+            <span className="text-[11px] px-1.5 py-0.5 rounded-md font-bold tabular-nums"
+              style={{ fontFamily: MONO, color: level.netGEX >= 0 ? 'var(--bull)' : 'var(--bear)', backgroundColor: level.netGEX >= 0 ? 'rgb(var(--bull-rgb) / 0.1)' : 'rgb(var(--bear-rgb) / 0.1)' }}>
               {level.netGEX >= 0 ? '+' : ''}{formatGEX(level.netGEX)}
             </span>
           </div>
@@ -560,48 +562,57 @@ export default function GEXDashboard({
               <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bull)' }} />Call GEX
               </span>
-              <span className="font-mono font-semibold" style={{ color: 'var(--bull)' }}>{formatGEX(level.callGEX)}</span>
+              <span className="font-semibold" style={{ fontFamily: MONO, color: 'var(--bull)' }}>{formatGEX(level.callGEX)}</span>
             </div>
             <div className="flex justify-between gap-6">
               <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bear)' }} />Put GEX
               </span>
-              <span className="font-mono font-semibold" style={{ color: 'var(--bear)' }}>{formatGEX(level.putGEX)}</span>
+              <span className="font-semibold" style={{ fontFamily: MONO, color: 'var(--bear)' }}>{formatGEX(level.putGEX)}</span>
             </div>
             <div className="border-t pt-1.5 mt-1" style={{ borderColor: 'var(--border)' }}>
               <div className="flex justify-between gap-6">
                 <span style={{ color: 'var(--text-muted)' }}>Call OI</span>
-                <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.callOI.toLocaleString()}</span>
+                <span style={{ fontFamily: MONO, color: 'var(--text-secondary)' }}>{level.callOI.toLocaleString()}</span>
               </div>
               <div className="flex justify-between gap-6 mt-1">
                 <span style={{ color: 'var(--text-muted)' }}>Put OI</span>
-                <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{level.putOI.toLocaleString()}</span>
+                <span style={{ fontFamily: MONO, color: 'var(--text-secondary)' }}>{level.putOI.toLocaleString()}</span>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Bottom hint bar */}
-      <div className="pointer-events-none absolute bottom-1 left-0 right-0 flex items-center justify-center gap-3"
-        style={{ color: 'var(--text-dimmed, rgba(255,255,255,0.2))', fontSize: 10 }}>
-        <span>scroll · zoom</span>
-        <span>·</span>
-        <span>drag · pan</span>
-        <span>·</span>
-        <span>dbl-click · reset</span>
+      {/* Interaction hints — collapsed to a hover affordance (no permanent strip) */}
+      <div className="group absolute bottom-2 left-2 z-10">
+        <button
+          type="button"
+          aria-label="Chart interaction hints"
+          className="panel-glass flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold leading-none opacity-50 transition-opacity hover:opacity-100"
+          style={{ fontFamily: MONO, color: 'var(--text-muted)' }}
+        >
+          ?
+        </button>
+        <div
+          className="panel-glass pointer-events-none absolute bottom-7 left-0 flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          style={{ color: 'var(--text-dimmed)', fontSize: 10 }}
+          role="tooltip"
+        >
+          <span>scroll · zoom</span>
+          <span>·</span>
+          <span>drag · pan</span>
+          <span>·</span>
+          <span>dbl-click · reset</span>
+        </div>
       </div>
 
       {/* Floating zoom indicator + reset button */}
       {isZoomed && (
         <button
           onClick={() => setZoomRange(null)}
-          className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-mono transition-opacity hover:opacity-100 opacity-70"
-          style={{
-            background: 'var(--surface-elevated, rgba(30,30,40,0.9))',
-            border: '1px solid var(--border)',
-            color: 'var(--text-secondary)',
-          }}
+          className="panel-glass absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] transition-opacity hover:opacity-100 opacity-70 press-fb"
+          style={{ fontFamily: MONO, color: 'var(--text-secondary)' }}
         >
           <span style={{ color: 'var(--primary)' }}>{zoomPct}%</span>
           <span>× reset</span>
