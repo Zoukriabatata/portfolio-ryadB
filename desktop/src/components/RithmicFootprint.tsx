@@ -379,8 +379,10 @@ const EMPTY_STATUS: RithmicStatus = {
 
 export function RithmicFootprint({
   onSwitchToBridge,
+  onSwitchToQuantower,
 }: {
   onSwitchToBridge?: () => void;
+  onSwitchToQuantower?: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "checking" });
 
@@ -534,7 +536,7 @@ export function RithmicFootprint({
   }
 
   // phase.kind === "ready"
-  return <FootprintLive onSwitchToBridge={onSwitchToBridge} />;
+  return <FootprintLive onSwitchToBridge={onSwitchToBridge} onSwitchToQuantower={onSwitchToQuantower} />;
 }
 
 /** Map a tick-size hint to a sensible display decimals count. */
@@ -550,8 +552,10 @@ function decimalsFromTick(tick: number | undefined): number {
 
 function FootprintLive({
   onSwitchToBridge,
+  onSwitchToQuantower,
 }: {
   onSwitchToBridge?: () => void;
+  onSwitchToQuantower?: () => void;
 }) {
   // Portal target: the single top bar (AppNavbar) we teleport this
   // connector's compact control row into. Null on the splash/error
@@ -661,6 +665,16 @@ function FootprintLive({
     (s) => s.showUnfinishedAuctions,
   );
   const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
+  const showAbsorptionZones        = useFootprintSettingsStore((s) => s.showAbsorptionZones);
+  const absorptionZoneDaysBack     = useFootprintSettingsStore((s) => s.absorptionZoneDaysBack);
+  const absorptionZoneRatio        = useFootprintSettingsStore((s) => s.absorptionZoneRatio);
+  const absorptionZoneStackedLevels= useFootprintSettingsStore((s) => s.absorptionZoneStackedLevels);
+  const absorptionZoneMinVolume    = useFootprintSettingsStore((s) => s.absorptionZoneMinVolume);
+  const absorptionZoneBullishColor = useFootprintSettingsStore((s) => s.absorptionZoneBullishColor);
+  const absorptionZoneBearishColor = useFootprintSettingsStore((s) => s.absorptionZoneBearishColor);
+  const absorptionZoneLineWidth    = useFootprintSettingsStore((s) => s.absorptionZoneLineWidth);
+  const absorptionZoneLastBarOnly  = useFootprintSettingsStore((s) => s.absorptionZoneLastBarOnly);
+  const absorptionZoneUseAlert     = useFootprintSettingsStore((s) => s.absorptionZoneUseAlert);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -678,6 +692,10 @@ function FootprintLive({
   const candleBorderDown = useFootprintSettingsStore((s) => s.candleBorderDown);
   const candleWickUp = useFootprintSettingsStore((s) => s.candleWickUp);
   const candleWickDown = useFootprintSettingsStore((s) => s.candleWickDown);
+  const showCandleOutline = useFootprintSettingsStore((s) => s.showCandleOutline);
+  const candleOutlineColor = useFootprintSettingsStore((s) => s.candleOutlineColor);
+  const candleOutlineWidth = useFootprintSettingsStore((s) => s.candleOutlineWidth);
+  const candleOutlineOpacity = useFootprintSettingsStore((s) => s.candleOutlineOpacity);
   const bidColor = useFootprintSettingsStore((s) => s.bidColor);
   const askColor = useFootprintSettingsStore((s) => s.askColor);
   const crosshairColor = useFootprintSettingsStore((s) => s.crosshairColor);
@@ -734,6 +752,16 @@ function FootprintLive({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
@@ -755,6 +783,10 @@ function FootprintLive({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -778,6 +810,16 @@ function FootprintLive({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
@@ -799,6 +841,10 @@ function FootprintLive({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -1699,6 +1745,20 @@ function FootprintLive({
           `newest=${toMerge.length ? new Date(Number(BigInt(toMerge[toMerge.length - 1].bucketTsNs) / 1_000_000n)).toISOString() : "n/a"})`,
         );
 
+        // Surface Apex status codes whenever HISTORY_PLANT returns 0
+        // bars — even when we have a SQLite fallback (which masks the
+        // empty response in the fetch-DONE log above). Without this,
+        // rp_code=13 / quota / permissioning errors are invisible to
+        // the operator since the diagnostic branch below only runs
+        // when toMerge is also empty.
+        if (history.length === 0) {
+          const apexDiag =
+            lastRpCodes.length || lastRqHandlerRpCodes.length || lastUserMsgs.length
+              ? `rpCodes=${JSON.stringify(lastRpCodes)} rqHandler=${JSON.stringify(lastRqHandlerRpCodes)} userMsgs=${JSON.stringify(lastUserMsgs)}`
+              : "(aucun rp_code reçu d'Apex — terminateur manquant ou vide)";
+          console.warn(`rithmic history: Apex 0-bar — ${tf} | ${apexDiag}`);
+        }
+
         if (toMerge.length > 0) {
           // Always write to the per-TF cache so the bars are warm
           // even when the user has already switched to a different
@@ -1820,7 +1880,17 @@ function FootprintLive({
     if (!subscribedKey) return;
     let cancelled = false;
     void (async () => {
+      // Wipe localStorage cache for this symbol.
       cacheClearSymbol(symbol);
+      // Wipe SQLite bars cache so stale partial rows from a previous
+      // session don't satisfy the coverage gate and short-circuit the
+      // Apex fetch before it can return the full day's history.
+      try {
+        await invoke("cache_clear", { args: { fullSymbol } });
+      } catch (e) {
+        console.warn("auto-reload: SQLite clear failed:", e);
+      }
+      if (cancelled) return;
       historyFetchedRef.current.clear();
       barsCacheRef.current.clear();
       setBars(new Map());
@@ -1892,6 +1962,35 @@ function FootprintLive({
     setTimezone("timezone", next);
   }, [timezone, setTimezone]);
 
+  // Manual reload — wipes all caches and re-fetches PRELOAD_TFS.
+  // Equivalent to disconnecting/reconnecting but without the socket
+  // teardown. The comment at this site was intentional; the button
+  // was never wired up until now.
+  const handleReloadHistory = useCallback(async () => {
+    // 1. Wipe localStorage bars cache (per-symbol).
+    cacheClearSymbol(symbol);
+    // 2. Wipe SQLite bars cache for this symbol so the next fetch
+    //    starts from a clean slate (no stale partial rows).
+    try {
+      await invoke("cache_clear", { args: { fullSymbol: `${symbol}.${exchange}` } });
+      console.info(`rithmic reload-history: SQLite cleared for ${symbol}.${exchange}`);
+    } catch (e) {
+      console.warn("rithmic reload-history: SQLite clear failed:", e);
+    }
+    // 3. Wipe in-memory caches and session guards.
+    historyFetchedRef.current.clear();
+    barsCacheRef.current.clear();
+    setBars(new Map());
+    // 4. Re-fetch all preload TFs from Apex.
+    for (const tf of PRELOAD_TFS) {
+      try {
+        await fetchHistoryForTimeframe(tf);
+      } catch (e) {
+        console.warn(`rithmic reload-history ${tf} failed:`, e);
+      }
+    }
+  }, [symbol, exchange, cacheClearSymbol, fetchHistoryForTimeframe]);
+
   const handleTimeframeChange = useCallback(
     (next: SupportedTimeframe) => {
       setTimeframe(next);
@@ -1904,8 +2003,19 @@ function FootprintLive({
       // mirror cache→bars when the preload completes for this TF.
       const cached = barsCacheRef.current.get(next);
       setBars(cached ? new Map(cached) : new Map());
+      // If no bars cached yet for this TF and no fetch is already
+      // in-flight (historyFetchedRef is the session-level guard),
+      // kick off a dedicated fetch instead of waiting for the
+      // sequential preload to eventually reach this TF.
+      const historyKey = `${fullSymbol}-${next}`;
+      if (
+        (!cached || cached.size === 0) &&
+        !historyFetchedRef.current.has(historyKey)
+      ) {
+        void fetchHistoryForTimeframe(next);
+      }
     },
-    [],
+    [fetchHistoryForTimeframe, fullSymbol],
   );
 
   const isSubscribed = status.subscriptions.includes(fullSymbol);
@@ -1946,6 +2056,17 @@ function FootprintLive({
           }}
         >
           {timezone}
+        </button>
+        <button
+          type="button"
+          className="cf-icon-btn"
+          onClick={() => void handleReloadHistory()}
+          title="Régénérer l'historique depuis Apex (toutes les timeframes)"
+          aria-label="Reload all timeframe history"
+          disabled={historyLoading}
+          style={{ fontSize: 14 }}
+        >
+          ↻
         </button>
         <button
           type="button"
@@ -2029,6 +2150,16 @@ function FootprintLive({
               className="cf-nt-icon"
             />
             NT Bridge
+          </button>
+        )}
+        {onSwitchToQuantower && (
+          <button
+            type="button"
+            onClick={onSwitchToQuantower}
+            className="cf-action-btn cf-action-icon"
+            title="Switch to the Quantower Bridge data source (requires Quantower running with the QuantowerOrderflowBridge indicator)"
+          >
+            QT Bridge
           </button>
         )}
           </div>,
