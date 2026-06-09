@@ -257,9 +257,21 @@ pub fn run() {
     // of run().
     #[cfg(target_os = "windows")]
     {
+        // Keep the webview live in the background:
+        //  • first three flags: no timer/renderer throttling when the
+        //    window loses focus or is occluded.
+        //  • CalculateNativeWinOcclusion OFF: Windows otherwise reports
+        //    a covered window as occluded → Chromium flips
+        //    document.hidden=true → our usePauseOnBlur pauses rendering.
+        //    Disabling it keeps the chart live behind NinjaTrader.
+        //  • ipc-flooding-protection OFF: Chromium throttles a
+        //    backgrounded renderer that emits many IPC messages — our
+        //    high-frequency footprint-update event stream is exactly that.
         const BROWSER_ARGS: &str = "--disable-background-timer-throttling \
                                     --disable-renderer-backgrounding \
-                                    --disable-backgrounding-occluded-windows";
+                                    --disable-backgrounding-occluded-windows \
+                                    --disable-features=CalculateNativeWinOcclusion \
+                                    --disable-ipc-flooding-protection";
         // SAFETY: single-threaded boot. No reader can race the writer
         // at this point in the lifecycle — Tauri hasn't initialized
         // anything yet.
@@ -310,9 +322,11 @@ pub fn run() {
             // (0.25 on MNQ), same timeframes, same `footprint-update`
             // event. The user picks one source at a time via the UI
             // switcher; the engine doesn't care which is feeding it.
-            let bridge_engine = rithmic_state.engine.clone();
+            let bridge_engine    = rithmic_state.engine.clone();
+            let quantower_engine = rithmic_state.engine.clone();
             app.manage(rithmic_state);
             app.manage(state::BridgeState::new(bridge_engine));
+            app.manage(state::QuantowerState::new(quantower_engine));
 
             // L2 depth holder for the bridge — shared by the pump
             // (spawned at bridge_connect) and the IPC emitter (spawned
@@ -326,6 +340,15 @@ pub fn run() {
                 bridge_depth_state.clone(),
             );
             app.manage(bridge_depth_state);
+
+            let quantower_depth_state = std::sync::Arc::new(
+                commands::quantower_bridge_depth::QuantowerDepthState::new(),
+            );
+            commands::quantower_bridge_depth::spawn_emitter(
+                app.handle().clone(),
+                quantower_depth_state.clone(),
+            );
+            app.manage(quantower_depth_state);
 
             // Phase B / M2 — public crypto adapters share their own
             // FootprintEngine. M3 wires a dedicated event emitter
@@ -462,7 +485,13 @@ pub fn run() {
             commands::bridge::bridge_disconnect,
             commands::bridge::bridge_status,
             commands::bridge_depth::bridge_get_depth,
+            // Quantower bridge — same wire protocol as NT bridge, port 7273.
+            commands::quantower_bridge::quantower_connect,
+            commands::quantower_bridge::quantower_disconnect,
+            commands::quantower_bridge::quantower_status,
+            commands::quantower_bridge_depth::quantower_get_depth,
             commands::cache::cache_query,
+            commands::cache::cache_clear,
             // Native Journal — Day 1: trades CRUD + listing + stats.
             journal::commands::journal_list_trades,
             journal::commands::journal_get_trade,
