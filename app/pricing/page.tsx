@@ -65,7 +65,7 @@ const BILLING_FAQS = [
 
 // ─── Shared countdown type ────────────────────────────────────────────
 interface Left { d: number; h: number; m: number; s: number }
-const PROMO_TARGET = new Date('2026-06-17T23:59:59.000Z').getTime();
+const PROMO_TARGET = new Date('2026-07-17T23:59:59.000Z').getTime();
 
 function usePromoCountdown(): Left {
   const [left, setLeft] = useState<Left>({ d: 0, h: 0, m: 0, s: 0 });
@@ -170,7 +170,7 @@ function PromoBanner({ mono }: { mono: string }) {
                     Limited Offer
                   </div>
                   <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.06em', color: 'var(--text-muted)', marginTop: 2 }}>
-                    First month only · expires 17/06
+                    First month only · expires 17/07
                   </div>
                 </div>
               </div>

@@ -2,7 +2,7 @@
  * POST /api/ai/support
  * ─────────────────────────────────────────────────────────────────────────────
  * Support agent endpoint — streams tokens via SSE.
- * Priority: ANTHROPIC_API_KEY → GROQ_API_KEY → Ollama (local)
+ * Priority: GROQ_API_KEY (free, primary) → ANTHROPIC_API_KEY → GEMINI_API_KEY → Ollama (local)
  *
  * Request body:
  *   { message: string, history?: Array<{role, content}> }
@@ -89,7 +89,31 @@ export async function POST(req: NextRequest) {
   const messages = buildSupportMessages(message.trim(), safeHistory);
   const encoder = new TextEncoder();
 
-  // ── Claude API (cloud / Vercel) ─────────────────────────────────────────────
+  // ── Groq Llama 3.3 70B (free, cloud — PRIMARY backend) ──────────────────────
+  // Primary by design: free, fast, no per-token cost, no Anthropic-credit
+  // dependency. Claude / Gemini are fallbacks, reached only if Groq is absent
+  // or errors. Groq throws synchronously here on failure (key/network), so we
+  // can cleanly fall through to the next backend before committing a 200.
+  if (groqAvailable()) {
+    try {
+      const stream = await groqChatStream(
+        messages.map(m => ({ role: m.role, content: m.content })),
+        { maxTokens: 512, temperature: 0.7 },
+      );
+      return new Response(stream, {
+        headers: {
+          'Content-Type':  'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection':    'keep-alive',
+          'X-AI-Backend':  'groq',
+        },
+      });
+    } catch (err) {
+      console.warn('[support] Groq failed, falling back to Claude/Gemini:', err);
+    }
+  }
+
+  // ── Claude API (fallback if ANTHROPIC_API_KEY is set) ───────────────────────
   if (anthropic) {
     const systemMessage = messages.find(m => m.role === 'system');
     const chatMessages = messages
@@ -137,26 +161,6 @@ export async function POST(req: NextRequest) {
         'X-AI-Backend': 'claude',
       },
     });
-  }
-
-  // ── Groq Llama 3.3 70B (free, cloud — PRIMARY public backend) ───────────────
-  if (groqAvailable()) {
-    try {
-      const stream = await groqChatStream(
-        messages.map(m => ({ role: m.role, content: m.content })),
-        { maxTokens: 512, temperature: 0.7 },
-      );
-      return new Response(stream, {
-        headers: {
-          'Content-Type':  'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection':    'keep-alive',
-          'X-AI-Backend':  'groq',
-        },
-      });
-    } catch (err) {
-      console.warn('[support] Groq failed, falling back to Gemini:', err);
-    }
   }
 
   // ── Gemini API (optional fallback if GEMINI_API_KEY is set) ─────────────────
@@ -212,11 +216,11 @@ export async function POST(req: NextRequest) {
 
 // ── Health check ────────────────────────────────────────────────────────────
 export async function GET() {
-  if (anthropic) {
-    return Response.json({ status: 'ok', model: 'claude-haiku-4-5', agent: 'support', backend: 'claude' });
-  }
   if (groqAvailable()) {
     return Response.json({ status: 'ok', model: 'llama-3.3-70b-versatile', agent: 'support', backend: 'groq' });
+  }
+  if (anthropic) {
+    return Response.json({ status: 'ok', model: 'claude-haiku-4-5', agent: 'support', backend: 'claude' });
   }
   if (geminiAvailable()) {
     return Response.json({ status: 'ok', model: 'gemini-2.5-flash', agent: 'support', backend: 'gemini' });
