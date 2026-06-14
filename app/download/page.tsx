@@ -163,6 +163,97 @@ export default async function DownloadPage() {
           </div>
         )}
 
+        {/* ── NEW VERSION BANNER ─────────────────────────────────────── */}
+        {release && (
+          <section
+            className="mt-8 rounded-xl p-5 relative overflow-hidden"
+            style={{
+              ...enter(850),
+              background:
+                'linear-gradient(135deg, rgb(var(--primary-rgb) / 0.10), rgb(var(--primary-rgb) / 0.02))',
+              border: '1px solid color-mix(in oklab, var(--primary) 35%, transparent)',
+              boxShadow: '0 0 36px rgb(var(--primary-rgb) / 0.10)',
+            }}
+          >
+            <div className="flex items-center gap-3 flex-wrap">
+              <span
+                className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full shrink-0"
+                style={{
+                  ...MONO_LABEL,
+                  fontSize: 9.5,
+                  color: 'var(--primary)',
+                  background: 'rgb(var(--primary-rgb) / 0.12)',
+                  border: '1px solid rgb(var(--primary-rgb) / 0.40)',
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="inline-block w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background: 'var(--primary)',
+                    boxShadow: '0 0 8px rgb(var(--primary-rgb) / 0.7)',
+                    animation: 'dl-new-pulse 1.6s ease-in-out infinite',
+                  }}
+                />
+                New release
+              </span>
+              <span
+                style={{ ...MONO_DATA, fontSize: 15, color: 'var(--text-primary)' }}
+              >
+                {release.version} is live
+              </span>
+              {release.releaseDate && (
+                <span
+                  style={{ ...MONO_LABEL, fontSize: 10, color: 'var(--text-dimmed)' }}
+                >
+                  · {new Date(release.releaseDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              )}
+              <span
+                className="ml-auto text-xs shrink-0"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Installed already? It auto-updates in-app.
+              </span>
+            </div>
+
+            {release.releaseNotes && (
+              <details className="mt-4 group">
+                <summary
+                  className="cursor-pointer select-none list-none inline-flex items-center gap-1.5"
+                  style={{ ...MONO_LABEL, fontSize: 10, color: 'var(--primary-light)' }}
+                >
+                  <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
+                  What&apos;s new
+                </summary>
+                <div
+                  className="mt-3 p-4 rounded-md text-sm leading-relaxed"
+                  style={{
+                    background: 'var(--surface-elevated)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: 220,
+                    overflowY: 'auto',
+                  }}
+                >
+                  {release.releaseNotes}
+                </div>
+              </details>
+            )}
+
+            <style>{`
+              @keyframes dl-new-pulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50%      { transform: scale(1.5); opacity: 0.55; }
+              }
+              @media (prefers-reduced-motion: reduce) {
+                [style*="dl-new-pulse"] { animation: none !important; }
+              }
+            `}</style>
+          </section>
+        )}
+
         {/* ── OS CARDS ───────────────────────────────────────────────── */}
         <div
           className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-3"
@@ -300,6 +391,79 @@ export default async function DownloadPage() {
                 >
                   Use Rithmic direct (broker settings in-app) or crypto mode
                   (Binance / Bybit / Deribit) — zero install.
+                </p>
+              </div>
+            </Step>
+
+            {/* ── STEP 03 — Quantower bridge ──────────────────────────── */}
+            <Step
+              index="03"
+              title="Connect the Quantower bridge"
+              badge="Quantower"
+              accent
+              delay={1460}
+            >
+              <p
+                className="text-sm mb-5 leading-relaxed"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Trade through Quantower? Stream its broker feed straight into
+                Senzoukria. Unlike NinjaTrader, Quantower loads <em>compiled</em>{' '}
+                indicators, so this bridge ships as a <CodeChip>.cs</CodeChip> you
+                build once into a <CodeChip>.dll</CodeChip>.
+              </p>
+
+              <a
+                href="/QuantowerOrderflowBridge.cs"
+                download="QuantowerOrderflowBridge.cs"
+                className="btn-brand inline-flex w-full items-center justify-center gap-2 py-3 rounded-md text-center mb-6 transition-all duration-200 active:scale-[0.99]"
+                style={MONO_BTN}
+              >
+                <span aria-hidden>↓</span>
+                Download QuantowerOrderflowBridge.cs
+              </a>
+
+              <Ol>
+                <li>
+                  Build it into a DLL (needs the .NET SDK):{' '}
+                  <CodeChip>dotnet build --configuration Release</CodeChip>
+                </li>
+                <li>
+                  Copy <CodeChip>QuantowerOrderflowBridge.dll</CodeChip> into{' '}
+                  <CodeChip>Quantower\Settings\Scripts\Indicators\</CodeChip>
+                </li>
+                <li>
+                  Restart Quantower — <strong style={{ color: 'var(--text-primary)' }}>QuantowerOrderflowBridge</strong>
+                  {' '}now shows up in the indicator list.
+                </li>
+                <li>
+                  Add it to <strong style={{ color: 'var(--text-primary)' }}>one</strong> chart only
+                  {' '}(it opens a single local port — <CodeChip>127.0.0.1:7273</CodeChip>).
+                </li>
+                <li>
+                  In Senzoukria → switch to{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>Quantower Bridge</strong>
+                  {' '}— data appears within a few seconds.
+                </li>
+              </Ol>
+
+              <div
+                className="mt-5 p-4 rounded-md"
+                style={{
+                  background: 'color-mix(in oklab, var(--primary) 6%, transparent)',
+                  border: '1px solid color-mix(in oklab, var(--primary) 25%, transparent)',
+                }}
+              >
+                <div style={{ ...MONO_LABEL, color: 'var(--primary)' }}>
+                  · NinjaTrader vs Quantower
+                </div>
+                <p
+                  className="mt-2 text-xs leading-relaxed"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Use whichever platform already carries your feed. Run only one
+                  bridge at a time — NinjaTrader on <CodeChip>7272</CodeChip>,
+                  Quantower on <CodeChip>7273</CodeChip>.
                 </p>
               </div>
             </Step>

@@ -6,7 +6,7 @@ const PROMO_CODE      = 'SZK60';
 const PROMO_DISCOUNT  = 60;
 const PRICE_FULL      = 29;
 const PRICE_PROMO     = +(PRICE_FULL * (1 - PROMO_DISCOUNT / 100)).toFixed(2); // 11.60
-const TARGET          = new Date('2026-06-17T23:59:59').getTime();
+const TARGET          = new Date('2026-07-17T23:59:59').getTime();
 
 interface Left { d: number; h: number; m: number; s: number }
 
@@ -94,7 +94,22 @@ export default function PreviewBanner() {
     >
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-        <span style={{ fontSize: 11 }} aria-hidden="true">⚡</span>
+        {/* Custom Senzoukria bolt — sharp double-kink lightning with a lime
+            core-glow. Hand-built path (not the generic Feather zap). */}
+        <svg
+          width="13" height="14" viewBox="0 0 24 26" aria-hidden="true"
+          style={{ flexShrink: 0, filter: 'drop-shadow(0 0 5px rgb(var(--primary-rgb) / 0.65))' }}
+        >
+          <path
+            d="M15.2 1.4 4.6 14.1a.85.85 0 0 0 .65 1.4h4.3l-1.6 8.1c-.16.82.9 1.28 1.43.62l10.6-13.1a.85.85 0 0 0-.66-1.39h-4.3l1.42-7.3c.16-.82-.9-1.28-1.43-.63Z"
+            fill="var(--primary)"
+          />
+          <path
+            d="M15.2 1.4 4.6 14.1a.85.85 0 0 0 .65 1.4h4.3l-1.6 8.1c-.16.82.9 1.28 1.43.62l10.6-13.1a.85.85 0 0 0-.66-1.39h-4.3l1.42-7.3c.16-.82-.9-1.28-1.43-.63Z"
+            fill="var(--primary-light)" opacity="0.5"
+            transform="scale(0.62) translate(7.4 7.9)"
+          />
+        </svg>
         <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--primary)' }}>
           Promo Code
         </span>
