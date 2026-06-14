@@ -27,6 +27,7 @@ const FOOTER_COLUMNS = [
       { label: 'Terms of Service', href: '/legal/terms' },
       { label: 'Privacy Policy', href: '/legal/privacy' },
       { label: 'Mentions légales', href: '/legal/mentions-legales' },
+      { label: 'CGV', href: '/legal/cgv' },
     ],
   },
 ];

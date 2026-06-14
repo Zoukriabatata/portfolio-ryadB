@@ -318,7 +318,7 @@ export class LiquidityEngine {
       asks,
       this.orderBook.bestBid,
       this.orderBook.bestAsk,
-      0 // TODO: Calculate volatility
+      0 // Volatility calculation deferred to v1.1 — always returns 0 for now.
     );
   }
 
