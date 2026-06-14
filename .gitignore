@@ -61,6 +61,13 @@ prisma/dev.db-journal
 # temp files
 nul
 
+# build artifacts (compiled bridge binaries — rebuilt from source)
+*.dll
+
+# editor / tooling
+.vscode/
+.superpowers/
+
 # working-tree artefacts (not committed, but protect from accidental git add -A)
 /REPORT.md
 /*.mp3
