@@ -23,6 +23,7 @@ export type OptionTrade = {
   gamma?: number | null;
   theta?: number | null;
   iv?: number | null; // 0..1, e.g. 0.284 = 28.4%
+  openInterest?: number | null; // standing OI of the contract (chain snapshot)
 };
 
 export async function pollOptionFlow(

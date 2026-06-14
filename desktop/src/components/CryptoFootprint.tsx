@@ -4,7 +4,7 @@
 // settings, no vault, no auth flow. The component:
 //   1. on mount: invoke('crypto_connect', { exchange })
 //   2. user picks a symbol via the modal → invoke('crypto_subscribe')
-//   3. listens to `crypto-footprint-update` events filtered to the
+//   3. listens to `crypto-footprint-update-batch` events filtered to the
 //      current exchange-qualified symbol + timeframe
 //
 // M4.7a — visible chrome is now: status bar + symbol picker button +
@@ -99,6 +99,22 @@ export function CryptoFootprint({
   const showUnfinishedAuctions = useFootprintSettingsStore(
     (s) => s.showUnfinishedAuctions,
   );
+  const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
+  const showCvdDivergence = useFootprintSettingsStore((s) => s.showCvdDivergence);
+  const cvdDivergencePivotBars = useFootprintSettingsStore((s) => s.cvdDivergencePivotBars);
+  const absorptionRatio         = useFootprintSettingsStore((s) => s.absorptionRatio);
+  const absorptionMinVolume     = useFootprintSettingsStore((s) => s.absorptionMinVolume);
+  const absorptionToleranceTicks = useFootprintSettingsStore((s) => s.absorptionToleranceTicks);
+  const showAbsorptionZones        = useFootprintSettingsStore((s) => s.showAbsorptionZones);
+  const absorptionZoneDaysBack     = useFootprintSettingsStore((s) => s.absorptionZoneDaysBack);
+  const absorptionZoneRatio        = useFootprintSettingsStore((s) => s.absorptionZoneRatio);
+  const absorptionZoneStackedLevels= useFootprintSettingsStore((s) => s.absorptionZoneStackedLevels);
+  const absorptionZoneMinVolume    = useFootprintSettingsStore((s) => s.absorptionZoneMinVolume);
+  const absorptionZoneBullishColor = useFootprintSettingsStore((s) => s.absorptionZoneBullishColor);
+  const absorptionZoneBearishColor = useFootprintSettingsStore((s) => s.absorptionZoneBearishColor);
+  const absorptionZoneLineWidth    = useFootprintSettingsStore((s) => s.absorptionZoneLineWidth);
+  const absorptionZoneLastBarOnly  = useFootprintSettingsStore((s) => s.absorptionZoneLastBarOnly);
+  const absorptionZoneUseAlert     = useFootprintSettingsStore((s) => s.absorptionZoneUseAlert);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -116,6 +132,10 @@ export function CryptoFootprint({
   const candleBorderDown = useFootprintSettingsStore((s) => s.candleBorderDown);
   const candleWickUp = useFootprintSettingsStore((s) => s.candleWickUp);
   const candleWickDown = useFootprintSettingsStore((s) => s.candleWickDown);
+  const showCandleOutline = useFootprintSettingsStore((s) => s.showCandleOutline);
+  const candleOutlineColor = useFootprintSettingsStore((s) => s.candleOutlineColor);
+  const candleOutlineWidth = useFootprintSettingsStore((s) => s.candleOutlineWidth);
+  const candleOutlineOpacity = useFootprintSettingsStore((s) => s.candleOutlineOpacity);
   const bidColor = useFootprintSettingsStore((s) => s.bidColor);
   const askColor = useFootprintSettingsStore((s) => s.askColor);
   const crosshairColor = useFootprintSettingsStore((s) => s.crosshairColor);
@@ -124,6 +144,22 @@ export function CryptoFootprint({
   );
   const crosshairStyle = useFootprintSettingsStore((s) => s.crosshairStyle);
   const crosshairWidth = useFootprintSettingsStore((s) => s.crosshairWidth);
+  const showDeltaProfile = useFootprintSettingsStore((s) => s.showDeltaProfile);
+  const showCvd = useFootprintSettingsStore((s) => s.showCvd);
+  const cvdMode = useFootprintSettingsStore((s) => s.cvdMode);
+  const cvdPanelHeight = useFootprintSettingsStore((s) => s.cvdPanelHeight);
+  const imbalanceCellRate = useFootprintSettingsStore((s) => s.imbalanceCellRate);
+  const imbalanceCellVolumeFilter = useFootprintSettingsStore(
+    (s) => s.imbalanceCellVolumeFilter,
+  );
+  const imbalanceCellMinDiff = useFootprintSettingsStore(
+    (s) => s.imbalanceCellMinDiff,
+  );
+  const imbalanceCellIgnoreZero = useFootprintSettingsStore(
+    (s) => s.imbalanceCellIgnoreZero,
+  );
+  const showDom = useFootprintSettingsStore((s) => s.showDom);
+  const domProportion = useFootprintSettingsStore((s) => s.domProportion);
 
   // Map the store shape to the renderer's settings shape. Resolves
   // priceDecimalsMode "auto" → null (renderer falls back to the
@@ -147,9 +183,31 @@ export function CryptoFootprint({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -158,6 +216,10 @@ export function CryptoFootprint({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -179,9 +241,31 @@ export function CryptoFootprint({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -190,6 +274,10 @@ export function CryptoFootprint({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -273,16 +361,23 @@ export function CryptoFootprint({
   );
 
   // Listen for crypto-side bar updates filtered to the current
-  // exchange-qualified symbol + timeframe.
+  // exchange-qualified symbol + timeframe. The emitter coalesces bars
+  // on a 16ms window and ships them as a `Vec<FootprintBar>` batch, so
+  // we iterate the payload and apply each matching bar.
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     let cancelled = false;
-    void listen<FootprintBar>("crypto-footprint-update", (event) => {
-      const bar = event.payload;
-      if (bar.symbol !== fullSymbol || bar.timeframe !== timeframe) return;
+    void listen<FootprintBar[]>("crypto-footprint-update-batch", (event) => {
       setBars((prev) => {
-        const next = new Map(prev);
-        next.set(bar.bucketTsNs, bar);
+        let next: Map<number, FootprintBar> | null = null;
+        for (const bar of event.payload) {
+          if (bar.symbol !== fullSymbol || bar.timeframe !== timeframe) continue;
+          if (!next) next = new Map(prev);
+          next.set(bar.bucketTsNs, bar);
+        }
+        // No matching bar in this batch → keep the same reference so
+        // React skips the re-render.
+        if (!next) return prev;
         if (next.size > MAX_BARS) {
           const sorted = [...next.keys()].sort((a, b) => a - b);
           for (const k of sorted.slice(0, sorted.length - MAX_BARS)) {
@@ -424,6 +519,12 @@ export function CryptoFootprint({
         enableStackedImbalances: showStackedImbalances,
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
+        enableAbsorption: showAbsorption,
+        absorptionRatio,
+        absorptionMinVolume,
+        absorptionToleranceTicks,
+        enableCvdDivergence: showCvdDivergence,
+        cvdDivergencePivotBars,
       },
       currentPrice,
     );
@@ -434,6 +535,12 @@ export function CryptoFootprint({
     showStackedImbalances,
     showNakedPOCs,
     showUnfinishedAuctions,
+    showAbsorption,
+    absorptionRatio,
+    absorptionMinVolume,
+    absorptionToleranceTicks,
+    showCvdDivergence,
+    cvdDivergencePivotBars,
   ]);
 
   return (

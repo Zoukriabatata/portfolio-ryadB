@@ -135,6 +135,11 @@ export interface FootprintFonts {
 export interface FootprintFeatures {
   showGrid: boolean;
   showOHLC: boolean;
+  // Configurable candle outline (rectangle high→low around each candle).
+  showCandleOutline: boolean;
+  candleOutlineColor: string;
+  candleOutlineWidth: number;
+  candleOutlineOpacity: number;
   /** Vertical + horizontal dashed line following the mouse, clipped to
    *  the chart area. Toggleable from the left toolbar. */
   showCrosshair: boolean;
@@ -164,6 +169,7 @@ export interface FootprintFeatures {
   showSpread: boolean;
   showSessionSeparators: boolean;
   showAbsorptionEvents: boolean;
+  showCVDDivergence: boolean;
   volumeFilterThreshold: number;
   volumeFilterMode: 'absolute' | 'relative';
   volumeProfileColor: string;

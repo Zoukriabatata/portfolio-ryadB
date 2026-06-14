@@ -6,7 +6,8 @@
   flex-shrink: 0;
   padding: 6px 0;
   gap: 4px;
-  background: rgba(0, 0, 0, 0.55);
+  /* Pure noir, identical to the navbar + time axis. */
+  background: #000000;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   user-select: none;
 }

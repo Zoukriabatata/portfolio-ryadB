@@ -14,13 +14,11 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MarketingShell from '@/components/marketing/MarketingShell';
 
-// ─── Senzoukria Pro single-plan pricing page ──────────────────────────
-// Refonte 1.2.G — single $29/month plan with 14-day free trial.
-// Promo codes, multi-tier comparison, and manual payment proofs were
-// removed in this iteration; they will return in dedicated PRs if needed.
-
-const PRICE_USD = 29;
-const TRIAL_DAYS = 14;
+const PRICE_USD      = 29;
+const TRIAL_DAYS     = 14;
+const PROMO_CODE     = 'SZK60';
+const PROMO_DISCOUNT = 60;
+const PRICE_PROMO    = +(PRICE_USD * (1 - PROMO_DISCOUNT / 100)).toFixed(2); // 11.60
 
 // Hardcoded copy of PREVIEW_END from lib/auth/license.ts. Until this
 // instant, the register endpoint auto-grants PRO with no Stripe step,
@@ -64,6 +62,234 @@ const BILLING_FAQS = [
       'All payments run through Stripe — we never see or store your card. Major cards are accepted and the checkout is fully PCI-compliant.',
   },
 ];
+
+// ─── Shared countdown type ────────────────────────────────────────────
+interface Left { d: number; h: number; m: number; s: number }
+const PROMO_TARGET = new Date('2026-06-17T23:59:59.000Z').getTime();
+
+function usePromoCountdown(): Left {
+  const [left, setLeft] = useState<Left>({ d: 0, h: 0, m: 0, s: 0 });
+  useEffect(() => {
+    const tick = () => {
+      const diff = PROMO_TARGET - Date.now();
+      if (diff <= 0) { setLeft({ d: 0, h: 0, m: 0, s: 0 }); return; }
+      const s = Math.floor(diff / 1000);
+      setLeft({ d: Math.floor(s / 86400), h: Math.floor((s % 86400) / 3600), m: Math.floor((s % 3600) / 60), s: s % 60 });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return left;
+}
+
+function PromoBanner({ mono }: { mono: string }) {
+  const [copied, setCopied]   = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const left                  = usePromoCountdown();
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const copy = () => {
+    navigator.clipboard.writeText(PROMO_CODE).then(() => {
+      toast.success('Code copied!', { description: 'Paste SZK60 at checkout — 60% off your first month.' });
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2400);
+    });
+  };
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  return (
+    <>
+      <style>{`
+        @keyframes promo-border-breathe {
+          0%,100% { opacity:.55 }
+          50%      { opacity:1  }
+        }
+        @keyframes promo-shimmer {
+          0%   { transform:translateX(-180%) }
+          100% { transform:translateX(380%)  }
+        }
+        @keyframes promo-chip-pulse {
+          0%,100% { box-shadow:0 0 0 0 rgb(var(--primary-rgb)/.0),  inset 0 0 12px rgb(var(--primary-rgb)/.12) }
+          50%     { box-shadow:0 0 22px 4px rgb(var(--primary-rgb)/.18), inset 0 0 18px rgb(var(--primary-rgb)/.20) }
+        }
+        @keyframes promo-icon-glow {
+          0%,100% { box-shadow:0 0 8px rgb(var(--primary-rgb)/.25) }
+          50%     { box-shadow:0 0 18px rgb(var(--primary-rgb)/.55) }
+        }
+      `}</style>
+
+      <div
+        className="w-full max-w-lg mb-6 relative z-10 animate-slideUp"
+        style={{ animationDelay: '220ms', animationFillMode: 'both' }}
+      >
+        {/* ── Animated gradient border ── */}
+        <div style={{
+          borderRadius: 20,
+          padding: 1,
+          background: 'linear-gradient(135deg, rgb(var(--primary-rgb)/.65) 0%, rgb(var(--primary-rgb)/.12) 45%, rgb(var(--primary-rgb)/.65) 100%)',
+          animation: 'promo-border-breathe 2.8s ease-in-out infinite',
+          boxShadow: '0 0 36px rgb(var(--primary-rgb)/.12)',
+        }}>
+          <div style={{
+            borderRadius: 19,
+            background: 'linear-gradient(150deg, rgb(var(--primary-rgb)/.09) 0%, var(--background) 55%)',
+            backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+            overflow: 'hidden', position: 'relative',
+            padding: '18px 20px 16px',
+          }}>
+
+            {/* Shimmer sweep */}
+            <div aria-hidden="true" style={{
+              position: 'absolute', top: 0, left: 0, width: '38%', height: '100%',
+              background: 'linear-gradient(90deg, transparent 0%, rgb(var(--primary-rgb)/.07) 50%, transparent 100%)',
+              animation: 'promo-shimmer 4.5s ease-in-out 2.2s infinite',
+              pointerEvents: 'none',
+            }} />
+
+            {/* ── Row 1: icon + label + countdown ── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* SVG zap icon in glowing container */}
+                <div style={{
+                  width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                  background: 'rgb(var(--primary-rgb)/.14)',
+                  border: '1px solid rgb(var(--primary-rgb)/.42)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  animation: 'promo-icon-glow 2.8s ease-in-out infinite',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--primary)', fontWeight: 600 }}>
+                    Limited Offer
+                  </div>
+                  <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: '0.06em', color: 'var(--text-muted)', marginTop: 2 }}>
+                    First month only · expires 17/06
+                  </div>
+                </div>
+              </div>
+
+              {/* Countdown pills */}
+              {mounted && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {([
+                    { val: String(left.d), label: 'D' },
+                    { val: pad(left.h),    label: 'H' },
+                    { val: pad(left.m),    label: 'M' },
+                    { val: pad(left.s),    label: 'S' },
+                  ] as { val: string; label: string }[]).map(({ val, label }) => (
+                    <div key={label} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      background: 'rgb(var(--primary-rgb)/.08)',
+                      border: '1px solid rgb(var(--primary-rgb)/.20)',
+                      borderRadius: 7, padding: '4px 6px', minWidth: 30,
+                    }}>
+                      <span style={{ fontFamily: mono, fontWeight: 700, fontSize: 13, fontVariantNumeric: 'tabular-nums', color: 'var(--primary-light)', lineHeight: 1 }}>{val}</span>
+                      <span style={{ fontFamily: mono, fontSize: 7, letterSpacing: '0.1em', color: 'var(--text-muted)', marginTop: 2 }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Row 2: 60% OFF headline ── */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
+              <span style={{
+                fontFamily: 'var(--font-fraunces, var(--font-display, Georgia))',
+                fontStyle: 'italic', fontWeight: 600, fontSize: 34, lineHeight: 1,
+                color: 'var(--primary)',
+                textShadow: '0 0 28px rgb(var(--primary-rgb)/.45)',
+                letterSpacing: '-0.02em',
+              }}>
+                60% off
+              </span>
+              <span style={{ fontFamily: mono, fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.03em' }}>
+                your first month
+              </span>
+            </div>
+
+            {/* ── Row 3: Big code chip — THE centerpiece ── */}
+            <button
+              onClick={copy}
+              aria-label={`Copy promo code ${PROMO_CODE} for 60% off`}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                fontFamily: mono, fontWeight: 800, fontSize: 20, letterSpacing: '0.30em',
+                color: 'var(--primary-light)',
+                background: 'rgb(var(--primary-rgb)/.09)',
+                border: '1.5px solid rgb(var(--primary-rgb)/.40)',
+                borderRadius: 12, padding: '14px 20px', cursor: 'pointer',
+                transition: 'background .18s, border-color .18s, transform .15s',
+                animation: 'promo-chip-pulse 3s ease-in-out infinite',
+              }}
+              onMouseEnter={e => {
+                const b = e.currentTarget as HTMLButtonElement;
+                b.style.background    = 'rgb(var(--primary-rgb)/.17)';
+                b.style.borderColor   = 'rgb(var(--primary-rgb)/.65)';
+                b.style.transform     = 'scale(1.015)';
+              }}
+              onMouseLeave={e => {
+                const b = e.currentTarget as HTMLButtonElement;
+                b.style.background    = 'rgb(var(--primary-rgb)/.09)';
+                b.style.borderColor   = 'rgb(var(--primary-rgb)/.40)';
+                b.style.transform     = 'scale(1)';
+              }}
+            >
+              <span>{PROMO_CODE}</span>
+
+              <span style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontFamily: mono, fontWeight: 600, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: copied ? 'var(--primary)' : 'var(--text-muted)',
+                transition: 'color .18s',
+              }}>
+                {copied ? (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="9" y="9" width="13" height="13" rx="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Click to copy
+                  </>
+                )}
+              </span>
+            </button>
+
+            {/* ── Row 4: Price comparison ── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12 }}>
+              <span style={{ fontFamily: mono, fontSize: 12, color: 'var(--text-dimmed)', textDecoration: 'line-through' }}>
+                ${PRICE_USD}/mo
+              </span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+              <span style={{ fontFamily: mono, fontWeight: 700, fontSize: 16, color: 'var(--primary)', letterSpacing: '-0.01em' }}>
+                ${PRICE_PROMO}/mo
+              </span>
+              <span style={{ fontFamily: mono, fontSize: 9, color: 'var(--text-dimmed)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                first month
+              </span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 
 function PricingContent() {
   const session = useSession()?.data;
@@ -253,6 +479,9 @@ function PricingContent() {
           Start free for {TRIAL_DAYS} days. No card up front, cancel anytime.
         </p>
       </div>
+
+      {/* ── Promo banner ─────────────────────────────────────────── */}
+      <PromoBanner mono={mono} />
 
       {/* ── Pricing card ─────────────────────────────────────────── */}
       <div

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SENZOUKRIA · Font Lab — premium</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://api.fontshare.com" />
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+<!-- Premium designer fonts (Fontshare — free for commercial use) -->
+<link
+  href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=switzer@400,500,600,700&f[]=general-sans@400,500,600,700&f[]=clash-display@400,500,600,700&f[]=cabinet-grotesk@500,700,800&display=swap"
+  rel="stylesheet"
+/>
+<!-- Reference / baseline (Google) -->
+<link
+  href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Fraunces:ital,wght@0,400;0,600;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root{
+    --bg:#07080f; --surface:#0d0f1b; --surface-2:#12152a;
+    --text-primary:#e8eaf6; --text-secondary:#8890b0; --text-muted:#515878; --text-dimmed:#333650;
+    --primary:#4ade80; --primary-light:#86efac; --primary-rgb:74 222 128;
+    --border:rgba(255,255,255,.07); --border-light:rgba(255,255,255,.11);
+    --mono:'JetBrains Mono',monospace;
+    --preview-head:'Satoshi',sans-serif;
+    --preview-body:'Satoshi',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:radial-gradient(120% 80% at 50% -10%, rgba(74,222,128,.06), transparent 60%), var(--bg);
+    color:var(--text-primary);
+    font-family:'Satoshi',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;padding:0 0 120px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+
+  header{padding:40px 0 22px;border-bottom:1px solid var(--border)}
+  .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:8px}
+  .kicker::before{content:'';width:6px;height:6px;border-radius:1px;background:rgb(var(--primary-rgb) / .6)}
+  header h1{font-family:var(--mono);font-weight:600;font-size:22px;letter-spacing:-.01em;margin-top:12px}
+  header p{color:var(--text-secondary);font-size:13.5px;line-height:1.6;margin-top:8px;max-width:64ch}
+  header p b{color:var(--primary-light);font-weight:600}
+
+  .switch{position:sticky;top:0;z-index:10;background:rgba(7,8,15,.82);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);border-bottom:1px solid var(--border);padding:14px 0}
+  .switch .wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .switch .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dimmed);margin-right:6px}
+  .chip{font-family:var(--mono);font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,.03);border:1px solid var(--border-light);border-radius:999px;padding:7px 13px;cursor:pointer;transition:all .15s ease}
+  .chip:hover{color:var(--text-primary);border-color:rgba(74,222,128,.35)}
+  .chip.active{color:#06210f;background:linear-gradient(135deg,var(--primary-light),var(--primary));border-color:transparent;font-weight:600}
+  .chip.reco::after{content:'★';margin-left:6px;color:#06210f}
+
+  .preview{padding:46px 0 40px;border-bottom:1px solid var(--border)}
+  .preview .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted)}
+  .preview h2{font-family:var(--preview-head);font-weight:600;font-size:clamp(40px,7vw,78px);line-height:.98;letter-spacing:-.035em;margin-top:18px}
+  .preview h2 .accent{color:var(--primary)}
+  .preview h3{font-family:var(--preview-head);font-weight:600;font-size:clamp(26px,3.6vw,42px);line-height:1.05;letter-spacing:-.025em;margin-top:30px}
+  .preview h3 .accent{color:var(--primary)}
+  .preview .lead{font-family:var(--preview-body);font-size:16px;line-height:1.65;color:var(--text-secondary);max-width:54ch;margin-top:20px}
+  .preview .small{font-family:var(--preview-body);font-size:13px;line-height:1.6;color:var(--text-muted);max-width:60ch;margin-top:12px}
+  .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  .btn{font-family:var(--preview-body);font-weight:600;font-size:13px;border-radius:11px;padding:12px 20px;border:1px solid transparent}
+  .btn-primary{color:#06210f;background:linear-gradient(135deg,var(--primary-light),var(--primary));box-shadow:0 8px 26px rgba(74,222,128,.18)}
+  .btn-ghost{color:var(--text-primary);background:rgba(255,255,255,.05);border-color:var(--border-light);font-family:var(--mono);font-weight:500;letter-spacing:.03em}
+  .dataline{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--text-secondary);margin-top:26px;display:flex;gap:18px;flex-wrap:wrap;padding-top:18px;border-top:1px dashed var(--border-light)}
+  .dataline b{color:var(--primary);font-weight:600}
+  .dataline .muted{color:var(--text-dimmed)}
+  .note-mono{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dimmed);margin-top:8px}
+  .active-name{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--primary);margin-bottom:4px}
+  .active-note{color:var(--text-muted);font-size:12.5px;margin-top:8px;font-family:var(--preview-body)}
+
+  .specimens{padding:40px 0}
+  .specimens > .head{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);margin-bottom:20px;display:flex;align-items:center;gap:8px}
+  .specimens > .head::before{content:'';width:6px;height:6px;border-radius:1px;background:rgb(var(--primary-rgb) / .6)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent);border:1px solid var(--border);border-radius:14px;padding:18px}
+  .card.reco{border-color:rgb(var(--primary-rgb) / .28);box-shadow:0 0 40px rgb(var(--primary-rgb) / .05)}
+  .card .fname{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .card .fname b{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text-primary)}
+  .card .fname span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dimmed)}
+  .card .desc{font-family:var(--mono);font-size:10.5px;line-height:1.5;color:var(--text-muted);margin-top:7px;min-height:46px}
+  .card .big{font-size:30px;font-weight:600;letter-spacing:-.025em;line-height:1.05;margin-top:14px}
+  .card .big .accent{color:var(--primary)}
+  .card .para{font-size:13px;line-height:1.55;color:var(--text-secondary);margin-top:10px}
+  .card .glyphs{font-size:14px;color:var(--text-muted);margin-top:12px;letter-spacing:.02em;padding-top:10px;border-top:1px solid var(--border)}
+  .card .use{margin-top:12px}
+  .card .use button{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);background:none;border:1px solid var(--border-light);border-radius:7px;padding:5px 10px;cursor:pointer;transition:all .15s}
+  .card .use button:hover{color:var(--primary);border-color:rgba(74,222,128,.4)}
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="wrap">
+      <div class="kicker">Senzoukria · Font Lab — premium</div>
+      <h1>Polices premium « propres & excellentes »</h1>
+      <p>Sélection haut de gamme : <b>Satoshi · Switzer · General Sans · Clash Display · Cabinet Grotesk</b> (Fontshare, libres pour usage commercial — du niveau Söhne / Aeonik sans le prix), + Geist & Inter en repère. Les ★ sont mes recommandations. Clique pour appliquer à l'aperçu géant. La <b>data en mono</b> (prix/delta) reste en JetBrains Mono. Dis-moi ton choix → je le câble dans l'app.</p>
+    </div>
+  </header>
+
+  <div class="switch">
+    <div class="wrap">
+      <span class="lbl">Aperçu :</span>
+      <div id="chips"></div>
+    </div>
+  </div>
+
+  <section class="preview wrap">
+    <div class="active-name" id="activeName">Satoshi</div>
+    <div class="eyebrow">· Your NinjaTrader chart, with delta</div>
+    <h2 id="pvH1">The science of <span class="accent">orderflow.</span></h2>
+    <h3 id="pvH2">Three primitives. <span class="accent">Zero wrappers.</span></h3>
+    <p class="lead" id="pvLead">Footprint charts rendered tick-by-tick from your NinjaTrader feed. One NinjaScript file installs the bridge — Apex and Rithmic accounts, no proxy lag.</p>
+    <p class="small" id="pvSmall">Stop watching delayed cells. Open the bridge — the tape goes live in two minutes, no card required.</p>
+    <div class="ctas">
+      <span class="btn btn-primary">Get free preview →</span>
+      <span class="btn btn-ghost">Download · Windows</span>
+    </div>
+    <div class="dataline">
+      <span>MNQ M6 · 1m · Footprint</span>
+      <span>POC <b>20,374.25</b></span>
+      <span>Δ <b>+1,284</b></span>
+      <span>CVD ↑ <b>+6,910</b></span>
+      <span class="muted">&lt;5ms</span>
+    </div>
+    <div class="note-mono">↑ data row — JetBrains Mono (inchangé)</div>
+    <div class="active-note" id="activeNote"></div>
+  </section>
+
+  <section class="specimens wrap">
+    <div class="head">Toutes les options côte à côte</div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+<script>
+  const FONTS = [
+    { id:'satoshi', name:'Satoshi', css:"'Satoshi'", reco:true,
+      note:"Minimaliste moderne — le chouchou premium. Ultra propre, neutre-chaleureux. Marche en titre ET en body." },
+    { id:'switzer', name:'Switzer', css:"'Switzer'", reco:true,
+      note:"Néo-grotesque suisse, grande hauteur d'x → idéal data/dashboard. Très neutre, très propre." },
+    { id:'general', name:'General Sans', css:"'General Sans'",
+      note:"Rationaliste, favori UI produit. Ordonné mais vivant." },
+    { id:'clash-satoshi', name:'Clash Display + Satoshi', headCss:"'Clash Display'", css:"'Satoshi'", reco:true,
+      note:"Titres premium à fort caractère + body ultra propre. Le combo le plus 'excellent'." },
+    { id:'cabinet-switzer', name:'Cabinet Grotesk + Switzer', headCss:"'Cabinet Grotesk'", css:"'Switzer'",
+      note:"Titres grotesque distinctifs (chaleureux) + body suisse lisible." },
+    { id:'geist', name:'Geist', css:"'Geist'",
+      note:"La sans technique de Vercel — nette, neutre, déjà dans ton projet." },
+    { id:'inter', name:'Inter', css:"'Inter'",
+      note:"Standard fintech neutre — repère probable côté deepcharts." },
+    { id:'current', name:'Actuel (Fraunces + Geist)', headCss:"'Fraunces'", css:"'Geist'", italicAccent:true,
+      note:"Ta config actuelle : titres Fraunces (serif), body Geist. Pour comparaison." },
+  ];
+
+  const chips = document.getElementById('chips');
+  const grid = document.getElementById('grid');
+  const root = document.documentElement;
+
+  function apply(f){
+    root.style.setProperty('--preview-head', (f.headCss || f.css) + ',sans-serif');
+    root.style.setProperty('--preview-body', f.css + ',sans-serif');
+    document.getElementById('activeName').textContent = f.name;
+    document.getElementById('activeNote').textContent = f.note;
+    document.querySelectorAll('#pvH1 .accent, #pvH2 .accent').forEach(a=>{
+      a.style.fontStyle = f.italicAccent ? 'italic' : 'normal';
+    });
+    [...chips.children].forEach(c=>c.classList.toggle('active', c.dataset.id===f.id));
+  }
+
+  FONTS.forEach((f,i)=>{
+    const c=document.createElement('button');
+    c.className='chip'+(i===0?' active':'')+(f.reco?' reco':'');
+    c.textContent=f.name;c.dataset.id=f.id;c.onclick=()=>apply(f);
+    chips.appendChild(c);
+
+    const headFam=(f.headCss||f.css)+',sans-serif';
+    const bodyFam=f.css+',sans-serif';
+    const card=document.createElement('div');
+    card.className='card'+(f.reco?' reco':'');
+    card.innerHTML=
+      '<div class="fname"><b>'+f.name+(f.reco?' ★':'')+'</b><span>Aa Gg 012</span></div>'+
+      '<div class="desc">'+f.note+'</div>'+
+      '<div class="big" style="font-family:'+headFam+'">The science of <span class="accent"'+(f.italicAccent?' style="font-style:italic"':'')+'>orderflow.</span></div>'+
+      '<div class="para" style="font-family:'+bodyFam+'">Footprint charts rendered tick-by-tick from your feed — Apex &amp; Rithmic, no proxy lag.</div>'+
+      '<div class="glyphs" style="font-family:'+bodyFam+'">ABCDEFG abcdefg 0123456789 — Δ ↑ &amp; @ %</div>'+
+      '<div class="use"><button>Appliquer à l\'aperçu ↑</button></div>';
+    card.querySelector('.use button').onclick=()=>{apply(f);window.scrollTo({top:0,behavior:'smooth'});};
+    grid.appendChild(card);
+  });
+
+  apply(FONTS[0]);
+</script>
+</body>
+</html>

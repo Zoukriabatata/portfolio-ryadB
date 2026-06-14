@@ -17,6 +17,7 @@ type GexStoreState = {
   setSymbol: (s: GexSymbol) => Promise<void>;
   fetchSnapshot: () => Promise<void>;
   tickSpot: () => Promise<void>;
+  setSnapshotFromEvent: (snap: GexSnapshot) => void;
   toggleAutoRefresh: () => void;
   setSelectedExpiration: (iso: string) => void;
 };
@@ -72,6 +73,13 @@ export const useGexStore = create<GexStoreState>()(
           // Don't clobber a working snapshot on a transient tick failure.
           console.warn("gex tick failed:", e);
         }
+      },
+
+      setSnapshotFromEvent: (snap) => {
+        const cur = get().selectedExpiration;
+        const stillValid = cur && snap.ivSmiles.some((s) => s.expiration === cur);
+        const nextExp = stillValid ? cur : (snap.ivSmiles[0]?.expiration ?? null);
+        set({ snapshot: snap, lastFetchedAt: Date.now(), selectedExpiration: nextExp });
       },
 
       toggleAutoRefresh: () => set((s) => ({ autoRefresh: !s.autoRefresh })),

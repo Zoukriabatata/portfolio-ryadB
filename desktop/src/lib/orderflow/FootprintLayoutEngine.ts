@@ -513,26 +513,10 @@ export class FootprintLayoutEngine {
     const totalCandles = candles.length;
     const scrollOffset = this.viewport.scrollIndex;
 
-    // CRITICAL: Index-based viewport calculation
-    // endIndex = dernière bougie visible (la plus récente visible)
-    //
-    // Clamp scrollOffset so we never lose bars off the LEFT edge when
-    // the user over-drags past the oldest available data. The old
-    // bound was `totalCandles - 1`, which let the user drag scrollX
-    // far enough that `visibleEndIndex` could fall well below the
-    // viewport capacity — visually, bars on the right of the chart
-    // would silently drop one by one. The correct upper bound is
-    // `totalCandles - viewportCapacity`: at that cap, the chart shows
-    // exactly the OLDEST `viewportCapacity` bars and any further pull
-    // is a no-op (rather than progressively eating into the visible
-    // set).
-    const maxScrollOffset = Math.max(
-      0,
-      totalCandles - Math.max(1, viewportCapacity),
-    );
-    const clampedScrollOffset = Math.min(scrollOffset, maxScrollOffset);
-
-    const visibleEndIndex = Math.max(0, totalCandles - clampedScrollOffset);
+    // Index-based viewport: scrollOffset drives how many bars are hidden
+    // to the right. No upper clamp — allows scrolling past the oldest bar
+    // into empty space (ATAS-style free left navigation).
+    const visibleEndIndex = Math.max(0, totalCandles - scrollOffset);
 
     // Combien de bougies afficher: min(capacité viewport, bougies disponibles)
     const candlesToShow = Math.min(viewportCapacity, visibleEndIndex);
@@ -554,13 +538,22 @@ export class FootprintLayoutEngine {
       priceMax = -Infinity;
 
       visibleCandles.forEach(candle => {
-        candle.levels.forEach((_, price) => {
+        candle.levels.forEach((_, price: number) => {
           priceMin = Math.min(priceMin, price);
           priceMax = Math.max(priceMax, price);
         });
         priceMin = Math.min(priceMin, candle.low);
         priceMax = Math.max(priceMax, candle.high);
       });
+
+      // Fallback when scrolled past all data (empty viewport).
+      // Use the oldest available candle so the price axis stays
+      // anchored rather than collapsing to NaN / Infinity.
+      if (priceMin === Infinity && candles.length > 0) {
+        const c = candles[0];
+        priceMin = c.low;
+        priceMax = c.high;
+      }
 
       // Padding prix - PROFESSIONAL: More padding for better vertical scrolling
       // This allows zooming and panning beyond visible data range

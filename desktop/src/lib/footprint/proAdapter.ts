@@ -7,17 +7,61 @@
  *   - bidVolume = aggressive sell market orders (hit the bid)   ← desktop sellVolume
  *   - askVolume = aggressive buy  market orders (hit the ask)   ← desktop buyVolume
  *
- * Imbalance flags use a 3× ratio (web default) and require both sides
- * to have meaningful volume to avoid 0/x degenerate cases.
+ * Imbalance flags are configurable via ImbalanceConfig (user settings).
  */
 
 import type { FootprintCandle, PriceLevel } from '../orderflow/types';
 import type { RendererBar } from './types';
 
-const IMBALANCE_RATIO = 3.0;
-const MIN_VOLUME_FOR_IMBALANCE = 0; // permissive — let UI threshold filter further
+export interface ImbalanceConfig {
+  /** Ratio expressed as percentage — 200 means 2.0× (ask must be 2× bid). */
+  ratePct: number;
+  /** Minimum total volume per level to qualify. */
+  volumeFilter: number;
+  /** Minimum absolute difference |ask − bid| to qualify. */
+  minDiff: number;
+  /** When false, a level where one side is 0 can still be imbalanced. */
+  ignoreZero: boolean;
+}
 
-export function rendererBarToFootprintCandle(bar: RendererBar): FootprintCandle {
+export const DEFAULT_IMBALANCE_CONFIG: ImbalanceConfig = {
+  ratePct: 200,
+  volumeFilter: 30,
+  minDiff: 10,
+  ignoreZero: true,
+};
+
+function computeImbalance(
+  askVol: number,
+  bidVol: number,
+  cfg: ImbalanceConfig,
+): { buy: boolean; sell: boolean } {
+  const total = askVol + bidVol;
+  if (total < cfg.volumeFilter) return { buy: false, sell: false };
+  const diff = Math.abs(askVol - bidVol);
+  if (diff < cfg.minDiff) return { buy: false, sell: false };
+  const ratio = cfg.ratePct / 100;
+  let buy = false;
+  let sell = false;
+  // Buy imbalance: ask >> bid (aggressive buyers dominate).
+  if (!cfg.ignoreZero || bidVol > 0) {
+    if (askVol / Math.max(bidVol, 1e-9) >= ratio) buy = true;
+  } else if (!cfg.ignoreZero && bidVol === 0 && askVol >= cfg.volumeFilter) {
+    buy = true;
+  }
+  // Sell imbalance: bid >> ask (aggressive sellers dominate).
+  if (!cfg.ignoreZero || askVol > 0) {
+    if (bidVol / Math.max(askVol, 1e-9) >= ratio) sell = true;
+  } else if (!cfg.ignoreZero && askVol === 0 && bidVol >= cfg.volumeFilter) {
+    sell = true;
+  }
+  return { buy, sell };
+}
+
+export function rendererBarToFootprintCandle(
+  bar: RendererBar,
+  imbalanceCfg: ImbalanceConfig = DEFAULT_IMBALANCE_CONFIG,
+): FootprintCandle {
   const levels = new Map<number, PriceLevel>();
 
   let totalBuyVolume = 0;
@@ -36,16 +80,9 @@ export function rendererBarToFootprintCandle(bar: RendererBar): FootprintCandle 
     const total = askVolume + bidVolume;
     const delta = askVolume - bidVolume;
 
-    let imbalanceBuy = false;
-    let imbalanceSell = false;
-    if (total > MIN_VOLUME_FOR_IMBALANCE) {
-      if (bidVolume > 0 && askVolume / Math.max(bidVolume, 1e-9) >= IMBALANCE_RATIO) {
-        imbalanceBuy = true;
-      }
-      if (askVolume > 0 && bidVolume / Math.max(askVolume, 1e-9) >= IMBALANCE_RATIO) {
-        imbalanceSell = true;
-      }
-    }
+    const { buy: imbalanceBuy, sell: imbalanceSell } = computeImbalance(
+      askVolume, bidVolume, imbalanceCfg,
+    );
 
     levels.set(lvl.price, {
       price: lvl.price,
@@ -126,6 +163,10 @@ function computeValueArea(
   return { vah: sorted[hi].price, val: sorted[lo].price };
 }
 
-export function rendererBarsToFootprintCandles(bars: RendererBar[]): FootprintCandle[] {
-  return bars.map(rendererBarToFootprintCandle);
+export function rendererBarsToFootprintCandles(
+  bars: RendererBar[],
+  imbalanceCfg?: ImbalanceConfig,
+): FootprintCandle[] {
+  const cfg = imbalanceCfg ?? DEFAULT_IMBALANCE_CONFIG;
+  return bars.map(b => rendererBarToFootprintCandle(b, cfg));
 }

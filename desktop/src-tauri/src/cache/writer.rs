@@ -79,6 +79,12 @@ impl CacheWriter {
                 }
             }
             tx.commit()?;
+            // Fold the WAL back into the main DB and TRUNCATE the WAL file
+            // so it can't grow unbounded. Without this it ballooned to
+            // 2.5 GB during bridge history bursts and thrashed the disk
+            // system-wide. The cache uses ONE shared connection, so there
+            // is never a concurrent reader to block the TRUNCATE.
+            let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
             Ok(())
         })
         .await

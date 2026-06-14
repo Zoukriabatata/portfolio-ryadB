@@ -76,6 +76,11 @@ pub struct OptionTrade {
     /// Implied vol as a decimal (0.28 = 28%).
     #[serde(default)]
     pub iv: Option<f64>,
+    /// Open interest of the contract at the latest chain snapshot. Filled
+    /// in `option_flow_poll`, not here. Lets the UI flag opening flow by
+    /// comparing trade size against the standing OI.
+    #[serde(default)]
+    pub open_interest: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -247,6 +252,7 @@ pub async fn fetch_recent_trades(
                     gamma: None,
                     theta: None,
                     iv: None,
+                    open_interest: None,
                 });
             }
         }

@@ -83,10 +83,27 @@ export class FootprintCanvasRenderer {
   private cachedCandleCount = 0;
   private cachedCandleTime = 0; // last candle timestamp for invalidation
 
+  // Volume profile aggregation cache — rebuilt only when candle count or live bar volume changes
+  private _vpAggCache: {
+    candleCount: number;
+    lastCandleVol: number;
+    sessionBid: Map<number, number>;
+    sessionAsk: Map<number, number>;
+    totalVol: Map<number, number>;
+    maxVol: number;
+    pocPrice: number;
+    vaH: number;
+    vaL: number;
+    sessionTotal: number;
+  } | null = null;
+
   // String formatting cache — avoids allocations every frame
   private volStringCache = new Map<string, string>();
   private volCacheHits = 0;
   private volCacheMisses = 0;
+
+  // One-shot diagnostic for the footprint outline (logged once, dev aid).
+  private outlineLogged = false;
 
   // FPS tracking
   private frameCount = 0;
@@ -124,6 +141,7 @@ export class FootprintCanvasRenderer {
   invalidateData(): void {
     this.dirtyFlags.data = true;
     this.profileCaches = null;
+    this._vpAggCache = null;
   }
 
   /**
@@ -323,6 +341,10 @@ export class FootprintCanvasRenderer {
     const largeTradeMultiplier = features.largeTradeMultiplier ?? 2.0;
     const largeTradeColor = features.largeTradeColor ?? '#ffd700';
 
+    // Footprint outlines — collectés par bougie, tracés en PASSE FINALE
+    // (après toutes les cellules/barres) pour être au-dessus visuellement.
+    const flOutlineRects: { x: number; y: number; w: number; h: number }[] = [];
+
     metrics.visibleCandles.forEach((candle, idx) => {
       const fpX = layout.getFootprintX(idx, metrics);
 
@@ -383,10 +405,9 @@ export class FootprintCanvasRenderer {
       ctx.fillRect(containerX, containerTop, containerW, containerH);
       ctx.globalAlpha = 1;
 
-      // Container border
-      ctx.strokeStyle = isBullish ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.2)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(containerX, containerTop, containerW, containerH);
+      // NB: pas de bordure ici. L'outline configurable encadre le BLOC de
+      // cellules bid×ask (pas la bougie high→low) et est dessiné APRÈS les
+      // cellules — voir "Footprint outline" plus bas.
 
       // Left color indicator bar
       ctx.fillStyle = isBullish ? colors.deltaPositive : colors.deltaNegative;
@@ -417,6 +438,11 @@ export class FootprintCanvasRenderer {
       // (rowH-based coarse check — fine-grained per-level showLevelText is computed inside the loop)
       const showCellText = rowH >= fontSize + 4;
 
+      // Footprint outline — bornes verticales réelles des cellules AFFICHÉES
+      // (du 1er au dernier niveau visible), trackées dans la boucle ci-dessous.
+      let flCellsTop = Infinity;
+      let flCellsBottom = -Infinity;
+
       candle.levels.forEach((level, price) => {
         const y = layout.priceToY(price, metrics);
         if (y < footprintAreaY - rowH || y > footprintAreaY + footprintAreaHeight + rowH) return;
@@ -444,6 +470,8 @@ export class FootprintCanvasRenderer {
         if (cellSpan < 2) return; // cell physically invisible — skip entirely
 
         const cellY = Math.min(yTop, yBot);
+        if (cellY < flCellsTop) flCellsTop = cellY;
+        if (cellY + cellSpan > flCellsBottom) flCellsBottom = cellY + cellSpan;
         const cellCenterY = cellY + cellSpan / 2;
         const contentY = cellCenterY - effectiveRowH / 2;
         const barH = effectiveRowH;
@@ -526,19 +554,17 @@ export class FootprintCanvasRenderer {
           ctx.globalAlpha = 1;
         }
 
-        // ─── LAYER 2: POC highlight — bounded so it's a tasteful marker ───
-        // Uses contentY/effectiveRowH (max 22px) instead of cellSpan: a 100px
-        // yellow blob at high zoom looks bloated. We keep a 2px tick at the
-        // exact price y for a precise position cue.
+        // ─── LAYER 2: POC highlight — ATAS-style blue outline rectangle ───
+        // No fill: just a 1px blue stroke around the cell row so the POC
+        // is identifiable without dominating the bid/ask text readability.
         if (isPOC && features.showPOC) {
-          ctx.fillStyle = 'rgba(251, 191, 36, 0.10)';
-          ctx.fillRect(cellStartX, contentY, fpWidth, effectiveRowH);
-          // Left edge accent (2px golden bar) — same bounded height
-          ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(cellStartX, contentY, 2, effectiveRowH);
-          // Hairline at the cell center for precision (1px golden line)
-          ctx.fillStyle = 'rgba(251, 191, 36, 0.55)';
-          ctx.fillRect(cellStartX, Math.round(cellCenterY) - 0.5, fpWidth, 1);
+          ctx.save();
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.85;
+          // Inset 0.5px so the stroke lands on crisp pixel boundaries
+          ctx.strokeRect(cellStartX + 0.5, contentY + 0.5, fpWidth - 1, effectiveRowH - 1);
+          ctx.restore();
         }
 
         // ─── LAYER 2.5: Large trade highlight (Phase 2) ───
@@ -603,15 +629,16 @@ export class FootprintCanvasRenderer {
           if (hasBid && hasAsk) {
             // ── Both sides: bid (right of centerX) + separator + ask (left of centerX) ──
             if (features.showImbalances && level.imbalanceSell) {
-              ctx.fillStyle = '#ff4757'; ctx.font = fittedBold;
+              ctx.fillStyle = '#ff2244'; ctx.font = fittedBold;
+              ctx.shadowColor = '#ff0033'; ctx.shadowBlur = 9;
             } else if (isLargeTrade) {
               ctx.fillStyle = largeTradeColor; ctx.font = fittedBold;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
-              ctx.font = isPOC ? fittedBold : fittedMono;
+              ctx.fillStyle = colors.bidTextColor; ctx.font = fittedMono;
             }
             ctx.textAlign = 'right';
             ctx.fillText(bidStr, centerX - textPad, textY);
+            ctx.shadowBlur = 0;
 
             ctx.fillStyle = '#ffffff';
             ctx.globalAlpha = 0.6;
@@ -621,33 +648,36 @@ export class FootprintCanvasRenderer {
             ctx.globalAlpha = 1;
 
             if (features.showImbalances && level.imbalanceBuy) {
-              ctx.fillStyle = '#2ed573'; ctx.font = fittedBold;
+              ctx.fillStyle = '#00ffaa'; ctx.font = fittedBold;
+              ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 9;
             } else if (isLargeTrade) {
               ctx.fillStyle = largeTradeColor; ctx.font = fittedBold;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
-              ctx.font = isPOC ? fittedBold : fittedMono;
+              ctx.fillStyle = colors.askTextColor; ctx.font = fittedMono;
             }
             ctx.textAlign = 'left';
             ctx.fillText(askStr, centerX + textPad, textY);
+            ctx.shadowBlur = 0;
           } else if (hasBid) {
             if (features.showImbalances && level.imbalanceSell) {
-              ctx.fillStyle = '#ff4757'; ctx.font = fittedBold;
+              ctx.fillStyle = '#ff2244'; ctx.font = fittedBold;
+              ctx.shadowColor = '#ff0033'; ctx.shadowBlur = 9;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
-              ctx.font = isPOC ? fittedBold : fittedMono;
+              ctx.fillStyle = colors.bidTextColor; ctx.font = fittedMono;
             }
             ctx.textAlign = 'center';
             ctx.fillText(bidStr, centerX, textY);
+            ctx.shadowBlur = 0;
           } else if (hasAsk) {
             if (features.showImbalances && level.imbalanceBuy) {
-              ctx.fillStyle = '#2ed573'; ctx.font = fittedBold;
+              ctx.fillStyle = '#00ffaa'; ctx.font = fittedBold;
+              ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 9;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
-              ctx.font = isPOC ? fittedBold : fittedMono;
+              ctx.fillStyle = colors.askTextColor; ctx.font = fittedMono;
             }
             ctx.textAlign = 'center';
             ctx.fillText(askStr, centerX, textY);
+            ctx.shadowBlur = 0;
           }
 
           ctx.restore();
@@ -659,8 +689,8 @@ export class FootprintCanvasRenderer {
             ctx.fillStyle = largeTradeColor;
             ctx.font = cellBoldFont;
           } else {
-            ctx.fillStyle = isPOC ? '#fbbf24' : (delta >= 0 ? colors.deltaPositive : colors.deltaNegative);
-            ctx.font = isPOC ? cellBoldFont : cellMonoFont;
+            ctx.fillStyle = delta >= 0 ? colors.deltaPositive : colors.deltaNegative;
+            ctx.font = cellMonoFont;
           }
           ctx.textAlign = 'center';
           ctx.fillText(deltaStr, centerX, textY);
@@ -672,15 +702,22 @@ export class FootprintCanvasRenderer {
             ctx.fillStyle = largeTradeColor;
             ctx.font = cellBoldFont;
           } else {
-            // Brightness based on intensity
             const brightness = Math.round(160 + intensity * 95);
-            ctx.fillStyle = isPOC ? '#fbbf24' : `rgb(${brightness},${brightness},${brightness})`;
-            ctx.font = isPOC ? cellBoldFont : cellMonoFont;
+            ctx.fillStyle = `rgb(${brightness},${brightness},${brightness})`;
+            ctx.font = cellMonoFont;
           }
           ctx.textAlign = 'center';
           ctx.fillText(volStr, centerX, textY);
         }
       });
+
+      // ─── Footprint outline — collecté ici, tracé en passe finale ───
+      // Encadre le BLOC de cellules bid×ask : largeur = zone des cellules
+      // (cellStartX..+fpWidth, SANS le body/wick OHLC à gauche), hauteur = du
+      // 1er au dernier niveau AFFICHÉ. Le tracé se fait après la boucle.
+      if (features.showCandleOutline && flCellsBottom > flCellsTop) {
+        flOutlineRects.push({ x: cellStartX, y: flCellsTop, w: fpWidth, h: flCellsBottom - flCellsTop });
+      }
 
       // ─── Per-candle delta label — ALWAYS above the high with arrow icon ───
       // Standard orderflow convention: delta sits above the candle high with a
@@ -760,6 +797,28 @@ export class FootprintCanvasRenderer {
       ctx.lineTo(fpX + totalFpWidth, footprintAreaY + footprintAreaHeight);
       ctx.stroke();
     });
+
+    // ─── Footprint outline — PASSE FINALE, au-dessus de toutes les cellules ───
+    if (features.showCandleOutline && flOutlineRects.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = features.candleOutlineColor;
+      ctx.lineWidth = features.candleOutlineWidth;
+      ctx.globalAlpha = features.candleOutlineOpacity;
+      for (const r of flOutlineRects) {
+        ctx.strokeRect(r.x, r.y, r.w, r.h);
+      }
+      ctx.restore();
+      if (!this.outlineLogged) {
+        const r0 = flOutlineRects[0];
+        console.log('[footprint-outline]', {
+          color: features.candleOutlineColor,
+          width: features.candleOutlineWidth,
+          opacity: features.candleOutlineOpacity,
+          x: r0.x, y: r0.y, w: r0.w, h: r0.h, count: flOutlineRects.length,
+        });
+        this.outlineLogged = true;
+      }
+    }
   }
 
   /**
@@ -1186,28 +1245,43 @@ export class FootprintCanvasRenderer {
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
 
-    // Delta bars — use settings colors if available
+    // Delta bars — dominant side only (ATAS behavior).
+    // Compute the net delta across all visible levels first; whichever
+    // sign dominates determines which bars are drawn. This prevents the
+    // panel from showing green bars right AND red bars left simultaneously.
     const dpBarMaxWidth = (dpWidth - 10) / 2;
     const dpPositiveColor = features?.deltaProfilePositiveColor || '#7ed321';
     const dpNegativeColor = features?.deltaProfileNegativeColor || '#ef4444';
     const dpOpacity = features?.deltaProfileOpacity ?? 0.7;
 
+    let totalVisibleDelta = 0;
     caches.deltaByPrice.forEach((delta, price) => {
+      const y = layout.priceToY(price, metrics);
+      if (y >= footprintAreaY && y <= footprintAreaY + footprintAreaHeight)
+        totalVisibleDelta += delta;
+    });
+    const dominantPositive = totalVisibleDelta >= 0;
+    const dominantColor = dominantPositive ? dpPositiveColor : dpNegativeColor;
+
+    caches.deltaByPrice.forEach((delta, price) => {
+      // Skip levels that belong to the non-dominant side.
+      if (dominantPositive ? delta <= 0 : delta >= 0) return;
+
       const y = layout.priceToY(price, metrics);
       if (y < footprintAreaY || y > footprintAreaY + footprintAreaHeight) return;
 
       const barWidth = (Math.abs(delta) / caches.maxDelta) * dpBarMaxWidth;
-      const isPositive = delta >= 0;
+      if (barWidth < 1) return;
+
       const barH = Math.max(2, rowH * 0.5);
       const intensity = Math.abs(delta) / caches.maxDelta;
-      const baseColor = isPositive ? dpPositiveColor : dpNegativeColor;
 
-      // Glow for high-intensity
+      // Glow for high-intensity levels
       if (intensity > 0.6) {
         ctx.save();
-        ctx.fillStyle = baseColor;
+        ctx.fillStyle = dominantColor;
         ctx.globalAlpha = 0.08;
-        if (isPositive) {
+        if (dominantPositive) {
           ctx.fillRect(centerLineX - 1, y - barH / 2 - 1, barWidth + 2, barH + 2);
         } else {
           ctx.fillRect(centerLineX - barWidth - 1, y - barH / 2 - 1, barWidth + 2, barH + 2);
@@ -1215,10 +1289,10 @@ export class FootprintCanvasRenderer {
         ctx.restore();
       }
 
-      ctx.fillStyle = baseColor;
+      ctx.fillStyle = dominantColor;
       ctx.globalAlpha = (0.35 + intensity * 0.55) * dpOpacity;
 
-      if (isPositive) {
+      if (dominantPositive) {
         ctx.fillRect(centerLineX, y - barH / 2, barWidth, barH);
       } else {
         ctx.fillRect(centerLineX - barWidth, y - barH / 2, barWidth, barH);
@@ -1501,39 +1575,86 @@ export class FootprintCanvasRenderer {
 
     if (allCandles.length === 0) return;
 
-    // ── Session aggregation — all candles, identical to footprintTEST ──────────
-    const sessionBid = new Map<number, number>();
-    const sessionAsk = new Map<number, number>();
-    for (const c of allCandles) {
-      c.levels.forEach((level, price) => {
-        sessionBid.set(price, (sessionBid.get(price) ?? 0) + level.bidVolume);
-        sessionAsk.set(price, (sessionAsk.get(price) ?? 0) + level.askVolume);
+    // ── Session aggregation — cached, rebuilt only when data changes ───────────
+    // Cache key: candle count + live bar totalVolume (changes on every new tick)
+    const _vpCandleCount = allCandles.length;
+    const _vpLastVol = allCandles[_vpCandleCount - 1]?.totalVolume ?? 0;
+
+    if (
+      this._vpAggCache === null ||
+      this._vpAggCache.candleCount !== _vpCandleCount ||
+      this._vpAggCache.lastCandleVol !== _vpLastVol
+    ) {
+      // Filter to current session — CME session breaks are ≥ 60 min; 45 min threshold
+      // works for all timeframes ≤ 30m without false positives on normal bar gaps.
+      const SESSION_GAP_S = 2700;
+      let sessionStartIdx = 0;
+      for (let i = allCandles.length - 1; i > 0; i--) {
+        if (allCandles[i].time - allCandles[i - 1].time >= SESSION_GAP_S) {
+          sessionStartIdx = i;
+          break;
+        }
+      }
+      const sessionCandles = sessionStartIdx > 0
+        ? allCandles.slice(sessionStartIdx)
+        : allCandles;
+
+      const sessionBid = new Map<number, number>();
+      const sessionAsk = new Map<number, number>();
+      for (const c of sessionCandles) {
+        c.levels.forEach((level, price) => {
+          sessionBid.set(price, (sessionBid.get(price) ?? 0) + level.bidVolume);
+          sessionAsk.set(price, (sessionAsk.get(price) ?? 0) + level.askVolume);
+        });
+      }
+
+      const totalVol = new Map<number, number>();
+      let sessionTotal = 0;
+      let maxVol = 1;
+      let pocPrice = 0;
+      sessionBid.forEach((bid, price) => {
+        const t = bid + (sessionAsk.get(price) ?? 0);
+        totalVol.set(price, t);
+        sessionTotal += t;
+        if (t > maxVol) { maxVol = t; pocPrice = price; }
       });
-    }
-    if (sessionBid.size === 0) return;
 
-    // total vol per level + maxVol + POC
-    const totalVol = new Map<number, number>();
-    let sessionTotal = 0;
-    let maxVol = 1;
-    let pocPrice = 0;
-    sessionBid.forEach((bid, price) => {
-      const t = bid + (sessionAsk.get(price) ?? 0);
-      totalVol.set(price, t);
-      sessionTotal += t;
-      if (t > maxVol) { maxVol = t; pocPrice = price; }
-    });
+      // Value area (70%) — adjacent algorithm matching ATAS / Sierra Chart.
+      // Sort by price ascending, start at POC, expand one level at a time
+      // choosing the adjacent side (above vs below) with more volume.
+      const byPrice = Array.from(totalVol.entries()).sort((a, b) => a[0] - b[0]);
+      let pocIdx = byPrice.findIndex(([p]) => p === pocPrice);
+      if (pocIdx < 0) pocIdx = Math.floor(byPrice.length / 2);
+      let lo = pocIdx;
+      let hi = pocIdx;
+      let vaAcc = byPrice[pocIdx]?.[1] ?? 0;
+      const target70 = sessionTotal * 0.70;
+      while (vaAcc < target70 && (lo > 0 || hi < byPrice.length - 1)) {
+        const upVol = hi < byPrice.length - 1 ? byPrice[hi + 1][1] : -1;
+        const dnVol = lo > 0 ? byPrice[lo - 1][1] : -1;
+        if (upVol >= dnVol) { hi += 1; vaAcc += byPrice[hi][1]; }
+        else { lo -= 1; vaAcc += byPrice[lo][1]; }
+      }
+      const vaH = byPrice[hi]?.[0] ?? pocPrice;
+      const vaL = byPrice[lo]?.[0] ?? pocPrice;
 
-    // Value area (70%) — identical logic to footprintTEST
-    const sorted = Array.from(totalVol.entries()).sort((a, b) => b[1] - a[1]);
-    let vaVol = 0; let vaH = pocPrice; let vaL = pocPrice;
-    const va70 = sessionTotal * 0.70;
-    for (const [price, vol] of sorted) {
-      vaVol += vol;
-      vaH = Math.max(vaH, price);
-      vaL = Math.min(vaL, price);
-      if (vaVol >= va70) break;
+      this._vpAggCache = {
+        candleCount: _vpCandleCount,
+        lastCandleVol: _vpLastVol,
+        sessionBid,
+        sessionAsk,
+        totalVol,
+        maxVol,
+        pocPrice,
+        vaH,
+        vaL,
+        sessionTotal,
+      };
     }
+
+    if (this._vpAggCache.sessionBid.size === 0) return;
+
+    const { totalVol, maxVol, pocPrice, vaH, vaL } = this._vpAggCache;
 
     const barMaxW  = Math.min(footprintAreaWidth * 0.22, 120);
     const areaRight = footprintAreaX + footprintAreaWidth;
@@ -2125,6 +2246,50 @@ export class FootprintCanvasRenderer {
     ctx.restore();
   }
 
+  /** Render ATAS V1-style absorption zones: semi-transparent rectangles that
+   *  start at the detection candle and extend rightward until price returns. */
+  renderAbsorptionZones(
+    ctx: CanvasRenderingContext2D,
+    zones: Array<{
+      type: 'bullish' | 'bearish';
+      priceHigh: number;
+      priceLow: number;
+      startX: number;
+      endX: number;
+    }>,
+    layout: FootprintLayoutEngine,
+    metrics: LayoutMetrics,
+    bullishColor: string,
+    bearishColor: string,
+    lineWidth: number,
+    tickSize: number,
+  ): void {
+    if (zones.length === 0) return;
+    ctx.save();
+    for (const zone of zones) {
+      const color   = zone.type === 'bullish' ? bullishColor : bearishColor;
+      const yTop    = layout.priceToY(zone.priceHigh + tickSize, metrics);
+      const yBot    = layout.priceToY(zone.priceLow  - tickSize, metrics);
+      const rectX   = zone.startX;
+      const rectW   = Math.max(1, zone.endX - zone.startX);
+      const rectY   = Math.min(yTop, yBot);
+      const rectH   = Math.max(1, Math.abs(yBot - yTop));
+
+      // Fill — 25% opacity
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle   = color;
+      ctx.fillRect(rectX, rectY, rectW, rectH);
+
+      // Border — solid, full opacity
+      ctx.globalAlpha  = 0.85;
+      ctx.strokeStyle  = color;
+      ctx.lineWidth    = lineWidth;
+      ctx.strokeRect(rectX + 0.5, rectY + 0.5, rectW - 1, rectH - 1);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // ═══════════════════════════════════════════════════════════════
   // PHASE 4: INFO DISPLAY
@@ -2263,7 +2428,9 @@ export class FootprintCanvasRenderer {
   }
 
   /**
-   * Render CVD (Cumulative Volume Delta) oscillator panel
+   * Render CVD (Cumulative Volume Delta) oscillator panel.
+   * mode "candles": each bar is an OHLC candle (open=cumDelta before, close=after).
+   * mode "line" (default): continuous colored line + area fill.
    */
   renderCVDPanel(
     ctx: CanvasRenderingContext2D,
@@ -2277,53 +2444,73 @@ export class FootprintCanvasRenderer {
     ohlcWidth: number,
     fpWidth: number,
     cvdConfig?: CVDConfig,
+    mode?: "line" | "candles",
+    cvdYZoom?: number,
+    cvdYPan?: number,
+    cvdOffset?: number,
   ): void {
     const enabled = cvdConfig ? cvdConfig.enabled : features.showCVDPanel;
     if (!enabled || metrics.visibleCandles.length === 0) return;
 
     const lineColor = cvdConfig?.askColor || features.cvdLineColor || '#7ed321';
-    const bgColor   = cvdConfig?.backgroundColor || 'rgba(10, 10, 15, 0.85)';
-    const gridColor = cvdConfig?.gridColor || 'rgba(100, 100, 120, 0.3)';
+    const bgColor   = _colors.background || '#0a0a0a';
 
-    // Background
+    // Background — same color as the chart so the panel blends seamlessly.
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, panelY, width, panelHeight);
 
-    // Top border
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 0.5;
+    // Separator line only (no fill tint — chart bg extends into panel).
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, panelY);
     ctx.lineTo(width, panelY);
     ctx.stroke();
 
-    // Calculate CVD points
-    let cumDelta = 0;
+    // Accumulate CVD — one pass produces both line points and per-bar OHLC.
+    // cvdOffset = sum of all deltas BEFORE the first visible candle so the
+    // absolute CVD value matches ATAS (which starts from the first loaded bar,
+    // not from the visible window).
+    type CVDBar = { x: number; open: number; close: number; barW: number };
+    let cumDelta = cvdOffset ?? 0;
+    const bars: CVDBar[] = [];
     const cvdPoints: { x: number; value: number }[] = [];
+    const totalFpW = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
 
     metrics.visibleCandles.forEach((candle, idx) => {
+      const open = cumDelta;
       cumDelta += candle.totalDelta;
+      const close = cumDelta;
       const fpX = layout.getFootprintX(idx, metrics);
-      const totalFpWidth = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
-      const x = fpX + totalFpWidth / 2;
-      cvdPoints.push({ x, value: cumDelta });
+      const x = fpX + totalFpW / 2;
+      bars.push({ x, open, close, barW: totalFpW });
+      cvdPoints.push({ x, value: close });
     });
 
-    if (cvdPoints.length < 2) return;
+    if (bars.length === 0) return;
 
-    // Auto-scale
+    // Auto-scale: consider both open and close so candles never clip.
     let minVal = Infinity, maxVal = -Infinity;
-    for (const pt of cvdPoints) {
-      if (pt.value < minVal) minVal = pt.value;
-      if (pt.value > maxVal) maxVal = pt.value;
+    for (const b of bars) {
+      if (b.open < minVal) minVal = b.open;
+      if (b.open > maxVal) maxVal = b.open;
+      if (b.close < minVal) minVal = b.close;
+      if (b.close > maxVal) maxVal = b.close;
     }
     const range = maxVal - minVal || 1;
     const padding = 8;
     const drawH = panelHeight - padding * 2;
 
-    const valueToY = (val: number) => {
-      return panelY + padding + drawH - ((val - minVal) / range) * drawH;
-    };
+    // Apply user Y zoom/pan. zoom=1,pan=0 → identical to original auto-scale.
+    const zoom = Math.max(0.1, cvdYZoom ?? 1);
+    const pan  = cvdYPan ?? 0;
+    const midVal    = (minVal + maxVal) / 2 + pan;
+    const halfRange = (range / 2) / zoom;
+    const zoomedMin   = midVal - halfRange;
+    const zoomedRange = halfRange * 2 || 1;
+
+    const valueToY = (val: number) =>
+      panelY + padding + drawH - ((val - zoomedMin) / zoomedRange) * drawH;
 
     // Zero line
     const zeroY = valueToY(0);
@@ -2338,52 +2525,85 @@ export class FootprintCanvasRenderer {
       ctx.setLineDash([]);
     }
 
-    // Draw CVD line with gradient coloring
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = 'round';
-    for (let i = 1; i < cvdPoints.length; i++) {
-      const prev = cvdPoints[i - 1];
-      const curr = cvdPoints[i];
-      const rising = curr.value >= prev.value;
-      ctx.strokeStyle = rising ? lineColor : '#ef4444';
-      ctx.beginPath();
-      ctx.moveTo(prev.x, valueToY(prev.value));
-      ctx.lineTo(curr.x, valueToY(curr.value));
-      ctx.stroke();
-    }
+    if (mode === 'candles') {
+      // --- Candle mode ---
+      // Body: open → close (net bar delta).
+      // Wick: we don't have sub-bar CVD data, so we extend the center line by a
+      // fixed amount proportional to bar width — gives the standard candle visual.
+      for (const b of bars) {
+        const yOpen  = valueToY(b.open);
+        const yClose = valueToY(b.close);
+        const rising = b.close >= b.open;
+        const color  = rising ? lineColor : '#ef4444';
+        const bodyTop = Math.min(yOpen, yClose);
+        const bodyH   = Math.max(Math.abs(yClose - yOpen), 1);
+        const candleW = Math.max(Math.min(b.barW - 2, 24), 2);
+        const bodyW   = Math.max(Math.floor(candleW * 0.6), 2);
+        // Wick extension: ~20% of candle width, min 3px — gives proper OHLC look.
+        const wickExt = Math.max(3, Math.floor(candleW * 0.2));
 
-    // Fill area under/over zero line
-    ctx.save();
-    ctx.globalAlpha = 0.06;
-    const clampedZeroY = Math.max(panelY + padding, Math.min(panelY + panelHeight - padding, zeroY));
+        // Draw wick first (behind body).
+        ctx.strokeStyle = color;
+        ctx.lineWidth   = 1;
+        ctx.beginPath();
+        ctx.moveTo(b.x, bodyTop - wickExt);
+        ctx.lineTo(b.x, bodyTop + bodyH + wickExt);
+        ctx.stroke();
 
-    // Positive fill (green above zero)
-    ctx.fillStyle = lineColor;
-    ctx.beginPath();
-    ctx.moveTo(cvdPoints[0].x, clampedZeroY);
-    for (const pt of cvdPoints) {
-      const y = valueToY(pt.value);
-      ctx.lineTo(pt.x, Math.min(y, clampedZeroY));
-    }
-    ctx.lineTo(cvdPoints[cvdPoints.length - 1].x, clampedZeroY);
-    ctx.closePath();
-    ctx.fill();
+        // Body on top of wick.
+        ctx.fillStyle = color;
+        ctx.fillRect(b.x - bodyW / 2, bodyTop, bodyW, bodyH);
+      }
+    } else {
+      // --- Line mode (default) ---
+      if (cvdPoints.length < 2) {
+        // Single-point — nothing to connect.
+      } else {
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+        for (let i = 1; i < cvdPoints.length; i++) {
+          const prev = cvdPoints[i - 1];
+          const curr = cvdPoints[i];
+          ctx.strokeStyle = curr.value >= prev.value ? lineColor : '#ef4444';
+          ctx.beginPath();
+          ctx.moveTo(prev.x, valueToY(prev.value));
+          ctx.lineTo(curr.x, valueToY(curr.value));
+          ctx.stroke();
+        }
 
-    // Negative fill (red below zero)
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath();
-    ctx.moveTo(cvdPoints[0].x, clampedZeroY);
-    for (const pt of cvdPoints) {
-      const y = valueToY(pt.value);
-      ctx.lineTo(pt.x, Math.max(y, clampedZeroY));
+        // Area fill under/over zero
+        ctx.save();
+        ctx.globalAlpha = 0.06;
+        const clampedZeroY = Math.max(
+          panelY + padding,
+          Math.min(panelY + panelHeight - padding, zeroY),
+        );
+
+        ctx.fillStyle = lineColor;
+        ctx.beginPath();
+        ctx.moveTo(cvdPoints[0].x, clampedZeroY);
+        for (const pt of cvdPoints) {
+          ctx.lineTo(pt.x, Math.min(valueToY(pt.value), clampedZeroY));
+        }
+        ctx.lineTo(cvdPoints[cvdPoints.length - 1].x, clampedZeroY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(cvdPoints[0].x, clampedZeroY);
+        for (const pt of cvdPoints) {
+          ctx.lineTo(pt.x, Math.max(valueToY(pt.value), clampedZeroY));
+        }
+        ctx.lineTo(cvdPoints[cvdPoints.length - 1].x, clampedZeroY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
-    ctx.lineTo(cvdPoints[cvdPoints.length - 1].x, clampedZeroY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
 
     // Label "CVD" + current value
-    const lastVal = cvdPoints[cvdPoints.length - 1].value;
+    const lastVal = bars[bars.length - 1].close;
     const valStr = this.formatCompact(lastVal);
     ctx.font = 'bold 9px "Consolas", monospace';
     ctx.textAlign = 'left';
@@ -2847,6 +3067,77 @@ export class FootprintCanvasRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
+    }
+  }
+
+  /**
+   * Render CVD divergence trendlines — diagonal lines connecting the two
+   * pivot points (pivot high pair for bearish, pivot low pair for bullish).
+   * Green = bullish divergence, red = bearish divergence.
+   */
+  renderCvdDivergences(
+    ctx: CanvasRenderingContext2D,
+    layout: FootprintLayoutEngine,
+    metrics: LayoutMetrics,
+    divergences: Array<{
+      type: "bullish" | "bearish";
+      candleTime1: number;
+      bar1Price: number;
+      candleTime2: number;
+      bar2Price: number;
+    }>,
+  ): void {
+    if (divergences.length === 0) return;
+
+    const { footprintAreaY, footprintAreaHeight } = metrics;
+
+    for (const div of divergences) {
+      const idx1 = metrics.visibleCandles.findIndex((c) => c.time === div.candleTime1);
+      const idx2 = metrics.visibleCandles.findIndex((c) => c.time === div.candleTime2);
+      if (idx1 < 0 || idx2 < 0) continue;
+
+      const x1 = layout.getFootprintX(idx1, metrics);
+      const x2 = layout.getFootprintX(idx2, metrics);
+      const y1 = layout.priceToY(div.bar1Price, metrics);
+      const y2 = layout.priceToY(div.bar2Price, metrics);
+
+      if (
+        y1 < footprintAreaY || y1 > footprintAreaY + footprintAreaHeight ||
+        y2 < footprintAreaY || y2 > footprintAreaY + footprintAreaHeight
+      ) continue;
+
+      const color = div.type === "bullish" ? "#22c55e" : "#ef4444";
+
+      // Main trendline (dashed)
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Endpoint circles
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(x1, y1, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x2, y2, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Label near the second pivot
+      ctx.font = 'bold 9px "Consolas", monospace';
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      const labelY = div.type === "bullish" ? y2 + 12 : y2 - 6;
+      ctx.fillText(div.type === "bullish" ? "CVD DIV ▲" : "CVD DIV ▼", x2, labelY);
+
+      ctx.restore();
     }
   }
 

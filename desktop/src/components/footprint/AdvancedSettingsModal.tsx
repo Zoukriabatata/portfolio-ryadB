@@ -1,19 +1,29 @@
-// Phase B / M4.7b — advanced footprint settings modal.
+// Phase B / M4.7b — advanced footprint settings modal, 4-tab layout.
 //
-// Backed by `useFootprintSettingsStore` (Zustand + persist). All
-// state mutations flow through the store actions, so the modal
-// stays presentational and the changes propagate to the renderer
-// via the shared store subscription in CryptoFootprint.
+// Tabs: Visual | Footprint | Trading | Templates
+// All state mutations flow through the store actions — the modal
+// stays presentational.
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useFootprintSettingsStore,
   type PriceDecimalsMode,
   type VolumeFormat,
   type CrosshairLineStyle,
+  type TimezoneKey,
+  type MagnetMode,
 } from "../../stores/useFootprintSettingsStore";
 import { useChartPresetsStore } from "../../stores/useChartPresetsStore";
 import "./AdvancedSettingsModal.css";
+
+type Tab = "visual" | "footprint" | "trading" | "templates";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "visual",    label: "Visual Settings" },
+  { id: "footprint", label: "Footprint Settings" },
+  { id: "trading",   label: "Trading Settings" },
+  { id: "templates", label: "Templates Settings" },
+];
 
 type Props = {
   open: boolean;
@@ -21,10 +31,8 @@ type Props = {
 };
 
 export function AdvancedSettingsModal({ open, onClose }: Props) {
-  // Reading the entire store is fine for the modal — it only mounts
-  // when open and the perf cost (one closure per render) is dwarfed
-  // by the modal's own paint.
   const settings = useFootprintSettingsStore();
+  const [activeTab, setActiveTab] = useState<Tab>("visual");
 
   useEffect(() => {
     if (!open) return;
@@ -58,218 +66,571 @@ export function AdvancedSettingsModal({ open, onClose }: Props) {
           </button>
         </header>
 
-        <div className="asm-body">
-          <ChartPresetsSection />
-
-          <section className="asm-section">
-            <h4>Visibility</h4>
-            <ToggleRow
-              label="Grid lines"
-              checked={settings.showGrid}
-              onChange={() => settings.toggle("showGrid")}
-            />
-            <ToggleRow
-              label="POC session"
-              checked={settings.showPocSession}
-              onChange={() => settings.toggle("showPocSession")}
-            />
-            <ToggleRow
-              label="POC bar"
-              checked={settings.showPocBar}
-              onChange={() => settings.toggle("showPocBar")}
-            />
-            <ToggleRow
-              label="Volume tooltip on hover"
-              checked={settings.showVolumeTooltip}
-              onChange={() => settings.toggle("showVolumeTooltip")}
-            />
-            <ToggleRow
-              label="OHLC label on each bar"
-              checked={settings.showOhlcHeader}
-              onChange={() => settings.toggle("showOhlcHeader")}
-            />
-          </section>
-
-          <section className="asm-section">
-            <h4>Numeric format</h4>
-            <SelectRow
-              label="Price decimals"
-              value={settings.priceDecimalsMode}
-              onChange={(v) =>
-                settings.set("priceDecimalsMode", v as PriceDecimalsMode)
-              }
-              options={[
-                { value: "auto", label: "Auto (infer from data)" },
-                { value: "2", label: "2 decimals" },
-                { value: "4", label: "4 decimals" },
-                { value: "8", label: "8 decimals (memes)" },
-              ]}
-            />
-            <SelectRow
-              label="Volume format"
-              value={settings.volumeFormat}
-              onChange={(v) =>
-                settings.set("volumeFormat", v as VolumeFormat)
-              }
-              options={[
-                { value: "raw", label: "Raw (1234)" },
-                { value: "K", label: "Thousands (1.2K)" },
-                { value: "M", label: "Millions (1.2M)" },
-              ]}
-            />
-          </section>
-
-          <section className="asm-section">
-            <h4>Indicators</h4>
-            <ToggleRow
-              label="Bar delta (above each candle)"
-              checked={settings.showBarDelta}
-              onChange={() => settings.toggle("showBarDelta")}
-            />
-            <ToggleRow
-              label="Stacked imbalances"
-              checked={settings.showStackedImbalances}
-              onChange={() => settings.toggle("showStackedImbalances")}
-            />
-            <ToggleRow
-              label="Naked POCs"
-              checked={settings.showNakedPOCs}
-              onChange={() => settings.toggle("showNakedPOCs")}
-            />
-            <ToggleRow
-              label="Unfinished auctions"
-              checked={settings.showUnfinishedAuctions}
-              onChange={() => settings.toggle("showUnfinishedAuctions")}
-            />
-            <SliderRow
-              label="Imbalance ratio"
-              value={settings.imbalanceRatio}
-              valueText={`${settings.imbalanceRatio.toFixed(1)}×`}
-              min={1.5}
-              max={5.0}
-              step={0.1}
-              onChange={(v) => settings.set("imbalanceRatio", v)}
-            />
-            <SliderRow
-              label="Min consecutive levels"
-              value={settings.imbalanceMinConsecutive}
-              valueText={settings.imbalanceMinConsecutive.toString()}
-              min={2}
-              max={6}
-              step={1}
-              onChange={(v) =>
-                settings.set("imbalanceMinConsecutive", Math.round(v))
-              }
-            />
-          </section>
-
-          <section className="asm-section">
-            <h4>Chart colors</h4>
-            <p className="asm-section-hint">
-              Hex pickers — every primitive on the chart. The footprint
-              cell "state bar" mirrors the candle body color so the
-              two surfaces always agree on bullish vs bearish.
-            </p>
-            <ColorRow
-              label="Background"
-              value={settings.chartBgColor}
-              onChange={(v) => settings.set("chartBgColor", v)}
-            />
-            <ColorRow
-              label="Grid lines"
-              value={settings.chartGridColor}
-              onChange={(v) => settings.set("chartGridColor", v)}
-            />
-            <ColorPairRow
-              label="Candle body"
-              up={settings.candleBodyUp}
-              down={settings.candleBodyDown}
-              onUp={(v) => settings.set("candleBodyUp", v)}
-              onDown={(v) => settings.set("candleBodyDown", v)}
-            />
-            <ColorPairRow
-              label="Candle border"
-              up={settings.candleBorderUp}
-              down={settings.candleBorderDown}
-              onUp={(v) => settings.set("candleBorderUp", v)}
-              onDown={(v) => settings.set("candleBorderDown", v)}
-            />
-            <ColorPairRow
-              label="Wick"
-              up={settings.candleWickUp}
-              down={settings.candleWickDown}
-              onUp={(v) => settings.set("candleWickUp", v)}
-              onDown={(v) => settings.set("candleWickDown", v)}
-            />
-            <ColorRow
-              label="Bid"
-              value={settings.bidColor}
-              onChange={(v) => settings.set("bidColor", v)}
-            />
-            <ColorRow
-              label="Ask"
-              value={settings.askColor}
-              onChange={(v) => settings.set("askColor", v)}
-            />
-          </section>
-
-          <section className="asm-section">
-            <h4>Crosshair</h4>
-            <p className="asm-section-hint">
-              Cursor guides + axis labels — pick a hue that contrasts
-              with your chart background. Opacity tunes how
-              prominent the lines feel.
-            </p>
-            <ColorRow
-              label="Color"
-              value={settings.crosshairColor}
-              onChange={(v) => settings.set("crosshairColor", v)}
-            />
-            <SliderRow
-              label="Opacity"
-              value={settings.crosshairOpacity}
-              valueText={`${Math.round(settings.crosshairOpacity * 100)}%`}
-              min={0.1}
-              max={1}
-              step={0.05}
-              onChange={(v) => settings.set("crosshairOpacity", v)}
-            />
-            <SelectRow
-              label="Line style"
-              value={settings.crosshairStyle}
-              onChange={(v) =>
-                settings.set("crosshairStyle", v as CrosshairLineStyle)
-              }
-              options={[
-                { value: "solid", label: "Solid" },
-                { value: "dashed", label: "Dashed (default)" },
-                { value: "dotted", label: "Dotted" },
-              ]}
-            />
-            <SliderRow
-              label="Line width"
-              value={settings.crosshairWidth}
-              valueText={`${settings.crosshairWidth.toFixed(1)} px`}
-              min={1}
-              max={3}
-              step={0.5}
-              onChange={(v) => settings.set("crosshairWidth", v)}
-            />
-          </section>
-
-          <section className="asm-section asm-section-danger">
+        {/* Tab bar */}
+        <div className="asm-tabs">
+          {TABS.map((t) => (
             <button
+              key={t.id}
               type="button"
-              className="asm-reset"
-              onClick={settings.resetToDefaults}
+              className={`asm-tab${activeTab === t.id ? " asm-tab-active" : ""}`}
+              onClick={() => setActiveTab(t.id)}
             >
-              Reset to defaults
+              {t.label}
             </button>
-            <p className="asm-reset-hint">
-              Restores all toggles + formats. Magnet mode is preserved
-              — cycle that with the magnet button.
-            </p>
-          </section>
+          ))}
+        </div>
+
+        <div className="asm-body">
+
+          {/* ── Tab 1: Visual Settings ── */}
+          {activeTab === "visual" && (
+            <>
+              <section className="asm-section">
+                <h4>Visibility</h4>
+                <ToggleRow
+                  label="Grid lines"
+                  checked={settings.showGrid}
+                  onChange={() => settings.toggle("showGrid")}
+                />
+                <ToggleRow
+                  label="POC session"
+                  checked={settings.showPocSession}
+                  onChange={() => settings.toggle("showPocSession")}
+                />
+                <ToggleRow
+                  label="POC bar"
+                  checked={settings.showPocBar}
+                  onChange={() => settings.toggle("showPocBar")}
+                />
+                <ToggleRow
+                  label="Volume tooltip on hover"
+                  checked={settings.showVolumeTooltip}
+                  onChange={() => settings.toggle("showVolumeTooltip")}
+                />
+                <ToggleRow
+                  label="OHLC label on each bar"
+                  checked={settings.showOhlcHeader}
+                  onChange={() => settings.toggle("showOhlcHeader")}
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>Numeric format</h4>
+                <SelectRow
+                  label="Price decimals"
+                  value={settings.priceDecimalsMode}
+                  onChange={(v) =>
+                    settings.set("priceDecimalsMode", v as PriceDecimalsMode)
+                  }
+                  options={[
+                    { value: "auto", label: "Auto (infer from data)" },
+                    { value: "2",    label: "2 decimals" },
+                    { value: "4",    label: "4 decimals" },
+                    { value: "8",    label: "8 decimals" },
+                  ]}
+                />
+                <SelectRow
+                  label="Volume format"
+                  value={settings.volumeFormat}
+                  onChange={(v) =>
+                    settings.set("volumeFormat", v as VolumeFormat)
+                  }
+                  options={[
+                    { value: "raw", label: "Raw (1234)" },
+                    { value: "K",   label: "Thousands (1.2K)" },
+                    { value: "M",   label: "Millions (1.2M)" },
+                  ]}
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>Chart colors</h4>
+                <p className="asm-section-hint">
+                  Every chart primitive is user-pickable. The footprint cell
+                  "state bar" mirrors the candle body color.
+                </p>
+                <ColorRow
+                  label="Background"
+                  value={settings.chartBgColor}
+                  onChange={(v) => settings.set("chartBgColor", v)}
+                />
+                <ColorRow
+                  label="Grid lines"
+                  value={settings.chartGridColor}
+                  onChange={(v) => settings.set("chartGridColor", v)}
+                />
+                <ColorPairRow
+                  label="Candle body"
+                  up={settings.candleBodyUp}
+                  down={settings.candleBodyDown}
+                  onUp={(v) => settings.set("candleBodyUp", v)}
+                  onDown={(v) => settings.set("candleBodyDown", v)}
+                />
+                <ColorPairRow
+                  label="Candle border"
+                  up={settings.candleBorderUp}
+                  down={settings.candleBorderDown}
+                  onUp={(v) => settings.set("candleBorderUp", v)}
+                  onDown={(v) => settings.set("candleBorderDown", v)}
+                />
+                <ColorPairRow
+                  label="Wick"
+                  up={settings.candleWickUp}
+                  down={settings.candleWickDown}
+                  onUp={(v) => settings.set("candleWickUp", v)}
+                  onDown={(v) => settings.set("candleWickDown", v)}
+                />
+                <ColorRow
+                  label="Bid"
+                  value={settings.bidColor}
+                  onChange={(v) => settings.set("bidColor", v)}
+                />
+                <ColorRow
+                  label="Ask"
+                  value={settings.askColor}
+                  onChange={(v) => settings.set("askColor", v)}
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>Footprint outline</h4>
+                <p className="asm-section-hint">
+                  Rectangle around the bid×ask cell block (data cells only — top to
+                  bottom displayed level, not the OHLC candle). Off = no outline.
+                </p>
+                <ToggleRow
+                  label="Show footprint outline"
+                  checked={settings.showCandleOutline}
+                  onChange={() => settings.toggle("showCandleOutline")}
+                />
+                <ColorRow
+                  label="Color"
+                  value={settings.candleOutlineColor}
+                  onChange={(v) => settings.set("candleOutlineColor", v)}
+                />
+                <SliderRow
+                  label="Width"
+                  value={settings.candleOutlineWidth}
+                  valueText={`${settings.candleOutlineWidth.toFixed(0)} px`}
+                  min={1}
+                  max={3}
+                  step={1}
+                  onChange={(v) => settings.set("candleOutlineWidth", v)}
+                />
+                <SliderRow
+                  label="Opacity"
+                  value={settings.candleOutlineOpacity}
+                  valueText={`${Math.round(settings.candleOutlineOpacity * 100)}%`}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={(v) => settings.set("candleOutlineOpacity", v)}
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>Crosshair</h4>
+                <p className="asm-section-hint">
+                  Cursor guides — pick a hue that contrasts with your background.
+                </p>
+                <ColorRow
+                  label="Color"
+                  value={settings.crosshairColor}
+                  onChange={(v) => settings.set("crosshairColor", v)}
+                />
+                <SliderRow
+                  label="Opacity"
+                  value={settings.crosshairOpacity}
+                  valueText={`${Math.round(settings.crosshairOpacity * 100)}%`}
+                  min={0.1}
+                  max={1}
+                  step={0.05}
+                  onChange={(v) => settings.set("crosshairOpacity", v)}
+                />
+                <SelectRow
+                  label="Line style"
+                  value={settings.crosshairStyle}
+                  onChange={(v) =>
+                    settings.set("crosshairStyle", v as CrosshairLineStyle)
+                  }
+                  options={[
+                    { value: "solid",  label: "Solid" },
+                    { value: "dashed", label: "Dashed (default)" },
+                    { value: "dotted", label: "Dotted" },
+                  ]}
+                />
+                <SliderRow
+                  label="Line width"
+                  value={settings.crosshairWidth}
+                  valueText={`${settings.crosshairWidth.toFixed(1)} px`}
+                  min={1}
+                  max={3}
+                  step={0.5}
+                  onChange={(v) => settings.set("crosshairWidth", v)}
+                />
+              </section>
+            </>
+          )}
+
+          {/* ── Tab 2: Footprint Settings ── */}
+          {activeTab === "footprint" && (
+            <>
+              <section className="asm-section">
+                <h4>Imbalance cell coloring</h4>
+                <p className="asm-section-hint">
+                  When a bid/ask ratio exceeds the threshold, the cell text
+                  turns green (buy pressure) or red (sell pressure) in bold.
+                </p>
+                <SliderRow
+                  label="Imbalance rate"
+                  value={settings.imbalanceCellRate}
+                  valueText={`${settings.imbalanceCellRate}%`}
+                  min={100}
+                  max={500}
+                  step={10}
+                  onChange={(v) =>
+                    settings.set("imbalanceCellRate", Math.round(v))
+                  }
+                />
+                <SliderRow
+                  label="Volume filter (min total)"
+                  value={settings.imbalanceCellVolumeFilter}
+                  valueText={settings.imbalanceCellVolumeFilter.toString()}
+                  min={0}
+                  max={200}
+                  step={5}
+                  onChange={(v) =>
+                    settings.set(
+                      "imbalanceCellVolumeFilter",
+                      Math.round(v),
+                    )
+                  }
+                />
+                <SliderRow
+                  label="Min difference |ask−bid|"
+                  value={settings.imbalanceCellMinDiff}
+                  valueText={settings.imbalanceCellMinDiff.toString()}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onChange={(v) =>
+                    settings.set("imbalanceCellMinDiff", Math.round(v))
+                  }
+                />
+                <ToggleRow
+                  label="Ignore zero-side levels"
+                  checked={settings.imbalanceCellIgnoreZero}
+                  onChange={() =>
+                    settings.toggle("imbalanceCellIgnoreZero")
+                  }
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>Delta profile</h4>
+                <p className="asm-section-hint">
+                  Horizontal bars on the right showing cumulative delta per
+                  price level. Green right = net buy, red left = net sell.
+                </p>
+                <ToggleRow
+                  label="Show delta profile"
+                  checked={settings.showDeltaProfile}
+                  onChange={() => settings.toggle("showDeltaProfile")}
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>CVD panel (Cumulative Volume Delta)</h4>
+                <p className="asm-section-hint">
+                  Oscillator panel below the chart. Candle mode shows a
+                  bar-by-bar delta candle; Line mode draws a continuous curve.
+                </p>
+                <ToggleRow
+                  label="Show CVD panel"
+                  checked={settings.showCvd}
+                  onChange={() => settings.toggle("showCvd")}
+                />
+                <SelectRow
+                  label="Visual mode"
+                  value={settings.cvdMode}
+                  onChange={(v) =>
+                    settings.set("cvdMode", v as "line" | "candles")
+                  }
+                  options={[
+                    { value: "candles", label: "Candles (default)" },
+                    { value: "line",    label: "Line + area" },
+                  ]}
+                />
+                <SliderRow
+                  label="Panel height"
+                  value={settings.cvdPanelHeight}
+                  valueText={`${settings.cvdPanelHeight} px`}
+                  min={40}
+                  max={200}
+                  step={10}
+                  onChange={(v) =>
+                    settings.set("cvdPanelHeight", Math.round(v))
+                  }
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>DOM panel (Depth of Market)</h4>
+                <p className="asm-section-hint">
+                  Live bid/ask volume bars on the left edge of the chart,
+                  showing current order book depth as horizontal level bars.
+                </p>
+                <ToggleRow
+                  label="Show DOM panel"
+                  checked={settings.showDom}
+                  onChange={() => settings.toggle("showDom")}
+                />
+                <SliderRow
+                  label="Volume proportion"
+                  value={settings.domProportion}
+                  valueText={`${settings.domProportion}%`}
+                  min={10}
+                  max={200}
+                  step={10}
+                  onChange={(v) =>
+                    settings.set("domProportion", Math.round(v))
+                  }
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>Indicators</h4>
+                <ToggleRow
+                  label="Bar delta (above each candle)"
+                  checked={settings.showBarDelta}
+                  onChange={() => settings.toggle("showBarDelta")}
+                />
+                <ToggleRow
+                  label="Cluster stat panel"
+                  checked={settings.showClusterStat}
+                  onChange={() => settings.toggle("showClusterStat")}
+                />
+                <ToggleRow
+                  label="VWAP"
+                  checked={settings.showVwapIndicator}
+                  onChange={() => settings.toggle("showVwapIndicator")}
+                />
+                <ToggleRow
+                  label="Absorption events"
+                  checked={settings.showAbsorption}
+                  onChange={() => settings.toggle("showAbsorption")}
+                />
+                {settings.showAbsorption && (
+                  <>
+                    <SliderRow
+                      label="Ratio (%)"
+                      value={Math.round(settings.absorptionRatio * 100)}
+                      valueText={`${Math.round(settings.absorptionRatio * 100)}%`}
+                      min={10}
+                      max={99}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionRatio", v / 100)}
+                    />
+                    <SliderRow
+                      label="Min volume"
+                      value={settings.absorptionMinVolume}
+                      valueText={settings.absorptionMinVolume.toString()}
+                      min={0}
+                      max={500}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionMinVolume", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Tolerance (ticks)"
+                      value={settings.absorptionToleranceTicks}
+                      valueText={settings.absorptionToleranceTicks.toString()}
+                      min={0}
+                      max={5}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionToleranceTicks", Math.round(v))}
+                    />
+                  </>
+                )}
+                <ToggleRow
+                  label="Absorption zones (ATAS V1)"
+                  checked={settings.showAbsorptionZones}
+                  onChange={() => settings.toggle("showAbsorptionZones")}
+                />
+                {settings.showAbsorptionZones && (
+                  <>
+                    <SliderRow
+                      label="Ratio (×100)"
+                      value={settings.absorptionZoneRatio}
+                      valueText={`${(settings.absorptionZoneRatio / 100).toFixed(2)}×`}
+                      min={100}
+                      max={500}
+                      step={10}
+                      onChange={(v) => settings.set("absorptionZoneRatio", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Stacked levels"
+                      value={settings.absorptionZoneStackedLevels}
+                      valueText={settings.absorptionZoneStackedLevels.toString()}
+                      min={2}
+                      max={8}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneStackedLevels", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Min volume / level"
+                      value={settings.absorptionZoneMinVolume}
+                      valueText={settings.absorptionZoneMinVolume.toString()}
+                      min={1}
+                      max={500}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneMinVolume", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Days look back"
+                      value={settings.absorptionZoneDaysBack}
+                      valueText={`${settings.absorptionZoneDaysBack}d`}
+                      min={1}
+                      max={365}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneDaysBack", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Line width"
+                      value={settings.absorptionZoneLineWidth}
+                      valueText={settings.absorptionZoneLineWidth.toString()}
+                      min={1}
+                      max={4}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneLineWidth", Math.round(v))}
+                    />
+                    <ToggleRow
+                      label="Last bar only"
+                      checked={settings.absorptionZoneLastBarOnly}
+                      onChange={() => settings.toggle("absorptionZoneLastBarOnly")}
+                    />
+                    <ToggleRow
+                      label="Alert on new zone"
+                      checked={settings.absorptionZoneUseAlert}
+                      onChange={() => settings.toggle("absorptionZoneUseAlert")}
+                    />
+                  </>
+                )}
+                <ToggleRow
+                  label="Stacked imbalances"
+                  checked={settings.showStackedImbalances}
+                  onChange={() => settings.toggle("showStackedImbalances")}
+                />
+                <SliderRow
+                  label="Imbalance ratio (stacked)"
+                  value={settings.imbalanceRatio}
+                  valueText={`${settings.imbalanceRatio.toFixed(1)}×`}
+                  min={1.5}
+                  max={5.0}
+                  step={0.1}
+                  onChange={(v) => settings.set("imbalanceRatio", v)}
+                />
+                <SliderRow
+                  label="Min consecutive levels"
+                  value={settings.imbalanceMinConsecutive}
+                  valueText={settings.imbalanceMinConsecutive.toString()}
+                  min={2}
+                  max={6}
+                  step={1}
+                  onChange={(v) =>
+                    settings.set(
+                      "imbalanceMinConsecutive",
+                      Math.round(v),
+                    )
+                  }
+                />
+                <ToggleRow
+                  label="Naked POCs"
+                  checked={settings.showNakedPOCs}
+                  onChange={() => settings.toggle("showNakedPOCs")}
+                />
+                <ToggleRow
+                  label="Unfinished auctions"
+                  checked={settings.showUnfinishedAuctions}
+                  onChange={() =>
+                    settings.toggle("showUnfinishedAuctions")
+                  }
+                />
+              </section>
+            </>
+          )}
+
+          {/* ── Tab 3: Trading Settings ── */}
+          {activeTab === "trading" && (
+            <>
+              <section className="asm-section">
+                <h4>Crosshair snap</h4>
+                <p className="asm-section-hint">
+                  Controls where the price crosshair locks on hover.
+                  "None" = free pixel, "OHLC" = snaps to bar OHLC levels,
+                  "POC" = snaps to the point of control.
+                </p>
+                <SelectRow
+                  label="Magnet mode"
+                  value={settings.magnetMode}
+                  onChange={(v) =>
+                    settings.set("magnetMode", v as MagnetMode)
+                  }
+                  options={[
+                    { value: "none", label: "None (free)" },
+                    { value: "ohlc", label: "OHLC snap" },
+                    { value: "poc",  label: "POC snap" },
+                  ]}
+                />
+              </section>
+
+              <section className="asm-section">
+                <h4>Timezone</h4>
+                <p className="asm-section-hint">
+                  Time axis display timezone. "Local" follows your system
+                  clock. All IANA zones map to the exact offset at render
+                  time (DST-aware).
+                </p>
+                <SelectRow
+                  label="Timezone"
+                  value={settings.timezone}
+                  onChange={(v) =>
+                    settings.set("timezone", v as TimezoneKey)
+                  }
+                  options={[
+                    { value: "LCL", label: "Local (system)" },
+                    { value: "UTC", label: "UTC" },
+                    { value: "NY",  label: "New York (ET)" },
+                    { value: "CHI", label: "Chicago (CT)" },
+                    { value: "LON", label: "London (GMT/BST)" },
+                    { value: "PAR", label: "Paris (CET/CEST)" },
+                    { value: "TYO", label: "Tokyo (JST)" },
+                  ]}
+                />
+              </section>
+            </>
+          )}
+
+          {/* ── Tab 4: Templates Settings ── */}
+          {activeTab === "templates" && (
+            <>
+              <ChartPresetsSection />
+
+              <section className="asm-section asm-section-danger">
+                <button
+                  type="button"
+                  className="asm-reset"
+                  onClick={settings.resetToDefaults}
+                >
+                  Reset to defaults
+                </button>
+                <p className="asm-reset-hint">
+                  Restores all toggles + formats. Magnet mode is preserved —
+                  cycle that with the magnet button.
+                </p>
+              </section>
+            </>
+          )}
+
         </div>
       </div>
     </div>
@@ -349,9 +710,9 @@ function ChartPresetsSection() {
       <h4>Chart templates</h4>
       <p className="asm-section-hint">
         Save the current chart style (colors, indicators, crosshair,
-        visibility) as a named template. Apply any saved template
-        with one click — useful for switching between a "screen
-        share" palette and a "focus mode" palette.
+        visibility) as a named template. Apply any saved template with one
+        click — useful for switching between a "screen share" palette and
+        a "focus mode" palette.
       </p>
       <div className="asm-preset-save">
         <input

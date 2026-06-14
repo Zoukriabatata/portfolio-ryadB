@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use tauri::State;
+use tauri::{Emitter, Manager, State};
 
 use crate::connectors::alpaca::{
     api_key::{self, AlpacaKeys},
@@ -12,11 +12,13 @@ use crate::connectors::alpaca::{
 use crate::connectors::finnhub::TtlCache;
 
 /// 15 min — chains move slowly; this protects the rate limit from
-/// accidental rapid refreshes.
+/// accidental rapid refreshes (free tier).
 const SNAPSHOT_TTL: Duration = Duration::from_secs(15 * 60);
 /// Filter expirations to the next N days (covers 0DTE, weeklies, front
 /// monthly). 30 is the standard GEX horizon.
 const EXPIRATION_WINDOW_DAYS: i64 = 30;
+/// OPRA background refresh interval (90 s ≈ real-time for GEX purposes).
+const OPRA_REFRESH_SECS: u64 = 90;
 
 pub struct GexState {
     pub cache: TtlCache<GexSnapshot>,
@@ -24,6 +26,9 @@ pub struct GexState {
     /// can recompute without re-fetching ~10 expirations from Alpaca
     /// (heavy, ~5-10s). Same TTL.
     pub chains_cache: TtlCache<Vec<OptionChain>>,
+    /// Handle for the OPRA background refresh loop. Replaced on each
+    /// `gex_start_opra_refresh` call, aborted on `gex_stop_opra_refresh`.
+    pub opra_refresh_handle: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl GexState {
@@ -31,6 +36,7 @@ impl GexState {
         Self {
             cache: TtlCache::new(SNAPSHOT_TTL),
             chains_cache: TtlCache::new(SNAPSHOT_TTL),
+            opra_refresh_handle: tokio::sync::Mutex::new(None),
         }
     }
 }
@@ -155,6 +161,8 @@ pub async fn gex_tick_spot(
 pub struct SaveApiKeyArgs {
     pub key_id: String,
     pub secret_key: String,
+    #[serde(default)]
+    pub opra: bool,
 }
 
 #[tauri::command]
@@ -164,7 +172,7 @@ pub async fn gex_save_api_key(args: SaveApiKeyArgs) -> Result<(), String> {
     if key_id.is_empty() || secret_key.is_empty() {
         return Err("Both Key ID and Secret are required".to_string());
     }
-    let keys = AlpacaKeys { key_id, secret_key };
+    let keys = AlpacaKeys { key_id, secret_key, opra: args.opra };
     tokio::task::spawn_blocking(move || api_key::save(&keys))
         .await
         .map_err(|e| format!("task panicked: {e}"))?
@@ -181,11 +189,138 @@ pub async fn gex_has_api_key() -> Result<bool, String> {
 }
 
 #[tauri::command]
+pub async fn gex_is_opra() -> Result<bool, String> {
+    tokio::task::spawn_blocking(api_key::load)
+        .await
+        .map_err(|e| format!("task panicked: {e}"))?
+        .map(|opt| opt.map(|k| k.opra).unwrap_or(false))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn gex_delete_api_key() -> Result<(), String> {
     tokio::task::spawn_blocking(api_key::delete)
         .await
         .map_err(|e| format!("task panicked: {e}"))?
         .map_err(|e| e.to_string())
+}
+
+/// Start a background loop that fetches a fresh GEX snapshot every 90 s
+/// and emits a `"gex-snapshot-update"` Tauri event. Designed for users
+/// on the Alpaca OPRA paid tier where the REST feed is real-time.
+/// Calling this a second time aborts the previous loop first.
+#[tauri::command]
+pub async fn gex_start_opra_refresh(
+    app_handle: tauri::AppHandle,
+    state: State<'_, GexState>,
+    args: FetchGexArgs,
+) -> Result<(), String> {
+    let symbol = args.symbol.clone();
+    let app = app_handle.clone();
+
+    let handle = tokio::spawn(async move {
+        tracing::info!("gex opra_refresh: started for {}", symbol);
+        let mut interval = tokio::time::interval(Duration::from_secs(OPRA_REFRESH_SECS));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        // Discard the immediate first tick — caller already fetched on mount.
+        interval.tick().await;
+
+        loop {
+            interval.tick().await;
+            tracing::info!("gex opra_refresh: refreshing {}", symbol);
+
+            let keys = match tokio::task::spawn_blocking(api_key::load).await {
+                Ok(Ok(Some(k))) => k,
+                Ok(Ok(None)) => {
+                    tracing::warn!("gex opra_refresh: keys removed, stopping");
+                    break;
+                }
+                Ok(Err(e)) => {
+                    tracing::warn!("gex opra_refresh: keyring error: {e}");
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!("gex opra_refresh: task panicked: {e}");
+                    continue;
+                }
+            };
+
+            let client = match AlpacaClient::new(keys.key_id, keys.secret_key) {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!("gex opra_refresh: client error: {e}");
+                    continue;
+                }
+            };
+
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            let cutoff_secs = now_secs + EXPIRATION_WINDOW_DAYS * 86_400;
+
+            let all_chains = match fetch_chains(&client, &symbol).await {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!("gex opra_refresh: chains error: {e}");
+                    continue;
+                }
+            };
+            let filtered: Vec<OptionChain> = all_chains
+                .into_iter()
+                .filter(|c| {
+                    let exp = parse_expiration_to_unix(&c.expiration);
+                    exp >= now_secs && exp <= cutoff_secs
+                })
+                .collect();
+
+            let spot = match fetch_quote(&client, &symbol).await {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!("gex opra_refresh: quote error: {e}");
+                    continue;
+                }
+            };
+
+            let computed_at = unix_to_iso8601(now_secs);
+            let snap = compute_gex(&symbol, spot, &filtered, computed_at, now_secs);
+            tracing::info!(
+                "gex opra_refresh: {} → {} strikes, total_gex={:.2}",
+                symbol,
+                snap.strikes.len(),
+                snap.total_gex,
+            );
+
+            // Push into both caches so gex_fetch_snapshot / gex_tick_spot
+            // see fresh data on the next call.
+            let gex_state = app.state::<GexState>();
+            gex_state.cache.set(format!("gex|{}", symbol), snap.clone()).await;
+            gex_state.chains_cache.set(format!("chains|{}", symbol), filtered).await;
+
+            if let Err(e) = app.emit("gex-snapshot-update", &snap) {
+                tracing::warn!("gex opra_refresh: emit error: {e}");
+            }
+        }
+    });
+
+    // Replace any existing handle (aborting the old loop).
+    let mut lock = state.opra_refresh_handle.lock().await;
+    if let Some(old) = lock.take() {
+        old.abort();
+    }
+    *lock = Some(handle);
+    Ok(())
+}
+
+/// Abort the OPRA background refresh loop if running.
+#[tauri::command]
+pub async fn gex_stop_opra_refresh(state: State<'_, GexState>) -> Result<(), String> {
+    let mut lock = state.opra_refresh_handle.lock().await;
+    if let Some(h) = lock.take() {
+        h.abort();
+        tracing::info!("gex_stop_opra_refresh: loop aborted");
+    }
+    Ok(())
 }
 
 /// Parse "YYYY-MM-DD" → Unix seconds at midnight UTC. Returns 0 on

@@ -57,6 +57,7 @@ impl RithmicState {
                 Timeframe::Min5,
                 Timeframe::Min15,
                 Timeframe::Hour1,
+                Timeframe::Day1,
                 // Tick-based — only relevant for the bridge connector
                 // which populates `Tick.seq`. Rithmic ticks come in
                 // with seq=0 so every Rithmic tick would land in the
@@ -176,3 +177,28 @@ impl BridgeState {
         }
     }
 }
+
+/// Quantower bridge state — mirrors BridgeState exactly.
+/// Runs on port 7273 (BridgeAdapter with BridgeConfig { port: 7273 }).
+/// Shares the Rithmic-side FootprintEngine so bars appear on the same
+/// `footprint-update` event stream; the frontend filters by source.
+pub struct QuantowerState {
+    pub adapter:     Mutex<Option<BridgeAdapter>>,
+    pub engine:      Arc<FootprintEngine>,
+    pub engine_pump: Mutex<Option<JoinHandle<()>>>,
+    pub state_emit:  Mutex<Option<JoinHandle<()>>>,
+    pub depth_pump:  Mutex<Option<JoinHandle<()>>>,
+}
+
+impl QuantowerState {
+    pub fn new(engine: Arc<FootprintEngine>) -> Self {
+        Self {
+            adapter:     Mutex::new(None),
+            engine,
+            engine_pump: Mutex::new(None),
+            state_emit:  Mutex::new(None),
+            depth_pump:  Mutex::new(None),
+        }
+    }
+}
+

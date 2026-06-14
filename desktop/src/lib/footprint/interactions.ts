@@ -57,6 +57,13 @@ export type InteractionState = {
    *  frame's value (which would compound). */
   dragStartCellWidth: number;
   dragStartRowHeight: number;
+  /** Vertical auto-centering mode.
+   *  'last-price' — re-centres on the current price when it drifts
+   *  past 20 % of visible height from centre. Suspended when
+   *  userOverrodeY is true. Reset by resetScale().
+   *  'none' — axis Y fully manual; userOverrodeY is always treated
+   *  as true. */
+  verticalMode: "last-price" | "none";
 };
 
 export const DEFAULT_INTERACTION: InteractionState = {
@@ -88,14 +95,15 @@ export const DEFAULT_INTERACTION: InteractionState = {
   userOverrodeX: false,
   dragStartCellWidth: 140,
   dragStartRowHeight: 20,
+  verticalMode: "last-price",
 };
 
-// Wider zoom envelope — user wants to zoom in much further (per-cell detail
-// at high prices like BTC) and dezoom much further (overview of dozens of bars).
-export const MIN_CELL_WIDTH = 12;
-export const MAX_CELL_WIDTH = 600;
-export const MIN_ROW_HEIGHT = 3;
-export const MAX_ROW_HEIGHT = 120;
+// Wide zoom envelope — dezoom enough to show many bars overview, zoom in
+// enough to read micro-structure on BTC / high-price instruments.
+export const MIN_CELL_WIDTH = 3;
+export const MAX_CELL_WIDTH = 1200;
+export const MIN_ROW_HEIGHT = 1;
+export const MAX_ROW_HEIGHT = 300;
 // Per-notch baseline zoom step. The actual factor scales continuously
 // with `deltaY` magnitude so trackpads + smooth-scroll mice glide.
 // Tightened from 1.15 → 1.08 so each notch is ~7 % rather than ~13 %
@@ -123,6 +131,13 @@ function wheelZoomFactor(deltaY: number): number {
  *  edge for cursor-anchored zoom. Mirrors the value baked into
  *  `FootprintCanvas.onMouseDown` (PRICE_AXIS_W = 80). */
 const PRICE_AXIS_W = 80;
+
+// Layout reference values — mirror FootprintLayoutEngine / FootprintProAdapter.
+// Used by applyWheelZoomXY to enforce the 1:1 invariant zoomX = zoomY, i.e.
+//   cellWidth / BASE_FP_W  =  rowHeight / BASE_ROW_H
+// so that applying the same wheel factor never deforms the aspect ratio.
+const BASE_FP_W = 112;   // baseFpWidth  (bidWidth + askWidth in DEFAULT_LAYOUT)
+const BASE_ROW_H = 17;   // layoutCfg.rowHeight used by the renderer
 
 /** Multiplicative X zoom anchored under the cursor. The chart is
  *  right-aligned (newest candle pinned to the right edge), so the
@@ -163,10 +178,20 @@ export function applyWheelZoom(
   };
 }
 
-/** Uniform XY zoom — applies X and Y anchored at the cursor.
- *  Used by the plain mouse-wheel binding when neither Shift nor Ctrl
- *  is held. Both axes anchor to the cursor so the price + candle
- *  under the pointer stay visually pinned through the zoom. */
+/** Uniform XY zoom anchored under the cursor, with strict 1:1 ratio.
+ *
+ *  The renderer uses zoomX = cellWidth/BASE_FP_W and zoomY = rowHeight/BASE_ROW_H.
+ *  Applying the same wheel factor to both independently drifts because
+ *  they start from different baseline values (typically 140/112 ≠ 20/17).
+ *  Here we enforce the invariant cellWidth/BASE_FP_W = rowHeight/BASE_ROW_H
+ *  by deriving rowHeight from the new cellWidth after X zoom:
+ *    rowHeight = newCellWidth * BASE_ROW_H / BASE_FP_W
+ *  This guarantees zoomX = zoomY at all times, so the cell aspect ratio
+ *  is locked — no squash, no stretch, ever.
+ *
+ *  Both axes anchor to the cursor:
+ *    X: same formula as applyWheelZoom (bar-index-from-right invariant)
+ *    Y: scrollY shifts so the price under cursorY stays pinned */
 export function applyWheelZoomXY(
   state: InteractionState,
   deltaY: number,
@@ -174,8 +199,66 @@ export function applyWheelZoomXY(
   cursorY: number,
   canvasWidth: number,
 ): InteractionState {
-  const afterX = applyWheelZoom(state, deltaY, cursorX, canvasWidth);
-  return applyWheelZoomY(afterX, deltaY, cursorY);
+  const factor = wheelZoomFactor(deltaY);
+
+  // ── X ──────────────────────────────────────────────────────────────────────
+  const newCellWidth = clamp(state.cellWidth * factor, MIN_CELL_WIDTH, MAX_CELL_WIDTH);
+  if (newCellWidth === state.cellWidth) return state;
+  const actualFactorX = newCellWidth / state.cellWidth;
+  const chartRight = Math.max(1, canvasWidth - PRICE_AXIS_W);
+  const newScrollX =
+    (cursorX - chartRight) * (1 - actualFactorX) + state.scrollX * actualFactorX;
+
+  // ── Y ──────────────────────────────────────────────────────────────────────
+  // Two regimes:
+  //   • userOverrodeY = false (default): enforce 1:1 invariant
+  //     rowHeight = cellWidth * BASE_ROW_H / BASE_FP_W so that
+  //     zoomY = zoomX at all times. May snap slightly on the very first
+  //     XY zoom (from rowHeight=20 → ≈21), then locked forever.
+  //   • userOverrodeY = true (user Y-dragged): apply the same factor
+  //     to state.rowHeight to preserve the user's custom aspect ratio.
+  //     Snapping to the invariant here would cause instant flattening.
+  const newRowHeight = clamp(
+    state.userOverrodeY
+      ? state.rowHeight * actualFactorX
+      : newCellWidth * BASE_ROW_H / BASE_FP_W,
+    MIN_ROW_HEIGHT,
+    MAX_ROW_HEIGHT,
+  );
+  const actualFactorY = state.rowHeight > 0 ? newRowHeight / state.rowHeight : 1;
+  const newScrollY =
+    state.scrollY + (state.scrollY + cursorY) * (actualFactorY - 1);
+
+  return {
+    ...state,
+    cellWidth: newCellWidth,
+    scrollX: newScrollX,
+    rowHeight: newRowHeight,
+    scrollY: newScrollY,
+    userOverrodeX: true,
+    userOverrodeY: true,
+  };
+}
+
+/** Horizontal scroll — moves the viewport through time without touching
+ *  zoom. `delta` is the raw wheel deltaY (or deltaX for trackpad swipes).
+ *  Speed scales with cellWidth so the bar-count per notch is consistent
+ *  at every zoom level (~4 bars per standard 100-unit notch).
+ *  userOverrodeX is derived from the resulting position: if the user
+ *  scrolls all the way back to the live edge (scrollX ≤ 1), auto-follow
+ *  resumes automatically without needing to click "→ Live". */
+export function applyWheelScroll(
+  state: InteractionState,
+  delta: number,
+): InteractionState {
+  const amount = delta * state.cellWidth * 0.04; // ~4 bars/notch at any zoom
+  const newScrollX = state.scrollX + amount;
+  return {
+    ...state,
+    scrollX: newScrollX,
+    // Auto-follow resumes when the user scrolls back to the live position.
+    userOverrodeX: newScrollX > 1,
+  };
 }
 
 /** Multiplicative Y zoom — modifies rowHeight and compensates scrollY
@@ -365,16 +448,13 @@ export function clampScrollX(
   cellWidth: number,
   visibleBarsCapacity: number,
 ): number {
-  // Allow scrolling *past* the most recent bar so the user can pull
-  // the chart left and look at the latest candle from the middle of
-  // the viewport. The renderer treats negative scrollX as a right
-  // margin (shifts every bar left, doesn't change which slice of the
-  // data is drawn).
+  // Allow scrolling *past* the most recent bar (negative = right margin).
   const lo = -(visibleBarsCapacity * cellWidth * MAX_RIGHT_MARGIN_FRAC);
-  if (barCount <= visibleBarsCapacity) {
-    return clamp(scrollX, lo, 0);
-  }
-  const maxScroll = (barCount - visibleBarsCapacity) * cellWidth;
+  // Allow scrolling until all bars are off-screen to the right (oldest bar
+  // past the right edge → empty chart). No capacity-based ceiling so the
+  // chart navigates freely into empty space left of the first candle,
+  // matching ATAS behavior where there is no hard left boundary.
+  const maxScroll = Math.max(0, barCount) * cellWidth;
   return clamp(scrollX, lo, maxScroll);
 }
 
@@ -399,4 +479,38 @@ export function clampScrollY(
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
+}
+
+// ─── Navigation helpers ────────────────────────────────────────────────────
+
+/** Snap to the latest bar and re-enable auto-follow on both axes.
+ *  Resets position (scrollX, scrollY) without touching zoom so the
+ *  user's chosen bar width / row height is preserved. */
+export function goLive(state: InteractionState): InteractionState {
+  return { ...state, scrollX: 0, scrollY: 0, userOverrodeX: false, userOverrodeY: false };
+}
+
+/** Reset zoom AND position to defaults. Equivalent to "return to live
+ *  with default bar width". Also restores last-price auto-centering.
+ *  (For zoom-only reset without position change, call applyWheelZoom.) */
+export function resetScale(
+  state: InteractionState,
+  defaultCellWidth: number,
+  defaultRowHeight: number,
+): InteractionState {
+  return {
+    ...state,
+    cellWidth: defaultCellWidth,
+    rowHeight: defaultRowHeight,
+    scrollX: 0,
+    scrollY: 0,
+    userOverrodeX: false,
+    userOverrodeY: false,
+    verticalMode: "last-price",
+  };
+}
+
+/** True when the user has not manually panned X (auto-follow active). */
+export function isLiveMode(state: InteractionState): boolean {
+  return !state.userOverrodeX;
 }

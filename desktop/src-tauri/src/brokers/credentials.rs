@@ -24,6 +24,8 @@ pub enum BrokerPreset {
     RithmicPaperTrading,
     /// Rithmic 01 retail live — paid direct retail account via FCM.
     Rithmic01,
+    /// AMP Futures — retail FCM (direct Rithmic access).
+    Amp,
     /// Apex Trader Funding — funded challenge.
     Apex,
     /// MyFundedFutures — funded challenge.

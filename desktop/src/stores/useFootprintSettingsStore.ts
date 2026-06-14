@@ -49,6 +49,17 @@ export type FootprintSettings = {
   showStackedImbalances: boolean;
   showNakedPOCs: boolean;
   showUnfinishedAuctions: boolean;
+  /** Absorption: heavy aggressive volume at a level that price failed to
+   *  push beyond (volume-at-extreme rule, see orderflow-calc). */
+  showAbsorption: boolean;
+  /** Fraction of the bar's aggressive-side volume a single level must hold
+   *  to qualify as absorbing (0.0–1.0; default 0.70 = 70 %, ATAS default). */
+  absorptionRatio: number;
+  /** Absolute minimum absorbed-side volume (filters trivially small bars). */
+  absorptionMinVolume: number;
+  /** How far beyond the absorbing level the bar extreme may sit and still
+   *  count. 0 = exact touch, 1 = 1 tick above/below allowed. */
+  absorptionToleranceTicks: number;
   /** ATAS-style ratio threshold for a level to count as imbalanced. */
   imbalanceRatio: number;
   /** Minimum consecutive imbalanced levels to mark a stacked streak. */
@@ -74,6 +85,37 @@ export type FootprintSettings = {
    *  visible without scanning the panel rows. */
   showBarDelta: boolean;
 
+  // Delta profile panel (vertical histogram of net delta per price level).
+  showDeltaProfile: boolean;
+  // CVD oscillator panel.
+  showCvd: boolean;
+  cvdMode: "line" | "candles";
+  cvdPanelHeight: number;
+  // Per-cell imbalance coloring (bid/ask text color + bold when imbalanced).
+  // Rate in % (200 = 2×), volume filter, min absolute difference, ignore zero.
+  imbalanceCellRate: number;
+  imbalanceCellVolumeFilter: number;
+  imbalanceCellMinDiff: number;
+  imbalanceCellIgnoreZero: boolean;
+  // DOM panel (bid/ask volume bars, left side of chart).
+  showDom: boolean;
+  domProportion: number;
+  // CVD divergence overlay — trendlines on pivot highs/lows.
+  showCvdDivergence: boolean;
+  cvdDivergencePivotBars: number;
+
+  // Absorption zones — ATAS V1 style extended rectangles.
+  showAbsorptionZones: boolean;
+  absorptionZoneDaysBack: number;
+  absorptionZoneRatio: number;
+  absorptionZoneStackedLevels: number;
+  absorptionZoneMinVolume: number;
+  absorptionZoneBullishColor: string;
+  absorptionZoneBearishColor: string;
+  absorptionZoneLineWidth: number;
+  absorptionZoneLastBarOnly: boolean;
+  absorptionZoneUseAlert: boolean;
+
   // Chart colours — every visible primitive (background, grid,
   // candle parts, bid/ask) is user-pickable via the settings modal.
   // Hex strings (#rrggbb) so the <input type="color"> native picker
@@ -89,6 +131,11 @@ export type FootprintSettings = {
   candleBorderDown: string;
   candleWickUp: string;
   candleWickDown: string;
+  // Configurable candle outline — rectangle high→low autour de la bougie.
+  showCandleOutline: boolean;
+  candleOutlineColor: string;
+  candleOutlineWidth: number;
+  candleOutlineOpacity: number;
   bidColor: string;
   askColor: string;
 
@@ -97,6 +144,7 @@ export type FootprintSettings = {
   crosshairOpacity: number;
   crosshairStyle: "solid" | "dashed" | "dotted";
   crosshairWidth: number;
+
 };
 
 export type CrosshairLineStyle = "solid" | "dashed" | "dotted";
@@ -117,8 +165,34 @@ const DEFAULTS: FootprintSettings = {
   showStackedImbalances: false,
   showNakedPOCs: false,
   showUnfinishedAuctions: false,
+  showAbsorption: false,
+  absorptionRatio: 0.70,
+  absorptionMinVolume: 0,
+  absorptionToleranceTicks: 0,
   imbalanceRatio: 3.0,
   imbalanceMinConsecutive: 3,
+  showDeltaProfile: false,
+  showCvd: false,
+  cvdMode: "candles" as const,
+  cvdPanelHeight: 80,
+  imbalanceCellRate: 200,
+  imbalanceCellVolumeFilter: 30,
+  imbalanceCellMinDiff: 10,
+  imbalanceCellIgnoreZero: true,
+  showDom: false,
+  domProportion: 100,
+  showCvdDivergence: false,
+  cvdDivergencePivotBars: 5,
+  showAbsorptionZones: false,
+  absorptionZoneDaysBack: 80,
+  absorptionZoneRatio: 150,
+  absorptionZoneStackedLevels: 3,
+  absorptionZoneMinVolume: 50,
+  absorptionZoneBullishColor: '#00FFFF', // ATAS cyan — ask absorbs bid (buyers resist)
+  absorptionZoneBearishColor: '#FFA500', // ATAS orange — bid absorbs ask (sellers resist)
+  absorptionZoneLineWidth: 1,
+  absorptionZoneLastBarOnly: false,
+  absorptionZoneUseAlert: true,
   showTradeBubbles: true,
   showVAH: true,
   showVAL: true,
@@ -138,6 +212,10 @@ const DEFAULTS: FootprintSettings = {
   candleBorderDown: "#ffffff",
   candleWickUp: "#7ed321",
   candleWickDown: "#ffffff",
+  showCandleOutline: true,
+  candleOutlineColor: "#ffffff",
+  candleOutlineWidth: 1,
+  candleOutlineOpacity: 0.6,
   bidColor: "#ffffff",
   askColor: "#7ed321",
   crosshairColor: "#ffffff",
@@ -218,6 +296,16 @@ export const useFootprintSettingsStore = create<
           ...current,
           ...p,
           timezone: tz,
+          // Migration ATAS — pousse cyan/orange aux users encore sur l'ancien
+          // défaut violet/vert (non personnalisé). Les couleurs custom restent.
+          absorptionZoneBullishColor:
+            !p.absorptionZoneBullishColor || p.absorptionZoneBullishColor === "#5A00FF"
+              ? current.absorptionZoneBullishColor
+              : p.absorptionZoneBullishColor,
+          absorptionZoneBearishColor:
+            !p.absorptionZoneBearishColor || p.absorptionZoneBearishColor === "#5AFF98"
+              ? current.absorptionZoneBearishColor
+              : p.absorptionZoneBearishColor,
         };
       },
     },

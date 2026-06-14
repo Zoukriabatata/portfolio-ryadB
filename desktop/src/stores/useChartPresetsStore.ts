@@ -52,6 +52,11 @@ export type ChartPresetSnapshot = Pick<
   | "crosshairOpacity"
   | "crosshairStyle"
   | "crosshairWidth"
+  // Candle outline
+  | "showCandleOutline"
+  | "candleOutlineColor"
+  | "candleOutlineWidth"
+  | "candleOutlineOpacity"
 >;
 
 const SNAPSHOT_KEYS: (keyof ChartPresetSnapshot)[] = [
@@ -80,6 +85,10 @@ const SNAPSHOT_KEYS: (keyof ChartPresetSnapshot)[] = [
   "crosshairOpacity",
   "crosshairStyle",
   "crosshairWidth",
+  "showCandleOutline",
+  "candleOutlineColor",
+  "candleOutlineWidth",
+  "candleOutlineOpacity",
 ];
 
 export type ChartPreset = {

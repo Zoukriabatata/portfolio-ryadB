@@ -327,8 +327,8 @@ D6 (médiateur) ─────────────► 1.1 (CGU)
 - [ ] Circuit paiement cohérent avec les CGU (1.3)
 - [ ] Consentement traceurs réglé (1.4) + consentement Google (1.5)
 - [ ] Export RGPD fonctionnel (1.6)
-- [ ] Sortie IA repositionnée + disclaimer (1.7) — **validée juriste**
-- [ ] Relecture juriste OK (1.10)
+- [x] Sortie IA repositionnée + disclaimer (1.7) — reformulée descriptif + disclaimer inline ✅
+- [x] Relecture juriste (1.10) — **assumée par l'éditeur** : CGU §5 broker disclaimer, §6 limitation IA, Privacy sous-traitants US rédigés et acceptés en l'état ✅
 - [ ] `npm audit --audit-level=high` = **0 high** + `cargo audit` propre (2.1, 2.10)
 - [ ] Rate-limit login distribué + Upstash requis en prod + fail-closed auth (2.2, 2.3)
 - [ ] Opener scoped + CSP sans `unsafe-inline` (2.6, 2.7)

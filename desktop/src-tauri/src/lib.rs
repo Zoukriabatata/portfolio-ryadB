@@ -43,7 +43,24 @@ fn err_to_string<E: std::fmt::Display>(e: E) -> String {
 
 #[tauri::command]
 async fn cmd_get_session(state: State<'_, Arc<AppState>>) -> Result<Option<Session>, String> {
-    Ok(state.session.lock().await.clone())
+    let mut lock = state.session.lock().await;
+    // build_state() deserialises session.json as Session, but when the
+    // keyring is active the token field is absent from the file → parse
+    // fails silently and lock is None even though a valid session exists.
+    // Lazy-load from disk + OS keyring here so the login form only shows
+    // when there is genuinely no persisted session.
+    if lock.is_none() {
+        match auth::load_session(&state.data_dir).await {
+            Ok(session) => {
+                *lock = Some(session);
+            }
+            Err(auth::AuthError::NoSession) => {}
+            Err(e) => {
+                tracing::warn!("cmd_get_session: could not restore session: {}", e);
+            }
+        }
+    }
+    Ok(lock.clone())
 }
 
 #[tauri::command]
@@ -257,9 +274,21 @@ pub fn run() {
     // of run().
     #[cfg(target_os = "windows")]
     {
+        // Keep the webview live in the background:
+        //  • first three flags: no timer/renderer throttling when the
+        //    window loses focus or is occluded.
+        //  • CalculateNativeWinOcclusion OFF: Windows otherwise reports
+        //    a covered window as occluded → Chromium flips
+        //    document.hidden=true → our usePauseOnBlur pauses rendering.
+        //    Disabling it keeps the chart live behind NinjaTrader.
+        //  • ipc-flooding-protection OFF: Chromium throttles a
+        //    backgrounded renderer that emits many IPC messages — our
+        //    high-frequency footprint-update event stream is exactly that.
         const BROWSER_ARGS: &str = "--disable-background-timer-throttling \
                                     --disable-renderer-backgrounding \
-                                    --disable-backgrounding-occluded-windows";
+                                    --disable-backgrounding-occluded-windows \
+                                    --disable-features=CalculateNativeWinOcclusion \
+                                    --disable-ipc-flooding-protection";
         // SAFETY: single-threaded boot. No reader can race the writer
         // at this point in the lifecycle — Tauri hasn't initialized
         // anything yet.
@@ -310,9 +339,11 @@ pub fn run() {
             // (0.25 on MNQ), same timeframes, same `footprint-update`
             // event. The user picks one source at a time via the UI
             // switcher; the engine doesn't care which is feeding it.
-            let bridge_engine = rithmic_state.engine.clone();
+            let bridge_engine    = rithmic_state.engine.clone();
+            let quantower_engine = rithmic_state.engine.clone();
             app.manage(rithmic_state);
             app.manage(state::BridgeState::new(bridge_engine));
+            app.manage(state::QuantowerState::new(quantower_engine));
 
             // L2 depth holder for the bridge — shared by the pump
             // (spawned at bridge_connect) and the IPC emitter (spawned
@@ -327,9 +358,19 @@ pub fn run() {
             );
             app.manage(bridge_depth_state);
 
+            let quantower_depth_state = std::sync::Arc::new(
+                commands::quantower_bridge_depth::QuantowerDepthState::new(),
+            );
+            commands::quantower_bridge_depth::spawn_emitter(
+                app.handle().clone(),
+                quantower_depth_state.clone(),
+            );
+            app.manage(quantower_depth_state);
+
+
             // Phase B / M2 — public crypto adapters share their own
             // FootprintEngine. M3 wires a dedicated event emitter
-            // (`crypto-footprint-update`) so React can disambiguate
+            // (`crypto-footprint-update-batch`) so React can disambiguate
             // crypto vs Rithmic bar streams when they coexist.
             let crypto_state = state::CryptoState::new();
             commands::crypto_events::spawn_emitter(app.handle().clone(), &crypto_state.engine);
@@ -398,6 +439,9 @@ pub fn run() {
             // beyond TTL re-fetches from Tradier.
             app.manage(commands::gex::GexState::new());
 
+            // Databento connector — OPRA GEX + flow, independent of Alpaca.
+            app.manage(commands::databento::DatabentoState::new());
+
             // Option Flow module — own fallback chains cache; reads
             // GexState's chains_cache first to avoid a redundant fetch.
             app.manage(commands::option_flow::OptionFlowState::new());
@@ -444,6 +488,7 @@ pub fn run() {
             commands::rithmic::rithmic_probe_tick_replay,
             commands::rithmic::rithmic_disconnect,
             commands::rithmic::rithmic_status,
+            commands::rithmic::rithmic_list_systems,
             commands::brokers::list_broker_presets,
             commands::brokers::save_broker_credentials,
             commands::brokers::load_broker_credentials,
@@ -462,7 +507,13 @@ pub fn run() {
             commands::bridge::bridge_disconnect,
             commands::bridge::bridge_status,
             commands::bridge_depth::bridge_get_depth,
+            // Quantower bridge — same wire protocol as NT bridge, port 7273.
+            commands::quantower_bridge::quantower_connect,
+            commands::quantower_bridge::quantower_disconnect,
+            commands::quantower_bridge::quantower_status,
+            commands::quantower_bridge_depth::quantower_get_depth,
             commands::cache::cache_query,
+            commands::cache::cache_clear,
             // Native Journal — Day 1: trades CRUD + listing + stats.
             journal::commands::journal_list_trades,
             journal::commands::journal_get_trade,
@@ -496,14 +547,23 @@ pub fn run() {
             commands::account::account_start_live,
             commands::account::account_stop_live,
             commands::account::account_fetch_today_trades,
-            // GEX module — Alpaca snapshot + live tick + api key vault.
+            // GEX module — Alpaca snapshot + live tick + api key vault + OPRA refresh.
             commands::gex::gex_fetch_snapshot,
             commands::gex::gex_tick_spot,
             commands::gex::gex_save_api_key,
             commands::gex::gex_has_api_key,
+            commands::gex::gex_is_opra,
             commands::gex::gex_delete_api_key,
+            commands::gex::gex_start_opra_refresh,
+            commands::gex::gex_stop_opra_refresh,
             // Option Flow module — single polling endpoint.
             commands::option_flow::option_flow_poll,
+            // Databento — OPRA GEX + flow + key vault.
+            commands::databento::databento_save_api_key,
+            commands::databento::databento_has_api_key,
+            commands::databento::databento_delete_api_key,
+            commands::databento::databento_gex_fetch_snapshot,
+            commands::databento::databento_flow_poll,
             // AI Agent — Anthropic streaming chat + key vault.
             commands::ai_agent::ai_agent_send,
             commands::ai_agent::ai_agent_save_api_key,

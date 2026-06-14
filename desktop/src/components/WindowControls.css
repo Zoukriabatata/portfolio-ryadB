@@ -1,0 +1,50 @@
+/* Custom window controls for the decorationless main window.
+ * Win11-style hit targets: 46px wide buttons, full bar height,
+ * neutral by default, subtle hover, red close. */
+
+.win-controls {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  margin-left: 4px;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.win-ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 100%;
+  min-height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.62);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.win-ctl:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.win-ctl:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.win-ctl-close:hover {
+  background: #e81123;
+  color: #ffffff;
+}
+
+.win-ctl-close:active {
+  background: #c50f1f;
+}
+
+.win-ctl:focus,
+.win-ctl:focus-visible {
+  outline: none;
+}

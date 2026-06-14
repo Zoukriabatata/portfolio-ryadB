@@ -3,20 +3,22 @@
   --brand-green: #22c55e;
   --brand-green-bright: #34ec78;
   --brand-green-dim: #166534;
-  --brand-green-deep: #0f3a20;
+  /* Structural borders / dividers — neutral so the panel merges with
+     the pure-noir chrome instead of carrying a green outline. Green is
+     reserved for true accents (buttons, active pills, symbol tag). */
+  --brand-green-deep: rgba(255, 255, 255, 0.08);
   --brand-green-soft: rgba(34, 197, 94, 0.06);
   --accent-red-warm: #ff3d71;
 
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
   height: 100%;
   width: 100%;
-  padding: 14px 14px 12px;
-  background:
-    linear-gradient(180deg, var(--brand-green-soft) 0%, transparent 35%),
-    var(--bg-surface);
-  border: 1px solid var(--brand-green-deep);
+  padding: 10px;
+  /* Pure noir to merge with the chrome (toolbar / navbar / axes). */
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
   font-family: inherit;
   isolation: isolate;
@@ -24,7 +26,7 @@
   overflow-x: hidden;
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: var(--brand-green-deep) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 .sim-panel * { min-width: 0; }
 
@@ -451,7 +453,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  padding-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--brand-green-deep);
 }
 .sim-header > * { min-width: 0; }
@@ -471,14 +473,14 @@
 }
 .sim-header-balance {
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
 .sim-header-right { text-align: right; }
 .sim-header-equity {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
@@ -976,40 +978,41 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 32px;
+  width: 0;
   padding: 0;
   box-sizing: border-box;
-  border-left: 1px solid var(--brand-green-deep, #0f3a20);
-  background: var(--bg-primary);
+  background: #000000;
   transition:
     width 220ms cubic-bezier(0.4, 0, 0.2, 1),
     padding 220ms cubic-bezier(0.4, 0, 0.2, 1);
-  /* overflow: visible so the toggle button (positioned at left:-14px
-     when open) isn't clipped. The inner SimTradePanel handles its own
-     overflow scrolling. */
+  /* overflow: visible so the floating toggle button isn't clipped. The
+     inner SimTradePanel handles its own overflow scrolling. */
   overflow: visible;
 }
 .rf-sim-dock-open {
-  width: 340px;
-  padding: 10px 10px 10px 14px;
+  width: 300px;
+  padding: 8px 8px 8px 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
+/* Closed = zero width: no empty strip. The chart reclaims the space and
+   only the floating toggle icon remains to reopen the panel. */
 .rf-sim-dock-closed {
-  cursor: pointer;
-}
-.rf-sim-dock-closed:hover {
-  background: var(--brand-green-deep, #0f3a20);
+  width: 0;
+  padding: 0;
 }
 .rf-sim-dock-toggle {
   position: absolute;
-  top: 12px;
-  width: 28px;
-  height: 28px;
-  background: var(--bg-surface);
-  border: 1px solid var(--brand-green-deep, #0f3a20);
-  border-radius: 50%;
-  color: var(--brand-green-bright, #34ec78);
-  font-size: 16px;
-  font-weight: 800;
+  top: 10px;
+  width: 22px;
+  height: 22px;
+  /* Épuré: subtle dark chip, thin neutral border — no heavy green
+     circle. Matches the chrome black. */
+  background: rgba(10, 10, 10, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   display: flex;
@@ -1019,19 +1022,19 @@
   z-index: 50;
   transition: left 220ms cubic-bezier(0.4, 0, 0.2, 1),
               background 0.16s ease,
-              transform 0.16s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+              color 0.16s ease,
+              border-color 0.16s ease;
   pointer-events: auto;
 }
-/* When open, the toggle hangs OUT of the left edge by 14px ("tab" look). */
-.rf-sim-dock-open .rf-sim-dock-toggle { left: -14px; }
-/* When closed, place the toggle ENTIRELY inside the 32px column so the
-   canvas sibling never overlaps the click target. */
-.rf-sim-dock-closed .rf-sim-dock-toggle { left: 2px; }
+/* When open, the toggle hangs just OUT of the panel's left edge. */
+.rf-sim-dock-open .rf-sim-dock-toggle { left: -11px; }
+/* When closed (dock width 0), float the toggle just inside the chart's
+   right edge. */
+.rf-sim-dock-closed .rf-sim-dock-toggle { left: -28px; }
 .rf-sim-dock-toggle:hover {
-  background: var(--brand-green-deep, #0f3a20);
-  color: var(--brand-green-bright, #34ec78);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 
@@ -1042,8 +1045,10 @@
    with a row appearing below it when a position is open. */
 .fqt-widget {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  /* Top-left, near the drawing toolbar. Offset down a touch so it
+     clears the Vol/Delta/POC stats overlay row at the very top. */
+  top: 28px;
+  left: 10px;
   z-index: 40;
   display: flex;
   flex-direction: column;

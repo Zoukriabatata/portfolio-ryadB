@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { BrokerSettings } from "./BrokerSettings";
+import { useToolbarSlot } from "../lib/ui/ToolbarSlot";
 import {
   FootprintCanvas,
   type FootprintCanvasHandle,
@@ -43,6 +45,7 @@ import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvas
 import { IndicatorsRunner } from "../lib/footprint/indicatorsAsync";
 import { findSymbol } from "../lib/footprint/symbols";
 import { SimTradePanel } from "./sim/SimTradePanel";
+import { QuickTradePanel } from "./sim/QuickTradePanel";
 import { useSimTicker } from "../lib/sim/useSimTicker";
 import { useSimPositionOverlay } from "../lib/sim/useSimPositionOverlay";
 import "./RithmicFootprint.css";
@@ -112,6 +115,10 @@ const MAX_BARS_BY_TF: Record<SupportedTimeframe, number> = {
   "5m":   300,
   "15m":  120,
   "1h":   48,
+  // 15 daily bars ≈ 3 weeks of trading (covers any roll-over + context).
+  // Tick replay for 15 days stays within the 300-chunk budget even for
+  // liquid instruments like ES (~15 chunks/day × 15 days = 225 chunks).
+  "1d":   15,
   // 100T is bridge-only; on the Rithmic view it's never selectable
   // (every Rithmic tick has seq=0 so they would all collapse into a
   // single bar). Cap matches the densest time TF.
@@ -374,7 +381,13 @@ const EMPTY_STATUS: RithmicStatus = {
   subscriptions: [],
 };
 
-export function RithmicFootprint() {
+export function RithmicFootprint({
+  onSwitchToBridge,
+  onSwitchToQuantower,
+}: {
+  onSwitchToBridge?: () => void;
+  onSwitchToQuantower?: () => void;
+}) {
   const [phase, setPhase] = useState<Phase>({ kind: "checking" });
 
   // Bootstrap: read vault → either route to BrokerSettings or auto-login.
@@ -521,13 +534,30 @@ export function RithmicFootprint() {
               Retry
             </button>
           </div>
+          {(onSwitchToBridge || onSwitchToQuantower) && (
+            <div className="rf-failed-actions">
+              <span style={{ alignSelf: "center", opacity: 0.7 }}>
+                Ou bascule sur une autre source (ne nécessite pas Rithmic) :
+              </span>
+              {onSwitchToBridge && (
+                <button type="button" onClick={onSwitchToBridge}>
+                  NT Bridge
+                </button>
+              )}
+              {onSwitchToQuantower && (
+                <button type="button" onClick={onSwitchToQuantower}>
+                  QT Bridge
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   // phase.kind === "ready"
-  return <FootprintLive creds={phase.creds} onOpenSettings={onOpenSettings} />;
+  return <FootprintLive onSwitchToBridge={onSwitchToBridge} onSwitchToQuantower={onSwitchToQuantower} />;
 }
 
 /** Map a tick-size hint to a sensible display decimals count. */
@@ -542,12 +572,16 @@ function decimalsFromTick(tick: number | undefined): number {
 }
 
 function FootprintLive({
-  creds,
-  onOpenSettings,
+  onSwitchToBridge,
+  onSwitchToQuantower,
 }: {
-  creds: RedactedCreds;
-  onOpenSettings: () => void;
+  onSwitchToBridge?: () => void;
+  onSwitchToQuantower?: () => void;
 }) {
+  // Portal target: the single top bar (AppNavbar) we teleport this
+  // connector's compact control row into. Null on the splash/error
+  // phases where the navbar slot isn't relevant yet.
+  const slotEl = useToolbarSlot();
   const [status, setStatus] = useState<RithmicStatus>(EMPTY_STATUS);
   const [symbol, setSymbol] = useState("MNQM6");
   const [exchange, setExchange] = useState("CME");
@@ -651,6 +685,22 @@ function FootprintLive({
   const showUnfinishedAuctions = useFootprintSettingsStore(
     (s) => s.showUnfinishedAuctions,
   );
+  const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
+  const showCvdDivergence = useFootprintSettingsStore((s) => s.showCvdDivergence);
+  const cvdDivergencePivotBars = useFootprintSettingsStore((s) => s.cvdDivergencePivotBars);
+  const absorptionRatio         = useFootprintSettingsStore((s) => s.absorptionRatio);
+  const absorptionMinVolume     = useFootprintSettingsStore((s) => s.absorptionMinVolume);
+  const absorptionToleranceTicks = useFootprintSettingsStore((s) => s.absorptionToleranceTicks);
+  const showAbsorptionZones        = useFootprintSettingsStore((s) => s.showAbsorptionZones);
+  const absorptionZoneDaysBack     = useFootprintSettingsStore((s) => s.absorptionZoneDaysBack);
+  const absorptionZoneRatio        = useFootprintSettingsStore((s) => s.absorptionZoneRatio);
+  const absorptionZoneStackedLevels= useFootprintSettingsStore((s) => s.absorptionZoneStackedLevels);
+  const absorptionZoneMinVolume    = useFootprintSettingsStore((s) => s.absorptionZoneMinVolume);
+  const absorptionZoneBullishColor = useFootprintSettingsStore((s) => s.absorptionZoneBullishColor);
+  const absorptionZoneBearishColor = useFootprintSettingsStore((s) => s.absorptionZoneBearishColor);
+  const absorptionZoneLineWidth    = useFootprintSettingsStore((s) => s.absorptionZoneLineWidth);
+  const absorptionZoneLastBarOnly  = useFootprintSettingsStore((s) => s.absorptionZoneLastBarOnly);
+  const absorptionZoneUseAlert     = useFootprintSettingsStore((s) => s.absorptionZoneUseAlert);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -668,6 +718,10 @@ function FootprintLive({
   const candleBorderDown = useFootprintSettingsStore((s) => s.candleBorderDown);
   const candleWickUp = useFootprintSettingsStore((s) => s.candleWickUp);
   const candleWickDown = useFootprintSettingsStore((s) => s.candleWickDown);
+  const showCandleOutline = useFootprintSettingsStore((s) => s.showCandleOutline);
+  const candleOutlineColor = useFootprintSettingsStore((s) => s.candleOutlineColor);
+  const candleOutlineWidth = useFootprintSettingsStore((s) => s.candleOutlineWidth);
+  const candleOutlineOpacity = useFootprintSettingsStore((s) => s.candleOutlineOpacity);
   const bidColor = useFootprintSettingsStore((s) => s.bidColor);
   const askColor = useFootprintSettingsStore((s) => s.askColor);
   const crosshairColor = useFootprintSettingsStore((s) => s.crosshairColor);
@@ -676,6 +730,22 @@ function FootprintLive({
   );
   const crosshairStyle = useFootprintSettingsStore((s) => s.crosshairStyle);
   const crosshairWidth = useFootprintSettingsStore((s) => s.crosshairWidth);
+  const showDeltaProfile = useFootprintSettingsStore((s) => s.showDeltaProfile);
+  const showCvd = useFootprintSettingsStore((s) => s.showCvd);
+  const cvdMode = useFootprintSettingsStore((s) => s.cvdMode);
+  const cvdPanelHeight = useFootprintSettingsStore((s) => s.cvdPanelHeight);
+  const imbalanceCellRate = useFootprintSettingsStore((s) => s.imbalanceCellRate);
+  const imbalanceCellVolumeFilter = useFootprintSettingsStore(
+    (s) => s.imbalanceCellVolumeFilter,
+  );
+  const imbalanceCellMinDiff = useFootprintSettingsStore(
+    (s) => s.imbalanceCellMinDiff,
+  );
+  const imbalanceCellIgnoreZero = useFootprintSettingsStore(
+    (s) => s.imbalanceCellIgnoreZero,
+  );
+  const showDom = useFootprintSettingsStore((s) => s.showDom);
+  const domProportion = useFootprintSettingsStore((s) => s.domProportion);
 
   // Persisted bars cache — survives changes of route (`/footprint` →
   // `/heatmap` → back) so we don't re-fetch 24h from Apex on every
@@ -707,9 +777,31 @@ function FootprintLive({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -718,6 +810,10 @@ function FootprintLive({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -740,9 +836,31 @@ function FootprintLive({
       showStackedImbalances,
       showNakedPOCs,
       showUnfinishedAuctions,
+      showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
+      showDeltaProfile,
+      showCvd,
+      cvdMode,
+      cvdPanelHeight,
+      imbalanceCellRate,
+      imbalanceCellVolumeFilter,
+      imbalanceCellMinDiff,
+      imbalanceCellIgnoreZero,
+      showDom,
+      domProportion,
       chartBgColor,
       chartGridColor,
       candleBodyUp,
@@ -751,6 +869,10 @@ function FootprintLive({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -935,21 +1057,6 @@ function FootprintLive({
       setBusy(false);
     }
   }, [symbol, exchange, fullSymbol, timeframe, cacheGetFresh, cacheKeyFor]);
-
-  const handleUnsubscribe = useCallback(async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const next = await invoke<RithmicStatus>("rithmic_unsubscribe", {
-        args: { symbol, exchange },
-      });
-      setStatus(next);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [symbol, exchange]);
 
   // Auto-subscribe: kicks in as soon as we're connected + logged in,
   // and re-syncs whenever the user picks a different symbol. On a
@@ -1161,6 +1268,12 @@ function FootprintLive({
         enableStackedImbalances: showStackedImbalances,
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
+        enableAbsorption: showAbsorption,
+        absorptionRatio,
+        absorptionMinVolume,
+        absorptionToleranceTicks,
+        enableCvdDivergence: showCvdDivergence,
+        cvdDivergencePivotBars,
       },
       currentPrice,
     );
@@ -1171,6 +1284,12 @@ function FootprintLive({
     showStackedImbalances,
     showNakedPOCs,
     showUnfinishedAuctions,
+    showAbsorption,
+    absorptionRatio,
+    absorptionMinVolume,
+    absorptionToleranceTicks,
+    showCvdDivergence,
+    cvdDivergencePivotBars,
   ]);
 
   // Picker selects a symbol; the catalog entry tells us which CME
@@ -1202,6 +1321,9 @@ function FootprintLive({
         "5m":  5,
         "15m": 15,
         "1h":  60,
+        // 1440 min = 24h; backend buckets by UTC calendar day (epoch-aligned).
+        // Full bid/ask footprint cells via TickBarReplay — expect 30-90s load.
+        "1d":  1440,
       };
       const TF_USES_TICK_REPLAY: Record<string, boolean> = {
         "1m":  true,
@@ -1209,6 +1331,10 @@ function FootprintLive({
         "5m":  true,
         "15m": true,
         "1h":  true,
+        // Daily uses TimeBarReplay (OHLCV) for historical bars — Apex
+        // doesn't provide multi-day tick replay depth on this plan.
+        // Today's bar has full footprint cells via the live engine.
+        "1d":  false,
       };
       const barMinutes = TF_TO_MIN[tf];
       const useTickReplay = TF_USES_TICK_REPLAY[tf] ?? false;
@@ -1302,6 +1428,8 @@ function FootprintLive({
         "5m":  24,
         "15m": 24,
         "1h":  24,
+        // 360h = 15 calendar days ≈ 10-11 trading days of daily bars.
+        "1d":  360,
       };
       const hoursBack = HOURS_BACK_BY_TF[tf] ?? 24;
       console.info(
@@ -1382,6 +1510,11 @@ function FootprintLive({
       // populates this with the today slice of the SQLite probe
       // before deferring to Apex.
       let sqlitePartialTodayFallback: FootprintBar[] = [];
+      // Any today bars from the live engine (accumulated since the app
+      // started for this symbol). Populated during the SQLite probe and
+      // used as last-resort fallback when History Plant is unavailable
+      // (e.g. Paper Trading without historical data subscription).
+      let sqliteSessionBars: FootprintBar[] = [];
       try {
         const sqliteRows = await invoke<CachedBar[]>("cache_query", {
           args: { fullSymbol, timeframe: tf, hoursBack },
@@ -1401,6 +1534,13 @@ function FootprintLive({
             levels: JSON.parse(row.levelsJson) as PriceLevel[],
           }))
           .sort((a, b) => Number(BigInt(a.bucketTsNs) - BigInt(b.bucketTsNs)));
+        // Capture today slice for last-resort fallback when History Plant
+        // is unavailable. Populated regardless of coverage so that Paper
+        // Trading users see their live-engine bars even when they don't
+        // cover midnight.
+        sqliteSessionBars = sortedCache.filter(
+          (b) => BigInt(b.bucketTsNs) >= localMidnightNs,
+        );
         // Coverage gate — only short-circuit Apex if the cache actually
         // spans back to (or before) local midnight. The CacheWriter
         // only persists bars from the moment the app started, so a
@@ -1537,15 +1677,58 @@ function FootprintLive({
        // detect a too-small tick from level gaps.
       const tickSizeHint = findSymbol("rithmic", symbol)?.tickSizeHint;
       try {
-        const history = await invoke<FootprintBar[]>(command, {
+        // rithmic_fetch_tick_history returns { bars, rpCodes } since the rp_codes
+        // need to be in the synchronous invoke result — progress events have a JS
+        // timing race where the done event arrives after the invoke promise resolves.
+        // rithmic_fetch_history (time bar path) still returns FootprintBar[].
+        type TickHistoryResponse = { bars: FootprintBar[]; rpCodes: string[] };
+        const rawResult = await invoke<TickHistoryResponse | FootprintBar[]>(command, {
           args: { symbol, exchange, hoursBack, barMinutes, timeframe: tf, tickSize: tickSizeHint },
         });
+        const history: FootprintBar[] = Array.isArray(rawResult) ? rawResult : rawResult.bars;
+        const invokeRpCodes: string[] = Array.isArray(rawResult) ? [] : (rawResult.rpCodes ?? []);
+        // Merge invoke-level and progress-event-level codes (belt-and-suspenders).
+        const allRpCodes = [...new Set([...invokeRpCodes, ...lastRpCodes])];
         const ms = (performance.now() - t0).toFixed(0);
 
         // Sort oldest → newest so slicing the tail = newest bars.
         const sorted = [...history].sort(
           (a, b) => Number(BigInt(a.bucketTsNs) - BigInt(b.bucketTsNs)),
         );
+
+        // For daily bars, show the full historical range returned by
+        // Apex (all days), not just today. The "today only" filter is
+        // designed for intraday TFs where you want the current session;
+        // on 1d it would discard every historical day bar.
+        if (tf === "1d" && sorted.length > 0) {
+          const cache = barsCacheRef.current;
+          let tfMap = cache.get(tf);
+          if (!tfMap) { tfMap = new Map(); cache.set(tf, tfMap); }
+          for (const bar of sorted) {
+            const existing = tfMap.get(bar.bucketTsNs);
+            const existingIsSynthetic =
+              !existing ||
+              (existing.tradeCount === 0 && existing.levels.length === 0);
+            if (existingIsSynthetic) tfMap.set(bar.bucketTsNs, bar);
+          }
+          ensureMidnightContinuity(tfMap, tf, localMidnightSec, fullSymbol);
+          cacheSetEntry(cacheKeyFor(symbol, exchange, tf), {
+            bars: Array.from(tfMap.values()).sort(
+              (a, b) => Number(BigInt(a.bucketTsNs) - BigInt(b.bucketTsNs)),
+            ),
+            fetchedAt: Date.now(),
+            finishSec: Math.floor(Date.now() / 1000),
+            hoursBack,
+          });
+          if (tf === currentTfRef.current) setBars(new Map(tfMap));
+          setHistoryLoading(false);
+          setHistoryProgress(null);
+          progressUnlistenPromise.then((fn) => fn()).catch(() => {});
+          console.info(
+            `rithmic history: 1d — ${sorted.length} daily bars in ${(performance.now() - t0).toFixed(0)}ms`,
+          );
+          return;
+        }
 
         // Try the strict "today only" filter first.
         const todayBars = sorted.filter(
@@ -1602,8 +1785,10 @@ function FootprintLive({
         // data (richer bid×ask cells); TimeBar fills the gaps with
         // OHLC-only bars.
         //
-        // Only runs for tick-replay TFs (1m, 3m, 5m, 15m, 1h) —
-        // higher TFs (4h, 1d) already use TimeBarReplay directly.
+        // Only runs for intraday tick-replay TFs (1m, 3m, 5m, 15m, 1h).
+        // Skip for 1d: daily bars already cover a full session so there
+        // are no intra-day gaps to fill, and a second round-trip is
+        // wasteful.
         // Apex enforces single concurrent HISTORY_PLANT, so this
         // adds one extra serialized round-trip per TF.
         // Always try the TimeBar dual-fetch on tick-replay TFs. Even
@@ -1611,7 +1796,7 @@ function FootprintLive({
         // TimeBarReplay sometimes still serves — it's a different
         // plant pathway on the Apex side. OHLC-only bars are better
         // than blank, and they merge into any partial cache slice.
-        if (useTickReplay) {
+        if (useTickReplay && tf !== "1d") {
           try {
             const tT0 = performance.now();
             const timeBars = await invoke<FootprintBar[]>(
@@ -1652,12 +1837,41 @@ function FootprintLive({
           }
         }
 
+        // Last-resort fallback: use live-engine bars accumulated in
+        // SQLite when both History Plant (tick replay) AND TimeBarReplay
+        // returned 0. This covers Paper Trading and any other account
+        // without historical data subscription. The bars only go back
+        // to the last connection time, but `ensureMidnightContinuity`
+        // will fill the gap from midnight with synthetic flat bars so
+        // the chart starts at 00:00 rather than mid-session.
+        if (toMerge.length === 0 && sqliteSessionBars.length > 0) {
+          toMerge = sqliteSessionBars;
+          mode = "sqlite-session";
+          console.info(
+            `rithmic history: History Plant returned 0 → using ${sqliteSessionBars.length} SQLite session bars for ${tf}`,
+          );
+        }
+
         console.info(
           `rithmic history fetch DONE: ${history.length} bars in ${ms}ms (${tf}) — ` +
           `kept ${toMerge.length} [${mode}] ` +
           `(anchor=${new Date(localMidnight).toISOString()} tz=${tz}, ` +
           `newest=${toMerge.length ? new Date(Number(BigInt(toMerge[toMerge.length - 1].bucketTsNs) / 1_000_000n)).toISOString() : "n/a"})`,
         );
+
+        // Surface Apex status codes whenever HISTORY_PLANT returns 0
+        // bars — even when we have a SQLite fallback (which masks the
+        // empty response in the fetch-DONE log above). Without this,
+        // rp_code=13 / quota / permissioning errors are invisible to
+        // the operator since the diagnostic branch below only runs
+        // when toMerge is also empty.
+        if (history.length === 0) {
+          const apexDiag =
+            allRpCodes.length || lastRqHandlerRpCodes.length || lastUserMsgs.length
+              ? `rpCodes=${JSON.stringify(allRpCodes)} rqHandler=${JSON.stringify(lastRqHandlerRpCodes)} userMsgs=${JSON.stringify(lastUserMsgs)}`
+              : "(aucun rp_code reçu d'Apex — terminateur manquant ou vide)";
+          console.warn(`rithmic history: Apex 0-bar — ${tf} | ${apexDiag}`);
+        }
 
         if (toMerge.length > 0) {
           // Always write to the per-TF cache so the bars are warm
@@ -1738,8 +1952,8 @@ function FootprintLive({
           // strings come from the Rust side via the final
           // `rithmic-history-progress` event.
           const apexStatus =
-            lastRpCodes.length || lastRqHandlerRpCodes.length || lastUserMsgs.length
-              ? ` | APEX: rpCodes=${JSON.stringify(lastRpCodes)} rqHandler=${JSON.stringify(lastRqHandlerRpCodes)} userMsgs=${JSON.stringify(lastUserMsgs)}`
+            allRpCodes.length || lastRqHandlerRpCodes.length || lastUserMsgs.length
+              ? ` | APEX: rpCodes=${JSON.stringify(allRpCodes)} rqHandler=${JSON.stringify(lastRqHandlerRpCodes)} userMsgs=${JSON.stringify(lastUserMsgs)}`
               : ` | APEX: (no rp_code received — terminator may be missing)`;
           if (isCmeGlobexClosed(now)) {
             console.warn(
@@ -1758,6 +1972,62 @@ function FootprintLive({
           `rithmic history fetch ERROR after ${ms}ms (live continues):`,
           e,
         );
+        // Tick replay failed (e.g. Paper Trading lacks HISTORY_PLANT
+        // tick access). Fall back to TimeBarReplay so we still display
+        // today's OHLCV bars from midnight instead of a blank chart.
+        if (useTickReplay && tf !== "1d") {
+          try {
+            const timeBars = await invoke<FootprintBar[]>("rithmic_fetch_history", {
+              args: { symbol, exchange, hoursBack, barMinutes, timeframe: tf },
+            });
+            const todayTimeBars = timeBars.filter(
+              (b) => BigInt(b.bucketTsNs) >= localMidnightNs,
+            );
+            if (todayTimeBars.length > 0) {
+              const cache = barsCacheRef.current;
+              let tfMap = cache.get(tf);
+              if (!tfMap) { tfMap = new Map(); cache.set(tf, tfMap); }
+              for (const bar of todayTimeBars) {
+                const existing = tfMap.get(bar.bucketTsNs);
+                const existingIsSynthetic =
+                  !existing ||
+                  (existing.tradeCount === 0 && existing.levels.length === 0);
+                if (existingIsSynthetic) tfMap.set(bar.bucketTsNs, bar);
+              }
+              historyFetchedRef.current.add(historyKey);
+              if (tf === currentTfRef.current) setBars(new Map(tfMap));
+              console.info(
+                `rithmic history: tick-replay failed → TimeBar fallback: ${todayTimeBars.length} bars for ${tf}`,
+              );
+            }
+          } catch (fallbackErr) {
+            console.warn(
+              `rithmic history: TimeBar fallback also failed for ${tf}:`,
+              fallbackErr,
+            );
+          }
+        }
+        // Both History Plant and TimeBarReplay failed. If the live
+        // engine accumulated SQLite bars during a previous session
+        // (or since the current connect), surface them so the chart
+        // isn't completely blank.
+        if (sqliteSessionBars.length > 0) {
+          const cache = barsCacheRef.current;
+          let tfMap = cache.get(tf);
+          if (!tfMap) { tfMap = new Map(); cache.set(tf, tfMap); }
+          for (const bar of sqliteSessionBars) {
+            const existing = tfMap.get(bar.bucketTsNs);
+            const existingIsSynthetic =
+              !existing ||
+              (existing.tradeCount === 0 && existing.levels.length === 0);
+            if (existingIsSynthetic) tfMap.set(bar.bucketTsNs, bar);
+          }
+          historyFetchedRef.current.add(historyKey);
+          if (tf === currentTfRef.current) setBars(new Map(tfMap));
+          console.info(
+            `rithmic history: all History Plant paths failed → ${sqliteSessionBars.length} SQLite session bars for ${tf}`,
+          );
+        }
       } finally {
         setHistoryLoading(false);
         setHistoryProgress(null);
@@ -1780,10 +2050,24 @@ function FootprintLive({
     if (!subscribedKey) return;
     let cancelled = false;
     void (async () => {
+      // Wipe localStorage cache so the coverage gate can't serve
+      // stale localStorage data from a previous session. SQLite is
+      // intentionally NOT cleared here: on accounts without History
+      // Plant access (e.g. Paper Trading retail), SQLite holds the
+      // only available historical bars from the live engine. Clearing
+      // it would leave the chart blank after every reconnect.
+      // Apex accounts are protected by the `hasRecentHistoryPlantFetch`
+      // guard inside `fetchHistoryForTimeframe` which prevents SQLite
+      // from short-circuiting a fresh Apex History Plant fetch when
+      // the localStorage cache has expired.
       cacheClearSymbol(symbol);
+      if (cancelled) return;
       historyFetchedRef.current.clear();
-      barsCacheRef.current.clear();
-      setBars(new Map());
+      // Do NOT clear barsCacheRef or call setBars(empty) here.
+      // connect() already seeded the cache and displayed bars (seed +
+      // ensureMidnightContinuity fill). Blanking the chart now would
+      // create a visible gap that lasts until the Apex fetch completes.
+      // The history fetches below will merge their results on top.
       for (const tf of PRELOAD_TFS) {
         if (cancelled) return;
         try {
@@ -1846,25 +2130,40 @@ function FootprintLive({
   // subscribe (above) — wipes localStorage + in-memory caches then
   // re-fetches every preload TF. Useful when the user wants a fresh
   // pull without disconnecting/reconnecting.
-  const handleForceReloadHistory = useCallback(async () => {
-    cacheClearSymbol(symbol);
-    historyFetchedRef.current.clear();
-    barsCacheRef.current.clear();
-    setBars(new Map());
-    for (const tf of PRELOAD_TFS) {
-      try {
-        await fetchHistoryForTimeframe(tf);
-      } catch (e) {
-        console.warn(`force-reload ${tf} failed:`, e);
-      }
-    }
-  }, [symbol, cacheClearSymbol, fetchHistoryForTimeframe]);
-
   const cycleTimezone = useCallback(() => {
     const idx = TZ_CYCLE.indexOf(timezone);
     const next = TZ_CYCLE[(idx + 1) % TZ_CYCLE.length];
     setTimezone("timezone", next);
   }, [timezone, setTimezone]);
+
+  // Manual reload — wipes all caches and re-fetches PRELOAD_TFS.
+  // Equivalent to disconnecting/reconnecting but without the socket
+  // teardown. The comment at this site was intentional; the button
+  // was never wired up until now.
+  const handleReloadHistory = useCallback(async () => {
+    // 1. Wipe localStorage bars cache (per-symbol) so the coverage
+    //    gate doesn't short-circuit the History Plant fetch.
+    cacheClearSymbol(symbol);
+    // SQLite is intentionally NOT cleared here — same reasoning as
+    // the auto-reload: Paper Trading accounts (rp_code=13) have no
+    // History Plant access and SQLite is the only available history.
+    // For Apex, the `hasRecentHistoryPlantFetch` guard inside
+    // `fetchHistoryForTimeframe` forces a fresh Apex fetch because
+    // localStorage is now stale, without needing SQLite to be empty.
+    console.info(`rithmic reload-history: localStorage cleared for ${symbol}.${exchange}`);
+    // 2. Wipe in-memory caches and session guards.
+    historyFetchedRef.current.clear();
+    barsCacheRef.current.clear();
+    setBars(new Map());
+    // 3. Re-fetch all preload TFs.
+    for (const tf of PRELOAD_TFS) {
+      try {
+        await fetchHistoryForTimeframe(tf);
+      } catch (e) {
+        console.warn(`rithmic reload-history ${tf} failed:`, e);
+      }
+    }
+  }, [symbol, exchange, cacheClearSymbol, fetchHistoryForTimeframe]);
 
   const handleTimeframeChange = useCallback(
     (next: SupportedTimeframe) => {
@@ -1878,8 +2177,25 @@ function FootprintLive({
       // mirror cache→bars when the preload completes for this TF.
       const cached = barsCacheRef.current.get(next);
       setBars(cached ? new Map(cached) : new Map());
+      // If no bars cached yet for this TF and no fetch is already
+      // in-flight (historyFetchedRef is the session-level guard),
+      // kick off a dedicated fetch instead of waiting for the
+      // sequential preload to eventually reach this TF.
+      //
+      // For "1d": the live engine accumulates today's bar in real-time,
+      // so cached.size can be 1 even on first click — but that single
+      // live bar is NOT the historical replay. Always trigger a history
+      // fetch for daily on the first visit in this session.
+      const historyKey = `${fullSymbol}-${next}`;
+      const cacheIsEmpty = !cached || cached.size === 0;
+      const needsHistoryFetch =
+        !historyFetchedRef.current.has(historyKey) &&
+        (cacheIsEmpty || next === "1d");
+      if (needsHistoryFetch) {
+        void fetchHistoryForTimeframe(next);
+      }
     },
-    [],
+    [fetchHistoryForTimeframe, fullSymbol],
   );
 
   const isSubscribed = status.subscriptions.includes(fullSymbol);
@@ -1887,25 +2203,17 @@ function FootprintLive({
 
   return (
     <div className="rithmic-footprint">
-      <FootprintStatusBar
-        symbol={symbol}
-        exchange={`Rithmic ${exchange}`}
-        timeframe={timeframe}
-        bars={sortedBars}
-        connected={connected}
-        busy={busy}
-        priceDecimals={priceDecimals}
-      />
-
-      <section className="cf-controls">
-        <button
-          type="button"
-          className="cf-symbol-btn"
-          onClick={() => setPickerOpen(true)}
-          disabled={busy}
-        >
-          {symbol} <span className="cf-symbol-caret">▾</span>
-        </button>
+      {slotEl &&
+        createPortal(
+          <div className="of-toolbar">
+            <button
+              type="button"
+              className="cf-symbol-btn"
+              onClick={() => setPickerOpen(true)}
+              disabled={busy}
+            >
+              {symbol} <span className="cf-symbol-caret">▾</span>
+            </button>
         <TimeframePills
           value={timeframe}
           onChange={handleTimeframeChange}
@@ -1928,6 +2236,17 @@ function FootprintLive({
           }}
         >
           {timezone}
+        </button>
+        <button
+          type="button"
+          className="cf-icon-btn"
+          onClick={() => void handleReloadHistory()}
+          title="Régénérer l'historique depuis Apex (toutes les timeframes)"
+          aria-label="Reload all timeframe history"
+          disabled={historyLoading}
+          style={{ fontSize: 14 }}
+        >
+          ↻
         </button>
         <button
           type="button"
@@ -1969,25 +2288,20 @@ function FootprintLive({
             <style>{`@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }`}</style>
           </span>
         )}
-        <span className="cf-controls-spacer" />
-        {/* Auto-subscribe is on: the data starts streaming as soon as
-            we're connected. The Unsubscribe button is kept as an
-            escape hatch — clicking it will pause the auto-sub for the
-            current symbol until the user picks a different one. */}
-        {isSubscribed && (
-          <button
-            type="button"
-            onClick={() => {
-              autoSubscribedRef.current = "__paused__";
-              void handleUnsubscribe();
-            }}
-            disabled={busy}
-            className="cf-action-btn cf-action-secondary"
-            title="Pause live data for the current symbol"
-          >
-            Pause
-          </button>
-        )}
+        <span className="cf-controls-spacer" data-tauri-drag-region />
+        <FootprintStatusBar
+          inline
+          symbol={symbol}
+          exchange={`Rithmic ${exchange}`}
+          timeframe={timeframe}
+          bars={sortedBars}
+          connected={connected}
+          busy={busy}
+          priceDecimals={priceDecimals}
+        />
+        {/* Auto-subscribe is on; data streams once connected. The
+            Resume button is a quiet recovery path shown only if the
+            auto-sub ever gets paused (e.g. on a symbol switch). */}
         {!isSubscribed && connected && (
           <button
             type="button"
@@ -2002,33 +2316,43 @@ function FootprintLive({
             Resume
           </button>
         )}
-        {isSubscribed && (
+        {onSwitchToBridge && (
           <button
             type="button"
-            onClick={() => void handleForceReloadHistory()}
-            disabled={busy}
-            className="cf-action-btn"
-            title="Wipe cache + force fresh history fetch for all timeframes (test Apex permissions)"
+            onClick={onSwitchToBridge}
+            className="cf-action-btn cf-action-icon"
+            title="Switch to the NinjaTrader Bridge data source (requires NinjaTrader running with the OrderflowBridge indicator on a Tick chart)"
           >
-            Reload history
+            <img
+              src="/ninjatrader.png"
+              alt=""
+              aria-hidden
+              className="cf-nt-icon"
+            />
+            NT Bridge
           </button>
         )}
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="cf-action-btn"
-          title={`${creds.systemName} · ${creds.username}`}
-        >
-          Edit broker
-        </button>
-      </section>
+        {onSwitchToQuantower && (
+          <button
+            type="button"
+            onClick={onSwitchToQuantower}
+            className="cf-action-btn cf-action-icon"
+            title="Switch to the Quantower Bridge data source (requires Quantower running with the QuantowerOrderflowBridge indicator)"
+          >
+            QT Bridge
+          </button>
+        )}
+
+          </div>,
+          slotEl,
+        )}
 
       {error && <div className="rf-error">{error}</div>}
 
       <section className="rf-footprint">
         <div className="footprint-workspace">
           <FootprintToolbar tools={tools} />
-          <div className="cf-canvas-wrap">
+          <div className="cf-canvas-wrap" style={{ position: "relative" }}>
             <FootprintCanvas
               ref={canvasHandle}
               bars={sortedBars}
@@ -2038,6 +2362,7 @@ function FootprintLive({
               onOpenSettings={() => setSettingsOpen(true)}
               bare
             />
+            <QuickTradePanel symbol={symbol} />
           </div>
           <div
             className={`rf-sim-dock ${simPanelOpen ? "rf-sim-dock-open" : "rf-sim-dock-closed"}`}

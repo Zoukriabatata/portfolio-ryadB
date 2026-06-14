@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { MemoryRouter, Routes, Route, Navigate } from "react-router-dom";
 import { WelcomeScreen } from "./WelcomeScreen";
+import { SenzoukriaLogo } from "./components/SenzoukriaLogo";
 import { useUpdateCheck, UpdateModal } from "./UpdateChecker";
 import { Layout } from "./routes/Layout";
 import { WelcomeRoute } from "./routes/WelcomeRoute";
@@ -403,6 +404,9 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const [remember, setRemember] = useState(false);
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  // Non-blocking notice (e.g. login succeeded but the OS keyring write
+  // failed). Surfaced so "Remember me silently does nothing" can't hide.
+  const [notice, setNotice]     = useState<string | null>(null);
   // True between the moment we read saved creds from the keyring and
   // the moment the resulting auto-login attempt finishes. Used to
   // disable the form so the user doesn't double-submit.
@@ -419,7 +423,6 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     emailIn: string,
     passwordIn: string,
     shouldRemember: boolean,
-    fromAuto = false,
   ) => {
     setBusy(true);
     setError(null);
@@ -440,6 +443,15 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
         }
       } catch (kerr) {
         console.warn("credentials keyring write failed:", kerr);
+        if (shouldRemember) {
+          // Surface the real error instead of swallowing it — the form
+          // is about to unmount on onLogin, so pause briefly so the user
+          // (and we) actually see why "remember me" didn't persist.
+          setNotice(
+            `Connecté, mais impossible de sauvegarder les identifiants : ${String(kerr)}`,
+          );
+          await new Promise((r) => setTimeout(r, 2400));
+        }
       }
       onLogin({
         token: resp.token,
@@ -450,16 +462,14 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     } catch (raw) {
       const msg = String(raw);
       setError(prettifyError(msg));
-      // If an AUTO-login failed (stale or revoked password), wipe the
-      // saved entry so we don't loop next launch. Manual failures
-      // leave the entry alone — the user might be mistyping.
-      if (fromAuto) {
-        try {
-          await invoke("cmd_clear_credentials");
-        } catch (e) {
-          console.warn("clear stale credentials failed:", e);
-        }
-      }
+      // Do NOT wipe saved credentials on an auto-login failure. The
+      // earlier version did, which meant one transient failure (network
+      // blip, server hiccup) silently erased the user's remembered
+      // login — they'd reopen the app to an empty form and think
+      // "remember me" never worked. `autoLoginConsumed` already caps
+      // auto-submit to a single attempt per process, so there's no
+      // login loop to guard against. On failure we keep the creds saved
+      // and pre-filled, show the error, and let the user retry/fix.
     } finally {
       setBusy(false);
       setAutoLogin(false);
@@ -493,7 +503,7 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
         setAutoLogin(true);
         await new Promise((r) => setTimeout(r, 120));
         if (cancelled) return;
-        await doLogin(saved.email, saved.password, true, true);
+        await doLogin(saved.email, saved.password, true);
       } catch (e) {
         console.warn("load credentials failed:", e);
       }
@@ -512,15 +522,24 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const disabled = busy || autoLogin || !email || !password;
 
   return (
-    <form className="card" onSubmit={submit}>
-      <h1>OrderflowV2</h1>
-      <p className="muted">Sign in with your web account to unlock the desktop app.</p>
+    <form className="login-card" onSubmit={submit}>
+      <div className="login-brand">
+        <span className="login-logo">
+          <SenzoukriaLogo size={34} showText={false} />
+        </span>
+        <span className="login-wordmark">Senzoukria</span>
+      </div>
+      <p className="login-tag">
+        Connectez-vous avec votre compte web pour déverrouiller le bureau.
+      </p>
 
-      <label>
-        <span>Email</span>
+      <label className="login-field">
+        <span className="login-flabel">Email</span>
         <input
+          className="login-input"
           type="email"
           autoComplete="username"
+          placeholder="vous@exemple.com"
           value={email}
           onChange={e => setEmail(e.target.value)}
           required
@@ -528,11 +547,13 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
         />
       </label>
 
-      <label>
-        <span>Password</span>
+      <label className="login-field">
+        <span className="login-flabel">Mot de passe</span>
         <input
+          className="login-input"
           type="password"
           autoComplete="current-password"
+          placeholder="••••••••"
           value={password}
           onChange={e => setPassword(e.target.value)}
           required
@@ -540,34 +561,38 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
         />
       </label>
 
-      <label className="checkbox-row">
+      <label className="login-remember">
         <input
           type="checkbox"
           checked={remember}
           onChange={e => setRemember(e.target.checked)}
           disabled={busy || autoLogin}
         />
-        <span>Sauvegarder mes identifiants (keychain OS)</span>
+        <span>
+          Sauvegarder mes identifiants
+          <em> (coffre-fort OS)</em>
+        </span>
       </label>
 
-      {error && <div className="error">{error}</div>}
+      {error && <div className="login-error">{error}</div>}
+      {notice && <div className="login-notice">{notice}</div>}
 
-      <button type="submit" disabled={disabled}>
-        {autoLogin ? "Connexion auto…" : busy ? "Signing in…" : "Sign in"}
+      <button type="submit" className="login-submit" disabled={disabled}>
+        {autoLogin ? "Connexion auto…" : busy ? "Connexion…" : "Se connecter"}
       </button>
 
-      <p className="muted small">
-        No account yet?{" "}
+      <p className="login-foot">
+        Pas encore de compte ?{" "}
         <button
           type="button"
-          className="link"
+          className="login-link"
           onClick={() => {
             void openUrl("https://orderflow-v2.vercel.app/auth/register").catch(err =>
               console.error("openUrl failed:", err),
             );
           }}
         >
-          Sign up on the web
+          Créer un compte sur le web
         </button>
       </p>
     </form>

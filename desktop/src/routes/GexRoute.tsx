@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useGexStore } from "../lib/gex/useGexStore";
 import { useGexPolling } from "../lib/gex/useGexPolling";
-import { hasApiKey } from "../lib/gex/api";
+import { hasApiKey, isOpra } from "../lib/gex/api";
 import { GexHeader } from "../components/gex/GexHeader";
 import { GexKeyLevels } from "../components/gex/GexKeyLevels";
 import { GexQuickStats } from "../components/gex/GexQuickStats";
@@ -51,10 +51,26 @@ export function GexRoute() {
 function GexConfigured() {
   useGexPolling();
   const error = useGexStore((s) => s.error);
+  const [opraMode, setOpraMode] = useState(false);
+
+  useEffect(() => {
+    void isOpra().then(setOpraMode).catch(() => {/* keep false */});
+  }, []);
 
   return (
     <div className="gex-route">
       <GexHeader />
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 16px 4px" }}>
+        {opraMode ? (
+          <span style={{ background: "#14532d", color: "#22c55e", fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4, letterSpacing: "0.05em" }}>
+            LIVE OPRA
+          </span>
+        ) : (
+          <span style={{ background: "#1a1f2e", color: "#8a8f99", fontSize: 11, padding: "2px 8px", borderRadius: 4 }}>
+            15 min delay
+          </span>
+        )}
+      </div>
       {error && <div className="gex-error-banner">{error}</div>}
       <GexKeyLevels />
       <GexQuickStats />

@@ -79,3 +79,41 @@ pub async fn cache_query(
     );
     Ok(bars)
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheClearArgs {
+    /// Compound symbol — e.g. `"MNQM6.CME"`. Pass `""` to wipe all
+    /// symbols (full reset).
+    pub full_symbol: String,
+}
+
+/// Delete all cached bars for a given symbol (or everything when
+/// `full_symbol` is empty). Called by the frontend ↻ reload button
+/// so a clean Apex refetch starts from a truly blank state.
+#[tauri::command]
+pub async fn cache_clear(
+    state: State<'_, CacheState>,
+    args: CacheClearArgs,
+) -> Result<u64, String> {
+    let conn = state.conn.clone();
+    let full_symbol = args.full_symbol;
+    let rows = tokio::task::spawn_blocking(move || -> rusqlite::Result<u64> {
+        let guard = conn.blocking_lock();
+        if full_symbol.is_empty() {
+            let n = guard.execute("DELETE FROM bars", [])?;
+            Ok(n as u64)
+        } else {
+            let n = guard.execute(
+                "DELETE FROM bars WHERE full_symbol = ?1",
+                [&full_symbol],
+            )?;
+            Ok(n as u64)
+        }
+    })
+    .await
+    .map_err(|e| format!("cache_clear task panicked: {e}"))?
+    .map_err(|e| format!("cache_clear failed: {e}"))?;
+    tracing::info!("cache_clear: deleted {} rows", rows);
+    Ok(rows)
+}

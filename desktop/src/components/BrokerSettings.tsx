@@ -5,7 +5,13 @@ import {
   hasApiKey as hasAlpacaKey,
   saveApiKey as saveAlpacaKey,
   deleteApiKey as deleteAlpacaKey,
+  isOpra as getAlpacaIsOpra,
 } from "../lib/gex/api";
+import {
+  hasDatabentoKey,
+  saveDatabentoKey,
+  deleteDatabentoKey,
+} from "../lib/databento/api";
 import { BrokerPresetPicker } from "./BrokerPresetPicker";
 import "./BrokerSettings.css";
 
@@ -15,6 +21,7 @@ type BrokerPreset =
   | "RithmicTest"
   | "RithmicPaperTrading"
   | "Rithmic01"
+  | "Amp"
   | "Apex"
   | "MyFundedFutures"
   | "BluSky"
@@ -83,9 +90,16 @@ export function BrokerSettings({
     { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
   >({ kind: "idle" });
 
+  const [databentoKey, setDatabentoKey] = useState("");
+  const [databentoKeySet, setDatabentoKeySet] = useState<boolean | null>(null);
+  const [databentoStatus, setDatabentoStatus] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
+  >({ kind: "idle" });
+
   const [alpacaKeyId, setAlpacaKeyId] = useState("");
   const [alpacaSecret, setAlpacaSecret] = useState("");
   const [alpacaKeySet, setAlpacaKeySet] = useState<boolean | null>(null);
+  const [alpacaOpra, setAlpacaOpra] = useState(false);
   const [alpacaStatus, setAlpacaStatus] = useState<
     { kind: "idle" } | { kind: "busy" } | { kind: "error"; msg: string } | { kind: "success"; msg: string }
   >({ kind: "idle" });
@@ -94,6 +108,12 @@ export function BrokerSettings({
     void hasAlpacaKey()
       .then(setAlpacaKeySet)
       .catch(() => setAlpacaKeySet(false));
+    void getAlpacaIsOpra()
+      .then(setAlpacaOpra)
+      .catch(() => {/* keep default false */});
+    void hasDatabentoKey()
+      .then(setDatabentoKeySet)
+      .catch(() => setDatabentoKeySet(false));
   }, []);
 
   const handleSaveAlpaca = useCallback(async () => {
@@ -105,15 +125,43 @@ export function BrokerSettings({
     }
     setAlpacaStatus({ kind: "busy" });
     try {
-      await saveAlpacaKey(id, secret);
-      setAlpacaStatus({ kind: "success", msg: "Saved." });
+      await saveAlpacaKey(id, secret, alpacaOpra);
+      setAlpacaStatus({ kind: "success", msg: alpacaOpra ? "Saved — OPRA real-time active." : "Saved." });
       setAlpacaKeySet(true);
       setAlpacaKeyId("");
       setAlpacaSecret("");
     } catch (e) {
       setAlpacaStatus({ kind: "error", msg: String(e) });
     }
-  }, [alpacaKeyId, alpacaSecret]);
+  }, [alpacaKeyId, alpacaSecret, alpacaOpra]);
+
+  const handleSaveDatabento = useCallback(async () => {
+    const trimmed = databentoKey.trim();
+    if (!trimmed) {
+      setDatabentoStatus({ kind: "error", msg: "API key cannot be empty." });
+      return;
+    }
+    setDatabentoStatus({ kind: "busy" });
+    try {
+      await saveDatabentoKey(trimmed);
+      setDatabentoStatus({ kind: "success", msg: "Saved." });
+      setDatabentoKeySet(true);
+      setDatabentoKey("");
+    } catch (e) {
+      setDatabentoStatus({ kind: "error", msg: String(e) });
+    }
+  }, [databentoKey]);
+
+  const handleDeleteDatabento = useCallback(async () => {
+    setDatabentoStatus({ kind: "busy" });
+    try {
+      await deleteDatabentoKey();
+      setDatabentoStatus({ kind: "success", msg: "Deleted." });
+      setDatabentoKeySet(false);
+    } catch (e) {
+      setDatabentoStatus({ kind: "error", msg: String(e) });
+    }
+  }, []);
 
   const handleDeleteAlpaca = useCallback(async () => {
     setAlpacaStatus({ kind: "busy" });
@@ -491,6 +539,74 @@ export function BrokerSettings({
             onChange={(e) => setAlpacaSecret(e.target.value)}
             style={{ padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
           />
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              cursor: "pointer",
+              userSelect: "none",
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: alpacaOpra ? "1px solid #166534" : "1px solid #2a2f3a",
+              background: alpacaOpra ? "#0d2218" : "#12161e",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: alpacaOpra ? "#22c55e" : "#c8ccd4" }}>
+                  OPRA Real-Time
+                </span>
+                {alpacaOpra && (
+                  <span style={{
+                    background: "#14532d",
+                    color: "#22c55e",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: 4,
+                    letterSpacing: "0.06em",
+                  }}>
+                    LIVE
+                  </span>
+                )}
+              </div>
+              <span style={{ fontSize: 11, color: "#8a8f99" }}>
+                Alpaca paid tier · ~$200/mo · supprime le délai 15 min sur GEX &amp; Option Flow
+              </span>
+            </div>
+            {/* Toggle switch */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <input
+                type="checkbox"
+                checked={alpacaOpra}
+                onChange={(e) => setAlpacaOpra(e.target.checked)}
+                style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
+              />
+              <div style={{
+                width: 40,
+                height: 22,
+                borderRadius: 11,
+                background: alpacaOpra ? "#16a34a" : "#2a2f3a",
+                transition: "background 0.2s ease",
+                position: "relative",
+              }}>
+                <div style={{
+                  position: "absolute",
+                  top: 3,
+                  left: alpacaOpra ? 21 : 3,
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  transition: "left 0.2s ease",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                }} />
+              </div>
+            </div>
+          </label>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
@@ -515,6 +631,48 @@ export function BrokerSettings({
         )}
         {alpacaStatus.kind === "success" && (
           <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>{alpacaStatus.msg}</div>
+        )}
+      </section>
+
+      <section className="bs-section" style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #2a2f3a" }}>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 14, color: "#c8ccd4" }}>
+          Databento API key (GEX + Option Flow)
+        </h3>
+        <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#8a8f99" }}>
+          Alternative data source for GEX and Option Flow via OPRA PILLAR (real-time, pay-per-use).
+          Sign up at <span style={{ color: "#22c55e" }}>databento.com</span> — $125 in free credits on sign-up.
+          Key is stored encrypted in your OS keyring.
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="password"
+            placeholder={databentoKeySet ? "•••••• (configured)" : "Paste your Databento API key (db-…)"}
+            value={databentoKey}
+            onChange={(e) => setDatabentoKey(e.target.value)}
+            style={{ flex: 1, padding: "6px 10px", background: "#0f1115", color: "#e6e9ef", border: "1px solid #2a2f3a", borderRadius: 6 }}
+          />
+          <button
+            type="button"
+            onClick={() => void handleSaveDatabento()}
+            disabled={databentoStatus.kind === "busy"}
+          >
+            Save key
+          </button>
+          {databentoKeySet && (
+            <button
+              type="button"
+              onClick={() => void handleDeleteDatabento()}
+              disabled={databentoStatus.kind === "busy"}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        {databentoStatus.kind === "error" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#ff6b78" }}>{databentoStatus.msg}</div>
+        )}
+        {databentoStatus.kind === "success" && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#51e09a" }}>{databentoStatus.msg}</div>
         )}
       </section>
     </div>

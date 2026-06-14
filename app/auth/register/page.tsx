@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 import Logotype from '@/components/ui/brand/Logotype';
 import { AuthHeading } from '@/components/auth/AuthShell';
+import Checkbox from '@/components/ui/Checkbox';
 import {
   generateAdvancedFingerprint,
   storeFingerprint,
@@ -27,17 +28,52 @@ function PreviewBanner() {
   if (!show) return null;
   return (
     <div
-      className="mb-5 px-3 py-2 rounded-lg text-xs flex items-start gap-2"
+      className="relative mb-5 overflow-hidden rounded-xl px-4 py-3.5 animate-glowPulse"
       style={{
-        background: 'rgb(var(--primary-rgb) / 0.08)',
+        background:
+          'linear-gradient(135deg, rgb(var(--primary-rgb) / 0.10) 0%, rgb(var(--primary-rgb) / 0.03) 100%)',
         border: '1px solid rgb(var(--primary-rgb) / 0.3)',
-        color: 'var(--primary-light)',
       }}
     >
-      <span>
-        <strong>Public preview</strong> — full PRO access free until <strong>17 June 2026</strong>.
-        No payment required, no card asked.
-      </span>
+      {/* Halo discret dans l'angle */}
+      <div
+        className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full"
+        style={{
+          background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.18) 0%, transparent 70%)',
+          filter: 'blur(12px)',
+        }}
+      />
+      <div className="relative flex items-start gap-3">
+        <span
+          className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+          style={{
+            background: 'rgb(var(--primary-rgb) / 0.14)',
+            border: '1px solid rgb(var(--primary-rgb) / 0.3)',
+          }}
+        >
+          <Sparkles size={14} strokeWidth={2.2} style={{ color: 'var(--primary-light)' }} />
+        </span>
+        <div className="min-w-0">
+          <div
+            className="mb-1"
+            style={{
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 9,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--primary)',
+            }}
+          >
+            Public preview
+          </div>
+          <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--primary-light)' }}>
+            Full PRO access — free until 17 June 2026
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            No payment required · no card asked.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -60,7 +96,7 @@ function Divider({ label = 'or' }: { label?: string }) {
         <div className="w-full" style={{ borderTop: '1px solid var(--border)' }} />
       </div>
       <div className="relative flex justify-center text-xs">
-        <span className="px-3" style={{ background: 'var(--surface)', color: 'var(--text-muted)' }}>{label}</span>
+        <span className="px-3" style={{ background: 'var(--glass-bg)', color: 'var(--text-muted)' }}>{label}</span>
       </div>
     </div>
   );
@@ -163,65 +199,51 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        <div className="rounded-2xl p-8 animate-slideUp backdrop-blur-sm"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div className="glass rounded-2xl p-8 animate-slideUp"
+          style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.45)' }}>
 
-          <AuthHeading eyebrow="· Create account" title="Create your account" subtitle="Free account · no credit card required." />
+          <div className="animate-slideUp" style={{ animationDelay: '60ms' }}>
+            <AuthHeading eyebrow="· Create account" title="Create your account" subtitle="Free account · no credit card required." />
+          </div>
           {/* Public preview banner — visible only during the launch
               window. Renders client-side so the JIT date check below
               stays SSR-stable (no hydration mismatch from time-sensitive
               copy on the server). Hardcoded cutoff matches PREVIEW_END
               in lib/auth/license.ts. */}
-          <PreviewBanner />
+          <div className="animate-slideUp" style={{ animationDelay: '100ms' }}>
+            <PreviewBanner />
+          </div>
 
 
           {/* ── GDPR consent checkboxes — required before ANY sign-up
               method (Google or email). Placed here so the user sees
               them before interacting with either button.
               Both buttons stay disabled until both boxes are ticked. ── */}
-          <div className="space-y-2 mb-5">
-            <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
-              <input
-                type="checkbox"
-                checked={acceptTerms}
-                onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded cursor-pointer flex-shrink-0"
-                style={{ accentColor: 'var(--primary)' }}
-              />
-              <span>
-                I have read and accept the{' '}
-                <Link
-                  href="/legal/terms"
-                  target="_blank"
-                  className="underline"
-                  style={{ color: 'var(--primary-light)' }}
-                >
-                  Terms of Service
-                </Link>
-                .
-              </span>
-            </label>
-            <label className="flex items-start gap-2.5 cursor-pointer text-xs" style={{ color: 'var(--text-muted)' }}>
-              <input
-                type="checkbox"
-                checked={acceptPrivacy}
-                onChange={(e) => setAcceptPrivacy(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded cursor-pointer flex-shrink-0"
-                style={{ accentColor: 'var(--primary)' }}
-              />
-              <span>
-                I have read and accept the{' '}
-                <Link
-                  href="/legal/privacy"
-                  target="_blank"
-                  className="underline"
-                  style={{ color: 'var(--primary-light)' }}
-                >
-                  Privacy Policy
-                </Link>{' '}
-                and consent to the processing of my personal data as described.
-              </span>
-            </label>
+          <div className="space-y-2.5 mb-5 animate-slideUp" style={{ animationDelay: '140ms' }}>
+            <Checkbox checked={acceptTerms} onChange={setAcceptTerms}>
+              I have read and accept the{' '}
+              <Link
+                href="/legal/terms"
+                target="_blank"
+                className="underline"
+                style={{ color: 'var(--primary-light)' }}
+              >
+                Terms of Service
+              </Link>
+              .
+            </Checkbox>
+            <Checkbox checked={acceptPrivacy} onChange={setAcceptPrivacy}>
+              I have read and accept the{' '}
+              <Link
+                href="/legal/privacy"
+                target="_blank"
+                className="underline"
+                style={{ color: 'var(--primary-light)' }}
+              >
+                Privacy Policy
+              </Link>{' '}
+              and consent to the processing of my personal data as described.
+            </Checkbox>
           </div>
 
           {/* ── PRIMARY: Google ── */}
@@ -229,8 +251,9 @@ export default function RegisterPage() {
             type="button"
             onClick={handleGoogleSignUp}
             disabled={isGoogleLoading || !acceptTerms || !acceptPrivacy}
-            className="w-full py-3 flex items-center justify-center gap-3 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 flex items-center justify-center gap-3 rounded-xl font-semibold text-sm transition-all duration-200 animate-slideUp hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             style={{
+              animationDelay: '180ms',
               background: 'var(--surface-elevated)',
               border: '1px solid var(--border)',
               color: 'var(--text-primary)',

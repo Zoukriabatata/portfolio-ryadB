@@ -106,7 +106,7 @@
   --transition-slow: 280ms ease;
 
   /* === NAV === */
-  --nav-height: 44px;
+  --nav-height: 36px;
 }
 
 /* Tailwind v4 theme bridge — exposes our CSS variables as

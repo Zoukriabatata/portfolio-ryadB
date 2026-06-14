@@ -412,3 +412,35 @@ model ProcessedWebhookEvent {
 
   @@index([processedAt])
 }
+
+// ============ SALES COPILOT MODELS ============
+
+/// A captured sales lead from the landing-page sales chat.
+model Lead {
+  id          String   @id @default(cuid())
+  email       String
+  temperature String   @default("warm") // "cold" | "warm" | "hot"
+  topic       String?  // detected objection/intent at capture time
+  transcript  String?  // short conversation excerpt for context
+  page        String?  // origin page path
+  source      String   @default("sales_chat")
+  status      String   @default("new") // "new" | "contacted"
+  notified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+/// Anonymous conversion event from the sales chat (no PII).
+model ChatEvent {
+  id        String   @id @default(cuid())
+  sessionId String // anonymous client-generated id
+  type      String // "opened" | "engaged" | "cta_shown" | "cta_clicked" | "lead_captured"
+  ctaType   String? // "download" | "checkout" | "email" | "discord"
+  page      String?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+}

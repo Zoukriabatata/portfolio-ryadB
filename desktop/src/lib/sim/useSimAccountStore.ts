@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { computePnl, getContractSpec, type ContractSpec } from "./contractSpecs";
+import { computePnl, contractRoot, getContractSpec, type ContractSpec } from "./contractSpecs";
 
 export type Side = "long" | "short";
 
@@ -278,9 +278,9 @@ export const useSimAccountStore = create<StoreState>()(
           return;
         }
 
-        // Case B : existing position on a different symbol → reject for
-        // simplicity (single-symbol-at-a-time sim).
-        if (cur.symbol !== symbol) {
+        // Case B : existing position on a different underlying → reject.
+        // Compare contract roots (MNQ) so MNQM6 vs MNQM26 still matches.
+        if (contractRoot(cur.symbol) !== contractRoot(symbol)) {
           set({
             lastError: {
               message: `Already in ${cur.symbol} — flatten first to switch symbol`,

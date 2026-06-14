@@ -5,6 +5,7 @@ import { AppNavbar } from "../components/AppNavbar";
 import { BrokerSettings } from "../components/BrokerSettings";
 import { MultiSourceFootprint } from "../components/MultiSourceFootprint";
 import { useSession } from "../lib/auth/SessionContext";
+import { ToolbarSlotContext } from "../lib/ui/ToolbarSlot";
 
 // Projection redacted (sans password) renvoyée par load_broker_credentials.
 // Le shape est dupliqué ici plutôt qu'importé pour éviter une dépendance
@@ -32,6 +33,10 @@ export function Layout() {
   const [status, setStatus] = useState<BrokerStatus>("checking");
   const [label, setLabel] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Published by AppNavbar's slot <div> — the portal target the
+  // footprint connectors render their merged control row into.
+  // State (not a ref) so consumers re-render once the node mounts.
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null);
   const location = useLocation();
   const session = useSession();
   // Footprint is the heaviest route to (re-)bootstrap — bridge TCP
@@ -84,7 +89,13 @@ export function Layout() {
         brokerStatus={status}
         brokerLabel={label}
         onOpenSettings={() => setSettingsOpen(true)}
+        onSlotRef={setToolbarSlot}
       />
+      {/* Expose the toolbar slot ONLY on the footprint route. The
+          footprint pane stays mounted across routes (display:none when
+          off-route), so without this gate its connector would keep
+          portaling its control row into the bar on every page. */}
+      <ToolbarSlotContext.Provider value={onFootprint ? toolbarSlot : null}>
       <main className="app-main">
         {/* Persistent footprint pane — mounted once per session, kept
             alive across route changes. Hidden via display:none when
@@ -116,6 +127,7 @@ export function Layout() {
           <Outlet />
         </div>
       </main>
+      </ToolbarSlotContext.Provider>
       {settingsOpen && (
         <div
           className="app-modal-backdrop"
