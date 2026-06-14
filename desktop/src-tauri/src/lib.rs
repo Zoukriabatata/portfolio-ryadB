@@ -370,7 +370,7 @@ pub fn run() {
 
             // Phase B / M2 — public crypto adapters share their own
             // FootprintEngine. M3 wires a dedicated event emitter
-            // (`crypto-footprint-update`) so React can disambiguate
+            // (`crypto-footprint-update-batch`) so React can disambiguate
             // crypto vs Rithmic bar streams when they coexist.
             let crypto_state = state::CryptoState::new();
             commands::crypto_events::spawn_emitter(app.handle().clone(), &crypto_state.engine);

@@ -4,7 +4,7 @@
 // settings, no vault, no auth flow. The component:
 //   1. on mount: invoke('crypto_connect', { exchange })
 //   2. user picks a symbol via the modal → invoke('crypto_subscribe')
-//   3. listens to `crypto-footprint-update` events filtered to the
+//   3. listens to `crypto-footprint-update-batch` events filtered to the
 //      current exchange-qualified symbol + timeframe
 //
 // M4.7a — visible chrome is now: status bar + symbol picker button +
@@ -361,16 +361,23 @@ export function CryptoFootprint({
   );
 
   // Listen for crypto-side bar updates filtered to the current
-  // exchange-qualified symbol + timeframe.
+  // exchange-qualified symbol + timeframe. The emitter coalesces bars
+  // on a 16ms window and ships them as a `Vec<FootprintBar>` batch, so
+  // we iterate the payload and apply each matching bar.
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     let cancelled = false;
-    void listen<FootprintBar>("crypto-footprint-update", (event) => {
-      const bar = event.payload;
-      if (bar.symbol !== fullSymbol || bar.timeframe !== timeframe) return;
+    void listen<FootprintBar[]>("crypto-footprint-update-batch", (event) => {
       setBars((prev) => {
-        const next = new Map(prev);
-        next.set(bar.bucketTsNs, bar);
+        let next: Map<number, FootprintBar> | null = null;
+        for (const bar of event.payload) {
+          if (bar.symbol !== fullSymbol || bar.timeframe !== timeframe) continue;
+          if (!next) next = new Map(prev);
+          next.set(bar.bucketTsNs, bar);
+        }
+        // No matching bar in this batch → keep the same reference so
+        // React skips the re-render.
+        if (!next) return prev;
         if (next.size > MAX_BARS) {
           const sorted = [...next.keys()].sort((a, b) => a - b);
           for (const k of sorted.slice(0, sorted.length - MAX_BARS)) {

@@ -199,9 +199,11 @@ impl FootprintBar {
                     ..Default::default()
                 });
                 // Maintain ascending price order. Linear sort is fine
-                // because new levels are rare per tick.
-                self.levels
-                    .sort_by(|a, b| a.price.partial_cmp(&b.price).expect("non-NaN price"));
+                // because new levels are rare per tick. `total_cmp` is a
+                // total order over f64, so it never panics even if a
+                // non-finite price slipped through (it can't — process_tick
+                // guards is_finite — but this keeps the sort panic-free).
+                self.levels.sort_by(|a, b| a.price.total_cmp(&b.price));
                 let idx = self
                     .levels
                     .iter()
@@ -341,6 +343,18 @@ impl FootprintEngine {
     }
 
     async fn process_tick(&self, tick: &Tick) {
+        // Drop ticks that can't be aggregated safely:
+        //  - a non-finite price would poison round_to_tick and, once a
+        //    NaN reaches the level vector, panic the sort (partial_cmp
+        //    on NaN returns None). A single corrupt frame from any
+        //    connector would otherwise kill this detached engine task.
+        //  - qty <= 0 (or non-finite) is not a real trade. Counting it
+        //    inflates trade_count and seeds a phantom zero-volume level.
+        //    Mirrors the front-end VolumeProfileBuilder.addTrade guard.
+        if !tick.price.is_finite() || !tick.qty.is_finite() || tick.qty <= 0.0 {
+            return;
+        }
+
         let mut state = self.state.lock().await;
         // Per-symbol tick size, looked up inside the lock we already
         // hold — no extra hot-path lock. Falls back to the engine
@@ -629,6 +643,66 @@ mod tests {
         assert_eq!(bars[0].bucket_ts_ns, 100 * 1_000_000_000);
         assert_eq!(bars[1].bucket_ts_ns, 112 * 1_000_000_000);
         assert_eq!(bars[2].bucket_ts_ns, 125 * 1_000_000_000);
+    }
+
+    #[tokio::test]
+    async fn nan_or_infinite_price_tick_is_dropped() {
+        // A corrupt frame with a non-finite price must NOT panic the
+        // engine (the level sort would otherwise blow up on NaN) and
+        // must leave no bar behind.
+        let engine = FootprintEngine::new(vec![Timeframe::Sec5], 0.25);
+        engine
+            .process_tick(&tick(100, f64::NAN, 1.0, Side::Buy))
+            .await;
+        engine
+            .process_tick(&tick(101, f64::INFINITY, 1.0, Side::Sell))
+            .await;
+        assert!(
+            engine
+                .get_bars("MNQM6.CME", Timeframe::Sec5, 10)
+                .await
+                .is_empty(),
+            "non-finite-price ticks must be dropped, no bar created"
+        );
+
+        // A valid tick after the corrupt ones still aggregates normally.
+        engine
+            .process_tick(&tick(102, 28379.50, 2.0, Side::Buy))
+            .await;
+        let bars = engine.get_bars("MNQM6.CME", Timeframe::Sec5, 10).await;
+        assert_eq!(bars.len(), 1, "valid tick after corrupt ones must land");
+        assert_eq!(bars[0].trade_count, 1);
+    }
+
+    #[tokio::test]
+    async fn zero_or_negative_qty_tick_is_dropped() {
+        // qty <= 0 is not a real trade: it must not bump trade_count,
+        // volume, or seed a phantom level. Mirrors the front-end guard.
+        let engine = FootprintEngine::new(vec![Timeframe::Sec5], 0.25);
+        engine
+            .process_tick(&tick(100, 28379.50, 0.0, Side::Buy))
+            .await;
+        engine
+            .process_tick(&tick(101, 28379.50, -5.0, Side::Sell))
+            .await;
+        assert!(
+            engine
+                .get_bars("MNQM6.CME", Timeframe::Sec5, 10)
+                .await
+                .is_empty(),
+            "qty<=0 ticks must be dropped, no phantom bar/level"
+        );
+
+        // A real trade at the same price builds a clean single level.
+        engine
+            .process_tick(&tick(102, 28379.50, 3.0, Side::Buy))
+            .await;
+        let bars = engine.get_bars("MNQM6.CME", Timeframe::Sec5, 10).await;
+        let bar = bars.first().expect("one bar");
+        assert_eq!(bar.trade_count, 1, "only the real trade is counted");
+        assert!((bar.total_volume - 3.0).abs() < f64::EPSILON);
+        assert_eq!(bar.levels.len(), 1, "no phantom zero-volume level");
+        assert_eq!(bar.levels[0].buy_volume, 3.0);
     }
 
     #[test]

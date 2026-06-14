@@ -2,7 +2,7 @@
 //
 // Three classic order-flow signals, computed from the same
 // FootprintBar shape the rest of the desktop receives over the
-// `crypto-footprint-update` Tauri event:
+// `crypto-footprint-update-batch` Tauri event:
 //
 //   • Stacked imbalances — N consecutive levels in the same
 //     direction where the aggressive side dominates the opposite
