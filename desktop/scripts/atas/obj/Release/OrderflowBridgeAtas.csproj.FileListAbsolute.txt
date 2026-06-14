@@ -1,0 +1,13 @@
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.csproj.AssemblyReference.cache
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.AssemblyInfoInputs.cache
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.AssemblyInfo.cs
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.csproj.CoreCompileInputs.cache
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.sourcelink.json
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\bin\Release\OrderflowBridgeAtas.deps.json
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\bin\Release\OrderflowBridgeAtas.dll
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\bin\Release\OrderflowBridgeAtas.pdb
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.dll
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\refint\OrderflowBridgeAtas.dll
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\OrderflowBridgeAtas.pdb
+C:\Users\ryadb\Desktop\orderflow-v2\desktop\scripts\atas\obj\Release\ref\OrderflowBridgeAtas.dll

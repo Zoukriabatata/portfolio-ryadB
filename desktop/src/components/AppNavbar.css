@@ -20,17 +20,56 @@
   z-index: 100;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 10px 20px;
-  background: rgba(10, 10, 10, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 10px;
+  /* No right padding: window controls sit flush in the top-right
+     corner like a native titlebar. Left padding only. */
+  padding: 0 0 0 10px;
+  /* Pure noir, identical to the drawing toolbar + time axis. The
+     previous translucent rgba + blur let the bluish page bg bleed
+     through and read as grey. */
+  background: #000000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   font-family: var(--font-sans);
   color: var(--text-primary);
   user-select: none;
   height: var(--nav-height);
   box-sizing: border-box;
+}
+
+/* Drag region affordance for touch/pen on Windows. Mouse dragging
+   works via the data-tauri-drag-region attribute alone; interactive
+   children opt out so clicks aren't swallowed. */
+*[data-tauri-drag-region] {
+  app-region: drag;
+}
+.app-navbar button,
+.app-navbar input,
+.app-navbar select,
+.app-navbar a {
+  app-region: no-drag;
+}
+
+/* Slot the footprint connector portals its compact control row into.
+   Grows to fill the bar between the brand and the status cluster. */
+.nav-toolbar-slot {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+}
+
+/* The portaled footprint control row. Transparent (the navbar owns
+   the background) and laid out as a single horizontal flex line. */
+.of-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .nav-brand {

@@ -126,6 +126,13 @@ pub fn all_presets() -> Vec<PresetInfo> {
             help_text: "Direct Rithmic live account via FCM.",
         },
         PresetInfo {
+            preset: BrokerPreset::Amp,
+            display_name: "AMP Futures",
+            default_system_name: "Rithmic Paper Trading",
+            default_gateway_url: Some(RITHMIC_PROD_GATEWAY),
+            help_text: "AMP Futures demo/sim account → system 'Rithmic Paper Trading'. Live funded account → change system name to 'Rithmic 01'.",
+        },
+        PresetInfo {
             preset: BrokerPreset::Custom,
             display_name: "Custom",
             default_system_name: "",

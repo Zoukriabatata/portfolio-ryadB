@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Detected from this machine's ATAS install (runtimeconfig tfm =
+         net10.0, Microsoft.WindowsDesktop.App). If you move to another
+         ATAS version, match its runtime here. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+
+    <AssemblyName>OrderflowBridgeAtas</AssemblyName>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <!-- Folder that contains ATAS.Indicators.dll (this machine's install).
+         Override on the command line if needed:
+           dotnet build -c Release -p:AtasDir="C:\Path\To\ATAS" -->
+    <AtasDir Condition="'$(AtasDir)' == ''">C:\Program Files (x86)\ATAS Platform</AtasDir>
+  </PropertyGroup>
+
+  <!-- Reference ATAS assemblies WITHOUT copying them to the output
+       (Private=false) — the output is just OrderflowBridgeAtas.dll. -->
+  <ItemGroup>
+    <Reference Include="ATAS.Indicators">
+      <HintPath>$(AtasDir)\ATAS.Indicators.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ATAS.DataFeedsCore">
+      <HintPath>$(AtasDir)\ATAS.DataFeedsCore.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

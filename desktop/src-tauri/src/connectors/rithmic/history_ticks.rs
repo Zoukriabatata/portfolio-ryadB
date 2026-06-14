@@ -30,16 +30,22 @@ use tokio::time::{timeout, Duration};
 use crate::connectors::adapter::Credentials;
 use crate::connectors::error::{ConnectorError, Result};
 use crate::connectors::rithmic::client::{RithmicClient, TemplateProbe};
+use crate::connectors::rithmic::gateway_discovery;
 use crate::connectors::rithmic::proto::{
     request_login::SysInfraType, request_tick_bar_replay::BarSubType,
     request_tick_bar_replay::BarType, request_tick_bar_replay::TimeOrder, RequestLogin,
-    RequestLogout, RequestTickBarReplay, ResponseLogin, ResponseTickBarReplay,
+    RequestLogout, RequestTickBarReplay, RequestVolumeProfileMinuteBars, ResponseLogin,
+    ResponseTickBarReplay, ResponseVolumeProfileMinuteBars,
 };
 
 const REQUEST_LOGIN: i32 = 10;
 const REQUEST_LOGOUT: i32 = 12;
 const REQUEST_TICK_BAR_REPLAY: i32 = 206;
 const RESPONSE_TICK_BAR_REPLAY: i32 = 207;
+// VolumeProfileMinuteBars — template IDs from the async_rithmic convention (v5.19+).
+// If the server returns an unexpected template_id, write_history_debug will log it.
+const REQUEST_VOLUME_PROFILE: i32 = 501;
+const RESPONSE_VOLUME_PROFILE: i32 = 502;
 const PROTOCOL_TEMPLATE_VERSION: &str = "5.27";
 
 /// Hard outer timeout for the whole multi-chunk walk. Tick replay
@@ -49,6 +55,25 @@ const PROTOCOL_TEMPLATE_VERSION: &str = "5.27";
 /// headroom for a momentarily slow gateway without hanging the UI
 /// indefinitely.
 const REPLAY_TIMEOUT: Duration = Duration::from_secs(20 * 60);
+
+/// TEMP DIAGNOSTIC — history root cause on "Rithmic Paper Trading"
+/// (4PropTrader). Mirrors `gateway_discovery::write_debug_log`: appends
+/// the HISTORY_PLANT login result + replay terminator status to a file
+/// on the Desktop so the *primary* attempt's rp_code is visible without
+/// a terminal (the packaged app drops tracing output). Remove once the
+/// 4PropTrader history entitlement question is settled.
+fn write_history_debug(content: &str) {
+    use std::io::Write as _;
+    let path = r"C:\Users\ryadb\Desktop\history_debug.log";
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = f.write_all(content.as_bytes());
+        let _ = f.write_all(b"\n");
+    }
+}
 
 /// One reconstructed footprint bar, ready to be shipped to the
 /// renderer. Same JSON shape as `HistoryFootprintBar` in commands.rs
@@ -94,22 +119,87 @@ pub async fn fetch_tick_footprint_bars(
     hours_back: i64,
     tick_size: Option<f64>,
     app: Option<AppHandle>,
-) -> Result<Vec<TickHistoryBar>> {
-    timeout(
+) -> Result<TickFetchResult> {
+    // Primary path: HistoryPlant (Apex, 4PropTrader, accounts with
+    // tick-history subscription). Pass app=None — progress events
+    // fire only on the path that actually returns data.
+    let primary = timeout(
         REPLAY_TIMEOUT,
         fetch_inner(
-            gateway_url,
-            creds,
-            symbol,
-            exchange,
-            bar_minutes,
-            hours_back,
-            tick_size,
-            app,
+            gateway_url, creds, symbol, exchange, bar_minutes, hours_back,
+            tick_size, SysInfraType::HistoryPlant, None,
         ),
     )
     .await
-    .map_err(|_| ConnectorError::Other("tick history fetch timed out (>60s)".into()))?
+    .map_err(|_| ConnectorError::Other("tick history fetch timed out (>60s)".into()));
+
+    match primary {
+        Ok(Ok(result)) if !result.bars.is_empty() => return Ok(result),
+        Ok(Ok(_)) => {
+            tracing::info!(
+                "history-ticks: HistoryPlant returned 0 bars for {}.{} — trying gateway discovery",
+                symbol, exchange
+            );
+        }
+        Ok(Err(e)) => {
+            tracing::warn!(
+                "history-ticks: HistoryPlant error for {}.{}: {} — trying gateway discovery",
+                symbol, exchange, e
+            );
+        }
+        Err(_timeout) => {
+            tracing::warn!(
+                "history-ticks: HistoryPlant timed out for {}.{} — trying gateway discovery",
+                symbol, exchange
+            );
+        }
+    }
+
+    // Découverte du gateway HistoryPlant régional — même logique que history.rs.
+    let discovered = gateway_discovery::discover_history_gateway(
+        gateway_url,
+        &creds.system_name,
+    )
+    .await;
+
+    if let Some(ref new_url) = discovered {
+        if new_url.as_str() != gateway_url {
+            tracing::info!(
+                "history-ticks: retrying HistoryPlant on discovered gateway: {} for {}.{}",
+                new_url, symbol, exchange
+            );
+            return timeout(
+                REPLAY_TIMEOUT,
+                fetch_inner(
+                    new_url, creds, symbol, exchange, bar_minutes, hours_back,
+                    tick_size, SysInfraType::HistoryPlant, app,
+                ),
+            )
+            .await
+            .map_err(|_| {
+                ConnectorError::Other(
+                    "tick history (discovered gateway) timed out".into(),
+                )
+            })?;
+        } else {
+            tracing::info!(
+                "history-ticks: gateway découvert identique au vault ({}) — pas de retry",
+                new_url
+            );
+        }
+    }
+
+    Ok(TickFetchResult { bars: vec![], rp_codes: vec![] })
+}
+
+/// Returned by both `fetch_inner` (tick replay) and `fetch_volume_profile_bars`
+/// so the command layer can include rp_codes in its IPC return value instead of
+/// relying solely on progress events (which have a JS race with the invoke promise).
+pub struct TickFetchResult {
+    pub bars: Vec<TickHistoryBar>,
+    /// Accumulated rp_codes from every terminator frame seen during the drain.
+    /// Typically ["13", "permission denied"] when Apex denies the request.
+    pub rp_codes: Vec<String>,
 }
 
 /// Payload emitted to the React layer after every drained chunk so
@@ -156,13 +246,13 @@ async fn fetch_inner(
     bar_minutes: i32,
     hours_back: i64,
     tick_size: Option<f64>,
+    infra_type: SysInfraType,
     app: Option<AppHandle>,
-) -> Result<Vec<TickHistoryBar>> {
+) -> Result<TickFetchResult> {
     let mut client = RithmicClient::new();
     tracing::info!("history-ticks: connecting to {}", gateway_url);
     client.connect(gateway_url).await?;
 
-    // ── Login HistoryPlant ────────────────────────────────────────────
     let login_req = RequestLogin {
         template_id: REQUEST_LOGIN,
         template_version: Some(PROTOCOL_TEMPLATE_VERSION.into()),
@@ -172,26 +262,38 @@ async fn fetch_inner(
         app_name: Some(creds.app_name.clone()),
         app_version: Some(creds.app_version.clone()),
         system_name: Some(creds.system_name.clone()),
-        infra_type: Some(SysInfraType::HistoryPlant as i32),
+        infra_type: Some(infra_type as i32),
         mac_addr: vec![],
         os_version: None,
         os_platform: None,
         aggregated_quotes: None,
     };
-    tracing::info!("history-ticks: sending RequestLogin (HISTORY_PLANT)");
+    tracing::info!("history-ticks: sending RequestLogin ({:?})", infra_type);
     client.send(&login_req).await?;
     let login_resp: ResponseLogin = client.recv().await?;
     if login_resp.template_id != 11 {
+        write_history_debug(&format!(
+            "[TICK] LOGIN UNEXPECTED template_id={} gateway={} infra={:?} (expected 11)",
+            login_resp.template_id, gateway_url, infra_type
+        ));
         let _ = client.close().await;
         return Err(ConnectorError::UnexpectedMessage(login_resp.template_id));
     }
     if !login_resp.rp_code.iter().any(|c| c == "0") {
+        write_history_debug(&format!(
+            "[TICK] LOGIN REJECTED gateway={} infra={:?} rp_code={:?} user_msg={:?}",
+            gateway_url, infra_type, login_resp.rp_code, login_resp.user_msg
+        ));
         let _ = client.close().await;
         return Err(ConnectorError::AuthFailed(format!(
             "history-ticks login rejected: rp_code={:?} user_msg={:?}",
             login_resp.rp_code, login_resp.user_msg
         )));
     }
+    write_history_debug(&format!(
+        "[TICK] LOGIN OK gateway={} system_name={} user={} infra={:?} symbol={}.{} hours_back={} login_rp_code={:?}",
+        gateway_url, creds.system_name, creds.username, infra_type, symbol, exchange, hours_back, login_resp.rp_code
+    ));
     tracing::info!("history-ticks: login OK");
 
     // ── Walk chunks until we cover [start_index, finish_index] ────────
@@ -357,6 +459,20 @@ async fn fetch_inner(
             }
         }
 
+        // rp_code=13 = permission denied — retrying more chunks wastes
+        // ~12 × 12s. Break immediately so the user sees the error fast.
+        if all_rp_codes.iter().any(|c| c == "13") || all_rq_handler_rp_codes.iter().any(|c| c == "13") {
+            write_history_debug(&format!(
+                "[TICK] BREAK reason=PERMISSION_DENIED(rp_code=13) chunk#{} symbol={}.{} rp_codes={:?}",
+                chunks, symbol, exchange, all_rp_codes
+            ));
+            tracing::warn!(
+                "history-ticks: BREAK reason=PERMISSION_DENIED — rp_code=13 on chunk#{} {}. {}",
+                chunks, symbol, exchange
+            );
+            break;
+        }
+
         if let Some(handle) = app.as_ref() {
             let _ = handle.emit(
                 "rithmic-history-progress",
@@ -481,6 +597,11 @@ async fn fetch_inner(
         "history-ticks: APEX STATUS — rp_codes={:?} rq_handler_rp_codes={:?} user_msgs={:?}",
         all_rp_codes, all_rq_handler_rp_codes, all_user_msgs,
     );
+    write_history_debug(&format!(
+        "[TICK] DRAIN DONE gateway={} symbol={}.{} chunks={} total_ticks={} bars={} rp_codes={:?} rq_handler={:?} user_msgs={:?}",
+        gateway_url, symbol, exchange, chunks, total_ticks_kept, bars.len(),
+        all_rp_codes, all_rq_handler_rp_codes, all_user_msgs,
+    ));
 
     // ── Logout + close ───────────────────────────────────────────────
     let logout = RequestLogout {
@@ -499,7 +620,7 @@ async fn fetch_inner(
         "history-ticks: reconstructed {} bars at {}m grain from {} ticks ({} frames over {} chunks)",
         out.len(), bar_minutes, total_ticks_kept, total_frames, chunks
     );
-    Ok(out)
+    Ok(TickFetchResult { bars: out, rp_codes: all_rp_codes })
 }
 
 /// Per-chunk stats returned by `drain_chunk` so the outer loop can
@@ -669,17 +790,26 @@ async fn drain_chunk(
             latest_tick_sec = ssboe;
         }
 
-        let buy_volume = ask_vol;
-        let sell_volume = bid_vol;
+        // In ResponseTickBarReplay the field names reflect the AGGRESSOR's
+        // action, not the passive side:
+        //   bid_volume = aggressor was a BUYER  (hit-the-offer / "bid for it")
+        //   ask_volume = aggressor was a SELLER (hit-the-bid  / "ask to sell")
+        //
+        // This is the opposite of the CME passive-side convention used in
+        // live LastTrade frames (where ask_vol = buy-side matched). The live
+        // path is unambiguous because it carries TransactionType::Buy/Sell
+        // directly, so the discrepancy only surfaces in tick replay.
+        let buy_volume = bid_vol;
+        let sell_volume = ask_vol;
         if buy_volume == 0.0 && sell_volume == 0.0 {
             ticks_skipped_no_aggressor += 1;
         }
-        let buy_trades = if ask_vol > 0.0 && bid_vol == 0.0 {
+        let buy_trades = if bid_vol > 0.0 && ask_vol == 0.0 {
             trade_count
-        } else if ask_vol == 0.0 && bid_vol > 0.0 {
+        } else if bid_vol == 0.0 && ask_vol > 0.0 {
             0
-        } else if ask_vol + bid_vol > 0.0 {
-            ((trade_count as f64) * (ask_vol / (ask_vol + bid_vol))).round() as u32
+        } else if bid_vol + ask_vol > 0.0 {
+            ((trade_count as f64) * (bid_vol / (bid_vol + ask_vol))).round() as u32
         } else {
             0
         };
@@ -845,4 +975,241 @@ impl BarAcc {
             levels,
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VolumeProfileMinuteBars — pre-aggregated footprint history (HistoryPlant)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Unlike tick replay (206/207), this endpoint returns one bar per response
+// frame already containing `profile_price[]`, `profile_bid_volume[]` and
+// `profile_ask_volume[]` — i.e. the per-price footprint data ready to render,
+// no bucketing required.  It requires a different (potentially less restrictive)
+// Rithmic entitlement than raw tick replay, which is why it can work on systems
+// that return rp_code 13 for RequestTickBarReplay.
+//
+// Convention (same as TickBarReplay, confirmed by field naming in the proto):
+//   profile_bid_volume[i] = aggressor BUYER volume at price[i]  → buy_volume
+//   profile_ask_volume[i] = aggressor SELLER volume at price[i] → sell_volume
+
+/// Fetch footprint bars via RequestVolumeProfileMinuteBars (template 501).
+/// Returns oldest → newest, same `TickHistoryBar` type as tick replay so the
+/// command layer treats both paths identically.
+pub async fn fetch_volume_profile_bars(
+    gateway_url: &str,
+    creds: &Credentials,
+    symbol: &str,
+    exchange: &str,
+    bar_minutes: i32,
+    hours_back: i64,
+    tick_size: Option<f64>,
+) -> Result<TickFetchResult> {
+    let mut client = RithmicClient::new();
+    tracing::info!("[vp] connecting to {}", gateway_url);
+    client.connect(gateway_url).await?;
+
+    let login_req = RequestLogin {
+        template_id: REQUEST_LOGIN,
+        template_version: Some(PROTOCOL_TEMPLATE_VERSION.into()),
+        user_msg: vec!["vp-history".into()],
+        user: Some(creds.username.clone()),
+        password: Some(creds.password.clone()),
+        app_name: Some(creds.app_name.clone()),
+        app_version: Some(creds.app_version.clone()),
+        system_name: Some(creds.system_name.clone()),
+        infra_type: Some(SysInfraType::HistoryPlant as i32),
+        mac_addr: vec![],
+        os_version: None,
+        os_platform: None,
+        aggregated_quotes: None,
+    };
+    client.send(&login_req).await?;
+    let login_resp: ResponseLogin = client.recv().await?;
+    if login_resp.template_id != 11 {
+        client.close().await.ok();
+        return Err(ConnectorError::UnexpectedMessage(login_resp.template_id));
+    }
+    if !login_resp.rp_code.iter().any(|c| c == "0") {
+        write_history_debug(&format!(
+            "[VP] LOGIN REJECTED gateway={} rp_code={:?}",
+            gateway_url, login_resp.rp_code
+        ));
+        client.close().await.ok();
+        return Err(ConnectorError::AuthFailed(format!(
+            "vp-history login rejected: rp_code={:?}",
+            login_resp.rp_code
+        )));
+    }
+    write_history_debug(&format!(
+        "[VP] LOGIN OK gateway={} system_name={} user={} symbol={}.{} bar_min={} hours_back={} login_rp_code={:?}",
+        gateway_url, creds.system_name, creds.username, symbol, exchange, bar_minutes, hours_back, login_resp.rp_code
+    ));
+
+    let now_sec = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let effective_hours = hours_back.max(36);
+    let start_index = now_sec - effective_hours * 3600;
+    let finish_index = now_sec;
+
+    let req = RequestVolumeProfileMinuteBars {
+        template_id: REQUEST_VOLUME_PROFILE,
+        user_msg: vec![symbol.to_string()],
+        symbol: Some(symbol.to_string()),
+        exchange: Some(exchange.to_string()),
+        bar_type_period: Some(bar_minutes),
+        start_index: Some(start_index as i32),
+        finish_index: Some(finish_index as i32),
+        user_max_count: None,
+        resume_bars: None,
+    };
+    tracing::info!(
+        "[vp] requesting VolumeProfileMinuteBars for {}.{} bar_min={} window={}..{}",
+        symbol, exchange, bar_minutes, start_index, finish_index
+    );
+    client.send(&req).await?;
+
+    let mut bars: Vec<TickHistoryBar> = Vec::new();
+    let mut frames_seen: u32 = 0;
+    let mut rp_codes: Vec<String> = Vec::new();
+    let mut unknown_templates: Vec<i32> = Vec::new();
+
+    // Per-frame timeout: if the server ignores template 501 it simply sends nothing.
+    // The first frame should arrive within a few seconds; if it doesn't, bail fast.
+    // Subsequent frames can take longer for large datasets, so we allow up to 10s
+    // between frames after the first one.
+    let mut first_frame = true;
+    loop {
+        let recv_timeout = if first_frame {
+            Duration::from_secs(8)
+        } else {
+            Duration::from_secs(10)
+        };
+        let raw = match tokio::time::timeout(recv_timeout, client.recv_raw()).await {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => {
+                write_history_debug(&format!(
+                    "[VP] recv_raw error after {} frames: {}",
+                    frames_seen, e
+                ));
+                break;
+            }
+            Err(_) => {
+                write_history_debug(&format!(
+                    "[VP] recv_raw timed out after {}s (frame#{}), server likely ignoring template 501",
+                    if first_frame { 8 } else { 10 }, frames_seen
+                ));
+                break;
+            }
+        };
+        first_frame = false;
+        let probe = crate::connectors::rithmic::client::TemplateProbe::decode(raw.as_slice())?;
+        frames_seen += 1;
+
+        if probe.template_id != RESPONSE_VOLUME_PROFILE {
+            if !unknown_templates.contains(&probe.template_id) {
+                unknown_templates.push(probe.template_id);
+                // This log is critical: if 502 is wrong, the real ID will appear here.
+                write_history_debug(&format!(
+                    "[VP] UNEXPECTED template_id={} (expected {}) frame#{}",
+                    probe.template_id, RESPONSE_VOLUME_PROFILE, frames_seen
+                ));
+            }
+            // Skip heartbeats / stray frames — but cap to avoid infinite loop.
+            if frames_seen > 5_000 {
+                write_history_debug("[VP] cap hit without end-of-stream — aborting");
+                break;
+            }
+            continue;
+        }
+
+        use prost::Message as ProstMessage;
+        let frame = ResponseVolumeProfileMinuteBars::decode(raw.as_slice())?;
+
+        for c in frame.rp_code.iter() {
+            if !rp_codes.contains(c) {
+                rp_codes.push(c.clone());
+            }
+        }
+
+        let marker = frame.marker.unwrap_or(0) as i64;
+        let has_bar = marker > 0 && frame.open_price.is_some();
+        let has_terminator = !frame.rp_code.is_empty() || !frame.rq_handler_rp_code.is_empty();
+
+        if has_terminator && !has_bar {
+            write_history_debug(&format!(
+                "[VP] DRAIN DONE gateway={} symbol={}.{} frames={} bars={} rp_codes={:?} unknown_templates={:?}",
+                gateway_url, symbol, exchange, frames_seen, bars.len(), rp_codes, unknown_templates
+            ));
+            break;
+        }
+
+        if has_bar {
+            let levels: Vec<TickHistoryLevel> = frame
+                .profile_price
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &raw_price)| {
+                    let bid_vol = frame.profile_bid_volume.get(i).copied().unwrap_or(0);
+                    let ask_vol = frame.profile_ask_volume.get(i).copied().unwrap_or(0);
+                    if bid_vol == 0 && ask_vol == 0 {
+                        return None;
+                    }
+                    let price = match tick_size {
+                        Some(ts) if ts > 0.0 => (raw_price / ts).round() * ts,
+                        _ => raw_price,
+                    };
+                    Some(TickHistoryLevel {
+                        price,
+                        buy_volume: bid_vol as f64,  // aggressor buyer → bid_vol
+                        sell_volume: ask_vol as f64, // aggressor seller → ask_vol
+                        buy_trades: frame
+                            .profile_bid_aggressor_trades
+                            .get(i)
+                            .copied()
+                            .unwrap_or(0) as u32,
+                        sell_trades: frame
+                            .profile_ask_aggressor_trades
+                            .get(i)
+                            .copied()
+                            .unwrap_or(0) as u32,
+                    })
+                })
+                .collect();
+
+            let total_volume = frame.volume.unwrap_or(0) as f64;
+            let bid_total = frame.bid_volume.unwrap_or(0) as f64;
+            let ask_total = frame.ask_volume.unwrap_or(0) as f64;
+
+            bars.push(TickHistoryBar {
+                bucket_ts_ns: marker as u64 * 1_000_000_000,
+                open: frame.open_price.unwrap_or(0.0),
+                high: frame.high_price.unwrap_or(0.0),
+                low: frame.low_price.unwrap_or(0.0),
+                close: frame.close_price.unwrap_or(0.0),
+                total_volume,
+                total_delta: bid_total - ask_total, // bid aggressor = buy
+                trade_count: frame.num_trades.unwrap_or(0) as u32,
+                levels,
+            });
+        }
+
+        if frames_seen > 10_000 {
+            write_history_debug(&format!(
+                "[VP] safety cap at {} frames ({} bars) — possible missing terminator",
+                frames_seen, bars.len()
+            ));
+            break;
+        }
+    }
+
+    let logout = RequestLogout {
+        template_id: REQUEST_LOGOUT,
+        user_msg: vec![],
+    };
+    let _ = client.send(&logout).await;
+    let _ = client.close().await;
+
+    Ok(TickFetchResult { bars, rp_codes })
 }

@@ -13,6 +13,7 @@ pub mod quantower_bridge_depth;
 pub mod quantower_bridge_events;
 pub mod brokers;
 pub mod cache;
+pub mod databento;
 pub mod gex;
 pub mod option_flow;
 pub mod crypto;

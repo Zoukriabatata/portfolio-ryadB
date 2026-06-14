@@ -13,11 +13,11 @@
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
   font-size: 11px;
   font-weight: 600;
-  padding: 5px 10px;
+  padding: 4px 9px;
   border-radius: 4px;
   cursor: pointer;
   transition: background 100ms, color 100ms, border-color 100ms;
-  min-width: 32px;
+  min-width: 30px;
 }
 
 .tf-pill:hover:not(:disabled):not(.tf-pill-active) {

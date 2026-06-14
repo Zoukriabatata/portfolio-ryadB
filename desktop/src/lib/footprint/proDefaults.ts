@@ -93,6 +93,10 @@ export const PRO_DEFAULT_FONTS: FootprintFonts = {
 export const PRO_DEFAULT_FEATURES: FootprintFeatures = {
   showGrid: true,
   showOHLC: true,
+  showCandleOutline: true,
+  candleOutlineColor: '#ffffff',
+  candleOutlineWidth: 1,
+  candleOutlineOpacity: 0.6,
   showCrosshair: true,
   showDeltaProfile: false,
   showPOC: true,
@@ -120,6 +124,7 @@ export const PRO_DEFAULT_FEATURES: FootprintFeatures = {
   showSpread: false,
   showSessionSeparators: false,
   showAbsorptionEvents: false,
+  showCVDDivergence: false,
   volumeFilterThreshold: 0,
   volumeFilterMode: 'relative',
   // Volume profile (user spec 2026-05-10):

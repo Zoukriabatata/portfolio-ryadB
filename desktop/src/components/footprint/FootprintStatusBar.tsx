@@ -33,6 +33,14 @@ type Props = {
    * we actually ingested.
    */
   brokerDailyVolume?: number | null;
+  /**
+   * Inline mode: render only the live readout (price · Δ · vol ·
+   * trades · countdown) with no bar chrome (no background, border,
+   * padding, connection dot, symbol/tf/exchange). Used when the
+   * status bar is merged into the single top toolbar — the symbol,
+   * timeframe and connection state are already shown there.
+   */
+  inline?: boolean;
 };
 
 const TF_TO_MS: Record<string, number> = {
@@ -54,6 +62,7 @@ export function FootprintStatusBar({
   busy,
   priceDecimals = 2,
   brokerDailyVolume = null,
+  inline = false,
 }: Props) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -100,15 +109,22 @@ export function FootprintStatusBar({
   const showCountdown = tfMs > 0 && last !== undefined;
 
   return (
-    <div className="fsb-bar" role="status" aria-live="polite">
-      <span className={dotClass} title={dotTitle} aria-hidden />
-      <span className="fsb-symbol">{symbol}</span>
-      <span className="fsb-sep">·</span>
-      <span className="fsb-tf">{timeframe}</span>
-      <span className="fsb-sep">·</span>
-      <span className="fsb-exchange">{exchange}</span>
-
-      <span className="fsb-spacer" />
+    <div
+      className={inline ? "fsb-bar fsb-inline" : "fsb-bar"}
+      role="status"
+      aria-live="polite"
+    >
+      {!inline && (
+        <>
+          <span className={dotClass} title={dotTitle} aria-hidden />
+          <span className="fsb-symbol">{symbol}</span>
+          <span className="fsb-sep">·</span>
+          <span className="fsb-tf">{timeframe}</span>
+          <span className="fsb-sep">·</span>
+          <span className="fsb-exchange">{exchange}</span>
+          <span className="fsb-spacer" />
+        </>
+      )}
 
       {lastPrice !== null && (
         <span className="fsb-price">{lastPrice.toFixed(priceDecimals)}</span>

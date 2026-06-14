@@ -162,6 +162,23 @@ export function IconBell() {
   );
 }
 
+export function IconReset() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden>
+      <path
+        d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8"
+        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 3v5h5"
+        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IconSettings() {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden>

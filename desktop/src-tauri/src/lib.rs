@@ -43,7 +43,24 @@ fn err_to_string<E: std::fmt::Display>(e: E) -> String {
 
 #[tauri::command]
 async fn cmd_get_session(state: State<'_, Arc<AppState>>) -> Result<Option<Session>, String> {
-    Ok(state.session.lock().await.clone())
+    let mut lock = state.session.lock().await;
+    // build_state() deserialises session.json as Session, but when the
+    // keyring is active the token field is absent from the file → parse
+    // fails silently and lock is None even though a valid session exists.
+    // Lazy-load from disk + OS keyring here so the login form only shows
+    // when there is genuinely no persisted session.
+    if lock.is_none() {
+        match auth::load_session(&state.data_dir).await {
+            Ok(session) => {
+                *lock = Some(session);
+            }
+            Err(auth::AuthError::NoSession) => {}
+            Err(e) => {
+                tracing::warn!("cmd_get_session: could not restore session: {}", e);
+            }
+        }
+    }
+    Ok(lock.clone())
 }
 
 #[tauri::command]
@@ -350,6 +367,7 @@ pub fn run() {
             );
             app.manage(quantower_depth_state);
 
+
             // Phase B / M2 — public crypto adapters share their own
             // FootprintEngine. M3 wires a dedicated event emitter
             // (`crypto-footprint-update`) so React can disambiguate
@@ -421,6 +439,9 @@ pub fn run() {
             // beyond TTL re-fetches from Tradier.
             app.manage(commands::gex::GexState::new());
 
+            // Databento connector — OPRA GEX + flow, independent of Alpaca.
+            app.manage(commands::databento::DatabentoState::new());
+
             // Option Flow module — own fallback chains cache; reads
             // GexState's chains_cache first to avoid a redundant fetch.
             app.manage(commands::option_flow::OptionFlowState::new());
@@ -467,6 +488,7 @@ pub fn run() {
             commands::rithmic::rithmic_probe_tick_replay,
             commands::rithmic::rithmic_disconnect,
             commands::rithmic::rithmic_status,
+            commands::rithmic::rithmic_list_systems,
             commands::brokers::list_broker_presets,
             commands::brokers::save_broker_credentials,
             commands::brokers::load_broker_credentials,
@@ -525,14 +547,23 @@ pub fn run() {
             commands::account::account_start_live,
             commands::account::account_stop_live,
             commands::account::account_fetch_today_trades,
-            // GEX module — Alpaca snapshot + live tick + api key vault.
+            // GEX module — Alpaca snapshot + live tick + api key vault + OPRA refresh.
             commands::gex::gex_fetch_snapshot,
             commands::gex::gex_tick_spot,
             commands::gex::gex_save_api_key,
             commands::gex::gex_has_api_key,
+            commands::gex::gex_is_opra,
             commands::gex::gex_delete_api_key,
+            commands::gex::gex_start_opra_refresh,
+            commands::gex::gex_stop_opra_refresh,
             // Option Flow module — single polling endpoint.
             commands::option_flow::option_flow_poll,
+            // Databento — OPRA GEX + flow + key vault.
+            commands::databento::databento_save_api_key,
+            commands::databento::databento_has_api_key,
+            commands::databento::databento_delete_api_key,
+            commands::databento::databento_gex_fetch_snapshot,
+            commands::databento::databento_flow_poll,
             // AI Agent — Anthropic streaming chat + key vault.
             commands::ai_agent::ai_agent_send,
             commands::ai_agent::ai_agent_save_api_key,

@@ -78,6 +78,7 @@ export interface FootprintRendererSettings {
   showNakedPOCs: boolean;
   showUnfinishedAuctions: boolean;
   showAbsorption: boolean;
+  showCvdDivergence: boolean;
   // Indicator overlays driven by the IndicatorsButton dropdown.
   showVwapIndicator: boolean;
   showClusterStat: boolean;
@@ -93,6 +94,10 @@ export interface FootprintRendererSettings {
   candleBorderDown: string;
   candleWickUp: string;
   candleWickDown: string;
+  showCandleOutline: boolean;
+  candleOutlineColor: string;
+  candleOutlineWidth: number;
+  candleOutlineOpacity: number;
   bidColor: string;
   askColor: string;
   crosshairColor: string;
@@ -113,6 +118,18 @@ export interface FootprintRendererSettings {
   // DOM panel (bid/ask volume bars, left side).
   showDom: boolean;
   domProportion: number;             // max bar fills this % of panel half-width
+  // Absorption zones — ATAS V1 style: N consecutive level rectangles extended
+  // rightward until price returns to the zone.
+  showAbsorptionZones: boolean;
+  absorptionZoneDaysBack: number;       // how many calendar days to scan
+  absorptionZoneRatio: number;          // bid/ask (or ask/bid) threshold × 100 (150 = 1.5×)
+  absorptionZoneStackedLevels: number;  // minimum consecutive qualifying levels
+  absorptionZoneMinVolume: number;      // minimum total volume per level
+  absorptionZoneBullishColor: string;   // zone where sellers are absorbed
+  absorptionZoneBearishColor: string;   // zone where buyers are absorbed
+  absorptionZoneLineWidth: number;
+  absorptionZoneLastBarOnly: boolean;   // detect only on the live bar
+  absorptionZoneUseAlert: boolean;
 }
 
 export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
@@ -134,6 +151,7 @@ export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
   showNakedPOCs: false,
   showUnfinishedAuctions: false,
   showAbsorption: false,
+  showCvdDivergence: false,
   showVwapIndicator: false,
   showClusterStat: false,
   showBarDelta: false,
@@ -145,6 +163,10 @@ export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
   candleBorderDown: "#ffffff",
   candleWickUp: "#7ed321",
   candleWickDown: "#ffffff",
+  showCandleOutline: true,
+  candleOutlineColor: "#ffffff",
+  candleOutlineWidth: 1,
+  candleOutlineOpacity: 0.6,
   bidColor: "#ffffff",
   askColor: "#7ed321",
   crosshairColor: "#ffffff",
@@ -161,6 +183,16 @@ export const DEFAULT_RENDERER_SETTINGS: FootprintRendererSettings = {
   imbalanceCellIgnoreZero: false,
   showDom: false,
   domProportion: 100,
+  showAbsorptionZones: false,
+  absorptionZoneDaysBack: 80,
+  absorptionZoneRatio: 150,
+  absorptionZoneStackedLevels: 3,
+  absorptionZoneMinVolume: 50,
+  absorptionZoneBullishColor: '#00FFFF', // ATAS cyan — ask absorbs bid (buyers resist)
+  absorptionZoneBearishColor: '#FFA500', // ATAS orange — bid absorbs ask (sellers resist)
+  absorptionZoneLineWidth: 1,
+  absorptionZoneLastBarOnly: false,
+  absorptionZoneUseAlert: true,
 };
 
 export interface RendererOptions {
@@ -208,6 +240,7 @@ export class FootprintCanvasRenderer {
   private settings: FootprintRendererSettings = { ...DEFAULT_RENDERER_SETTINGS };
   private indicators: IndicatorsResult = EMPTY_INDICATORS;
   private lastFrame: FrameLayout | null = null;
+  private depthSnap: { bids: { price: number; volume: number }[]; asks: { price: number; volume: number }[] } | null = null;
 
   constructor(canvas: HTMLCanvasElement, opts: RendererOptions = {}) {
     const ctx = canvas.getContext("2d");
@@ -249,6 +282,10 @@ export class FootprintCanvasRenderer {
    *  compute and calls this when the result is ready. */
   setIndicators(r: IndicatorsResult) {
     this.indicators = r;
+  }
+
+  setDepth(snap: { bids: { price: number; volume: number }[]; asks: { price: number; volume: number }[] } | null) {
+    this.depthSnap = snap;
   }
 
   /** Effective price decimals — settings override wins, falls back
@@ -406,6 +443,8 @@ export class FootprintCanvasRenderer {
     // M4.7c — indicator overlays. Drawn inside the chart clip so a
     // naked-POC line can't bleed onto the price axis.
     this.drawIndicatorOverlays(frame);
+    // DOM profile — drawn on top of bars but still inside the chart area.
+    this.drawDomProfile(frame);
 
     ctx.restore();
 
@@ -697,6 +736,82 @@ export class FootprintCanvasRenderer {
       if (y < f.chartTop || y > f.chartBottom) continue;
       ctx.fillText(price.toFixed(this.effectivePriceDecimals()), f.chartRight + 6, y);
     }
+  }
+
+  private drawDomProfile(f: FrameLayout): void {
+    if (!this.depthSnap) return;
+    const { ctx } = this;
+    const { bids, asks } = this.depthSnap;
+    if (!bids.length && !asks.length) return;
+
+    const MAX_BAR_W = 180;
+    const FONT = 'bold 11px "Consolas","Monaco","Courier New",monospace';
+    const invTick = 1 / f.tickSize;
+
+    // Accumulate volumes keyed by snapped tick index.
+    const bidByTick = new Map<number, number>();
+    const askByTick = new Map<number, number>();
+    for (const b of bids) {
+      const key = Math.round(b.price * invTick);
+      bidByTick.set(key, (bidByTick.get(key) ?? 0) + b.volume);
+    }
+    for (const a of asks) {
+      const key = Math.round(a.price * invTick);
+      askByTick.set(key, (askByTick.get(key) ?? 0) + a.volume);
+    }
+
+    const allKeys = new Set([...bidByTick.keys(), ...askByTick.keys()]);
+    if (allKeys.size === 0) return;
+
+    let maxVol = 0;
+    for (const k of allKeys) {
+      const b = bidByTick.get(k) ?? 0;
+      const a = askByTick.get(k) ?? 0;
+      if (b > maxVol) maxVol = b;
+      if (a > maxVol) maxVol = a;
+    }
+    if (maxVol === 0) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, f.chartTop, f.chartRight, f.chartBottom - f.chartTop);
+    ctx.clip();
+    ctx.textBaseline = 'middle';
+    ctx.font = FONT;
+
+    for (const key of allKeys) {
+      // Snap to tick grid: price = key × tickSize.
+      const snappedPrice = key * f.tickSize;
+      // Bar occupies [yTop, yBottom] = [priceToY(price + tick), priceToY(price)] — exact tick slot.
+      const yBottom = f.gridTop + ((f.maxPrice - snappedPrice) / f.tickSize) * f.rowH;
+      const yTop    = yBottom - f.rowH;
+      const barH    = Math.max(1, f.rowH);
+      if (yTop > f.chartBottom || yBottom < f.chartTop) continue;
+
+      const bid = bidByTick.get(key) ?? 0;
+      const ask = askByTick.get(key) ?? 0;
+      const bidW = bid ? (bid / maxVol) * MAX_BAR_W : 0;
+      const askW = ask ? (ask / maxVol) * MAX_BAR_W : 0;
+      const bidDominant = bid >= ask;
+
+      if (bidDominant) {
+        if (askW >= 0.5) { ctx.fillStyle = 'rgba(242, 56, 90, 0.28)';  ctx.fillRect(f.chartRight - askW, yTop, askW, barH); }
+        if (bidW >= 0.5) { ctx.fillStyle = 'rgba(8, 153, 129, 0.65)';  ctx.fillRect(f.chartRight - bidW, yTop, bidW, barH); }
+      } else {
+        if (bidW >= 0.5) { ctx.fillStyle = 'rgba(8, 153, 129, 0.28)';  ctx.fillRect(f.chartRight - bidW, yTop, bidW, barH); }
+        if (askW >= 0.5) { ctx.fillStyle = 'rgba(242, 56, 90, 0.65)';  ctx.fillRect(f.chartRight - askW, yTop, askW, barH); }
+      }
+
+      if (barH >= 8) {
+        const cy = yTop + barH / 2;
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(255,255,255,0.90)';
+        const label = bid > 0 && ask > 0 ? `${bid} × ${ask}` : bid > 0 ? String(bid) : String(ask);
+        ctx.fillText(label, f.chartRight - 4, cy);
+      }
+    }
+
+    ctx.restore();
   }
 
   private drawTimeAxis(f: FrameLayout) {

@@ -116,6 +116,46 @@
   box-shadow: none !important;
 }
 
+/* ── Tab bar ─────────────────────────────────────────────────────────── */
+.asm-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.015);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.asm-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: -0.005em;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: color 160ms, border-color 160ms;
+  white-space: nowrap;
+  margin-bottom: -1px;
+}
+.asm-tab:hover {
+  color: rgba(255, 255, 255, 0.76);
+}
+.asm-tab-active {
+  color: #7ed321;
+  border-bottom-color: #7ed321;
+  font-weight: 600;
+}
+.asm-tab:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(126, 211, 33, 0.35);
+  border-radius: 4px 4px 0 0;
+}
+
 /* ── Body ────────────────────────────────────────────────────────────── */
 .asm-body {
   flex: 1;

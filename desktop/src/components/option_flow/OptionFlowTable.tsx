@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useOptionFlowStore } from "../../lib/option_flow/useOptionFlowStore";
 import type { OptionTrade } from "../../lib/option_flow/api";
 import {
@@ -60,6 +60,40 @@ function ivTier(iv: number | null | undefined): string {
   if (iv >= 0.2) return "of-iv-normal";
   return "of-iv-cool";
 }
+
+/** Vol/OI ratio for a trade: trade size against the contract's standing
+ *  open interest. >= 1 means the single print is as large as the entire
+ *  open interest → almost certainly an OPENING position (you can't close
+ *  more contracts than exist). Null when OI is unknown/zero. */
+function voiRatio(t: OptionTrade): number | null {
+  const oi = t.openInterest;
+  if (oi == null || !Number.isFinite(oi) || oi <= 0) return null;
+  return t.size / oi;
+}
+
+function isOpening(t: OptionTrade): boolean {
+  const r = voiRatio(t);
+  return r != null && r >= 1;
+}
+
+function sizeTitle(t: OptionTrade): string | undefined {
+  const r = voiRatio(t);
+  if (r == null) return undefined;
+  return `OI ${t.openInterest!.toLocaleString()} · Vol/OI ${r.toFixed(2)}${r >= 1 ? " — opening (size ≥ OI)" : ""}`;
+}
+
+const OPENING_TAG_STYLE: CSSProperties = {
+  marginLeft: 5,
+  fontSize: 8,
+  fontWeight: 800,
+  letterSpacing: "0.06em",
+  padding: "1px 4px",
+  borderRadius: 3,
+  color: "#f5a623",
+  background: "rgba(245,166,35,0.14)",
+  border: "1px solid rgba(245,166,35,0.35)",
+  verticalAlign: "middle",
+};
 
 export function OptionFlowTable() {
   const trades = useOptionFlowStore((s) => s.trades);
@@ -134,7 +168,10 @@ export function OptionFlowTable() {
                 <span className="of-cell-exp">{t.expiration}</span>
               </span>
               <span className="of-cell-strike">${t.strike.toFixed(2)}</span>
-              <span className="of-cell-right">{t.size.toLocaleString()}</span>
+              <span className="of-cell-right" title={sizeTitle(t)}>
+                {t.size.toLocaleString()}
+                {isOpening(t) && <span style={OPENING_TAG_STYLE}>OPEN</span>}
+              </span>
               <span className="of-cell-right">${t.price.toFixed(2)}</span>
               <span className={`of-cell-right of-cell-premium`}>
                 {fmtPremium(t.premium)}

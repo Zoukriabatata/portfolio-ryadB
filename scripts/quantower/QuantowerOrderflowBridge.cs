@@ -1,85 +1,128 @@
-// QuantowerOrderflowBridge.cs
-// Streams ticks + DOM from Quantower to the Orderflow-v2 desktop app
-// via a local TCP connection on port 7273.
+// QuantowerOrderflowBridge.cs — v3
+// Protocole aligné avec le parser Rust (bridge/parser.rs) :
 //
-// Wire protocol (UTF-8, newline-terminated, identical to NinjaTrader bridge):
-//   M,{seq},{symbol},{price},{qty},{B|S}\n   — tick trade
-//   D,{seq},{symbol},{B|S},{price},{qty}\n   — DOM update
-//   H,{seq}\n                               — heartbeat (1 s)
-//   E,{seq}\n                               — end of history sentinel
+//   M,{symbol},{tick_size},{n_hist}          — header (envoyé au connect, avant H*)
+//   H,{ts_ns},{price},{qty},{0|1}            — tick historique (0=Buy, 1=Sell)
+//   E                                        — fin d'historique
+//   L,{ts_ns},{price},{qty},{0|1},{seq}      — tick live
+//   D,{ts_ns},{0|1},{0|1},{price},{vol}      — DOM update (side 0=bid/1=ask, op 0=upsert/1=delete)
+//   P                                        — heartbeat
 //
-// Installation:
-//   1. Copy this file to %QUANTOWER_DIR%\Scripts\Indicators\
-//   2. Quantower → Tools → Scripts → Compile
-//   3. Add the indicator to a chart with a Rithmic feed
-//   4. In Orderflow-v2: switch source to Quantower → Connect
+// L'historique est construit directement depuis HistoricalData au moment où un
+// client se connecte (BuildHistorySnapshot). OnUpdate n'est plus utilisé pour
+// l'historique — évite le problème UpdateReason.HistoricalBar vs NewBar.
+//
+// Installation :
+//   1. Compiler : dotnet build --configuration Release dans C:\tmp\QtTest\
+//   2. Copier QuantowerOrderflowBridge.dll dans :
+//      C:\Quantower\TradingPlatform\v1.145.17\bin\Scripts\Indicators\Custom\
+//   3. Redémarrer Quantower → l'indicateur apparaît dans la liste
+//   4. Ajouter sur UN SEUL chart (port unique 7273)
 
 using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using TradingPlatform.BusinessLayer;
+using TradingPlatform.BusinessLayer.Integration;
 
-namespace OrderflowV2
+public class QuantowerOrderflowBridge : Indicator
 {
-    [Indicator("QuantowerOrderflowBridge", "Senzoukria Orderflow Bridge", Version = "1.0",
-               Description = "Streams ticks + DOM to Orderflow-v2 desktop on localhost:7273")]
-    public class QuantowerOrderflowBridge : Indicator
+    [InputParameter("Port", 0, 1024, 65535, 1, 0)]
+    public int Port = 7273;
+
+    private static readonly CultureInfo IC = CultureInfo.InvariantCulture;
+    private static readonly DateTime UNIX_EPOCH =
+        new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    // ── TCP server ────────────────────────────────────────────────────
+    private TcpListener   _listener;
+    private TcpClient     _client;
+    private NetworkStream _stream;
+    private Thread        _acceptThread;
+    private Thread        _heartbeatThread;
+    private Thread        _histLoaderThread;
+    private volatile bool _running;
+    private volatile bool _histReady;      // replay chart terminé
+    private volatile int  _lastHistTick;   // TickCount au dernier HistoricalBar
+    private volatile bool _tickHistReady;  // GetHistory() tick terminé (ou échoué)
+    private List<string>  _tickHistLines;  // résultat du GetHistory, écrit une seule fois
+    private int           _seq;
+    private readonly object _writeLock = new object();
+
+    // ──────────────────────────────────────────────────────────────────
+    public QuantowerOrderflowBridge() : base()
     {
-        [InputParameter("Port", 0, 1024, 65535, 1, 0)]
-        public int Port = 7273;
+        Name = "QuantowerOrderflowBridge";
+        SeparateWindow = false;
+        AddLineSeries("Bridge", Color.Transparent, 1, LineStyle.Solid);
+    }
 
-        private TcpListener   _listener;
-        private TcpClient     _client;
-        private NetworkStream _stream;
-        private Thread        _acceptThread;
-        private Thread        _heartbeatThread;
-        private int           _seq;
-        private volatile bool _running;
-        private readonly object _writeLock = new object();
-
-        // ──────────────────────────────────────────────────────────────
-        protected override void OnInit()
+    protected override void OnInit()
+    {
+        _running = true;
+        if (Symbol != null)
         {
-            Name = "QuantowerOrderflowBridge";
-            _running = true;
-            StartServer();
+            Symbol.NewLast   += HandleNewLast;
+            Symbol.NewLevel2 += HandleNewLevel2;
         }
+        StartServer();
+    }
 
-        protected override void OnUpdate(UpdateArgs args) { /* not used */ }
-
-        // Called for every trade print on the subscribed symbol.
-        protected override void OnTrade(Trade trade)
+    protected override void OnUpdate(UpdateArgs args)
+    {
+        if (args.Reason == UpdateReason.HistoricalBar)
         {
-            if (trade == null) return;
-            string side = trade.AggressorFlag == AggressorFlag.Buy ? "B" : "S";
-            SendLine(
-                $"M,{NextSeq()},{Symbol.Name}," +
-                $"{trade.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)}," +
-                $"{(long)trade.Size},{side}"
-            );
+            // Horodater chaque barre historique — la fin du replay = silence >2s
+            _lastHistTick = Environment.TickCount;
         }
-
-        // Called for every DOM update on the subscribed symbol.
-        protected override void OnLevel2(Level2Quote quote)
+        else if (!_histReady)
         {
-            if (quote == null) return;
-            string side = quote.Side == Side.Buy ? "B" : "S";
-            SendLine(
-                $"D,{NextSeq()},{Symbol.Name},{side}," +
-                $"{quote.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)}," +
-                $"{(long)quote.Size}"
-            );
+            // Premier update live : replay définitivement terminé
+            _histReady = true;
         }
+    }
 
-        protected override void OnStop()
+    private void HandleNewLast(Symbol symbol, Last last)
+    {
+        if (last == null) return;
+        int side = last.AggressorFlag == AggressorFlag.Buy ? 0 : 1;
+        long tsNs = ToNs(DateTime.UtcNow);
+        double price = last.Price;
+        long qty = (long)last.Size;
+        if (qty <= 0) return;
+        SendLine(string.Format(IC, "L,{0},{1:F8},{2},{3},{4}",
+            tsNs, price, qty, side, NextSeq()));
+    }
+
+    private void HandleNewLevel2(Symbol symbol, Level2Quote quote, DOMQuote dom)
+    {
+        if (quote == null) return;
+        int side  = quote.PriceType == QuotePriceType.Bid ? 0 : 1;
+        long vol  = (long)quote.Size;
+        int op    = quote.Closed ? 1 : 0;
+        long tsNs = ToNs(DateTime.UtcNow);
+        double price = quote.Price;
+        SendLine(string.Format(IC, "D,{0},{1},{2},{3:F8},{4}",
+            tsNs, side, op, price, vol));
+    }
+
+    protected override void OnClear()
+    {
+        _running = false;
+        if (Symbol != null)
         {
-            _running = false;
-            StopServer();
+            Symbol.NewLast   -= HandleNewLast;
+            Symbol.NewLevel2 -= HandleNewLevel2;
         }
+        StopServer();
+    }
 
-        // ──────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────
         private void StartServer()
         {
             try
@@ -87,24 +130,31 @@ namespace OrderflowV2
                 _listener = new TcpListener(IPAddress.Loopback, Port);
                 _listener.Start();
 
-                _acceptThread = new Thread(AcceptLoop) { IsBackground = true };
+                _acceptThread = new Thread(AcceptLoop)
+                    { IsBackground = true, Name = "QT-Bridge-Accept" };
+                _heartbeatThread = new Thread(HeartbeatLoop)
+                    { IsBackground = true, Name = "QT-Bridge-Heartbeat" };
+                _histLoaderThread = new Thread(HistoryLoaderThread)
+                    { IsBackground = true, Name = "QT-Bridge-History" };
+
                 _acceptThread.Start();
-
-                _heartbeatThread = new Thread(HeartbeatLoop) { IsBackground = true };
                 _heartbeatThread.Start();
+                _histLoaderThread.Start();
 
-                Log($"QuantowerOrderflowBridge: listening on 127.0.0.1:{Port}", StrategyLoggingLevel.Trading);
+                Core.Instance.Loggers.Log($"QuantowerOrderflowBridge v3: listening on 127.0.0.1:{Port}",
+                    LoggingLevel.Trading, "QT-Bridge");
             }
             catch (Exception ex)
             {
-                Log($"QuantowerOrderflowBridge: start failed — {ex.Message}", StrategyLoggingLevel.Error);
+                Core.Instance.Loggers.Log($"QuantowerOrderflowBridge: start failed — {ex.Message}",
+                    LoggingLevel.Error, "QT-Bridge");
             }
         }
 
         private void StopServer()
         {
-            try { _client?.Close();  } catch { /* ignore */ }
-            try { _listener?.Stop(); } catch { /* ignore */ }
+            try { _client?.Close();  } catch { }
+            try { _listener?.Stop(); } catch { }
             _client   = null;
             _stream   = null;
             _listener = null;
@@ -114,57 +164,243 @@ namespace OrderflowV2
         {
             while (_running)
             {
+                // AcceptTcpClient est isolé : quand OnClear() appelle _listener.Stop(),
+                // il lève une SocketException ici — on doit la catcher sans condition.
+                TcpClient client;
                 try
                 {
-                    var client = _listener.AcceptTcpClient();
+                    client = _listener.AcceptTcpClient();
+                }
+                catch (Exception)
+                {
+                    break; // listener stoppé (OnClear) ou erreur fatale → sortie propre
+                }
+
+                if (!_running)
+                {
+                    try { client.Close(); } catch { }
+                    break;
+                }
+
+                client.NoDelay = true;
+
+                // Attendre que HistoryLoaderThread ait fini GetHistory() (max 180s).
+                // Le chargement tick est bloquant et peut prendre du temps.
+                int waited = 0;
+                while (!_tickHistReady && waited < 180000 && _running)
+                {
+                    Thread.Sleep(500);
+                    waited += 500;
+                }
+
+                if (!_running)
+                {
+                    try { client.Close(); } catch { }
+                    break;
+                }
+
+                if (!_tickHistReady)
+                    Core.Instance.Loggers.Log("QuantowerOrderflowBridge: timeout GetHistory()",
+                        LoggingLevel.Error, "QT-Bridge");
+
+                try
+                {
+                    double tickSize = Symbol?.TickSize ?? 0.25;
+                    if (tickSize <= 0) tickSize = 0.25;
+                    string symName = Symbol?.Name ?? "UNKNOWN";
+
+                    var histBars = _tickHistLines ?? new List<string>();
+
                     lock (_writeLock)
                     {
                         _client?.Close();
                         _client = client;
                         _stream = client.GetStream();
+
+                        SendBytes(string.Format(IC, "M,{0},{1:F8},{2}",
+                            symName, tickSize, histBars.Count));
+
+                        foreach (var line in histBars)
+                            SendBytes(line);
+
+                        SendBytes("E");
                     }
-                    Log("QuantowerOrderflowBridge: client connected", StrategyLoggingLevel.Trading);
-                    // Send end-of-history sentinel immediately — we don't
-                    // replay historical bars; the app requests them via
-                    // rithmic_get_bars from its own SQLite cache.
-                    SendLine($"E,{NextSeq()}");
+
+                    Core.Instance.Loggers.Log(
+                        $"QuantowerOrderflowBridge: client connected — {histBars.Count} hist bars sent → live",
+                        LoggingLevel.Trading, "QT-Bridge");
                 }
-                catch (Exception ex) when (_running)
+                catch (Exception ex)
                 {
-                    Log($"QuantowerOrderflowBridge: accept error — {ex.Message}", StrategyLoggingLevel.Error);
-                    Thread.Sleep(1000);
+                    Core.Instance.Loggers.Log($"QuantowerOrderflowBridge: connect handler error — {ex.Message}",
+                        LoggingLevel.Error, "QT-Bridge");
                 }
             }
+        }
+
+        private void HistoryLoaderThread()
+        {
+            try
+            {
+                // Attendre la fin du replay chart avant de faire GetHistory()
+                // (le symbol doit être souscrit et prêt).
+                int waited = 0;
+                while (!_histReady && waited < 60000 && _running)
+                {
+                    Thread.Sleep(200);
+                    waited += 200;
+                    int last = _lastHistTick;
+                    if (last != 0 && (Environment.TickCount - last) > 2000)
+                    {
+                        _histReady = true;
+                        break;
+                    }
+                }
+
+                if (!_running) { _tickHistReady = true; return; }
+
+                _tickHistLines = BuildHistorySnapshot();
+            }
+            catch (Exception ex)
+            {
+                Core.Instance.Loggers.Log($"QuantowerOrderflowBridge: HistoryLoaderThread — {ex.Message}",
+                    LoggingLevel.Error, "QT-Bridge");
+                _tickHistLines = new List<string>();
+            }
+            finally
+            {
+                _tickHistReady = true;
+            }
+        }
+
+        private List<string> BuildHistorySnapshot()
+        {
+            var result = new List<string>(100000);
+            try
+            {
+                if (Symbol == null) return result;
+
+                var cutoff = GetSessionCutoff();
+
+                // Demande l'historique tick-by-tick directement au Symbol —
+                // indépendant du chart (fonctionne sur M1, 5m, Daily, etc.)
+                var req = new HistoryRequestParameters
+                {
+                    Symbol      = this.Symbol,
+                    FromTime    = cutoff,
+                    ToTime      = DateTime.UtcNow,
+                    Aggregation = new HistoryAggregationTick(HistoryType.Last)
+                };
+                var tickHistory = this.Symbol.GetHistory(req);
+
+                if (tickHistory == null)
+                {
+                    Core.Instance.Loggers.Log("QuantowerOrderflowBridge: GetHistory returned null",
+                        LoggingLevel.Error, "QT-Bridge");
+                    return result;
+                }
+
+                int count = tickHistory.Count;
+                double prevPrice = double.NaN;
+                int    prevSide  = 0;
+                long   seq       = 1;
+
+                for (int i = 0; i < count; i++)
+                {
+                    var tick = tickHistory[i, SeekOriginHistory.Begin];
+                    if (tick == null) continue;
+
+                    var tsUtc = tick.TimeLeft.Kind == DateTimeKind.Utc
+                        ? tick.TimeLeft
+                        : tick.TimeLeft.ToUniversalTime();
+
+                    double price = tick[PriceType.Last];
+                    long qty = (long)tick[PriceType.Volume];
+                    if (qty <= 0 || price <= 0) continue;
+
+                    // AggressorFlag : None=0, Buy=1, Sell=2, NotSet=3
+                    int aggressor = (int)tick[PriceType.AggressorFlag];
+                    int side;
+                    if (aggressor == 1)
+                    {
+                        side = 0;
+                        prevPrice = price; prevSide = 0;
+                    }
+                    else if (aggressor == 2)
+                    {
+                        side = 1;
+                        prevPrice = price; prevSide = 1;
+                    }
+                    else
+                    {
+                        if (double.IsNaN(prevPrice)) side = 0;
+                        else if (price > prevPrice)  side = 0;
+                        else if (price < prevPrice)  side = 1;
+                        else                         side = prevSide;
+                        prevPrice = price; prevSide = side;
+                    }
+
+                    result.Add(string.Format(IC, "H,{0},{1:F8},{2},{3},{4}",
+                        ToNs(tsUtc), price, qty, side, seq++));
+                }
+
+                Core.Instance.Loggers.Log(
+                    $"QuantowerOrderflowBridge: tick history — {count} ticks, {result.Count} envoyés (session du jour)",
+                    LoggingLevel.Trading, "QT-Bridge");
+            }
+            catch (Exception ex)
+            {
+                Core.Instance.Loggers.Log($"QuantowerOrderflowBridge: history build error — {ex.Message}",
+                    LoggingLevel.Error, "QT-Bridge");
+            }
+            return result;
         }
 
         private void HeartbeatLoop()
         {
             while (_running)
             {
-                Thread.Sleep(1000);
-                SendLine($"H,{NextSeq()}");
+                Thread.Sleep(5000);
+                SendLine("P");
             }
         }
 
         private void SendLine(string line)
         {
-            lock (_writeLock)
+            lock (_writeLock) { SendBytes(line); }
+        }
+
+        private void SendBytes(string line)
+        {
+            if (_stream == null) return;
+            try
             {
-                if (_stream == null) return;
-                try
-                {
-                    byte[] data = Encoding.UTF8.GetBytes(line + "\n");
-                    _stream.Write(data, 0, data.Length);
-                }
-                catch
-                {
-                    _client?.Close();
-                    _client = null;
-                    _stream = null;
-                }
+                byte[] data = Encoding.UTF8.GetBytes(line + "\n");
+                _stream.Write(data, 0, data.Length);
+            }
+            catch
+            {
+                _client?.Close();
+                _client = null;
+                _stream = null;
             }
         }
 
-        private int NextSeq() => Interlocked.Increment(ref _seq);
+        private int NextSeq() =>
+            System.Threading.Interlocked.Increment(ref _seq);
+
+        private static long ToNs(DateTime utcTime) =>
+            (long)(utcTime - UNIX_EPOCH).TotalMilliseconds * 1_000_000L;
+
+        // CME Globex: session opens 17:00 CT = 22:00 UTC (CDT) / 23:00 UTC (CST).
+        // Using 22:00 UTC covers the full session in all scenarios — at worst
+        // includes 1 extra hour in winter (CST), which is negligible.
+        private static DateTime GetSessionCutoff()
+        {
+            var utcNow   = DateTime.UtcNow;
+            var candidate = utcNow.Date.AddHours(22); // today 22:00 UTC
+            if (candidate > utcNow)
+                candidate = candidate.AddDays(-1);    // yesterday 22:00 UTC
+            return candidate;
+        }
     }
-}

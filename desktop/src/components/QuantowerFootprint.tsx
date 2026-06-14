@@ -66,6 +66,7 @@ import type { FootprintRendererSettings } from "../lib/footprint/FootprintCanvas
 import { IndicatorsRunner } from "../lib/footprint/indicatorsAsync";
 import { getContractSpec } from "../lib/sim/contractSpecs";
 import type { FootprintBar } from "./FootprintBarView";
+import type { DepthSnapshot } from "../lib/quantower_depth/api";
 import "./RithmicFootprint.css";
 
 type QuantowerStatus = {
@@ -164,10 +165,9 @@ export function QuantowerFootprint({
   // ── UI state ──────────────────────────────────────────────
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [simPanelOpen, setSimPanelOpen] = useState(true);
-  // L2 DOM panel toggle — defaults on so users discover the feature.
-  // No persistence yet (would live in useFootprintSettingsStore in a
-  // follow-up if the user wants).
-  const [domPanelOpen, setDomPanelOpen] = useState(true);
+  // L2 DOM panel toggle — defaults off; the DOM profile is now drawn
+  // directly in the price axis area of the canvas (ATAS-style overlay).
+  const [domPanelOpen, setDomPanelOpen] = useState(false);
   // Live price-axis map polled from the canvas so the DOM ladder can
   // align its rows with the chart's price grid. Updated on RAF.
   const [priceMap, setPriceMap] = useState<{
@@ -198,6 +198,26 @@ export function QuantowerFootprint({
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [domPanelOpen]);
+
+  // DOM profile canvas overlay — pipe depth snapshots straight into
+  // the renderer so it can draw the histogram in the price axis area.
+  useEffect(() => {
+    let unlisten: UnlistenFn | null = null;
+    let cancelled = false;
+    void listen<DepthSnapshot[]>("quantower-depth-update", (event) => {
+      const match = event.payload.find((s) => s.symbol === symbol);
+      if (!match) return;
+      canvasHandle.current?.setDomProfile({ bids: match.bids, asks: match.asks });
+    }).then((fn) => {
+      if (cancelled) { fn(); return; }
+      unlisten = fn;
+    });
+    return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
+      canvasHandle.current?.setDomProfile(null);
+    };
+  }, [symbol]);
 
   // Sim ticker — feeds the sim trading store with live closes.
   useSimTicker();
@@ -252,6 +272,11 @@ export function QuantowerFootprint({
     (s) => s.showUnfinishedAuctions,
   );
   const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
+  const showCvdDivergence = useFootprintSettingsStore((s) => s.showCvdDivergence);
+  const cvdDivergencePivotBars = useFootprintSettingsStore((s) => s.cvdDivergencePivotBars);
+  const absorptionRatio         = useFootprintSettingsStore((s) => s.absorptionRatio);
+  const absorptionMinVolume     = useFootprintSettingsStore((s) => s.absorptionMinVolume);
+  const absorptionToleranceTicks = useFootprintSettingsStore((s) => s.absorptionToleranceTicks);
   const showAbsorptionZones        = useFootprintSettingsStore((s) => s.showAbsorptionZones);
   const absorptionZoneDaysBack     = useFootprintSettingsStore((s) => s.absorptionZoneDaysBack);
   const absorptionZoneRatio        = useFootprintSettingsStore((s) => s.absorptionZoneRatio);
@@ -582,6 +607,7 @@ export function QuantowerFootprint({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showCvdDivergence,
       showAbsorptionZones,
       absorptionZoneDaysBack,
       absorptionZoneRatio,
@@ -640,6 +666,7 @@ export function QuantowerFootprint({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showCvdDivergence,
       showAbsorptionZones,
       absorptionZoneDaysBack,
       absorptionZoneRatio,
@@ -740,9 +767,11 @@ export function QuantowerFootprint({
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
         enableAbsorption: showAbsorption,
-        absorptionRatio: 0.6,
-        absorptionMinVolume: 0,
-        absorptionToleranceTicks: 1,
+        absorptionRatio,
+        absorptionMinVolume,
+        absorptionToleranceTicks,
+        enableCvdDivergence: showCvdDivergence,
+        cvdDivergencePivotBars,
       },
       currentPrice,
     );
@@ -754,6 +783,11 @@ export function QuantowerFootprint({
     showNakedPOCs,
     showUnfinishedAuctions,
     showAbsorption,
+    absorptionRatio,
+    absorptionMinVolume,
+    absorptionToleranceTicks,
+    showCvdDivergence,
+    cvdDivergencePivotBars,
   ]);
 
   // ── Drawings toolbar ──────────────────────────────────────
@@ -1259,18 +1293,70 @@ function QuantowerStatusBanner({
     );
   }
 
+  if (state.kind === "receivingHistory") {
+    const pct = state.total > 0 ? (state.received / state.total) * 100 : 0;
+    const pctRounded = Math.round(pct);
+    return (
+      <div
+        style={{
+          background: "#1a1a1a",
+          borderBottom: "1px solid #2a2a2a",
+          padding: "6px 16px 0",
+          fontSize: 12,
+          color: "#e5e7eb",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#f59e0b",
+              flexShrink: 0,
+              animation: "pulse 1.2s ease-in-out infinite",
+            }}
+          />
+          <span style={{ color: "#f59e0b", fontWeight: 600 }}>Loading history…</span>
+          <span style={{ color: "#9ca3af" }}>
+            {state.received.toLocaleString()} / {state.total.toLocaleString()} ticks
+          </span>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontVariantNumeric: "tabular-nums",
+              fontWeight: 700,
+              color: pct >= 100 ? "#34d399" : "#f59e0b",
+            }}
+          >
+            {pctRounded}%
+          </span>
+        </div>
+        <div
+          style={{
+            height: 3,
+            background: "rgba(245, 158, 11, 0.15)",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${Math.min(100, pct)}%`,
+              background: "linear-gradient(90deg, #d97706, #f59e0b)",
+              borderRadius: 2,
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (text === null) return null;
 
-  const dotColor = (() => {
-    switch (state.kind) {
-      case "receivingHistory":
-        return "#f59e0b";
-      case "reconnecting":
-        return "#ef4444";
-      default:
-        return "#6b7280";
-    }
-  })();
+  const dotColor = state.kind === "reconnecting" ? "#ef4444" : "#6b7280";
 
   return (
     <div

@@ -3,12 +3,18 @@
 //! Argument and return structs use `serde(rename_all = "camelCase")`
 //! so the React side speaks idiomatic JS without a translation layer.
 
+use std::time::Duration;
+
+use prost::Message as ProstMessage;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use tokio::time::timeout;
 
 use crate::brokers::vault;
 use crate::connectors::adapter::{Credentials, MarketDataAdapter};
+use crate::connectors::rithmic::client::{RithmicClient, TemplateProbe};
 use crate::connectors::rithmic::history::{self, BarSpec, HistoryBar};
+use crate::connectors::rithmic::proto::{RequestRithmicSystemInfo, ResponseRithmicSystemInfo};
 use crate::connectors::rithmic::RithmicAdapter;
 use crate::engine::{FootprintBar, Timeframe};
 use crate::state::RithmicState;
@@ -103,6 +109,17 @@ pub struct HistoryFootprintBar {
     pub total_delta: f64,
     pub trade_count: u32,
     pub levels: Vec<serde_json::Value>,
+}
+
+/// Returned by `rithmic_fetch_tick_history` so the frontend receives
+/// rp_codes in the same synchronous response as the bars — avoids the
+/// timing race where the `done` progress event arrives after the invoke
+/// promise resolves, making rp_code=13 appear as "no rp_code received".
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TickHistoryResponse {
+    pub bars: Vec<HistoryFootprintBar>,
+    pub rp_codes: Vec<String>,
 }
 
 /// Connect to the Rithmic gateway and authenticate. On success,
@@ -318,7 +335,8 @@ pub async fn rithmic_get_bars(
     args: GetBarsArgs,
 ) -> Result<Vec<FootprintBar>, String> {
     let tf = parse_timeframe(&args.timeframe)?;
-    Ok(state.engine.get_bars(&args.symbol, tf, args.n_bars).await)
+    let bars = state.engine.get_bars(&args.symbol, tf, args.n_bars).await;
+    Ok(bars)
 }
 
 /// Fetch historical OHLC bars from the Rithmic HISTORY_PLANT. One-shot:
@@ -338,7 +356,7 @@ pub async fn rithmic_get_bars(
 pub async fn rithmic_fetch_tick_history(
     app: tauri::AppHandle,
     args: FetchHistoryArgs,
-) -> Result<Vec<HistoryFootprintBar>, String> {
+) -> Result<TickHistoryResponse, String> {
     let stored = tokio::task::spawn_blocking(vault::load)
         .await
         .map_err(|e| format!("vault task panicked: {e}"))?
@@ -364,34 +382,92 @@ pub async fn rithmic_fetch_tick_history(
         args.bar_minutes,
     ) {
         (BarSpec::Minute(n), label) => (n, label),
-        // DailyBar is non-sense for tick replay (would drain millions
-        // of ticks per bar). Reject it loudly instead of bucketing
-        // ticks into ~24h bins silently — the frontend should only
-        // route OHLC TFs to rithmic_fetch_history, never here.
-        (BarSpec::Daily, _) => {
-            return Err("rithmic_fetch_tick_history: timeframe '1d' is not supported via tick replay; use rithmic_fetch_history instead".to_string());
-        }
+        // Daily footprint: bucket all ticks in a 1440-minute (86400s)
+        // window into one bar per UTC calendar day. This IS the daily
+        // footprint use-case (ATAS-style), so we allow it intentionally.
+        // Expect 30-90s load time for 10-15 days of ES/NQ data.
+        (BarSpec::Daily, label) => (1440, label),
     };
     let symbol_full = format!("{}.{}", args.symbol, args.exchange);
 
-    let bars = crate::connectors::rithmic::history_ticks::fetch_tick_footprint_bars(
-        &stored.gateway_url,
-        &creds,
-        &args.symbol,
-        &args.exchange,
-        bar_minutes,
-        args.hours_back,
-        args.tick_size,
-        Some(app),
+    // ── Try VolumeProfileMinuteBars first (pre-aggregated footprint, lighter
+    // entitlement than raw tick replay — works on Paper Trading systems that
+    // return rp_code 13 for RequestTickBarReplay).
+    // 30s timeout: if the server ignores template 501 it sends nothing back,
+    // so recv_raw() would block indefinitely without this guard.
+    let vp_bars = tokio::time::timeout(
+        tokio::time::Duration::from_secs(30),
+        crate::connectors::rithmic::history_ticks::fetch_volume_profile_bars(
+            &stored.gateway_url,
+            &creds,
+            &args.symbol,
+            &args.exchange,
+            bar_minutes,
+            args.hours_back,
+            args.tick_size,
+        ),
     )
     .await
-    .map_err(|e| format!("fetch_tick_footprint_bars failed: {e}"))?;
+    .unwrap_or_else(|_| {
+        tracing::warn!(
+            "rithmic_fetch_tick_history: VolumeProfile timed out (30s) for {} — falling back to tick replay",
+            symbol_full
+        );
+        Ok(crate::connectors::rithmic::history_ticks::TickFetchResult { bars: vec![], rp_codes: vec![] })
+    });
+
+    let fetch_result = match vp_bars {
+        Ok(r) if !r.bars.is_empty() => {
+            tracing::info!(
+                "rithmic_fetch_tick_history: VolumeProfile returned {} bars for {}",
+                r.bars.len(), symbol_full
+            );
+            r
+        }
+        Ok(_) => {
+            tracing::info!(
+                "rithmic_fetch_tick_history: VolumeProfile returned 0 bars for {} — falling back to tick replay",
+                symbol_full
+            );
+            crate::connectors::rithmic::history_ticks::fetch_tick_footprint_bars(
+                &stored.gateway_url,
+                &creds,
+                &args.symbol,
+                &args.exchange,
+                bar_minutes,
+                args.hours_back,
+                args.tick_size,
+                Some(app),
+            )
+            .await
+            .map_err(|e| format!("fetch_tick_footprint_bars failed: {e}"))?
+        }
+        Err(e) => {
+            tracing::warn!(
+                "rithmic_fetch_tick_history: VolumeProfile error for {} ({}) — falling back to tick replay",
+                symbol_full, e
+            );
+            crate::connectors::rithmic::history_ticks::fetch_tick_footprint_bars(
+                &stored.gateway_url,
+                &creds,
+                &args.symbol,
+                &args.exchange,
+                bar_minutes,
+                args.hours_back,
+                args.tick_size,
+                Some(app),
+            )
+            .await
+            .map_err(|e| format!("fetch_tick_footprint_bars failed: {e}"))?
+        }
+    };
+    let rp_codes = fetch_result.rp_codes;
 
     // Map → camelCase HistoryFootprintBar. Note that `levels` arrives
     // as a Vec<TickHistoryLevel> already serialised in camelCase by
     // serde, so we splat them in via serde_json::to_value to keep the
     // outer struct's `levels: Vec<serde_json::Value>` shape stable.
-    let result: Vec<HistoryFootprintBar> = bars
+    let bars: Vec<HistoryFootprintBar> = fetch_result.bars
         .into_iter()
         .map(|b| HistoryFootprintBar {
             symbol: symbol_full.clone(),
@@ -414,12 +490,12 @@ pub async fn rithmic_fetch_tick_history(
 
     tracing::info!(
         "rithmic_fetch_tick_history: returned {} footprint bars for {} ({}h back, {}m grain)",
-        result.len(),
+        bars.len(),
         symbol_full,
         args.hours_back,
         bar_minutes,
     );
-    Ok(result)
+    Ok(TickHistoryResponse { bars, rp_codes })
 }
 
 /// One-off diagnostic — fires a 5-minute `RequestTickBarReplay` on a
@@ -600,6 +676,48 @@ fn build_status(adapter: &RithmicAdapter) -> RithmicStatus {
     }
 }
 
+/// Interroge la gateway `gateway_url` (pre-login) et retourne la liste
+/// de tous les system_names disponibles sur cette gateway.
+/// Utile pour diagnostiquer quel system_name utiliser (ex: AMP Futures).
+#[tauri::command]
+pub async fn rithmic_list_systems(gateway_url: Option<String>) -> Result<Vec<String>, String> {
+    let url = gateway_url
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "wss://rprotocol.rithmic.com:443".to_string());
+
+    let result = timeout(Duration::from_secs(8), async {
+        let mut client = RithmicClient::new();
+        client.connect(&url).await.map_err(|e| format!("connect failed: {e}"))?;
+
+        let req = RequestRithmicSystemInfo {
+            template_id: 16,
+            user_msg: vec![],
+        };
+        client.send(&req).await.map_err(|e| format!("send failed: {e}"))?;
+
+        let raw = client.recv_raw().await.map_err(|e| format!("recv failed: {e}"))?;
+        let _ = client.close().await;
+
+        let probe = TemplateProbe::decode(raw.as_slice())
+            .map_err(|e| format!("probe decode: {e}"))?;
+
+        tracing::info!("rithmic_list_systems: response template_id={}", probe.template_id);
+
+        let resp = ResponseRithmicSystemInfo::decode(raw.as_slice())
+            .map_err(|e| format!("response decode: {e}"))?;
+
+        if !resp.rp_code.iter().any(|c| c == "0") {
+            return Err(format!("rp_code={:?}", resp.rp_code));
+        }
+
+        Ok(resp.system_name)
+    })
+    .await
+    .map_err(|_| "timeout (>8s)".to_string())?;
+
+    result
+}
+
 fn parse_timeframe(s: &str) -> Result<Timeframe, String> {
     match s {
         "1s" => Ok(Timeframe::Sec1),
@@ -612,6 +730,7 @@ fn parse_timeframe(s: &str) -> Result<Timeframe, String> {
         "15m" => Ok(Timeframe::Min15),
         "30m" => Ok(Timeframe::Min30),
         "1h" => Ok(Timeframe::Hour1),
+        "1d" => Ok(Timeframe::Day1),
         "100t" => Ok(Timeframe::Ticks100),
         other => Err(format!("unknown timeframe: {other}")),
     }

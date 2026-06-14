@@ -57,6 +57,7 @@ impl RithmicState {
                 Timeframe::Min5,
                 Timeframe::Min15,
                 Timeframe::Hour1,
+                Timeframe::Day1,
                 // Tick-based — only relevant for the bridge connector
                 // which populates `Tick.seq`. Rithmic ticks come in
                 // with seq=0 so every Rithmic tick would land in the
@@ -200,3 +201,4 @@ impl QuantowerState {
         }
     }
 }
+

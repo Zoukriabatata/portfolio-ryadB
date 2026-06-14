@@ -193,6 +193,42 @@ export function AdvancedSettingsModal({ open, onClose }: Props) {
               </section>
 
               <section className="asm-section">
+                <h4>Footprint outline</h4>
+                <p className="asm-section-hint">
+                  Rectangle around the bid×ask cell block (data cells only — top to
+                  bottom displayed level, not the OHLC candle). Off = no outline.
+                </p>
+                <ToggleRow
+                  label="Show footprint outline"
+                  checked={settings.showCandleOutline}
+                  onChange={() => settings.toggle("showCandleOutline")}
+                />
+                <ColorRow
+                  label="Color"
+                  value={settings.candleOutlineColor}
+                  onChange={(v) => settings.set("candleOutlineColor", v)}
+                />
+                <SliderRow
+                  label="Width"
+                  value={settings.candleOutlineWidth}
+                  valueText={`${settings.candleOutlineWidth.toFixed(0)} px`}
+                  min={1}
+                  max={3}
+                  step={1}
+                  onChange={(v) => settings.set("candleOutlineWidth", v)}
+                />
+                <SliderRow
+                  label="Opacity"
+                  value={settings.candleOutlineOpacity}
+                  valueText={`${Math.round(settings.candleOutlineOpacity * 100)}%`}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={(v) => settings.set("candleOutlineOpacity", v)}
+                />
+              </section>
+
+              <section className="asm-section">
                 <h4>Crosshair</h4>
                 <p className="asm-section-hint">
                   Cursor guides — pick a hue that contrasts with your background.
@@ -384,6 +420,101 @@ export function AdvancedSettingsModal({ open, onClose }: Props) {
                   checked={settings.showAbsorption}
                   onChange={() => settings.toggle("showAbsorption")}
                 />
+                {settings.showAbsorption && (
+                  <>
+                    <SliderRow
+                      label="Ratio (%)"
+                      value={Math.round(settings.absorptionRatio * 100)}
+                      valueText={`${Math.round(settings.absorptionRatio * 100)}%`}
+                      min={10}
+                      max={99}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionRatio", v / 100)}
+                    />
+                    <SliderRow
+                      label="Min volume"
+                      value={settings.absorptionMinVolume}
+                      valueText={settings.absorptionMinVolume.toString()}
+                      min={0}
+                      max={500}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionMinVolume", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Tolerance (ticks)"
+                      value={settings.absorptionToleranceTicks}
+                      valueText={settings.absorptionToleranceTicks.toString()}
+                      min={0}
+                      max={5}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionToleranceTicks", Math.round(v))}
+                    />
+                  </>
+                )}
+                <ToggleRow
+                  label="Absorption zones (ATAS V1)"
+                  checked={settings.showAbsorptionZones}
+                  onChange={() => settings.toggle("showAbsorptionZones")}
+                />
+                {settings.showAbsorptionZones && (
+                  <>
+                    <SliderRow
+                      label="Ratio (×100)"
+                      value={settings.absorptionZoneRatio}
+                      valueText={`${(settings.absorptionZoneRatio / 100).toFixed(2)}×`}
+                      min={100}
+                      max={500}
+                      step={10}
+                      onChange={(v) => settings.set("absorptionZoneRatio", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Stacked levels"
+                      value={settings.absorptionZoneStackedLevels}
+                      valueText={settings.absorptionZoneStackedLevels.toString()}
+                      min={2}
+                      max={8}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneStackedLevels", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Min volume / level"
+                      value={settings.absorptionZoneMinVolume}
+                      valueText={settings.absorptionZoneMinVolume.toString()}
+                      min={1}
+                      max={500}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneMinVolume", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Days look back"
+                      value={settings.absorptionZoneDaysBack}
+                      valueText={`${settings.absorptionZoneDaysBack}d`}
+                      min={1}
+                      max={365}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneDaysBack", Math.round(v))}
+                    />
+                    <SliderRow
+                      label="Line width"
+                      value={settings.absorptionZoneLineWidth}
+                      valueText={settings.absorptionZoneLineWidth.toString()}
+                      min={1}
+                      max={4}
+                      step={1}
+                      onChange={(v) => settings.set("absorptionZoneLineWidth", Math.round(v))}
+                    />
+                    <ToggleRow
+                      label="Last bar only"
+                      checked={settings.absorptionZoneLastBarOnly}
+                      onChange={() => settings.toggle("absorptionZoneLastBarOnly")}
+                    />
+                    <ToggleRow
+                      label="Alert on new zone"
+                      checked={settings.absorptionZoneUseAlert}
+                      onChange={() => settings.toggle("absorptionZoneUseAlert")}
+                    />
+                  </>
+                )}
                 <ToggleRow
                   label="Stacked imbalances"
                   checked={settings.showStackedImbalances}

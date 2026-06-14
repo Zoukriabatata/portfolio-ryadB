@@ -4,7 +4,7 @@
 import "./TimeframePills.css";
 
 export type SupportedTimeframe =
-  | "15s" | "30s" | "1m" | "3m" | "5m" | "15m" | "1h" | "100t";
+  | "15s" | "30s" | "1m" | "3m" | "5m" | "15m" | "1h" | "1d" | "100t";
 
 const ALL_TIMEFRAMES: { value: SupportedTimeframe; label: string }[] = [
   { value: "15s",  label: "15s"  },
@@ -14,6 +14,7 @@ const ALL_TIMEFRAMES: { value: SupportedTimeframe; label: string }[] = [
   { value: "5m",   label: "5m"   },
   { value: "15m",  label: "15m"  },
   { value: "1h",   label: "1H"   },
+  { value: "1d",   label: "1D"   },
   // Tick-based — only meaningful for the NinjaTrader Bridge connector,
   // which populates a per-session tick counter so each bar holds exactly
   // 100 trades and aligns bar-for-bar with the NT 100-Tick reference

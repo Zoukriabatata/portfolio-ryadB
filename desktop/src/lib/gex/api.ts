@@ -70,14 +70,26 @@ export async function tickGexSpot(symbol: GexSymbol): Promise<GexSnapshot> {
   return invoke<GexSnapshot>("gex_tick_spot", { args: { symbol } });
 }
 
-export async function saveApiKey(keyId: string, secretKey: string): Promise<void> {
-  return invoke<void>("gex_save_api_key", { args: { keyId, secretKey } });
+export async function saveApiKey(keyId: string, secretKey: string, opra: boolean): Promise<void> {
+  return invoke<void>("gex_save_api_key", { args: { keyId, secretKey, opra } });
 }
 
 export async function hasApiKey(): Promise<boolean> {
   return invoke<boolean>("gex_has_api_key");
 }
 
+export async function isOpra(): Promise<boolean> {
+  return invoke<boolean>("gex_is_opra");
+}
+
 export async function deleteApiKey(): Promise<void> {
   return invoke<void>("gex_delete_api_key");
+}
+
+export async function startOpraRefresh(symbol: GexSymbol): Promise<void> {
+  return invoke<void>("gex_start_opra_refresh", { args: { symbol } });
+}
+
+export async function stopOpraRefresh(): Promise<void> {
+  return invoke<void>("gex_stop_opra_refresh");
 }

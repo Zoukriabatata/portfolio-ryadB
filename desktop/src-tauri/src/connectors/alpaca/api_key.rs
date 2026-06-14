@@ -13,6 +13,11 @@ const ACCOUNT: &str = "alpaca_api_keys_v1";
 pub struct AlpacaKeys {
     pub key_id: String,
     pub secret_key: String,
+    /// True when the user has the Alpaca OPRA paid tier (real-time options data).
+    /// Stored in-band in the same keyring JSON so existing entries (no field)
+    /// deserialise as false without migration.
+    #[serde(default)]
+    pub opra: bool,
 }
 
 fn entry() -> Result<keyring::Entry> {
@@ -56,6 +61,7 @@ mod tests {
         let keys = AlpacaKeys {
             key_id: "PKTEST123".into(),
             secret_key: "SECRETXYZ".into(),
+            opra: false,
         };
         save(&keys).expect("save");
         let loaded = load().expect("load").expect("Some");

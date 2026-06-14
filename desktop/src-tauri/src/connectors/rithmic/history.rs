@@ -25,6 +25,7 @@ use tokio::time::{timeout, Duration};
 use crate::connectors::adapter::Credentials;
 use crate::connectors::error::{ConnectorError, Result};
 use crate::connectors::rithmic::client::{RithmicClient, TemplateProbe};
+use crate::connectors::rithmic::gateway_discovery;
 use crate::connectors::rithmic::proto::{
     request_login::SysInfraType, request_time_bar_replay::BarSubType,
     request_time_bar_replay::BarType, request_time_bar_replay::TimeOrder, RequestLogin,
@@ -78,6 +79,24 @@ const REQUEST_TIME_BAR_REPLAY: i32 = 202;
 const RESPONSE_TIME_BAR_REPLAY: i32 = 203;
 
 const PROTOCOL_TEMPLATE_VERSION: &str = "5.27";
+
+/// TEMP DIAGNOSTIC — daily/time history root cause on "Rithmic Paper
+/// Trading" (4PropTrader). Mirrors `gateway_discovery::write_debug_log`:
+/// appends the HISTORY_PLANT login result + replay terminator status to
+/// a file on the Desktop so the *primary* attempt's rp_code is visible
+/// without a terminal. Remove once the entitlement question is settled.
+fn write_history_debug(content: &str) {
+    use std::io::Write as _;
+    let path = r"C:\Users\ryadb\Desktop\history_debug.log";
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = f.write_all(content.as_bytes());
+        let _ = f.write_all(b"\n");
+    }
+}
 
 /// One historical OHLCV bar from the Rithmic history plant.
 /// Per-price-level footprint detail is unavailable here (would require
@@ -158,12 +177,77 @@ pub async fn fetch_history_bars(
         BarSpec::Daily => 60,
         BarSpec::Minute(_) => 30,
     };
-    timeout(
+    // Primary: HistoryPlant (works for Apex, 4PropTrader and any account
+    // with a history-data subscription). Pass app=None here so progress
+    // events only fire on the path that actually returns data.
+    let primary = timeout(
         Duration::from_secs(secs),
-        fetch_history_bars_inner(gateway_url, creds, symbol, exchange, spec, hours_back, app),
+        fetch_history_bars_inner(
+            gateway_url, creds, symbol, exchange, spec, hours_back,
+            SysInfraType::HistoryPlant, None,
+        ),
     )
     .await
-    .map_err(|_| ConnectorError::Other(format!("history fetch timed out (>{}s)", secs)))?
+    .map_err(|_| ConnectorError::Other(format!("history fetch timed out (>{}s)", secs)))?;
+
+    match primary {
+        Ok(bars) if !bars.is_empty() => return Ok(bars),
+        Ok(_) => {
+            tracing::info!(
+                "history: HistoryPlant returned 0 bars for {}.{} — trying gateway discovery",
+                symbol, exchange
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                "history: HistoryPlant error for {}.{}: {} — trying gateway discovery",
+                symbol, exchange, e
+            );
+        }
+    }
+
+    // Découverte du gateway HistoryPlant régional (ex : Frankfurt pour
+    // Paper Trading). Le gateway prod US (rprotocol.rithmic.com) ne sert
+    // pas le HistoryPlant pour tous les systems — Paper Trading Frankfurt
+    // a son propre gateway. On interroge le gateway d'entrée pour trouver
+    // l'URI exact, puis on retente la connexion HistoryPlant dessus.
+    let discovered = gateway_discovery::discover_history_gateway(
+        gateway_url,
+        &creds.system_name,
+    )
+    .await;
+
+    if let Some(ref new_url) = discovered {
+        if new_url.as_str() != gateway_url {
+            tracing::info!(
+                "history: retrying HistoryPlant on discovered gateway: {} for {}.{}",
+                new_url, symbol, exchange
+            );
+            return timeout(
+                Duration::from_secs(secs),
+                fetch_history_bars_inner(
+                    new_url, creds, symbol, exchange, spec, hours_back,
+                    SysInfraType::HistoryPlant, app,
+                ),
+            )
+            .await
+            .map_err(|_| {
+                ConnectorError::Other(format!(
+                    "history (discovered gateway) timed out (>{}s)",
+                    secs
+                ))
+            })?;
+        } else {
+            tracing::info!(
+                "history: découvert gateway identique au vault ({}) — pas de retry utile",
+                new_url
+            );
+        }
+    }
+
+    // Discovery échouée ou gateway identique → renvoie 0 barres (le
+    // frontend utilisera son fallback SQLite session).
+    Ok(vec![])
 }
 
 async fn fetch_history_bars_inner(
@@ -173,6 +257,7 @@ async fn fetch_history_bars_inner(
     exchange: &str,
     spec: BarSpec,
     hours_back: i64,
+    infra_type: SysInfraType,
     app: Option<AppHandle>,
 ) -> Result<Vec<HistoryBar>> {
     let mut client = RithmicClient::new();
@@ -189,9 +274,6 @@ async fn fetch_history_bars_inner(
     // exact symptom we observed: "history: sending RequestLogin"
     // followed by silence). Login goes directly after connect.
 
-    // Step 1 — login with HISTORY_PLANT infra_type. Identical fields
-    // to the ticker plant otherwise; mismatched field sets cause the
-    // gateway to silently close the socket.
     let login_req = RequestLogin {
         template_id: REQUEST_LOGIN,
         template_version: Some(PROTOCOL_TEMPLATE_VERSION.to_string()),
@@ -201,29 +283,41 @@ async fn fetch_history_bars_inner(
         app_name: Some(creds.app_name.clone()),
         app_version: Some(creds.app_version.clone()),
         system_name: Some(creds.system_name.clone()),
-        infra_type: Some(SysInfraType::HistoryPlant as i32),
+        infra_type: Some(infra_type as i32),
         mac_addr: vec![],
         os_version: None,
         os_platform: None,
         aggregated_quotes: None,
     };
     tracing::info!(
-        "history: sending RequestLogin (HISTORY_PLANT) for system '{}'",
-        creds.system_name
+        "history: sending RequestLogin ({:?}) for system '{}'",
+        infra_type, creds.system_name
     );
     client.send(&login_req).await?;
     let login_resp: ResponseLogin = client.recv().await?;
     if login_resp.template_id != 11 {
+        write_history_debug(&format!(
+            "[TIME] LOGIN UNEXPECTED template_id={} gateway={} infra={:?} (expected 11)",
+            login_resp.template_id, gateway_url, infra_type
+        ));
         client.close().await.ok();
         return Err(ConnectorError::UnexpectedMessage(login_resp.template_id));
     }
     if !login_resp.rp_code.iter().any(|c| c == "0") {
+        write_history_debug(&format!(
+            "[TIME] LOGIN REJECTED gateway={} infra={:?} rp_code={:?} user_msg={:?}",
+            gateway_url, infra_type, login_resp.rp_code, login_resp.user_msg
+        ));
         client.close().await.ok();
         return Err(ConnectorError::AuthFailed(format!(
             "history login rejected: rp_code={:?} user_msg={:?}",
             login_resp.rp_code, login_resp.user_msg
         )));
     }
+    write_history_debug(&format!(
+        "[TIME] LOGIN OK gateway={} infra={:?} spec={:?} symbol={}.{} hours_back={} login_rp_code={:?}",
+        gateway_url, infra_type, spec, symbol, exchange, hours_back, login_resp.rp_code
+    ));
     tracing::info!("history: login OK");
 
     // Step 2 — request the bar replay window.
@@ -406,6 +500,11 @@ async fn fetch_history_bars_inner(
         rq_handler_rp_codes,
         user_msgs,
     );
+    write_history_debug(&format!(
+        "[TIME] DRAIN DONE gateway={} spec={:?} symbol={}.{} frames={} bars={} rp_codes={:?} rq_handler={:?} user_msgs={:?}",
+        gateway_url, spec, symbol, exchange, frames_seen, bars.len(),
+        rp_codes, rq_handler_rp_codes, user_msgs,
+    ));
 
     // Emit a final progress event so React can read Apex's status
     // strings even on the time-bar path (the tick-replay path emits

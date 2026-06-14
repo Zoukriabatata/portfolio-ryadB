@@ -5,10 +5,10 @@
 .cf-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
+  gap: 10px;
+  padding: 4px 12px;
   background: #0a0a0a;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   flex-shrink: 0;
 }
 
@@ -119,6 +119,21 @@
 .cf-action-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Button that leads with a small bitmap icon (e.g. NT Bridge). */
+.cf-action-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cf-nt-icon {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  /* The PNG is already transparent — no background, the orange NT
+     sits directly on the dark button. */
+  flex-shrink: 0;
 }
 
 .cf-action-primary {

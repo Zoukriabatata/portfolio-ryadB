@@ -73,6 +73,9 @@ struct GreeksSnap {
     gamma: Option<f64>,
     theta: Option<f64>,
     iv: Option<f64>,
+    /// Standing open interest of the contract — lets the UI flag opening
+    /// flow (trade size vs OI).
+    oi: u64,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -99,6 +102,7 @@ pub async fn option_flow_poll(
         .map_err(|e| format!("vault task panicked: {e}"))?
         .map_err(|e| format!("alpaca vault: {e}"))?
         .ok_or_else(|| "Alpaca API keys not configured — set them in Settings".to_string())?;
+    let opra = keys.opra;
     let client = AlpacaClient::new(keys.key_id, keys.secret_key).map_err(|e| e.to_string())?;
 
     // 1) Acquire chains — try GEX cache first, then our own cache,
@@ -157,7 +161,7 @@ pub async fn option_flow_poll(
             let occ = build_occ(&symbol, &yymmdd, 'C', c.strike);
             greeks_by_occ.insert(
                 occ.clone(),
-                GreeksSnap { delta: c.delta, gamma: c.gamma, theta: c.theta, iv: c.iv },
+                GreeksSnap { delta: c.delta, gamma: c.gamma, theta: c.theta, iv: c.iv, oi: c.open_interest },
             );
             occ_symbols.push(occ);
         }
@@ -168,7 +172,7 @@ pub async fn option_flow_poll(
             let occ = build_occ(&symbol, &yymmdd, 'P', p.strike);
             greeks_by_occ.insert(
                 occ.clone(),
-                GreeksSnap { delta: p.delta, gamma: p.gamma, theta: p.theta, iv: p.iv },
+                GreeksSnap { delta: p.delta, gamma: p.gamma, theta: p.theta, iv: p.iv, oi: p.open_interest },
             );
             occ_symbols.push(occ);
         }
@@ -184,22 +188,27 @@ pub async fn option_flow_poll(
     );
 
     // 4) Build start_iso from since_ms (with overlap) or default lookback.
-    //    Clamp to `now - 16min` because the free indicative feed rejects
-    //    any historical-trade request with start more recent than that.
+    //    Free tier: clamp to `now - 16 min` (Alpaca rejects more-recent starts).
+    //    OPRA tier: no clamp — feed is real-time.
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    let max_start = now_secs - FREE_TIER_MIN_DELAY_SECS;
+    let default_lookback = if opra { 5 * 60 } else { FIRST_POLL_LOOKBACK_SECS };
     let raw_start_secs = match args.since_ms {
         Some(ms) => (ms / 1000) - SINCE_OVERLAP_SECS,
-        None => now_secs - FIRST_POLL_LOOKBACK_SECS,
+        None => now_secs - default_lookback,
     };
-    let start_secs = raw_start_secs.min(max_start);
+    let start_secs = if opra {
+        raw_start_secs
+    } else {
+        raw_start_secs.min(now_secs - FREE_TIER_MIN_DELAY_SECS)
+    };
     let start_iso = unix_to_iso8601(start_secs);
     tracing::info!(
-        "option_flow_poll: start={} (clamped from {})",
+        "option_flow_poll: start={} (opra={}, raw={})",
         start_iso,
+        opra,
         raw_start_secs,
     );
 
@@ -220,6 +229,7 @@ pub async fn option_flow_poll(
                 t.gamma = g.gamma;
                 t.theta = g.theta;
                 t.iv = g.iv;
+                t.open_interest = Some(g.oi);
             }
             t
         })

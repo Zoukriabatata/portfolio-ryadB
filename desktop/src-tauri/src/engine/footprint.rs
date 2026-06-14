@@ -27,9 +27,17 @@ use tokio::task::JoinHandle;
 use crate::connectors::tick::{Side, Tick};
 
 /// Capacity of the broadcast channel that fans out updated bars to
-/// downstream consumers (Tauri IPC, tests, …). 1024 is generous —
-/// individual receivers should drain faster than ticks arrive.
-const UPDATE_CHANNEL_CAPACITY: usize = 1024;
+/// downstream consumers (Tauri IPC, cache writer, tests, …).
+///
+/// 1024 was too small: the cache writer's flush() takes the shared DB
+/// Mutex (contended at startup by the 5 per-TF `cache_query` scans) and
+/// the periodic snapshot-reconcile re-emits the whole bar set at once.
+/// While a receiver is stalled, a 1024-slot ring overflows and tokio
+/// broadcast drops the oldest bars (`RecvError::Lagged`). Dropped CLOSED
+/// buckets are never re-emitted → permanent holes in the SQLite cache
+/// (observed: 5096 bars dropped in a single startup burst). 32768 covers
+/// the worst observed stall with ~6× margin.
+const UPDATE_CHANNEL_CAPACITY: usize = 32768;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -44,6 +52,7 @@ pub enum Timeframe {
     Min15,
     Min30,
     Hour1,
+    Day1,
     /// Tick-based timeframe: a bar closes every 100 ticks. Buckets
     /// by `tick.seq / 100` instead of by clock — bar-for-bar aligned
     /// with the upstream's own 100-tick chart (NinjaTrader Bridge).
@@ -66,6 +75,7 @@ impl Timeframe {
             Timeframe::Min15 => 900,
             Timeframe::Min30 => 1800,
             Timeframe::Hour1 => 3600,
+            Timeframe::Day1 => 86400,
             Timeframe::Ticks100 => 0,
         }
     }
@@ -84,6 +94,7 @@ impl Timeframe {
             Timeframe::Min15 => "15m",
             Timeframe::Min30 => "30m",
             Timeframe::Hour1 => "1h",
+            Timeframe::Day1 => "1d",
             Timeframe::Ticks100 => "100t",
         }
     }

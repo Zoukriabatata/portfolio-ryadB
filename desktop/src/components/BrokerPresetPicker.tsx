@@ -4,6 +4,7 @@ type BrokerPreset =
   | "RithmicTest"
   | "RithmicPaperTrading"
   | "Rithmic01"
+  | "Amp"
   | "Apex"
   | "MyFundedFutures"
   | "BluSky"
@@ -27,6 +28,7 @@ const CATEGORY_OF: Record<BrokerPreset, Category> = {
   RithmicTest: "rithmic",
   RithmicPaperTrading: "rithmic",
   Rithmic01: "rithmic",
+  Amp: "rithmic",
   Apex: "props",
   MyFundedFutures: "props",
   BluSky: "props",

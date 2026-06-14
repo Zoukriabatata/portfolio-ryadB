@@ -1,10 +1,15 @@
-// Pause all animations + RAF when the OrderflowV2 window is not the
-// foreground window. Saves >90% of GPU/CPU when the user alt-tabs to
-// another app (e.g. Valorant) — RAF stops, CSS animations freeze.
+// Pause all animations + RAF ONLY when the OrderflowV2 window is truly
+// hidden (minimised, or the OS/tab has hidden its surface). It keeps
+// running while merely unfocused so a trading setup — Orderflow on one
+// monitor, NinjaTrader / the broker focused on another — never freezes.
 //
-// Triggers on either signal:
-//   • document.visibilityState === 'hidden' (minimised, tab switch)
-//   • window blur (alt-tab to another desktop window, even if visible)
+// Rationale: an earlier version also paused on window `blur`, which
+// meant the chart stopped the instant the user clicked any other app.
+// For an orderflow tool that's the opposite of what you want. We now
+// gate purely on `document.hidden`: when minimised, rendering is wasted
+// anyway (and the Rust backend keeps ingesting ticks, so the chart is
+// current again on restore). Event-driven work (alerts, sounds, bar
+// state) is never paused — only RAF rendering + CSS animations.
 //
 // Effect: toggles a `data-app-inactive` attribute on <html>. The CSS
 // in globals.css uses it to set `animation-play-state: paused` on
@@ -16,9 +21,9 @@ const listeners = new Set<(active: boolean) => void>();
 
 function compute(): boolean {
   if (typeof document === "undefined") return true;
-  const hidden = document.hidden;
-  const blurred = !document.hasFocus();
-  return !(hidden || blurred);
+  // Active whenever the window is visible — focus is irrelevant. Only a
+  // truly hidden window (minimised / surface hidden) pauses rendering.
+  return !document.hidden;
 }
 
 function update(): void {

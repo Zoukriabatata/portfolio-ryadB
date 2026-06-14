@@ -11,6 +11,7 @@ pub mod account_types;
 pub mod adapter;
 pub mod auth;
 pub mod client;
+pub mod gateway_discovery;
 pub mod heartbeat;
 pub mod history;
 pub mod history_probe;

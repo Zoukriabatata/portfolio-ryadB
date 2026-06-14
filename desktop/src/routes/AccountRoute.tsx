@@ -173,13 +173,15 @@ export function AccountRoute() {
   // ── Unauthenticated state ──────────────────────────────────
   if (!session) {
     return (
-      <div className="account-route">
+      <div className="account-route account-route-login">
+        <div className="acct-login-bg" aria-hidden />
         <div className="acct-login-wrap">
-          <div className="acct-login-eyebrow">My OrderflowV2 Account</div>
-          <div className="acct-login-title">Sign in to continue</div>
+          <div className="acct-login-eyebrow">Mon compte Senzoukria</div>
+          <div className="acct-login-title">Connexion</div>
           <div className="acct-login-sub">
-            The rest of the app is locked until you're authenticated.
-            Use the email + password from your OrderflowV2 web account.
+            L'application reste verrouillée tant que vous n'êtes pas
+            authentifié. Utilisez l'email et le mot de passe de votre
+            compte web Senzoukria.
           </div>
           <div className="acct-login-card">
             <Login onLogin={(s) => setSession(s)} />

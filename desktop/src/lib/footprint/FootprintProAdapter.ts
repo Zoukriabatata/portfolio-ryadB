@@ -520,6 +520,11 @@ function settingsToFeatures(
     showAbsorptionEvents: s.showAbsorption,
     showDeltaProfile: s.showDeltaProfile,
     showCVDPanel: s.showCvd,
+    showCVDDivergence: s.showCvdDivergence,
+    showCandleOutline: s.showCandleOutline,
+    candleOutlineColor: s.candleOutlineColor,
+    candleOutlineWidth: s.candleOutlineWidth,
+    candleOutlineOpacity: s.candleOutlineOpacity,
   };
 }
 
@@ -533,6 +538,13 @@ interface ProIndicators {
   unfinishedAuctions: import("./rendererTypes").UnfinishedAuction[];
   /** Shape expected by FootprintCanvasRenderer.renderAbsorptionEvents. */
   absorptionEvents: Array<{ price: number; volume: number; side: "bid" | "ask"; timestamp: number }>;
+  cvdDivergences: Array<{
+    type: "bullish" | "bearish";
+    candleTime1: number;
+    bar1Price: number;
+    candleTime2: number;
+    bar2Price: number;
+  }>;
 }
 
 function indicatorsToProShape(r: IndicatorsResult): ProIndicators {
@@ -568,6 +580,13 @@ function indicatorsToProShape(r: IndicatorsResult): ProIndicators {
     absorptionEvents: r.absorptionEvents
       .filter((x) => x.barTsNs === maxBarTs)
       .map((x) => ({ price: x.price, volume: x.volume, side: x.side, timestamp: now })),
+    cvdDivergences: r.cvdDivergences.map((x) => ({
+      type: x.type,
+      candleTime1: Math.floor(x.bar1TsNs / 1_000_000_000),
+      bar1Price: x.bar1Price,
+      candleTime2: Math.floor(x.bar2TsNs / 1_000_000_000),
+      bar2Price: x.bar2Price,
+    })),
   };
 }
 
@@ -645,6 +664,108 @@ function detectTickSize(bars: RendererBar[]): number | null {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Absorption zone helpers (ATAS V1 style).
+// Pure function — no side-effects, safe to call from any context.
+// ────────────────────────────────────────────────────────────────────────────
+
+interface AbsZoneState {
+  type: 'bullish' | 'bearish';
+  priceHigh: number;
+  priceLow: number;
+  detectCandleIdx: number;
+  closedCandleIdx: number | null;
+}
+
+/** Detect absorption zones inside a single candle.
+ *  Bullish: N consecutive levels where askVol/bidVol ≥ threshold (buyers absorb sellers' supply).
+ *  Bearish: N consecutive levels where bidVol/askVol ≥ threshold (sellers absorb buyers' demand).
+ *  "Consecutive" = adjacent in the sorted list of price levels that have ≥ minVol. */
+function detectAbsorptionZonesInCandle(
+  candle: FootprintCandle,
+  ratioThreshold: number,
+  stackedLevels: number,
+  minVolume: number,
+  tickSize: number,
+): Array<Pick<AbsZoneState, 'type' | 'priceHigh' | 'priceLow'>> {
+  // ── Constraint 1: body-only levels ──────────────────────────────────────
+  // ATAS only scans levels strictly between open and close (the body).
+  // Wick levels (low→bodyLow and bodyHigh→high) are excluded.
+  const bodyLow  = Math.min(candle.open, candle.close);
+  const bodyHigh = Math.max(candle.open, candle.close);
+  if (bodyHigh <= bodyLow) return []; // doji / flat candle — nothing to scan
+
+  const entries = Array.from(candle.levels.entries())
+    .filter(([price]) => price >= bodyLow && price <= bodyHigh)
+    .sort((a, b) => a[0] - b[0]);
+
+  if (entries.length < stackedLevels) return [];
+
+  const eps = tickSize * 1.5;
+
+  type Candidate = Pick<AbsZoneState, 'type' | 'priceHigh' | 'priceLow'> & { avgRatio: number };
+  const candidates: Candidate[] = [];
+
+  for (const isBullish of [true, false]) {
+    let i = 0;
+    while (i <= entries.length - stackedLevels) {
+      let j          = i;
+      let totalRatio = 0;
+
+      while (j < entries.length) {
+        const [price, lv] = entries[j];
+        // Price adjacency — gap > 1 tick between consecutive body levels breaks the run.
+        if (j > i && price - entries[j - 1][0] > eps) break;
+        // Volume per level — the DOMINANT side must meet minVolume.
+        // The weak side needs at least 1 contract to prevent div-by-~0 ratios.
+        const dominantVol = isBullish ? lv.askVolume : lv.bidVolume;
+        const weakVol     = isBullish ? lv.bidVolume : lv.askVolume;
+        if (dominantVol < Math.max(1, minVolume)) break;
+        if (weakVol < 1) break;
+        // Dominant side consistent across all levels.
+        // Bullish = ask dominant (ask absorbs bid, buying pressure).
+        // Bearish = bid dominant (bid absorbs ask, selling pressure).
+        // A level where the dominant side flips → ratio < threshold → natural break.
+        const ratio = isBullish
+          ? lv.askVolume / Math.max(lv.bidVolume, 0.01)
+          : lv.bidVolume / Math.max(lv.askVolume, 0.01);
+        if (ratio < ratioThreshold) break;
+        totalRatio += ratio;
+        j++;
+      }
+
+      const len = j - i;
+      if (len >= stackedLevels) {
+        const zLow  = entries[i][0];
+        const zHigh = entries[j - 1][0];
+        // Condition 4 — NO breakout: the candle must CLOSE inside the zone
+        // (±1 tick). If price closed beyond the stacked levels, it broke
+        // through → the zone didn't hold → not absorption.
+        if (candle.close >= zLow - tickSize && candle.close <= zHigh + tickSize) {
+          candidates.push({
+            type:      isBullish ? 'bullish' : 'bearish',
+            priceLow:  zLow,
+            priceHigh: zHigh,
+            avgRatio:  totalRatio / len,
+          });
+        }
+        i = j; // skip past this run, don't re-scan its levels
+        continue;
+      }
+      i++;
+    }
+  }
+
+  if (candidates.length === 0) return [];
+
+  // ── Constraint 2: one signal per candle — keep the strongest ─────────────
+  // If the candle contains multiple valid sequences (different directions,
+  // different price ranges) → emit only the one with the highest average ratio.
+  candidates.sort((a, b) => b.avgRatio - a.avgRatio);
+  const best = candidates[0];
+  return [{ type: best.type, priceLow: best.priceLow, priceHigh: best.priceHigh }];
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // FootprintCanvasRenderer — the wrapper. Same name as the legacy class so
 // `import { FootprintCanvasRenderer } from "./FootprintProAdapter"` is a
 // drop-in replacement for the legacy import path.
@@ -705,6 +826,32 @@ export class FootprintCanvasRenderer {
    *  delete button drawn — every other drawing renders "clean".
    *  null = nothing selected, no handles visible anywhere. */
   private selectedDrawingId: string | null = null;
+  // CVD panel Y-zoom/pan — set via setCvdYZoom() from the React layer.
+  private cvdYZoom = 1;
+  private cvdYPan = 0;
+
+  // Live DOM depth snapshot — drives the ATAS-style DOM profile overlay
+  // drawn in the price axis area on each render() call.
+  private depthSnap: { bids: { price: number; volume: number }[]; asks: { price: number; volume: number }[] } | null = null;
+
+  // Off-screen canvas cache for historical (non-live) footprint cells.
+  // Rebuilt only when viewport or historical data changes — the live bar
+  // is always re-rendered on top, so most tick-driven frames only pay the
+  // cost of drawing ~20 price levels instead of 400 bars × 20 levels.
+  private _staticCellsCanvas: HTMLCanvasElement | null = null;
+  private _staticCellsCtx: CanvasRenderingContext2D | null = null;
+  private _staticCellsDirty = true; // set to true on settings change
+  private _outlineLogged = false; // one-shot diagnostic for footprint outline
+  private _staticCellsKey   = '';   // viewport + data cache key
+
+  // Absorption zone cache — recomputed only when data or zone settings change.
+  // Each zone stores the index in this.candles where it was detected and (if
+  // closed) the index where price returned to the zone.
+  private _absZones: AbsZoneState[] = [];     // historical (0..n-2), lazy
+  private _liveAbsZones: AbsZoneState[] = []; // live bar (n-1), updated every setBars
+  private _absZonesDirty = true;
+  private _absLastAlertTime = 0; // candle.time of the last alerted zone
+
   // VWAP indicator cache — keyed by the this.candles reference so
   // that a setBars() call (which produces a fresh array) invalidates
   // it. See renderVwapIndicator + rebuildVwapCache.
@@ -793,6 +940,17 @@ export class FootprintCanvasRenderer {
     this.detectedTickSize = detectTickSize(sorted);
     if (shapeChanged) {
       this.pro.invalidateData();
+      this._absZonesDirty = true;
+    }
+    // Zone computation — eager so live-bar dedup uses fresh historical zones.
+    // Historical zones only recomputed when _absZonesDirty; live bar always refreshed.
+    if (this.settings?.showAbsorptionZones && this.candles.length > 0) {
+      if (this._absZonesDirty) {
+        this._absZones = this._computeAbsZones();
+        this._absZonesDirty = false;
+        if (this.settings.absorptionZoneUseAlert) this._checkAbsAlert();
+      }
+      this._liveAbsZones = this._computeLiveZones();
     }
   }
 
@@ -834,6 +992,7 @@ export class FootprintCanvasRenderer {
       clusterDeltaNegative: s.candleBodyDown,
     };
     this.pro.markAllDirty();
+    this._staticCellsDirty = true; // colors/settings may change cell appearance
 
     // Reconvert candles when per-cell imbalance params change.
     const imbalanceChanged =
@@ -866,6 +1025,19 @@ export class FootprintCanvasRenderer {
     if (prev.showDom !== s.showDom) {
       this.updateLeftPadding(s);
       this.pro.invalidateData();
+    }
+
+    // Invalidate absorption zones when any zone-related setting changes.
+    if (
+      prev.showAbsorptionZones   !== s.showAbsorptionZones   ||
+      prev.absorptionZoneDaysBack !== s.absorptionZoneDaysBack ||
+      prev.absorptionZoneRatio    !== s.absorptionZoneRatio    ||
+      prev.absorptionZoneStackedLevels !== s.absorptionZoneStackedLevels ||
+      prev.absorptionZoneMinVolume     !== s.absorptionZoneMinVolume     ||
+      prev.absorptionZoneLastBarOnly   !== s.absorptionZoneLastBarOnly
+    ) {
+      this._absZonesDirty = true;
+      this._liveAbsZones = [];
     }
   }
 
@@ -1062,6 +1234,10 @@ export class FootprintCanvasRenderer {
     this.indicators = r;
   }
 
+  setDepth(snap: { bids: { price: number; volume: number }[]; asks: { price: number; volume: number }[] } | null): void {
+    this.depthSnap = snap;
+  }
+
   /** Push the latest array of trade drawings (LONG/SHORT) from React.
    *  Renderer filters by `currentSymbol` so a drawing placed on MNQ
    *  doesn't bleed onto a different chart. */
@@ -1081,6 +1257,12 @@ export class FootprintCanvasRenderer {
     if (this.selectedDrawingId === id) return;
     this.selectedDrawingId = id;
     this.pro.markDirty("tools");
+  }
+
+  /** CVD panel Y-axis zoom and pan. zoom=1, pan=0 = auto-scale (default). */
+  setCvdYZoom(zoom: number, pan: number): void {
+    this.cvdYZoom = zoom;
+    this.cvdYPan = pan;
   }
 
   /** Tells the renderer which symbol is currently displayed so it can
@@ -1213,10 +1395,14 @@ export class FootprintCanvasRenderer {
     const baseFpWidth = this.layoutCfg.bidWidth + this.layoutCfg.askWidth;
     const targetZoom = interaction.cellWidth / Math.max(1, baseFpWidth);
     this.layoutEngine.setZoom(targetZoom);
-    // Map interaction.rowHeight → layout.zoomY (Y). The base layout rowHeight
-    // is layoutCfg.rowHeight; ratio gives the multiplier the engine uses to
-    // expand/compress the price axis.
-    const targetZoomY = interaction.rowHeight / Math.max(1, this.layoutCfg.rowHeight);
+    // Map interaction.rowHeight → layout.zoomY (Y).
+    // When the user hasn't explicitly zoomed Y (userOverrodeY=false), use
+    // zoomY=1 so the renderer always auto-fits the visible price range to
+    // the chart height (ATAS-style). Only apply the rowHeight ratio when
+    // the user deliberately Shift+wheeled or dragged the price axis.
+    const targetZoomY = interaction.userOverrodeY
+      ? interaction.rowHeight / Math.max(1, this.layoutCfg.rowHeight)
+      : 1.0;
     this.layoutEngine.setZoomY(targetZoomY);
     // Map interaction.scrollX → layout.scrollX. Y pan goes through scrollY.
     this.layoutEngine.setScroll(interaction.scrollX, interaction.scrollY);
@@ -1390,6 +1576,36 @@ export class FootprintCanvasRenderer {
           metrics.footprintAreaY, metrics.footprintAreaHeight,
         );
       }
+      if (this.features.showCVDDivergence && proInd.cvdDivergences.length > 0) {
+        this.pro.renderCvdDivergences(
+          ctx, this.layoutEngine, metrics, proInd.cvdDivergences,
+        );
+      }
+    }
+
+    // Absorption zones (ATAS V1) — outside the isFootprintMode guard so they
+    // remain visible in classic candle mode and at all zoom levels.
+    // Historical zones are precomputed in setBars; live bar zones too. No
+    // per-frame recomputation unless settings changed between setBars calls.
+    if (!isInteracting && this.settings.showAbsorptionZones && metrics.visibleCandles.length > 0) {
+      if (this._absZonesDirty) {
+        // Fallback: settings changed without a subsequent setBars call.
+        this._absZones      = this._computeAbsZones();
+        this._absZonesDirty = false;
+        this._liveAbsZones  = this._computeLiveZones();
+        if (this.settings.absorptionZoneUseAlert) this._checkAbsAlert();
+      }
+      const allZones = [...this._absZones, ...this._liveAbsZones];
+      const screenZones = this._buildAbsScreenZones(allZones, metrics, fpWidth, ohlcWidth, width);
+      if (screenZones.length > 0) {
+        this.pro.renderAbsorptionZones(
+          ctx, screenZones, this.layoutEngine, metrics,
+          this.settings.absorptionZoneBullishColor,
+          this.settings.absorptionZoneBearishColor,
+          this.settings.absorptionZoneLineWidth,
+          tickSize,
+        );
+      }
     }
 
     // Bar-delta label — one number per visible candle, sat just
@@ -1428,6 +1644,19 @@ export class FootprintCanvasRenderer {
       const clusterH = this.settings.showClusterStat ? this.clusterStatPanelHeight() : 0;
       const cvdPanelH = this.settings.cvdPanelHeight;
       const panelY = height - this.layoutCfg.timeAxisHeight - clusterH - cvdPanelH;
+
+      // Compute cumulative delta from all loaded candles before the visible window
+      // so the CVD absolute value matches ATAS (starts from first loaded bar, not
+      // from the first visible bar).
+      let cvdOffset = 0;
+      if (this.candles.length > 0) {
+        const firstVisible = metrics.visibleCandles[0];
+        for (let ci = 0; ci < this.candles.length; ci++) {
+          if (this.candles[ci] === firstVisible) break;
+          cvdOffset += this.candles[ci].totalDelta;
+        }
+      }
+
       this.pro.renderCVDPanel(
         ctx, this.layoutEngine, metrics, this.features, this.colors,
         width, panelY, cvdPanelH,
@@ -1435,6 +1664,9 @@ export class FootprintCanvasRenderer {
         fpWidth,
         undefined,
         this.settings.cvdMode,
+        this.cvdYZoom,
+        this.cvdYPan,
+        cvdOffset,
       );
     }
 
@@ -1457,6 +1689,10 @@ export class FootprintCanvasRenderer {
     // visible over any overlay rectangle.
     this.renderTradeDrawings(ctx, metrics, width);
     this.renderLineDrawings(ctx, metrics, width);
+
+    // DOM profile overlay — drawn over price axis background+labels,
+    // before crosshair so the crosshair readout stays on top.
+    this.drawDomProfile(ctx, metrics, width, tickSize);
 
     // Crosshair — drawn LAST so it overlays every chart layer. Clipped
     // to the chart area (excludes price axis on the right) so the
@@ -1521,6 +1757,91 @@ export class FootprintCanvasRenderer {
         );
       }
     }
+  }
+
+  private drawDomProfile(
+    ctx: CanvasRenderingContext2D,
+    metrics: import("../orderflow/FootprintLayoutEngine").LayoutMetrics,
+    width: number,
+    tickSize: number,
+  ): void {
+    if (!this.depthSnap) return;
+    const { bids, asks } = this.depthSnap;
+    if (!bids.length && !asks.length) return;
+
+    const { footprintAreaY, footprintAreaHeight, visiblePriceMin, visiblePriceMax } = metrics;
+    const chartRight = width - this.layoutCfg.priceAxisWidth;
+    const MAX_BAR_W = 180;
+    const FONT = 'bold 11px "Consolas","Monaco","Courier New",monospace';
+
+    const invTick = 1 / tickSize;
+
+    // Accumulate volumes keyed by snapped tick index.
+    const bidByTick = new Map<number, number>();
+    const askByTick = new Map<number, number>();
+    for (const b of bids) {
+      const key = Math.round(b.price * invTick);
+      bidByTick.set(key, (bidByTick.get(key) ?? 0) + b.volume);
+    }
+    for (const a of asks) {
+      const key = Math.round(a.price * invTick);
+      askByTick.set(key, (askByTick.get(key) ?? 0) + a.volume);
+    }
+
+    const allKeys = new Set([...bidByTick.keys(), ...askByTick.keys()]);
+    if (allKeys.size === 0) return;
+
+    let maxVol = 0;
+    for (const k of allKeys) {
+      const b = bidByTick.get(k) ?? 0;
+      const a = askByTick.get(k) ?? 0;
+      if (b > maxVol) maxVol = b;
+      if (a > maxVol) maxVol = a;
+    }
+    if (maxVol === 0) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, footprintAreaY, chartRight, footprintAreaHeight);
+    ctx.clip();
+    ctx.textBaseline = 'middle';
+    ctx.font = FONT;
+
+    for (const key of allKeys) {
+      // Snap to tick grid: price = key × tickSize.
+      const snappedPrice = key * tickSize;
+      if (snappedPrice < visiblePriceMin - tickSize || snappedPrice > visiblePriceMax + tickSize) continue;
+
+      // Bar occupies [priceToY(price + tick), priceToY(price)] — exact tick slot, no half-height shift.
+      const yTop    = this.layoutEngine.priceToY(snappedPrice + tickSize, metrics);
+      const yBottom = this.layoutEngine.priceToY(snappedPrice, metrics);
+      const barH = Math.max(1, yBottom - yTop);
+      if (yTop > footprintAreaY + footprintAreaHeight || yBottom < footprintAreaY) continue;
+
+      const bid = bidByTick.get(key) ?? 0;
+      const ask = askByTick.get(key) ?? 0;
+      const bidW = bid ? (bid / maxVol) * MAX_BAR_W : 0;
+      const askW = ask ? (ask / maxVol) * MAX_BAR_W : 0;
+      const bidDominant = bid >= ask;
+
+      if (bidDominant) {
+        if (askW >= 0.5) { ctx.fillStyle = 'rgba(242, 56, 90, 0.28)';  ctx.fillRect(chartRight - askW, yTop, askW, barH); }
+        if (bidW >= 0.5) { ctx.fillStyle = 'rgba(8, 153, 129, 0.65)';  ctx.fillRect(chartRight - bidW, yTop, bidW, barH); }
+      } else {
+        if (bidW >= 0.5) { ctx.fillStyle = 'rgba(8, 153, 129, 0.28)';  ctx.fillRect(chartRight - bidW, yTop, bidW, barH); }
+        if (askW >= 0.5) { ctx.fillStyle = 'rgba(242, 56, 90, 0.65)';  ctx.fillRect(chartRight - askW, yTop, askW, barH); }
+      }
+
+      if (barH >= 8) {
+        const cy = yTop + barH / 2;
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(255,255,255,0.90)';
+        const label = bid > 0 && ask > 0 ? `${bid} × ${ask}` : bid > 0 ? String(bid) : String(ask);
+        ctx.fillText(label, chartRight - 4, cy);
+      }
+    }
+
+    ctx.restore();
   }
 
   /** Draw the two crosshair readout boxes (price on right, time on
@@ -2742,69 +3063,127 @@ export class FootprintCanvasRenderer {
   }
 
   // ── Senzoukria custom footprint cells ───────────────────────────────────
-  // Design spec (user-driven, P1.7):
-  //   • Outline rectangulaire grise par bougie
-  //   • Barre verticale gauche, vert si close>open (bullish), rouge sinon
-  //   • Par niveau de prix : "BID  x  ASK", `x` central, jauges centrifuges
-  //     (rouge bid → gauche, vert ask → droite) bornées à la half-width.
+  // Wrapper that manages an off-screen canvas cache for historical bars.
+  // On most live-feed frames (tick to the last bar only), the historical
+  // cells are blitted from the cache in one drawImage call and only the
+  // live bar (~20 price levels) is re-rendered — instead of all 400 bars.
   private renderSenzoukriaCells(
     ctx: CanvasRenderingContext2D,
     metrics: import("../orderflow/FootprintLayoutEngine").LayoutMetrics,
     _rowH: number,
     fpWidth: number,
-    ohlcWidth: number,
+    _ohlcWidth: number,
     tickSize: number,
   ): void {
     const visible = metrics.visibleCandles;
     if (visible.length === 0) return;
 
-    // Pull every colour from `this.colors`, which the settings
-    // pipeline keeps in sync with the user's modal picks. The
-    // state bar reuses the candle BODY colour (not a separate
-    // "state" hue) so the cell colour and the candle-mode colour
-    // are always identical — no chance of "is this bar bullish or
-    // bearish?" confusion when switching modes.
-    const STATE_BAR_W = Math.max(2, Math.round(ohlcWidth * 0.45));
-    const BULLISH = this.colors.candleUpBody;
-    const BEARISH = this.colors.candleDownBody;
-    const BID_GAUGE = hexToRgba(this.colors.bidColor, 0.22);
-    const ASK_GAUGE = hexToRgba(this.colors.askColor, 0.34);
-    const ZERO_GAUGE = "rgba(255, 255, 255, 0.04)";
-    const BID_TEXT = this.colors.bidTextColor;
-    const ASK_TEXT = this.colors.askTextColor;
+    // Identify the live (last) bar. Cache only applies when the live bar
+    // is the rightmost visible candle (normal live-mode view).
+    const liveCandle = this.candles.length > 0 ? this.candles[this.candles.length - 1] : null;
+    const liveAtEnd  = liveCandle !== null
+      && visible.length > 1
+      && visible[visible.length - 1] === liveCandle;
+
+    if (!liveAtEnd) {
+      // Scrolled into history or single bar — render directly, no cache.
+      this._renderCellsCore(ctx, metrics, fpWidth, tickSize, 0, visible.length - 1);
+      return;
+    }
+
+    // Cache key — encodes everything that changes historical cell appearance.
+    const interaction = this.getInteraction();
+    const physW = Math.floor(this.cssWidth  * this.dpr);
+    const physH = Math.floor(this.cssHeight * this.dpr);
+    const key = `${interaction.scrollX}|${interaction.cellWidth}|${interaction.rowHeight}|${this.candles.length}|${physW}x${physH}`;
+
+    if (this._staticCellsDirty || key !== this._staticCellsKey || !this._staticCellsCanvas) {
+      // Ensure the off-screen canvas matches the physical canvas size.
+      if (
+        !this._staticCellsCanvas ||
+        this._staticCellsCanvas.width  !== physW ||
+        this._staticCellsCanvas.height !== physH
+      ) {
+        this._staticCellsCanvas = document.createElement('canvas');
+        this._staticCellsCanvas.width  = physW;
+        this._staticCellsCanvas.height = physH;
+        this._staticCellsCtx = this._staticCellsCanvas.getContext('2d')!;
+        this._staticCellsCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      } else {
+        this._staticCellsCtx!.clearRect(0, 0, this.cssWidth, this.cssHeight);
+      }
+      // Render all historical bars (0 to visible.length-2) to the cache.
+      this._renderCellsCore(
+        this._staticCellsCtx!, metrics, fpWidth, tickSize,
+        0, visible.length - 2,
+      );
+      this._staticCellsKey   = key;
+      this._staticCellsDirty = false;
+    }
+
+    // Blit historical layer → main canvas (one GPU copy, no per-cell work).
+    ctx.drawImage(this._staticCellsCanvas!, 0, 0, this.cssWidth, this.cssHeight);
+    // Render the live bar on top (always fresh).
+    this._renderCellsCore(ctx, metrics, fpWidth, tickSize, visible.length - 1, visible.length - 1);
+  }
+
+  // Core cell renderer — draws visible[startIdx..endIdx] inclusive.
+  // Shared by the cache-rebuild path (historical bars) and the live-bar
+  // path. Also batches all POC outlines in a single pass at the end to
+  // avoid ctx.save/restore per bar.
+  private _renderCellsCore(
+    ctx: CanvasRenderingContext2D,
+    metrics: import("../orderflow/FootprintLayoutEngine").LayoutMetrics,
+    fpWidth: number,
+    tickSize: number,
+    startIdx: number,
+    endIdx: number,
+  ): void {
+    const visible = metrics.visibleCandles;
+    if (visible.length === 0 || startIdx > endIdx) return;
+
+    const STATE_BAR_W = 8;
+    const BULLISH   = this.colors.candleUpBody;
+    const BEARISH   = this.colors.candleDownBody;
+    const BID_GAUGE = hexToRgba(this.colors.bidColor, 0.32);
+    const ASK_GAUGE = hexToRgba(this.colors.askColor, 0.32);
+    const BID_TEXT  = this.colors.bidTextColor;
+    const ASK_TEXT  = this.colors.askTextColor;
     const ZERO_TEXT = "rgba(255, 255, 255, 0.30)";
 
-    ctx.font = `${this.fonts.volumeFontBold ? 'bold ' : ''}${this.fonts.volumeFontSize}px ${this.fonts.volumeFont}`;
+    ctx.font         = `bold 11px ${this.fonts.volumeFont}`;
     ctx.textBaseline = 'middle';
 
-    // Effective pixel-per-tick spacing: derives from layout's priceToY so it
-    // always matches the visible price-axis resolution. We use this as the
-    // actual row height so adjacent rows never overlap, regardless of zoom.
-    const yAtTop = this.layoutEngine.priceToY(metrics.visiblePriceMax, metrics);
-    const yAtBot = this.layoutEngine.priceToY(metrics.visiblePriceMin, metrics);
-    const totalTicks = Math.max(1, Math.round((metrics.visiblePriceMax - metrics.visiblePriceMin) / tickSize));
+    const yAtTop        = this.layoutEngine.priceToY(metrics.visiblePriceMax, metrics);
+    const yAtBot        = this.layoutEngine.priceToY(metrics.visiblePriceMin, metrics);
+    const totalTicks    = Math.max(1, Math.round((metrics.visiblePriceMax - metrics.visiblePriceMin) / tickSize));
     const pixelsPerTick = Math.abs(yAtBot - yAtTop) / totalTicks;
-    const effRowH = Math.max(1, pixelsPerTick);
+    const effRowH       = Math.max(1, pixelsPerTick);
+    const priceSlope    = (yAtBot - yAtTop) / (metrics.visiblePriceMin - metrics.visiblePriceMax);
+    const yStep         = tickSize * priceSlope;
+    const halfEffRowH   = effRowH / 2;
+    const rowDrawH      = Math.max(1, effRowH - 1);
+    const fpCullTop     = metrics.footprintAreaY - effRowH;
+    const fpCullBot     = metrics.footprintAreaY + metrics.footprintAreaHeight + effRowH;
 
-    const showText = effRowH >= this.fonts.volumeFontSize + 1;
+    // POC rects collected for a single batched stroke pass after the loop.
+    const pocRects: Array<{ x: number; y: number; w: number; h: number }> = [];
 
-    for (let i = 0; i < visible.length; i++) {
+    // Footprint outline — rectangle autour du bloc de cellules bid×ask, collecté
+    // par bougie puis tracé en passe finale (Visual Settings → Footprint outline).
+    const drawOutline = this.features.showCandleOutline;
+    const outlineRects: Array<{ x: number; y: number; w: number; h: number }> = [];
+
+    for (let i = startIdx; i <= endIdx; i++) {
       const candle = visible[i];
-      const fpX = this.layoutEngine.getFootprintX(i, metrics);
+      const fpX    = this.layoutEngine.getFootprintX(i, metrics);
       const cellsX = fpX + STATE_BAR_W;
       const cellsW = fpWidth - STATE_BAR_W;
       if (cellsW <= 4) continue;
-      const halfW = cellsW / 2;
+      const halfW   = cellsW / 2;
       const centerX = cellsX + halfW;
+      let olTop = Infinity, olBot = -Infinity; // bornes verticales des cellules affichées
 
-      // Candle geometry from price extents (anchored to actual high/low ticks).
-      const yHigh = this.layoutEngine.priceToY(candle.high, metrics);
-      const yLow = this.layoutEngine.priceToY(candle.low, metrics);
-      const top = Math.min(yHigh, yLow) - effRowH / 2;
-      const bottom = Math.max(yHigh, yLow) + effRowH / 2;
-      const candleH = Math.max(effRowH, bottom - top);
-
-      // Max level volume across all ticks (only existing levels matter; gaps are 0×0).
       let maxLevelVol = 0;
       candle.levels.forEach((lv) => {
         if (lv.bidVolume > maxLevelVol) maxLevelVol = lv.bidVolume;
@@ -2812,102 +3191,110 @@ export class FootprintCanvasRenderer {
       });
       const scale = maxLevelVol > 0 ? halfW / maxLevelVol : 0;
 
-      // Iterate every tick from low to high so gaps render as `0 x 0`.
-      // Snap bounds to tick grid to avoid floating-point drift.
-      const lowSnap = Math.round(candle.low / tickSize) * tickSize;
+      const lowSnap  = Math.round(candle.low  / tickSize) * tickSize;
       const highSnap = Math.round(candle.high / tickSize) * tickSize;
-      // Viewport pre-cull — clamp the iteration range to the prices
-      // actually on screen so vertical pan/zoom of a tall bar (e.g.
-      // session range = 100+ ticks) doesn't burn fillRect/fillText
-      // on rows that will never be visible. priceToY + the if-continue
-      // guard below already skipped THESE pixels, but we still paid
-      // the cost of the layout call and the levels.get() lookup.
-      const visMin = metrics.visiblePriceMin - tickSize;
-      const visMax = metrics.visiblePriceMax + tickSize;
+      const visMin   = metrics.visiblePriceMin - tickSize;
+      const visMax   = metrics.visiblePriceMax + tickSize;
       const startPrice = Math.max(lowSnap, visMin);
-      const endPrice = Math.min(highSnap, visMax);
+      const endPrice   = Math.min(highSnap, visMax);
       if (startPrice > endPrice) continue;
       const startT = Math.max(0, Math.round((startPrice - lowSnap) / tickSize));
-      const endT = Math.max(startT, Math.round((endPrice - lowSnap) / tickSize));
+      const endT   = Math.max(startT, Math.round((endPrice   - lowSnap) / tickSize));
 
-      for (let t = startT; t <= endT; t++) {
+      let yTick = yAtTop + (lowSnap + startT * tickSize - metrics.visiblePriceMax) * priceSlope;
+      for (let t = startT; t <= endT; t++, yTick += yStep) {
         const price = lowSnap + t * tickSize;
-        const lv = candle.levels.get(price) ?? candle.levels.get(Number(price.toFixed(10)));
-        const bidV = lv?.bidVolume ?? 0;
-        const askV = lv?.askVolume ?? 0;
+        const lv    = candle.levels.get(price) ?? candle.levels.get(Number(price.toFixed(10)));
+        const bidV  = lv?.bidVolume ?? 0;
+        const askV  = lv?.askVolume ?? 0;
+        const isPOC = price === candle.poc;
 
-        const y = this.layoutEngine.priceToY(price, metrics);
-        if (y < metrics.footprintAreaY - effRowH || y > metrics.footprintAreaY + metrics.footprintAreaHeight + effRowH) continue;
-        const rowTop = y - effRowH / 2;
-        const rowDrawH = Math.max(1, effRowH - 1);
-
-        // Bid gauge (red, from center toward left)
-        if (bidV > 0 && scale > 0) {
-          const w = Math.min(halfW, bidV * scale);
-          ctx.fillStyle = BID_GAUGE;
-          ctx.fillRect(centerX - w, rowTop, w, rowDrawH);
-        } else {
-          ctx.fillStyle = ZERO_GAUGE;
-          ctx.fillRect(centerX - halfW, rowTop, halfW, rowDrawH);
-        }
-        // Ask gauge (green, from center toward right)
-        if (askV > 0 && scale > 0) {
-          const w = Math.min(halfW, askV * scale);
-          ctx.fillStyle = ASK_GAUGE;
-          ctx.fillRect(centerX, rowTop, w, rowDrawH);
-        } else {
-          ctx.fillStyle = ZERO_GAUGE;
-          ctx.fillRect(centerX, rowTop, halfW, rowDrawH);
+        const y = yTick;
+        if (y < fpCullTop || y > fpCullBot) continue;
+        const rowTop = y - halfEffRowH;
+        if (drawOutline) {
+          if (rowTop < olTop) olTop = rowTop;
+          if (rowTop + rowDrawH > olBot) olBot = rowTop + rowDrawH;
         }
 
-        // Texts: only when row tall enough to be readable AND there's
-        // actual volume on this row. Drawing "0 x 0" on every empty
-        // tick of a tall bar is 3 fillText calls per row — by far the
-        // dominant cost on screens with 50+ visible ticks per bar.
-        // The gauge background already conveys "empty" visually.
-        if (!showText) continue;
+        if (scale > 0) {
+          const delta = askV - bidV;
+          if (delta > 0) {
+            ctx.fillStyle = ASK_GAUGE;
+            ctx.fillRect(centerX, rowTop, Math.min(halfW, askV * scale), rowDrawH);
+          } else if (delta < 0) {
+            ctx.fillStyle = BID_GAUGE;
+            ctx.fillRect(centerX - Math.min(halfW, bidV * scale), rowTop, Math.min(halfW, bidV * scale), rowDrawH);
+          }
+        }
+
+        // Collect POC rect — drawn in a single batched pass after the loop.
+        if (isPOC && this.settings.showPocBar) {
+          pocRects.push({ x: cellsX + 0.5, y: rowTop + 0.5, w: cellsW - 1, h: rowDrawH - 1 });
+        }
+
         if (bidV === 0 && askV === 0) continue;
+        if (effRowH < 8) continue;
         const yMid = y;
-        if (bidV > 0) {
-          ctx.fillStyle = BID_TEXT;
-          ctx.textAlign = 'right';
-          ctx.fillText(formatVol(bidV), centerX - 6, yMid);
-        } else {
-          ctx.fillStyle = ZERO_TEXT;
-          ctx.textAlign = 'right';
-          ctx.fillText('0', centerX - 6, yMid);
-        }
+
+        ctx.fillStyle = (bidV > 0 && lv?.imbalanceSell) ? '#ff2244'
+          : bidV > 0 ? BID_TEXT : ZERO_TEXT;
+        ctx.textAlign = 'right';
+        ctx.fillText(bidV > 0 ? formatVol(bidV) : '0', centerX - 6, yMid);
+
         ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
         ctx.textAlign = 'center';
         ctx.fillText('x', centerX, yMid);
-        if (askV > 0) {
-          ctx.fillStyle = ASK_TEXT;
-          ctx.textAlign = 'left';
-          ctx.fillText(formatVol(askV), centerX + 6, yMid);
-        } else {
-          ctx.fillStyle = ZERO_TEXT;
-          ctx.textAlign = 'left';
-          ctx.fillText('0', centerX + 6, yMid);
-        }
+
+        ctx.fillStyle = (askV > 0 && lv?.imbalanceBuy) ? '#00ffaa'
+          : askV > 0 ? ASK_TEXT : ZERO_TEXT;
+        ctx.textAlign = 'left';
+        ctx.fillText(askV > 0 ? formatVol(askV) : '0', centerX + 6, yMid);
       }
 
-      // State bar (vertical, left side) — same colour as the candle
-      // body so footprint mode and candle mode stay visually
-      // identical for each direction.
+      // Body — open→close only, wick zones intentionally empty.
       const isBullish = candle.close >= candle.open;
+      const yOpen  = yAtTop + (candle.open  - metrics.visiblePriceMax) * priceSlope;
+      const yClose = yAtTop + (candle.close - metrics.visiblePriceMax) * priceSlope;
+      const bodyTop = Math.min(yOpen, yClose) - halfEffRowH;
+      const bodyBot = Math.max(yOpen, yClose) + halfEffRowH;
       ctx.fillStyle = isBullish ? BULLISH : BEARISH;
-      ctx.fillRect(fpX, top, STATE_BAR_W, candleH);
+      ctx.fillRect(fpX, bodyTop, STATE_BAR_W, Math.max(effRowH, bodyBot - bodyTop));
 
-      // Outline rectangle (around the whole candle including state
-      // bar). Uses the user-picked candle border colour but at a
-      // fixed low alpha so the box stays subtle — otherwise a
-      // saturated border colour would compete with the cells.
-      const borderHex = isBullish
-        ? this.colors.candleUpBorder
-        : this.colors.candleDownBorder;
-      ctx.strokeStyle = hexToRgba(borderHex, 0.30);
-      ctx.lineWidth = 1;
-      ctx.strokeRect(fpX + 0.5, top + 0.5, fpWidth - 1, candleH - 1);
+      // Footprint outline — bloc de cellules bid×ask : x après la barre d'état
+      // (cellsX), largeur = cellsW, hauteur = du 1er au dernier niveau affiché.
+      if (drawOutline && olBot > olTop) {
+        outlineRects.push({ x: cellsX, y: olTop, w: cellsW, h: olBot - olTop });
+      }
+    }
+
+    // Batch POC outlines — 4 state changes total regardless of bar count.
+    if (pocRects.length > 0) {
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth   = 1;
+      ctx.globalAlpha = 0.9;
+      for (const r of pocRects) ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.globalAlpha = 1;
+    }
+
+    // Batch footprint outlines — au-dessus de toutes les cellules.
+    if (drawOutline && outlineRects.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = this.features.candleOutlineColor;
+      ctx.lineWidth   = this.features.candleOutlineWidth;
+      ctx.globalAlpha = this.features.candleOutlineOpacity;
+      for (const r of outlineRects) ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.restore();
+      if (!this._outlineLogged) {
+        const r0 = outlineRects[0];
+        console.log('[footprint-outline]', {
+          color: this.features.candleOutlineColor,
+          width: this.features.candleOutlineWidth,
+          opacity: this.features.candleOutlineOpacity,
+          x: r0.x, y: r0.y, w: r0.w, h: r0.h, count: outlineRects.length,
+        });
+        this._outlineLogged = true;
+      }
     }
   }
 
@@ -3013,5 +3400,164 @@ export class FootprintCanvasRenderer {
     this.canvas.style.height = `${height}px`;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.layoutEngine?.setContainerSize(width, height);
+  }
+
+  // ── Absorption zone computation ─────────────────────────────────────────
+
+  // Computes zones for HISTORICAL candles only (0..n-2).
+  // The live bar (n-1) is handled separately in _computeLiveZones so that
+  // tick updates don't trigger a full O(n²) rescan.
+  private _computeAbsZones(): AbsZoneState[] {
+    const s = this.settings;
+    // lastBarOnly is fully handled by _computeLiveZones.
+    if (!s.showAbsorptionZones || this.candles.length <= 1 || s.absorptionZoneLastBarOnly) return [];
+
+    const ratioThreshold = s.absorptionZoneRatio / 100;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const cutoffSec = nowSec - s.absorptionZoneDaysBack * 86400;
+    const absTickSize = this.detectedTickSize ?? Math.pow(10, -this.priceDecimals);
+    const zones: AbsZoneState[] = [];
+
+    const histEnd = this.candles.length - 1; // exclusive — skip live bar
+
+    for (let ci = 0; ci < histEnd; ci++) {
+      const candle = this.candles[ci];
+      if (candle.time < cutoffSec) continue;
+
+      const detected = detectAbsorptionZonesInCandle(
+        candle, ratioThreshold, s.absorptionZoneStackedLevels, s.absorptionZoneMinVolume, absTickSize,
+      );
+
+      for (const d of detected) {
+        // Never re-emit a zone at a price range already covered (open or closed).
+        const alreadyExists = zones.some(
+          z => z.type === d.type
+            && z.priceLow <= d.priceHigh
+            && z.priceHigh >= d.priceLow,
+        );
+        if (alreadyExists) continue;
+
+        // Zone closes when a subsequent candle CLOSES beyond the zone (ATAS):
+        // a wick poking through is not enough — the close must exit
+        // priceLow - 1tick (down) or priceHigh + 1tick (up).
+        let closedCandleIdx: number | null = null;
+        for (let ci2 = ci + 1; ci2 < this.candles.length; ci2++) {
+          const c2 = this.candles[ci2];
+          if (c2.close < d.priceLow - absTickSize || c2.close > d.priceHigh + absTickSize) {
+            closedCandleIdx = ci2;
+            break;
+          }
+        }
+        zones.push({ ...d, detectCandleIdx: ci, closedCandleIdx });
+      }
+    }
+
+    return zones;
+  }
+
+  // Computes zones for the LIVE bar only (n-1). Called on every setBars() so
+  // tick updates see fresh live-bar detections without rescanning history.
+  private _computeLiveZones(): AbsZoneState[] {
+    const s = this.settings;
+    if (!s.showAbsorptionZones || this.candles.length === 0) return [];
+
+    const ci = this.candles.length - 1;
+    const candle = this.candles[ci];
+    const ratioThreshold = s.absorptionZoneRatio / 100;
+    const absTickSize = this.detectedTickSize ?? Math.pow(10, -this.priceDecimals);
+
+    const detected = detectAbsorptionZonesInCandle(
+      candle, ratioThreshold, s.absorptionZoneStackedLevels, s.absorptionZoneMinVolume, absTickSize,
+    );
+
+    const result: AbsZoneState[] = [];
+    for (const d of detected) {
+      // Dedup against both historical and already-found live zones.
+      const alreadyExists = [...this._absZones, ...result].some(
+        z => z.type === d.type
+          && z.priceLow <= d.priceHigh
+          && z.priceHigh >= d.priceLow,
+      );
+      if (alreadyExists) continue;
+      // Live bar has no subsequent bars yet → always open.
+      result.push({ ...d, detectCandleIdx: ci, closedCandleIdx: null });
+    }
+    return result;
+  }
+
+  private _buildAbsScreenZones(
+    zones: AbsZoneState[],
+    metrics: import("../orderflow/FootprintLayoutEngine").LayoutMetrics,
+    fpWidth: number,
+    ohlcWidth: number,
+    width: number,
+  ): Array<{ type: 'bullish' | 'bearish'; priceHigh: number; priceLow: number; startX: number; endX: number }> {
+    if (zones.length === 0) return [];
+
+    const totalFpW = (this.features.showOHLC ? ohlcWidth : 0) + fpWidth;
+    const firstVisTime = metrics.visibleCandles[0]?.time;
+    const firstVisIdx  = firstVisTime !== undefined
+      ? this.candles.findIndex(c => c.time === firstVisTime)
+      : 0;
+    // Left edge of the footprint area — used to clip off-screen zones.
+    const areaLeft = this.layoutEngine.getFootprintX(0, metrics);
+
+    const result: Array<{ type: 'bullish' | 'bearish'; priceHigh: number; priceLow: number; startX: number; endX: number }> = [];
+
+    for (const zone of zones) {
+      const detectVI = zone.detectCandleIdx - firstVisIdx;
+      const closeVI  = zone.closedCandleIdx !== null ? zone.closedCandleIdx - firstVisIdx : null;
+
+      let startX: number;
+      if (detectVI >= 0 && detectVI < metrics.visibleCandles.length) {
+        startX = this.layoutEngine.getFootprintX(detectVI, metrics);
+      } else if (zone.detectCandleIdx < firstVisIdx) {
+        startX = areaLeft; // zone started before visible window — clip to chart's left edge
+      } else {
+        continue; // zone starts after visible window
+      }
+
+      let endX: number;
+      if (closeVI !== null) {
+        if (closeVI >= 0 && closeVI < metrics.visibleCandles.length) {
+          endX = this.layoutEngine.getFootprintX(closeVI, metrics) + totalFpW;
+        } else if (zone.closedCandleIdx! < firstVisIdx) {
+          continue; // zone closed before visible window → not visible
+        } else {
+          endX = width; // closes after visible window
+        }
+      } else {
+        endX = width; // active — extends to right edge
+      }
+
+      if (startX >= width || endX <= 0) continue;
+
+      result.push({
+        type: zone.type,
+        priceHigh: zone.priceHigh,
+        priceLow:  zone.priceLow,
+        startX: Math.max(0, startX),
+        endX:   Math.min(width, endX),
+      });
+    }
+
+    return result;
+  }
+
+  private _checkAbsAlert(): void {
+    if (this.candles.length === 0) return;
+    // Alert on the just-CLOSED bar (index length-2), not the still-forming
+    // live bar — absorption is only confirmed once the candle is final.
+    if (this.candles.length < 2) return;
+    const closedIdx  = this.candles.length - 2;
+    const closedTime = this.candles[closedIdx].time;
+    if (closedTime <= this._absLastAlertTime) return; // already alerted this bar
+    const newZones = this._absZones.filter(z => z.detectCandleIdx === closedIdx);
+    if (newZones.length === 0) return;
+    this._absLastAlertTime = closedTime;
+    // Emit a DOM event the React layer turns into a sound (useAbsorptionAlert).
+    window.dispatchEvent(new CustomEvent('senzoukria:absorption-alert', {
+      detail: { count: newZones.length },
+    }));
   }
 }

@@ -100,6 +100,21 @@ export function CryptoFootprint({
     (s) => s.showUnfinishedAuctions,
   );
   const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
+  const showCvdDivergence = useFootprintSettingsStore((s) => s.showCvdDivergence);
+  const cvdDivergencePivotBars = useFootprintSettingsStore((s) => s.cvdDivergencePivotBars);
+  const absorptionRatio         = useFootprintSettingsStore((s) => s.absorptionRatio);
+  const absorptionMinVolume     = useFootprintSettingsStore((s) => s.absorptionMinVolume);
+  const absorptionToleranceTicks = useFootprintSettingsStore((s) => s.absorptionToleranceTicks);
+  const showAbsorptionZones        = useFootprintSettingsStore((s) => s.showAbsorptionZones);
+  const absorptionZoneDaysBack     = useFootprintSettingsStore((s) => s.absorptionZoneDaysBack);
+  const absorptionZoneRatio        = useFootprintSettingsStore((s) => s.absorptionZoneRatio);
+  const absorptionZoneStackedLevels= useFootprintSettingsStore((s) => s.absorptionZoneStackedLevels);
+  const absorptionZoneMinVolume    = useFootprintSettingsStore((s) => s.absorptionZoneMinVolume);
+  const absorptionZoneBullishColor = useFootprintSettingsStore((s) => s.absorptionZoneBullishColor);
+  const absorptionZoneBearishColor = useFootprintSettingsStore((s) => s.absorptionZoneBearishColor);
+  const absorptionZoneLineWidth    = useFootprintSettingsStore((s) => s.absorptionZoneLineWidth);
+  const absorptionZoneLastBarOnly  = useFootprintSettingsStore((s) => s.absorptionZoneLastBarOnly);
+  const absorptionZoneUseAlert     = useFootprintSettingsStore((s) => s.absorptionZoneUseAlert);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -117,6 +132,10 @@ export function CryptoFootprint({
   const candleBorderDown = useFootprintSettingsStore((s) => s.candleBorderDown);
   const candleWickUp = useFootprintSettingsStore((s) => s.candleWickUp);
   const candleWickDown = useFootprintSettingsStore((s) => s.candleWickDown);
+  const showCandleOutline = useFootprintSettingsStore((s) => s.showCandleOutline);
+  const candleOutlineColor = useFootprintSettingsStore((s) => s.candleOutlineColor);
+  const candleOutlineWidth = useFootprintSettingsStore((s) => s.candleOutlineWidth);
+  const candleOutlineOpacity = useFootprintSettingsStore((s) => s.candleOutlineOpacity);
   const bidColor = useFootprintSettingsStore((s) => s.bidColor);
   const askColor = useFootprintSettingsStore((s) => s.askColor);
   const crosshairColor = useFootprintSettingsStore((s) => s.crosshairColor);
@@ -165,6 +184,17 @@ export function CryptoFootprint({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
@@ -186,6 +216,10 @@ export function CryptoFootprint({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -208,6 +242,17 @@ export function CryptoFootprint({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
@@ -229,6 +274,10 @@ export function CryptoFootprint({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -464,9 +513,11 @@ export function CryptoFootprint({
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
         enableAbsorption: showAbsorption,
-        absorptionRatio: 0.6,
-        absorptionMinVolume: 0,
-        absorptionToleranceTicks: 1,
+        absorptionRatio,
+        absorptionMinVolume,
+        absorptionToleranceTicks,
+        enableCvdDivergence: showCvdDivergence,
+        cvdDivergencePivotBars,
       },
       currentPrice,
     );
@@ -478,6 +529,11 @@ export function CryptoFootprint({
     showNakedPOCs,
     showUnfinishedAuctions,
     showAbsorption,
+    absorptionRatio,
+    absorptionMinVolume,
+    absorptionToleranceTicks,
+    showCvdDivergence,
+    cvdDivergencePivotBars,
   ]);
 
   return (

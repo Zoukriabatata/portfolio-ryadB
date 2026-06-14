@@ -131,8 +131,14 @@ function decimalsFromTick(tick: number | undefined): number {
 
 export function BridgeFootprint({
   onSwitchToRithmic,
+  port,
+  sourceLabel = "NinjaTrader",
 }: {
   onSwitchToRithmic: () => void;
+  /** Bridge listener port. Default 7272 (NinjaTrader). ATAS uses 7274. */
+  port?: number;
+  /** Upstream platform display name. Default "NinjaTrader". */
+  sourceLabel?: string;
 }) {
   // Portal target: the single top bar (AppNavbar) this connector
   // teleports its compact control row into.
@@ -252,6 +258,21 @@ export function BridgeFootprint({
     (s) => s.showUnfinishedAuctions,
   );
   const showAbsorption = useFootprintSettingsStore((s) => s.showAbsorption);
+  const showCvdDivergence = useFootprintSettingsStore((s) => s.showCvdDivergence);
+  const cvdDivergencePivotBars = useFootprintSettingsStore((s) => s.cvdDivergencePivotBars);
+  const absorptionRatio         = useFootprintSettingsStore((s) => s.absorptionRatio);
+  const absorptionMinVolume     = useFootprintSettingsStore((s) => s.absorptionMinVolume);
+  const absorptionToleranceTicks = useFootprintSettingsStore((s) => s.absorptionToleranceTicks);
+  const showAbsorptionZones        = useFootprintSettingsStore((s) => s.showAbsorptionZones);
+  const absorptionZoneDaysBack     = useFootprintSettingsStore((s) => s.absorptionZoneDaysBack);
+  const absorptionZoneRatio        = useFootprintSettingsStore((s) => s.absorptionZoneRatio);
+  const absorptionZoneStackedLevels= useFootprintSettingsStore((s) => s.absorptionZoneStackedLevels);
+  const absorptionZoneMinVolume    = useFootprintSettingsStore((s) => s.absorptionZoneMinVolume);
+  const absorptionZoneBullishColor = useFootprintSettingsStore((s) => s.absorptionZoneBullishColor);
+  const absorptionZoneBearishColor = useFootprintSettingsStore((s) => s.absorptionZoneBearishColor);
+  const absorptionZoneLineWidth    = useFootprintSettingsStore((s) => s.absorptionZoneLineWidth);
+  const absorptionZoneLastBarOnly  = useFootprintSettingsStore((s) => s.absorptionZoneLastBarOnly);
+  const absorptionZoneUseAlert     = useFootprintSettingsStore((s) => s.absorptionZoneUseAlert);
   const imbalanceRatio = useFootprintSettingsStore((s) => s.imbalanceRatio);
   const imbalanceMinConsecutive = useFootprintSettingsStore(
     (s) => s.imbalanceMinConsecutive,
@@ -269,6 +290,10 @@ export function BridgeFootprint({
   const candleBorderDown = useFootprintSettingsStore((s) => s.candleBorderDown);
   const candleWickUp = useFootprintSettingsStore((s) => s.candleWickUp);
   const candleWickDown = useFootprintSettingsStore((s) => s.candleWickDown);
+  const showCandleOutline = useFootprintSettingsStore((s) => s.showCandleOutline);
+  const candleOutlineColor = useFootprintSettingsStore((s) => s.candleOutlineColor);
+  const candleOutlineWidth = useFootprintSettingsStore((s) => s.candleOutlineWidth);
+  const candleOutlineOpacity = useFootprintSettingsStore((s) => s.candleOutlineOpacity);
   const bidColor = useFootprintSettingsStore((s) => s.bidColor);
   const askColor = useFootprintSettingsStore((s) => s.askColor);
   const crosshairColor = useFootprintSettingsStore((s) => s.crosshairColor);
@@ -310,7 +335,7 @@ export function BridgeFootprint({
     (async () => {
       try {
         await invoke<BridgeStatus>("bridge_connect", {
-          args: { host: null, port: null },
+          args: { host: null, port: port ?? null },
         });
       } catch (e) {
         if (!cancelled) setError(String(e));
@@ -568,6 +593,17 @@ export function BridgeFootprint({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
@@ -589,6 +625,10 @@ export function BridgeFootprint({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -612,6 +652,17 @@ export function BridgeFootprint({
       showNakedPOCs,
       showUnfinishedAuctions,
       showAbsorption,
+      showCvdDivergence,
+      showAbsorptionZones,
+      absorptionZoneDaysBack,
+      absorptionZoneRatio,
+      absorptionZoneStackedLevels,
+      absorptionZoneMinVolume,
+      absorptionZoneBullishColor,
+      absorptionZoneBearishColor,
+      absorptionZoneLineWidth,
+      absorptionZoneLastBarOnly,
+      absorptionZoneUseAlert,
       showVwapIndicator,
       showClusterStat,
       showBarDelta,
@@ -633,6 +684,10 @@ export function BridgeFootprint({
       candleBorderDown,
       candleWickUp,
       candleWickDown,
+      showCandleOutline,
+      candleOutlineColor,
+      candleOutlineWidth,
+      candleOutlineOpacity,
       bidColor,
       askColor,
       crosshairColor,
@@ -698,9 +753,11 @@ export function BridgeFootprint({
         enableNakedPOCs: showNakedPOCs,
         enableUnfinishedAuctions: showUnfinishedAuctions,
         enableAbsorption: showAbsorption,
-        absorptionRatio: 0.6,
-        absorptionMinVolume: 0,
-        absorptionToleranceTicks: 1,
+        absorptionRatio,
+        absorptionMinVolume,
+        absorptionToleranceTicks,
+        enableCvdDivergence: showCvdDivergence,
+        cvdDivergencePivotBars,
       },
       currentPrice,
     );
@@ -712,6 +769,11 @@ export function BridgeFootprint({
     showNakedPOCs,
     showUnfinishedAuctions,
     showAbsorption,
+    absorptionRatio,
+    absorptionMinVolume,
+    absorptionToleranceTicks,
+    showCvdDivergence,
+    cvdDivergencePivotBars,
   ]);
 
   // ── Drawings toolbar ──────────────────────────────────────
@@ -926,7 +988,7 @@ export function BridgeFootprint({
   // ── Render ────────────────────────────────────────────────
   return (
     <div className="rithmic-footprint">
-      <BridgeStatusBanner state={connState} misconfig={misconfig} />
+      <BridgeStatusBanner state={connState} misconfig={misconfig} sourceLabel={sourceLabel} port={port ?? 7272} />
 
       {error && <div className="rf-error">{error}</div>}
 
@@ -1021,8 +1083,8 @@ export function BridgeFootprint({
           symbol={symbol || "(waiting)"}
           exchange={
             contractLabel
-              ? `NinjaTrader Bridge · ${contractLabel.replace(`· ${symbol}`, "").trim()}`
-              : "NinjaTrader Bridge"
+              ? `${sourceLabel} Bridge · ${contractLabel.replace(`· ${symbol}`, "").trim()}`
+              : `${sourceLabel} Bridge`
           }
           timeframe={timeframe}
           bars={sortedBars}
@@ -1140,16 +1202,20 @@ function describeMisconfig(reason: string): string {
 function BridgeStatusBanner({
   state,
   misconfig,
+  sourceLabel,
+  port,
 }: {
   state: BridgeConnState;
   misconfig: MisconfigInfo | null;
+  sourceLabel: string;
+  port: number;
 }) {
   const text = useMemo<string | null>(() => {
     switch (state.kind) {
       case "disconnected":
         return "Bridge: disconnected";
       case "connecting":
-        return "Bridge: connecting to NinjaTrader on 127.0.0.1:7272…";
+        return `Bridge: connecting to ${sourceLabel} on 127.0.0.1:${port}…`;
       case "receivingHistory": {
         const pct =
           state.total > 0
@@ -1217,12 +1283,81 @@ function BridgeStatusBanner({
     );
   }
 
+  if (state.kind === "receivingHistory") {
+    const pct = state.total > 0 ? (state.received / state.total) * 100 : 0;
+    const pctRounded = Math.round(pct);
+    return (
+      <div
+        style={{
+          background: "#1a1a1a",
+          borderBottom: "1px solid #2a2a2a",
+          padding: "6px 16px 0",
+          fontSize: 12,
+          color: "#e5e7eb",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 5,
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#f59e0b",
+              flexShrink: 0,
+              animation: "pulse 1.2s ease-in-out infinite",
+            }}
+          />
+          <span style={{ color: "#f59e0b", fontWeight: 600 }}>
+            Loading history…
+          </span>
+          <span style={{ color: "#9ca3af" }}>
+            {state.received.toLocaleString()} / {state.total.toLocaleString()} ticks
+          </span>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontVariantNumeric: "tabular-nums",
+              fontWeight: 700,
+              color: pct >= 100 ? "#34d399" : "#f59e0b",
+            }}
+          >
+            {pctRounded}%
+          </span>
+        </div>
+        <div
+          style={{
+            height: 3,
+            background: "rgba(245, 158, 11, 0.15)",
+            borderRadius: 2,
+            overflow: "hidden",
+            marginBottom: 0,
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${Math.min(100, pct)}%`,
+              background: "linear-gradient(90deg, #d97706, #f59e0b)",
+              borderRadius: 2,
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (text === null) return null;
 
   const dotColor = (() => {
     switch (state.kind) {
-      case "receivingHistory":
-        return "#f59e0b";
       case "reconnecting":
         return "#ef4444";
       default:

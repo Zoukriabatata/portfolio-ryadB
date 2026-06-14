@@ -18,6 +18,7 @@ pub mod error;
 pub mod finnhub;
 pub mod alpaca;
 pub mod anthropic;
+pub mod databento;
 pub mod rithmic;
 pub mod tick;
 

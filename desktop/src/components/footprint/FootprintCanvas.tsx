@@ -36,13 +36,14 @@ import {
   type LineHandleKind,
   type FootprintRendererSettings,
 } from "../../lib/footprint/FootprintProAdapter";
+import { useAbsorptionAlert } from "../../hooks/useAbsorptionAlert";
 import { tauriBarToRendererBar } from "../../lib/footprint/adapter";
 import type { IndicatorsResult } from "../../lib/footprint/indicators";
 import {
   DEFAULT_INTERACTION,
   applyWheelZoom,
-  applyWheelZoomY,
   applyWheelZoomXY,
+  applyWheelZoomY,
   clampScrollX,
   endDrag,
   setHover,
@@ -72,6 +73,7 @@ import {
   IconBell,
   IconCopy,
   IconPaste,
+  IconReset,
   IconSettings,
   type ChartContextMenuItem,
 } from "./ChartContextMenu";
@@ -132,6 +134,9 @@ export type FootprintCanvasHandle = {
    *  renderer. The React layer's IndicatorsRunner produces these
    *  off the main thread and pipes them through this method. */
   applyIndicators: (result: IndicatorsResult) => void;
+  /** DOM profile overlay — push the latest depth snapshot so the
+   *  renderer draws bid/ask histogram bars in the price axis area. */
+  setDomProfile: (snap: { bids: { price: number; volume: number }[]; asks: { price: number; volume: number }[] } | null) => void;
   /** Sibling components (DOM panel, indicator sidebars) that render
    *  in their own DOM element next to the canvas can read this on
    *  RAF to align their rows with the chart's price axis. Returns
@@ -170,6 +175,9 @@ export const FootprintCanvas = forwardRef<
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<FootprintCanvasRenderer | null>(null);
+
+  // Absorption detection on a closed candle → synthesised beep (if enabled).
+  useAbsorptionAlert();
   const rafRef = useRef<number | null>(null);
   // 60 FPS cap state. lastRenderTimeRef holds the rAF timestamp of
   // the last actual paint; renderCountRef ticks once per real paint
@@ -178,12 +186,20 @@ export const FootprintCanvas = forwardRef<
   // gives and which doesn't reflect actual fluidity).
   const lastRenderTimeRef = useRef(0);
   const renderCountRef = useRef(0);
+  // TEMP perf metering (à retirer après diagnostic) — coût réel d'une frame
+  // render(). metering UI (performance.now autorisé), pas de la data marché.
+  const perfRef = useRef({ sum: 0, max: 0, count: 0, winStart: 0 });
   const interactionRef = useRef<InteractionState>({ ...DEFAULT_INTERACTION });
   const barsCountRef = useRef<number>(0);
   // Vertical auto-centering (last-price mode). True while we are actively
   // animating toward the centered position (between the 20% trigger and the
   // 2% hysteresis stop).
   const vertCenteringActiveRef = useRef(false);
+  // When true, applyVerticalCentering skips one frame without adjusting
+  // scrollY so the renderer can produce fresh metrics after a state reset.
+  // Without this, centering computes drift from stale metrics (previous
+  // scroll position) and fires in the wrong direction → oscillation.
+  const pendingCenteringResumeRef = useRef(false);
 
   // Trade-drawing state. We subscribe field-by-field so an unrelated
   // store update doesn't force a re-render of the whole canvas tree.
@@ -217,7 +233,24 @@ export const FootprintCanvas = forwardRef<
   useEffect(() => {
     symbolRef.current = symbol;
   }, [symbol]);
+  // Hard reset on symbol or timeframe change so stale pan/zoom from the
+  // previous instrument doesn't bleed into the new one. The bars useEffect
+  // handles this via collapsedToEmpty when bars go through 0, but cached
+  // instruments can jump directly from N bars to N bars — bypassing that path.
+  useEffect(() => {
+    interactionRef.current = { ...DEFAULT_INTERACTION };
+    vertCenteringActiveRef.current = false;
+    pendingCenteringResumeRef.current = false;
+    barsCountRef.current = 0;
+    cvdYRef.current = { zoom: 1, pan: 0 };
+    rendererRef.current?.setCvdYZoom(1, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, timeframe]);
   const handleDragRef = useRef<HandleDrag | null>(null);
+  // CVD Y-zoom state — zoom > 1 = zoom in, pan = value-unit offset from auto-center.
+  const cvdYRef = useRef<{ zoom: number; pan: number }>({ zoom: 1, pan: 0 });
+  // CVD panel resize drag state — non-null while dragging the top edge.
+  const cvdResizeRef = useRef<{ startY: number; startH: number } | null>(null);
   // Active "drag-from-entry to create SL/TP" session. When non-null,
   // mousemove paints a ghost h-line at the cursor price and mouseup
   // commits it as `position.stopLoss` or `takeProfit` based on the
@@ -501,10 +534,39 @@ export const FootprintCanvas = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rendererBars = useMemo(
-    () => bars.map(tauriBarToRendererBar),
-    [bars],
+  // Conversion incrémentale. Les barres historiques sont des objets
+  // immuables (Tauri désérialise un nouvel objet à chaque update — seule
+  // la barre courante change de référence). On mémoïse la conversion par
+  // référence d'objet via une WeakMap : en live on ne reconvertit que
+  // la/les barre(s) réellement modifiées au lieu de TOUT l'historique à
+  // chaque flush. Les snapshots (qui recréent tous les objets) repaient
+  // une conversion pleine — mais ils sont occasionnels, pas par frame.
+  const convertCacheRef = useRef(
+    new WeakMap<FootprintBar, ReturnType<typeof tauriBarToRendererBar>>(),
   );
+  const rendererBars = useMemo(() => {
+    // TEMP perf metering (à retirer après diagnostic).
+    const t0 = performance.now();
+    const cache = convertCacheRef.current;
+    let misses = 0;
+    const out = bars.map((b) => {
+      let r = cache.get(b);
+      if (r === undefined) {
+        r = tauriBarToRendererBar(b);
+        cache.set(b, r);
+        misses++;
+      }
+      return r;
+    });
+    const dt = performance.now() - t0;
+    if (dt > 2) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[fp-perf] convert ${bars.length} bars (${misses} new) in ${dt.toFixed(1)}ms`,
+      );
+    }
+    return out;
+  }, [bars]);
 
   // Push bars + decimals into the renderer when they change, then
   // request a paint.
@@ -549,10 +611,16 @@ export const FootprintCanvas = forwardRef<
     // landings (TF switch with stale interaction state), still
     // respect user override.
     const coldStart = prev === 0;
+    // Never auto-fit while the user has their hand on the chart — an
+    // in-progress drag reads dragStartScroll* from the ref, so wiping
+    // interactionRef mid-drag produces a jump and orphans the gesture.
+    const midDrag = interactionRef.current.isDragging;
     const shouldAutoFit =
-      historyLanded && (coldStart || !userInteracted);
+      !midDrag && historyLanded && (coldStart || !userInteracted);
     if (collapsedToEmpty) {
       interactionRef.current = { ...DEFAULT_INTERACTION };
+      vertCenteringActiveRef.current = false;
+      pendingCenteringResumeRef.current = false;
     } else if (shouldAutoFit) {
       const rect = canvasRef.current?.getBoundingClientRect();
       // Reserve ~88px for the right-side price axis. The renderer
@@ -586,6 +654,13 @@ export const FootprintCanvas = forwardRef<
         cellWidth: fit,
         dragStartCellWidth: fit,
       };
+      // Kill any in-flight centering animation, then arm one "blank" frame
+      // so the renderer can produce metrics at scrollY=0 before centering
+      // computes its first drift. Without this, stale metrics (from the
+      // previous scroll position) cause the first step to go the wrong way
+      // → visible up/down oscillation on initial load.
+      vertCenteringActiveRef.current = false;
+      pendingCenteringResumeRef.current = true;
     }
     barsCountRef.current = next;
     const r = rendererRef.current;
@@ -607,7 +682,15 @@ export const FootprintCanvas = forwardRef<
       interaction.verticalMode !== "last-price"
     ) {
       vertCenteringActiveRef.current = false;
+      pendingCenteringResumeRef.current = false;
       return false;
+    }
+    // After a state reset, skip one frame so the renderer produces metrics
+    // that reflect the new scrollY=0 before we compute drift. Returning true
+    // schedules the next frame where centering will run with fresh data.
+    if (pendingCenteringResumeRef.current) {
+      pendingCenteringResumeRef.current = false;
+      return true;
     }
     const metrics = rendererRef.current?.getLastMetrics();
     const lastPrice = rendererRef.current?.getLastClose() ?? null;
@@ -630,6 +713,30 @@ export const FootprintCanvas = forwardRef<
     }
     interactionRef.current = { ...interaction, scrollY: interaction.scrollY + step };
     return true;
+  }
+
+  // TEMP perf metering — wrap render() to log avg/max frame cost every 60
+  // painted frames. À retirer une fois le diagnostic perf validé.
+  function paint() {
+    const t0 = performance.now();
+    rendererRef.current?.render();
+    const dt = performance.now() - t0;
+    const p = perfRef.current;
+    if (p.count === 0) p.winStart = t0;
+    p.sum += dt;
+    if (dt > p.max) p.max = dt;
+    p.count += 1;
+    // Flush ~1×/seconde quel que soit le FPS (lisible même à 4 fps).
+    // frames = nb de paints sur la fenêtre ≈ FPS effectif.
+    if (t0 - p.winStart >= 1000) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[fp-perf] frames=${p.count} render avg=${(p.sum / p.count).toFixed(1)}ms max=${p.max.toFixed(1)}ms`,
+      );
+      p.sum = 0;
+      p.max = 0;
+      p.count = 0;
+    }
   }
 
   function tickRender() {
@@ -659,7 +766,7 @@ export const FootprintCanvas = forwardRef<
           lastRenderTimeRef.current = t2;
           renderCountRef.current += 1;
           const stillAnimating = applyVerticalCentering();
-          rendererRef.current?.render();
+          paint();
           if (stillAnimating) tickRender();
         });
         return;
@@ -667,7 +774,7 @@ export const FootprintCanvas = forwardRef<
       lastRenderTimeRef.current = t;
       renderCountRef.current += 1;
       const stillAnimating = applyVerticalCentering();
-      rendererRef.current?.render();
+      paint();
       if (stillAnimating) tickRender();
     });
   }
@@ -707,15 +814,42 @@ export const FootprintCanvas = forwardRef<
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Returns CVD panel bounds if the panel is currently visible, null otherwise.
+    // Reads settings at call time so it always reflects the current state.
+    function getCvdPanelBounds(canvasH: number): { panelY: number; panelH: number } | null {
+      const s = useFootprintSettingsStore.getState();
+      if (!s.showCvd) return null;
+      // Mirror clusterStatPanelHeight() — 5 rows × 16 px when showClusterStat is on.
+      const clusterH = s.showClusterStat ? 5 * 16 : 0;
+      const panelH = s.cvdPanelHeight;
+      const panelY = canvasH - 22 - clusterH - panelH;
+      return { panelY, panelH };
+    }
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      // Modifier mapping (P1.7 nav redesign):
-      //   • plain wheel  = uniform XY zoom (anchored at cursor)
-      //   • Shift+wheel  = Y only (anchored at cursor)
-      //   • Ctrl/⌘+wheel = X only (anchored at cursor)
+      // Modifier mapping:
+      //   • plain wheel / trackpad vertical   = scroll temporel (navigate history)
+      //   • trackpad horizontal (deltaX)      = scroll temporel
+      //   • Ctrl/⌘+wheel or pinch-to-zoom     = X zoom (cursor-anchored)
+      //   • Shift+wheel                       = Y zoom (cursor-anchored)
       const cursorX = e.clientX - rect.left;
       const cursorY = e.clientY - rect.top;
+
+      // If cursor is inside the CVD panel, intercept scroll for CVD Y zoom.
+      const cvdBounds = getCvdPanelBounds(rect.height);
+      if (cvdBounds && cursorY >= cvdBounds.panelY && cursorY < cvdBounds.panelY + cvdBounds.panelH) {
+        const factor = Math.pow(1.08, -e.deltaY / 100);
+        cvdYRef.current = {
+          zoom: Math.max(0.5, Math.min(20, cvdYRef.current.zoom * factor)),
+          pan: cvdYRef.current.pan,
+        };
+        rendererRef.current?.setCvdYZoom(cvdYRef.current.zoom, cvdYRef.current.pan);
+        tickRender();
+        return;
+      }
+
       if (e.shiftKey) {
         interactionRef.current = applyWheelZoomY(
           interactionRef.current, e.deltaY, cursorY,
@@ -725,6 +859,7 @@ export const FootprintCanvas = forwardRef<
           interactionRef.current, e.deltaY, cursorX, rect.width,
         );
       } else {
+        // Plain scroll = zoom XY simultané, même facteur → ratio 1:1, pas de déformation.
         interactionRef.current = applyWheelZoomXY(
           interactionRef.current, e.deltaY, cursorX, cursorY, rect.width,
         );
@@ -737,6 +872,18 @@ export const FootprintCanvas = forwardRef<
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // CVD panel resize — drag the top edge (±5 px) up/down to resize.
+      const cvdBounds = getCvdPanelBounds(rect.height);
+      if (cvdBounds && Math.abs(y - cvdBounds.panelY) <= 5) {
+        cvdResizeRef.current = {
+          startY: e.clientY,
+          startH: useFootprintSettingsStore.getState().cvdPanelHeight,
+        };
+        canvas.style.cursor = 'ns-resize';
+        return;
+      }
+
       // Drag mode (P1.7 nav redesign):
       //   • mousedown on price axis (right ~64px) → axisY (Y zoom)
       //   • mousedown on time axis (bottom ~22px) → axisX (X zoom)
@@ -1054,6 +1201,14 @@ export const FootprintCanvas = forwardRef<
         const shouldHide =
           insidePlot && crosshairOnNow && activeToolRef.current === null;
         canvas.classList.toggle("fp-canvas-cursor-hidden", shouldHide);
+      }
+
+      // CVD panel resize drag — handle BEFORE anything else.
+      if (cvdResizeRef.current) {
+        const dy = cvdResizeRef.current.startY - e.clientY; // drag up = panel grows
+        const newH = Math.max(40, Math.min(500, cvdResizeRef.current.startH + dy));
+        useFootprintSettingsStore.getState().set('cvdPanelHeight', newH);
+        return;
       }
 
       // Bracket-creation drag (from entry line). While active, paint
@@ -1428,7 +1583,11 @@ export const FootprintCanvas = forwardRef<
           const hovered = overAxis
             ? null
             : hitTestHandle(x, y, rect.width - PRICE_AXIS_W_HOVER);
-          if (hovered) {
+          // CVD panel top edge — show ns-resize cursor.
+          const cvdBoundsHover = getCvdPanelBounds(rect.height);
+          if (cvdBoundsHover && Math.abs(y - cvdBoundsHover.panelY) <= 5) {
+            canvas.style.cursor = 'ns-resize';
+          } else if (hovered) {
             canvas.style.cursor = cursorForHandleKind(hovered.handle);
           } else {
             // Clear the inline cursor so the CSS class layer (grab /
@@ -1442,6 +1601,14 @@ export const FootprintCanvas = forwardRef<
     };
 
     const onMouseUp = () => {
+      // CVD panel resize — end.
+      if (cvdResizeRef.current) {
+        cvdResizeRef.current = null;
+        canvas.style.cursor = '';
+        tickRender();
+        return;
+      }
+
       // Bracket-create commit. The ghost line in the drawings store
       // carries the final price; we look it up, route to setBrackets,
       // then strip the ghost. If the user mouseupped without moving
@@ -1522,6 +1689,18 @@ export const FootprintCanvas = forwardRef<
       tickRender();
     };
 
+    // Double-click on CVD panel → reset Y zoom to auto-scale.
+    const onDblClick = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const cvdBounds = getCvdPanelBounds(rect.height);
+      if (cvdBounds && y >= cvdBounds.panelY && y < cvdBounds.panelY + cvdBounds.panelH) {
+        cvdYRef.current = { zoom: 1, pan: 0 };
+        rendererRef.current?.setCvdYZoom(1, 0);
+        tickRender();
+      }
+    };
+
     // Right-click → open the chart context menu (copy price / paste
     // / add alert / settings). The native browser menu is always
     // suppressed so the user never sees the OS-level menu over the
@@ -1556,12 +1735,14 @@ export const FootprintCanvas = forwardRef<
     window.addEventListener("mouseup", onMouseUp);
     canvas.addEventListener("mouseleave", onMouseLeave);
     canvas.addEventListener("contextmenu", onContextMenu);
+    canvas.addEventListener("dblclick", onDblClick);
     return () => {
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       canvas.removeEventListener("mouseleave", onMouseLeave);
+      canvas.removeEventListener("dblclick", onDblClick);
       canvas.removeEventListener("contextmenu", onContextMenu);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1907,6 +2088,8 @@ export const FootprintCanvas = forwardRef<
 
   function onResetView() {
     interactionRef.current = { ...DEFAULT_INTERACTION };
+    vertCenteringActiveRef.current = false;
+    pendingCenteringResumeRef.current = true;
     tickRender();
   }
 
@@ -1920,10 +2103,11 @@ export const FootprintCanvas = forwardRef<
       zoomIn: () => {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
-        interactionRef.current = applyWheelZoom(
+        interactionRef.current = applyWheelZoomXY(
           interactionRef.current,
           -100,
           rect.width / 2,
+          rect.height / 2,
           rect.width,
         );
         tickRender();
@@ -1931,10 +2115,11 @@ export const FootprintCanvas = forwardRef<
       zoomOut: () => {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
-        interactionRef.current = applyWheelZoom(
+        interactionRef.current = applyWheelZoomXY(
           interactionRef.current,
           100,
           rect.width / 2,
+          rect.height / 2,
           rect.width,
         );
         tickRender();
@@ -1946,6 +2131,10 @@ export const FootprintCanvas = forwardRef<
       },
       applyIndicators: (result) => {
         rendererRef.current?.setIndicators(result);
+        tickRender();
+      },
+      setDomProfile: (snap) => {
+        rendererRef.current?.setDepth(snap);
         tickRender();
       },
       getPriceMap: () => {
@@ -1974,6 +2163,7 @@ export const FootprintCanvas = forwardRef<
         symbol,
         addLineDrawing,
         onOpenSettings,
+        onResetView,
       })
     : [];
 
@@ -2088,6 +2278,8 @@ export const FootprintCanvas = forwardRef<
             isLive={isLive}
             onGoLive={() => {
               interactionRef.current = goLive(interactionRef.current);
+              vertCenteringActiveRef.current = false;
+              pendingCenteringResumeRef.current = true;
               setIsLive(true);
               tickRender();
             }}
@@ -2098,6 +2290,7 @@ export const FootprintCanvas = forwardRef<
                 DEFAULT_INTERACTION.rowHeight,
               );
               vertCenteringActiveRef.current = false;
+              pendingCenteringResumeRef.current = true;
               tickRender();
             }}
           />
@@ -2271,6 +2464,7 @@ function buildContextMenuItems({
   symbol,
   addLineDrawing,
   onOpenSettings,
+  onResetView,
 }: {
   price: number;
   timeSec: number;
@@ -2279,6 +2473,7 @@ function buildContextMenuItems({
   symbol: string;
   addLineDrawing: (d: LineDrawing) => void;
   onOpenSettings?: () => void;
+  onResetView: () => void;
 }): ChartContextMenuItem[] {
   const priceText = price.toFixed(priceDecimals);
   const items: ChartContextMenuItem[] = [
@@ -2413,16 +2608,24 @@ function buildContextMenuItems({
     );
   }
 
-  items.push({
-    id: "settings",
-    label: "Settings",
-    icon: <IconSettings />,
-    divider: true,
-    disabled: !onOpenSettings,
-    onSelect: () => {
-      onOpenSettings?.();
+  items.push(
+    {
+      id: "reset-chart",
+      label: "Reset chart",
+      icon: <IconReset />,
+      divider: true,
+      onSelect: onResetView,
     },
-  });
+    {
+      id: "settings",
+      label: "Settings",
+      icon: <IconSettings />,
+      disabled: !onOpenSettings,
+      onSelect: () => {
+        onOpenSettings?.();
+      },
+    },
+  );
   // Reference `timeSec` / `barSpacingSec` so the linter doesn't flag
   // them as unused — they're plumbed through for future menu items
   // (e.g. "Place note at this candle") that will need both.
