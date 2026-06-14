@@ -9,11 +9,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { renderMessage } from './renderMessage';
 import LogoMark from '@/components/ui/brand/LogoMark';
+import { nextBestAction, type Cta } from '@/lib/ai/sales/nextBestAction';
 
 interface Msg {
   role: 'user' | 'assistant';
   content: string;
   loading?: boolean;
+  ctas?: Cta[];
 }
 
 const WELCOME = "Bonjour ! Je suis l'assistant OrderFlow. Posez-moi vos questions sur la plateforme, le trading, ou rejoignez notre communauté Discord.";
@@ -34,6 +36,23 @@ export default function FloatingChat() {
   const [pulse, setPulse]     = useState(true);
   const [focused, setFocused] = useState(false);
 
+  const [emailFor, setEmailFor] = useState<number | null>(null);
+  const [emailValue, setEmailValue] = useState('');
+  const [emailDone, setEmailDone] = useState(false);
+  const sessionIdRef = useRef<string>(
+    (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `s_${Date.now()}`,
+  );
+  const lastTempRef = useRef<'cold' | 'warm' | 'hot'>('cold');
+  const hasEngagedRef = useRef(false);
+
+  const logEvent = useCallback((type: string, ctaType?: string) => {
+    void fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionIdRef.current, type, ctaType, page: typeof location !== 'undefined' ? location.pathname : undefined }),
+    }).catch(() => { /* best-effort */ });
+  }, []);
+
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -50,10 +69,11 @@ export default function FloatingChat() {
 
   useEffect(() => {
     if (open) {
+      logEvent('opened');
       setUnread(0);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [open]);
+  }, [open, logEvent]);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
@@ -67,13 +87,20 @@ export default function FloatingChat() {
     ]);
     setInput('');
     setLoading(true);
+    // Close any open email form — its message index would otherwise point
+    // at a stale row once new messages are appended below.
+    setEmailFor(null);
+    // Fire `engaged` exactly once per mounted conversation — a ref avoids
+    // the stale `messages` closure double-firing on rapid suggestion clicks.
+    if (!hasEngagedRef.current) { hasEngagedRef.current = true; logEvent('engaged'); }
+    lastTempRef.current = nextBestAction(text.trim(), history).temperature;
 
     abortRef.current = new AbortController();
     try {
-      const res = await fetch('/api/ai/support', {
+      const res = await fetch('/api/ai/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text.trim(), history }),
+        body: JSON.stringify({ message: text.trim(), history, page: typeof location !== 'undefined' ? location.pathname : undefined }),
         signal: abortRef.current.signal,
       });
 
@@ -91,13 +118,24 @@ export default function FloatingChat() {
           const d = line.slice(6);
           if (d === '[DONE]') break;
           try {
-            const { token } = JSON.parse(d) as { token: string };
-            full += token;
-            setMessages(prev => {
-              const copy = [...prev];
-              copy[copy.length - 1] = { role: 'assistant', content: full };
-              return copy;
-            });
+            const parsed = JSON.parse(d) as { token?: string; cta?: Cta[] };
+            if (parsed.cta) {
+              setMessages(prev => {
+                const copy = [...prev];
+                copy[copy.length - 1] = { role: 'assistant', content: full, ctas: parsed.cta };
+                return copy;
+              });
+              parsed.cta.forEach(c => logEvent('cta_shown', c.kind));
+              continue;
+            }
+            if (parsed.token) {
+              full += parsed.token;
+              setMessages(prev => {
+                const copy = [...prev];
+                copy[copy.length - 1] = { role: 'assistant', content: full };
+                return copy;
+              });
+            }
           } catch { /* skip */ }
         }
       }
@@ -113,7 +151,7 @@ export default function FloatingChat() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, open]);
+  }, [messages, loading, open, logEvent]);
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }
@@ -151,7 +189,7 @@ export default function FloatingChat() {
               </p>
               <div className="flex items-center gap-1.5 mt-[5px]">
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ background: 'var(--primary)', boxShadow: '0 0 6px rgb(var(--primary-rgb) / 0.85)' }} />
-                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>En ligne · Claude Haiku</span>
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>En ligne · Assistant OrderFlow</span>
               </div>
             </div>
             <button
@@ -177,28 +215,95 @@ export default function FloatingChat() {
                 {m.role === 'assistant' && (
                   <div className="flex-shrink-0 self-end mb-0.5"><LogoMark size={22} animated={false} /></div>
                 )}
-                <div
-                  className="max-w-[82%] px-3 py-2 text-[12.5px] leading-relaxed"
-                  style={{
-                    borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                    background: m.role === 'user' ? 'rgb(var(--primary-rgb) / 0.13)' : 'var(--surface-elevated)',
-                    color: m.role === 'user' ? 'var(--primary-light)' : 'var(--text-primary)',
-                    border: m.role === 'user' ? '1px solid rgb(var(--primary-rgb) / 0.30)' : '1px solid var(--border)',
-                    fontWeight: m.role === 'user' ? 500 : 400,
-                  }}
-                >
-                  {m.loading && !m.content ? (
-                    <div className="flex gap-1 items-center py-0.5">
-                      {[0, 1, 2].map(j => (
-                        <span
-                          key={j}
-                          className="w-1.5 h-1.5 rounded-full animate-bounce"
-                          style={{ background: 'var(--text-muted)', animationDelay: `${j * 0.12}s` }}
-                        />
+                <div className="flex flex-col max-w-[82%]">
+                  <div
+                    className="px-3 py-2 text-[12.5px] leading-relaxed"
+                    style={{
+                      borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                      background: m.role === 'user' ? 'rgb(var(--primary-rgb) / 0.13)' : 'var(--surface-elevated)',
+                      color: m.role === 'user' ? 'var(--primary-light)' : 'var(--text-primary)',
+                      border: m.role === 'user' ? '1px solid rgb(var(--primary-rgb) / 0.30)' : '1px solid var(--border)',
+                      fontWeight: m.role === 'user' ? 500 : 400,
+                    }}
+                  >
+                    {m.loading && !m.content ? (
+                      <div className="flex gap-1 items-center py-0.5">
+                        {[0, 1, 2].map(j => (
+                          <span
+                            key={j}
+                            className="w-1.5 h-1.5 rounded-full animate-bounce"
+                            style={{ background: 'var(--text-muted)', animationDelay: `${j * 0.12}s` }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{renderMessage(m.content, m.role === 'user')}</span>
+                    )}
+                  </div>
+                  {m.role === 'assistant' && m.ctas && m.ctas.length > 0 && !m.loading && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {m.ctas.map((c, ci) => (
+                        c.kind === 'email' ? (
+                          <button
+                            key={ci}
+                            onClick={() => { setEmailFor(i); setEmailDone(false); }}
+                            className="text-[10.5px] px-3 py-1.5 rounded-full"
+                            style={{ background: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                          >
+                            {c.label}
+                          </button>
+                        ) : (
+                          <a
+                            key={ci}
+                            href={c.href || '#'}
+                            target={c.kind === 'discord' ? '_blank' : undefined}
+                            rel={c.kind === 'discord' ? 'noopener noreferrer' : undefined}
+                            onClick={() => logEvent('cta_clicked', c.kind)}
+                            className="text-[10.5px] px-3 py-1.5 rounded-full"
+                            style={{ background: 'rgb(var(--primary-rgb) / 0.12)', color: 'var(--primary)', border: '1px solid rgb(var(--primary-rgb) / 0.35)' }}
+                          >
+                            {c.label}
+                          </a>
+                        )
                       ))}
                     </div>
-                  ) : (
-                    <span style={{ whiteSpace: 'pre-wrap' }}>{renderMessage(m.content, m.role === 'user')}</span>
+                  )}
+                  {emailFor === i && (
+                    emailDone ? (
+                      <p className="mt-1.5 text-[10.5px]" style={{ color: 'var(--text-muted)' }}>Merci, on te tient au courant.</p>
+                    ) : (
+                      <form
+                        className="flex gap-1.5 mt-1.5"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (!/.+@.+\..+/.test(emailValue)) return;
+                          try {
+                            const r = await fetch('/api/leads', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                email: emailValue.trim(),
+                                temperature: lastTempRef.current,
+                                topic: messages.filter(mm => mm.role === 'user').slice(-1)[0]?.content.slice(0, 200),
+                                page: typeof location !== 'undefined' ? location.pathname : undefined,
+                                transcript: messages.slice(-6).map(mm => `${mm.role}: ${mm.content}`).join('\n').slice(0, 2000),
+                              }),
+                            });
+                            if (r.ok) { setEmailDone(true); setEmailValue(''); logEvent('lead_captured'); }
+                          } catch { /* keep input, user can retry */ }
+                        }}
+                      >
+                        <input
+                          type="email"
+                          value={emailValue}
+                          onChange={e => setEmailValue(e.target.value)}
+                          placeholder="ton@email.com"
+                          className="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-transparent outline-none"
+                          style={{ color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                        />
+                        <button type="submit" className="text-[10.5px] px-3 py-1.5 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--background)' }}>OK</button>
+                      </form>
+                    )
                   )}
                 </div>
               </div>
