@@ -14,6 +14,11 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Tauri desktop app has its own toolchain — skip from web lint.
     "desktop/**",
+    // Standalone nested portfolio project — not part of this Next.js app,
+    // has its own setup; was failing the shared lint job.
+    "PORTFOLIO/**",
+    // Local agent worktrees / scratch — never lint these.
+    ".claude/**",
   ]),
   {
     rules: {
@@ -27,6 +32,10 @@ const eslintConfig = defineConfig([
       "prefer-const": "off",
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off",
+      // Deliberate runtime require() calls (lazy load / circular-dep breaking,
+      // e.g. stores/useTradingStore.ts). Converting to static import would
+      // reintroduce import cycles; to dynamic import() would force async.
+      "@typescript-eslint/no-require-imports": "off",
       "react-hooks/exhaustive-deps": "off",
     },
   },
