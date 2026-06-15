@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -168,6 +168,67 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
+/**
+ * Live countdown to the end of the current PRO period (`subscriptionEnd`).
+ * For a paying subscriber this is their monthly renewal; for a preview-granted
+ * account it is the hard end of free access (after which they must subscribe).
+ * Renders nothing if there is no expiry (admin / lifetime).
+ */
+function SubscriptionCountdown({ endIso }: { endIso: string | null }) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!endIso) return null;
+  const end = new Date(endIso).getTime();
+  // `now === null` until mounted — avoids an SSR/client hydration mismatch.
+  if (Number.isNaN(end) || now === null) return null;
+
+  const diff = end - now;
+  const expired = diff <= 0;
+  const totalSec = Math.max(0, Math.floor(diff / 1000));
+  const segs = [
+    { v: Math.floor(totalSec / 86400), label: 'J' },
+    { v: Math.floor((totalSec % 86400) / 3600), label: 'H' },
+    { v: Math.floor((totalSec % 3600) / 60), label: 'M' },
+    { v: totalSec % 60, label: 'S' },
+  ];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dateLabel = new Date(end).toLocaleDateString('fr-FR', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+
+  return (
+    <div className="mt-4 p-4 rounded-lg" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          {expired ? 'Accès expiré' : 'Temps restant'}
+        </span>
+        {!expired && (
+          <div className="flex gap-1.5">
+            {segs.map(({ v, label }, i) => (
+              <div key={label} className="flex flex-col items-center" style={{ minWidth: 32 }}>
+                <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 16, fontVariantNumeric: 'tabular-nums', color: 'var(--primary-light)', lineHeight: 1 }}>
+                  {i === 0 ? v : pad(v)}
+                </span>
+                <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-muted)', marginTop: 3 }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="mt-2.5 text-[11px]" style={{ fontFamily: MONO, color: expired ? 'var(--warning)' : 'var(--text-muted)' }}>
+        {expired
+          ? `Votre accès PRO a pris fin le ${dateLabel}. Renouvelez pour réactiver.`
+          : `Période en cours jusqu'au ${dateLabel}`}
+      </div>
+    </div>
+  );
+}
+
 function AccountContent() {
   const sessionData = useSession();
   const session = sessionData?.data;
@@ -260,6 +321,24 @@ function AccountContent() {
       });
     return () => controller.abort();
   }, [session, licenseLoaded]);
+
+  // One-shot session refresh on mount: if a PRO user's JWT predates the
+  // subscriptionEnd field (token issued before this shipped), pull it from the
+  // DB so the countdown shows immediately instead of waiting up to 6h for the
+  // token to refresh. Guarded by a ref so it fires at most once.
+  const subEndRefreshedRef = useRef(false);
+  useEffect(() => {
+    if (subEndRefreshedRef.current) return;
+    if (
+      status === 'authenticated' &&
+      session?.user?.tier === 'PRO' &&
+      !session.user.subscriptionEnd &&
+      sessionData.update
+    ) {
+      subEndRefreshedRef.current = true;
+      void sessionData.update();
+    }
+  }, [status, session, sessionData]);
 
   // Refresh session after successful payment
   useEffect(() => {
@@ -765,6 +844,9 @@ function AccountContent() {
                       )}
                     </div>
                   </div>
+                  {session.user.tier === 'PRO' && (
+                    <SubscriptionCountdown endIso={session.user.subscriptionEnd} />
+                  )}
                   {session.user.tier === 'FREE' ? (
                     <Link href="/pricing"
                       className="block w-full py-3 text-center font-semibold rounded-lg transition-all hover:opacity-90 active:scale-[0.99]"
