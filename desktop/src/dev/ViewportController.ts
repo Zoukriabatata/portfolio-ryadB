@@ -32,7 +32,9 @@ export interface ViewportControllerOptions {
 
 const ZOOM_FACTOR = 1.1;
 const ZOOM_FACTOR_INV = 1 / ZOOM_FACTOR;
-const DEADBAND_RATIO = 0.25;
+// Re-centre once price drifts past 10% of the visible range from centre
+// (was 25% — the view followed too loosely / felt desynced from price).
+const DEADBAND_RATIO = 0.1;
 const MIN_RANGE_TICKS = 20;
 const MIN_TIME_RANGE_MS = 5_000; // 5 sec min sur l'axe X
 

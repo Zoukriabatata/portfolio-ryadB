@@ -26,14 +26,6 @@ export type BestBidAskData = BBOHistoryBuffer | null;
 const DEFAULT_BID_COLOR = "#00e676";
 const DEFAULT_ASK_COLOR = "#ff3d71";
 const LABEL_BG = "#141414";
-const STAIRCASE_BG_LINE = 1;
-// Crisp, clearly-readable best bid/ask staircase (was 0.5 — read as a faint
-// horizontal smear when the market was flat; the user wanted the line itself
-// visible, not ghosted).
-const STAIRCASE_BG_ALPHA = 0.85;
-const TRAIL_LINE = 1.5;
-const TRAIL_LENGTH = 12;
-const TRAIL_ALPHA_MIN = 0.45;
 const DOT_RADIUS = 4;
 const LABEL_PADDING_X = 6;
 const LABEL_HEIGHT = 18;
@@ -91,8 +83,6 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
   private currentBuffer: BBOHistoryBuffer | null = null;
   private bidColor = DEFAULT_BID_COLOR;
   private askColor = DEFAULT_ASK_COLOR;
-  private bidRGB = { r: 0, g: 230, b: 118 };
-  private askRGB = { r: 255, g: 61, b: 113 };
   private readonly scratch = new Float32Array(SCRATCH_CAPACITY * 3);
   private readonly bidLabelCache = new Map<number, string>();
   private readonly askLabelCache = new Map<number, string>();
@@ -117,8 +107,6 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
     this.transform = transform;
     this.bidColor = readCssColor("--bid", DEFAULT_BID_COLOR);
     this.askColor = readCssColor("--ask", DEFAULT_ASK_COLOR);
-    this.bidRGB = parseHexRGB(this.bidColor);
-    this.askRGB = parseHexRGB(this.askColor);
   }
 
   update(_grid: GridSystem, data: BestBidAskData): void {
@@ -143,135 +131,17 @@ export class BestBidAskLayer implements Layer<BestBidAskData> {
     ctx.shadowBlur = 0;
     ctx.shadowColor = "transparent";
 
-    if (n >= 2) {
-      // 1. STAIRCASE BACKGROUND — historique long-terme, opacity 0.5.
-      const trailStart = Math.max(0, n - TRAIL_LENGTH);
-      this.drawStaircaseBackground(
-        ctx,
-        tr,
-        0,
-        trailStart, // jusqu'au début du trail (le trail draw le reste avec alpha)
-        1,
-        this.bidRGB,
-        lineEndX,
-        lineBottomY,
-      );
-      this.drawStaircaseBackground(
-        ctx,
-        tr,
-        0,
-        trailStart,
-        2,
-        this.askRGB,
-        lineEndX,
-        lineBottomY,
-      );
-      // 2. LIVE TRAIL — derniers TRAIL_LENGTH points, alpha dégressive.
-      this.drawLiveTrail(
-        ctx,
-        tr,
-        trailStart,
-        n,
-        1,
-        this.bidRGB,
-        lineEndX,
-        lineBottomY,
-      );
-      this.drawLiveTrail(
-        ctx,
-        tr,
-        trailStart,
-        n,
-        2,
-        this.askRGB,
-        lineEndX,
-        lineBottomY,
-      );
-    }
+    // The user asked to remove the pink/green best bid/ask STAIRCASE lines
+    // (they cluttered the heatmap). We keep only a discreet marker of the
+    // current bid/ask: the live dot + the price labels. No trail, no
+    // full-history staircase.
+    void n;
 
-    // 3. LIVE DOT — proéminent au prix courant.
+    // LIVE DOT — discreet marker at the current bid/ask.
     this.drawLiveDot(ctx, tr, buffer, lineEndX, lineBottomY);
 
-    // Labels (dot + droite).
+    // Labels (dot + right edge).
     this.drawLatestLabels(ctx, tr, buffer, lineEndX, lineBottomY);
-  }
-
-  // Background staircase : trace 1 px opacity 0.5 sur les n-trail premiers
-  // snaps. Une seule stroke = perf OK.
-  private drawStaircaseBackground(
-    ctx: CanvasRenderingContext2D,
-    tr: RenderTransform,
-    start: number,
-    end: number,
-    fieldOffset: 1 | 2,
-    rgb: { r: number; g: number; b: number },
-    lineEndX: number,
-    lineBottomY: number,
-  ): void {
-    if (end - start < 2) return;
-    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${STAIRCASE_BG_ALPHA})`;
-    ctx.lineWidth = STAIRCASE_BG_LINE;
-    ctx.lineJoin = "miter";
-    ctx.lineCap = "butt";
-    ctx.beginPath();
-    let prevY = 0;
-    let started = false;
-    for (let i = start; i < end; i++) {
-      const ts = this.scratch[i * 3];
-      const price = this.scratch[i * 3 + fieldOffset];
-      const x = Math.min(tr.timeToX(ts), lineEndX);
-      const y = Math.max(0, Math.min(tr.priceToY(price), lineBottomY));
-      if (!started) {
-        ctx.moveTo(x, y);
-        prevY = y;
-        started = true;
-        continue;
-      }
-      ctx.lineTo(x, prevY);
-      ctx.lineTo(x, y);
-      prevY = y;
-    }
-    ctx.stroke();
-  }
-
-  // Trail live : derniers TRAIL_LENGTH points, alpha dégressive du plus
-  // ancien au plus récent. Une stroke par segment (12 segments max =
-  // négligeable, allure dynamique).
-  private drawLiveTrail(
-    ctx: CanvasRenderingContext2D,
-    tr: RenderTransform,
-    start: number,
-    end: number,
-    fieldOffset: 1 | 2,
-    rgb: { r: number; g: number; b: number },
-    lineEndX: number,
-    lineBottomY: number,
-  ): void {
-    if (end - start < 2) return;
-    ctx.lineWidth = TRAIL_LINE;
-    ctx.lineJoin = "miter";
-    ctx.lineCap = "butt";
-    const span = end - 1 - start;
-    if (span <= 0) return;
-    for (let i = start; i < end - 1; i++) {
-      const ts0 = this.scratch[i * 3];
-      const p0 = this.scratch[i * 3 + fieldOffset];
-      const ts1 = this.scratch[(i + 1) * 3];
-      const p1 = this.scratch[(i + 1) * 3 + fieldOffset];
-      const x0 = Math.min(tr.timeToX(ts0), lineEndX);
-      const y0 = Math.max(0, Math.min(tr.priceToY(p0), lineBottomY));
-      const x1 = Math.min(tr.timeToX(ts1), lineEndX);
-      const y1 = Math.max(0, Math.min(tr.priceToY(p1), lineBottomY));
-      // Alpha dégressive : oldest = TRAIL_ALPHA_MIN, newest = 1.0
-      const t = (i - start) / span;
-      const alpha = TRAIL_ALPHA_MIN + t * (1 - TRAIL_ALPHA_MIN);
-      ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y0); // staircase horizontal
-      ctx.lineTo(x1, y1); // staircase vertical
-      ctx.stroke();
-    }
   }
 
   // Dot proéminent au prix courant. Disque 4 px aux couleurs marque,
