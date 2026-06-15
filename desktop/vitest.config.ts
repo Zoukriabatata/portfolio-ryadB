@@ -1,6 +1,11 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // Desktop uses the @tailwindcss/vite plugin, not PostCSS. Without this
+  // override Vite walks up to the repo-root postcss.config.mjs (which loads
+  // @tailwindcss/postcss, not installed here) and vitest fails with
+  // "Cannot find module '@tailwindcss/postcss'". Empty plugins = no PostCSS.
+  css: { postcss: { plugins: [] } },
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",

@@ -14,7 +14,7 @@ describe("goLive", () => {
     expect(next.userOverrodeX).toBe(false);
   });
 
-  it("does not touch zoom or vertical state", () => {
+  it("preserves zoom (cellWidth/rowHeight) and verticalMode", () => {
     const state = {
       ...DEFAULT_INTERACTION,
       scrollX: 100,
@@ -24,10 +24,13 @@ describe("goLive", () => {
       verticalMode: "none" as const,
     };
     const next = goLive(state);
+    // Zoom is never touched by goLive — only position/follow.
     expect(next.cellWidth).toBe(300);
     expect(next.rowHeight).toBe(40);
-    expect(next.userOverrodeY).toBe(true);
     expect(next.verticalMode).toBe("none");
+    // goLive re-enables auto-follow on BOTH axes (see impl comment), so the
+    // Y override is cleared too — not just X.
+    expect(next.userOverrodeY).toBe(false);
   });
 });
 
@@ -50,15 +53,17 @@ describe("resetScale", () => {
     expect(next.verticalMode).toBe("last-price");
   });
 
-  it("does not touch scrollX or userOverrodeX", () => {
+  it("also resets position (scrollX → 0, userOverrodeX → false)", () => {
     const state = {
       ...DEFAULT_INTERACTION,
       scrollX: 500,
       userOverrodeX: true,
     };
     const next = resetScale(state, 140, 20);
-    expect(next.scrollX).toBe(500);
-    expect(next.userOverrodeX).toBe(true);
+    // resetScale is "reset zoom AND position to defaults" (see impl comment):
+    // it snaps back to the live edge on X too, re-enabling auto-follow.
+    expect(next.scrollX).toBe(0);
+    expect(next.userOverrodeX).toBe(false);
   });
 });
 

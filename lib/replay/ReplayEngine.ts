@@ -329,7 +329,8 @@ export class ReplayEngine {
   }
 
   /**
-   * Set playback speed (0.25x to 10x).
+   * Set playback speed (clamped to 0.25x … 86400x). The high ceiling allows
+   * fast-forwarding a full trading day in ~1 second.
    */
   setSpeed(speed: number): void {
     this.updateState({ speed: Math.max(0.25, Math.min(86400, speed)) });

@@ -4,42 +4,45 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // Mock IndexedDB and dependent modules BEFORE importing ReplayEngine
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Mock data
-const mockTrades = [
-  { sessionId: 'session1', timestamp: 1000, price: 5000.00, size: 2, side: 'ASK' as const },
-  { sessionId: 'session1', timestamp: 2000, price: 5000.25, size: 3, side: 'BID' as const },
-  { sessionId: 'session1', timestamp: 3000, price: 5000.50, size: 1, side: 'ASK' as const },
-  { sessionId: 'session1', timestamp: 4000, price: 5000.75, size: 4, side: 'BID' as const },
-  { sessionId: 'session1', timestamp: 5000, price: 5001.00, size: 2, side: 'ASK' as const },
-];
-
-const mockDepthSnapshots = [
-  {
-    sessionId: 'session1',
-    timestamp: 1500,
-    bids: [{ price: 4999.75, size: 50 }, { price: 4999.50, size: 30 }],
-    asks: [{ price: 5000.25, size: 40 }, { price: 5000.50, size: 25 }],
-  },
-  {
-    sessionId: 'session1',
-    timestamp: 3500,
-    bids: [{ price: 5000.00, size: 55 }, { price: 4999.75, size: 35 }],
-    asks: [{ price: 5000.50, size: 42 }, { price: 5000.75, size: 28 }],
-  },
-];
-
-const mockSessions = [
-  {
-    id: 'session1',
-    symbol: 'ES',
-    startTime: 1000,
-    endTime: 5000,
-    tradeCount: 5,
-    depthSnapshotCount: 2,
-    status: 'completed' as const,
-    fileSizeEstimate: 500,
-  },
-];
+// Mock data — wrapped in vi.hoisted() so it is initialized BEFORE the hoisted
+// vi.mock() factory below references it. vi.mock is lifted above plain top-level
+// consts, which otherwise throws "Cannot access 'mockSessions' before
+// initialization". vi.hoisted runs in the same hoisted phase as vi.mock.
+const { mockTrades, mockDepthSnapshots, mockSessions } = vi.hoisted(() => ({
+  mockTrades: [
+    { sessionId: 'session1', timestamp: 1000, price: 5000.00, size: 2, side: 'ASK' as const },
+    { sessionId: 'session1', timestamp: 2000, price: 5000.25, size: 3, side: 'BID' as const },
+    { sessionId: 'session1', timestamp: 3000, price: 5000.50, size: 1, side: 'ASK' as const },
+    { sessionId: 'session1', timestamp: 4000, price: 5000.75, size: 4, side: 'BID' as const },
+    { sessionId: 'session1', timestamp: 5000, price: 5001.00, size: 2, side: 'ASK' as const },
+  ],
+  mockDepthSnapshots: [
+    {
+      sessionId: 'session1',
+      timestamp: 1500,
+      bids: [{ price: 4999.75, size: 50 }, { price: 4999.50, size: 30 }],
+      asks: [{ price: 5000.25, size: 40 }, { price: 5000.50, size: 25 }],
+    },
+    {
+      sessionId: 'session1',
+      timestamp: 3500,
+      bids: [{ price: 5000.00, size: 55 }, { price: 4999.75, size: 35 }],
+      asks: [{ price: 5000.50, size: 42 }, { price: 5000.75, size: 28 }],
+    },
+  ],
+  mockSessions: [
+    {
+      id: 'session1',
+      symbol: 'ES',
+      startTime: 1000,
+      endTime: 5000,
+      tradeCount: 5,
+      depthSnapshotCount: 2,
+      status: 'completed' as const,
+      fileSizeEstimate: 500,
+    },
+  ],
+}));
 
 // Mock the ReplayRecorder module
 vi.mock('@/lib/replay/ReplayRecorder', () => {
@@ -266,7 +269,10 @@ describe('ReplayEngine', () => {
       const state = engine.getState();
       expect(state.progress).toBe(0);
       expect(state.currentTime).toBe(1000); // startTime
-      expect(state.tradeIndex).toBe(0);
+      // seek uses an inclusive `<= targetTime` boundary (same contract as the
+      // midpoint/end tests below): the trade exactly at startTime (t=1000) is
+      // fed, so tradeIndex is 1. Depth starts at t=1500 > 1000, so depthIndex 0.
+      expect(state.tradeIndex).toBe(1);
       expect(state.depthIndex).toBe(0);
     });
 
@@ -329,12 +335,14 @@ describe('ReplayEngine', () => {
       flushFrame(3000); // Play forward a bit
       engine.pause();
 
-      // Seek back to beginning - adapters should be reset and replayed
+      // Seek back to beginning - adapters reset, then replayed up to startTime.
+      // The trade at t=1000 (== startTime) is re-fed by the inclusive boundary,
+      // so tradeIndex / tradeFedCount are 1, not 0.
       engine.seek(0);
 
       const state = engine.getState();
-      expect(state.tradeIndex).toBe(0);
-      expect(state.tradeFedCount).toBe(0);
+      expect(state.tradeIndex).toBe(1);
+      expect(state.tradeFedCount).toBe(1);
     });
   });
 
@@ -367,10 +375,12 @@ describe('ReplayEngine', () => {
       expect(engine.getState().speed).toBe(0.25);
     });
 
-    it('should clamp speed to maximum 10x', async () => {
+    it('should clamp speed to maximum 86400x', async () => {
       await engine.loadSession('session1');
-      engine.setSpeed(20);
-      expect(engine.getState().speed).toBe(10);
+      // Engine allows very high fast-forward (up to 86400x — a full day in a
+      // second). Anything above clamps to the ceiling.
+      engine.setSpeed(999999);
+      expect(engine.getState().speed).toBe(86400);
     });
 
     it('should advance replay time faster at higher speed', async () => {
