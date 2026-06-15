@@ -356,19 +356,23 @@ export class ViewportController {
     return this.autoFollow;
   }
 
-  // Hysteresis ±25 % strict, recentrage en saut atomique (pas de smooth).
+  // Locked auto-follow: re-centre price (Y) on drift past the deadband AND
+  // re-anchor the time window (X) to "now" every tick, so the view stays
+  // pinned to the live right edge — full-width, no empty future / black gap.
   tickAutoFollow(): void {
     if (!this.autoFollow) return;
     const cp = this.getCurrentPrice();
-    if (cp == null || !Number.isFinite(cp)) return;
-    const range = this.priceMax - this.priceMin;
-    const mid = (this.priceMin + this.priceMax) / 2;
-    const deadband = range * DEADBAND_RATIO;
-    if (Math.abs(cp - mid) > deadband) {
-      this.priceMin = cp - range / 2;
-      this.priceMax = cp + range / 2;
-      this.commitViewport({});
+    if (cp != null && Number.isFinite(cp)) {
+      const range = this.priceMax - this.priceMin;
+      const mid = (this.priceMin + this.priceMax) / 2;
+      const deadband = range * DEADBAND_RATIO;
+      if (Math.abs(cp - mid) > deadband) {
+        this.priceMin = cp - range / 2;
+        this.priceMax = cp + range / 2;
+      }
     }
+    // timeMin/timeMax undefined → engine falls back to [now-history, now].
+    this.commitViewport({});
   }
 
   getViewport(): { priceMin: number; priceMax: number } {
