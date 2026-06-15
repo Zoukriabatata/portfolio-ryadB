@@ -529,6 +529,7 @@ export const authOptions: NextAuthOptions = {
         deviceId: token.deviceId,
         sessionId: token.sessionId,
         hasResearchPack: token.hasResearchPack ?? false,
+        subscriptionEnd: token.subscriptionEnd ?? null,
       };
       return session;
     },

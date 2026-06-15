@@ -12,6 +12,9 @@ declare module 'next-auth' {
       deviceId: string;
       sessionId: string;
       hasResearchPack: boolean;
+      /** ISO date when the current PRO period ends (renewal for paying subs,
+       *  hard end for preview-granted access). null = no expiry (admin). */
+      subscriptionEnd: string | null;
     };
   }
 
