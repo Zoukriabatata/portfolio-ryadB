@@ -27,7 +27,10 @@ const DEFAULT_BID_COLOR = "#00e676";
 const DEFAULT_ASK_COLOR = "#ff3d71";
 const LABEL_BG = "#141414";
 const STAIRCASE_BG_LINE = 1;
-const STAIRCASE_BG_ALPHA = 0.5;
+// Crisp, clearly-readable best bid/ask staircase (was 0.5 — read as a faint
+// horizontal smear when the market was flat; the user wanted the line itself
+// visible, not ghosted).
+const STAIRCASE_BG_ALPHA = 0.85;
 const TRAIL_LINE = 1.5;
 const TRAIL_LENGTH = 12;
 const TRAIL_ALPHA_MIN = 0.45;

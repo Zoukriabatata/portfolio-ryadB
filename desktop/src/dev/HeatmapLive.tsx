@@ -154,20 +154,13 @@ export function HeatmapLive() {
         },
       });
 
+      // Auto-follow is permanently locked ON (ViewportController no longer
+      // unlocks on wheel/drag/Space). The control is now a static indicator,
+      // not a toggle.
       const updateLockUi = () => {
-        if (lockBtnRef.current) {
-          lockBtnRef.current.textContent = viewportController!.isAutoFollowEnabled()
-            ? "🔓 follow ON"
-            : "🔒 follow OFF";
-        }
+        if (lockBtnRef.current) lockBtnRef.current.textContent = "🔒 Auto-follow";
       };
       updateLockUi();
-      if (lockBtnRef.current) {
-        lockBtnRef.current.onclick = () => {
-          viewportController!.setAutoFollow(!viewportController!.isAutoFollowEnabled());
-          updateLockUi();
-        };
-      }
 
       canvas!.addEventListener("mousemove", onMouseMove);
       canvas!.addEventListener("mouseleave", onMouseLeave);

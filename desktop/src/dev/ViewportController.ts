@@ -118,7 +118,8 @@ export class ViewportController {
     // ============================================================
     this.onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      this.autoFollow = false;
+      // Auto-follow stays locked ON — zoom adjusts the range, follow keeps it
+      // centred on price. (Previously a wheel event unlocked the view.)
       const factor = e.deltaY > 0 ? ZOOM_FACTOR : ZOOM_FACTOR_INV;
       const rect = this.canvas.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
@@ -184,7 +185,7 @@ export class ViewportController {
         return;
       }
       if (e.button !== 0) return;
-      this.autoFollow = false;
+      // Auto-follow stays locked ON — a drag no longer unlocks the view.
       const rect = this.canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const xBuffer = (e.clientX - rect.left) * dpr;
@@ -306,12 +307,9 @@ export class ViewportController {
     // KEY DOWN — Space toggle follow.
     // ============================================================
     this.onKeyDown = (e: KeyboardEvent) => {
-      // Space sur canvas focus uniquement.
-      if (e.code !== "Space") return;
-      // Évite scroll page.
-      e.preventDefault();
-      this.autoFollow = !this.autoFollow;
-      if (this.autoFollow) this.tickAutoFollow();
+      // Auto-follow is permanently locked ON — Space no longer toggles it
+      // (still swallow the key so the page doesn't scroll).
+      if (e.code === "Space") e.preventDefault();
     };
 
     this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
