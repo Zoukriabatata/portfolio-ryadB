@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -321,6 +321,24 @@ function AccountContent() {
       });
     return () => controller.abort();
   }, [session, licenseLoaded]);
+
+  // One-shot session refresh on mount: if a PRO user's JWT predates the
+  // subscriptionEnd field (token issued before this shipped), pull it from the
+  // DB so the countdown shows immediately instead of waiting up to 6h for the
+  // token to refresh. Guarded by a ref so it fires at most once.
+  const subEndRefreshedRef = useRef(false);
+  useEffect(() => {
+    if (subEndRefreshedRef.current) return;
+    if (
+      status === 'authenticated' &&
+      session?.user?.tier === 'PRO' &&
+      !session.user.subscriptionEnd &&
+      sessionData.update
+    ) {
+      subEndRefreshedRef.current = true;
+      void sessionData.update();
+    }
+  }, [status, session, sessionData]);
 
   // Refresh session after successful payment
   useEffect(() => {
