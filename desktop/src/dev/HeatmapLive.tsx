@@ -13,10 +13,25 @@ import type { HeatmapEngine as HeatmapEngineType } from "../render/HeatmapEngine
 import { OrderbookAdapter } from "../adapters/OrderbookAdapter";
 import { TradesAdapter } from "../adapters/TradesAdapter";
 import { ViewportController } from "./ViewportController";
+import { BridgeDepthHeatmapAdapter, type BridgeDepthEvent } from "../adapters/BridgeDepthHeatmapAdapter";
+import { inferTickSize } from "../lib/heatmap/inferTickSize";
+import type { OrderbookSnapshot } from "../core";
 
-const INITIAL_MID = 100_000;
-const INITIAL_HALF_TICKS = 100;
-const TICK_SIZE = 0.1;
+const TICK_SIZE = 0.1; // fallback tick when it can't be inferred from data
+const HALF_TICKS = 100; // initial visible half-range, in ticks, around mid
+
+type HeatSource = "crypto" | "bridge" | "quantower";
+
+function readHeatmapSource(): HeatSource {
+  try {
+    const v = localStorage.getItem("orderflow.dataSource");
+    if (v === "bridge") return "bridge";
+    if (v === "quantower") return "quantower";
+    return "crypto"; // rithmic + default → existing Bybit demo path
+  } catch {
+    return "crypto";
+  }
+}
 
 export function HeatmapLive() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,11 +47,14 @@ export function HeatmapLive() {
   const engineRef = useRef<HeatmapEngineType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const srcLabel = readHeatmapSource();
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const overlay = overlayRef.current;
     if (!canvas || !overlay) return;
 
+    const source = readHeatmapSource();
     const dpr = window.devicePixelRatio || 1;
     const applySize = (clientW: number, clientH: number) => {
       const w = Math.max(1, Math.floor(clientW * dpr));
@@ -54,177 +72,179 @@ export function HeatmapLive() {
     let cancelled = false;
     let snapCount = 0;
     let tradeCount = 0;
-    let viewportInitialized = false;
-    const HALF_RANGE = INITIAL_HALF_TICKS * TICK_SIZE;
 
-    const initialPriceMin = INITIAL_MID - INITIAL_HALF_TICKS * TICK_SIZE;
-    const initialPriceMax = INITIAL_MID + INITIAL_HALF_TICKS * TICK_SIZE;
-
-    const engine = new HeatmapEngine({
-      canvas,
-      overlayCanvas: overlay,
-      viewport: { priceMin: initialPriceMin, priceMax: initialPriceMax },
-      tickSize: TICK_SIZE,
-    });
-    engineRef.current = engine;
-
-    const liquidityLayer = new LiquidityHeatmapLayer();
-    const bubblesLayer = new TradeBubblesLayer();
-    const keyLevelsLayer = new KeyLevelsLayer();
-    const volumeProfileLayer = new VolumeProfileLayer();
-    const bestBidAskLayer = new BestBidAskLayer();
-    const crosshairLayer = new CrosshairLayer();
-    const axesLayer = new AxesLayer();
-    bubblesLayer.setCanvasSize(canvas.width, canvas.height);
-
-    // ResizeObserver : suit le wrapper parent pour redimensionner les 2
-    // canvases quand la fenêtre Tauri est resize. Bonus REFONTE-4b.5.
-    const wrapper = canvas.parentElement;
-    const ro = wrapper
-      ? new ResizeObserver((entries) => {
-          const entry = entries[0];
-          if (!entry) return;
-          const r = entry.contentRect;
-          applySize(r.width, r.height);
-          bubblesLayer.setCanvasSize(canvas.width, canvas.height);
-        })
-      : null;
-    ro?.observe(wrapper!);
-
-    engine.addLayer(liquidityLayer, 1, () => engine.getLiquidityFrame());
-    engine.addLayer(bubblesLayer, 5, () => engine.getTradesBuffer());
-    engine.addLayer(keyLevelsLayer, 10, () => engine.getKeyLevelsSnapshot());
-    // REFONTE-7/P3.5 Fix 3 : staircase BBO depuis l'historique des snaps.
-    engine.addLayer(bestBidAskLayer, 12, () => engine.getBBOHistory());
-    engine.addLayer(crosshairLayer, 15, () => engine.getCrosshairData());
-    engine.addLayer(
-      volumeProfileLayer,
-      20,
-      () => engine.getVolumeProfileSnapshot(),
-    );
-    // REFONTE-7/P3 — AxesLayer z=25, masque le VolumeProfile dans le bandeau
-    // Y droite (acceptable, P5 ajoutera toggle settings).
-    engine.addLayer(axesLayer, 25, () => undefined);
-
-    // REFONTE-5 — listeners crosshair sur le canvas regl. mousemove
-    // capture seulement (pas de compute lookup), engine.setCrosshair
-    // stocke x/y, le tick rAF suivant compute via getCrosshairData.
+    // Built lazily on the first valid snapshot — tick size must be known
+    // before HeatmapEngine construction (it is readonly), so we infer it from
+    // the ladder. This also removes the old BTC-only hardcode.
+    let engine: HeatmapEngineType | null = null;
+    let viewportController: ViewportController | null = null;
+    let ro: ResizeObserver | null = null;
+    let ticker = 0;
     const onMouseMove = (e: MouseEvent) => {
+      if (!engine) return;
       const rect = canvas.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
       const x = (e.clientX - rect.left) * (canvas.width / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / rect.height);
       engine.setCrosshair(x, y);
     };
-    const onMouseLeave = () => engine.clearCrosshair();
-    canvas.addEventListener("mousemove", onMouseMove);
-    canvas.addEventListener("mouseleave", onMouseLeave);
+    const onMouseLeave = () => engine?.clearCrosshair();
 
-    // REFONTE-7/P1 : sanity red-quad supprimé du flow par défaut.
-    // C'était un artefact de debug visible en haut-gauche (cf. spec
-    // §3.6 carré rouge parasite). Reste activable via VITE_DEV_SANITY=true
-    // pour les régressions futures du pipeline GL (cf. leçon §5.A).
-    if (import.meta.env.VITE_DEV_SANITY === "true") {
-      engine.enableDevSanity();
+    function buildEngine(firstSnap: OrderbookSnapshot) {
+      const mid = (firstSnap.bids[0].price + firstSnap.asks[0].price) / 2;
+      const ladder = [
+        ...firstSnap.bids.map((l) => l.price),
+        ...firstSnap.asks.map((l) => l.price),
+      ];
+      const tickSize = inferTickSize(ladder) ?? TICK_SIZE;
+      const half = HALF_TICKS * tickSize;
+
+      const eng = new HeatmapEngine({
+        canvas: canvas!,
+        overlayCanvas: overlay!,
+        viewport: { priceMin: mid - half, priceMax: mid + half },
+        tickSize,
+      });
+      engineRef.current = eng;
+      engine = eng;
+
+      const liquidityLayer = new LiquidityHeatmapLayer();
+      const bubblesLayer = new TradeBubblesLayer();
+      const keyLevelsLayer = new KeyLevelsLayer();
+      const volumeProfileLayer = new VolumeProfileLayer();
+      const bestBidAskLayer = new BestBidAskLayer();
+      const crosshairLayer = new CrosshairLayer();
+      const axesLayer = new AxesLayer();
+      bubblesLayer.setCanvasSize(canvas!.width, canvas!.height);
+
+      const wrapper = canvas!.parentElement;
+      ro = wrapper
+        ? new ResizeObserver((entries) => {
+            const r = entries[0]?.contentRect;
+            if (!r) return;
+            applySize(r.width, r.height);
+            bubblesLayer.setCanvasSize(canvas!.width, canvas!.height);
+          })
+        : null;
+      if (wrapper && ro) ro.observe(wrapper);
+
+      eng.addLayer(liquidityLayer, 1, () => eng.getLiquidityFrame());
+      eng.addLayer(bubblesLayer, 5, () => eng.getTradesBuffer());
+      eng.addLayer(keyLevelsLayer, 10, () => eng.getKeyLevelsSnapshot());
+      eng.addLayer(bestBidAskLayer, 12, () => eng.getBBOHistory());
+      eng.addLayer(crosshairLayer, 15, () => eng.getCrosshairData());
+      eng.addLayer(volumeProfileLayer, 20, () => eng.getVolumeProfileSnapshot());
+      eng.addLayer(axesLayer, 25, () => undefined);
+
+      if (import.meta.env.VITE_DEV_SANITY === "true") eng.enableDevSanity();
+      eng.start();
+
+      viewportController = new ViewportController({
+        canvas: canvas!,
+        initialPriceMin: mid - half,
+        initialPriceMax: mid + half,
+        tickSize,
+        engine: eng,
+        getCurrentPrice: () => {
+          try {
+            return eng.getTradesBuffer().currentPrice();
+          } catch {
+            return null;
+          }
+        },
+      });
+
+      const updateLockUi = () => {
+        if (lockBtnRef.current) {
+          lockBtnRef.current.textContent = viewportController!.isAutoFollowEnabled()
+            ? "🔓 follow ON"
+            : "🔒 follow OFF";
+        }
+      };
+      updateLockUi();
+      if (lockBtnRef.current) {
+        lockBtnRef.current.onclick = () => {
+          viewportController!.setAutoFollow(!viewportController!.isAutoFollowEnabled());
+          updateLockUi();
+        };
+      }
+
+      canvas!.addEventListener("mousemove", onMouseMove);
+      canvas!.addEventListener("mouseleave", onMouseLeave);
+
+      ticker = window.setInterval(() => {
+        if (!engine) return;
+        if (fpsRef.current) fpsRef.current.textContent = String(engine.getFps() | 0);
+        viewportController!.tickAutoFollow();
+        updateLockUi();
+        const kl = engine.getKeyLevelsSnapshot();
+        if (pocRef.current) pocRef.current.textContent = kl.poc != null ? kl.poc.toFixed(2) : "—";
+        if (vwapRef.current) vwapRef.current.textContent = kl.vwap != null ? kl.vwap.toFixed(2) : "—";
+      }, 250);
     }
 
-    engine.start();
+    const onSnap = (snap: OrderbookSnapshot) => {
+      if (cancelled) return;
+      if (!engine) {
+        if (
+          snap.bids.length > 0 &&
+          snap.asks.length > 0 &&
+          Number.isFinite(snap.bids[0].price) &&
+          Number.isFinite(snap.asks[0].price)
+        ) {
+          buildEngine(snap);
+        } else {
+          return; // wait for a two-sided snapshot
+        }
+      }
+      snapCount++;
+      if (snapsRef.current) snapsRef.current.textContent = String(snapCount);
+      if (statusRef.current && statusRef.current.textContent !== "live") {
+        statusRef.current.textContent = "live";
+      }
+      engine!.setOrderbook(snap);
+    };
 
     const orderbookAdapter = new OrderbookAdapter();
     const tradesAdapter = new TradesAdapter();
-
-    const viewportController = new ViewportController({
-      canvas,
-      initialPriceMin,
-      initialPriceMax,
-      tickSize: TICK_SIZE,
-      // REFONTE-7/P3 : engine direct (au lieu de onViewportChange callback)
-      // pour que ViewportController puisse aussi piloter setPan / resetPan
-      // pendant le drag (matrice non-destructive).
-      engine,
-      getCurrentPrice: () => {
-        try {
-          return engine.getTradesBuffer().currentPrice();
-        } catch {
-          return null;
-        }
-      },
-    });
-
-    const updateLockUi = () => {
-      if (lockBtnRef.current) {
-        lockBtnRef.current.textContent =
-          viewportController.isAutoFollowEnabled()
-            ? "🔓 follow ON"
-            : "🔒 follow OFF";
-      }
-    };
-    updateLockUi();
-
-    if (lockBtnRef.current) {
-      lockBtnRef.current.onclick = () => {
-        viewportController.setAutoFollow(
-          !viewportController.isAutoFollowEnabled(),
-        );
-        updateLockUi();
-      };
-    }
+    const bridgeAdapter =
+      source === "bridge"
+        ? new BridgeDepthHeatmapAdapter("bridge-depth-update" as BridgeDepthEvent)
+        : source === "quantower"
+          ? new BridgeDepthHeatmapAdapter("quantower-depth-update" as BridgeDepthEvent)
+          : null;
 
     (async () => {
       try {
         if (statusRef.current) statusRef.current.textContent = "connecting";
-        await invoke("crypto_connect", { args: { exchange: "bybit" } });
-        if (cancelled) return;
-
-        await Promise.all([
-          invoke("crypto_orderbook_subscribe", {
-            args: { exchange: "bybit", symbol: "BTCUSDT" },
-          }),
-          invoke("crypto_subscribe", {
-            args: { exchange: "bybit", symbol: "BTCUSDT" },
-          }),
-        ]);
-        if (cancelled) return;
-        if (statusRef.current) statusRef.current.textContent = "subscribed";
-
-        await Promise.all([
-          orderbookAdapter.start((snap) => {
-            if (cancelled) return;
-            // REFONTE-5 : auto-init viewport depuis le 1er snap valide.
-            // Évite la cascade canvas-noir si trades arrivent en retard
-            // (cf. leçon §5.E hot-reload Tauri).
-            if (
-              !viewportInitialized &&
-              snap.bids.length > 0 &&
-              snap.asks.length > 0
-            ) {
-              const mid = (snap.bids[0].price + snap.asks[0].price) / 2;
-              if (Number.isFinite(mid)) {
-                viewportController.applyExternalViewport(
-                  mid - HALF_RANGE,
-                  mid + HALF_RANGE,
-                );
-                viewportInitialized = true;
-              }
-            }
-            snapCount++;
-            if (snapsRef.current) {
-              snapsRef.current.textContent = String(snapCount);
-            }
-            if (statusRef.current && statusRef.current.textContent !== "live") {
-              statusRef.current.textContent = "live";
-            }
-            engine.setOrderbook(snap);
-          }),
-          tradesAdapter.start((trade) => {
-            if (cancelled) return;
-            tradeCount++;
-            if (tradesRef.current) {
-              tradesRef.current.textContent = String(tradeCount);
-            }
-            engine.setTrade(trade);
-          }),
-        ]);
+        if (bridgeAdapter) {
+          // Bridge is already connected via the footprint; just listen. Depth
+          // only — trade-driven overlays (bubbles/VP/VWAP) are phase 2.
+          if (statusRef.current) statusRef.current.textContent = "waiting bridge";
+          await bridgeAdapter.start(onSnap);
+        } else {
+          await invoke("crypto_connect", { args: { exchange: "bybit" } });
+          if (cancelled) return;
+          await Promise.all([
+            invoke("crypto_orderbook_subscribe", {
+              args: { exchange: "bybit", symbol: "BTCUSDT" },
+            }),
+            invoke("crypto_subscribe", {
+              args: { exchange: "bybit", symbol: "BTCUSDT" },
+            }),
+          ]);
+          if (cancelled) return;
+          if (statusRef.current) statusRef.current.textContent = "subscribed";
+          await Promise.all([
+            orderbookAdapter.start(onSnap),
+            tradesAdapter.start((trade) => {
+              if (cancelled || !engine) return;
+              tradeCount++;
+              if (tradesRef.current) tradesRef.current.textContent = String(tradeCount);
+              engine.setTrade(trade);
+            }),
+          ]);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(String(e));
@@ -233,32 +253,17 @@ export function HeatmapLive() {
       }
     })();
 
-    const ticker = window.setInterval(() => {
-      if (fpsRef.current) {
-        fpsRef.current.textContent = String(engine.getFps() | 0);
-      }
-      viewportController.tickAutoFollow();
-      updateLockUi();
-      const kl = engine.getKeyLevelsSnapshot();
-      if (pocRef.current) {
-        pocRef.current.textContent = kl.poc != null ? kl.poc.toFixed(2) : "—";
-      }
-      if (vwapRef.current) {
-        vwapRef.current.textContent =
-          kl.vwap != null ? kl.vwap.toFixed(2) : "—";
-      }
-    }, 250);
-
     return () => {
       cancelled = true;
-      window.clearInterval(ticker);
+      if (ticker) window.clearInterval(ticker);
       ro?.disconnect();
       canvas.removeEventListener("mousemove", onMouseMove);
       canvas.removeEventListener("mouseleave", onMouseLeave);
-      viewportController.dispose();
+      viewportController?.dispose();
       orderbookAdapter.dispose();
       tradesAdapter.dispose();
-      engine.destroy();
+      bridgeAdapter?.dispose();
+      engine?.destroy();
       engineRef.current = null;
     };
   }, []);
@@ -308,7 +313,11 @@ export function HeatmapLive() {
           zIndex: 3,
         }}
       >
-        Senzoukria · Bybit BTCUSDT
+        Senzoukria · {srcLabel === "bridge"
+          ? "NinjaTrader bridge"
+          : srcLabel === "quantower"
+            ? "Quantower bridge"
+            : "Bybit BTCUSDT"}
         <br />
         Status: <span ref={statusRef}>idle</span>
         <br />
