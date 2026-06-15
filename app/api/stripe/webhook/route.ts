@@ -34,6 +34,20 @@ type StripeInvoiceRaw = Stripe.Invoice & {
   payment_intent?: string | { id: string } | null;
 };
 
+/**
+ * Resolve a subscription's current period end (Unix seconds) across Stripe
+ * API versions. Through ~2025 it lived on the Subscription root; the
+ * 2026-01-28 API moved it onto each subscription item. Read the item first,
+ * fall back to the root for older payloads. Returns undefined if neither
+ * carries it (e.g. an incomplete subscription with no items yet).
+ */
+function subscriptionPeriodEnd(sub: Stripe.Subscription): number | undefined {
+  const item = sub.items?.data?.[0] as
+    | (Stripe.SubscriptionItem & { current_period_end?: number })
+    | undefined;
+  return item?.current_period_end ?? (sub as StripeSubscriptionRaw).current_period_end;
+}
+
 // Side-effect bag — populated inside the transaction, fired after commit.
 type PostCommitActions = {
   welcomeEmail?: {
@@ -82,7 +96,7 @@ async function preFetchForEvent(event: Stripe.Event): Promise<PreFetched> {
 
   try {
     const sub = await stripe.subscriptions.retrieve(subscriptionId);
-    const periodEnd = (sub as StripeSubscriptionRaw).current_period_end;
+    const periodEnd = subscriptionPeriodEnd(sub);
     if (periodEnd) out.subscriptionEnd = new Date(periodEnd * 1000);
     out.isInTrial = sub.status === 'trialing';
   } catch (err) {
@@ -314,8 +328,7 @@ async function handleSubscriptionUpdate(
   subscription: Stripe.Subscription,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
-  const subRaw = subscription as StripeSubscriptionRaw;
-  const currentPeriodEnd = subRaw.current_period_end;
+  const currentPeriodEnd = subscriptionPeriodEnd(subscription);
   const subscriptionEnd = subscription.cancel_at_period_end && currentPeriodEnd
     ? new Date(currentPeriodEnd * 1000)
     : null;
@@ -429,6 +442,18 @@ async function handlePaymentSucceeded(
   invoice: Stripe.Invoice,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
+  // Dedup the first month: the very first invoice (billing_reason
+  // 'subscription_create') is already booked as a Payment row by
+  // handleCheckoutComplete with the correct PRO tier. Recording it again
+  // here double-counts month-1 revenue and mislabels the tier (this
+  // handler can run before checkout.session.completed commits the PRO
+  // tier, so it reads a stale FREE). Renewals ('subscription_cycle') and
+  // every other reason still fall through and get their own row.
+  if (invoice.billing_reason === 'subscription_create') {
+    console.info('[stripe webhook]', { event: 'payment_succeeded_skip_initial', invoiceId: invoice.id });
+    return;
+  }
+
   const customerId = invoice.customer as string;
   const inv = invoice as StripeInvoiceRaw;
 
