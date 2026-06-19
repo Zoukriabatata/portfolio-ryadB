@@ -7,7 +7,7 @@ import MarketingShell from '@/components/marketing/MarketingShell';
 export const metadata: Metadata = {
   title: 'Download Senzoukria — Free preview until June 17',
   description:
-    'Download Senzoukria desktop: footprint charts with broker-side daily volume, delta, imbalance and absorption detection. NinjaTrader Bridge for Apex / Rithmic, Rithmic direct, or crypto. Windows. Free preview until 17 June 2026.',
+    'Download Senzoukria for Windows — footprint charts with broker-side volume, delta and imbalance. NinjaTrader Bridge for Apex / Rithmic. Free preview.',
   keywords: [
     'orderflow software download',
     'footprint chart download',
@@ -28,6 +28,7 @@ export const metadata: Metadata = {
       'Footprint charts + NinjaTrader Bridge for futures traders. Free preview until 17/06/2026.',
     url: '/download',
     type: 'website',
+    images: ['/opengraph-image'],
   },
   twitter: {
     card: 'summary_large_image',

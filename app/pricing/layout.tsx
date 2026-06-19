@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Pricing — Senzoukria PRO $29/month (free preview until 17 June)',
   description:
-    'Senzoukria PRO — $29/month. Footprint charts, liquidity heatmap, GEX dashboard, trading journal, multi-broker (Rithmic, NinjaTrader Bridge, dxFeed, Binance). Free public preview until 17 June 2026 — no credit card required.',
+    'Senzoukria PRO — $29/month. Footprint, liquidity heatmap, GEX, journal, multi-broker. Free public preview until 17 June 2026, no card required.',
   keywords: [
     'orderflow pricing',
     'footprint chart software price',

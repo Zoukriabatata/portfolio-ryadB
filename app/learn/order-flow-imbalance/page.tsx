@@ -8,11 +8,14 @@ const TITLE = 'Order Flow Imbalance Explained (Footprint)';
 const INTRO =
   'An order flow imbalance is a price level where aggressive buyers or sellers overwhelm the other side. On a footprint chart, imbalances mark where conviction concentrates — and stacked imbalances reveal institutional momentum. Here is how to read them.';
 
+const META =
+  'How order flow imbalances are measured on a footprint, why stacked imbalances signal momentum, and how unfilled zones become magnets.';
+
 export const metadata: Metadata = {
   title: TITLE,
-  description: INTRO,
+  description: META,
   alternates: { canonical: abs(PATH) },
-  openGraph: { title: TITLE, description: INTRO, url: abs(PATH), type: 'article' },
+  openGraph: { title: TITLE, description: META, url: abs(PATH), type: 'article', images: ['/opengraph-image'] },
 };
 
 const FAQS: FaqItem[] = [

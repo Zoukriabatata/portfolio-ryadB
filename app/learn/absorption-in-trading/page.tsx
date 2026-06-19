@@ -8,11 +8,14 @@ const TITLE = 'Absorption in Trading: How to Spot It on Footprint';
 const INTRO =
   'Absorption is when heavy aggressive volume hits a price level and price refuses to move — a large passive player is soaking up the orders. It is one of the strongest tells of institutional presence. Here is how to read it on a footprint chart.';
 
+const META =
+  'What absorption is, how to spot it on a footprint (heavy volume, no price move), and how to confirm the levels big players defend.';
+
 export const metadata: Metadata = {
   title: TITLE,
-  description: INTRO,
+  description: META,
   alternates: { canonical: abs(PATH) },
-  openGraph: { title: TITLE, description: INTRO, url: abs(PATH), type: 'article' },
+  openGraph: { title: TITLE, description: META, url: abs(PATH), type: 'article', images: ['/opengraph-image'] },
 };
 
 const FAQS: FaqItem[] = [
