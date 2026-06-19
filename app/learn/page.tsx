@@ -4,12 +4,12 @@ import { StructuredData } from '@/components/seo/StructuredData';
 import { abs, breadcrumbJsonLd, itemListJsonLd } from '@/lib/seo/structuredData';
 
 const PATH = '/learn';
-const TITLE = 'Learn Order Flow & Footprint Charts';
+const TITLE = 'Learn Order Flow, Footprint Charts & GEX';
 const INTRO =
-  'Plain-English guides to reading order flow — footprint charts, delta, imbalance and absorption — for futures and crypto traders. No jargon, just how to read what the market is actually doing.';
+  'Plain-English guides to reading order flow — footprint charts, delta, imbalance, absorption — and options gamma (GEX) — for futures and crypto traders. No jargon, just how to read what the market is actually doing.';
 
 const META =
-  'Plain-English guides to reading order flow — footprint charts, delta, imbalance and absorption — for futures and crypto traders.';
+  'Plain-English guides to order flow and options gamma: footprint, delta, imbalance, absorption and GEX — for futures and crypto traders.';
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -58,6 +58,35 @@ const GUIDES: Guide[] = [
     blurb:
       'Heavy aggression met by a wall of passive orders — how to spot the levels big players are defending, and confirm them.',
     tag: 'Absorption',
+  },
+  {
+    title: 'What is GEX (Gamma Exposure)?',
+    path: '/learn/what-is-gex-gamma-exposure',
+    blurb:
+      'How dealer gamma turns the market mean-reverting or trending — positive vs negative gamma, walls and the zero-gamma flip.',
+    tag: 'GEX · Options',
+    pillar: true,
+  },
+  {
+    title: 'Gamma walls: call & put wall',
+    path: '/learn/gamma-walls-explained',
+    blurb:
+      'Why a call wall is resistance, a put wall is support, and how the highest-gamma strike pins price.',
+    tag: 'Gamma walls',
+  },
+  {
+    title: 'Zero gamma (gamma flip) level',
+    path: '/learn/zero-gamma-flip-explained',
+    blurb:
+      'The price where dealer gamma flips sign — splitting a calm, mean-reverting market from a volatile, trending one.',
+    tag: 'Gamma flip',
+  },
+  {
+    title: 'Volatility skew explained',
+    path: '/learn/volatility-skew-explained',
+    blurb:
+      'Put skew vs call skew, the 25-delta risk reversal, and how skew often turns before price does.',
+    tag: 'Skew',
   },
 ];
 
