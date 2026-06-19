@@ -34,6 +34,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/learn/cumulative-delta-explained', priority: 0.7, changeFrequency: 'monthly' as const },
     { path: '/learn/order-flow-imbalance', priority: 0.7, changeFrequency: 'monthly' as const },
     { path: '/learn/absorption-in-trading', priority: 0.7, changeFrequency: 'monthly' as const },
+    // Comparison page (AI-citable: "best footprint software", "ATAS alternative").
+    { path: '/compare', priority: 0.8, changeFrequency: 'monthly' as const },
   ];
 
   // App pages (lower priority, still indexable for SEO value).

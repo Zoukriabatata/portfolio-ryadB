@@ -11,6 +11,7 @@ const FOOTER_COLUMNS = [
       { label: 'Footprint Charts', href: '/footprint' },
       { label: 'Live Trading', href: '/live' },
       { label: 'Learn', href: '/learn' },
+      { label: 'Compare', href: '/compare' },
       { label: 'Download', href: '/download' },
       { label: 'Pricing', href: '/pricing' },
     ],
