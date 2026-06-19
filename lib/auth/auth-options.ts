@@ -516,6 +516,19 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      // Effective downgrade: a PRO whose subscriptionEnd has passed is no longer an
+      // active subscriber. The preview auto-grant set subscriptionTier='PRO' with an
+      // end date but nothing flips it back, so an expired user stays "PRO" in the JWT
+      // — which routed them to the Stripe billing portal (a dead end) instead of
+      // checkout, and left PRO features unlocked. Treat the session tier as FREE once
+      // the period has lapsed. (subscriptionEnd null = lifetime/active → unchanged;
+      // a future date = still active → unchanged. The DB row is left as-is.)
+      if (token.tier === 'PRO' && token.subscriptionEnd) {
+        if (new Date(token.subscriptionEnd).getTime() <= Date.now()) {
+          token.tier = 'FREE';
+        }
+      }
+
       return token;
     },
 
