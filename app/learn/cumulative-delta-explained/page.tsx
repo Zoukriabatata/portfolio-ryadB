@@ -8,11 +8,14 @@ const TITLE = 'Cumulative Delta (CVD) Explained for Order Flow';
 const INTRO =
   'Cumulative delta — CVD — is the running total of buy minus sell aggression across a session. It is one of the most useful order flow signals because it shows pressure that price alone hides. Here is how to read it.';
 
+const META =
+  'What cumulative delta (CVD) is, how it builds across a session, and how to read the divergences that signal a move running out of fuel.';
+
 export const metadata: Metadata = {
   title: TITLE,
-  description: INTRO,
+  description: META,
   alternates: { canonical: abs(PATH) },
-  openGraph: { title: TITLE, description: INTRO, url: abs(PATH), type: 'article' },
+  openGraph: { title: TITLE, description: META, url: abs(PATH), type: 'article', images: ['/opengraph-image'] },
 };
 
 const FAQS: FaqItem[] = [

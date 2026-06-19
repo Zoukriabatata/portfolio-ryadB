@@ -8,11 +8,14 @@ const TITLE = 'How to Read a Footprint Chart (Beginner Guide)';
 const INTRO =
   'A footprint chart shows the exact bid and ask volume traded at every price inside each candle — so you can see who is actually buying and selling, not just where price closed. Here is how to read one, level by level.';
 
+const META =
+  'Learn to read a footprint chart level by level — bid/ask volume, delta, imbalances and absorption — and tell a healthy candle from a trap.';
+
 export const metadata: Metadata = {
   title: TITLE,
-  description: INTRO,
+  description: META,
   alternates: { canonical: abs(PATH) },
-  openGraph: { title: TITLE, description: INTRO, url: abs(PATH), type: 'article' },
+  openGraph: { title: TITLE, description: META, url: abs(PATH), type: 'article', images: ['/opengraph-image'] },
 };
 
 const FAQS: FaqItem[] = [

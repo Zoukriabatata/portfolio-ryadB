@@ -8,11 +8,14 @@ const TITLE = 'Learn Order Flow & Footprint Charts';
 const INTRO =
   'Plain-English guides to reading order flow — footprint charts, delta, imbalance and absorption — for futures and crypto traders. No jargon, just how to read what the market is actually doing.';
 
+const META =
+  'Plain-English guides to reading order flow — footprint charts, delta, imbalance and absorption — for futures and crypto traders.';
+
 export const metadata: Metadata = {
   title: TITLE,
-  description: INTRO,
+  description: META,
   alternates: { canonical: abs(PATH) },
-  openGraph: { title: TITLE, description: INTRO, url: abs(PATH), type: 'website' },
+  openGraph: { title: TITLE, description: META, url: abs(PATH), type: 'website', images: ['/opengraph-image'] },
 };
 
 const MONO = 'var(--font-jetbrains-mono)';
