@@ -25,7 +25,7 @@ const NAV_LINKS: {
 }[] = [
   { to: "/", label: "Welcome", end: true, icon: IconHome },
   { to: "/footprint", label: "Footprint", icon: IconChart },
-  { to: "/heatmap", label: "Heatmap", icon: IconGrid, comingSoon: true },
+  { to: "/heatmap", label: "Heatmap", icon: IconGrid },
   { to: "/gex", label: "GEX", icon: IconBarChart },
   { to: "/flow", label: "Option Flow", icon: IconStream },
   { to: "/news", label: "News", icon: IconNewspaper },

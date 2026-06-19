@@ -129,8 +129,7 @@ const ENTRIES: readonly Entry[] = [
     to: "/heatmap",
     title: "Heatmap",
     desc: "Liquidity heatmap of the DOM over time.",
-    cta: "Preview",
-    comingSoon: true,
+    cta: "Open heatmap",
   },
   {
     Icon: IconBars,

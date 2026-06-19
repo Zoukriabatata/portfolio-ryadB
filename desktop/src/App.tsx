@@ -13,6 +13,7 @@ import { GexRoute } from "./routes/GexRoute";
 import { NewsRoute } from "./routes/NewsRoute";
 import { OptionFlowRoute } from "./routes/OptionFlowRoute";
 import { ComingSoonRoute } from "./routes/ComingSoonRoute";
+import { HeatmapLive } from "./dev/HeatmapLive";
 import { AIRoute } from "./routes/AIRoute";
 import { JournalRoute } from "./routes/JournalRoute";
 import {
@@ -262,11 +263,7 @@ function App() {
               path="/heatmap"
               element={
                 <RequireSession>
-                  <ComingSoonRoute
-                    title="Heatmap"
-                    availableOn="17/09/2026"
-                    description="Liquidity heatmap of the DOM over time — order book pressure visualization."
-                  />
+                  <HeatmapLive />
                 </RequireSession>
               }
             />
