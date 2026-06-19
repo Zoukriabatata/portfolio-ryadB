@@ -28,6 +28,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/legal/terms', priority: 0.3, changeFrequency: 'yearly' as const },
     { path: '/legal/privacy', priority: 0.3, changeFrequency: 'yearly' as const },
     { path: '/academy', priority: 0.8, changeFrequency: 'monthly' as const },
+    // Public SEO content cluster (educational order-flow guides).
+    { path: '/learn', priority: 0.8, changeFrequency: 'monthly' as const },
+    { path: '/learn/how-to-read-a-footprint-chart', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/cumulative-delta-explained', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/order-flow-imbalance', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/absorption-in-trading', priority: 0.7, changeFrequency: 'monthly' as const },
   ];
 
   // App pages (lower priority, still indexable for SEO value).
