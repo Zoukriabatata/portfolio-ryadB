@@ -34,6 +34,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/learn/cumulative-delta-explained', priority: 0.7, changeFrequency: 'monthly' as const },
     { path: '/learn/order-flow-imbalance', priority: 0.7, changeFrequency: 'monthly' as const },
     { path: '/learn/absorption-in-trading', priority: 0.7, changeFrequency: 'monthly' as const },
+    // GEX / options cluster.
+    { path: '/learn/what-is-gex-gamma-exposure', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/gamma-walls-explained', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/zero-gamma-flip-explained', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/volatility-skew-explained', priority: 0.7, changeFrequency: 'monthly' as const },
     // Comparison page (AI-citable: "best footprint software", "ATAS alternative").
     { path: '/compare', priority: 0.8, changeFrequency: 'monthly' as const },
   ];
