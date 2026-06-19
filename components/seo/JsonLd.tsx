@@ -9,9 +9,16 @@ const organizationSchema = {
   '@type': 'Organization',
   name: 'Senzoukria',
   url: SITE_URL,
+  logo: `${SITE_URL}/opengraph-image`,
   description:
     'Professional orderflow desktop platform for futures and crypto traders',
-  sameAs: [],
+  // Official brand profiles — helps Google build the Senzoukria brand entity
+  // and disambiguate it from the unrelated "Senzoukria" music artist.
+  sameAs: [
+    'https://www.tiktok.com/@zkb.trade',
+    'https://www.youtube.com/@Zoukriabatata',
+    'https://discord.gg/SpBNHjn5',
+  ],
 };
 
 const softwareApplicationSchema = {
