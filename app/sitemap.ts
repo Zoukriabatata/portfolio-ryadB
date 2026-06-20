@@ -34,6 +34,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/learn/cumulative-delta-explained', priority: 0.7, changeFrequency: 'monthly' as const },
     { path: '/learn/order-flow-imbalance', priority: 0.7, changeFrequency: 'monthly' as const },
     { path: '/learn/absorption-in-trading', priority: 0.7, changeFrequency: 'monthly' as const },
+    // Market-structure cluster.
+    { path: '/learn/liquidity-heatmap-explained', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/volume-profile-explained', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/vwap-explained', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/learn/how-to-read-the-dom', priority: 0.7, changeFrequency: 'monthly' as const },
     // GEX / options cluster.
     { path: '/learn/what-is-gex-gamma-exposure', priority: 0.7, changeFrequency: 'monthly' as const },
     { path: '/learn/gamma-walls-explained', priority: 0.7, changeFrequency: 'monthly' as const },
