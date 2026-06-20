@@ -21,6 +21,7 @@ const FOOTER_COLUMNS = [
     links: [
       { label: 'TikTok', href: 'https://tiktok.com/@zkb.trade' },
       { label: 'YouTube', href: 'https://youtube.com/@Zoukriabatata' },
+      { label: 'Review us on Trustpilot', href: 'https://www.trustpilot.com/evaluate/senzoukria.com' },
     ],
   },
   {
