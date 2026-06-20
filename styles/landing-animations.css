@@ -44,6 +44,16 @@
   transition: all 0.2s ease;
 }
 
+/* Mobile: compact primary/ghost buttons so the nav CTA fits next to the
+   hamburger without overflowing the navbar on small screens. */
+@media (max-width: 640px) {
+  .landing-btn-primary,
+  .landing-btn-ghost {
+    padding: 9px 15px;
+    gap: 6px;
+  }
+}
+
 .landing-btn-primary {
   font-weight: 600;
   color: var(--primary-light, #86efac);

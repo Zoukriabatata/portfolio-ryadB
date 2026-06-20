@@ -117,7 +117,7 @@ export default function LandingNav() {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3.5 ml-auto md:ml-0">
+          <div className="flex items-center gap-2 sm:gap-3.5 ml-auto md:ml-0">
             {session ? (
               <Link href="/live" className="landing-btn-primary text-sm">Dashboard</Link>
             ) : (
@@ -129,8 +129,9 @@ export default function LandingNav() {
                 >
                   Sign in
                 </Link>
-                <Link href="/auth/register" className="landing-btn-primary text-sm">
-                  Get free preview
+                <Link href="/auth/register" className="landing-btn-primary text-sm whitespace-nowrap">
+                  <span className="sm:hidden">Free preview</span>
+                  <span className="hidden sm:inline">Get free preview</span>
                 </Link>
               </>
             )}
