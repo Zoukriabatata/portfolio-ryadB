@@ -81,6 +81,7 @@ export const metadata: Metadata = {
     google: 'MGGYgE7tU9jpIL3O_QQ2lxyFV580zSQtlhf2vd9Sprg',
     other: {
       'msvalidate.01': 'E7E843F922F30763066D84D0EDD9DF12',
+      'trustpilot-one-time-domain-verification-id': 'b588a402-cb97-4ba4-baf0-9042d9ab19c4',
     },
   },
   alternates: {
