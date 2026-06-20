@@ -861,6 +861,28 @@ function AccountContent() {
                   )}
                 </SectionCard>
 
+                {/* Trustpilot review CTA — shown to real (logged-in) users */}
+                <a
+                  href="https://www.trustpilot.com/evaluate/senzoukria.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block rounded-[var(--radius-lg)] p-4 sm:p-5 transition-all hover:border-[var(--border-light)]"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span style={{ color: 'var(--primary)', letterSpacing: '1.5px', fontSize: 13 }}>★★★★★</span>
+                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Enjoying Senzoukria?</span>
+                      </div>
+                      <div className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                        Leave an honest review on Trustpilot — it genuinely helps a solo builder grow.
+                      </div>
+                    </div>
+                    <span className="flex-shrink-0 text-base" style={{ color: 'var(--primary)' }} aria-hidden>&rarr;</span>
+                  </div>
+                </a>
+
                 <SectionCard title="Desktop License">
                   {!licenseLoaded ? (
                     <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</div>
