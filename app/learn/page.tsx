@@ -60,6 +60,34 @@ const GUIDES: Guide[] = [
     tag: 'Absorption',
   },
   {
+    title: 'Liquidity heatmap explained',
+    path: '/learn/liquidity-heatmap-explained',
+    blurb:
+      'Read resting order-book liquidity over time — walls, spoofing pulls and icebergs — and how it differs from a footprint.',
+    tag: 'Heatmap',
+  },
+  {
+    title: 'Volume profile: POC, VAH & VAL',
+    path: '/learn/volume-profile-explained',
+    blurb:
+      'Where volume actually traded by price — the POC, value area, high/low volume nodes and the shapes that signal balance vs trend.',
+    tag: 'Volume profile',
+  },
+  {
+    title: 'VWAP explained',
+    path: '/learn/vwap-explained',
+    blurb:
+      'The volume-weighted average price: above vs below, the bands that flag over-extension, and anchored VWAP as support/resistance.',
+    tag: 'VWAP',
+  },
+  {
+    title: 'How to read the DOM',
+    path: '/learn/how-to-read-the-dom',
+    blurb:
+      'The order-book ladder: stacked liquidity, spoofing and pulled orders, icebergs and absorption — reading resting intention live.',
+    tag: 'DOM',
+  },
+  {
     title: 'What is GEX (Gamma Exposure)?',
     path: '/learn/what-is-gex-gamma-exposure',
     blurb:
