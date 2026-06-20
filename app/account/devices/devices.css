@@ -270,3 +270,37 @@
   line-height: 1.55;
   font-style: italic;
 }
+
+/* ── Mobile (≤640px) ─────────────────────────────────────────────
+   Tighten paddings, collapse the summary, and reflow each device row
+   so the "last seen" time drops under the device name instead of
+   fighting for horizontal space (avoids overflow on phones). */
+@media (max-width: 640px) {
+  .devices-page { padding: 24px 16px 60px; }
+  .devices-header { margin-bottom: 22px; }
+  .devices-header h1 { font-size: 23px; }
+
+  .devices-summary {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .devices-empty { padding: 40px 18px; }
+
+  .devices-row {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    padding: 12px 14px;
+  }
+  .devices-row-icon { width: 36px; height: 36px; }
+  /* time block spans the full width on its own line under the name */
+  .devices-row-time {
+    grid-column: 2 / -1;
+    text-align: left;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 2px;
+  }
+}

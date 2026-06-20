@@ -562,7 +562,7 @@ function Step({
 }) {
   return (
     <section
-      className="mt-8 rounded-xl p-7"
+      className="mt-8 rounded-xl p-5 sm:p-7"
       style={{
         ...enter(delay),
         background: 'var(--surface)',
