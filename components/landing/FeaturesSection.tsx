@@ -64,7 +64,7 @@ const FeatureCard = memo(function FeatureCard({ f, i }: { f: typeof FEATURES[num
       ref={cardRef}
       data-animate="up"
       data-animate-delay={String(i + 1)}
-      className="feature-card group relative p-6 rounded-xl border border-white/[0.08] bg-white/[0.04]"
+      className="feature-card group relative p-4 sm:p-6 rounded-xl border border-white/[0.08] bg-white/[0.04]"
       style={{ transition: 'transform 0.3s ease, border-color 0.35s ease, box-shadow 0.35s ease, background 0.35s ease', willChange: 'transform', opacity: f.status === 'soon' ? 0.6 : undefined }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

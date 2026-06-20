@@ -125,7 +125,7 @@ const ON_PRIMARY = '#06140b';
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[var(--radius-lg)] p-6 transition-all duration-200 hover:border-[var(--border-light)]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-[var(--radius-lg)] p-4 sm:p-6 transition-all duration-200 hover:border-[var(--border-light)]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <h3 className="mb-4 flex items-center gap-2"
         style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
         <span className="w-1 h-4 rounded-full" style={{ background: 'var(--primary)' }} />
@@ -138,12 +138,12 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3.5 border-b border-[var(--border)] last:border-b-0">
+    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 py-3.5 border-b border-[var(--border)] last:border-b-0">
       <div className="flex-1 pr-2 min-w-0">
         <div className="text-sm" style={{ color: 'var(--text-primary)' }}>{label}</div>
         {description && <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{description}</div>}
       </div>
-      <div className="flex-shrink-0">{children}</div>
+      <div className="flex-shrink-0 w-full sm:w-auto">{children}</div>
     </div>
   );
 }
@@ -684,7 +684,7 @@ function AccountContent() {
         <div className="flex flex-col md:flex-row gap-4 md:gap-8 animate-slideUp stagger-2">
           {/* Tab Navigation — horizontal scroll on mobile, sidebar on desktop */}
           <nav className="md:w-48 flex-shrink-0">
-            <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 custom-scrollbar">
+            <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 custom-scrollbar">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -692,7 +692,7 @@ function AccountContent() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-[var(--radius-md)] transition-all text-left whitespace-nowrap flex-shrink-0 group"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-[var(--radius-md)] transition-all text-left whitespace-nowrap flex-shrink-0 snap-start group"
                     style={{
                       fontFamily: MONO,
                       fontSize: 12,
@@ -800,7 +800,7 @@ function AccountContent() {
                         value={profileName}
                         onChange={e => setProfileName(e.target.value)}
                         placeholder="Your name"
-                        className="px-3 py-1.5 rounded-lg text-sm w-48 focus:outline-none"
+                        className="px-3 py-1.5 rounded-lg text-sm w-full sm:w-48 focus:outline-none"
                         style={inputStyle}
                       />
                     </SettingRow>
@@ -810,7 +810,7 @@ function AccountContent() {
                         value={profileDisplayName}
                         onChange={e => setProfileDisplayName(e.target.value)}
                         placeholder="Trader123"
-                        className="px-3 py-1.5 rounded-lg text-sm w-48 focus:outline-none"
+                        className="px-3 py-1.5 rounded-lg text-sm w-full sm:w-48 focus:outline-none"
                         style={inputStyle}
                       />
                     </SettingRow>
@@ -1120,14 +1120,14 @@ function AccountContent() {
                                 <button
                                   onClick={() => handleConnect(broker.id)}
                                   disabled={connectionStatus[broker.id] === 'connecting'}
-                                  className="flex-1 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+                                  className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
                                   style={{ background: 'var(--primary)', color: ON_PRIMARY, boxShadow: '0 0 14px var(--primary-glow)' }}>
                                   {connectionStatus[broker.id] === 'connecting' ? 'Connecting...' : 'Connect'}
                                 </button>
                                 <button
                                   onClick={() => handleTestConnection(broker.id)}
                                   disabled={connectionStatus[broker.id] === 'testing'}
-                                  className="acc-btn-soft px-4 py-2 rounded-lg text-xs disabled:opacity-50">
+                                  className="acc-btn-soft px-4 py-2.5 rounded-lg text-xs disabled:opacity-50">
                                   {connectionStatus[broker.id] === 'testing' ? 'Testing...' : 'Test'}
                                 </button>
                               </div>
@@ -1301,7 +1301,7 @@ function AccountContent() {
                 </SectionCard>
 
                 <SectionCard title="Import / Export">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button className="acc-btn-soft py-3 rounded-lg text-sm font-medium">
                       Export Settings
                     </button>

@@ -70,7 +70,7 @@ export default function LandingClientShell({ children }: { children: React.React
       <div
         ref={wrapperRef}
         data-scroll-root
-        className="h-full w-full overflow-auto relative"
+        className="h-full w-full overflow-y-auto overflow-x-hidden relative"
         style={{ backgroundColor: 'var(--background)', scrollPaddingTop: 80 }}
       >
         <ScrollProgress />

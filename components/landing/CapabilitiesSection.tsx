@@ -76,7 +76,7 @@ function CapabilityCard({ cap, i }: { cap: typeof CAPABILITIES[number]; i: numbe
       ref={cardRef}
       data-animate="up"
       data-animate-delay={String((i % 2) + 1)}
-      className="group relative p-7 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:border-[rgb(var(--accent-rgb)_/_0.25)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgb(var(--accent-rgb)_/_0.06)]"
+      className="group relative p-5 sm:p-7 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:border-[rgb(var(--accent-rgb)_/_0.25)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_20px_rgb(var(--accent-rgb)_/_0.06)]"
       style={{ transition: 'transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease', willChange: 'transform' }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

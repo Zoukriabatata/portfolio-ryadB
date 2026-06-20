@@ -109,7 +109,7 @@ export default function HowItWorksSection() {
           </p>
         </div>
 
-        <div ref={lineRef} className="grid md:grid-cols-3 gap-6 relative">
+        <div ref={lineRef} className="grid md:grid-cols-3 gap-4 md:gap-6 relative">
           {/* Connector line (desktop) — draws itself */}
           <div className="hidden md:block absolute top-10 left-[16%] right-[16%] h-px overflow-hidden">
             <div

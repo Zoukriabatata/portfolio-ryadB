@@ -56,7 +56,7 @@ export default function LandingFooter() {
 
       <div className="max-w-5xl mx-auto relative" style={{ zIndex: 10 }}>
         {/* Main footer grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-12">
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <Logo size="sm" showText={true} />

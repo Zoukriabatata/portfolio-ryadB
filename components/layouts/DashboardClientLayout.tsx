@@ -436,7 +436,7 @@ export function DashboardClientLayout({
           {/* Hamburger — opens on hover (desktop) or click (mobile) */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            onMouseEnter={() => { if (window.innerWidth >= 768) setShowMobileMenu(true); }}
+            onMouseEnter={() => { if (window.innerWidth >= 768 && window.matchMedia('(hover: hover) and (pointer: fine)').matches) setShowMobileMenu(true); }}
             className="btn-icon mr-2"
             aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
             aria-expanded={showMobileMenu}

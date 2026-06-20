@@ -137,7 +137,7 @@ export default function HeroSection() {
   return (
     <section id="hero" className="relative min-h-dvh flex items-center justify-center px-6 overflow-hidden">
       <HeroBackground />
-      <div className="relative z-10 max-w-3xl mx-auto text-center pt-28 md:pt-32">
+      <div className="relative z-10 max-w-3xl mx-auto text-center pt-20 md:pt-32">
 
         {/* Announce dismissible + compte à rebours live */}
         <PreviewBanner />
@@ -236,7 +236,7 @@ export default function HeroSection() {
         >
           {/* Carte flottante : Absorption */}
           <div
-            className="brand-anim hidden md:block"
+            className="brand-anim hidden lg:block"
             style={{ position: 'absolute', zIndex: 20, top: -20, left: -56, background: 'rgb(var(--primary-rgb) / 0.07)', border: '1px solid rgb(var(--primary-rgb) / 0.25)', borderRadius: 11, padding: '11px 13px', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 18px 40px rgba(0,0,0,.4), 0 0 28px rgb(var(--primary-rgb) / 0.12)', animation: 'brand-float 6s ease-in-out infinite' }}
           >
             <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 8, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -247,7 +247,7 @@ export default function HeroSection() {
 
           {/* Carte flottante : CVD */}
           <div
-            className="brand-anim hidden md:block"
+            className="brand-anim hidden lg:block"
             style={{ position: 'absolute', zIndex: 20, top: '38%', right: -64, background: 'rgb(var(--primary-rgb) / 0.07)', border: '1px solid rgb(var(--primary-rgb) / 0.25)', borderRadius: 11, padding: '11px 13px', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 18px 40px rgba(0,0,0,.4), 0 0 28px rgb(var(--primary-rgb) / 0.12)', animation: 'brand-float 7s ease-in-out .8s infinite' }}
           >
             <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 8, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5 }}>CVD · session</div>
@@ -261,7 +261,7 @@ export default function HeroSection() {
 
           {/* Carte flottante : Σ Delta */}
           <div
-            className="brand-anim hidden md:block"
+            className="brand-anim hidden lg:block"
             style={{ position: 'absolute', zIndex: 20, bottom: 32, left: -48, background: 'rgb(var(--primary-rgb) / 0.07)', border: '1px solid rgb(var(--primary-rgb) / 0.25)', borderRadius: 11, padding: '11px 13px', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', boxShadow: '0 18px 40px rgba(0,0,0,.4), 0 0 28px rgb(var(--primary-rgb) / 0.12)', animation: 'brand-float 6.5s ease-in-out .4s infinite' }}
           >
             <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 8, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5 }}>Σ Delta</div>

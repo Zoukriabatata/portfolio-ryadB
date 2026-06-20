@@ -138,7 +138,7 @@ export default function LandingNav() {
             {/* Hamburger (mobile) */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-[10px] transition-colors"
+              className="md:hidden w-11 h-11 flex items-center justify-center rounded-[10px] transition-colors"
               style={{ border: '1px solid rgb(var(--primary-rgb) / 0.22)', background: 'rgb(var(--primary-rgb) / 0.06)', color: 'var(--primary-light)' }}
               aria-label="Toggle menu"
             >
