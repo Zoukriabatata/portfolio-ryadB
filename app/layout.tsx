@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono';
 import { JetBrains_Mono } from 'next/font/google';
 import { Fraunces } from 'next/font/google';
 import '@/app/globals.css';
+import { Analytics } from '@vercel/analytics/next';
 
 /**
  * Editorial Terminal typography stack.
@@ -184,6 +185,7 @@ if(typeof Node!=='undefined'){
           gap={8}
         />
 
+        <Analytics />
       </body>
     </html>
   );
