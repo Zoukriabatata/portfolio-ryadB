@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono';
 import { JetBrains_Mono } from 'next/font/google';
 import { Fraunces } from 'next/font/google';
 import '@/app/globals.css';
+import Script from 'next/script';
 
 /**
  * Editorial Terminal typography stack.
@@ -184,6 +185,9 @@ if(typeof Node!=='undefined'){
           gap={8}
         />
 
+        {/* Vercel Web Analytics — manual script (no npm dep). Enable
+            Web Analytics in the Vercel dashboard for it to collect. */}
+        <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
       </body>
     </html>
   );
