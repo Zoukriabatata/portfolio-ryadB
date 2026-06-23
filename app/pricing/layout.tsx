@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Senzoukria PRO $29/month (free preview until 17 June)',
+  title: 'Pricing — Senzoukria PRO, $29/month',
   description:
-    'Senzoukria PRO — $29/month. Footprint, liquidity heatmap, GEX, journal, multi-broker. Free public preview until 17 June 2026, no card required.',
+    'Senzoukria PRO — $29/month. Native orderflow & footprint software for futures and crypto: delta, imbalance, absorption, liquidity heatmap, GEX, journal.',
   keywords: [
     'orderflow pricing',
     'footprint chart software price',
@@ -15,9 +15,9 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: '/pricing' },
   openGraph: {
-    title: 'Senzoukria PRO — $29/month · Free until 17 June 2026',
+    title: 'Senzoukria PRO — $29/month',
     description:
-      'Footprint, heatmap, GEX, journal, multi-broker. Public preview free until 17/06/2026, no card required.',
+      'Native orderflow & footprint software for futures and crypto — footprint, liquidity heatmap, GEX, journal, multi-broker.',
     url: '/pricing',
     type: 'website',
   },
