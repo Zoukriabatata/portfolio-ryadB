@@ -52,12 +52,12 @@ const SITE_URL =
   'https://orderflow-v2.vercel.app';
 const SITE_NAME = 'Senzoukria';
 const DEFAULT_DESCRIPTION =
-  'Professional footprint charts with broker-side volume — delta, imbalance, absorption. Connect via NinjaTrader Bridge (Apex/Rithmic), Rithmic, or crypto.';
+  'Native footprint & orderflow software for futures and crypto — delta, imbalance, absorption, liquidity heatmap and GEX, on your NinjaTrader / Apex feed.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — Professional Order Flow Analytics Platform`,
+    default: `Footprint & Orderflow Software for Futures — ${SITE_NAME}`,
     template: `%s | ${SITE_NAME}`,
   },
   description: DEFAULT_DESCRIPTION,
