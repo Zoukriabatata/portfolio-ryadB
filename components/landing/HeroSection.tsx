@@ -275,7 +275,20 @@ export default function HeroSection() {
               backgroundSize: '200% 100%',
               animation: 'shimmer 3s infinite',
             }} />
-            <HeroFootprint />
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              poster="/videos/demo-footprint-poster.jpg"
+              className="block w-full h-auto"
+              aria-label="Senzoukria footprint software running live"
+            >
+              <source src="/videos/demo-footprint.mp4" type="video/mp4" />
+              {/* Fallback for browsers without <video> support */}
+              <HeroFootprint />
+            </video>
           </div>
           {/* Glow under mockup */}
           <div className="w-2/3 h-20 mx-auto -mt-10 blur-3xl rounded-full pointer-events-none" style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.1)' }} />
