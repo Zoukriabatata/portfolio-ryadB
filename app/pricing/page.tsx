@@ -44,12 +44,12 @@ const BILLING_FAQS = [
   {
     question: 'Do I need a card to start?',
     answer:
-      `No. During the public preview (until 17 June 2026) you get full PRO with no card and no payment. After that, the ${TRIAL_DAYS}-day trial also starts without charging anything — you only enter card details if you choose to subscribe.`,
+      `No. The ${TRIAL_DAYS}-day free trial starts without charging anything — you only enter card details if you choose to subscribe after the trial.`,
   },
   {
-    question: 'What happens on 17 June 2026?',
+    question: `What happens after the ${TRIAL_DAYS}-day trial?`,
     answer:
-      `The free preview ends. Accounts that don't subscribe drop to read-only — no lock-in, no surprise charge. Subscribing keeps full PRO at $${PRICE_USD}/month.`,
+      `If you don't subscribe, the account drops to read-only — no lock-in, no surprise charge. Subscribing keeps full PRO at $${PRICE_USD}/month.`,
   },
   {
     question: 'Can I cancel anytime?',
@@ -539,7 +539,7 @@ function PricingContent() {
               border: '1px solid rgb(var(--primary-rgb) / 0.35)',
             }}
           >
-            {inPreview ? 'Free until 17/06' : `${TRIAL_DAYS}-day free trial`}
+            {`${TRIAL_DAYS}-day free trial`}
           </span>
         </div>
 
@@ -564,9 +564,7 @@ function PricingContent() {
         </div>
 
         <p className="dash-text-sm mt-5 mb-6" style={{ color: 'var(--text-secondary)' }}>
-          {inPreview
-            ? `Full PRO access — no card required, no payment. Free until 17 June 2026. After that, $${PRICE_USD}/month if you want to keep it.`
-            : `No card charged for ${TRIAL_DAYS} days. After the trial, you'll be billed $${PRICE_USD} every month. Cancel anytime from your account.`}
+          {`No card charged for ${TRIAL_DAYS} days. After the trial, you'll be billed $${PRICE_USD} every month. Cancel anytime from your account.`}
         </p>
 
         {/* CTA */}

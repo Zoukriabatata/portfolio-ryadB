@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Senzoukria PRO — $29/mo',
-    description: 'Free preview until 17/06/2026, no card required.',
+    description: 'Senzoukria PRO — $29/month, 14-day free trial, no card to start.',
   },
 };
 

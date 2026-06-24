@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: inPreview
-        ? 'Compte créé. Accès preview gratuit jusqu\'au 17/06. Vérifiez votre email pour activer votre compte.'
+        ? 'Compte créé. Vérifiez votre email pour activer votre compte.'
         : 'Compte créé avec succès. Vérifiez votre email pour activer votre compte.',
       userId: user.id,
       preview: inPreview,

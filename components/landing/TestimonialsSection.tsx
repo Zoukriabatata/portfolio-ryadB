@@ -1,7 +1,7 @@
 'use client';
 
 // Placeholder testimonial set. These are illustrative — real
-// quotes get wired in after the public preview closes 17 June 2026.
+// quotes get wired in as verified users come in after launch.
 const TESTIMONIALS = [
   {
     quote:
@@ -127,8 +127,8 @@ export default function TestimonialsSection() {
             className="mt-4 dash-text-sm max-w-md mx-auto"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Verified feedback rolls in after the public preview closes
-            on 17 June 2026. No paid testimonials. No fake names.
+            Verified feedback rolls in as real users come on board.
+            No paid testimonials. No fake names.
           </p>
         </div>
 
