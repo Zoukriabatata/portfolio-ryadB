@@ -5,9 +5,9 @@ import { AnimatedChars } from '@/components/ui/AnimatedChars';
 import MarketingShell from '@/components/marketing/MarketingShell';
 
 export const metadata: Metadata = {
-  title: 'Download Senzoukria — Free preview until June 17',
+  title: 'Download Senzoukria — Footprint Software for Windows',
   description:
-    'Download Senzoukria for Windows — footprint charts with broker-side volume, delta and imbalance. NinjaTrader Bridge for Apex / Rithmic. Free preview.',
+    'Download Senzoukria for Windows — footprint charts with broker-side volume, delta and imbalance. NinjaTrader Bridge for Apex / Rithmic. 14-day free trial.',
   keywords: [
     'orderflow software download',
     'footprint chart download',
@@ -23,18 +23,18 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: '/download' },
   openGraph: {
-    title: 'Download Senzoukria — Free preview until June 17',
+    title: 'Download Senzoukria — Footprint Software for Windows',
     description:
-      'Footprint charts + NinjaTrader Bridge for futures traders. Free preview until 17/06/2026.',
+      'Footprint charts + NinjaTrader Bridge for futures traders. 14-day free trial.',
     url: '/download',
     type: 'website',
     images: ['/opengraph-image'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Download Senzoukria — Free preview',
+    title: 'Download Senzoukria — Footprint Software',
     description:
-      'Footprint + NinjaTrader Bridge. Free until 17/06/2026.',
+      'Footprint + NinjaTrader Bridge. 14-day free trial.',
   },
 };
 
@@ -160,7 +160,7 @@ export default async function DownloadPage() {
             <MetaItem k="Version" v={release.version} />
             <MetaItem k="Build size" v={formatBytes(release.fileSize)} />
             <MetaItem k="Platform" v="Windows · MSI" />
-            <MetaItem k="Free PRO" v="Until 17 Jun 2026" />
+            <MetaItem k="Free trial" v="14 days" />
           </div>
         )}
 

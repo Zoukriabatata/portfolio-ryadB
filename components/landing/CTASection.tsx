@@ -76,8 +76,8 @@ export default function CTASection() {
           className="mt-6 dash-text-base leading-relaxed"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Free PRO until 17 June 2026. No card, no commitment. Download,
-          login, attach the NinjaScript — the tape goes live.
+          Start with a 14-day free trial. No card to start, no commitment.
+          Download, login, attach the NinjaScript — the tape goes live.
         </p>
 
         {/* Trust badges */}
@@ -217,7 +217,7 @@ export default function CTASection() {
             color: 'var(--text-muted)',
           }}
         >
-          No card · Free until 17 June 2026 · Windows install in 2 minutes
+          No card to start · 14-day free trial · Windows install in 2 minutes
         </p>
       </div>
     </section>

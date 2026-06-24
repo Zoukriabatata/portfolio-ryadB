@@ -6,7 +6,7 @@ const STEPS = [
   {
     step: '01',
     title: 'Open the account',
-    desc: 'Email or Google sign-in. No card. Auto-PRO until 17 June 2026.',
+    desc: 'Email or Google sign-in. No card to start. 14-day free PRO trial.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />

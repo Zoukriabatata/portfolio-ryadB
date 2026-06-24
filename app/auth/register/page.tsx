@@ -67,7 +67,7 @@ function PreviewBanner() {
             Public preview
           </div>
           <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--primary-light)' }}>
-            Full PRO access — free until 17 June 2026
+            Full PRO access — 14-day free trial
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
             No payment required · no card asked.
