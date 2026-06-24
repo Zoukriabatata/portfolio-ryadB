@@ -26,13 +26,27 @@ const softwareApplicationSchema = {
   '@type': 'SoftwareApplication',
   name: 'Senzoukria',
   applicationCategory: 'FinanceApplication',
-  operatingSystem: 'Windows',
+  applicationSubCategory: 'Order flow / footprint charting software',
+  operatingSystem: 'Windows 10, Windows 11',
+  url: SITE_URL,
+  image: `${SITE_URL}/opengraph-image`,
+  screenshot: `${SITE_URL}/opengraph-image`,
   description:
-    'Professional orderflow desktop platform — footprint charts, delta, imbalance and absorption detection with broker-side session volume. Connects via NinjaTrader Bridge, Rithmic direct, or crypto (Binance / Bybit / Deribit).',
+    'Senzoukria is a native footprint and order-flow charting software for futures and crypto traders — bid/ask volume, delta, imbalance, absorption, liquidity heatmap and integrated GEX. It bridges your existing NinjaTrader feed (Apex / Rithmic) with one NinjaScript file, connects to Rithmic directly, or to crypto (Binance / Bybit / Deribit) with no broker.',
+  featureList: [
+    'Native footprint charts (bid/ask volume, delta, imbalance, absorption)',
+    'Cumulative volume delta (CVD)',
+    'Liquidity heatmap',
+    'Integrated GEX (gamma exposure)',
+    'NinjaTrader bridge (Apex / Rithmic), sub-5ms, no proxy',
+    'Direct Rithmic connection',
+    'Crypto: Binance, Bybit, Deribit (no broker needed)',
+  ],
   offers: {
     '@type': 'Offer',
-    price: '0',
+    price: '29',
     priceCurrency: 'USD',
+    category: 'Monthly subscription',
   },
 };
 
@@ -53,10 +67,10 @@ const faqPageSchema = {
     },
     {
       '@type': 'Question',
-      name: 'How is the public preview different from the paid plan?',
+      name: 'How much does Senzoukria cost?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Between 30 May and 17 June 2026, every account gets full PRO access for free — no credit card, no commitment. After 17 June, the standard plan becomes $29/month.',
+        text: 'Senzoukria is $29/month flat — versus $50-150/month for ATAS, Bookmap or Sierra Chart. There is a free preview so you can try the full product before subscribing, no credit card to start.',
       },
     },
     {
@@ -64,7 +78,7 @@ const faqPageSchema = {
       name: 'How does it compare to ATAS, Bookmap or Sierra Chart?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'ATAS, Bookmap and Sierra Chart cost $50-$150/month. Senzoukria ships the orderflow features 95% of retail traders actually use (footprint, delta, imbalance) with a NinjaTrader bridge so you keep your existing Apex / Rithmic feed. $29/month after the preview.',
+        text: 'ATAS, Bookmap and Sierra Chart cost $50-$150/month. Senzoukria ships the orderflow features 95% of retail traders actually use (footprint, delta, imbalance) with a NinjaTrader bridge so you keep your existing Apex / Rithmic feed. $29/month flat.',
       },
     },
     {
