@@ -24,9 +24,9 @@ const FAQS = [
       'Sub-5ms on the bridge — TCP loopback, no proxy hop, no cloud round-trip. Cloud orderflow tools route the tick through their servers (typically 80–200ms) before it reaches your browser. We render on the same machine that receives the tick.',
   },
   {
-    question: 'How is the public preview different from the paid plan?',
+    question: 'How much does Senzoukria cost?',
     answer:
-      'Between 30 May and 17 June 2026 every account gets full PRO for free — no card, no commitment. After 17 June the plan is $29/month. If you don\'t subscribe the account drops to read-only — no lock-in.',
+      'Senzoukria is $29/month flat — vs $50–$150/month for ATAS, Bookmap or Sierra Chart. There is a free preview so you can try the full product first, no card to start. If you don\'t subscribe, the account drops to read-only — no lock-in.',
   },
   {
     question: 'How does it compare to ATAS, Bookmap or Sierra Chart?',
