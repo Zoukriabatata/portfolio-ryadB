@@ -160,6 +160,29 @@ if(typeof Node!=='undefined'){
 }`,
           }}
         />
+        {/*
+          Vercel Web Analytics filter — registers a beforeSend hook on the
+          window.va queue BEFORE /_vercel/insights/script.js loads (body,
+          afterInteractive). Drops two kinds of non-prospect traffic:
+            • post-login in-app surfaces (internal usage, mostly us);
+            • a personal opt-out — run localStorage.setItem('va-disable','1')
+              once in your browser to stop counting your own visits anywhere.
+          Public/marketing routes (/, /pricing, /footprint, /learn, /auth/*…)
+          keep reporting normally.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+window.va('beforeSend', function (event) {
+  try { if (localStorage.getItem('va-disable') === '1') return null; } catch (e) {}
+  var path = '';
+  try { path = new URL(event.url).pathname; } catch (e) { path = String(event.url || ''); }
+  if (/^\\/(dashboard|account|journal|admin|live)(\\/|$)/.test(path)) return null;
+  return event;
+});`,
+          }}
+        />
         <JsonLd />
       </head>
       <body
