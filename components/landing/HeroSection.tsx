@@ -153,6 +153,23 @@ export default function HeroSection() {
             translateY(0)`. The per-character entrance below is the
             only animation; it's pure opacity, so the text never
             leaves the standard text-rendering pipeline. */}
+        {/* Eyebrow — states the product category in plain text so both
+            readers and AI crawlers register "native Windows desktop app"
+            (not a browser tab). Counters the recurring LLM misread that
+            Senzoukria is web-only. Mono voice matches the Download CTA. */}
+        <p
+          className="mb-4 dash-text-xs md:dash-text-sm"
+          style={{
+            fontFamily: 'var(--font-jetbrains-mono)',
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
+            animation: 'fadeInUp 0.7s ease-out 0.15s forwards',
+            opacity: 0,
+          }}
+        >
+          Native Windows desktop app
+        </p>
         <div>
           {/* H1 — piste A « editorial contraste » : light 400 + bold 600 italic lime */}
           <h1 className="leading-none" style={{ fontFamily: 'var(--font-fraunces)', margin: 0, letterSpacing: '-0.042em' }}>
@@ -185,6 +202,7 @@ export default function HeroSection() {
           }}
         >
           Footprint charts rendered tick-by-tick from your NinjaTrader feed.
+          A native Windows desktop app that runs locally — not a browser tab.
           One NinjaScript file installs the bridge — Apex and Rithmic
           accounts, no proxy lag.
         </p>
