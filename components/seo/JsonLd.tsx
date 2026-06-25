@@ -15,9 +15,12 @@ const organizationSchema = {
   // Official brand profiles — helps Google build the Senzoukria brand entity
   // and disambiguate it from the unrelated "Senzoukria" music artist.
   sameAs: [
-    'https://www.tiktok.com/@zkb.trade',
+    'https://x.com/Senzoukria',
     'https://www.youtube.com/@Zoukriabatata',
-    'https://discord.gg/SpBNHjn5',
+    'https://www.instagram.com/senzoukria',
+    'https://www.tiktok.com/@zkb.trade',
+    'https://discord.gg/ZcTVrpsG6',
+    'https://www.linkedin.com/in/sen-zoukria-2a44b0386',
   ],
 };
 
