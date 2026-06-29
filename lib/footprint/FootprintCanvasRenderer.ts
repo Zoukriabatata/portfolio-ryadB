@@ -359,21 +359,18 @@ export class FootprintCanvasRenderer {
       const containerBottom = layout.priceToY(boundLow, metrics);
       const containerH = Math.max(2, containerBottom - containerTop);
 
-      // Container background
-      const containerOpacity = colors.footprintContainerOpacity ?? 0.03;
-      ctx.fillStyle = isBullish ? colors.deltaPositive : colors.deltaNegative;
-      ctx.globalAlpha = containerOpacity;
-      ctx.fillRect(containerX, containerTop, containerW, containerH);
-      ctx.globalAlpha = 1;
+      // Conteneur plein-range (fond) — OPTIONNEL, off par défaut. Englobe
+      // tout le high/low (mèche incluse) si l'utilisateur l'active.
+      const containerOpacity = colors.footprintContainerOpacity ?? 0;
+      if (containerOpacity > 0) {
+        ctx.fillStyle = isBullish ? colors.deltaPositive : colors.deltaNegative;
+        ctx.globalAlpha = containerOpacity;
+        ctx.fillRect(containerX, containerTop, containerW, containerH);
+        ctx.globalAlpha = 1;
+      }
 
-      // Container border
-      ctx.strokeStyle = isBullish ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.2)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(containerX, containerTop, containerW, containerH);
-
-      // Left color indicator bar
-      ctx.fillStyle = isBullish ? colors.deltaPositive : colors.deltaNegative;
-      ctx.fillRect(containerX, containerTop, 2, containerH);
+      // (Outline pleine cellule + bougie gauche dessinés APRÈS les cellules,
+      //  pour être au-dessus — voir plus bas.)
 
       // Max level volume for normalization + avg for large trade detection
       let maxLevelVol = 1;
@@ -509,14 +506,18 @@ export class FootprintCanvasRenderer {
         // yellow blob at high zoom looks bloated. We keep a 2px tick at the
         // exact price y for a precise position cue.
         if (isPOC && features.showPOC) {
-          ctx.fillStyle = 'rgba(251, 191, 36, 0.10)';
+          // POC marker uses the themed POC color (violet "desktop") instead
+          // of a hardcoded amber, so it follows colors.pocColor.
+          ctx.fillStyle = colors.pocColor;
+          ctx.globalAlpha = 0.10;
           ctx.fillRect(cellStartX, contentY, fpWidth, effectiveRowH);
-          // Left edge accent (2px golden bar) — same bounded height
-          ctx.fillStyle = '#fbbf24';
+          // Left edge accent (2px bar) — same bounded height
+          ctx.globalAlpha = 1;
           ctx.fillRect(cellStartX, contentY, 2, effectiveRowH);
-          // Hairline at the cell center for precision (1px golden line)
-          ctx.fillStyle = 'rgba(251, 191, 36, 0.55)';
+          // Hairline at the cell center for precision (1px line)
+          ctx.globalAlpha = 0.55;
           ctx.fillRect(cellStartX, Math.round(cellCenterY) - 0.5, fpWidth, 1);
+          ctx.globalAlpha = 1;
         }
 
         // ─── LAYER 2.5: Large trade highlight (Phase 2) ───
@@ -585,7 +586,7 @@ export class FootprintCanvasRenderer {
             } else if (isLargeTrade) {
               ctx.fillStyle = largeTradeColor; ctx.font = fittedBold;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
+              ctx.fillStyle = isPOC ? colors.pocColor : colors.bidTextColor;
               ctx.font = isPOC ? fittedBold : fittedMono;
             }
             ctx.textAlign = 'right';
@@ -603,7 +604,7 @@ export class FootprintCanvasRenderer {
             } else if (isLargeTrade) {
               ctx.fillStyle = largeTradeColor; ctx.font = fittedBold;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
+              ctx.fillStyle = isPOC ? colors.pocColor : colors.askTextColor;
               ctx.font = isPOC ? fittedBold : fittedMono;
             }
             ctx.textAlign = 'left';
@@ -612,7 +613,7 @@ export class FootprintCanvasRenderer {
             if (features.showImbalances && level.imbalanceSell) {
               ctx.fillStyle = '#ff4757'; ctx.font = fittedBold;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.bidTextColor;
+              ctx.fillStyle = isPOC ? colors.pocColor : colors.bidTextColor;
               ctx.font = isPOC ? fittedBold : fittedMono;
             }
             ctx.textAlign = 'center';
@@ -621,7 +622,7 @@ export class FootprintCanvasRenderer {
             if (features.showImbalances && level.imbalanceBuy) {
               ctx.fillStyle = '#2ed573'; ctx.font = fittedBold;
             } else {
-              ctx.fillStyle = isPOC ? '#fbbf24' : colors.askTextColor;
+              ctx.fillStyle = isPOC ? colors.pocColor : colors.askTextColor;
               ctx.font = isPOC ? fittedBold : fittedMono;
             }
             ctx.textAlign = 'center';
@@ -637,7 +638,7 @@ export class FootprintCanvasRenderer {
             ctx.fillStyle = largeTradeColor;
             ctx.font = cellBoldFont;
           } else {
-            ctx.fillStyle = isPOC ? '#fbbf24' : (delta >= 0 ? colors.deltaPositive : colors.deltaNegative);
+            ctx.fillStyle = isPOC ? colors.pocColor : (delta >= 0 ? colors.deltaPositive : colors.deltaNegative);
             ctx.font = isPOC ? cellBoldFont : cellMonoFont;
           }
           ctx.textAlign = 'center';
@@ -652,13 +653,28 @@ export class FootprintCanvasRenderer {
           } else {
             // Brightness based on intensity
             const brightness = Math.round(160 + intensity * 95);
-            ctx.fillStyle = isPOC ? '#fbbf24' : `rgb(${brightness},${brightness},${brightness})`;
+            ctx.fillStyle = isPOC ? colors.pocColor : `rgb(${brightness},${brightness},${brightness})`;
             ctx.font = isPOC ? cellBoldFont : cellMonoFont;
           }
           ctx.textAlign = 'center';
           ctx.fillText(volStr, centerX, textY);
         }
       });
+
+      // ─── Outline autour de TOUTE la cellule (range complet) + bougie
+      //     (corps open→close, SANS mèche) collée au bord GAUCHE ──────────
+      ctx.strokeStyle = isBullish ? colors.candleUpBorder : colors.candleDownBorder;
+      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(containerX, containerTop, containerW, containerH);
+      ctx.globalAlpha = 1;
+      {
+        const cbTop = layout.priceToY(Math.max(candle.open, candle.close) + tickSize, metrics);
+        const cbBot = layout.priceToY(Math.min(candle.open, candle.close), metrics);
+        const cbW = Math.max(3, Math.min(6, containerW * 0.12));
+        ctx.fillStyle = isBullish ? colors.candleUpBody : colors.candleDownBody;
+        ctx.fillRect(containerX, cbTop, cbW, Math.max(2, cbBot - cbTop));
+      }
 
       // ─── Per-candle delta label — ALWAYS above the high with arrow icon ───
       // Standard orderflow convention: delta sits above the candle high with a
@@ -729,14 +745,8 @@ export class FootprintCanvasRenderer {
         }
       }
 
-      // Vertical separator
-      const totalFpWidth = (features.showOHLC ? ohlcWidth : 0) + fpWidth;
-      ctx.strokeStyle = colors.gridColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(fpX + totalFpWidth, footprintAreaY);
-      ctx.lineTo(fpX + totalFpWidth, footprintAreaY + footprintAreaHeight);
-      ctx.stroke();
+      // (Séparateur vertical par candle retiré — pas de grille verticale,
+      //  rendu épuré desktop.)
     });
   }
 

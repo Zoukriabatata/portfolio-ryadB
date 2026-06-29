@@ -292,7 +292,7 @@ export default function VerticalToolbar({
   return (
     <div
       ref={toolbarRef}
-      className="flex flex-col items-center py-1 w-[38px] flex-shrink-0 border-r border-[var(--border)] bg-[var(--background)] select-none z-20"
+      className="flex flex-col items-center py-1 w-[38px] flex-shrink-0 border-r border-[#1a1a1a] bg-[#0a0a0a] select-none z-20"
     >
       {/* Tool Groups */}
       <div className="flex flex-col items-center gap-0 flex-1">

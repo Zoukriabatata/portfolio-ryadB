@@ -427,7 +427,7 @@ export function DashboardClientLayout({
       {!hideAppChrome && (
       <nav
         className="flex-shrink-0 relative z-50"
-        style={{ height: 'var(--nav-height)', background: 'var(--surface)', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.12)', contain: 'layout style' }}
+        style={{ height: 'var(--nav-height)', background: activeChart ? '#0a0a0a' : 'var(--surface)', borderBottom: `1px solid ${activeChart ? '#1a1a1a' : 'rgb(var(--primary-rgb) / 0.12)'}`, contain: 'layout style' }}
         role="navigation"
         aria-label="Main navigation"
       >
@@ -460,32 +460,43 @@ export function DashboardClientLayout({
             </span>
           )}
 
+          {/* Chart toolbar portal — la page /footprint fusionne sa toolbar
+              ici pour n'avoir qu'UNE seule barre en haut (look desktop). */}
+          <div id="chart-toolbar-portal" className="flex-1 min-w-0 flex items-center ml-3 overflow-x-auto" />
+
           {/* Right controls */}
-          <div className="flex items-center gap-1 ml-auto">
+          <div className="flex items-center gap-1 ml-auto flex-shrink-0">
 
-            {/* Live indicator — minimal dot only */}
-            <div className="flex items-center gap-1.5 px-2 py-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-[var(--bull)]" />
-              <span className="hidden md:inline text-[10px] font-medium tracking-wide"
-                style={{ color: 'var(--bull)' }}>
-                Live
-              </span>
-            </div>
+            {/* Sur /footprint la toolbar du chart est fusionnée dans cette
+                barre : on masque les éléments redondants/encombrants (Live,
+                AI, Data Feeds) — toujours accessibles via le menu hamburger. */}
+            {pathname !== '/footprint' && (
+              <>
+                {/* Live indicator — minimal dot only */}
+                <div className="flex items-center gap-1.5 px-2 py-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--bull)]" />
+                  <span className="hidden md:inline text-[10px] font-medium tracking-wide"
+                    style={{ color: 'var(--bull)' }}>
+                    Live
+                  </span>
+                </div>
 
-            {/* AI signal badge */}
-            <LiveSignalBadge />
+                {/* AI signal badge */}
+                <LiveSignalBadge />
 
-            {/* Data Feeds */}
-            <Link
-              href="/boutique"
-              className={`btn-icon w-auto px-2 gap-1.5 text-[11px] font-medium ${
-                isNavActive('/boutique') ? '!text-[var(--text-primary)]' : ''
-              }`}
-              title="Data Feeds (Alt+0)"
-            >
-              <DataFeedsIcon size={13} strokeWidth={1.5} />
-              <span className="hidden md:inline">{t('nav.dataFeeds')}</span>
-            </Link>
+                {/* Data Feeds */}
+                <Link
+                  href="/boutique"
+                  className={`btn-icon w-auto px-2 gap-1.5 text-[11px] font-medium ${
+                    isNavActive('/boutique') ? '!text-[var(--text-primary)]' : ''
+                  }`}
+                  title="Data Feeds (Alt+0)"
+                >
+                  <DataFeedsIcon size={13} strokeWidth={1.5} />
+                  <span className="hidden md:inline">{t('nav.dataFeeds')}</span>
+                </Link>
+              </>
+            )}
 
             {/* Theme picker */}
             <div className="relative">
