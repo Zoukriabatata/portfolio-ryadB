@@ -444,7 +444,7 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   showVolumeProfile: true,    // Session volume profile (VAH/VAL/POC)
   showDeltaPerLevel: false,
   showTotalDelta: true,
-  showClusterStatic: true,    // Bottom panel with Ask/Bid/Delta/Volume
+  showClusterStatic: false,   // Bottom panel Ask/Bid/Delta/Volume — OFF par défaut (activable)
   showVWAPTWAP: true,         // VWAP/TWAP combined line
   showHourMarkers: true,      // Hour labels (13h, 14h, etc.)
   showPassiveLiquidity: true, // Passive liquidity from heatmap (simulation)
@@ -471,7 +471,7 @@ const DEFAULT_FEATURES: FootprintFeatures = {
   // Volume Profile
   volumeProfileColor: '#5e7ce2',
   volumeProfileOutsideColor: '#3a3f4b',
-  volumeProfilePocColor: '#e2b93b',
+  volumeProfilePocColor: '#a855f7',   // POC session violet (cohérent desktop)
   volumeProfileVahValColor: '#7c85f6',
   volumeProfileOpacity: 0.7,
   // Delta Profile
@@ -591,7 +591,9 @@ const DEFAULT_CVD_CONFIG: CVDConfig = {
 };
 
 const DEFAULT_CLUSTER_STAT_CONFIG: ClusterStatConfig = {
-  enabled: true,
+  // OFF par défaut : rendu plus épuré / spacieux. Reste activable
+  // depuis les réglages (onglet DISPLAY).
+  enabled: false,
   rowHeight: 16,
   showAsks: true,
   showBids: true,
@@ -856,10 +858,13 @@ import { UI_THEMES, type UIThemeColors, type UIThemeId } from '@/stores/useUIThe
  */
 export function buildFootprintColorsFromUITheme(c: UIThemeColors): FootprintColors {
   return {
-    background: c.background,
-    surface: c.surface,
-    gridColor: c.chartGrid,
-    gridOpacity: 0.3,
+    // Noir profond (chart canvas + axe de prix + header).
+    background: '#000000',
+    surface: '#0a0a0a',
+    // Grille neutre quasi invisible (desktop SENZOUKRIA = rgba(255,255,255,0.04))
+    // au lieu de la grille teintée du thème — rendu plus net / moins chargé.
+    gridColor: '#ffffff',
+    gridOpacity: 0.045,
 
     candleUpBody: c.candleUp,
     candleDownBody: c.candleDown,
@@ -868,11 +873,15 @@ export function buildFootprintColorsFromUITheme(c: UIThemeColors): FootprintColo
     candleUpWick: c.wickUp,
     candleDownWick: c.wickDown,
 
-    bidColor: c.candleDown,
+    // Footprint cells — look "desktop SENZOUKRIA" (ATAS épuré) :
+    //   ask / buy   = vert (primary du thème)
+    //   bid / sell  = blanc (et non la couleur bear du thème)
+    // Le rouge bear reste réservé aux bougies (candle mode) + au delta.
+    bidColor: 'rgba(255,255,255,0.88)',
     askColor: c.candleUp,
-    bidTextColor: c.candleDown,
+    bidTextColor: 'rgba(255,255,255,0.82)',
     askTextColor: c.candleUp,
-    footprintContainerOpacity: 0.03,
+    footprintContainerOpacity: 0,
 
     deltaPositive: c.candleUp,
     deltaNegative: c.candleDown,
@@ -882,10 +891,11 @@ export function buildFootprintColorsFromUITheme(c: UIThemeColors): FootprintColo
     clusterDeltaOpacity: 0.35,
 
     imbalanceBuyBg: c.candleUp,
-    imbalanceSellBg: c.candleDown,
+    imbalanceSellBg: 'rgba(255,255,255,0.88)',
     imbalanceOpacity: 0.35,
 
-    pocColor: c.accent,
+    // POC = violet (signature desktop), indépendant de l'accent du thème.
+    pocColor: '#a855f7',
     pocOpacity: 0.15,
 
     currentPriceColor: c.primary,
