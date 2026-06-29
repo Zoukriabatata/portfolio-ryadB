@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { usePageActive } from '@/hooks/usePageActive';
 import { ChartSkeleton, EmptyState } from '@/components/ui/Skeleton';
@@ -93,6 +95,12 @@ function SectionLabel({ children }: { children: string }) {
 export default function GEXPageContent() {
   const [symbol, setSymbol] = useState('QQQ');
   useTrackChartVisit(symbol, '/gex');
+  // Fusion une-seule-barre : portale le header dans la nav app sur /gex.
+  const pathname = usePathname();
+  const [navTarget, setNavTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setNavTarget(pathname === '/gex' ? document.getElementById('chart-toolbar-portal') : null);
+  }, [pathname]);
   const [expiration, setExpiration] = useState<number | null>(null);
   const [expirations, setExpirations] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -265,8 +273,9 @@ export default function GEXPageContent() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[var(--background)] animate-fadeIn">
 
-      {/* ═══ HEADER ══════════════════════════════════════════════════════════ */}
-      <div className="panel-glass flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] shrink-0">
+      {/* ═══ HEADER — fusionné dans la nav app sur /gex (une seule barre) ═══ */}
+      {(() => { const __hdr = (
+      <div className={`flex items-center justify-between shrink-0 ${navTarget ? 'w-full px-1 py-0 gap-2' : 'panel-glass px-4 py-2.5 border-b border-[var(--border)]'}`}>
 
         {/* Left: Symbol + Greek */}
         <div className="flex items-center gap-3">
@@ -365,6 +374,7 @@ export default function GEXPageContent() {
           </button>
         </div>
       </div>
+      ); return navTarget ? createPortal(__hdr, navTarget) : __hdr; })()}
 
       {/* ═══ BODY ════════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex overflow-hidden">

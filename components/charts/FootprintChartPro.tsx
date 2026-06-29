@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { usePageActive } from '@/hooks/usePageActive';
 import {
@@ -468,6 +470,18 @@ function FootprintZoomControls({ onZoomIn, onZoomOut, onResetView, colors }: {
 
 const FootprintChartPro = React.memo(function FootprintChartPro({ className, onSymbolChange, headerExtras }: FootprintChartProProps) {
   const isActive = usePageActive();
+  // Fusion une-seule-barre : sur /footprint on portale la toolbar du chart
+  // dans la nav app (#chart-toolbar-portal). Hors de cette route (keep-alive),
+  // target = null → la toolbar reste en place (cachée avec le chart).
+  const pathname = usePathname();
+  const [chartNavTarget, setChartNavTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (pathname === '/footprint') {
+      setChartNavTarget(document.getElementById('chart-toolbar-portal'));
+    } else {
+      setChartNavTarget(null);
+    }
+  }, [pathname]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const layoutEngineRef = useRef<FootprintLayoutEngine | null>(null);
@@ -648,6 +662,10 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
    * Initialize layout engine
    */
   useEffect(() => {
+    // Footer réservé au panneau cluster static : 0 quand le panneau est
+    // off → le chart reclame la hauteur (rendu plus spacieux). Petit
+    // gutter de 18px conservé pour respirer en bas.
+    const clusterOn = settings.clusterStatConfig?.enabled ?? settings.features.showClusterStatic;
     layoutEngineRef.current = new FootprintLayoutEngine({
       footprintWidth: settings.footprintWidth,
       rowHeight: settings.rowHeight,
@@ -657,12 +675,13 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       showVolumeProfile: false, // VP rendered as overlay — no panel space needed
       deltaProfilePosition: settings.deltaProfilePosition,
       candleGap: settings.candleGap || 3,
+      footerHeight: clusterOn ? 90 : 0,
     });
 
     return () => {
       layoutEngineRef.current = null;
     };
-  }, [settings.footprintWidth, settings.rowHeight, settings.maxVisibleFootprints, settings.features.showOHLC, settings.features.showDeltaProfile, settings.features.showVolumeProfile, settings.deltaProfilePosition, settings.candleGap]);
+  }, [settings.footprintWidth, settings.rowHeight, settings.maxVisibleFootprints, settings.features.showOHLC, settings.features.showDeltaProfile, settings.features.showVolumeProfile, settings.deltaProfilePosition, settings.candleGap, settings.clusterStatConfig?.enabled, settings.features.showClusterStatic]);
 
   /**
    * Initialize auto-save and restore
@@ -1501,20 +1520,22 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
     const clusterStaticHeight = clusterEnabled ? (clusterRowH * clusterNumRows + 4) : 0;
     const cvdEnabled = settings.cvdConfig ? settings.cvdConfig.enabled : features.showCVDPanel;
     const cvdPanelH = cvdEnabled ? (settings.cvdConfig?.panelHeight || features.cvdPanelHeight || 70) : 0;
-    const footerHeight = clusterStaticHeight + cvdPanelH + 6;
+    // Footer = uniquement la place des panneaux (cluster / CVD). Quand ils
+    // sont off → 0 (pas de barre du bas inutile, le chart prend tout l'espace).
+    const footerHeight = (clusterStaticHeight + cvdPanelH) > 0 ? (clusterStaticHeight + cvdPanelH + 6) : 0;
     const footerY = height - footerHeight;
 
-    // Footer background
-    ctx.fillStyle = colors.surface;
-    ctx.fillRect(0, footerY, width, footerHeight);
-
-    // Top border of footer
-    ctx.strokeStyle = colors.gridColor;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, footerY);
-    ctx.lineTo(width, footerY);
-    ctx.stroke();
+    if (footerHeight > 0) {
+      // Footer background + top border (seulement si un panneau est affiché)
+      ctx.fillStyle = colors.surface;
+      ctx.fillRect(0, footerY, width, footerHeight);
+      ctx.strokeStyle = colors.gridColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, footerY);
+      ctx.lineTo(width, footerY);
+      ctx.stroke();
+    }
 
     // Cluster Statistic panel
     if (clusterEnabled && metrics.visibleCandles.length > 0) {
@@ -1538,13 +1559,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       );
     }
 
-    // Footer status bar (Phase 4) — FPS, render time, LOD, candle count
-    fpRenderer.renderFooterStatusBar(
-      ctx, width, footerY, colors,
-      currentPriceRef.current,
-      metrics.visibleCandles.length,
-      lod.mode,
-    );
+    // (Barre de statut du bas retirée — inutile, prenait de la place.)
 
     // ═══════════════════════════════════════════════════════════════
     // CROSSHAIR - Using CrosshairStore Settings
@@ -2970,10 +2985,11 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
       className={`flex flex-col h-full overflow-hidden ${className || ''}`}
       style={{ backgroundColor: settings.colors.background }}
     >
-      {/* Header */}
+      {/* Header — fusionné dans la nav app sur /footprint (une seule barre) */}
+      {(() => { const __header = (
       <div
-        className="panel-glass flex items-center justify-between px-2.5 py-1 border-b flex-shrink-0"
-        style={{ backgroundColor: settings.colors.surface, borderColor: settings.colors.gridColor }}
+        className={`flex items-center justify-between flex-shrink-0 ${chartNavTarget ? 'w-full px-1 py-0 gap-1' : 'panel-glass px-2.5 py-1 border-b'}`}
+        style={{ backgroundColor: chartNavTarget ? 'transparent' : settings.colors.surface, borderColor: settings.colors.gridColor }}
       >
         {/* Group 1: Symbol & Price */}
         <div className="flex items-center gap-2 pr-2.5" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
@@ -3014,21 +3030,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
                   />
                 </div>
 
-                {/* Search Input */}
-                <div className="p-2 border-b" style={{ borderColor: settings.colors.gridColor }}>
-                  <input
-                    type="text"
-                    value={symbolSearchQuery}
-                    onChange={(e) => setSymbolSearchQuery(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Escape') { setShowSymbolSelector(false); setSymbolSearchQuery(''); } }}
-                    placeholder={`Search ${assetCategory} symbols...`}
-                    autoFocus
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="w-full px-3 py-2 rounded text-sm focus:outline-none"
-                    style={{ backgroundColor: settings.colors.background, color: settings.colors.textPrimary, border: `1px solid ${settings.colors.gridColor}` }}
-                  />
-                </div>
+                {/* (Barre de recherche retirée — panneau déroulant simple,
+                    on parcourt la liste des paires.) */}
 
                 {/* Note for futures */}
                 {assetCategory === 'futures' && (
@@ -3104,27 +3107,8 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
 
         {/* Group 2: Timeframes (tick-based + time-based) */}
         <div className="flex items-center gap-1 px-2.5" style={{ borderRight: `1px solid ${settings.colors.gridColor}` }}>
-          {/* Tick-based timeframes */}
-          <div className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: settings.colors.background }}>
-            {TICK_TIMEFRAMES.map((tf) => {
-              const isActive = aggregationMode === 'tick' && tickBarSize === tf;
-              return (
-                <button
-                  key={`tick-${tf}`}
-                  onClick={() => { setAggregationMode('tick'); setTickBarSize(tf); }}
-                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${isActive ? '' : 'hover:scale-105 active:scale-95 hover:bg-white/5'}`}
-                  style={{
-                    backgroundColor: isActive ? settings.colors.currentPriceColor : 'transparent',
-                    color: isActive ? '#fff' : settings.colors.textSecondary,
-                  }}
-                >
-                  {TICK_TF_LABELS[tf]}
-                </button>
-              );
-            })}
-          </div>
-          {/* Time-based timeframes */}
-          {Object.entries({ seconds: TF_GROUPS.seconds, minutes: TF_GROUPS.minutes }).map(([group, tfs]) => (
+          {/* Timeframes — 1m / 3m / 5m uniquement */}
+          {Object.entries({ minutes: TF_GROUPS.minutes }).map(([group, tfs]) => (
             <div key={group} className="flex items-center rounded p-0.5 mr-1" style={{ backgroundColor: settings.colors.background }}>
               {tfs.map((tf) => {
                 const isActive = aggregationMode === 'time' && timeframe === tf;
@@ -3272,6 +3256,7 @@ const FootprintChartPro = React.memo(function FootprintChartPro({ className, onS
           </div>
         </div>
       </div>
+      ); return chartNavTarget ? createPortal(__header, chartNavTarget) : __header; })()}
 
       {/* Main area */}
       <div className="flex-1 flex overflow-hidden">

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useCallback, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { usePathname } from 'next/navigation';
 import IVTermStructure from '@/components/charts/IVTermStructure';
 import dynamic from 'next/dynamic';
 import { ChartSkeleton, EmptyState } from '@/components/ui/Skeleton';
@@ -24,6 +26,12 @@ const accentAlpha = (a: number) => `rgb(var(--accent-rgb) / ${a})`;
 const warnAlpha = (a: number) => `rgb(var(--warning-rgb) / ${a})`;
 
 export default function VolatilityPageContent() {
+  // Fusion une-seule-barre : portale le header dans la nav app sur /volatility.
+  const pathname = usePathname();
+  const [navTarget, setNavTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setNavTarget(pathname === '/volatility' ? document.getElementById('chart-toolbar-portal') : null);
+  }, [pathname]);
   const {
     symbol,
     setSymbol,
@@ -147,7 +155,8 @@ export default function VolatilityPageContent() {
       {/* ══════════════════════════════════════════════════════
           TOP BAR: logo · symbols · LIVE · refresh
       ══════════════════════════════════════════════════════ */}
-      <div className="panel-glass flex items-center justify-between gap-4 px-4 py-2 shrink-0">
+      {(() => { const __hdr = (
+      <div className={`flex items-center justify-between gap-4 shrink-0 ${navTarget ? 'w-full px-1 py-0' : 'panel-glass px-4 py-2'}`}>
 
         {/* Left: icon + symbol pills */}
         <div className="flex items-center gap-3">
@@ -200,6 +209,7 @@ export default function VolatilityPageContent() {
           </button>
         </div>
       </div>
+      ); return navTarget ? createPortal(__hdr, navTarget) : __hdr; })()}
 
       {/* ══════════════════════════════════════════════════════
           METRICS STRIP: 6 key stats
